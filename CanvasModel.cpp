@@ -135,6 +135,7 @@ std::vector<CanvasElement> LoadCanvasElements(const wxString& jsonPath)
             }
 
         }
+        ce.initTruthTable();
         out.push_back(ce);
     }
     return out;

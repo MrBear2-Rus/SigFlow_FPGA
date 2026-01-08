@@ -6,7 +6,7 @@ void Wire::Draw(wxDC& dc) const {
     for (size_t i = 1; i < pts.size() + 1; ++i) {
         
         if (i != pts.size()) {
-            if (status == false) dc.SetPen(wxPen(colors[0], 3));
+            if (status == LogicSignal::ZERO) dc.SetPen(wxPen(colors[0], 3));
             else dc.SetPen(wxPen(colors[1], 3));
             dc.DrawLine(pts[i - 1].pos, pts[i].pos);
         }
@@ -19,7 +19,7 @@ void Wire::Draw(wxDC& dc) const {
             dc.DrawCircle(pts[i - 1].pos, 3);
             break;
         case CPType::Free:
-            if (status == false) {
+            if (status == LogicSignal::ZERO) {
                 dc.SetPen(wxPen(colors[0], 2));
                 dc.SetBrush(wxBrush(colors[0], wxBRUSHSTYLE_SOLID));
             }

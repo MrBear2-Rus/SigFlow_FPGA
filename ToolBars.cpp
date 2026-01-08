@@ -4,6 +4,7 @@
 #include "ToolBars.h"
 #include "MainFrame.h"
 #include <wx/event.h>
+#include "CanvasPanel.h"
 
 ToolBars::ToolBars(MainFrame* owner)
 	: m_owner(owner) {
@@ -36,9 +37,9 @@ void ToolBars::ArrangeIds() {
 		"Choose", "Text", "Line", "Curve", "Polyline", "Retangle", "Rounded Retangle", "Oval", "Polygon"
 	};
 	//实现ID对方法MAP
-	toolIdToFunctionMap[toolBar1_ids[0]] = [this](int id) { OneChoose(id); ; };
-	toolIdToFunctionMap[toolBar1_ids[1]] = [this](int id) { OneChoose(id); ; };
-	toolIdToFunctionMap[toolBar1_ids[2]] = [this](int id) { OneChoose(id); ; };
+	toolIdToFunctionMap[toolBar1_ids[0]] = [this](int id) { OneChoose(id); m_owner->m_canvas->Simulate(); };
+	toolIdToFunctionMap[toolBar1_ids[1]] = [this](int id) { OneChoose(id); m_owner->m_canvas->isSim = true; };
+	toolIdToFunctionMap[toolBar1_ids[2]] = [this](int id) { OneChoose(id); m_owner->m_canvas->isSim = false; };
 	toolIdToFunctionMap[toolBar1_ids[3]] = [this](int id) { OneChoose(id); };
 	toolIdToFunctionMap[toolBar1_ids[4]] = [this](int id) { OneChoose(id); };
 	toolIdToFunctionMap[toolBar1_ids[5]] = [this](int id) { OneChoose(id);  };

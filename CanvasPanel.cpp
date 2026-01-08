@@ -229,6 +229,7 @@ void CanvasPanel::ReclaimElement(CanvasElement element, int index) {
 }
 
 void CanvasPanel::OnPaint(wxPaintEvent&) {
+    if (isSim) Simulate();
     LayoutScrollbars();
     wxAutoBufferedPaintDC dc(this);
     dc.Clear();
@@ -882,9 +883,9 @@ void CanvasPanel::ElementStatusChange(int index) {
             elem.ToggleState();  // 0↔1
         }
         else {
-            int currentState = elem.GetOutputState();
-            int newState = (currentState >= 2) ? 0 : currentState + 1; // 0→1→X→0
-            elem.SetOutputState(newState);
+            //int currentState = elem.GetOutputState();
+            //int newState = (currentState >= 2) ? 0 : currentState + 1; // 0→1→X→0
+            //elem.SetOutputState(LogicSignal(newState));
         }
 
         Refresh();
@@ -929,3 +930,196 @@ void CanvasPanel::ElementSetPos(int index, const wxPoint& pos) {
     m_elements[index].SetPos(pos); 
     Refresh(); 
 };
+
+void CanvasPanel::Simulate() {
+    for (auto& elem : m_elements) {
+        for (auto& pin : elem.m_inputPins) {
+            pin.connectionWireId = -1;
+            pin.s = LogicSignal::E;
+        }
+        for (auto& pin : elem.m_outputPins) {
+            pin.connectionWireId = -1;
+            pin.s = LogicSignal::E;
+        }
+    }
+    for (auto& wire : m_wires) {
+        wire.Right.elemIdx = -1;
+        wire.Right.PinIdx = -1;
+        wire.Left.elemIdx = -1;
+        wire.Left.PinIdx = -1;
+        wire.status = LogicSignal::E;
+    }
+
+    CollectConnections();
+
+    // 递归仿真
+    for (auto& elem : m_elements) {
+        ElemSimulate(elem);
+        Refresh();
+    }
+
+
+}
+
+LogicSignal CanvasPanel::ElemSimulate(CanvasElement& elem) {
+    //漏洞：目前只能适用于只有一个outpin的元件
+
+    //检查是否已经计算过输出，如果已经计算过，直接返回
+    if (elem.GetId() == "Pin_Input") {
+        return LogicSignal(elem.GetState());
+    }
+    else if (!elem.m_outputPins.empty() &&
+        elem.m_outputPins[0].s != LogicSignal::E) {
+        return elem.m_outputPins[0].s;
+    }
+
+    //如果没有计算过，先获取所有输入引脚的状态
+    std::vector<LogicSignal> inputSig;
+    for (auto& pin : elem.m_inputPins) {
+        if (pin.connectionWireId < 0) {
+            pin.s = LogicSignal::E;
+            inputSig.push_back(LogicSignal::E);
+            continue;
+        }
+        else {
+            LogicSignal s = LogicSignal::E;
+            auto& wire = m_wires[pin.connectionWireId];
+            if (pin.isLeft) {
+                if (wire.Right.elemIdx >= 0) s = ElemSimulate(m_elements[wire.Right.elemIdx]);
+            }
+               
+            else {
+                if (wire.Left.elemIdx >= 0) s = ElemSimulate(m_elements[wire.Left.elemIdx]);
+            }
+                
+            pin.s = s;
+            inputSig.push_back(s);
+        }
+    }
+
+    int input = EncodeInputs(inputSig);
+    LogicSignal s;
+    if (input < 0) s= LogicSignal::E;
+    else s= elem.express(input);
+
+    if (elem.GetId() == "Pin_Output") elem.m_outputState = s;
+    else elem.m_outputPins[0].s = s;
+    return s;
+}
+
+
+int  CanvasPanel::EncodeInputs(const std::vector<LogicSignal>& inputSig) {
+    int value = 0;
+
+    for (auto s : inputSig) {
+        value <<= 1;
+
+        if (s == LogicSignal::ONE) {
+            value |= 1;
+        }
+        else if (s == LogicSignal::ZERO) {
+            // do nothing
+        }
+        else {
+            // X / Z / E
+            return -1;  // 非法编码
+        }
+    }
+
+    return value;
+}
+
+
+void CanvasPanel::CollectConnections() {
+
+    // 遍历每一根导线
+    for (int wIdx = 0; wIdx < (int)m_wires.size(); ++wIdx) {
+        Wire& wire = m_wires[wIdx];
+
+        // ===== 处理左端点 =====
+        {
+            ControlPoint& cp = wire.pts.front();
+
+            for (int eIdx = 0; eIdx < (int)m_elements.size(); ++eIdx) {
+                auto& elem = m_elements[eIdx];
+
+                // 输入引脚
+                for (int pIdx = 0; pIdx < (int)elem.m_inputPins.size(); ++pIdx) {
+                    auto& pin = elem.m_inputPins[pIdx];
+
+                    if (IsNear(cp.pos, elem.GetPos()+wxPoint(pin.pos.x, pin.pos.y))) {
+                        cp.type = CPType::Pin;
+                        wire.Left.elemIdx = eIdx;
+                        wire.Left.isInput = true;
+                        wire.Left.PinIdx = pIdx;
+                        pin.connectionWireId = wIdx;
+                        pin.isLeft = true;
+                        goto RightEnd;   // 左端点已匹配，跳去处理右端点
+                    }
+                }
+
+                // 输出引脚
+                for (int pIdx = 0; pIdx < (int)elem.m_outputPins.size(); ++pIdx) {
+                    auto& pin = elem.m_outputPins[pIdx];
+
+                    if (IsNear(cp.pos, elem.GetPos()+wxPoint(pin.pos.x, pin.pos.y))) {
+                        cp.type = CPType::Pin;
+                        wire.Left.elemIdx = eIdx;
+                        wire.Left.isInput = false;
+                        wire.Left.PinIdx = pIdx;
+                        pin.connectionWireId = wIdx;
+                        pin.isLeft = true;
+                        goto RightEnd;
+                    }
+                }
+            }
+        }
+
+    RightEnd:
+        // ===== 处理右端点 =====
+        {
+            ControlPoint& cp = wire.pts.back();
+
+            for (int eIdx = 0; eIdx < (int)m_elements.size(); ++eIdx) {
+                auto& elem = m_elements[eIdx];
+
+                // 输入引脚
+                for (int pIdx = 0; pIdx < (int)elem.m_inputPins.size(); ++pIdx) {
+                    auto& pin = elem.m_inputPins[pIdx];
+
+                    if (IsNear(cp.pos, elem.GetPos()+wxPoint(pin.pos.x, pin.pos.y))) {
+                        cp.type = CPType::Pin;
+                        wire.Right.elemIdx = eIdx;
+                        wire.Right.isInput = true;
+                        wire.Right.PinIdx = pIdx;
+                        pin.connectionWireId = wIdx;
+                        pin.isLeft = false;
+                        goto NextWire;
+                    }
+                }
+
+                // 输出引脚
+                for (int pIdx = 0; pIdx < (int)elem.m_outputPins.size(); ++pIdx) {
+                    auto& pin = elem.m_outputPins[pIdx];
+
+                    if (IsNear(cp.pos, elem.GetPos()+wxPoint(pin.pos.x, pin.pos.y))) {
+                        cp.type = CPType::Pin;
+                        wire.Right.elemIdx = eIdx;
+                        wire.Right.isInput = false;
+                        wire.Right.PinIdx = pIdx;
+                        pin.connectionWireId = wIdx;
+                        pin.isLeft = false;
+                        goto NextWire;
+                    }
+                }
+            }
+        }
+
+    NextWire:
+        continue;
+    }
+}
+
+bool CanvasPanel::IsNear(const wxPoint& a, const wxPoint& b, int tol) {
+    return std::abs(a.x - b.x) <= tol && std::abs(a.y - b.y) <= tol;
+}

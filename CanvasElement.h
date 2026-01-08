@@ -5,6 +5,7 @@
 #include <wx/graphics.h>  
 #include <vector>
 #include <variant>
+#include "Wire.h"
 
 struct Point {
     int x, y;
@@ -55,8 +56,11 @@ struct Pin {
     Point pos;
     wxString name;
     bool isInput;
+    int connectionWireId;
+    bool isLeft;
+    LogicSignal s;
     Pin(Point p = Point(), wxString n = "", bool input = true)
-        : pos(p), name(n), isInput(input) {
+        : pos(p), name(n), isInput(input), connectionWireId(-1), s(LogicSignal::E), isLeft(0){
     }
 };
 
@@ -103,6 +107,9 @@ private:
     wxPoint m_anchorPoint; // 旋转锚点
     int m_rotation = 0;     // 旋转角度（默认0°=East）
     std::vector<Shape> m_shapes;
+
+    std::vector<LogicSignal> TruthTable;
+
     
     
     void DrawVector(wxGCDC& gcdc) const;
@@ -128,9 +135,12 @@ public:
     void AddInputPin(const Point& p, const wxString& name) { m_inputPins.push_back(Pin(p, name, true)); }
     void AddOutputPin(const Point& p, const wxString& name) { m_outputPins.push_back(Pin(p, name, false)); }
 
+    void ReSetPinStatus();
+
 
     // 元件的引脚与状态管理，仿真相关
 public:
+    void initTruthTable();
     CanvasElement() = default;
     CanvasElement(const wxString& name, const wxPoint& pos);
 
@@ -153,7 +163,7 @@ public:
     
 
     // 状态控制方法
-    void SetOutputState(int state);  // 0:X, 1:0, 2:1
+    void SetOutputState(LogicSignal state);
     int GetOutputState() const { return m_outputState; }
 
 
@@ -165,7 +175,9 @@ public:
     // 添加状态和ID成员
     bool m_state = false; // 默认状态为0/false
 
-    int m_outputState = 0; // Pin_Output状态：0=X, 1=0, 2=1
+    LogicSignal m_outputState = LogicSignal::E; 
+
+    LogicSignal express(int input);
 
 };
 

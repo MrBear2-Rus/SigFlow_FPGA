@@ -271,6 +271,14 @@ private:
 public:
     // 状态栏更新
     void SetStatus(wxString status);
+
+
+    void Simulate();
+    void CollectConnections();
+    LogicSignal ElemSimulate(CanvasElement& elem);
+    int EncodeInputs(const std::vector<LogicSignal>& inputSig);
+    bool IsNear(const wxPoint& a, const wxPoint& b, int tol = 2);
+    bool isSim = false;
     
     // ==================== 事件表 ====================
     wxDECLARE_EVENT_TABLE();

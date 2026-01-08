@@ -105,20 +105,30 @@ void CanvasElement::DrawVector(wxGCDC& gcdc) const
                         wxString displayText;
 
                         switch (m_outputState) {
-                        case 1: // 状态0
+                        case LogicSignal::ZERO: // 状态0
                             circleColor = wxColour(0, 128, 0); // 绿色
                             fillColor = wxColour(0, 128, 0);
                             displayText = "0";
                             break;
-                        case 2: // 状态1
+                        case LogicSignal::ONE: // 状态1
                             circleColor = wxColour(0, 255, 0); // 深绿色
                             fillColor = wxColour(0, 255, 0);
                             displayText = "1";
                             break;
-                        default: // 状态X（默认）
+                        case LogicSignal::E: // 状态X（默认）
+                            circleColor = wxColour(0xCC, 0xE0, 0x99); // #CCE099
+                            fillColor = wxColour(0xCC, 0xE0, 0x99);
+                            displayText = "E";
+                            break;
+                        case LogicSignal::X:
                             circleColor = wxColour(0xCC, 0xE0, 0x99); // #CCE099
                             fillColor = wxColour(0xCC, 0xE0, 0x99);
                             displayText = "X";
+                            break;
+                        case LogicSignal::Z:
+                            circleColor = wxColour(0xCC, 0xE0, 0x99); // #CCE099
+                            fillColor = wxColour(0xCC, 0xE0, 0x99);
+                            displayText = "Z";
                             break;
                         }
 
@@ -131,11 +141,25 @@ void CanvasElement::DrawVector(wxGCDC& gcdc) const
                 }
                 else if constexpr (std::is_same_v<T, Text>) {
                     wxString displayText;
+
                     switch (m_outputState) {
-                    case 1: displayText = "0"; break;
-                    case 2: displayText = "1"; break;
-                    default: displayText = "X"; break;
+                    case LogicSignal::ZERO: // 状态0
+                        displayText = "0";
+                        break;
+                    case LogicSignal::ONE: // 状态1
+                        displayText = "1";
+                        break;
+                    case LogicSignal::E: // 状态X（默认）
+                        displayText = "E";
+                        break;
+                    case LogicSignal::X:
+                        displayText = "X";
+                        break;
+                    case LogicSignal::Z:
+                        displayText = "Z";
+                        break;
                     }
+
 
                     wxFont font(s.fontSize, wxFONTFAMILY_DEFAULT,
                         wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
@@ -275,20 +299,30 @@ void CanvasElement::DrawFallback(wxDC& dc) const
                         wxString displayText;
 
                         switch (m_outputState) {
-                        case 1: // 状态0
-                            circleColor = wxColour(0, 255, 0);
-                            fillColor = wxColour(0, 255, 0);
+                        case LogicSignal::ZERO: // 状态0
+                            circleColor = wxColour(0, 128, 0); // 绿色
+                            fillColor = wxColour(0, 128, 0);
                             displayText = "0";
                             break;
-                        case 2: // 状态1
-                            circleColor = wxColour(0, 128, 0);
-                            fillColor = wxColour(0, 128, 0);
+                        case LogicSignal::ONE: // 状态1
+                            circleColor = wxColour(0, 255, 0); // 深绿色
+                            fillColor = wxColour(0, 255, 0);
                             displayText = "1";
                             break;
-                        default: // 状态X
-                            circleColor = wxColour(0xCC, 0xE0, 0x99);
+                        case LogicSignal::E: // 状态X（默认）
+                            circleColor = wxColour(0xCC, 0xE0, 0x99); // #CCE099
+                            fillColor = wxColour(0xCC, 0xE0, 0x99);
+                            displayText = "E";
+                            break;
+                        case LogicSignal::X:
+                            circleColor = wxColour(0xCC, 0xE0, 0x99); // #CCE099
                             fillColor = wxColour(0xCC, 0xE0, 0x99);
                             displayText = "X";
+                            break;
+                        case LogicSignal::Z:
+                            circleColor = wxColour(0xCC, 0xE0, 0x99); // #CCE099
+                            fillColor = wxColour(0xCC, 0xE0, 0x99);
+                            displayText = "Z";
                             break;
                         }
 
@@ -306,10 +340,23 @@ void CanvasElement::DrawFallback(wxDC& dc) const
                 else if constexpr (std::is_same_v<T, Text>) {
                     wxString displayText;
                     switch (m_outputState) {
-                    case 1: displayText = "0"; break;
-                    case 2: displayText = "1"; break;
-                    default: displayText = "X"; break;
+                    case LogicSignal::ZERO: // 状态0
+                        displayText = "0";
+                        break;
+                    case LogicSignal::ONE: // 状态1
+                        displayText = "1";
+                        break;
+                    case LogicSignal::E: // 状态X（默认）
+                        displayText = "E";
+                        break;
+                    case LogicSignal::X:
+                        displayText = "X";
+                        break;
+                    case LogicSignal::Z:
+                        displayText = "Z";
+                        break;
                     }
+
 
                     dc.SetTextForeground(*wxWHITE);
                     dc.SetFont(wxFont(arg.fontSize, wxFONTFAMILY_DEFAULT,
@@ -535,7 +582,7 @@ wxRect CanvasElement::GetBounds() const
     return wxRect(minX, minY, maxX - minX + 1, maxY - minY + 1);
 }
 
-void CanvasElement::SetOutputState(int state)
+void CanvasElement::SetOutputState(LogicSignal state)
 {
     if (state >= 0 && state <= 2) {
         m_outputState = state;
@@ -543,11 +590,41 @@ void CanvasElement::SetOutputState(int state)
 }
 
 // 设置Pin_Output状态的示例代码：
-void SetPinOutputState(CanvasElement& pinOutput, int state) {
+void SetPinOutputState(CanvasElement& pinOutput, LogicSignal state) {
     pinOutput.SetOutputState(state);
 }
 
 // 获取Pin_Output状态的示例代码：
 int GetPinOutputState(const CanvasElement& pinOutput) {
     return pinOutput.GetOutputState();
+}
+
+void CanvasElement::ReSetPinStatus() {
+    for (auto& pin : m_inputPins) {
+        pin.s = LogicSignal::E;
+    }
+    for (auto& pin : m_outputPins) {
+        pin.s = LogicSignal::E;
+    }
+}
+
+void CanvasElement::initTruthTable() {
+    if (m_id == "AND_Gate") {
+        TruthTable = { LogicSignal::ZERO, LogicSignal::ZERO, LogicSignal::ZERO, LogicSignal::ONE };
+    }
+    else if (m_id == "OR_Gate") {
+        TruthTable = { LogicSignal::ZERO, LogicSignal::ONE, LogicSignal::ONE, LogicSignal::ONE };
+    }
+    else if (m_id == "NOT_Gate") {
+        TruthTable = { LogicSignal::ZERO, LogicSignal::ONE };
+    }
+    else if (m_id == "XOR_Gate") {
+        TruthTable = { LogicSignal::ZERO, LogicSignal::ONE, LogicSignal::ONE, LogicSignal::ZERO };
+    }
+}
+
+LogicSignal CanvasElement::express(int input) {
+    if (m_id == "Pin_Input") return m_state ? LogicSignal::ONE : LogicSignal::ZERO;
+    if (m_id == "Pin_Output") return LogicSignal(input);
+    return TruthTable[input];
 }

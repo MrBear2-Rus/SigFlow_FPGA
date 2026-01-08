@@ -111,6 +111,7 @@ public:
 private:
     wxAuiManager m_auiMgr;
     PropertyPanel* m_propPanel = nullptr;
+public:
     CanvasPanel* m_canvas;
 
     void UpdateCursor();        // ���� m_pendingTool ����ʮ��/������

@@ -315,8 +315,8 @@
     "id": "Pin_Input",
     "name": "Pin (Input)",
     "anchorPoint": [40, 40],
-    "inputPins": [{"name": "Input", "x": 60, "y": 40}],
-    "outputPins": [],
+    "inputPins": [],
+    "outputPins": [{"name": "Output", "x": 60, "y": 40}],
     "shapes": [
       {"type": "circle", "x": 40, "y": 40, "r": 13, "color": "green", "fill": true, "fillColor": "green"},
       {"type": "line", "start": {"x": 20, "y": 20}, "end": {"x": 20, "y": 60}, "color": "#333333"},
@@ -330,8 +330,8 @@
   "id": "Pin_Output",
   "name": "Pin (Output)",
   "anchorPoint": [40, 40],
-  "inputPins": [],
-  "outputPins": [{"name": "Output", "x": 18, "y": 40}],
+  "inputPins": [{"name": "Input", "x": 18, "y": 40}],
+  "outputPins": [],
   "shapes": [
     {
       "type": "circle",
