@@ -13,61 +13,54 @@ ToolBars::ToolBars(MainFrame* owner)
 	ArrangeIds(); // 分配 ID
 	toolBar1 = CreateToolBar1(); // 创建工具栏 1
 	toolBar2 = CreateToolBar2(); // 创建工具栏 2
-	toolBar3 = CreateToolBar3(); // 创建工具栏 3
+	//toolBar3 = CreateToolBar3(); // 创建工具栏 3
 }
 
 
 // 分配工具栏工具的 ID 和路径
 void ToolBars::ArrangeIds() {
 	// 初始化工具栏 1 的 ID 和路径
-	toolBar1_ids.resize(14); // 工具栏 1 有 17 个工具
-	for (int i = 0; i < 14; ++i) {
+	toolBar1_ids.resize(7); // 工具栏 1 有 7 个工具
+	for (int i = 0; i < 7; ++i) {
 		toolBar1_ids[i] = wxNewId();
 	}
 	toolBar1_toolPaths = {
-		"res\\tool_icons\\east_pin.png",   "res\\tool_icons\\west_pin.png",  "res\\tool_icons\\NOT_Gate.png",
-		"res\\tool_icons\\AND_Gate.png",   "res\\tool_icons\\OR_Gate.png",   "res\\tool_icons\\choose.png",
-		"res\\tool_icons\\text.png",       "res\\tool_icons\\line.png",      "res\\tool_icons\\curve.png",
-		"res\\tool_icons\\polyline.png",   "res\\tool_icons\\retangle.png",  "res\\tool_icons\\rounded_retangle.png",
-		"res\\tool_icons\\oval.png",       "res\\tool_icons\\polygon.png"
+		"res\\icons\\new.png",   "res\\icons\\open.png",  "res\\icons\\save.png",
+		"res\\icons\\reclaim.png",   "res\\icons\\start.png",   "res\\icons\\stop.png",
+		"res\\icons\\delete.png"
 	};
 
 	toolBar1_labels = {
-		"East Pin", "West Pin", "NOT Gate", "AND Gate", "OR Gate",
-		"Choose", "Text", "Line", "Curve", "Polyline", "Retangle", "Rounded Retangle", "Oval", "Polygon"
+		"新建文件", "打开文件", "保存文件", "撤回文件", "开始仿真",
+		"终止仿真", "删除选中"
 	};
 	//实现ID对方法MAP
-	toolIdToFunctionMap[toolBar1_ids[0]] = [this](int id) { OneChoose(id); m_owner->m_canvas->Simulate(); };
-	toolIdToFunctionMap[toolBar1_ids[1]] = [this](int id) { OneChoose(id); m_owner->m_canvas->isSim = true; };
-	toolIdToFunctionMap[toolBar1_ids[2]] = [this](int id) { OneChoose(id); m_owner->m_canvas->isSim = false; };
-	toolIdToFunctionMap[toolBar1_ids[3]] = [this](int id) { OneChoose(id); };
-	toolIdToFunctionMap[toolBar1_ids[4]] = [this](int id) { OneChoose(id); };
-	toolIdToFunctionMap[toolBar1_ids[5]] = [this](int id) { OneChoose(id);  };
-	toolIdToFunctionMap[toolBar1_ids[6]] = [this](int id) { OneChoose(id);   };
-	toolIdToFunctionMap[toolBar1_ids[7]] = [this](int id) { OneChoose(id); };
-	toolIdToFunctionMap[toolBar1_ids[8]] = [this](int id) { OneChoose(id); };
-	toolIdToFunctionMap[toolBar1_ids[9]] = [this](int id) { OneChoose(id); };
-	toolIdToFunctionMap[toolBar1_ids[10]] = [this](int id) { OneChoose(id); };
-	toolIdToFunctionMap[toolBar1_ids[11]] = [this](int id) { OneChoose(id); };
-	toolIdToFunctionMap[toolBar1_ids[12]] = [this](int id) { OneChoose(id); };
-	toolIdToFunctionMap[toolBar1_ids[13]] = [this](int id) { OneChoose(id); };
+	toolIdToFunctionMap[toolBar1_ids[0]] = [this](int id) { OneChoose(id); m_owner->DoFileNew(); };
+	toolIdToFunctionMap[toolBar1_ids[1]] = [this](int id) { OneChoose(id); m_owner->DoFileOpen(); };
+	toolIdToFunctionMap[toolBar1_ids[2]] = [this](int id) { OneChoose(id); m_owner->DoFileSave(); };
+	toolIdToFunctionMap[toolBar1_ids[3]] = [this](int id) { OneChoose(id); m_owner->DoEditUndo(); };
+	toolIdToFunctionMap[toolBar1_ids[4]] = [this](int id) { OneChoose(id); m_owner->m_canvas->isSim = true; };
+	toolIdToFunctionMap[toolBar1_ids[5]] = [this](int id) { OneChoose(id); m_owner->m_canvas->isSim = false; };
+	toolIdToFunctionMap[toolBar1_ids[6]] = [this](int id) { OneChoose(id); m_owner->DoEditDelete();  };
 
 	// 初始化工具栏 2 的 ID 和路径
-	toolBar2_ids.resize(4); // 工具栏 2 有 4 个工具
-	for (int i = 0; i < 4; ++i) {
+	int size_2 = 5;
+	toolBar2_ids.resize(size_2); // 工具栏 2 有 4 个工具
+	for (int i = 0; i < size_2; ++i) {
 		toolBar2_ids[i] = wxNewId();
 	}
 	toolBar2_toolPaths = {
-		"res\\tool_icons\\tools.png", "res\\tool_icons\\branch.png", "res\\tool_icons\\map.png", "res\\tool_icons\\draw.png"
+		"res\\icons\\poke.png", "res\\icons\\select.png", "res\\icons\\eraser.png","res\\icons\\text.png", "res\\icons\\wiring.png", 
 	};
 	toolBar2_labels = {
-		"Tools", "Branch", "Map", "Draw"
+		"拖动工具", "选中工具", "擦除工具","文本工具", "导线工具",
 	};
 	//实现ID对方法MAP
-	toolIdToFunctionMap[toolBar2_ids[0]] = [this](int id) { ChoosePageOne_toolBar3(id); };
-	toolIdToFunctionMap[toolBar2_ids[1]] = [this](int id) { ChoosePageTwo_toolBar3(id); };
-	toolIdToFunctionMap[toolBar2_ids[2]] = [this](int id) { ChoosePageOne_toolBar1(id); };
-	toolIdToFunctionMap[toolBar2_ids[3]] = [this](int id) { ChoosePageTwo_toolBar1(id); };
+	toolIdToFunctionMap[toolBar2_ids[0]] = [this](int id) {OneChoose(id); m_owner->m_canvas->SetCurrentTool(ToolType::DRAG_TOOL); };
+	toolIdToFunctionMap[toolBar2_ids[1]] = [this](int id) { OneChoose(id); m_owner->m_canvas->SetCurrentTool(ToolType::SELECT_TOOL); };
+	toolIdToFunctionMap[toolBar2_ids[2]] = [this](int id) {OneChoose(id); m_owner->m_canvas->SetCurrentTool(ToolType::ERASER_TOOL); };
+	toolIdToFunctionMap[toolBar2_ids[3]] = [this](int id) { OneChoose(id); m_owner->m_canvas->SetCurrentTool(ToolType::TEXT_TOOL); };
+	toolIdToFunctionMap[toolBar2_ids[4]] = [this](int id) { OneChoose(id); m_owner->m_canvas->SetCurrentTool(ToolType::WIRE_TOOL); };
 
 	// 初始化工具栏 3 的 ID 和路径
 	toolBar3_ids.resize(8); // 工具栏 3 有 8 个工具
@@ -101,7 +94,9 @@ wxToolBar* ToolBars::CreateToolBar1() {
 	for (size_t i = 0; i < toolBar1_ids.size(); ++i) {
 		wxBitmap bitmap(toolBar1_toolPaths[i], wxBITMAP_TYPE_PNG);
 		//ShowTool(toolbar, toolBar1_ids[i], toolBar1_labels[i], bitmap);
-		toolbar->AddCheckTool(toolBar1_ids[i], toolBar1_labels[i], bitmap);
+		if (i==4 ||i==5) toolbar->AddCheckTool(toolBar1_ids[i], toolBar1_labels[i], bitmap);
+		else toolbar->AddTool(toolBar1_ids[i], toolBar1_labels[i], bitmap);
+		if (i == 2 || i == 3 || i == 5) toolbar->AddSeparator();
 		toolbar->Bind(wxEVT_TOOL, &ToolBars::OnToolClicked, this, toolBar1_ids[i]);
 	}
 
@@ -223,7 +218,7 @@ void ToolBars::ChoosePageOne_toolBar1(int toolId) {
 	for (size_t i = 0; i < toolBar1_ids.size(); ++i) {
 		// 如果是第一页的工具，则设置为启用状态
 		HideTool(toolBar1, toolBar1_ids[i]);
-		if (i <= 4) {
+		if (i <= 7) {
 			ShowTool(toolBar1, toolBar1_ids[i], toolBar1_labels[i], wxBitmap(toolBar1_toolPaths[i], wxBITMAP_TYPE_PNG));
 		}
 

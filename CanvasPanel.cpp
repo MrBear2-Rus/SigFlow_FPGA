@@ -986,12 +986,13 @@ LogicSignal CanvasPanel::ElemSimulate(CanvasElement& elem) {
             auto& wire = m_wires[pin.connectionWireId];
             if (pin.isLeft) {
                 if (wire.Right.elemIdx >= 0) s = ElemSimulate(m_elements[wire.Right.elemIdx]);
+       
             }
                
             else {
                 if (wire.Left.elemIdx >= 0) s = ElemSimulate(m_elements[wire.Left.elemIdx]);
             }
-                
+            wire.status = s;
             pin.s = s;
             inputSig.push_back(s);
         }

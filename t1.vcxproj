@@ -25,6 +25,7 @@
     <ClCompile Include="CanvasPanel.cpp" />
     <ClCompile Include="CanvasTextElement.cpp" />
     <ClCompile Include="cMain.cpp" />
+    <ClCompile Include="GatePainter.cpp" />
     <ClCompile Include="MainFrame.cpp" />
     <ClCompile Include="MainMenuBar.cpp" />
     <ClCompile Include="PropertyPanel.cpp" />
@@ -45,6 +46,7 @@
     <ClInclude Include="CanvasModel.h" />
     <ClInclude Include="CanvasPanel.h" />
     <ClInclude Include="CanvasTextElement.h" />
+    <ClInclude Include="GatePainter.h" />
     <ClInclude Include="MainFrame.h" />
     <ClInclude Include="MainMenuBar.h" />
     <ClInclude Include="my_log.h" />
@@ -59,92 +61,6 @@
     <ClInclude Include="UndoNotifier.h" />
     <ClInclude Include="UndoStack.h" />
     <ClInclude Include="Wire.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <CopyFileToFolders Include="res\tool_icons\1.png">
-      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)/res</DestinationFolders>
-    </CopyFileToFolders>
-    <CopyFileToFolders Include="res\tool_icons\2.png">
-      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)/res</DestinationFolders>
-    </CopyFileToFolders>
-    <CopyFileToFolders Include="res\tool_icons\3.png">
-      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)/res</DestinationFolders>
-    </CopyFileToFolders>
-    <CopyFileToFolders Include="res\tool_icons\And Gate.png">
-      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)/res</DestinationFolders>
-    </CopyFileToFolders>
-    <CopyFileToFolders Include="res\tool_icons\AND_Gate.png">
-      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)/res</DestinationFolders>
-    </CopyFileToFolders>
-    <CopyFileToFolders Include="res\tool_icons\branch.png">
-      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)/res</DestinationFolders>
-    </CopyFileToFolders>
-    <CopyFileToFolders Include="res\tool_icons\choose.png">
-      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)/res</DestinationFolders>
-    </CopyFileToFolders>
-    <CopyFileToFolders Include="res\tool_icons\curve.png">
-      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)/res</DestinationFolders>
-    </CopyFileToFolders>
-    <CopyFileToFolders Include="res\tool_icons\down.png">
-      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)/res</DestinationFolders>
-    </CopyFileToFolders>
-    <CopyFileToFolders Include="res\tool_icons\drag.png">
-      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)/res</DestinationFolders>
-    </CopyFileToFolders>
-    <CopyFileToFolders Include="res\tool_icons\draw.png">
-      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)/res</DestinationFolders>
-    </CopyFileToFolders>
-    <CopyFileToFolders Include="res\tool_icons\east_pin.png">
-      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)/res</DestinationFolders>
-    </CopyFileToFolders>
-    <CopyFileToFolders Include="res\tool_icons\line.png">
-      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)/res</DestinationFolders>
-    </CopyFileToFolders>
-    <CopyFileToFolders Include="res\tool_icons\map.png">
-      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)/res</DestinationFolders>
-    </CopyFileToFolders>
-    <CopyFileToFolders Include="res\tool_icons\NOT_Gate.png">
-      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)/res</DestinationFolders>
-    </CopyFileToFolders>
-    <CopyFileToFolders Include="res\tool_icons\OR_Gate.png">
-      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)/res</DestinationFolders>
-    </CopyFileToFolders>
-    <CopyFileToFolders Include="res\tool_icons\oval.png">
-      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)/res</DestinationFolders>
-    </CopyFileToFolders>
-    <CopyFileToFolders Include="res\tool_icons\plus.png">
-      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)/res</DestinationFolders>
-    </CopyFileToFolders>
-    <CopyFileToFolders Include="res\tool_icons\polygon.png">
-      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)/res</DestinationFolders>
-    </CopyFileToFolders>
-    <CopyFileToFolders Include="res\tool_icons\polyline.png">
-      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)/res</DestinationFolders>
-    </CopyFileToFolders>
-    <CopyFileToFolders Include="res\tool_icons\retangle.png">
-      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)/res</DestinationFolders>
-    </CopyFileToFolders>
-    <CopyFileToFolders Include="res\tool_icons\rounded_retangle.png">
-      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)/res</DestinationFolders>
-    </CopyFileToFolders>
-    <CopyFileToFolders Include="res\tool_icons\start.png">
-      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)/res</DestinationFolders>
-    </CopyFileToFolders>
-    <CopyFileToFolders Include="res\tool_icons\text.png">
-      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)/res</DestinationFolders>
-    </CopyFileToFolders>
-    <CopyFileToFolders Include="res\tool_icons\tools.png">
-      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)/res</DestinationFolders>
-    </CopyFileToFolders>
-    <CopyFileToFolders Include="res\tool_icons\up.png">
-      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)/res</DestinationFolders>
-    </CopyFileToFolders>
-    <CopyFileToFolders Include="res\tool_icons\west_pin.png">
-      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)/res</DestinationFolders>
-    </CopyFileToFolders>
-    <CopyFileToFolders Include="res\tool_icons\wrong.png">
-      <DestinationFolders Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)/res</DestinationFolders>
-    </CopyFileToFolders>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

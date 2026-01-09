@@ -4,6 +4,7 @@
 #include "CanvasTextElement.h"
 #include "HandyToolKit.h"
 #include "ToolBars.h"
+#include "MainFrame.h"
 
 CanvasEventHandler::CanvasEventHandler(CanvasPanel* canvas, ToolStateMachine* toolstate)
     : m_canvas(canvas), m_toolStateMachine(toolstate), m_isTemporaryAction(false), m_eventHandled(false),
@@ -302,6 +303,11 @@ void CanvasEventHandler::FinishWireDrawing() {
 }
 
 void CanvasEventHandler::CancelWireDrawing() {
+    wxImage image("res\\icons\\wiring.png", wxBITMAP_TYPE_PNG);
+    image.GetOptionInt(wxIMAGE_OPTION_CUR_HOTSPOT_X);
+    image.GetOptionInt(wxIMAGE_OPTION_CUR_HOTSPOT_Y);
+    wxCursor cursor(image);
+    m_canvas->SetCursor(cursor);
     m_tempWire.Clear();
     lengthOfTempWire = 0;
     m_isWireDraingCancel = true;
@@ -670,6 +676,7 @@ void CanvasEventHandler::OnCanvasMouseMove(wxMouseEvent& evt) {
     // 导线绘制
     if (m_toolStateMachine->GetWireState() == WireToolState::WIRE_DRAWING) {
         //if (SnapPosChanged()) {
+        m_canvas->SetCursor(wxCursor(wxCURSOR_CROSS));
             UpdateWireDrawing(evt);
         //}
         m_eventHandled = true;
@@ -992,6 +999,16 @@ void CanvasEventHandler::UpdateRectangleSelect(wxMouseEvent& evt) {
 void CanvasEventHandler::FinishRectangleSelect() {
     m_toolStateMachine->SetSelectState(SelectToolState::IDLE);
     m_canvas->ClearSelectionRect();
+    
+    // 更新属性面板显示选中的元件
+    MainFrame* mainFrame = m_canvas->GetMainFrame();
+    if (mainFrame) {
+        if (m_compntIdx.size() == 1) {
+            mainFrame->UpdatePropertyPanel(m_compntIdx[0]);
+        } else {
+            mainFrame->UpdatePropertyPanel(-1);
+        }
+    }
 }
 
 void CanvasEventHandler::FinishClickSelect(wxMouseEvent& evt) {
@@ -1034,6 +1051,18 @@ void CanvasEventHandler::FinishClickSelect(wxMouseEvent& evt) {
         //}
     }
     m_toolStateMachine->SetSelectState(SelectToolState::IDLE);
+    
+    // 更新属性面板显示选中的元件
+    MainFrame* mainFrame = m_canvas->GetMainFrame();
+    if (mainFrame) {
+        if (m_compntIdx.size() == 1) {
+            // 只选中了一个元件，显示其属性
+            mainFrame->UpdatePropertyPanel(m_compntIdx[0]);
+        } else {
+            // 没有选中或选中多个，显示默认
+            mainFrame->UpdatePropertyPanel(-1);
+        }
+    }
 }
 
 void CanvasEventHandler::DeleteSelected() {

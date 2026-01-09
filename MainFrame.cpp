@@ -26,8 +26,16 @@ wxEND_EVENT_TABLE()
 
 
 MainFrame::MainFrame()
-    : wxFrame(nullptr, wxID_ANY, "MyLogisim")
+    : wxFrame(nullptr, wxID_ANY, "SigFlow")
 {
+    wxInitAllImageHandlers();
+    wxIconBundle icons;
+    //icons.AddIcon("res\\icons\\icon_24.png", wxBITMAP_TYPE_PNG);
+    //icons.AddIcon("res\\icons\\icon_32.png", wxBITMAP_TYPE_PNG);
+    //icons.AddIcon("res\\icons\\icon_64.png", wxBITMAP_TYPE_PNG);
+    //icons.AddIcon("res\\icons\\icon_128.png", wxBITMAP_TYPE_PNG);
+    icons.AddIcon("res\\icons\\icon_256.png", wxBITMAP_TYPE_PNG);
+    SetIcons(icons);
 
     wxString jsonPath = wxFileName(wxGetCwd(), "canvas_elements.json").GetFullPath();
     MyLog("MainFrame: JSON full path = [%s]\n", jsonPath.ToUTF8().data());
@@ -66,8 +74,6 @@ MainFrame::MainFrame()
     ToolboxPanel* toolbox = new ToolboxPanel(sidePanel);  // �������� sidePanel
     sideSizer->Add(toolbox, 1, wxEXPAND);    // �ϣ��������������죩
 
-    m_propPanel = new PropertyPanel(sidePanel);  // �������� sidePanel
-    sideSizer->Add(m_propPanel, 1, wxEXPAND);    // �£����Ա����ȹ̶��ߣ�
 
     sidePanel->SetSizer(sideSizer);
 
@@ -99,6 +105,13 @@ MainFrame::MainFrame()
     UndoNotifier::Subscribe([this](const wxString& name, bool canUndo) {
         this->OnUndoStackChanged();
         });
+
+    // 创建属性面板后，显示默认内容
+    m_propPanel = new PropertyPanel(sidePanel);
+    sideSizer->Add(m_propPanel, 1, wxEXPAND);
+
+    // 显示默认属性
+    m_propPanel->ShowElement("Select Tool");
 }
 
 MainFrame::~MainFrame()
@@ -116,14 +129,12 @@ void MainFrame::OnToolboxElement(wxCommandEvent& evt)
     if (it == g_elements.end()) return;
 
     CanvasElement clone = *it;
-    clone.SetPos(wxPoint(100, 100));   // �ȷ����룬�������������
+    clone.SetPos(wxPoint(100, 100));   
     //m_canvas->AddElement(clone);     
-    m_canvas->SetCurrentComponent(name);  // ����Ϊ��ǰ��קԪ��  
+    m_canvas->SetCurrentComponent(name);  
 }
 
-//Ŀǰֻ�޸���Mainframe�������˽�б������������Լ�jsonͷ�ļ�
-// �޸�.h�ļ�GenerateFileContent()������
-//TODO 9.24
+
 //ֻ�Ǵ�һ���´��ڣ���������д������κθı�
 void MainFrame::DoFileNew() {
     // ֱ�Ӵ���һ���µĿհ�MainFrame����
@@ -374,30 +385,46 @@ void MainFrame::DoFileOpen(const wxString& path)
     SetStatusText("�Ѵ�: " + filePath);
 }
 
-// ��������ѡ���¼��������������
-// MainFrame.cpp -> OnToolSelected() ���������� Facing ͬ����
+
 void MainFrame::OnToolSelected(wxCommandEvent& evt) {
-    wxString toolName = evt.GetString();
+  wxString toolName = evt.GetString();
     std::map<wxString, wxVariant> currentProps;
-
-    //// 1. ��ȡѡ��Ԫ��������
-    //int selectedElemIdx = m_canvas->GetSelectedIndex();
-    //if (selectedElemIdx != -1 && selectedElemIdx < (int)m_canvas->GetElements().size()) {
-    //    const auto& selectedElem = m_canvas->GetElements()[selectedElemIdx];
-    //    // 2. ����Ԫ����ת�Ƕȷ��� Facing ֵ
-    //    int rotation = selectedElem.GetRotation();
-    //    wxString currentFacing = "East";
-    //    if (rotation == 90) currentFacing = "South";
-    //    else if (rotation == 180) currentFacing = "West";
-    //    else if (rotation == 270) currentFacing = "North";
-    //    // 3. ���ݵ�ǰ Facing ֵ���������
-    //    currentProps["Facing"] = currentFacing;
-    //}
-
-    //// 4. ��ʾ���ԣ�����ǰ Facing ֵ��
-    //m_propPanel->ShowElement(toolName, currentProps);
+    
+    // 1. 获取当前选中的元件索引
+    // 我们需要检查是否有选中的元件，这里假设CanvasPanel有获取选中索引的方法
+    // 如果还没有，我们可以先简化处理
+    
+    // 简化版本：暂时不处理选中状态，直接显示工具属性
+    // 你可以在CanvasPanel中添加以下方法来获取选中索引：
+    // std::vector<int> GetSelectedElementIndexes() const { return m_selElemIdx; }
+    // std::vector<int> GetSelectedWireIndexes() const { return m_selWireIdx; }
+    // std::vector<int> GetSelectedTextIndexes() const { return m_selTxtIdx; }
+    
+    // 临时修复：直接显示属性
+    // 3. 显示属性面板
+    if (m_propPanel) {
+        m_propPanel->ShowElement(toolName, currentProps);
+    }
 }
 
+// 更新属性面板显示选中的元件
+void MainFrame::UpdatePropertyPanel(int elementIndex)
+{
+    if (!m_propPanel) return;
+    
+    if (elementIndex < 0 || elementIndex >= (int)m_canvas->GetElements().size()) {
+        // 没有选中元件，显示默认
+        m_propPanel->ShowElement("Select Tool");
+        return;
+    }
+    
+    // 获取选中的元件
+    const auto& elements = m_canvas->GetElements();
+    if (elementIndex < (int)elements.size()) {
+        CanvasElement* elem = const_cast<CanvasElement*>(&elements[elementIndex]);
+        m_propPanel->ShowCanvasElement(elem);
+    }
+}
 
 
 
@@ -834,17 +861,17 @@ void MainFrame::AddToolBarsToAuiManager() {
 
     wxToolBar* toolBar1 = m_toolBars->toolBar1;
     wxToolBar* toolBar2 = m_toolBars->toolBar2;
-    wxToolBar* toolBar3 = m_toolBars->toolBar3;
+    //wxToolBar* toolBar3 = m_toolBars->toolBar3;
 
     // ���ù�������С
     toolBar1->SetSizeHints(-1, 28);
     toolBar2->SetSizeHints(-1, 28);
-    toolBar3->SetSizeHints(-1, 28);
+    //toolBar3->SetSizeHints(-1, 28);
 
     // ȷ����������ʵ��
     toolBar1->Realize();
     toolBar2->Realize();
-    toolBar3->Realize();
+    //toolBar3->Realize();
 
     // ʹ��AUI���������ӹ�����
     m_auiMgr.AddPane(toolBar1, wxAuiPaneInfo()
@@ -852,6 +879,7 @@ void MainFrame::AddToolBarsToAuiManager() {
         .Caption("Tools")
         .ToolbarPane()
         .Top()
+        .Row(0)
         .LeftDockable(false)
         .RightDockable(false)
         .BottomDockable(false)
@@ -876,22 +904,22 @@ void MainFrame::AddToolBarsToAuiManager() {
         .Resizable(false)
         .BestSize(10000, 28));
 
-    m_auiMgr.AddPane(toolBar3, wxAuiPaneInfo()
-        .Name("Toolbar3")
-        .Caption("Actions")
-        .ToolbarPane()
-        .Top()
-        .Row(2)  // ������
-        .LeftDockable(false)
-        .RightDockable(false)
-        .BottomDockable(false)
-        .Gripper(false)
-        .CloseButton(false)
-        .PaneBorder(false)
-        .Resizable(false)
-        .BestSize(10000, 28));
-    m_toolBars->ChoosePageOne_toolBar1(-1); // ��ʼ��������״̬
-    m_toolBars->ChoosePageOne_toolBar3(-1); // ��ʼ��������״̬
+    //m_auiMgr.AddPane(toolBar3, wxAuiPaneInfo()
+    //    .Name("Toolbar3")
+    //    .Caption("Actions")
+    //    .ToolbarPane()
+    //    .Top()
+    //    .Row(2)  // ������
+    //    .LeftDockable(false)
+    //    .RightDockable(false)
+    //    .BottomDockable(false)
+    //    .Gripper(false)
+    //    .CloseButton(false)
+    //    .PaneBorder(false)
+    //    .Resizable(false)
+    //    .BestSize(10000, 28));
+    //m_toolBars->ChoosePageOne_toolBar1(-1); // ��ʼ��������״̬
+    //m_toolBars->ChoosePageOne_toolBar3(-1); // ��ʼ��������״̬
 }
 
 void MainFrame::OnUndoStackChanged()
