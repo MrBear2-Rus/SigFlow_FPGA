@@ -30,6 +30,7 @@ struct Cell {
 
 struct Endpoint {
     int elemIdx = -1;
+    int wireIdx = -1;
     bool isInput = false;
     int PinIdx = -1;
 };

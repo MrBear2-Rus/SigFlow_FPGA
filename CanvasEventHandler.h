@@ -93,7 +93,7 @@ private:
     int tempWirePlus;
     bool m_isWireDraingCancel;
 
-    void StartWireDrawingDown(const wxPoint& startPos, CPType startType);
+    void StartWireDrawingDown(const wxPoint& startPos, CPType startType, int wireIdx);
     void StartWireDrawingUp();
     void UpdateWireDrawing(wxMouseEvent& evt);
     void PlaceWirePoint();

@@ -985,12 +985,26 @@ LogicSignal CanvasPanel::ElemSimulate(CanvasElement& elem) {
             LogicSignal s = LogicSignal::E;
             auto& wire = m_wires[pin.connectionWireId];
             if (pin.isLeft) {
-                if (wire.Right.elemIdx >= 0) s = ElemSimulate(m_elements[wire.Right.elemIdx]);
-       
+                //if (wire.Right.elemIdx >= 0) 
+                //    if (wire.pts.front().type == CPType::Branch) {
+                //        auto& wire_2 = m_wires[wire.Left.wireIdx];
+                //        s = ElemSimulate(m_elements[wire_2.Left.elemIdx]);
+                //        wire_2.status = s;
+                //    }
+                //    else s = ElemSimulate(m_elements[wire.Right.elemIdx]);
+
             }
                
             else {
-                if (wire.Left.elemIdx >= 0) s = ElemSimulate(m_elements[wire.Left.elemIdx]);
+                if (wire.Left.elemIdx >= 0) {
+                    s = ElemSimulate(m_elements[wire.Left.elemIdx]);
+                }
+                else if(wire.Left.wireIdx >= 0) {
+                    auto& wire_2 = m_wires[wire.Left.wireIdx];
+                    s = ElemSimulate(m_elements[wire_2.Left.elemIdx]);
+                    wire_2.status = s;
+                }
+                    
             }
             wire.status = s;
             pin.s = s;

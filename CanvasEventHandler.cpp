@@ -138,7 +138,7 @@ void CanvasEventHandler::OnCanvasLeftDown(wxMouseEvent& evt) {
             m_previousTool = currentTool;
             m_isTemporaryAction = true;// 定义为临时切换，使用完毕后恢复
             SetCurrentTool(ToolType::WIRE_TOOL);
-            StartWireDrawingDown(m_hoverInfo.snappedPos, CPType::Branch);
+            StartWireDrawingDown(m_hoverInfo.snappedPos, CPType::Branch, m_hoverInfo.wireIndex);
         }
         m_eventHandled = true;
         return;
@@ -152,7 +152,7 @@ void CanvasEventHandler::OnCanvasLeftDown(wxMouseEvent& evt) {
         CPType type = CPType::Free;
         if (m_hoverInfo.IsOverPin()) type = CPType::Pin;
         else if (m_hoverInfo.IsOverCell()) type = CPType::Branch;
-        StartWireDrawingDown(m_hoverInfo.snappedPos, CPType::Pin);
+        StartWireDrawingDown(m_hoverInfo.snappedPos, CPType::Pin, -1);
         m_eventHandled = true;
         return;
     }
@@ -186,7 +186,7 @@ void CanvasEventHandler::OnCanvasLeftDown(wxMouseEvent& evt) {
         CPType startType = CPType::Free;
         if (m_hoverInfo.IsOverPin()) startType = CPType::Pin;
         else if (m_hoverInfo.IsOverCell()) startType = CPType::Branch;
-        StartWireDrawingDown(m_hoverInfo.snappedPos, startType);
+        StartWireDrawingDown(m_hoverInfo.snappedPos, startType, -1);
         m_eventHandled = true;
         break;
     }
@@ -205,7 +205,7 @@ void CanvasEventHandler::OnCanvasLeftDown(wxMouseEvent& evt) {
 }
 
 
-void CanvasEventHandler::StartWireDrawingDown(const wxPoint& startPos, CPType startType) {
+void CanvasEventHandler::StartWireDrawingDown(const wxPoint& startPos, CPType startType, int wireIdx) {
     // 初始化临时导线
     m_isWireDraingCancel = false;
     m_tempWire.Clear();
@@ -219,6 +219,7 @@ void CanvasEventHandler::StartWireDrawingDown(const wxPoint& startPos, CPType st
         m_canvas->SetStatus("绘制导线: 从自由点开始，点击放置折点");
         break;
     case CPType::Branch:
+        m_tempWire.Left = {-1, wireIdx, false, -1};
         m_canvas->SetStatus("绘制导线: 从分支点开始，点击放置折点");
         break;
     }
