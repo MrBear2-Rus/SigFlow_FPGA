@@ -75,6 +75,24 @@
     <ClCompile Include="GatePainter.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="3rd\tree-sitter-verilog\src\parser.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="3rd\tree-sitter\lib\src\lib.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="AsyncAnalysisCenter.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="SigTextEditor.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="ProjectTreePanel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="AtomsAnalysis.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MainMenuBar.h">
@@ -135,6 +153,30 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="GatePainter.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="3rd\tree-sitter-verilog\src\tree_sitter\alloc.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="3rd\tree-sitter-verilog\src\tree_sitter\array.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="3rd\tree-sitter-verilog\src\tree_sitter\parser.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="3rd\tree-sitter\lib\include\tree_sitter\api.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="AsyncAnalysisCenter.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="SigTextEditor.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ProjectTreePanel.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="AtomsAnalysis.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

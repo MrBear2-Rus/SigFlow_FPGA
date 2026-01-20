@@ -14,6 +14,8 @@
 #include "UndoNotifier.h"
 #include "ToolBars.h"
 #include "HandyToolKit.h"
+#include <wx/stc/stc.h>
+#include <wx/stdpaths.h>
 
 extern std::vector<CanvasElement> g_elements;
 
@@ -51,7 +53,7 @@ MainFrame::MainFrame()
     GetStatusBar()->SetFieldsCount(4, widths);
     GetStatusBar()->SetStatusStyles(4, style);
 
-    SetTitle("Untitled");
+    SetTitle("SigFlow [no project]");
     static_cast<MainMenuBar*>(GetMenuBar())->SetCurrentDocInWindowList("Untitled");
 
     /* �Ѵ��ڽ��� AUI �������������ȣ� */
@@ -77,6 +79,19 @@ MainFrame::MainFrame()
 
     sidePanel->SetSizer(sideSizer);
 
+    m_verilogEditor = new SigTextEditor(this);
+
+    m_analysisCenter = new AsyncAnalysisCenter(this);
+    this->Bind(EVT_ANALYSIS_COMPLETE, &MainFrame::OnAnalysisComplete, this);
+    
+    m_refreshTimer = new wxTimer(this, 100000);
+    this->Bind(wxEVT_TIMER, &MainFrame::OnRefreshTimer, this, 100000);
+    m_refreshTimer->Start(1000);
+
+    m_projectTreePanel = new ProjectTreePanel(this);
+    this->Bind(wxEVT_MENU, &MainFrame::OnOpenFileFromTree, this, ID_OPEN_FILE_FROM_TREE);
+
+
     /* �������������Ϊһ�� AUI Pane ͣ�� */
     m_auiMgr.AddPane(sidePanel, wxAuiPaneInfo()
         .Name("side")               // ͳһ����
@@ -97,6 +112,33 @@ MainFrame::MainFrame()
         .CenterPane()
         .CloseButton(false)
         .MinSize(400, 300));
+
+    m_auiMgr.AddPane(m_verilogEditor, wxAuiPaneInfo()
+        .Name("text_editor")
+        .Caption("Text Editor")
+        .Bottom()
+        .Layer(1)
+        .Position(1)
+        .CloseButton(false)
+        .BestSize(-1, 250)
+        .MinSize(-1, 150)
+        .Resizable(true));
+
+
+    m_auiMgr.AddPane(m_projectTreePanel, wxAuiPaneInfo()
+        .Name("project_resource_manager")
+        .Caption("Project Resource Manager")
+        .Right()
+        .Layer(1)
+        .Position(1)
+        .CloseButton(false)
+        .BestSize(280, 700)        // �ܸ߶�����������
+        .MinSize(200, 400)
+        .FloatingSize(280, 700)
+        .Gripper(true)
+        .PaneBorder(false)
+    );
+
 
     /* һ�����ύ */
     m_auiMgr.Update();
@@ -134,8 +176,69 @@ void MainFrame::OnToolboxElement(wxCommandEvent& evt)
     m_canvas->SetCurrentComponent(name);  
 }
 
+bool MirrorDirectory(const wxString& source, const wxString& dest) {
+    if (!wxDir::Exists(dest)) {
+        if (!wxFileName::Mkdir(dest, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL)) {
+            return false;
+        }
+    }
+
+    wxDir dir(source);
+    if (!dir.IsOpened()) return false;
+
+    wxString filename;
+    // 1. 复制所有文件
+    bool cont = dir.GetFirst(&filename, wxEmptyString, wxDIR_FILES);
+    while (cont) {
+        wxCopyFile(source + wxFileName::GetPathSeparator() + filename,
+            dest + wxFileName::GetPathSeparator() + filename, true);
+        cont = dir.GetNext(&filename);
+    }
+
+    // 2. 递归处理子目录 (跳过 .git 和 .sigflow 自身，防止无限递归)
+    cont = dir.GetFirst(&filename, wxEmptyString, wxDIR_DIRS);
+    while (cont) {
+        if (filename != ".sigflow" && filename != ".git" && filename != ".cache") {
+            MirrorDirectory(source + wxFileName::GetPathSeparator() + filename,
+                dest + wxFileName::GetPathSeparator() + filename);
+        }
+        cont = dir.GetNext(&filename);
+    }
+    return true;
+}
+
 
 //ֻ�Ǵ�һ���´��ڣ���������д������κθı�
+void MainFrame::DoFileOpenProject() {
+    wxDirDialog dlg(this, "Open Project Directory", "",
+        wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
+
+    if (dlg.ShowModal() == wxID_OK) {
+        wxString path = dlg.GetPath();
+        m_projectTreePanel->LoadProject(path);
+        m_currentProjectPath = path;
+
+        wxString workspacePath = m_currentProjectPath + wxFileName::GetPathSeparator() +
+            ".sigflow" + wxFileName::GetPathSeparator() + "workspace";
+
+        //wxLogStatus("Mirroring project to workspace...");
+
+        if (MirrorDirectory(m_currentProjectPath, workspacePath)) {
+            //wxLogMessage("Project mirrored to: %s", workspacePath);
+
+            // 2. 更新内部状态
+            m_currentProjectPath = m_currentProjectPath;
+            m_workspacePath = workspacePath; // 建议在 MainFrame 增加此成员变量
+            m_projectName = wxFileName(path).GetFullName();
+
+            // 3. 让左侧树加载原始路径（用户感知），但编译器使用 workspacePath
+            m_projectTreePanel->LoadProject(m_currentProjectPath);
+            RefreshTitle();
+        }
+    }
+}
+
+
 void MainFrame::DoFileNew() {
     // ֱ�Ӵ���һ���µĿհ�MainFrame����
     MainFrame* newFrame = new MainFrame();  // ����MainFrame���캯�����ʼ���հ�״̬
@@ -150,30 +253,31 @@ void MainFrame::DoFileNew() {
 
 //�����ļ���ʵ�֣����������ĸ�����
 void MainFrame::DoFileSave() {
-    // 1. �����ǰ�ĵ�û��·����δ��������������"����Ϊ"
-    if (m_currentFilePath.IsEmpty()) {
-        // ����DoFileSaveAs()�����״α��棨��ʵ�ָ÷�����
-        DoFileSaveAs();
-        return;
-    }
+    //// 1. �����ǰ�ĵ�û��·����δ��������������"����Ϊ"
+    //if (m_currentFilePath.IsEmpty()) {
+    //    // ����DoFileSaveAs()�����״α��棨��ʵ�ָ÷�����
+    //    DoFileSaveAs();
+    //    return;
+    //}
 
-    // 2. ���Խ���ǰ�ĵ�����д���ļ�
-    bool saveSuccess = SaveToFile(m_currentFilePath);
+    //// 2. ���Խ���ǰ�ĵ�����д���ļ�
+    //bool saveSuccess = SaveToFile(m_currentFilePath);
 
-    // 3. ���ݱ���������״̬
-    if (saveSuccess) {
-        m_isModified = false;  // ����ɹ������Ϊδ�޸�
-        //UpdateTitle();         // ���´��ڱ��⣨�Ƴ�"*"���޸ı�ǣ�
-        SetStatusText(wxString::Format("�ѱ���: %s", m_currentFilePath));
-    }
-    else {
-        wxMessageBox(
-            wxString::Format("����ʧ��: %s", m_currentFilePath),
-            "����",
-            wxOK | wxICON_ERROR,
-            this
-        );
-    }
+    //// 3. ���ݱ���������״̬
+    //if (saveSuccess) {
+    //    m_isModified = false;  // ����ɹ������Ϊδ�޸�
+    //    //UpdateTitle();         // ���´��ڱ��⣨�Ƴ�"*"���޸ı�ǣ�
+    //    SetStatusText(wxString::Format("�ѱ���: %s", m_currentFilePath));
+    //}
+    //else {
+    //    wxMessageBox(
+    //        wxString::Format("����ʧ��: %s", m_currentFilePath),
+    //        "����",
+    //        wxOK | wxICON_ERROR,
+    //        this
+    //    );
+    //}
+    m_verilogEditor->SaveFile();
 }
 
 // ��������������ǰ�ĵ�����д��ָ��·�����޸�ΪXML��ʽ��
@@ -922,6 +1026,14 @@ void MainFrame::AddToolBarsToAuiManager() {
     //m_toolBars->ChoosePageOne_toolBar3(-1); // ��ʼ��������״̬
 }
 
+void MainFrame::OnOpenFileFromTree(wxCommandEvent& evt) {
+    wxString path = evt.GetString();
+    m_verilogEditor->OpenFile(path);   // 你已有的打开文件逻辑
+    m_currentFilePath = path;
+    RefreshTitle();
+}
+
+
 void MainFrame::OnUndoStackChanged()
 {
     wxMenuBar* bar = GetMenuBar();
@@ -975,4 +1087,85 @@ void MainFrame::OnClose(wxCloseEvent& event) {
         // ��ִ�� Skip()����ֹ���ڹر�
         break;
     }
+}
+
+wxString MainFrame::GetWorkspaceCopyPath(const wxString& m_currentFilePath) {
+    // 1. 创建文件对象
+    wxFileName fileObj(m_currentFilePath);
+
+    // 2. 计算相对于项目根目录的相对路径
+    // 执行后，fileObj 将不再存有绝对路径，而是变为 "src/top.v" 这种形式
+    if (fileObj.MakeRelativeTo(m_currentProjectPath)) {
+
+        // 3. 将相对路径拼接到工作区根目录下
+        // 这里的路径加法会自动处理反斜杠
+        wxString targetPath = m_workspacePath + wxFileName::GetPathSeparator() + fileObj.GetFullPath();
+
+        return targetPath;
+    }
+
+    return wxEmptyString; // 如果不在项目内，返回空
+}
+
+void MainFrame::OnRefreshTimer(wxTimerEvent& event) {
+    if (m_verilogEditor->GetModify() && snap_version != m_verilogEditor->GetSnapVersion()) {
+        snap_version = m_verilogEditor->GetSnapVersion();
+        wxString fullPath = m_verilogEditor->GetCurrentPath();
+        wxFileName fn1(fullPath);
+        wxString ext = fn1.GetExt().Lower(); // 获取后缀并转换为小写，防止 .V 或 .SV 识别失败
+
+        bool is_verilog = (ext == "v" || ext == "sv" || ext == "vh" || ext == "svh");
+        if (!is_verilog) return;
+
+        // 1. 获取最新代码内容
+        wxString currentCode = m_verilogEditor->GetText();
+
+        // 2. [优化] 只有内容真正改变才推送，避免仅光标移动触发分析
+        // if (currentCode == m_lastCode) return; 
+
+        wxString cachePath = GetWorkspaceCopyPath(fullPath);
+
+        wxFile file(cachePath, wxFile::write);
+        // 4. 保存快照：这里建议用 WriteStringToFile 避免干扰 STC 的撤销栈
+        if (file.IsOpened()) {
+            if (file.Write(currentCode)) {
+                file.Close();
+                m_analysisCenter->PushTask(m_currentProjectPath, cachePath);
+            }
+        }
+    }
+}
+
+void MainFrame::OnAnalysisComplete(wxThreadEvent& event) {
+    LintResult result = event.GetPayload<LintResult>();
+
+
+    // 内部应包含：更新 Margin Markers(Blocks), 更新 Indicators(Wave lines)
+    m_verilogEditor->VisualFeedBack(result);
+
+    //// 4. 辅助反馈
+    //if (!result.slang_success) {
+    //    SetStatusText("Semantic Analysis (Slang) Failed - Check Includes");
+    //}
+    //else {
+    //    SetStatusText(wxString::Format("Found %d Blocks, %d Messages",
+    //        (int)result.blocks.size(), (int)result.lintMessages.size()));
+    //}
+}
+
+
+// 在 MainFrame 中实现
+void MainFrame::RefreshTitle() {
+    wxString title = "SigFlow";
+    wxFileName fileObj(m_currentFilePath);
+    if (fileObj.MakeRelativeTo(m_currentProjectPath)) {
+        if (!m_projectName.IsEmpty()) {
+            title += " [" + m_projectName  + wxFileName::GetPathSeparator() + fileObj.GetFullPath() + "]";
+        }
+
+    }
+    else {
+        title += " [" + m_projectName + wxFileName::GetPathSeparator() + "]";
+    }
+    this->SetTitle(title);
 }

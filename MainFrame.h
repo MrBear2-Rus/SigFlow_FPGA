@@ -8,6 +8,10 @@
 
 #include "3rd/json/json.h"
 #include "PropertyPanel.h"
+#include <wx/stc/stc.h>
+#include "AsyncAnalysisCenter.h"
+#include "SigTextEditor.h"
+#include "ProjectTreePanel.h"
 
 class ToolBars;
 class CanvasPanel;
@@ -16,8 +20,24 @@ class HandyToolKit;
 class MainFrame : public wxFrame
 {
 private:
+    int snap_version;
+    wxString m_projectName;
     wxString m_currentFilePath;
+    wxString m_currentProjectPath;
+    wxString m_workspacePath;
+    wxString GetWorkspaceCopyPath(const wxString& m_currentFilePath);
     bool m_isModified;
+    SigTextEditor* m_verilogEditor;
+    AsyncAnalysisCenter* m_analysisCenter; // 异步中心指针
+    ProjectTreePanel* m_projectTreePanel;
+
+    void RefreshTitle();
+    // 声明事件处理函数
+    void OnAnalysisComplete(wxThreadEvent& event);
+
+    wxTimer* m_refreshTimer;
+    void OnRefreshTimer(wxTimerEvent& event);
+    std::string m_lastProcessedCode; // 用于对比，避免没改动也分析
 
 private:
     bool SaveToFile(const wxString& filePath);
@@ -36,8 +56,10 @@ public:
     ~MainFrame();
 
     void OnUndoStackChanged();
+    void OnOpenFileFromTree(wxCommandEvent& evt);
 
     /* File 菜单业务接口 */
+    void DoFileOpenProject();
     void DoFileNew();
     void DoFileOpen(const wxString& path = {});
     void DoFileSave();

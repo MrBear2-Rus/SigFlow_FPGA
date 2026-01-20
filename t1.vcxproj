@@ -20,6 +20,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="3rd\json\jsoncpp.cpp" />
+    <ClCompile Include="3rd\tree-sitter-verilog\src\parser.c" />
+    <ClCompile Include="3rd\tree-sitter\lib\src\lib.c">
+      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\wxWidgets-3.2.2.1\include;C:\wxWidgets-3.2.2.1\include\msvc;C:\wxWidgets-3.2.2.1\lib\vc_x64_lib\mswud;$(ProjectDir)3rd;$(ProjectDir)3rd\tree-sitter\lib\include;$(ProjectDir)3rd\tree-sitter\lib\src;$(ProjectDir)3rd\tree-sitter-verilog\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <ClCompile Include="AsyncAnalysisCenter.cpp" />
+    <ClCompile Include="AtomsAnalysis.cpp" />
     <ClCompile Include="CanvasElement.cpp" />
     <ClCompile Include="CanvasModel.cpp" />
     <ClCompile Include="CanvasPanel.cpp" />
@@ -28,8 +34,10 @@
     <ClCompile Include="GatePainter.cpp" />
     <ClCompile Include="MainFrame.cpp" />
     <ClCompile Include="MainMenuBar.cpp" />
+    <ClCompile Include="ProjectTreePanel.cpp" />
     <ClCompile Include="PropertyPanel.cpp" />
     <ClCompile Include="HandyToolKit.cpp" />
+    <ClCompile Include="SigTextEditor.cpp" />
     <ClCompile Include="SimulationEngine.cpp" />
     <ClCompile Include="ToolBars.cpp" />
     <ClCompile Include="ToolboxModel.cpp" />
@@ -42,6 +50,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="3rd\json\json.h" />
+    <ClInclude Include="3rd\tree-sitter-verilog\src\tree_sitter\alloc.h" />
+    <ClInclude Include="3rd\tree-sitter-verilog\src\tree_sitter\array.h" />
+    <ClInclude Include="3rd\tree-sitter-verilog\src\tree_sitter\parser.h" />
+    <ClInclude Include="3rd\tree-sitter\lib\include\tree_sitter\api.h" />
+    <ClInclude Include="AsyncAnalysisCenter.h" />
+    <ClInclude Include="AtomsAnalysis.h" />
     <ClInclude Include="CanvasElement.h" />
     <ClInclude Include="CanvasModel.h" />
     <ClInclude Include="CanvasPanel.h" />
@@ -51,7 +65,9 @@
     <ClInclude Include="MainMenuBar.h" />
     <ClInclude Include="my_log.h" />
     <ClInclude Include="HandyToolKit.h" />
+    <ClInclude Include="ProjectTreePanel.h" />
     <ClInclude Include="PropertyPanel.h" />
+    <ClInclude Include="SigTextEditor.h" />
     <ClInclude Include="SimulationEngine.h" />
     <ClInclude Include="ToolBars.h" />
     <ClInclude Include="ToolboxModel.h" />
@@ -114,6 +130,9 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LibraryPath>$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(ProjectDir)external\slang-sdk\lib</LibraryPath>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -148,14 +167,14 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;WIN32;__WXMSW__;_WINDOWS;NOPCH;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\wxWidgets-3.2.2.1\include;C:\wxWidgets-3.2.2.1\include\msvc;C:\wxWidgets-3.2.2.1\lib\vc_x64_lib\mswud;$(ProjectDir)3rd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>C:\wxWidgets-3.2.2.1\include;C:\wxWidgets-3.2.2.1\include\msvc;C:\wxWidgets-3.2.2.1\lib\vc_x64_lib\mswud;$(ProjectDir)3rd;$(ProjectDir)3rd\tree-sitter\lib\include;$(ProjectDir)3rd\tree-sitter-verilog\src;$(ProjectDir)external\slang-sdk\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\wxWidgets-3.2.2.1\lib\vc_x64_lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>wxmsw32ud_core.lib;wxbase32ud.lib;wxtiffd.lib;wxjpegd.lib;wxpngd.lib;wxzlibd.lib;wxregexud.lib;wxexpatd.lib;winmm.lib;comctl32.lib;rpcrt4.lib;wsock32.lib;wininet.lib;advapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\wxWidgets-3.2.2.1\lib\vc_x64_lib;$(ProjectDir)external\slang-sdk\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>wxmsw32ud_core.lib;wxbase32ud.lib;wxtiffd.lib;wxjpegd.lib;wxpngd.lib;wxzlibd.lib;wxregexud.lib;wxexpatd.lib;winmm.lib;comctl32.lib;rpcrt4.lib;wsock32.lib;wininet.lib;advapi32.lib;svlang.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">

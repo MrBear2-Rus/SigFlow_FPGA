@@ -42,6 +42,7 @@ private:
     wxMenu* CreateHelpMenu();
 
     /* File 菜单事件回调 */
+    void OnFileOpenProject(wxCommandEvent&);
     void OnFileNew(wxCommandEvent&);
     void OnFileOpen(wxCommandEvent&);
     void OnFileClose(wxCommandEvent&);

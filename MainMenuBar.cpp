@@ -6,11 +6,13 @@ enum
 {
     idExportImage = wxID_HIGHEST + 1,
     idSaveAsNode = wxID_HIGHEST + 2,  // 保存.node文件
-    idSaveAsNet = wxID_HIGHEST + 3    // 保存.net文件
+    idSaveAsNet = wxID_HIGHEST + 3,    // 保存.net文件
+    idOpenProj = wxID_HIGHEST + 4
 };
 
 wxBEGIN_EVENT_TABLE(MainMenuBar, wxMenuBar)
 
+EVT_MENU(idOpenProj, MainMenuBar::OnFileOpenProject)
 EVT_MENU(wxID_NEW, MainMenuBar::OnFileNew)
 EVT_MENU(wxID_OPEN, MainMenuBar::OnFileOpen)
 EVT_MENU(wxID_CLOSE, MainMenuBar::OnFileClose)
@@ -139,6 +141,9 @@ void MainMenuBar::SaveHistory()
 wxMenu* MainMenuBar::CreateFileMenu()
 {
     wxMenu* menu = new wxMenu;
+    menu->Append(idOpenProj, "&Open Project");
+
+    menu->AppendSeparator();
     menu->Append(wxID_NEW, "&New\tCtrl+N", "Create a new circuit");
     menu->Append(wxID_OPEN, "&Open\tCtrl+O", "Open an existing circuit");
 
@@ -170,14 +175,14 @@ wxMenu* MainMenuBar::CreateEditMenu()
 {
     wxMenu* m = new wxMenu;
 
-    wxMenuItem* undoItem = new wxMenuItem(m, wxID_UNDO, "&Can't Undo\tCtrl+Z");
+    wxMenuItem* undoItem = new wxMenuItem(m, wxID_UNDO, "&Can't Undo");
     undoItem->Enable(false);  // ← 关键：初始时禁用
     m->Append(undoItem);
     m->AppendSeparator();
 
-    m->Append(wxID_CUT, "Cu&t\tCtrl+X");
-    m->Append(wxID_COPY, "&Copy\tCtrl+C");
-    m->Append(wxID_PASTE, "&Paste\tCtrl+V");
+    m->Append(wxID_CUT, "Cu&t\t");
+    m->Append(wxID_COPY, "&Copy\t");
+    m->Append(wxID_PASTE, "&Paste\t");
     m->AppendSeparator();
 
     m->Append(wxID_DELETE, "&Delete\tDel");
@@ -337,6 +342,12 @@ wxMenu* MainMenuBar::CreateHelpMenu()
 }
 
 /* ---------- File 菜单事件转发 ---------- */
+void MainMenuBar::OnFileOpenProject(wxCommandEvent&) {
+    if (m_owner) {
+        m_owner->DoFileOpenProject();
+    }
+}
+
 void MainMenuBar::OnFileNew(wxCommandEvent&)
 {
     m_owner->DoFileNew();
