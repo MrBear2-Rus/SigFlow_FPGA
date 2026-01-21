@@ -1,4 +1,4 @@
-﻿#include "SimulationEngine.h"
+#include "SimulationEngine.h"
 #include "CanvasElement.h"
 #include "Wire.h"
 #include <algorithm>

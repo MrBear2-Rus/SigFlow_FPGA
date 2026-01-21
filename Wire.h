@@ -18,7 +18,7 @@ enum LogicSignal {
 struct ControlPoint {
     wxPoint  pos;
     CPType   type = CPType::Free;
-    // ÈôÎü¸½µ½Òı½Å£¬¿ÉÀ©Õ¹´æÔª¼şÖ¸Õë/pinË÷Òı
+    // è‹¥å¸é™„åˆ°å¼•è„šï¼Œå¯æ‰©å±•å­˜å…ƒä»¶æŒ‡é’ˆ/pinç´¢å¼•
 };
 
 struct Cell {
@@ -44,8 +44,8 @@ public:
     Wire() = default;
     explicit Wire(std::vector<ControlPoint> v) : pts(std::move(v)) {}
 
-    // ºËĞÄ½Ó¿Ú
-    void Draw(wxDC& dc) const;                          // »­Ïß
+    // æ ¸å¿ƒæ¥å£
+    void Draw(wxDC& dc) const;                          // ç”»çº¿
     void DrawColor(wxDC& dc) const;
     void AddPoint(const ControlPoint& cp) { pts.push_back(cp); }
     void Clear() { pts.clear(); }
@@ -55,15 +55,15 @@ public:
     wxRect GetBounds() const;
 
     CanvasPanel* m_canvas;
-    std::vector<Cell> cells;          // Ã¿ 2 px Ğ¡¸ñÖĞĞÄ
-    void GenerateCells();                // Ò»´ÎĞÔÇĞ·Ö
+    std::vector<Cell> cells;          // æ¯ 2 px å°æ ¼ä¸­å¿ƒ
+    void GenerateCells();                // ä¸€æ¬¡æ€§åˆ‡åˆ†
     
-    std::vector<wxColor> colors = { wxColour(0, 128, 0), wxColour(0, 255, 0), *wxBLUE };         // ÑÕÉ«ĞòÁĞ:µ¼Ïß0ÑÕÉ«£¬µ¼Ïß1ÑÕÉ«£¬µ¼Ïß·ÖÖ§µãÑÕÉ«, ×ÔÓÉµãÑÕÉ«
+    std::vector<wxColor> colors = { wxColour(0, 128, 0), wxColour(0, 255, 0), *wxBLUE };         // é¢œè‰²åºåˆ—:å¯¼çº¿0é¢œè‰²ï¼Œå¯¼çº¿1é¢œè‰²ï¼Œå¯¼çº¿åˆ†æ”¯ç‚¹é¢œè‰², è‡ªç”±ç‚¹é¢œè‰²
 
 public:
-    // ... ÏÖÓĞ³ÉÔ± ...
+    // ... ç°æœ‰æˆå‘˜ ...
 
-    // ·ÖÖ§Ïà¹Ø
+    // åˆ†æ”¯ç›¸å…³
     LogicSignal status;
     static std::vector<ControlPoint> Route(const ControlPoint& start, const ControlPoint& end);
     void SetStatus(LogicSignal s) { status = s; };

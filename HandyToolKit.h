@@ -41,10 +41,10 @@ private:
     std::vector<ToolInfo> m_tools;
     int m_selectedTool;
     int m_hoveredTool;
-	
-	CanvasEventHandler* m_CanvasEventHandler;
+    
+    CanvasEventHandler* m_CanvasEventHandler;
 
-	CanvasPanel* m_canvas;
+    CanvasPanel* m_canvas;
 
     wxDECLARE_EVENT_TABLE();
 };

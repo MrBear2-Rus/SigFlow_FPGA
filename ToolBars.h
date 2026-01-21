@@ -10,58 +10,58 @@
 #include <map>
 #include <functional>
 
-class MainFrame;  // Ç°ÏòÉùÃ÷
+class MainFrame;  // å‰å‘å£°æ˜
 
 class ToolBars {
 public:
-	explicit ToolBars(MainFrame* owner);
-	~ToolBars();
+    explicit ToolBars(MainFrame* owner);
+    ~ToolBars();
 
-	// ¹¤¾ßÀ¸¹¤¾ßµÄ ID
-	std::vector<int>  toolBar1_ids; // ¹¤¾ßÀ¸ 1 µÄ ID
-	std::vector<int>  toolBar2_ids;  // ¹¤¾ßÀ¸ 2 µÄ ID
-	std::vector<int>  toolBar3_ids;  // ¹¤¾ßÀ¸ 3 µÄ ID
+    // å·¥å…·æ å·¥å…·çš„ ID
+    std::vector<int>  toolBar1_ids; // å·¥å…·æ  1 çš„ ID
+    std::vector<int>  toolBar2_ids;  // å·¥å…·æ  2 çš„ ID
+    std::vector<int>  toolBar3_ids;  // å·¥å…·æ  3 çš„ ID
 
-	// ¹¤¾ßÀ¸¹¤¾ßµÄÍ¼±êÂ·¾¶
-	std::vector<std::string> toolBar1_toolPaths; // ¹¤¾ßÀ¸ 1 µÄÍ¼±êÂ·¾¶
-	std::vector<std::string> toolBar2_toolPaths; // ¹¤¾ßÀ¸ 2 µÄÍ¼±êÂ·¾¶
-	std::vector<std::string> toolBar3_toolPaths; // ¹¤¾ßÀ¸ 3 µÄÍ¼±êÂ·¾¶
+    // å·¥å…·æ å·¥å…·çš„å›¾æ ‡è·¯å¾„
+    std::vector<std::string> toolBar1_toolPaths; // å·¥å…·æ  1 çš„å›¾æ ‡è·¯å¾„
+    std::vector<std::string> toolBar2_toolPaths; // å·¥å…·æ  2 çš„å›¾æ ‡è·¯å¾„
+    std::vector<std::string> toolBar3_toolPaths; // å·¥å…·æ  3 çš„å›¾æ ‡è·¯å¾„
 
-	// ¹¤¾ßÀ¸¹¤¾ßµÄ±êÇ©
-	std::vector<std::string> toolBar1_labels; // ¹¤¾ßÀ¸ 1 µÄ±êÇ©
-	std::vector<std::string> toolBar2_labels; // ¹¤¾ßÀ¸ 2 µÄ±êÇ©
-	std::vector<std::string> toolBar3_labels; // ¹¤¾ßÀ¸ 3 µÄ±êÇ©
+    // å·¥å…·æ å·¥å…·çš„æ ‡ç­¾
+    std::vector<std::string> toolBar1_labels; // å·¥å…·æ  1 çš„æ ‡ç­¾
+    std::vector<std::string> toolBar2_labels; // å·¥å…·æ  2 çš„æ ‡ç­¾
+    std::vector<std::string> toolBar3_labels; // å·¥å…·æ  3 çš„æ ‡ç­¾
 
-	//ID¶Ô·½·¨MAP
-	std::map<int, std::function<void(int)>> toolIdToFunctionMap;
+    //IDå¯¹æ–¹æ³•MAP
+    std::map<int, std::function<void(int)>> toolIdToFunctionMap;
 
-	MainFrame* m_owner; // Ö¸ÏòÖ÷´°¿ÚµÄÖ¸Õë
+    MainFrame* m_owner; // æŒ‡å‘ä¸»çª—å£çš„æŒ‡é’ˆ
 
-	wxToolBar* toolBar1; // ¹¤¾ßÀ¸ 1
-	wxToolBar* toolBar2; // ¹¤¾ßÀ¸ 2
-	wxToolBar* toolBar3; // ¹¤¾ßÀ¸ 3
+    wxToolBar* toolBar1; // å·¥å…·æ  1
+    wxToolBar* toolBar2; // å·¥å…·æ  2
+    wxToolBar* toolBar3; // å·¥å…·æ  3
 
-	/* Èı¸ö¹¤¾ßÀ¸´´½¨º¯Êı */
-	wxToolBar* CreateToolBar1();
-	wxToolBar* CreateToolBar2();
-	wxToolBar* CreateToolBar3();
+    /* ä¸‰ä¸ªå·¥å…·æ åˆ›å»ºå‡½æ•° */
+    wxToolBar* CreateToolBar1();
+    wxToolBar* CreateToolBar2();
+    wxToolBar* CreateToolBar3();
 
-	/* ¹¤¾ßÀ¸ÑùÊ½ÊµÏÖµÄ»ù±¾º¯Êı */
-	void ArrangeIds(void);
-	void OnToolClicked(wxCommandEvent& event);
-	void HideTool(wxToolBar* toolbar, int toolId);
-	void ShowTool(wxToolBar* toolbar, int toolId, const wxString& label, const wxBitmap& bitmap);
-	void OneChoose(int toolId);
-	void ChoosePageOne_toolBar1(int toolId);
-	void ChoosePageTwo_toolBar1(int toolId);
-	void ChoosePageOne_toolBar3(int toolId);
-	void ChoosePageTwo_toolBar3(int toolId);
+    /* å·¥å…·æ æ ·å¼å®ç°çš„åŸºæœ¬å‡½æ•° */
+    void ArrangeIds(void);
+    void OnToolClicked(wxCommandEvent& event);
+    void HideTool(wxToolBar* toolbar, int toolId);
+    void ShowTool(wxToolBar* toolbar, int toolId, const wxString& label, const wxBitmap& bitmap);
+    void OneChoose(int toolId);
+    void ChoosePageOne_toolBar1(int toolId);
+    void ChoosePageTwo_toolBar1(int toolId);
+    void ChoosePageOne_toolBar3(int toolId);
+    void ChoosePageTwo_toolBar3(int toolId);
 
-	/* ¹¤¾ßÀ¸¹¦ÄÜÊµÏÖ»ù±¾º¯Êı */
+    /* å·¥å…·æ åŠŸèƒ½å®ç°åŸºæœ¬å‡½æ•° */
 
 
 
-	DECLARE_EVENT_TABLE()
+    DECLARE_EVENT_TABLE()
 };
 
 #endif

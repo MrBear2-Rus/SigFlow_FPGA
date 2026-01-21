@@ -45,13 +45,13 @@ struct AtomInfo {
     SourceRange definition;
     std::vector<SourceRange> uses;
 
-    const slang::ast::Symbol* symbol;   // ·´ÏòË÷Òı
+    const slang::ast::Symbol* symbol;   // åå‘ç´¢å¼•
 };
 
 
 class AtomAnalysis {
 public:
-	AtomAnalysis() = default;
+    AtomAnalysis() = default;
     slang::driver::Driver driver;
     std::unique_ptr<slang::ast::Compilation> compilation;
 

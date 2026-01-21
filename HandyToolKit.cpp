@@ -23,17 +23,17 @@ HandyToolKit::HandyToolKit(CanvasPanel* parent, CanvasEventHandler* ce)
 
     SetExtraStyle(GetExtraStyle() | wxWS_EX_TRANSIENT);
 
-    // ÉèÖÃºÏÊÊµÄ´óĞ¡
+    // è®¾ç½®åˆé€‚çš„å¤§å°
     SetSize(wxSize(5*24, 24));
 }
 
 void HandyToolKit::CreateTools()
 {
-    // ´´½¨¹¤¾ßÁĞ±í
+    // åˆ›å»ºå·¥å…·åˆ—è¡¨
     m_tools.clear();
 
     
-    // Ìí¼Ó¹¤¾ß
+    // æ·»åŠ å·¥å…·
     wxBitmap drag("res\\icons\\poke.png", wxBITMAP_TYPE_PNG);
 	drag.Rescale(drag, wxSize(24, 24));
     wxBitmap choose("res\\icons\\select.png", wxBITMAP_TYPE_PNG);
@@ -58,22 +58,22 @@ void HandyToolKit::OnPaint(wxPaintEvent& event)
 
     wxSize sz = GetClientSize();
 
-    // »æÖÆ°ëÍ¸Ã÷±³¾°£¨¸üÏÖ´úµÄÍâ¹Û£©
+    // ç»˜åˆ¶åŠé€æ˜èƒŒæ™¯ï¼ˆæ›´ç°ä»£çš„å¤–è§‚ï¼‰
     wxColour bgColor(250, 250, 250, 230);
     dc.SetBrush(wxBrush(bgColor));
     dc.SetPen(wxPen(wxColour(200, 200, 200), 1));
     dc.DrawRectangle(0, 0, sz.x, sz.y);
 
-    // »æÖÆ¹¤¾ß°´Å¥
+    // ç»˜åˆ¶å·¥å…·æŒ‰é’®
     for (size_t i = 0; i < m_tools.size(); i++) {
         const auto& tool = m_tools[i];
 
 
 
-        // »æÖÆ°´Å¥»ù´¡ÑùÊ½
+        // ç»˜åˆ¶æŒ‰é’®åŸºç¡€æ ·å¼
         DrawToolButton(dc, tool.rect, i == m_hoveredTool);
 
-        // »æÖÆÍ¼±ê£¨¾ÓÖĞ£©
+        // ç»˜åˆ¶å›¾æ ‡ï¼ˆå±…ä¸­ï¼‰
         if (tool.icon.IsOk()) {
             int iconX = tool.rect.x + (tool.rect.width - tool.icon.GetWidth()) / 2;
             int iconY = tool.rect.y + (tool.rect.height - tool.icon.GetHeight()) / 2 - 5;
@@ -84,38 +84,38 @@ void HandyToolKit::OnPaint(wxPaintEvent& event)
     }
 }
 
-// »æÖÆ¹¤¾ß°´Å¥µÄ»ù´¡ÑùÊ½ºÍĞüÍ£Ğ§¹û
+// ç»˜åˆ¶å·¥å…·æŒ‰é’®çš„åŸºç¡€æ ·å¼å’Œæ‚¬åœæ•ˆæœ
 void HandyToolKit::DrawToolButton(wxDC& dc, const wxRect& rect, bool isHovered)
 {
-    // »ù´¡°´Å¥ÑùÊ½
+    // åŸºç¡€æŒ‰é’®æ ·å¼
     wxColour buttonColor(240, 240, 240);
     wxColour borderColor(180, 180, 180);
 
-    // »æÖÆ°´Å¥±³¾°
+    // ç»˜åˆ¶æŒ‰é’®èƒŒæ™¯
     dc.SetBrush(wxBrush(buttonColor));
     dc.SetPen(wxPen(borderColor, 1));
     dc.DrawRectangle(rect);
 
-    // Èç¹ûĞüÍ££¬Ìí¼ÓÍ¸Ã÷Ğ§¹û
+    // å¦‚æœæ‚¬åœï¼Œæ·»åŠ é€æ˜æ•ˆæœ
     if (isHovered) {
-        // ¶àÖÖĞüÍ£Ğ§¹û¿ÉÑ¡£º
+        // å¤šç§æ‚¬åœæ•ˆæœå¯é€‰ï¼š
 
-        // Ğ§¹û1£º°ëÍ¸Ã÷É«¿é
+        // æ•ˆæœ1ï¼šåŠé€æ˜è‰²å—
         DrawSemiTransparentOverlay(dc, rect, wxColour(100, 150, 255), 80);
 
-        // Ğ§¹û2£º·¢¹â±ß¿ò
+        // æ•ˆæœ2ï¼šå‘å…‰è¾¹æ¡†
         // DrawGlowBorder(dc, rect, wxColour(100, 150, 255), 3);
 
-        // Ğ§¹û3£º½¥±ä¸ßÁÁ
+        // æ•ˆæœ3ï¼šæ¸å˜é«˜äº®
         // DrawGradientHighlight(dc, rect, wxColour(200, 220, 255), wxColour(100, 150, 255));
     }
 }
 
-// »æÖÆ°ëÍ¸Ã÷¸²¸Ç²ã
+// ç»˜åˆ¶åŠé€æ˜è¦†ç›–å±‚
 void HandyToolKit::DrawSemiTransparentOverlay(wxDC& dc, const wxRect& rect, const wxColour& color, int alpha)
 {
 //#if wxUSE_GRAPHICS_CONTEXT
-    //// Ê¹ÓÃÍ¼ĞÎÉÏÏÂÎÄ£¨ÍÆ¼ö£©
+    //// ä½¿ç”¨å›¾å½¢ä¸Šä¸‹æ–‡ï¼ˆæ¨èï¼‰
     //wxGraphicsContext* gc = wxGraphicsContext::Create(dc);
     //if (gc) {
     //    wxColour transparentColor(color.Red(), color.Green(), color.Blue(), alpha);
@@ -124,7 +124,7 @@ void HandyToolKit::DrawSemiTransparentOverlay(wxDC& dc, const wxRect& rect, cons
     //    delete gc;
     //}
 //#else
-    // »ØÍË·½°¸£ºÊ¹ÓÃ´øÍ¸Ã÷¶ÈµÄÑÕÉ«
+    // å›é€€æ–¹æ¡ˆï¼šä½¿ç”¨å¸¦é€æ˜åº¦çš„é¢œè‰²
     wxColour transparentColor(color.Red(), color.Green(), color.Blue(), alpha);
     dc.SetBrush(wxBrush(transparentColor));
     dc.SetPen(wxPen(transparentColor));
@@ -132,13 +132,13 @@ void HandyToolKit::DrawSemiTransparentOverlay(wxDC& dc, const wxRect& rect, cons
 //#endif
 }
 
-//// ¿ÉÑ¡£º»æÖÆ·¢¹â±ß¿òĞ§¹û
+//// å¯é€‰ï¼šç»˜åˆ¶å‘å…‰è¾¹æ¡†æ•ˆæœ
 void HandyToolKit::DrawGlowBorder(wxDC& dc, const wxRect& rect, const wxColour& color, int glowWidth)
 {
 //#if wxUSE_GRAPHICS_CONTEXT
 //    wxGraphicsContext* gc = wxGraphicsContext::Create(dc);
 //    if (gc) {
-//        // ´´½¨½¥±ä»­Ë¢
+//        // åˆ›å»ºæ¸å˜ç”»åˆ·
 //        wxGraphicsBrush brush = gc->CreateLinearGradientBrush(
 //            rect.x, rect.y,
 //            rect.x + rect.width, rect.y + rect.height,
@@ -148,7 +148,7 @@ void HandyToolKit::DrawGlowBorder(wxDC& dc, const wxRect& rect, const wxColour& 
 //        gc->SetBrush(brush);
 //        gc->SetPen(*wxTRANSPARENT_PEN);
 //
-//        // »æÖÆÉÔ´óµÄ¾ØĞÎ×÷Îª·¢¹âĞ§¹û
+//        // ç»˜åˆ¶ç¨å¤§çš„çŸ©å½¢ä½œä¸ºå‘å…‰æ•ˆæœ
 //        wxRect glowRect = rect;
 //        glowRect.Inflate(glowWidth);
 //        gc->DrawRectangle(glowRect.x, glowRect.y, glowRect.width, glowRect.height);
@@ -158,13 +158,13 @@ void HandyToolKit::DrawGlowBorder(wxDC& dc, const wxRect& rect, const wxColour& 
 //#endif
 //}
 //
-//// ¿ÉÑ¡£º»æÖÆ½¥±ä¸ßÁÁĞ§¹û
+//// å¯é€‰ï¼šç»˜åˆ¶æ¸å˜é«˜äº®æ•ˆæœ
 void HandyToolKit::DrawGradientHighlight(wxDC& dc, const wxRect& rect, const wxColour& startColor, const wxColour& endColor)
 {
 //#if wxUSE_GRAPHICS_CONTEXT
 //    wxGraphicsContext* gc = wxGraphicsContext::Create(dc);
 //    if (gc) {
-//        // ´´½¨´¹Ö±½¥±ä
+//        // åˆ›å»ºå‚ç›´æ¸å˜
 //        wxGraphicsBrush brush = gc->CreateLinearGradientBrush(
 //            rect.x, rect.y,
 //            rect.x, rect.y + rect.height,
@@ -184,10 +184,10 @@ void HandyToolKit::OnMouseMove(wxMouseEvent& event)
     int oldHovered = m_hoveredTool;
     m_hoveredTool = -1;
 
-    // ¼ì²éÊó±êÔÚÄÄ¸ö¹¤¾ßÉÏ
+    // æ£€æŸ¥é¼ æ ‡åœ¨å“ªä¸ªå·¥å…·ä¸Š
     for (size_t i = 0; i < m_tools.size(); i++) {
         if (m_tools[i].rect.Contains(pos)) {
-			m_canvas->SetStatus(wxString::Format("¹¤¾ß: %s", m_tools[i].name.ToUTF8().data()));
+			m_canvas->SetStatus(wxString::Format("å·¥å…·: %s", m_tools[i].name.ToUTF8().data()));
             m_hoveredTool = i;
             break;
         }
@@ -204,26 +204,26 @@ void HandyToolKit::OnRightUp(wxMouseEvent& event)
 {
     wxPoint pos = event.GetPosition();
 
-    // È·¶¨Ñ¡ÔñÁËÄÄ¸ö¹¤¾ß
+    // ç¡®å®šé€‰æ‹©äº†å“ªä¸ªå·¥å…·
     for (size_t i = 0; i < m_tools.size(); i++) {
         if (m_tools[i].rect.Contains(pos)) {
             m_selectedTool = i;
-			// Ö´ĞĞ¹¤¾ßµÄ¶¯×÷
+			// æ‰§è¡Œå·¥å…·çš„åŠ¨ä½œ
 			m_tools[i].action();
             PassFocusToCanvas();
             break;
         }
     }
 
-    // ¹Ø±Õ¹¤¾ßÀ¸
+    // å…³é—­å·¥å…·æ 
     Hide();
 
-    // ×¢Òâ£ºÕâÀï²»µ÷ÓÃevent.Skip()£¬ÒòÎªÎÒÃÇ´¦ÀíÁËÕâ¸öÊÂ¼ş
+    // æ³¨æ„ï¼šè¿™é‡Œä¸è°ƒç”¨event.Skip()ï¼Œå› ä¸ºæˆ‘ä»¬å¤„ç†äº†è¿™ä¸ªäº‹ä»¶
 }
 
 //void QuickToolBar::OnKillFocus(wxFocusEvent& event)
 //{
-//    // Ê§È¥½¹µãÊ±×Ô¶¯¹Ø±Õ
+//    // å¤±å»ç„¦ç‚¹æ—¶è‡ªåŠ¨å…³é—­
 //    Hide();
 //    event.Skip();
 //}
@@ -231,7 +231,7 @@ void HandyToolKit::OnRightUp(wxMouseEvent& event)
 void HandyToolKit::OnKillFocus(wxFocusEvent& event) {
     wxWindow* focused = wxWindow::FindFocus();
 
-    // Ö»ÓĞµ±½¹µã×ªÒÆµ½·Ç¸¸´°¿ÚÊ±²ÅÒş²Ø
+    // åªæœ‰å½“ç„¦ç‚¹è½¬ç§»åˆ°éçˆ¶çª—å£æ—¶æ‰éšè—
     if (focused && focused != GetParent()) {
         Hide();
         //MyLog("QuickToolBar: Hidden due to focus loss\n");
@@ -241,6 +241,6 @@ void HandyToolKit::OnKillFocus(wxFocusEvent& event) {
 }
 
 void HandyToolKit::PassFocusToCanvas() {
-	// ½«½¹µã´«µİ»Ø»­²¼
+	// å°†ç„¦ç‚¹ä¼ é€’å›ç”»å¸ƒ
 	m_canvas->SetFocus();
 }

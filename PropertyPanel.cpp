@@ -1,4 +1,4 @@
-﻿#include "PropertyPanel.h"
+#include "PropertyPanel.h"
 #include "CanvasElement.h"
 
 wxBEGIN_EVENT_TABLE(PropertyPanel, wxPanel)

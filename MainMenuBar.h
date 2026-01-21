@@ -2,11 +2,11 @@
 #include <wx/wx.h>
 #include <wx/filehistory.h>
 
-class MainFrame;  // Ç°ÏòÉùÃ÷
+class MainFrame;  // å‰å‘å£°æ˜
 
 /*
- * ÔİÊ±Ö»ÊµÏÖ File ²Ëµ¥£¬ÆäÓà²Ëµ¥Áô¿Õ
- * ÊÂ¼şÈ«²¿×ª·¢µ½ MainFrame µÄ DoFileXXX() ½Ó¿Ú
+ * æš‚æ—¶åªå®ç° File èœå•ï¼Œå…¶ä½™èœå•ç•™ç©º
+ * äº‹ä»¶å…¨éƒ¨è½¬å‘åˆ° MainFrame çš„ DoFileXXX() æ¥å£
  */
 class MainMenuBar : public wxMenuBar
 {
@@ -14,14 +14,14 @@ public:
     explicit MainMenuBar(MainFrame* owner);
     ~MainMenuBar();
 
-    /* ×î½üÎÄ¼şÁĞ±í·â×° */
+    /* æœ€è¿‘æ–‡ä»¶åˆ—è¡¨å°è£… */
     void    AddFileToHistory(const wxString& fullPath);
     wxString GetHistoryFile(size_t i) const;
     size_t  GetHistoryFileCount() const;
     void    LoadHistory();
     void    SaveHistory();
 
-    /* ÈÃ MainFrame µ÷ÓÃµÄ½Ó¿Ú */
+    /* è®© MainFrame è°ƒç”¨çš„æ¥å£ */
     void RebuildWindowMenu();
     void AddDocToWindowList(const wxString& title);
     void SetCurrentDocInWindowList(const wxString& title);
@@ -30,10 +30,10 @@ private:
     MainFrame* m_owner;
     wxFileHistory m_fileHistory;
 
-    wxMenu* m_windowMenu;        // ±£´æÖ¸Õë£¬·½±ãÖØ½¨
-    wxString m_curDocTitle;      // µ±Ç°ÎÄµµ±êÌâ£¨²»º¬Â·¾¶£©
+    wxMenu* m_windowMenu;        // ä¿å­˜æŒ‡é’ˆï¼Œæ–¹ä¾¿é‡å»º
+    wxString m_curDocTitle;      // å½“å‰æ–‡æ¡£æ ‡é¢˜ï¼ˆä¸å«è·¯å¾„ï¼‰
 
-    /* Áù´ó²Ëµ¥´´½¨º¯Êı */
+    /* å…­å¤§èœå•åˆ›å»ºå‡½æ•° */
     wxMenu* CreateFileMenu();
     wxMenu* CreateEditMenu();
     wxMenu* CreateProjectMenu();
@@ -41,22 +41,22 @@ private:
     wxMenu* CreateWindowMenu();
     wxMenu* CreateHelpMenu();
 
-    /* File ²Ëµ¥ÊÂ¼ş»Øµ÷ */
+    /* File èœå•äº‹ä»¶å›è°ƒ */
     void OnFileOpenProject(wxCommandEvent&);
     void OnFileNew(wxCommandEvent&);
     void OnFileOpen(wxCommandEvent&);
     void OnFileClose(wxCommandEvent&);
     void OnFileSave(wxCommandEvent&);
     void OnFileSaveAs(wxCommandEvent&);
-    void OnSaveAsNode(wxCommandEvent& event);  // ´¦Àí.node±£´æÊÂ¼ş
-    void OnSaveAsNet(wxCommandEvent& event);   // ´¦Àí.net±£´æÊÂ¼ş
+    void OnSaveAsNode(wxCommandEvent& event);  // å¤„ç†.nodeä¿å­˜äº‹ä»¶
+    void OnSaveAsNet(wxCommandEvent& event);   // å¤„ç†.netä¿å­˜äº‹ä»¶
     void OnFileHistory(wxCommandEvent&);
     void OnExportImage(wxCommandEvent&);
     void OnPrint(wxCommandEvent&);
     void OnPreferences(wxCommandEvent&);
     void OnExit(wxCommandEvent&);
 
-    /* Edit ²Ëµ¥ÊÂ¼ş»Øµ÷ */
+    /* Edit èœå•äº‹ä»¶å›è°ƒ */
     void OnUndo(wxCommandEvent&);
     void OnCut(wxCommandEvent&);
     void OnCopy(wxCommandEvent&);
@@ -71,7 +71,7 @@ private:
     void OnAddVertex(wxCommandEvent&);
     void OnRemoveVertex(wxCommandEvent&);
 
-    /* Project ²Ëµ¥ÊÂ¼ş»Øµ÷ */
+    /* Project èœå•äº‹ä»¶å›è°ƒ */
     void OnAddCircuit(wxCommandEvent&);
     void OnLoadLibrary(wxCommandEvent&);
     void OnUnloadLibraries(wxCommandEvent&);
@@ -88,7 +88,7 @@ private:
     void OnGetStats(wxCommandEvent&);
     void OnOptions(wxCommandEvent&);
 
-    /* Simulate ²Ëµ¥ÊÂ¼ş»Øµ÷ */
+    /* Simulate èœå•äº‹ä»¶å›è°ƒ */
     void OnSimEnable(wxCommandEvent&);
     void OnSimReset(wxCommandEvent&);
     void OnSimStep(wxCommandEvent&);
@@ -99,20 +99,20 @@ private:
     void OnSetTickFreq(wxCommandEvent&);
     void OnLogging(wxCommandEvent&);
 
-    /* Window ²Ëµ¥ÊÂ¼ş»Øµ÷ */
+    /* Window èœå•äº‹ä»¶å›è°ƒ */
     void OnMinimize(wxCommandEvent&);
     void OnMaximize(wxCommandEvent&);
     void OnCloseWnd(wxCommandEvent&);
     void OnCombinationalAnalysis(wxCommandEvent&);
     void OnWindowPreferences(wxCommandEvent&);
-    void OnWindowItem(wxCommandEvent&);          // ¶¯Ì¬ÎÄµµÁĞ±íÍ³Ò»Èë¿Ú
+    void OnWindowItem(wxCommandEvent&);          // åŠ¨æ€æ–‡æ¡£åˆ—è¡¨ç»Ÿä¸€å…¥å£
 
-    /* Window ²Ëµ¥ÒµÎñ½Ó¿Ú */
+    /* Window èœå•ä¸šåŠ¡æ¥å£ */
     void DoWindowCombinationalAnalysis();
     void DoWindowPreferences();
     void DoWindowSwitchToDoc(const wxString& title);
 
-    /* Help ²Ëµ¥ÊÂ¼ş»Øµ÷ */
+    /* Help èœå•äº‹ä»¶å›è°ƒ */
     void OnTutorial(wxCommandEvent&);
     void OnUserGuide(wxCommandEvent&);
     void OnLibraryRef(wxCommandEvent&);

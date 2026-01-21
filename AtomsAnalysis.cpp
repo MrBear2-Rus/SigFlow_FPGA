@@ -3,51 +3,51 @@
 #include <fstream>
 #include <wx/filename.h>
 
-//#include "slang/diagnostics/DiagnosticEngine.h" // Õï¶ÏÒıÇæ
-//#include "slang/text/SourceManager.h"           // Ô´Âë¹ÜÀíÆ÷
+//#include "slang/diagnostics/DiagnosticEngine.h" // è¯Šæ–­å¼•æ“
+//#include "slang/text/SourceManager.h"           // æºç ç®¡ç†å™¨
 
 void AtomAnalysis::AnalyzeProject(wxString project_path) {
-    // --- 1. JSON ½âÎö (Ê¹ÓÃ JsonCpp) ---
+    // --- 1. JSON è§£æ (ä½¿ç”¨ JsonCpp) ---
     Json::Value root;
     Json::CharReaderBuilder builder;
     std::string errs;
-    std::ifstream ifs(project_path.ToStdString()+ "\\"+ "sigflow.project"); // È·±£ #include <fstream>
+    std::ifstream ifs(project_path.ToStdString()+ "\\"+ "sigflow.project"); // ç¡®ä¿ #include <fstream>
     if (!Json::parseFromStream(builder, ifs, &root, &errs)) {
         return;
     }
 
-    // --- 2. Ó³ÉäÂ·¾¶µ½ SourceLoader ---
-    // ¸ù¾İÔ´Âë£¬Ìí¼ÓÆÕÍ¨Ô´ÎÄ¼şµÄ·½·¨ÊÇ addFiles (µÚ 18 ĞĞ)
+    // --- 2. æ˜ å°„è·¯å¾„åˆ° SourceLoader ---
+    // æ ¹æ®æºç ï¼Œæ·»åŠ æ™®é€šæºæ–‡ä»¶çš„æ–¹æ³•æ˜¯ addFiles (ç¬¬ 18 è¡Œ)
     if (root["paths"].isMember("source_files")) {
         for (const auto& file : root["paths"]["source_files"]) {
             driver.sourceLoader.addFiles(file.asString());
         }
     }
 
-    // --- 3. Ó³Éä Include Ä¿Â¼µ½ SourceManager ---
-    // SourceManager ²¢²»¸ºÔğ¡°Âß¼­¡±Â·¾¶£¬Ëü¸ºÔğ¡°ÎïÀí¡±Â·¾¶
-    // ÔÚ slang ¼Ü¹¹ÖĞ£¬ËÑË÷Ä¿Â¼Í¨³£Í¨¹ı addSearchDirectories (µÚ 41 ĞĞ) Ìí¼Ó
+    // --- 3. æ˜ å°„ Include ç›®å½•åˆ° SourceManager ---
+    // SourceManager å¹¶ä¸è´Ÿè´£â€œé€»è¾‘â€è·¯å¾„ï¼Œå®ƒè´Ÿè´£â€œç‰©ç†â€è·¯å¾„
+    // åœ¨ slang æ¶æ„ä¸­ï¼Œæœç´¢ç›®å½•é€šå¸¸é€šè¿‡ addSearchDirectories (ç¬¬ 41 è¡Œ) æ·»åŠ 
     if (root["paths"].isMember("include_dirs")) {
         for (const auto& dir : root["paths"]["include_dirs"]) {
             driver.sourceLoader.addSearchDirectories(dir.asString());
         }
     }
 
-    // --- 4. Ó³Éä Build ÅäÖÃµ½ Options ---
+    // --- 4. æ˜ å°„ Build é…ç½®åˆ° Options ---
     if (root["build"].isMember("top_module")) {
         driver.options.topModules.push_back(root["build"]["top_module"].asString());
     }
 
-    // --- 5. Ö´ĞĞÁ÷³Ì ---
+    // --- 5. æ‰§è¡Œæµç¨‹ ---
     if (!driver.processOptions()) return;
 
-    // parseAllSources ÄÚ²¿»á×Ô¶¯µ÷ÓÃ sourceLoader.loadAndParseSources
+    // parseAllSources å†…éƒ¨ä¼šè‡ªåŠ¨è°ƒç”¨ sourceLoader.loadAndParseSources
     if (driver.parseAllSources()) {
-        // createCompilation ·µ»Ø unique_ptr<Compilation>
+        // createCompilation è¿”å› unique_ptr<Compilation>
         compilation = driver.createCompilation();
 
         if (compilation) {
-            // ĞŞÕı£ºĞÂ°æ»ñÈ¡Õï¶ÏµÄ½Ó¿ÚÍ¨³£ÊÇ getAllDiagnostics()
+            // ä¿®æ­£ï¼šæ–°ç‰ˆè·å–è¯Šæ–­çš„æ¥å£é€šå¸¸æ˜¯ getAllDiagnostics()
             auto diags = compilation->getAllDiagnostics();
             if (diags.empty()) {
                 wxLogMessage("Slang: Elaboration Successful.");

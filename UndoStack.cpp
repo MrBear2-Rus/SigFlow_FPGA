@@ -1,4 +1,4 @@
-﻿#include "UndoStack.h"
+#include "UndoStack.h"
 #include "CanvasPanel.h"
 #include "UndoNotifier.h"
 

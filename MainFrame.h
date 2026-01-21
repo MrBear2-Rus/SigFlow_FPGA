@@ -1,4 +1,4 @@
-﻿// MainFrame.h
+// MainFrame.h
 #pragma once
 #include <wx/wx.h>
 #include <wx/aui/aui.h>

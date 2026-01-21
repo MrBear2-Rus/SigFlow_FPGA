@@ -4,7 +4,7 @@
 
 #include <wx/wx.h>
 
-class CanvasPanel; // 前向声明
+class CanvasPanel; // 鍓嶅悜澹版槑
 
 class CanvasTextElement {
 public:
@@ -12,16 +12,16 @@ public:
     CanvasTextElement(CanvasPanel* parent, const wxString& text = "", const wxPoint& pos = wxPoint(0, 0));
     ~CanvasTextElement();
 
-    // 绘制方法
+    // 缁樺埗鏂规硶
     void Draw(wxDC& dc);
     bool Contains(const wxPoint& point) const;
     wxRect GetBounds() const;
 
-    // 文本操作 - 代理到隐藏的TextCtrl
+    // 鏂囨湰鎿嶄綔 - 浠ｇ悊鍒伴殣钘忕殑TextCtrl
     void StartEditing();
     void StopEditing();
-    void SyncToHiddenCtrl();  // 将CanvasTextElement的文本同步到隐藏TextCtrl
-    void SyncFromHiddenCtrl(); // 从隐藏TextCtrl同步文本到CanvasTextElement
+    void SyncToHiddenCtrl();  // 灏咰anvasTextElement鐨勬枃鏈悓姝ュ埌闅愯棌TextCtrl
+    void SyncFromHiddenCtrl(); // 浠庨殣钘廡extCtrl鍚屾鏂囨湰鍒癈anvasTextElement
 
     // Getter/Setter
     void SetText(const wxString& text);
@@ -31,12 +31,12 @@ public:
     wxSize GetSize() const;
     bool IsEditing() const { return m_editing; }
 
-    // 事件处理方法 - 新增
+    // 浜嬩欢澶勭悊鏂规硶 - 鏂板
     void OnTextChanged(const wxString& newText);
     void OnTextEnter();
     void OnTextKillFocus();
 
-    // 隐藏TextCtrl管理
+    // 闅愯棌TextCtrl绠＄悊
     void AttachHiddenTextCtrl(wxTextCtrl* hiddenCtrl);
     void DetachHiddenTextCtrl();
     void UpdateHiddenTextCtrlPosition();
@@ -57,7 +57,7 @@ private:
     wxSize m_size;
     bool m_editing;
 
-    wxTextCtrl* m_hiddenTextCtrl; // 指向共享的隐藏TextCtrl
+    wxTextCtrl* m_hiddenTextCtrl; // 鎸囧悜鍏变韩鐨勯殣钘廡extCtrl
 };
 
 #endif // CANVASTEXTELEMENT_H

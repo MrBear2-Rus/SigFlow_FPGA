@@ -1,4 +1,4 @@
-﻿#include <wx/graphics.h> 
+#include <wx/graphics.h> 
 #include <wx/dcbuffer.h>
 #include <wx/dcgraph.h>  
 
@@ -136,8 +136,8 @@ void CanvasPanel::OnMouseWheel(wxMouseEvent& evt) {
 }
 
 void CanvasPanel::SetScale(float scale) {
-	float min_scale, max_scale;
-	std::tie(min_scale, max_scale) = ValidScaleRange();
+    float min_scale, max_scale;
+    std::tie(min_scale, max_scale) = ValidScaleRange();
     if (scale < min_scale) scale = min_scale;
     if (scale > max_scale) scale = max_scale;
     m_scale = scale;
@@ -556,13 +556,13 @@ void CanvasPanel::SetStatus(wxString status) {
 }
 
 void CanvasPanel::SetCurrentTool(ToolType tool) {
-	m_toolStateMachine->SetCurrentTool(tool);
+    m_toolStateMachine->SetCurrentTool(tool);
 }
 
 void CanvasPanel::SetCurrentComponent(const wxString& componentName) {
     m_toolStateMachine->SetCurrentTool(ToolType::COMPONENT_TOOL);
-	m_toolStateMachine->SetComponentState(ComponentToolState::COMPONENT_PREVIEW);
-	m_CanvasEventHandler->SetCurrentComponent(componentName);
+    m_toolStateMachine->SetComponentState(ComponentToolState::COMPONENT_PREVIEW);
+    m_CanvasEventHandler->SetCurrentComponent(componentName);
 }
 
 void CanvasPanel::UpdateHoverInfo(const wxPoint& screenPos) {
@@ -573,14 +573,14 @@ void CanvasPanel::UpdateHoverInfo(const wxPoint& screenPos) {
     // 悬停引脚信息检测
     bool isInput = false;
     wxPoint pinWorldPos;
-	int pinIdx = HitHoverPin(m_hoverInfo.canvasPos, &isInput, &pinWorldPos);
+    int pinIdx = HitHoverPin(m_hoverInfo.canvasPos, &isInput, &pinWorldPos);
 
-	// 导线控制点信息检测
+    // 导线控制点信息检测
     int wireIdx = HitWire(m_hoverInfo.canvasPos);
     int wireSectionIdx = -1;
     int cellIdx = HitHoverCell(m_hoverInfo.canvasPos);
     bool isCellMid = false;
-	wxPoint cellWorldPos;
+    wxPoint cellWorldPos;
 
     if (wireIdx != -1 && cellIdx != -1) {
         Cell cell = m_wires[wireIdx].cells[cellIdx];
@@ -589,59 +589,60 @@ void CanvasPanel::UpdateHoverInfo(const wxPoint& screenPos) {
         wireSectionIdx = cell.pre_pts_idx;
     }
 
-	// 悬停元件信息检测
+    // 悬停元件信息检测
     int elementIndex = HitElementTest(m_hoverInfo.canvasPos);
 
     // 悬停文本检测
-	int textIndex = HitTestText(m_hoverInfo.canvasPos);
+    int textIndex = HitTestText(m_hoverInfo.canvasPos);
 
     // 更新信息
     m_hoverInfo.pinIndex = pinIdx;
-	m_hoverInfo.isInputPin = isInput;
-	m_hoverInfo.pinPos = pinWorldPos;
+    m_hoverInfo.isInputPin = isInput;
+    m_hoverInfo.pinPos = pinWorldPos;
 
     m_hoverInfo.wireIndex = wireIdx;
     m_hoverInfo.wireSectionIndex = wireSectionIdx;
     m_hoverInfo.cellIndex = cellIdx;
     m_hoverInfo.isCellMiddle = isCellMid;
-	m_hoverInfo.cellPos = cellWorldPos;
+    m_hoverInfo.cellPos = cellWorldPos;
 
     m_hoverInfo.elementIndex = elementIndex;
     if (elementIndex != -1) m_hoverInfo.elementName = m_elements[elementIndex].GetName();
     else m_hoverInfo.elementName = "";
 
-	m_hoverInfo.textIndex = textIndex;
+    m_hoverInfo.textIndex = textIndex;
     Refresh(); // 触发重绘以显示悬停效果
     wxString hover = "";
     if (m_hoverInfo.IsOverPin()) {
-        hover = (wxString::Format("悬停于: %sPin[%d]",
+        hover = (wxString::Format("Hover on: %sPin[%d]",
             m_hoverInfo.isInputPin ? "Input" : "Output", m_hoverInfo.pinIndex));
     }
     else if (m_hoverInfo.IsOverCell()) {
         if (m_hoverInfo.isCellMiddle) {
-            hover = (wxString::Format("悬停于: Wire[%d] Section[%d] 控制点",
+            hover = (wxString::Format("Hover on: Wire[%d] Section[%d] 控制点",
                 m_hoverInfo.wireIndex, m_hoverInfo.wireSectionIndex));
         }
         else {
-            hover = (wxString::Format("悬停于: Wire[%d] Cell[%d]",
+            hover = (wxString::Format("Hover on: Wire[%d] Cell[%d]",
                 m_hoverInfo.wireIndex, m_hoverInfo.cellIndex));
         }
     }
     else if (m_hoverInfo.IsOverElement()) {
-        hover = (wxString::Format("悬停于: Component[%s]",
+        hover = (wxString::Format("Hover on: Component[%s]",
             m_hoverInfo.elementName));
     }
     else if (m_hoverInfo.IsOverText()) {
-        hover = (wxString::Format("悬停于: TextBox[%d]",
+        hover = (wxString::Format("Hover on: TextBox[%d]",
             m_hoverInfo.textIndex));
     }
     else {
-        hover = wxString::Format("悬停于: 无悬停对象");
+        hover = "Hover on: None";
     }
 
-    wxString cursor = wxString::Format("指针位置: (%d, %d)", m_hoverInfo.canvasPos.x, m_hoverInfo.canvasPos.y);
+    wxString cursor = wxString::Format("Pointer at: (%d, %d)", m_hoverInfo.canvasPos.x, m_hoverInfo.canvasPos.y);
 
-    wxString zoom = wxString::Format("缩放：%d%%", int(m_scale * 100));
+    // 修复后：
+    wxString zoom = wxString::Format("Zoom: %d%%", int(m_scale * 100));
 
     m_mainFrame->SetStatusText(cursor, 1);
     m_mainFrame->SetStatusText(hover, 2);
@@ -779,13 +780,13 @@ void CanvasPanel::LayoutScrollbars(){
 }
 
 void CanvasPanel::SetoffSet(wxPoint offset) {
-	wxPoint min_offset, max_offset;
-	std::tie(min_offset, max_offset) = ValidSetOffRange();
-	if (offset.x < min_offset.x) offset.x = min_offset.x;
-	if (offset.x > max_offset.x) offset.x = max_offset.x;
-	if (offset.y < min_offset.y) offset.y = min_offset.y;
-	if (offset.y > max_offset.y) offset.y = max_offset.y;
-	m_offset = offset;
+    wxPoint min_offset, max_offset;
+    std::tie(min_offset, max_offset) = ValidSetOffRange();
+    if (offset.x < min_offset.x) offset.x = min_offset.x;
+    if (offset.x > max_offset.x) offset.x = max_offset.x;
+    if (offset.y < min_offset.y) offset.y = min_offset.y;
+    if (offset.y > max_offset.y) offset.y = max_offset.y;
+    m_offset = offset;
     Refresh();
 }
 
@@ -852,22 +853,22 @@ void CanvasPanel::SetPreviewElement(const wxString& name, wxPoint pos) {
 }
 
 void CanvasPanel::UndoStackPush(std::unique_ptr<Command> command) {
-	m_undoStack.Push(std::move(command));
-	MainFrame* mainFrame = wxDynamicCast(GetParent(), MainFrame);
+    m_undoStack.Push(std::move(command));
+    MainFrame* mainFrame = wxDynamicCast(GetParent(), MainFrame);
     if (mainFrame) {
         mainFrame->OnUndoStackChanged();
-	}
+    }
 }
 
 void CanvasPanel::WireSetWholeOffSet(int index, const wxPoint& offset) {
     for (auto& cp : m_wires[index].pts) {
         cp.pos += offset;
-	}
+    }
     m_wires[index].GenerateCells();
 }
 
 void CanvasPanel::WirePtsSetPos(int wireIndex, int controlPointIndex, const wxPoint& pos) {
-	m_wires[wireIndex].pts[controlPointIndex].pos = pos;
+    m_wires[wireIndex].pts[controlPointIndex].pos = pos;
     m_wires[wireIndex].GenerateCells();
     Refresh();
 }
@@ -893,8 +894,8 @@ void CanvasPanel::ElementStatusChange(int index) {
 }
 
 void CanvasPanel::ClearAll() {
-	m_elements.clear();
-	m_textElements.clear();
+    m_elements.clear();
+    m_textElements.clear();
     m_wires.clear();
     Refresh();
 }

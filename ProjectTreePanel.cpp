@@ -13,7 +13,7 @@ ProjectTreePanel::ProjectTreePanel(wxWindow* parent)
     sizer->Add(m_tree, 1, wxEXPAND | wxALL, 0);
     this->SetSizer(sizer);
 
-    // ¶¯Ì¬°ó¶¨£ºµ± m_tree ´¥·¢ Item Activated ÊÂ¼þÊ±£¬µ÷ÓÃµ±Ç°ÀàµÄ OnItemActivated º¯Êý
+    // åŠ¨æ€ç»‘å®šï¼šå½“ m_tree è§¦å‘ Item Activated äº‹ä»¶æ—¶ï¼Œè°ƒç”¨å½“å‰ç±»çš„ OnItemActivated å‡½æ•°
     m_tree->Bind(wxEVT_TREE_ITEM_ACTIVATED, &ProjectTreePanel::OnItemActivated, this);
 }
 
@@ -79,7 +79,7 @@ void ProjectTreePanel::RefreshTree()
     if (m_projectRoot.IsEmpty() || !wxDirExists(m_projectRoot))
         return;
 
-    m_tree->Freeze();   // ·ÀÖ¹ÉÁË¸
+    m_tree->Freeze();   // é˜²æ­¢é—ªçƒ
     m_tree->DeleteAllItems();
 
     wxTreeItemId rootId = m_tree->AddRoot(

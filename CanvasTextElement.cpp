@@ -28,7 +28,7 @@ void CanvasTextElement::DetachHiddenTextCtrl() {
 
 void CanvasTextElement::UpdateHiddenTextCtrlPosition() {
     if (m_hiddenTextCtrl && m_editing) {
-        // ½«Òþ²ØTextCtrlÒÆ¶¯µ½CanvasTextElementµÄÎ»ÖÃ
+        // å°†éšè—TextCtrlç§»åŠ¨åˆ°CanvasTextElementçš„ä½ç½®
         wxPoint screenPos = m_parent->CanvasToScreen(m_position);
         wxSize screenSize = wxSize(
             static_cast<int>(m_size.x * m_parent->GetScale()),
@@ -47,7 +47,7 @@ void CanvasTextElement::StartEditing() {
         SyncToHiddenCtrl();
         UpdateHiddenTextCtrlPosition();
 
-        // ÉèÖÃÒþ²ØTextCtrlµÄÑùÊ½
+        // è®¾ç½®éšè—TextCtrlçš„æ ·å¼
         m_hiddenTextCtrl->SetFont(GetModernFont());
         m_hiddenTextCtrl->SetForegroundColour(wxColour(60, 60, 60));
         m_hiddenTextCtrl->SetFocus();
@@ -75,7 +75,7 @@ void CanvasTextElement::SyncFromHiddenCtrl() {
     }
 }
 
-// »æÖÆ·½·¨±£³Ö²»±ä
+// ç»˜åˆ¶æ–¹æ³•ä¿æŒä¸å˜
 void CanvasTextElement::Draw(wxDC& dc) {
     if (m_editing) {
         DrawEditingState(dc);
@@ -100,7 +100,7 @@ void CanvasTextElement::DrawEditingState(wxDC& dc) {
     //DrawRoundedRect(dc, wxRect(m_position, m_size + wxSize(2, 2)), 4);
     DrawTextContent(dc);
 
-    // »æÖÆ¹â±ê£¨Ä£Äâ£©
+    // ç»˜åˆ¶å…‰æ ‡ï¼ˆæ¨¡æ‹Ÿï¼‰
     if (m_editing) {
         wxSize textSize = dc.GetTextExtent(m_text);
         int cursorX = m_position.x + 8 + textSize.x;
@@ -136,7 +136,7 @@ void CanvasTextElement::UpdateSize() {
     m_size.x = textSize.x + 20;
     m_size.y = wxMax(30, textSize.y + 10);
 
-    // ¸üÐÂÒþ²ØTextCtrlµÄÎ»ÖÃ
+    // æ›´æ–°éšè—TextCtrlçš„ä½ç½®
     UpdateHiddenTextCtrlPosition();
 }
 
@@ -165,7 +165,7 @@ void CanvasTextElement::OnTextChanged(const wxString& newText) {
     m_text = newText;
     UpdateSize();
 
-    // Èç¹û¸½¼ÓÁËÒþ²ØTextCtrl£¬Í¬²½ÎÄ±¾
+    // å¦‚æžœé™„åŠ äº†éšè—TextCtrlï¼ŒåŒæ­¥æ–‡æœ¬
     if (m_hiddenTextCtrl && m_editing) {
         m_hiddenTextCtrl->SetValue(newText);
     }

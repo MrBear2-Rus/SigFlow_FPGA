@@ -1,4 +1,4 @@
-#include "./alloc.c"
+﻿#include "./alloc.c"
 #include "./get_changed_ranges.c"
 #include "./language.c"
 #include "./lexer.c"

@@ -5,8 +5,8 @@ SigTextEditor::SigTextEditor(wxWindow* parent)
     : wxStyledTextCtrl(parent, wxID_ANY) {
     SetMode(EDITOR_MODE::Verilog);
     SetCodePage(wxSTC_CP_UTF8);
-    SetProperty("fold.compact", "0"); // ²»ÒªÑ¹Ëõ¿ÕĞĞÕÛµş
-    SetProperty("fold.comment", "1"); // Èç¹ûÓĞ×¢ÊÍÕÛµş¿ÉÒÔ¿ªÆô
+    SetProperty("fold.compact", "0"); // ä¸è¦å‹ç¼©ç©ºè¡ŒæŠ˜å 
+    SetProperty("fold.comment", "1"); // å¦‚æœæœ‰æ³¨é‡ŠæŠ˜å å¯ä»¥å¼€å¯
     Bind(wxEVT_STC_MARGINCLICK, &SigTextEditor::OnMarginClick, this);
     Bind(wxEVT_STC_CHANGE, &SigTextEditor::OnTextChanged, this);
 }
@@ -37,21 +37,21 @@ void SigTextEditor::SetMode(EDITOR_MODE mode) {
 void SigTextEditor::SetVerilogStyle() {
     SetLexer(wxSTC_LEX_VERILOG);
 
-    // 1. »ù´¡È«¾ÖÑùÊ½ (°×É«±³¾°£¬ºÚÉ«×Ö)
+    // 1. åŸºç¡€å…¨å±€æ ·å¼ (ç™½è‰²èƒŒæ™¯ï¼Œé»‘è‰²å­—)
     wxFont codeFont(12, wxFONTFAMILY_TELETYPE, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
     StyleSetFont(wxSTC_STYLE_DEFAULT, codeFont);
-    StyleSetBackground(wxSTC_STYLE_DEFAULT, wxColour(255, 255, 255)); // ´¿°×±³¾°
-    StyleSetForeground(wxSTC_STYLE_DEFAULT, wxColour(30, 30, 30));    // ÉîºÚÎÄ×Ö
+    StyleSetBackground(wxSTC_STYLE_DEFAULT, wxColour(255, 255, 255)); // çº¯ç™½èƒŒæ™¯
+    StyleSetForeground(wxSTC_STYLE_DEFAULT, wxColour(30, 30, 30));    // æ·±é»‘æ–‡å­—
     StyleClearAll();
 
-    // 2. ±ßÔµÉèÖÃ (ĞĞºÅÇøÓò)
+    // 2. è¾¹ç¼˜è®¾ç½® (è¡Œå·åŒºåŸŸ)
     SetMarginType(0, wxSTC_MARGIN_NUMBER);
     SetMarginWidth(0, 45);
-    StyleSetBackground(wxSTC_STYLE_LINENUMBER, wxColour(240, 240, 240)); // Ç³»ÒĞĞºÅ±³¾°
-    StyleSetForeground(wxSTC_STYLE_LINENUMBER, wxColour(100, 100, 100)); // »ÒÉ«Êı×Ö
+    StyleSetBackground(wxSTC_STYLE_LINENUMBER, wxColour(240, 240, 240)); // æµ…ç°è¡Œå·èƒŒæ™¯
+    StyleSetForeground(wxSTC_STYLE_LINENUMBER, wxColour(100, 100, 100)); // ç°è‰²æ•°å­—
     SetMarginMask(0, 0);
 
-    // 3. ÅäÖÃ¹Ø¼ü×Ö (±£³Ö²»±ä)
+    // 3. é…ç½®å…³é”®å­— (ä¿æŒä¸å˜)
     SetKeyWords(0, "module endmodule input output inout wire reg assign "
         "always initial begin end if else case endcase parameter "
         "localparam generate endgenerate posedge negedge or "
@@ -59,73 +59,73 @@ void SigTextEditor::SetVerilogStyle() {
         "default for while repeat forever wait");
     SetKeyWords(1, "$display $monitor $write $finish $stop $random");
 
-    // 4. Ó¦ÓÃÇ³É«Ä£Ê½Óï·¨¸ßÁÁ
-    // ¹Ø¼ü×Ö - À¶É« (¾­µä IDE ·ç¸ñ)
+    // 4. åº”ç”¨æµ…è‰²æ¨¡å¼è¯­æ³•é«˜äº®
+    // å…³é”®å­— - è“è‰² (ç»å…¸ IDE é£æ ¼)
     StyleSetForeground(wxSTC_V_WORD, wxColour(0, 0, 255));
-    StyleSetBold(wxSTC_V_WORD, false); // °×É«±³¾°ÏÂÍ¨³£²»ĞèÒªÌ«´Ö
+    StyleSetBold(wxSTC_V_WORD, false); // ç™½è‰²èƒŒæ™¯ä¸‹é€šå¸¸ä¸éœ€è¦å¤ªç²—
 
-    // ÏµÍ³ÈÎÎñ ($) - ×ÏÉ«»òÑóºìÉ«
+    // ç³»ç»Ÿä»»åŠ¡ ($) - ç´«è‰²æˆ–æ´‹çº¢è‰²
     StyleSetForeground(wxSTC_V_WORD2, wxColour(175, 0, 219));
 
-    // ×¢ÊÍ - ÂÌÉ« (¾­µäµÄÉ­ÁÖÂÌ)
+    // æ³¨é‡Š - ç»¿è‰² (ç»å…¸çš„æ£®æ—ç»¿)
     StyleSetForeground(wxSTC_V_COMMENT, wxColour(0, 128, 0));
     StyleSetForeground(wxSTC_V_COMMENTLINE, wxColour(0, 128, 0));
 
-    // ×Ö·û´® - ×ØºìÉ«
+    // å­—ç¬¦ä¸² - æ£•çº¢è‰²
     StyleSetForeground(wxSTC_V_STRING, wxColour(163, 21, 21));
 
-    // Êı×Ö - À¶ÂÌÉ«»ò±£³ÖºÚÉ«
+    // æ•°å­— - è“ç»¿è‰²æˆ–ä¿æŒé»‘è‰²
     StyleSetForeground(wxSTC_V_NUMBER, wxColour(9, 134, 88));
 
-    // ²Ù×÷·û - ºÚÉ«
+    // æ“ä½œç¬¦ - é»‘è‰²
     StyleSetForeground(wxSTC_V_OPERATOR, wxColour(0, 0, 0));
 
-    // Ô¤´¦Àí/ºê - ×ÏºÖÉ«
+    // é¢„å¤„ç†/å® - ç´«è¤è‰²
     StyleSetForeground(wxSTC_V_PREPROCESSOR, wxColour(100, 40, 100));
 
-    // 5. ±à¼­Æ÷ UI Ï¸½Ú
-    SetCaretForeground(wxColour(0, 0, 0));            // ºÚÉ«¹â±ê
-    SetSelBackground(true, wxColour(173, 214, 255)); // Ç³À¶É«Ñ¡ÖĞÇø
+    // 5. ç¼–è¾‘å™¨ UI ç»†èŠ‚
+    SetCaretForeground(wxColour(0, 0, 0));            // é»‘è‰²å…‰æ ‡
+    SetSelBackground(true, wxColour(173, 214, 255)); // æµ…è“è‰²é€‰ä¸­åŒº
 
-    // µ±Ç°ĞĞ¸ßÁÁ£¨Ç³»ÒÉ«Ìõ£©
+    // å½“å‰è¡Œé«˜äº®ï¼ˆæµ…ç°è‰²æ¡ï¼‰
     SetCaretLineVisible(true);
     SetCaretLineBackground(wxColour(245, 245, 245));
 
-    StyleSetForeground(wxSTC_STYLE_BRACELIGHT, wxColour(255, 0, 0)); // ºìÉ«¼Ó´Ö
+    StyleSetForeground(wxSTC_STYLE_BRACELIGHT, wxColour(255, 0, 0)); // çº¢è‰²åŠ ç²—
     StyleSetBold(wxSTC_STYLE_BRACELIGHT, true);
 }
 
 void SigTextEditor::SetVerilogIDE() {
-    // --- A. Margin 1: Âß¼­¿é½¡¿µ×´Ì¬Ìõ ---
+    // --- A. Margin 1: é€»è¾‘å—å¥åº·çŠ¶æ€æ¡ ---
     SetMarginWidth(1, 10);
     SetMarginType(1, wxSTC_MARGIN_SYMBOL);
     SetMarginSensitive(1, false);
     SetMarginMask(1, 0xFFFFFFFF);
     SetMarginMask(1, ~wxSTC_MASK_FOLDERS);
 
-    // Marker 1: ÎÈ¶¨Ì¬ (ÂÌÉ«)
+    // Marker 1: ç¨³å®šæ€ (ç»¿è‰²)
     MarkerDefine(1, wxSTC_MARK_FULLRECT);
     MarkerSetForeground(1, wxColour(100, 200, 100));
     MarkerSetBackground(1, wxColour(100, 200, 100));
 
-    // Marker 2: ´íÎóÌ¬ (ºìÉ«)
+    // Marker 2: é”™è¯¯æ€ (çº¢è‰²)
     MarkerDefine(2, wxSTC_MARK_FULLRECT);
     MarkerSetForeground(2, wxColour(220, 50, 50));
     MarkerSetBackground(2, wxColour(220, 50, 50));
 
-    // Marker 3: Î´Íê³É (»ÆÉ«)
+    // Marker 3: æœªå®Œæˆ (é»„è‰²)
     MarkerDefine(3, wxSTC_MARK_FULLRECT);
     MarkerSetForeground(3, wxColour(240, 200, 50));
     MarkerSetBackground(3, wxColour(240, 200, 50));
 
-    // --- B. Margin 2: ´úÂëÕÛµş²Û ---
+    // --- B. Margin 2: ä»£ç æŠ˜å æ§½ ---
     SetMarginType(2, wxSTC_MARGIN_SYMBOL);
     SetMarginMask(2, wxSTC_MASK_FOLDERS);
     SetMarginWidth(2, 16);
     SetMarginSensitive(2, true);
-    SetProperty("fold", "1"); // ¼¤»î Scintilla ÕÛµşÒıÇæ
+    SetProperty("fold", "1"); // æ¿€æ´» Scintilla æŠ˜å å¼•æ“
 
-    // ¶¨Òå¾­µäÕÛµşÍ¼±ê (¼Ó¼õºÅ)
+    // å®šä¹‰ç»å…¸æŠ˜å å›¾æ ‡ (åŠ å‡å·)
     //MarkerDefine(wxSTC_MARKNUM_FOLDEROPEN, wxSTC_MARK_BOXMINUS, *wxWHITE, wxColour(120, 120, 120));
     //MarkerDefine(wxSTC_MARKNUM_FOLDER, wxSTC_MARK_BOXPLUS, *wxWHITE, wxColour(120, 120, 120));
     //MarkerDefine(wxSTC_MARKNUM_FOLDERSUB, wxSTC_MARK_VLINE, *wxWHITE, wxColour(120, 120, 120));
@@ -136,26 +136,26 @@ void SigTextEditor::SetVerilogIDE() {
     
     
     
-    // ¡¾1¡¿×Ô¶¨Òå£ºÎ´ÕÛµş×´Ì¬µÄÍ·£¨·½¿ò¼õºÅ£©
+    // ã€1ã€‘è‡ªå®šä¹‰ï¼šæœªæŠ˜å çŠ¶æ€çš„å¤´ï¼ˆæ–¹æ¡†å‡å·ï¼‰
     MarkerDefine(wxSTC_MARKNUM_FOLDEROPEN, wxSTC_MARK_BOXMINUS, *wxWHITE, wxColour(120, 120, 120));
 
-    // ¡¾2¡¿×Ô¶¨Òå£ºÒÑÕÛµş×´Ì¬µÄÍ·£¨·½¿ò¼ÓºÅ£©
+    // ã€2ã€‘è‡ªå®šä¹‰ï¼šå·²æŠ˜å çŠ¶æ€çš„å¤´ï¼ˆæ–¹æ¡†åŠ å·ï¼‰
     MarkerDefine(wxSTC_MARKNUM_FOLDER, wxSTC_MARK_BOXPLUS, *wxWHITE, wxColour(120, 120, 120));
 
-    // ¡¾3¡¿×Ô¶¨Òå£ºÕÛµş¿éÖĞ¼äµÄ´¹Ö±Á¬Ïß
+    // ã€3ã€‘è‡ªå®šä¹‰ï¼šæŠ˜å å—ä¸­é—´çš„å‚ç›´è¿çº¿
     MarkerDefine(wxSTC_MARKNUM_FOLDERSUB, wxSTC_MARK_VLINE, *wxWHITE, wxColour(120, 120, 120));
 
-    // ¡¾4¡¿×Ô¶¨Òå£ºÕ¹¿ª×´Ì¬ÏÂ£¬¿é½áÎ²µÄÄÇ¸ö L ĞÍ¹Õ½Ç
+    // ã€4ã€‘è‡ªå®šä¹‰ï¼šå±•å¼€çŠ¶æ€ä¸‹ï¼Œå—ç»“å°¾çš„é‚£ä¸ª L å‹æ‹è§’
     MarkerDefine(wxSTC_MARKNUM_FOLDERTAIL, wxSTC_MARK_LCORNER, *wxWHITE, wxColour(120, 120, 120));
 
-    // ¡¾5¡¿×Ô¶¨Òå£ºÕÛµş×´Ì¬ÏÂ£¬Èç¹ûÏÂÃæ»¹ÓĞÇ¶Ì×£¬½áÎ²ÏÔÊ¾µÄÄÇ¸ö´øÁ¬ÏßµÄ·½¿ò£¨¼«ÆäÖØÒª£¡£©
-    // Õâ¾ÍÊÇ½â¾öÄã¡°¶ş¼¶ Header ±äÔ²È¦¡±µÄ¹Ø¼ü
+    // ã€5ã€‘è‡ªå®šä¹‰ï¼šæŠ˜å çŠ¶æ€ä¸‹ï¼Œå¦‚æœä¸‹é¢è¿˜æœ‰åµŒå¥—ï¼Œç»“å°¾æ˜¾ç¤ºçš„é‚£ä¸ªå¸¦è¿çº¿çš„æ–¹æ¡†ï¼ˆæå…¶é‡è¦ï¼ï¼‰
+    // è¿™å°±æ˜¯è§£å†³ä½ â€œäºŒçº§ Header å˜åœ†åœˆâ€çš„å…³é”®
     MarkerDefine(wxSTC_MARKNUM_FOLDEREND, wxSTC_MARK_BOXPLUSCONNECTED, *wxWHITE, wxColour(120, 120, 120));
 
-    // ¡¾6¡¿×Ô¶¨Òå£º´¦ÓÚ´ò¿ª×´Ì¬µÄ×Ó¼¶Í·£¨´øÁ¬ÏßµÄ¼õºÅ·½¿ò£©
+    // ã€6ã€‘è‡ªå®šä¹‰ï¼šå¤„äºæ‰“å¼€çŠ¶æ€çš„å­çº§å¤´ï¼ˆå¸¦è¿çº¿çš„å‡å·æ–¹æ¡†ï¼‰
     MarkerDefine(wxSTC_MARKNUM_FOLDEROPENMID, wxSTC_MARK_BOXMINUSCONNECTED, *wxWHITE, wxColour(120, 120, 120));
 
-    // ¡¾7¡¿×Ô¶¨Òå£ºÓÉÓÚÄ³Ğ©Ìø±ä²úÉúµÄÖĞ¼äÁ¬Ïß
+    // ã€7ã€‘è‡ªå®šä¹‰ï¼šç”±äºæŸäº›è·³å˜äº§ç”Ÿçš„ä¸­é—´è¿çº¿
     MarkerDefine(wxSTC_MARKNUM_FOLDERMIDTAIL, wxSTC_MARK_VLINE, *wxWHITE, wxColour(120, 120, 120));
     
     
@@ -169,24 +169,24 @@ void SigTextEditor::SetVerilogIDE() {
     
     
     
-    // --- C. Õï¶Ï²¨ÀËÏßÅäÖÃ (Indicators) ---
+    // --- C. è¯Šæ–­æ³¢æµªçº¿é…ç½® (Indicators) ---
     IndicatorSetStyle(0, wxSTC_INDIC_SQUIGGLE); // Error
     IndicatorSetForeground(0, wxColour(220, 50, 50));
     IndicatorSetStyle(1, wxSTC_INDIC_SQUIGGLE); // Warning
     IndicatorSetForeground(1, wxColour(255, 150, 0));
 
-    // --- D. ÓïÒå¸ßÁÁÑùÊ½¶¨Òå (ÎªºóĞøäÖÈ¾×¼±¸) ---
-    // ¶¨Òå³£Á¿£¨½¨ÒéÔÚÀà³ÉÔ±»òÍ·ÎÄ¼şÖĞÍ³Ò»¹ÜÀí£©
+    // --- D. è¯­ä¹‰é«˜äº®æ ·å¼å®šä¹‰ (ä¸ºåç»­æ¸²æŸ“å‡†å¤‡) ---
+    // å®šä¹‰å¸¸é‡ï¼ˆå»ºè®®åœ¨ç±»æˆå‘˜æˆ–å¤´æ–‡ä»¶ä¸­ç»Ÿä¸€ç®¡ç†ï¼‰
 #define STYLE_SEM_PORT 20
 #define STYLE_SEM_PARAM 21
 #define STYLE_SEM_INST 22
-    StyleSetForeground(STYLE_SEM_PORT, wxColour(255, 128, 0));  // ³ÈÉ«¶Ë¿Ú
+    StyleSetForeground(STYLE_SEM_PORT, wxColour(255, 128, 0));  // æ©™è‰²ç«¯å£
     StyleSetBold(STYLE_SEM_PORT, true);
-    StyleSetForeground(STYLE_SEM_PARAM, wxColour(128, 0, 255)); // ×ÏÉ«²ÎÊı
-    StyleSetForeground(STYLE_SEM_INST, wxColour(0, 128, 192));  // À¶ÂÌÊµÀı
+    StyleSetForeground(STYLE_SEM_PARAM, wxColour(128, 0, 255)); // ç´«è‰²å‚æ•°
+    StyleSetForeground(STYLE_SEM_INST, wxColour(0, 128, 192));  // è“ç»¿å®ä¾‹
 
-    // --- E. ½»»¥·´À¡ ---
-    SetMouseDwellTime(500); // ¿ªÆô 500ms ĞüÍ£¼ì²â
+    // --- E. äº¤äº’åé¦ˆ ---
+    SetMouseDwellTime(500); // å¼€å¯ 500ms æ‚¬åœæ£€æµ‹
     SetCaretForeground(wxColour(0, 0, 0));
     SetCaretLineVisible(true);
     SetCaretLineBackground(wxColour(245, 245, 245));
@@ -196,50 +196,50 @@ void SigTextEditor::SetTextStyle() {
     ClearAll();
     SetLexer(wxSTC_LEX_NULL);
 
-    // Ä¬ÈÏ×ÖÌå£ºÉî»ÒÉ«ÎÄ×Ö£¬´¿°×±³¾°
+    // é»˜è®¤å­—ä½“ï¼šæ·±ç°è‰²æ–‡å­—ï¼Œçº¯ç™½èƒŒæ™¯
     wxFont font(12, wxFONTFAMILY_TELETYPE, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
     StyleSetFont(wxSTC_STYLE_DEFAULT, font);
-    StyleSetBackground(wxSTC_STYLE_DEFAULT, wxColour(255, 255, 255)); // ´¿°×
-    StyleSetForeground(wxSTC_STYLE_DEFAULT, wxColour(30, 30, 30));    // ½üºõºÚÉ«
+    StyleSetBackground(wxSTC_STYLE_DEFAULT, wxColour(255, 255, 255)); // çº¯ç™½
+    StyleSetForeground(wxSTC_STYLE_DEFAULT, wxColour(30, 30, 30));    // è¿‘ä¹é»‘è‰²
 
     StyleClearAll();
 
-    // ÅäÖÃĞĞºÅÁĞ (Margin 0)£ºÇ³»ÒÉ«±³¾°£¬Éî»ÒÉ«Êı×Ö
+    // é…ç½®è¡Œå·åˆ— (Margin 0)ï¼šæµ…ç°è‰²èƒŒæ™¯ï¼Œæ·±ç°è‰²æ•°å­—
     SetMarginType(0, wxSTC_MARGIN_NUMBER);
     SetMarginWidth(0, 45);
     StyleSetForeground(wxSTC_STYLE_LINENUMBER, wxColour(120, 120, 120));
     StyleSetBackground(wxSTC_STYLE_LINENUMBER, wxColour(240, 240, 240));
 
-    // ÉèÖÃ¹â±êÎªºÚÉ«
+    // è®¾ç½®å…‰æ ‡ä¸ºé»‘è‰²
     SetCaretForeground(wxColour(0, 0, 0));
 }
 
 void SigTextEditor::SetMarkdownStyle() {
     SetLexer(wxSTC_LEX_MARKDOWN);
 
-    // »ù´¡¼Ì³Ğ
+    // åŸºç¡€ç»§æ‰¿
     StyleSetBackground(wxSTC_STYLE_DEFAULT, wxColour(255, 255, 255));
     StyleSetForeground(wxSTC_STYLE_DEFAULT, wxColour(30, 30, 30));
     StyleClearAll();
 
-    // ±êÌâ (Headers) - ÉîÀ¶É«
+    // æ ‡é¢˜ (Headers) - æ·±è“è‰²
     StyleSetForeground(1, wxColour(0, 56, 121));  // H1
     StyleSetBold(1, true);
     StyleSetForeground(2, wxColour(0, 56, 121));  // H2
     StyleSetForeground(3, wxColour(0, 56, 121));  // H3
 
-    // ´úÂë¿é - ×ØºìÉ«
+    // ä»£ç å— - æ£•çº¢è‰²
     StyleSetForeground(19, wxColour(163, 21, 21));
     StyleSetForeground(20, wxColour(163, 21, 21));
 
-    // ÁĞ±í - ÉîÂÌÉ«
+    // åˆ—è¡¨ - æ·±ç»¿è‰²
     StyleSetForeground(15, wxColour(0, 128, 0));
 
-    // ´ÖÌå/Ğ±Ìå
+    // ç²—ä½“/æ–œä½“
     StyleSetBold(10, true);
     StyleSetItalic(11, true);
 
-    // Á´½Ó - ÁÁÀ¶É«´øÏÂ»®Ïß
+    // é“¾æ¥ - äº®è“è‰²å¸¦ä¸‹åˆ’çº¿
     StyleSetForeground(14, wxColour(0, 0, 255));
     StyleSetUnderline(14, true);
 }
@@ -251,57 +251,57 @@ void SigTextEditor::SetJsonStyle() {
     StyleSetForeground(wxSTC_STYLE_DEFAULT, wxColour(30, 30, 30));
     StyleClearAll();
 
-    // ÊôĞÔÃû (Key) - ÉîÀ¶É« (VS ¾­µäÉ«)
+    // å±æ€§å (Key) - æ·±è“è‰² (VS ç»å…¸è‰²)
     StyleSetForeground(wxSTC_JSON_PROPERTYNAME, wxColour(4, 81, 165));
 
-    // ×Ö·û´® (Value) - ×ØºìÉ«
+    // å­—ç¬¦ä¸² (Value) - æ£•çº¢è‰²
     StyleSetForeground(wxSTC_JSON_STRING, wxColour(163, 21, 21));
 
-    // ÊıÖµ - ´äÂÌÉ«
+    // æ•°å€¼ - ç¿ ç»¿è‰²
     StyleSetForeground(wxSTC_JSON_NUMBER, wxColour(9, 134, 88));
 
-    // ¹Ø¼ü×Ö (true, false, null) - ÁÁÀ¶É«
+    // å…³é”®å­— (true, false, null) - äº®è“è‰²
     StyleSetForeground(wxSTC_JSON_KEYWORD, wxColour(0, 0, 255));
     SetKeyWords(0, "true false null");
 
-    // ²Ù×÷·û - ºÚÉ«
+    // æ“ä½œç¬¦ - é»‘è‰²
     StyleSetForeground(wxSTC_JSON_OPERATOR, wxColour(0, 0, 0));
 
-    // ´íÎó´¦Àí - ÁÁºìÉ«
+    // é”™è¯¯å¤„ç† - äº®çº¢è‰²
     StyleSetForeground(wxSTC_JSON_ERROR, wxColour(200, 0, 0));
 }
 
 
 bool SigTextEditor::SaveIfModified() {
-    // GetModify() ÊÇ wxSTC µÄÄÚÖÃ·½·¨£¬Èç¹û»º³åÇøÓĞ±ä»¯Ôò·µ»Ø true
+    // GetModify() æ˜¯ wxSTC çš„å†…ç½®æ–¹æ³•ï¼Œå¦‚æœç¼“å†²åŒºæœ‰å˜åŒ–åˆ™è¿”å› true
     if (!this->GetModify()) {
-        return true; // Ã»ÓĞĞŞ¸Ä£¬Ö±½ÓÍ¨¹ı
+        return true; // æ²¡æœ‰ä¿®æ”¹ï¼Œç›´æ¥é€šè¿‡
     }
 
     wxString msg = wxString::Format("File has been modified. Save changes?");
 
-    // µ¯³ö±ê×¼¶Ô»°¿ò£ºÊÇ¡¢·ñ¡¢È¡Ïû
+    // å¼¹å‡ºæ ‡å‡†å¯¹è¯æ¡†ï¼šæ˜¯ã€å¦ã€å–æ¶ˆ
     wxMessageDialog dlg(this, msg, "Save Confirmation",
         wxYES_NO | wxCANCEL | wxICON_QUESTION);
 
     int result = dlg.ShowModal();
 
     if (result == wxID_YES) {
-        // Ö´ĞĞ±£´æÂß¼­£¨¼ÙÉèÄãÒÑÓĞ SaveCurrentFile º¯Êı£©
+        // æ‰§è¡Œä¿å­˜é€»è¾‘ï¼ˆå‡è®¾ä½ å·²æœ‰ SaveCurrentFile å‡½æ•°ï¼‰
         return this->SaveFile();
     }
     else if (result == wxID_NO) {
-        return true; // ÓÃ»§Ã÷È·²»±£´æ£¬ÔÊĞí¸²¸Ç/¹Ø±Õ
+        return true; // ç”¨æˆ·æ˜ç¡®ä¸ä¿å­˜ï¼Œå…è®¸è¦†ç›–/å…³é—­
     }
     else {
-        return false; // ÓÃ»§µã»÷È¡Ïû£¬×èÖ¹ºóĞø²Ù×÷
+        return false; // ç”¨æˆ·ç‚¹å‡»å–æ¶ˆï¼Œé˜»æ­¢åç»­æ“ä½œ
     }
 }
 
 void SigTextEditor::OnTextChanged(wxStyledTextEvent& event) {
     int type = event.GetModificationType();
 
-    // Ö»ÔÚ ²åÈëÎÄ±¾¡¢É¾³ıÎÄ±¾¡¢³·Ïú¡¢ÖØ×ö Ê±Ôö¼Ó°æ±¾
+    // åªåœ¨ æ’å…¥æ–‡æœ¬ã€åˆ é™¤æ–‡æœ¬ã€æ’¤é”€ã€é‡åš æ—¶å¢åŠ ç‰ˆæœ¬
     if (m_isLoading && (type & (wxSTC_MOD_INSERTTEXT | wxSTC_MOD_DELETETEXT |
         wxSTC_PERFORMED_UNDO | wxSTC_PERFORMED_REDO))) {
         this->temp_version++;
@@ -312,25 +312,25 @@ void SigTextEditor::OnTextChanged(wxStyledTextEvent& event) {
 bool SigTextEditor::OpenFile(wxString path) {
     if (!wxFileExists(path)) return false;
 
-    // 1. ÎïÀí¼ÓÔØÇ°ÏÈÇåÀí¾É×´Ì¬
+    // 1. ç‰©ç†åŠ è½½å‰å…ˆæ¸…ç†æ—§çŠ¶æ€
     //this->ClearAllDiagnostics();
     if (!this->SaveIfModified()) {
-        return false; // ÓÃ»§µã»÷ÁË¡°È¡Ïû¡±£¬ÖÕÖ¹´ò¿ªĞÂÎÄ¼şµÄÁ÷³Ì
+        return false; // ç”¨æˆ·ç‚¹å‡»äº†â€œå–æ¶ˆâ€ï¼Œç»ˆæ­¢æ‰“å¼€æ–°æ–‡ä»¶çš„æµç¨‹
     }
 
     m_isLoading = true;
 
-    // 2. ¼ÓÔØÎÄ¼şÄÚÈİ
+    // 2. åŠ è½½æ–‡ä»¶å†…å®¹
     if (!this->LoadFile(path)) return false;
 
-    // 3. ¸üĞÂµ±Ç°Â·¾¶³ÉÔ±
+    // 3. æ›´æ–°å½“å‰è·¯å¾„æˆå‘˜
     this->m_currentFilePath = path;
 
-    // 4. ÎÄ¼şÀàĞÍ×Ô¶¯¼ì²â
+    // 4. æ–‡ä»¶ç±»å‹è‡ªåŠ¨æ£€æµ‹
     wxFileName fn(path);
     wxString ext = fn.GetExt().Lower();
 
-    EDITOR_MODE mode = Text; // Ä¬ÈÏ»ØÍËµ½´¿ÎÄ±¾
+    EDITOR_MODE mode = Text; // é»˜è®¤å›é€€åˆ°çº¯æ–‡æœ¬
     if (ext == "v" || ext == "sv" || ext == "vh") {
         mode = Verilog;
     }
@@ -341,10 +341,10 @@ bool SigTextEditor::OpenFile(wxString path) {
         mode = JsonStyle;
     }
 
-    // 5. µ÷ÓÃÄ£Ê½·Ö·¢
+    // 5. è°ƒç”¨æ¨¡å¼åˆ†å‘
     this->SetMode(mode);
 
-    // 6. ±à¼­Æ÷»·¾³³õÊ¼»¯
+    // 6. ç¼–è¾‘å™¨ç¯å¢ƒåˆå§‹åŒ–
     this->EmptyUndoBuffer();
     this->SetSavePoint();
 
@@ -369,7 +369,7 @@ bool SigTextEditor::SaveFileAs(wxString path) {
     wxString dir = fn.GetPath();
     if (!wxDirExists(dir)) {
         if (!wxFileName::Mkdir(dir, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL)) {
-            wxLogError("ÎŞ·¨´´½¨»º´æÄ¿Â¼: %s", dir);
+            wxLogError("æ— æ³•åˆ›å»ºç¼“å­˜ç›®å½•: %s", dir);
             return false;
         }
     }
@@ -392,24 +392,24 @@ bool SigTextEditor::SaveFileAs(wxString path) {
 //        return;
 //    }
 //
-//    // Åö×²¼ì²â£º±éÀú×îĞÂ·ÖÎö½á¹ûÖĞµÄËùÓĞÏûÏ¢
+//    // ç¢°æ’æ£€æµ‹ï¼šéå†æœ€æ–°åˆ†æç»“æœä¸­çš„æ‰€æœ‰æ¶ˆæ¯
 //    for (const auto& msg : m_latestAnalysis.lintMessages) {
 //        long errStart = PositionFromLine(msg.line - 1) + (msg.col - 1);
 //        long errEnd = errStart + (msg.length > 0 ? msg.length : 3);
 //
-//        // Èç¹ûÊó±êÎ»ÖÃÔÚ²¨ÀËÏß·¶Î§ÄÚ (Èİ´í·¶Î§ +2)
+//        // å¦‚æœé¼ æ ‡ä½ç½®åœ¨æ³¢æµªçº¿èŒƒå›´å†… (å®¹é”™èŒƒå›´ +2)
 //        if (pos >= errStart && pos <= errEnd + 2) {
 //            this->ShowReactiveDetail(pos, msg);
 //            return;
 //        }
 //    }
 //
-//    // Èç¹ûÃ»Ö¸×ÅÈÎºÎ´íÎó£¬È¡Ïû¾ÉÌáÊ¾
+//    // å¦‚æœæ²¡æŒ‡ç€ä»»ä½•é”™è¯¯ï¼Œå–æ¶ˆæ—§æç¤º
 //    if (CallTipActive()) CallTipCancel();
 //}
 //
 //void SigTextEditor::ShowReactiveDetail(int pos, const LintMessage& msg) {
-//    // ¸ñÊ½»¯Êä³ö£º[À´Ô´] ´íÎó´úÂë: ÃèÊö
+//    // æ ¼å¼åŒ–è¾“å‡ºï¼š[æ¥æº] é”™è¯¯ä»£ç : æè¿°
 //    wxString sourceName = (msg.source == LintMessage::Source::SLANG) ? "Slang" : "Syntax";
 //    wxString info = wxString::Format(" %s | %s: %s ", sourceName, msg.code, msg.desc);
 //
@@ -429,16 +429,16 @@ bool SigTextEditor::SaveFileAs(wxString path) {
 //    this->m_latestAnalysis = res;
 //    this->Freeze();
 //
-//    // 1. äÖÈ¾Õï¶Ï²¨ÀËÏß (Indicators)
+//    // 1. æ¸²æŸ“è¯Šæ–­æ³¢æµªçº¿ (Indicators)
 //    //this->RenderDiagnosticIndicators(res.lintMessages);
 //
-//    // 2. äÖÈ¾ÎïÀí½á¹¹ (Ö»ÓĞ Tree-sitter ³É¹¦Ê±)
+//    // 2. æ¸²æŸ“ç‰©ç†ç»“æ„ (åªæœ‰ Tree-sitter æˆåŠŸæ—¶)
 //    if (res.ts_success) {
 //        //this->RenderBlockHealthStatus(res.blocks);
 //        //this->RenderFoldingStructure(res.blocks);
 //    }
 //
-//    // 3. äÖÈ¾ÓïÒå¸ßÁÁ (Ö»ÓĞ Slang ³É¹¦Ê±)
+//    // 3. æ¸²æŸ“è¯­ä¹‰é«˜äº® (åªæœ‰ Slang æˆåŠŸæ—¶)
 //    if (res.slang_success) {
 //        //this->RenderSemanticColors(res.blocks);
 //    }
@@ -447,11 +447,11 @@ bool SigTextEditor::SaveFileAs(wxString path) {
 //    return true;
 //}
 
-// --- ÒÀÀµº¯ÊıÊµÏÖ ---
+// --- ä¾èµ–å‡½æ•°å®ç° ---
 
 
 //void SigTextEditor::RenderDiagnosticIndicators(const std::vector<LintMessage>& msgs) {
-//    // Çå³ı¾ÉµÄ²¨ÀËÏß
+//    // æ¸…é™¤æ—§çš„æ³¢æµªçº¿
 //    this->SetIndicatorCurrent(INDIC_ERROR);
 //    this->IndicatorClearRange(0, this->GetLength());
 //    this->SetIndicatorCurrent(INDIC_WARNING);
@@ -461,14 +461,14 @@ bool SigTextEditor::SaveFileAs(wxString path) {
 //        int indicId = msg.isError ? INDIC_ERROR : INDIC_WARNING;
 //        this->SetIndicatorCurrent(indicId);
 //
-//        // ¼ÆËã¾«È·Î»ÖÃ
+//        // è®¡ç®—ç²¾ç¡®ä½ç½®
 //        long pos = this->PositionFromLine(msg.line - 1) + (msg.col - 1);
 //        this->IndicatorFillRange(pos, msg.length > 0 ? msg.length : 1);
 //    }
 //}
 //
 //void SigTextEditor::RenderFoldingStructure(const std::vector<VerilogBlock>& blocks) {
-//    // ÖØÖÃËùÓĞÕÛµş²ã¼¶
+//    // é‡ç½®æ‰€æœ‰æŠ˜å å±‚çº§
 //    for (int i = 0; i < GetLineCount(); ++i) {
 //        this->SetFoldLevel(i, wxSTC_FOLDLEVELBASE);
 //    }
@@ -477,10 +477,10 @@ bool SigTextEditor::SaveFileAs(wxString path) {
 //        if (block.end_line > block.start_line) {
 //            int level = wxSTC_FOLDLEVELBASE + block.nesting_level;
 //
-//            // ±ê¼Ç Header ĞĞ
+//            // æ ‡è®° Header è¡Œ
 //            this->SetFoldLevel(block.start_line - 1, level | wxSTC_FOLDLEVELHEADERFLAG);
 //
-//            // Ìî³äºóĞøĞĞ
+//            // å¡«å……åç»­è¡Œ
 //            for (int l = block.start_line; l < block.end_line; ++l) {
 //                if (l < GetLineCount()) {
 //                    this->SetFoldLevel(l, level);
@@ -491,23 +491,23 @@ bool SigTextEditor::SaveFileAs(wxString path) {
 //}
 //
 //void SigTextEditor::RenderSemanticColors(const std::vector<VerilogBlock>& blocks) {
-//    // ÓïÒå×ÅÉ«µÄ¹Ø¼üÔÚÓÚ£º²»ÆÆ»µ»ù´¡ Style£¬¶øÊÇÕë¶ÔÌØ¶¨ Range ¸²¸ÇÑÕÉ«
-//    // ×¢Òâ£ºwxSTC Ä¬ÈÏ¸ßÁÁºó£¬ÊÖ¶¯×ÅÉ«ĞèÒª½÷É÷´¦Àí
+//    // è¯­ä¹‰ç€è‰²çš„å…³é”®åœ¨äºï¼šä¸ç ´ååŸºç¡€ Styleï¼Œè€Œæ˜¯é’ˆå¯¹ç‰¹å®š Range è¦†ç›–é¢œè‰²
+//    // æ³¨æ„ï¼šwxSTC é»˜è®¤é«˜äº®åï¼Œæ‰‹åŠ¨ç€è‰²éœ€è¦è°¨æ…å¤„ç†
 //
 //    //for (const auto& block : blocks) {
-//    //    // ÕâÀïµÄ atoms »ò SemanticInfo ĞèÒªÔÚ Slang ½×¶Î±»Ìî³ä
-//    //    // Ã¿¸ö Atom °üº¬£º{name, position, length, type}
+//    //    // è¿™é‡Œçš„ atoms æˆ– SemanticInfo éœ€è¦åœ¨ Slang é˜¶æ®µè¢«å¡«å……
+//    //    // æ¯ä¸ª Atom åŒ…å«ï¼š{name, position, length, type}
 //    //    for (const auto& atom : block.semantic_info.atoms) {
-//    //        // 1. ÉèÖÃäÖÈ¾Æğµã
+//    //        // 1. è®¾ç½®æ¸²æŸ“èµ·ç‚¹
 //    //        this->StartStyling(atom.position);
 //
-//    //        // 2. ¸ù¾İ·ûºÅÀàĞÍÓ¦ÓÃÑùÊ½
+//    //        // 2. æ ¹æ®ç¬¦å·ç±»å‹åº”ç”¨æ ·å¼
 //    //        int styleId = STYLE_DEFAULT;
 //    //        if (atom.type == "port") styleId = STYLE_SEMANTIC_PORT;
 //    //        else if (atom.type == "parameter") styleId = STYLE_SEMANTIC_PARAM;
 //    //        else if (atom.type == "instance") styleId = STYLE_SEMANTIC_INST;
 //
-//    //        // 3. Ó¦ÓÃÑùÊ½
+//    //        // 3. åº”ç”¨æ ·å¼
 //    //        this->SetStyling(atom.length, styleId);
 //    //    }
 //    //}
@@ -516,28 +516,28 @@ bool SigTextEditor::SaveFileAs(wxString path) {
 //void SigTextEditor::ClearAllDiagnostics() {
 //    this->Freeze();
 //
-//    // 1. Çå³ı²¨ÀËÏß (Indicators)
+//    // 1. æ¸…é™¤æ³¢æµªçº¿ (Indicators)
 //    this->SetIndicatorCurrent(INDIC_ERROR);
 //    this->IndicatorClearRange(0, this->GetLength());
 //    this->SetIndicatorCurrent(INDIC_WARNING);
 //    this->IndicatorClearRange(0, this->GetLength());
 //
-//    // 2. Çå³ı²à±ßÀ¸×´Ì¬Ìõ (Markers)
+//    // 2. æ¸…é™¤ä¾§è¾¹æ çŠ¶æ€æ¡ (Markers)
 //    this->MarkerDeleteAll(MARKER_ID_STABLE);
 //    this->MarkerDeleteAll(MARKER_ID_CORRUPTED);
 //    this->MarkerDeleteAll(MARKER_ID_INCOMPLETE);
 //
-//    // 3. Çå³ıÕÛµş½á¹¹ (ÖØÖÃÎª»ù´¡²ã¼¶)
+//    // 3. æ¸…é™¤æŠ˜å ç»“æ„ (é‡ç½®ä¸ºåŸºç¡€å±‚çº§)
 //    for (int i = 0; i < GetLineCount(); ++i) {
 //        this->SetFoldLevel(i, wxSTC_FOLDLEVELBASE);
 //    }
 //
-//    // 4. Çå³ı CallTip (Èç¹û´æÔÚ)
+//    // 4. æ¸…é™¤ CallTip (å¦‚æœå­˜åœ¨)
 //    if (this->CallTipActive()) {
 //        this->CallTipCancel();
 //    }
 //
-//    // 5. ÖØÖÃÊı¾İ¿ìÕÕ
+//    // 5. é‡ç½®æ•°æ®å¿«ç…§
 //    this->m_latestAnalysis = LintRes();
 //
 //    this->Thaw();
@@ -551,7 +551,7 @@ bool SigTextEditor::VisualFeedBack(const LintResult res) {
 
 void SigTextEditor::RenderLineMarker(const std::vector<Stability> line_status) {
 
-    // 1. Çå³ıµ±Ç°±à¼­Æ÷ÖĞËùÓĞµÄ¾É±ê¼Ç (¼ÙÉèÊÇÔÚµÚ 0 ºÅ Margin)
+    // 1. æ¸…é™¤å½“å‰ç¼–è¾‘å™¨ä¸­æ‰€æœ‰çš„æ—§æ ‡è®° (å‡è®¾æ˜¯åœ¨ç¬¬ 0 å· Margin)
     int lineCount = GetLineCount();
     for (int i = 0; i < lineCount; i++) {
         MarkerDelete(i, MARKER_ID_STABLE);
@@ -561,9 +561,9 @@ void SigTextEditor::RenderLineMarker(const std::vector<Stability> line_status) {
 
 
 
-    // 2. ±éÀú×´Ì¬Êı×é (´ÓË÷Òı 1 ¿ªÊ¼)
+    // 2. éå†çŠ¶æ€æ•°ç»„ (ä»ç´¢å¼• 1 å¼€å§‹)
     for (size_t i = 1; i < line_status.size(); ++i) {
-        int stc_line_number = static_cast<int>(i) - 1; // ×ª»»Îª 0-based
+        int stc_line_number = static_cast<int>(i) - 1; // è½¬æ¢ä¸º 0-based
 
         switch (line_status[i]) {
         case Stability::Stable:
@@ -576,19 +576,19 @@ void SigTextEditor::RenderLineMarker(const std::vector<Stability> line_status) {
             MarkerAdd(stc_line_number, MARKER_ID_INCOMPLETE);
             break;
         default:
-            // Î´Öª×´Ì¬²»äÖÈ¾»òäÖÈ¾Ä¬ÈÏÑùÊ½
+            // æœªçŸ¥çŠ¶æ€ä¸æ¸²æŸ“æˆ–æ¸²æŸ“é»˜è®¤æ ·å¼
             break;
         }
     }
 }
 
 void SigTextEditor::MarkerDeleteAllByID(int markerId) {
-    // »ñÈ¡µ±Ç°±à¼­Æ÷µÄ×ÜĞĞÊı
+    // è·å–å½“å‰ç¼–è¾‘å™¨çš„æ€»è¡Œæ•°
     int lineCount = GetLineCount();
 
     for (int i = 0; i < lineCount; ++i) {
-        // ¼ì²éµÚ i ĞĞÊÇ·ñ°üº¬Õâ¸öÌØ¶¨µÄ markerId
-        // MarkerGet ·µ»ØµÄÊÇÒ»¸öÎ»ÑÚÂë (Bitmask)
+        // æ£€æŸ¥ç¬¬ i è¡Œæ˜¯å¦åŒ…å«è¿™ä¸ªç‰¹å®šçš„ markerId
+        // MarkerGet è¿”å›çš„æ˜¯ä¸€ä¸ªä½æ©ç  (Bitmask)
         if (MarkerGet(i) & (1 << markerId)) {
             MarkerDelete(i, markerId);
         }
@@ -614,17 +614,17 @@ void SigTextEditor::RenderFoldingStructure(const std::vector<bool> is_lines_head
 }
 
 void SigTextEditor::OnMarginClick(wxStyledTextEvent& event) {
-    // ¼ÙÉèÄãµÄÕÛµş±ê¼ÇÔÚ Margin 2 (ÕâÊÇÍ¨ÓÃµÄ×ö·¨)
+    // å‡è®¾ä½ çš„æŠ˜å æ ‡è®°åœ¨ Margin 2 (è¿™æ˜¯é€šç”¨çš„åšæ³•)
     if (event.GetMargin() == 2) {
-        // 1. »ñÈ¡µã»÷Î»ÖÃ¶ÔÓ¦µÄĞĞºÅ
+        // 1. è·å–ç‚¹å‡»ä½ç½®å¯¹åº”çš„è¡Œå·
         int lineClick = LineFromPosition(event.GetPosition());
 
-        // 2. »ñÈ¡¸ÃĞĞµÄÕÛµş²ã¼¶
+        // 2. è·å–è¯¥è¡Œçš„æŠ˜å å±‚çº§
         int levelClick = GetFoldLevel(lineClick);
 
-        // 3. ÅĞ¶ÏÕâÒ»ĞĞÊÇ²»ÊÇ Header£¨ÓĞÃ»ÓĞĞ¡·½¿ò£©
+        // 3. åˆ¤æ–­è¿™ä¸€è¡Œæ˜¯ä¸æ˜¯ Headerï¼ˆæœ‰æ²¡æœ‰å°æ–¹æ¡†ï¼‰
         if (levelClick & wxSTC_FOLDLEVELHEADERFLAG) {
-            // 4. Ö´ĞĞÕÛµş»òÕ¹¿ªÇĞ»»
+            // 4. æ‰§è¡ŒæŠ˜å æˆ–å±•å¼€åˆ‡æ¢
             ToggleFold(lineClick);
         }
     }
@@ -635,35 +635,35 @@ void SigTextEditor::DebugFoldLevels() {
     wxLogDebug("--- Folding Debug Info (Detailed) ---");
 
     for (int i = 0; i < total_lines; ++i) {
-        // 1. »ñÈ¡Ô­Ê¼µÄ Level ĞÅÏ¢
+        // 1. è·å–åŸå§‹çš„ Level ä¿¡æ¯
         int level_raw = GetFoldLevel(i);
 
-        // 2. ÌáÈ¡²ã¼¶Êı×Ö (ÆÁ±ÎµôËùÓĞ Flag)
+        // 2. æå–å±‚çº§æ•°å­— (å±è”½æ‰æ‰€æœ‰ Flag)
         int level_num = level_raw & wxSTC_FOLDLEVELNUMBERMASK;
 
-        // 3. ÅĞ¶ÏÊÇ·ñÎª Header
+        // 3. åˆ¤æ–­æ˜¯å¦ä¸º Header
         bool is_header = (level_raw & wxSTC_FOLDLEVELHEADERFLAG) != 0;
 
-        // 4. »ñÈ¡¸ÃĞĞµÄÕÛµşÕ¹¿ª×´Ì¬ (API µ÷ÓÃ)
+        // 4. è·å–è¯¥è¡Œçš„æŠ˜å å±•å¼€çŠ¶æ€ (API è°ƒç”¨)
         bool is_expanded = GetFoldExpanded(i);
 
-        // 5. »ñÈ¡¸ÃĞĞµÄ¸¸¼¶ĞĞºÅ (API µ÷ÓÃ)
-        // Õâ¸ö·Ç³£ÓĞÓÃ£¡Scintilla »á×Ô¶¯¸æËßÄãÕâÒ»ĞĞ¹éË­¹Ü
+        // 5. è·å–è¯¥è¡Œçš„çˆ¶çº§è¡Œå· (API è°ƒç”¨)
+        // è¿™ä¸ªéå¸¸æœ‰ç”¨ï¼Scintilla ä¼šè‡ªåŠ¨å‘Šè¯‰ä½ è¿™ä¸€è¡Œå½’è°ç®¡
         int parent_line = GetFoldParent(i);
 
-        // 6. ¹¹Ôì¿ÉÊÓ»¯Ëõ½ø
+        // 6. æ„é€ å¯è§†åŒ–ç¼©è¿›
         wxString indent = "";
         int depth = level_num - wxSTC_FOLDLEVELBASE;
         for (int j = 0; j < depth; ++j) indent += "  ";
 
-        // 7. ¸ñÊ½»¯Êä³ö
-        // ±ê¼ÇÎ»ËµÃ÷£ºH (Header), E (Expanded)
+        // 7. æ ¼å¼åŒ–è¾“å‡º
+        // æ ‡è®°ä½è¯´æ˜ï¼šH (Header), E (Expanded)
         wxString info = wxString::Format(
             "Line %3d | [0x%04X] | L:%d | Parent:%3d | %s%s %s",
             i + 1,
             level_raw,
             level_num,
-            parent_line + 1, // ×ª»»Îª 1-based
+            parent_line + 1, // è½¬æ¢ä¸º 1-based
             indent,
             is_header ? (is_expanded ? "[-] " : "[+] ") : "  | ",
             is_header ? "<-- HEADER" : ""

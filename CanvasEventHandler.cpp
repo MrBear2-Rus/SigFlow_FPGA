@@ -1,4 +1,4 @@
-﻿#include <wx/msgdlg.h>
+#include <wx/msgdlg.h>
 
 #include "CanvasEventHandler.h"
 #include "CanvasTextElement.h"
@@ -12,7 +12,7 @@ CanvasEventHandler::CanvasEventHandler(CanvasPanel* canvas, ToolStateMachine* to
 }
 
 void CanvasEventHandler::SetCurrentTool(ToolType tool) {
-	TextToolState textState = m_toolStateMachine->GetTextState();
+    TextToolState textState = m_toolStateMachine->GetTextState();
     if (textState != TextToolState::IDLE) {
         m_canvas->FinishTextEditing();
     }
@@ -66,25 +66,25 @@ void CanvasEventHandler::SetCurrentTool(ToolType tool) {
         wxString toolName;
         switch (tool) {
         case ToolType::SELECT_TOOL:
-            toolName = "选中工具";
+            toolName = "Select Tool";
             break;
         case ToolType::TEXT_TOOL:
-            toolName = "文本工具";
+            toolName = "Text Tool";
             break;
         case ToolType::COMPONENT_TOOL:
-            toolName = "元件工具";
+            toolName = "Component Tool";
             break;
         case ToolType::WIRE_TOOL:
-            toolName = "导线工具";
+            toolName = "Wire Tool";
             break;
         case ToolType::DRAG_TOOL:
-            toolName = "拖动工具";
+            toolName = "Drag Tool";
             break;
         case ToolType::DRAWING_TOOL:
-            toolName = "绘图工具";
-			break;
+            toolName = "Draw Tool";
+            break;
         }
-        m_canvas->SetStatus(wxString::Format("当前工具: %s", toolName));
+        m_canvas->SetStatus(wxString::Format("Tool: %s", toolName));
     }
 }
 
@@ -166,13 +166,13 @@ void CanvasEventHandler::OnCanvasLeftDown(wxMouseEvent& evt) {
         return;
     }
 
-	// 在临时文本模式下，点击空白区域退回上个工具
+    // 在临时文本模式下，点击空白区域退回上个工具
     if (m_isTemporaryAction && currentTool == ToolType::TEXT_TOOL) {
         SetCurrentTool(m_previousTool);
         currentTool = m_previousTool;
         m_isTemporaryAction = false;
         m_eventHandled = true;
-	}
+    }
 
 
     // 按工具类型处理其他情况
@@ -213,14 +213,14 @@ void CanvasEventHandler::StartWireDrawingDown(const wxPoint& startPos, CPType st
 
     switch (startType) {
     case CPType::Pin:
-        m_canvas->SetStatus("绘制导线: 从引脚开始，点击放置折点");
+        m_canvas->SetStatus("Wiring: Start from pin. Click to add segments.");
         break;
     case CPType::Free:
-        m_canvas->SetStatus("绘制导线: 从自由点开始，点击放置折点");
+        m_canvas->SetStatus("Wiring: Start from workspace. Click to add segments.");
         break;
     case CPType::Branch:
         m_tempWire.Left = {-1, wireIdx, false, -1};
-        m_canvas->SetStatus("绘制导线: 从分支点开始，点击放置折点");
+        m_canvas->SetStatus("Wiring: Start from junction. Click to add segments.");
         break;
     }
 }
@@ -231,7 +231,7 @@ void  CanvasEventHandler::StartWireDrawingUp() {
 }
 
 void CanvasEventHandler::UpdateWireDrawing(wxMouseEvent& evt) {
-	if (m_toolStateMachine->GetWireState() != WireToolState::WIRE_DRAWING) return;
+    if (m_toolStateMachine->GetWireState() != WireToolState::WIRE_DRAWING) return;
     ControlPoint pt;
     if (m_tempWire.Size() > lengthOfTempWire) pt = m_tempWire.pts[lengthOfTempWire];
     else pt = m_tempWire.pts.back();
@@ -279,7 +279,7 @@ void CanvasEventHandler::UpdateWireDrawing(wxMouseEvent& evt) {
     
     
     m_canvas->UpdatePreviewWire(m_tempWire);
-    m_canvas->SetStatus(wxString::Format("正在绘制导线: 鼠标移动，点击放置折点"));
+    m_canvas->SetStatus(wxString::Format("Routing wire: Move mouse and click to place segments."));
 }
 
 void CanvasEventHandler::PlaceWirePoint() {
@@ -313,7 +313,7 @@ void CanvasEventHandler::CancelWireDrawing() {
     lengthOfTempWire = 0;
     m_isWireDraingCancel = true;
     m_toolStateMachine->SetWireState(WireToolState::IDLE);
-	m_canvas->ClearPreviewWire();
+    m_canvas->ClearPreviewWire();
 }
 
 
@@ -321,18 +321,18 @@ void CanvasEventHandler::CancelWireDrawing() {
 void CanvasEventHandler::HandleComponentTool() {
     if (!m_currentComponent.IsEmpty()) {
         m_canvas->AddElement(m_currentComponent, m_hoverInfo.snappedPos);
-        m_canvas->SetStatus(wxString::Format("已放置: %s， 吸附到 (%d, %d)", m_currentComponent, m_hoverInfo.snappedPos.x, m_hoverInfo.snappedPos.y));
+        m_canvas->SetStatus(wxString::Format("Placed: %s, Snapped to (%d, %d)", m_currentComponent, m_hoverInfo.snappedPos.x, m_hoverInfo.snappedPos.y));
         SetCurrentTool(ToolType::SELECT_TOOL);
         m_currentComponent.Clear(); // 清空当前元件
     }
     else {
-        wxMessageBox("请先从元件库选择一个元件");
+        wxMessageBox("Please select a component from the library first.");
     }
 }
 
 void CanvasEventHandler::OnCanvasLeftUp(wxMouseEvent& evt) {
     wxPoint canvasPos = m_canvas->ScreenToCanvas(evt.GetPosition());
-	ToolType currentTool = m_toolStateMachine->GetCurrentTool();
+    ToolType currentTool = m_toolStateMachine->GetCurrentTool();
     
     // 单击选中
     if (m_toolStateMachine->GetSelectState() == SelectToolState::CLICK_SELECT) {
@@ -343,7 +343,7 @@ void CanvasEventHandler::OnCanvasLeftUp(wxMouseEvent& evt) {
     // 选中拖动
     else if (m_toolStateMachine->GetSelectState() == SelectToolState::DRAG_SELECT) {
         m_canvas->UndoStackPush(std::make_unique<CmdMoveSelected>(m_textElemIdx, m_compntIdx, m_wireIdx, m_textElemPos, m_compntPos, m_wirePos, m_movingWires));
-        m_canvas->SetStatus(wxString::Format("选择工具：结束拖动"));
+        m_canvas->SetStatus(wxString::Format("Select Tool: End Dragging"));
         m_toolStateMachine->SetSelectState(SelectToolState::IDLE);
         m_eventHandled = true;
         return;
@@ -351,7 +351,7 @@ void CanvasEventHandler::OnCanvasLeftUp(wxMouseEvent& evt) {
     // 矩形框选
     else if (m_toolStateMachine->GetSelectState() == SelectToolState::RECTANGLE_SELECT) {
         FinishRectangleSelect();
-		m_eventHandled = true;
+        m_eventHandled = true;
     }
     // 画布拖动
     else if (m_toolStateMachine->GetDragState() == DragToolState::CANVAS_DRAGGING) {
@@ -385,7 +385,7 @@ void CanvasEventHandler::OnCanvasLeftUp(wxMouseEvent& evt) {
     
     else {
         // 其他工具不处理
-	}
+    }
 }
 
 void CanvasEventHandler::OnCanvasLeftDoubleClick(wxMouseEvent& evt) {
@@ -412,19 +412,19 @@ void CanvasEventHandler::OnCanvasKeyDown(wxKeyEvent& evt) {
     //    return;
     //}
 
-	// Ctrl + c 复制画布元素
+    // Ctrl + c 复制画布元素
     if (evt.ControlDown() && evt.GetKeyCode() == 'c') {
         m_eventHandled = true;
         return;
-	}
+    }
 
-	// Ctrl + v 粘贴画布元素
+    // Ctrl + v 粘贴画布元素
     if (evt.ControlDown() && evt.GetKeyCode() == 'v') {
         m_eventHandled = true;
         return;
-	}
+    }
 
-	// Ctrl + x 剪切画布元素
+    // Ctrl + x 剪切画布元素
     if (evt.ControlDown() && evt.GetKeyCode() == 'x') {
         m_eventHandled = true;
         return;
@@ -461,7 +461,7 @@ void CanvasEventHandler::OnCanvasKeyDown(wxKeyEvent& evt) {
     }
 
     default: {
-		return;
+        return;
     }
     }
 }
@@ -489,7 +489,7 @@ void CanvasEventHandler::OnCanvasMouseWheel(wxMouseEvent& evt) {
         wxPoint offset = m_canvas->GetoffSet();
         m_canvas->SetoffSet(offset + mouseScreenPos - newMouseScreenPos);
 
-		m_canvas->SetStatus(wxString::Format("缩放画布: %.2f%%", newScale * 100.0f));
+        m_canvas->SetStatus(wxString::Format("Zoom: %.2f%%", newScale * 100.0f));
 
         evt.Skip(false);  // 已处理
     }
@@ -529,7 +529,7 @@ void CanvasEventHandler::OnCanvasMouseWheel(wxMouseEvent& evt) {
 void CanvasEventHandler::HandleSelectTool(wxMouseEvent& evt) {
     preIn = false;
     wxPoint canvasPos = m_hoverInfo.canvasPos;
-    wxString status = "选择工具: ";
+    wxString status = "Select Tool: ";
 
     bool isWireControlPoint = m_hoverInfo.IsOverMidCell();
 
@@ -570,16 +570,16 @@ void CanvasEventHandler::HandleSelectTool(wxMouseEvent& evt) {
     if (m_hoverInfo.IsEmptyArea()) {
         StartRectangleSelect(canvasPos);
 
-        if (evt.ShiftDown()) status = status + wxString::Format("拖动框选，选中未选择元素，取消选中已选择元素，");
-        else status = status + wxString::Format("拖动框选，选中框内选择元素，取消选中框外元素，");
+        if (evt.ShiftDown()) status = status + wxString::Format("Marquee Toggle Selection");
+        else status = status + wxString::Format("Replace Selection via Marquee");
 
     }
     else {
         m_toolStateMachine->SetSelectState(SelectToolState::CLICK_SELECT);
         StartSelectedDragging(canvasPos);
 
-        if (evt.ShiftDown()) status = status + wxString::Format("单击多选，选中未选择元素，取消选中已选择元素；拖动平移被选中元素");
-        else status = status + wxString::Format("单击单选，选中被单击的元素，取消选中其他元素；拖动平移被选中元素");
+        if (evt.ShiftDown()) status = status + wxString::Format("Multi-select Toggle & Move");
+        else status = status + wxString::Format("Single Select & Move");
     }
     m_canvas->SetStatus(status);
 }
@@ -589,7 +589,7 @@ void CanvasEventHandler::HandleTextTool() {
     if (m_hoverInfo.IsOverText()) StartTextEditing(m_hoverInfo.textIndex);
     else {
         m_canvas->CreateTextElement(m_hoverInfo.canvasPos, "");
-        m_canvas->SetStatus(wxString::Format("放置文本框：(%d, %d)", m_hoverInfo.canvasPos.x, m_hoverInfo.canvasPos.y));
+        m_canvas->SetStatus(wxString::Format("Placed：(%d, %d)", m_hoverInfo.canvasPos.x, m_hoverInfo.canvasPos.y));
     }
 }
 
@@ -599,7 +599,7 @@ void CanvasEventHandler::SetCurrentComponent(const wxString& componentName) {
     SetCurrentTool(ToolType::COMPONENT_TOOL);
 
     if (true) {
-        m_canvas->SetStatus(wxString::Format("准备放置: %s - 在画布上点击放置", componentName));
+        m_canvas->SetStatus(wxString::Format("Ready to place: %s - Click to place on canvas", componentName));
         // 设置十字光标
         m_canvas->SetCursor(wxCursor(wxCURSOR_CROSS));
     }
@@ -611,15 +611,15 @@ void CanvasEventHandler::StartWireEditing(int wireIndex, int pointIndex, const w
     if (wireIndex < 0 || wireIndex >= (int)m_canvas->GetWires().size()) return;
     ToolType currentTool = m_toolStateMachine->GetCurrentTool();
 
-	currentTool = ToolType::WIRE_TOOL;
+    currentTool = ToolType::WIRE_TOOL;
     //m_isEditingWire = true;
-	m_toolStateMachine->SetWireState(WireToolState::WIRE_EDITING);
+    m_toolStateMachine->SetWireState(WireToolState::WIRE_EDITING);
     m_editingWireIndex = wireIndex;
     m_editingPointIndex = pointIndex;
     m_editStartPos = startPos;
 
     if (true) {
-        m_canvas->SetStatus("编辑导线: 拖动控制点调整路径");
+        m_canvas->SetStatus("Edit Wire: Drag control points to adjust path");
     }
 }
 
@@ -646,7 +646,7 @@ void CanvasEventHandler::UpdateWireEditing(const wxPoint& currentPos) {
 
 void CanvasEventHandler::FinishWireEditing() {
     //m_isEditingWire = false;
-	m_toolStateMachine->SetWireState(WireToolState::IDLE);
+    m_toolStateMachine->SetWireState(WireToolState::IDLE);
     m_editingWireIndex = -1;
     m_editingPointIndex = -1;
 
@@ -656,18 +656,18 @@ void CanvasEventHandler::FinishWireEditing() {
     }
 
     if (true) {
-        m_canvas->SetStatus("导线编辑完成");
+        //m_canvas->SetStatus("导线编辑完成");
     }
 }
 
 void CanvasEventHandler::CancelWireEditing() {
     //m_isEditingWire = false;
-	m_toolStateMachine->SetWireState(WireToolState::IDLE);
+    m_toolStateMachine->SetWireState(WireToolState::IDLE);
     m_editingWireIndex = -1;
     m_editingPointIndex = -1;
 
     if (true) {
-        m_canvas->SetStatus("导线编辑取消");
+        //m_canvas->SetStatus("导线编辑取消");
     }
 }
 
@@ -683,12 +683,12 @@ void CanvasEventHandler::OnCanvasMouseMove(wxMouseEvent& evt) {
         m_eventHandled = true;
     }
 
-	// 选中拖动的第一个函数，执行一次后转到第二个函数
+    // 选中拖动的第一个函数，执行一次后转到第二个函数
     else if (m_toolStateMachine->GetSelectState() == SelectToolState::CLICK_SELECT) {
         UpdateSelectedDragging();
         m_toolStateMachine->SetSelectState(SelectToolState::DRAG_SELECT);
         m_eventHandled = true;
-	}
+    }
     // 选中拖动的第二个函数
     else if (m_toolStateMachine->GetSelectState() == SelectToolState::DRAG_SELECT) {
         UpdateSelectedDragging();
@@ -710,42 +710,42 @@ void CanvasEventHandler::OnCanvasMouseMove(wxMouseEvent& evt) {
     // 元件放置预览
     else if (m_toolStateMachine->GetComponentState() == ComponentToolState::COMPONENT_PREVIEW) {
         wxPoint snappedPos = m_hoverInfo.snappedPos;
-		m_canvas->SetPreviewElement(m_currentComponent, snappedPos);
-        m_canvas->SetStatus(wxString::Format("放置%s: (%d, %d)", m_currentComponent, snappedPos.x, snappedPos.y));
+        m_canvas->SetPreviewElement(m_currentComponent, snappedPos);
+        m_canvas->SetStatus(wxString::Format("Placed %s: (%d, %d)", m_currentComponent, snappedPos.x, snappedPos.y));
         m_eventHandled = true;
-	}
+    }
 
     // 框选擦除
     else if (m_toolStateMachine->GetEraserState() == EraserToolState::RECTANGLE_ERASER) {
         UpdateRectangleEraser();
         m_eventHandled = true;
     }
-	// 其他情况下打印当前工具状态
+    // 其他情况下打印当前工具状态
     else {
         wxString toolInfo;
         switch (m_toolStateMachine->GetCurrentTool()) {
             case ToolType::DRAG_TOOL:{
-                toolInfo = wxString::Format("工具: 拖拽工具，长按空白处拖动画布，单击Pin元件可改变状态");
-				break;
+                toolInfo = wxString::Format("Pan Tool: Long press to drag canvas, click Pin to toggle");
+                break;
             }
             case ToolType::SELECT_TOOL: {
-                toolInfo = wxString::Format("工具: 选中工具");
+                toolInfo = wxString::Format("Select Tool");
                 break;
             }
             case ToolType::TEXT_TOOL: {
-                toolInfo = wxString::Format("工具: 文本工具");
+                toolInfo = wxString::Format("Text Tool");
                 break;
             }
             case ToolType::COMPONENT_TOOL: {
-                toolInfo = wxString::Format("工具: 元件工具 %s", m_currentComponent);
+                toolInfo = wxString::Format("Component Tool: %s", m_currentComponent);
                 break;
             }
             case ToolType::WIRE_TOOL: {
-                toolInfo = wxString::Format("工具: 导线工具");
+                toolInfo = wxString::Format("Wire Tool");
                 break;
             }
             case ToolType::DRAWING_TOOL: {
-                toolInfo = wxString::Format("工具: 绘图工具");
+                toolInfo = wxString::Format("Drawing Tool");
                 break;
             }
         }
@@ -754,7 +754,7 @@ void CanvasEventHandler::OnCanvasMouseMove(wxMouseEvent& evt) {
 }
 
 void CanvasEventHandler::StartPanning(const wxPoint& startPos) {
-	m_toolStateMachine->SetDragState(DragToolState::CANVAS_DRAGGING);
+    m_toolStateMachine->SetDragState(DragToolState::CANVAS_DRAGGING);
     m_panStartPos = m_hoverInfo.screenPos;
     m_panStartOffSet = m_canvas->GetoffSet();
 }
@@ -764,7 +764,7 @@ void CanvasEventHandler::UpdatePanning() {
     wxPoint delta = m_hoverInfo.screenPos - m_panStartPos;
     m_canvas->SetoffSet(m_panStartOffSet + delta);
 
-    m_canvas->SetStatus(wxString::Format("平移画布: 偏移(%d, %d)", delta.x, delta.y));
+    m_canvas->SetStatus(wxString::Format("Panning: (%d, %d)", delta.x, delta.y));
 }
 
 void CanvasEventHandler::FinishPanning() {
@@ -792,7 +792,7 @@ void CanvasEventHandler::StartTextEditing(int index) {
     }
 
 
-     m_canvas->SetStatus("文本编辑: 在文本框中输入内容，按回车完成");
+     m_canvas->SetStatus("Text Edit: Enter text and press [Enter] to finish");
 
 }
 
@@ -806,7 +806,7 @@ void CanvasEventHandler::StartSelectedDragging(const wxPoint& startPos) {
     m_movingWires.clear();
 
     const std::vector<CanvasElement> elements = m_canvas->GetElements();
-	const std::vector<CanvasTextElement> textElements = m_canvas->GetTextElements();
+    const std::vector<CanvasTextElement> textElements = m_canvas->GetTextElements();
     const std::vector<Wire> wires = m_canvas->GetWires();
 
     for (int i = 0; i < m_compntIdx.size(); i++) {
@@ -850,7 +850,7 @@ void CanvasEventHandler::StartElementDragging(int i) {
     };
     collect(elem.GetInputPins(), true);
     collect(elem.GetOutputPins(), false);
-	m_movingWires.push_back(tmp);
+    m_movingWires.push_back(tmp);
 }
 
 void CanvasEventHandler::UpdateSelectedDragging() {
@@ -898,7 +898,7 @@ void CanvasEventHandler::UpdateSelectedDragging() {
 
         }
     }
-    m_canvas->SetStatus(wxString::Format("选择工具：动已选中元素(%d, %d)", delta.x, delta.y));
+    m_canvas->SetStatus(wxString::Format("Select Tool: Moving selected elements (%d, %d)", delta.x, delta.y));
 }
 
 
@@ -906,22 +906,22 @@ void CanvasEventHandler::UpdateHoverInfo(HoverInfo hf) {
     m_snapPosChanged = m_hoverInfo.snappedPos != hf.snappedPos ? true : false;
 
     m_hoverInfo.screenPos = hf.screenPos;
-	m_hoverInfo.canvasPos = hf.canvasPos;
+    m_hoverInfo.canvasPos = hf.canvasPos;
     m_hoverInfo.snappedPos = hf.snappedPos;
-	m_hoverInfo.pinIndex = hf.pinIndex;
-	m_hoverInfo.isInputPin = hf.isInputPin;
-	m_hoverInfo.pinPos = hf.pinPos;
+    m_hoverInfo.pinIndex = hf.pinIndex;
+    m_hoverInfo.isInputPin = hf.isInputPin;
+    m_hoverInfo.pinPos = hf.pinPos;
 
-	m_hoverInfo.wireIndex = hf.wireIndex;
+    m_hoverInfo.wireIndex = hf.wireIndex;
     m_hoverInfo.wireSectionIndex = hf.wireSectionIndex;
     m_hoverInfo.cellIndex = hf.cellIndex;
     m_hoverInfo.isCellMiddle = hf.isCellMiddle;
-	m_hoverInfo.cellPos = hf.cellPos;
-	
-	m_hoverInfo.elementIndex = hf.elementIndex;
-	m_hoverInfo.elementName = hf.elementName;
+    m_hoverInfo.cellPos = hf.cellPos;
+    
+    m_hoverInfo.elementIndex = hf.elementIndex;
+    m_hoverInfo.elementName = hf.elementName;
 
-	m_hoverInfo.textIndex = hf.textIndex;
+    m_hoverInfo.textIndex = hf.textIndex;
 }
 
 
@@ -1014,7 +1014,7 @@ void CanvasEventHandler::FinishRectangleSelect() {
 
 void CanvasEventHandler::FinishClickSelect(wxMouseEvent& evt) {
     if (evt.ShiftDown()) {
-        m_canvas->SetStatus(wxString::Format("选择工具：点击继续选择"));
+        m_canvas->SetStatus(wxString::Format("Select Tool: Click to select more"));
         if (preIn) {
             auto AddOrRemove = [](std::vector<int>& vec, int idx) {
                 if (idx != -1) {
@@ -1031,7 +1031,7 @@ void CanvasEventHandler::FinishClickSelect(wxMouseEvent& evt) {
         }
     }
     else {
-        m_canvas->SetStatus(wxString::Format("选择工具：结束选择"));
+        m_canvas->SetStatus(wxString::Format("Select Tool: Done"));
         m_compntIdx.clear();
         m_textElemIdx.clear();
         m_wireIdx.clear();
@@ -1103,7 +1103,7 @@ void CanvasEventHandler::HandleEraserTool() {
     std::vector<Wire> wires;
     std::vector<CanvasTextElement> texts;
 
-    m_canvas->SetStatus("擦除工具: 点击擦除元素，拖动框选批量擦除");
+    m_canvas->SetStatus("Erase Tool: Click to delete, drag to batch erase");
 
     if (m_hoverInfo.IsEmptyArea()) {
         m_toolStateMachine->SetEraserState(EraserToolState::RECTANGLE_ERASER);

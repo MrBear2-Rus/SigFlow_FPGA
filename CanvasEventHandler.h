@@ -7,14 +7,14 @@
 #include "CanvasPanel.h"
 
 class CanvasEventHandler {
-    // ==================== ¹¹Ôìº¯ÊıºÍ»ù´¡·½·¨ ====================
+    // ==================== æ„é€ å‡½æ•°å’ŒåŸºç¡€æ–¹æ³• ====================
 public:
     CanvasEventHandler(CanvasPanel* canvas, ToolStateMachine* toolstate);
 
     bool IsEventHandled() const { return m_eventHandled; }
     void ResetEventHandled() { m_eventHandled = false; }
 
-    // ==================== »­²¼ÊÂ¼ş´¦Àí½Ó¿Ú ====================
+    // ==================== ç”»å¸ƒäº‹ä»¶å¤„ç†æ¥å£ ====================
 public:
     void OnCanvasLeftDown(wxMouseEvent& evt);
     void OnCanvasLeftUp(wxMouseEvent& evt);
@@ -23,12 +23,12 @@ public:
     void OnCanvasKeyDown(wxKeyEvent& evt);
     void OnCanvasMouseWheel(wxMouseEvent& evt);
 
-    // ==================== ¹¤¾ß¹ÜÀíºÍ×´Ì¬¿ØÖÆ ====================
+    // ==================== å·¥å…·ç®¡ç†å’ŒçŠ¶æ€æ§åˆ¶ ====================
 public:
     void SetCurrentTool(ToolType tool);
     void SetCurrentComponent(const wxString& componentName);
 
-    // ==================== »­²¼Æ½ÒÆÊÂ¼ş´¦Àí ====================
+    // ==================== ç”»å¸ƒå¹³ç§»äº‹ä»¶å¤„ç† ====================
 private:
     wxPoint m_panStartPos;
     wxPoint m_panStartOffSet;
@@ -37,9 +37,9 @@ private:
     void UpdatePanning();
     void FinishPanning();
 
-    // ==================== Ñ¡Ôñ¹¤¾ß»­²¼ÊÂ¼ş´¦Àí ====================
+    // ==================== é€‰æ‹©å·¥å…·ç”»å¸ƒäº‹ä»¶å¤„ç† ====================
 private:
-    // Ñ¡ÔñÏà¹ØÊı¾İ
+    // é€‰æ‹©ç›¸å…³æ•°æ®
     std::vector<int> m_textElemIdx;
     std::vector<int> m_compntIdx;
     std::vector<int> m_wireIdx;
@@ -61,33 +61,33 @@ private:
 
     void HandleSelectTool(wxMouseEvent& evt);
 
-    // ¾ØĞÎÑ¡ÔñÏà¹Ø²Ù×÷
+    // çŸ©å½¢é€‰æ‹©ç›¸å…³æ“ä½œ
     void StartRectangleSelect(const wxPoint& startPos);
     void UpdateRectangleSelect(wxMouseEvent& evt);
     void FinishRectangleSelect();
 
-    // Ñ¡ÖĞÍÏ×§Ïà¹Ø²Ù×÷
+    // é€‰ä¸­æ‹–æ‹½ç›¸å…³æ“ä½œ
     void StartSelectedDragging(const wxPoint& startPos);
     void StartElementDragging(int index);
     void UpdateSelectedDragging();
 
-    // µ¥»÷Ñ¡ÖĞÏà¹Ø²Ù×÷
+    // å•å‡»é€‰ä¸­ç›¸å…³æ“ä½œ
     void FinishClickSelect(wxMouseEvent& evt);
 
 public:
-    // É¾³ıÑ¡ÖĞ
+    // åˆ é™¤é€‰ä¸­
     void DeleteSelected();
 
-    // ==================== Ôª¼ş¹¤¾ß»­²¼ÊÂ¼ş´¦Àí ====================
+    // ==================== å…ƒä»¶å·¥å…·ç”»å¸ƒäº‹ä»¶å¤„ç† ====================
 private:
     wxString m_currentComponent;
     void HandleComponentTool();
 
-    // ==================== ÎÄ±¾¹¤¾ß»­²¼ÊÂ¼ş´¦Àí ====================
+    // ==================== æ–‡æœ¬å·¥å…·ç”»å¸ƒäº‹ä»¶å¤„ç† ====================
 private:
     void HandleTextTool();
 
-    // ==================== µ¼Ïß¹¤¾ß»­²¼ÊÂ¼ş´¦Àí ====================
+    // ==================== å¯¼çº¿å·¥å…·ç”»å¸ƒäº‹ä»¶å¤„ç† ====================
 private:
     int lengthOfTempWire;
     int tempWirePlus;
@@ -101,7 +101,7 @@ private:
     void CancelWireDrawing();
 
 
-    // ==================== ²Á³ı¹¤¾ß»­²¼ÊÂ¼ş´¦Àí ====================
+    // ==================== æ“¦é™¤å·¥å…·ç”»å¸ƒäº‹ä»¶å¤„ç† ====================
 private:
     std::vector<int> m_compntDelIdx;
     std::vector<int> m_wireDelIdx;
@@ -116,11 +116,11 @@ private:
 
 
 public:
-    // ¸÷¹¤¾ßµÄºËĞÄ´¦ÀíÂß¼­
+    // å„å·¥å…·çš„æ ¸å¿ƒå¤„ç†é€»è¾‘
    
     
 
-	// µ¼Ïß¹¤¾ßÏà¹Ø²Ù×÷
+    // å¯¼çº¿å·¥å…·ç›¸å…³æ“ä½œ
     
 
     void StartWireEditing(int wireIndex, int pointIndex, const wxPoint& startPos);
@@ -132,31 +132,31 @@ public:
 
 
 
-    // ÎÄ±¾±à¼­Ïà¹Ø²Ù×÷
+    // æ–‡æœ¬ç¼–è¾‘ç›¸å…³æ“ä½œ
     void StartTextEditing(int index);
     void UpdateHoverInfo(HoverInfo hf);
 
-    // ==================== ¹«¹²Êı¾İ³ÉÔ± ====================
+    // ==================== å…¬å…±æ•°æ®æˆå‘˜ ====================
 public:
-    // ÁÙÊ±×´Ì¬Êı¾İ
+    // ä¸´æ—¶çŠ¶æ€æ•°æ®
     Wire m_tempWire;
     HoverInfo m_hoverInfo;
 
 
 
-    // Î»ÖÃ±¸·İ£¨ÓÃÓÚ³·ÏúµÈ£©
+    // ä½ç½®å¤‡ä»½ï¼ˆç”¨äºæ’¤é”€ç­‰ï¼‰
 
 
     bool m_snapPosChanged;
     bool SnapPosChanged() { return m_snapPosChanged; };
-    // ==================== Ë½ÓĞÊµÏÖÏ¸½Ú ====================
+    // ==================== ç§æœ‰å®ç°ç»†èŠ‚ ====================
 private:
-    // ºËĞÄÒıÓÃºÍ×´Ì¬
+    // æ ¸å¿ƒå¼•ç”¨å’ŒçŠ¶æ€
     CanvasPanel* m_canvas;
     ToolStateMachine* m_toolStateMachine;
     bool m_eventHandled;
 
-    // ¹¤¾ßÇĞ»»×´Ì¬
+    // å·¥å…·åˆ‡æ¢çŠ¶æ€
     bool m_isTemporaryAction;
     ToolType m_previousTool;
     
@@ -164,17 +164,17 @@ private:
 
   
 
-    // Á¬Ïß±à¼­×´Ì¬
+    // è¿çº¿ç¼–è¾‘çŠ¶æ€
     int m_editingWireIndex;
     int m_editingPointIndex;
     wxPoint m_editStartPos;
 
-    // Ôª¼şÍÏ×§×´Ì¬
+    // å…ƒä»¶æ‹–æ‹½çŠ¶æ€
     int m_draggingElementIndex;
     wxPoint m_elementDragStartPos;
     wxPoint m_elementStartCanvasPos;
 
-    // ÎÄ±¾±à¼­×´Ì¬
+    // æ–‡æœ¬ç¼–è¾‘çŠ¶æ€
     int m_editingTextIndex;
     std::map<wxTextCtrl*, int> m_textCtrlBindings;
 };

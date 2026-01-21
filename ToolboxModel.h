@@ -2,12 +2,12 @@
 #include <wx/vector.h>
 #include <wx/string.h>
 
-/* Ò»¼¶·ÖÀà + ¶ş¼¶Ôª¼ş */
+/* ä¸€çº§åˆ†ç±» + äºŒçº§å…ƒä»¶ */
 struct ToolCategory {
     wxString        name;
     wxVector<wxString> items;
 };
 
-/* ·µ»ØÕû¸öÊ÷Êı¾İ + ÌØÊâ main ÁĞ±í */
+/* è¿”å›æ•´ä¸ªæ ‘æ•°æ® + ç‰¹æ®Š main åˆ—è¡¨ */
 wxVector<ToolCategory> GetToolboxCategories();
-wxVector<wxString> GetMainElements();   // main ÏÂµÄ 7 ¸ö¹¤¾ß
+wxVector<wxString> GetMainElements();   // main ä¸‹çš„ 7 ä¸ªå·¥å…·

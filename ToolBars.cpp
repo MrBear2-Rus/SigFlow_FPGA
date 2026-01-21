@@ -7,276 +7,276 @@
 #include "CanvasPanel.h"
 
 ToolBars::ToolBars(MainFrame* owner)
-	: m_owner(owner) {
-	wxInitAllImageHandlers();
-	//·ÖÅäID
-	ArrangeIds(); // ·ÖÅä ID
-	toolBar1 = CreateToolBar1(); // ´´½¨¹¤¾ßÀ¸ 1
-	toolBar2 = CreateToolBar2(); // ´´½¨¹¤¾ßÀ¸ 2
-	//toolBar3 = CreateToolBar3(); // ´´½¨¹¤¾ßÀ¸ 3
+    : m_owner(owner) {
+    wxInitAllImageHandlers();
+    //åˆ†é…ID
+    ArrangeIds(); // åˆ†é… ID
+    toolBar1 = CreateToolBar1(); // åˆ›å»ºå·¥å…·æ  1
+    toolBar2 = CreateToolBar2(); // åˆ›å»ºå·¥å…·æ  2
+    //toolBar3 = CreateToolBar3(); // åˆ›å»ºå·¥å…·æ  3
 }
 
 
-// ·ÖÅä¹¤¾ßÀ¸¹¤¾ßµÄ ID ºÍÂ·¾¶
+// åˆ†é…å·¥å…·æ å·¥å…·çš„ ID å’Œè·¯å¾„
 void ToolBars::ArrangeIds() {
-	// ³õÊ¼»¯¹¤¾ßÀ¸ 1 µÄ ID ºÍÂ·¾¶
-	toolBar1_ids.resize(7); // ¹¤¾ßÀ¸ 1 ÓĞ 7 ¸ö¹¤¾ß
-	for (int i = 0; i < 7; ++i) {
-		toolBar1_ids[i] = wxNewId();
-	}
-	toolBar1_toolPaths = {
-		"res\\icons\\new.png",   "res\\icons\\open.png",  "res\\icons\\save.png",
-		"res\\icons\\reclaim.png",   "res\\icons\\start.png",   "res\\icons\\stop.png",
-		"res\\icons\\delete.png"
-	};
+    // åˆå§‹åŒ–å·¥å…·æ  1 çš„ ID å’Œè·¯å¾„
+    toolBar1_ids.resize(7); // å·¥å…·æ  1 æœ‰ 7 ä¸ªå·¥å…·
+    for (int i = 0; i < 7; ++i) {
+        toolBar1_ids[i] = wxNewId();
+    }
+    toolBar1_toolPaths = {
+        "res\\icons\\new.png",   "res\\icons\\open.png",  "res\\icons\\save.png",
+        "res\\icons\\reclaim.png",   "res\\icons\\start.png",   "res\\icons\\stop.png",
+        "res\\icons\\delete.png"
+    };
 
-	toolBar1_labels = {
-		"ĞÂ½¨ÎÄ¼ş", "´ò¿ªÎÄ¼ş", "±£´æÎÄ¼ş", "³·»ØÎÄ¼ş", "¿ªÊ¼·ÂÕæ",
-		"ÖÕÖ¹·ÂÕæ", "É¾³ıÑ¡ÖĞ"
-	};
-	//ÊµÏÖID¶Ô·½·¨MAP
-	toolIdToFunctionMap[toolBar1_ids[0]] = [this](int id) { OneChoose(id); m_owner->DoFileNew(); };
-	toolIdToFunctionMap[toolBar1_ids[1]] = [this](int id) { OneChoose(id); m_owner->DoFileOpen(); };
-	toolIdToFunctionMap[toolBar1_ids[2]] = [this](int id) { OneChoose(id); m_owner->DoFileSave(); };
-	toolIdToFunctionMap[toolBar1_ids[3]] = [this](int id) { OneChoose(id); m_owner->DoEditUndo(); };
-	toolIdToFunctionMap[toolBar1_ids[4]] = [this](int id) { OneChoose(id); m_owner->m_canvas->isSim = true; };
-	toolIdToFunctionMap[toolBar1_ids[5]] = [this](int id) { OneChoose(id); m_owner->m_canvas->isSim = false; };
-	toolIdToFunctionMap[toolBar1_ids[6]] = [this](int id) { OneChoose(id); m_owner->DoEditDelete();  };
+    toolBar1_labels = {
+        "æ–°å»ºæ–‡ä»¶", "æ‰“å¼€æ–‡ä»¶", "ä¿å­˜æ–‡ä»¶", "æ’¤å›æ–‡ä»¶", "å¼€å§‹ä»¿çœŸ",
+        "ç»ˆæ­¢ä»¿çœŸ", "åˆ é™¤é€‰ä¸­"
+    };
+    //å®ç°IDå¯¹æ–¹æ³•MAP
+    toolIdToFunctionMap[toolBar1_ids[0]] = [this](int id) { OneChoose(id); m_owner->DoFileNew(); };
+    toolIdToFunctionMap[toolBar1_ids[1]] = [this](int id) { OneChoose(id); m_owner->DoFileOpen(); };
+    toolIdToFunctionMap[toolBar1_ids[2]] = [this](int id) { OneChoose(id); m_owner->DoFileSave(); };
+    toolIdToFunctionMap[toolBar1_ids[3]] = [this](int id) { OneChoose(id); m_owner->DoEditUndo(); };
+    toolIdToFunctionMap[toolBar1_ids[4]] = [this](int id) { OneChoose(id); m_owner->m_canvas->isSim = true; };
+    toolIdToFunctionMap[toolBar1_ids[5]] = [this](int id) { OneChoose(id); m_owner->m_canvas->isSim = false; };
+    toolIdToFunctionMap[toolBar1_ids[6]] = [this](int id) { OneChoose(id); m_owner->DoEditDelete();  };
 
-	// ³õÊ¼»¯¹¤¾ßÀ¸ 2 µÄ ID ºÍÂ·¾¶
-	int size_2 = 5;
-	toolBar2_ids.resize(size_2); // ¹¤¾ßÀ¸ 2 ÓĞ 4 ¸ö¹¤¾ß
-	for (int i = 0; i < size_2; ++i) {
-		toolBar2_ids[i] = wxNewId();
-	}
-	toolBar2_toolPaths = {
-		"res\\icons\\poke.png", "res\\icons\\select.png", "res\\icons\\eraser.png","res\\icons\\text.png", "res\\icons\\wiring.png", 
-	};
-	toolBar2_labels = {
-		"ÍÏ¶¯¹¤¾ß", "Ñ¡ÖĞ¹¤¾ß", "²Á³ı¹¤¾ß","ÎÄ±¾¹¤¾ß", "µ¼Ïß¹¤¾ß",
-	};
-	//ÊµÏÖID¶Ô·½·¨MAP
-	toolIdToFunctionMap[toolBar2_ids[0]] = [this](int id) {OneChoose(id); m_owner->m_canvas->SetCurrentTool(ToolType::DRAG_TOOL); };
-	toolIdToFunctionMap[toolBar2_ids[1]] = [this](int id) { OneChoose(id); m_owner->m_canvas->SetCurrentTool(ToolType::SELECT_TOOL); };
-	toolIdToFunctionMap[toolBar2_ids[2]] = [this](int id) {OneChoose(id); m_owner->m_canvas->SetCurrentTool(ToolType::ERASER_TOOL); };
-	toolIdToFunctionMap[toolBar2_ids[3]] = [this](int id) { OneChoose(id); m_owner->m_canvas->SetCurrentTool(ToolType::TEXT_TOOL); };
-	toolIdToFunctionMap[toolBar2_ids[4]] = [this](int id) { OneChoose(id); m_owner->m_canvas->SetCurrentTool(ToolType::WIRE_TOOL); };
+    // åˆå§‹åŒ–å·¥å…·æ  2 çš„ ID å’Œè·¯å¾„
+    int size_2 = 5;
+    toolBar2_ids.resize(size_2); // å·¥å…·æ  2 æœ‰ 4 ä¸ªå·¥å…·
+    for (int i = 0; i < size_2; ++i) {
+        toolBar2_ids[i] = wxNewId();
+    }
+    toolBar2_toolPaths = {
+        "res\\icons\\poke.png", "res\\icons\\select.png", "res\\icons\\eraser.png","res\\icons\\text.png", "res\\icons\\wiring.png", 
+    };
+    toolBar2_labels = {
+        "æ‹–åŠ¨å·¥å…·", "é€‰ä¸­å·¥å…·", "æ“¦é™¤å·¥å…·","æ–‡æœ¬å·¥å…·", "å¯¼çº¿å·¥å…·",
+    };
+    //å®ç°IDå¯¹æ–¹æ³•MAP
+    toolIdToFunctionMap[toolBar2_ids[0]] = [this](int id) {OneChoose(id); m_owner->m_canvas->SetCurrentTool(ToolType::DRAG_TOOL); };
+    toolIdToFunctionMap[toolBar2_ids[1]] = [this](int id) { OneChoose(id); m_owner->m_canvas->SetCurrentTool(ToolType::SELECT_TOOL); };
+    toolIdToFunctionMap[toolBar2_ids[2]] = [this](int id) {OneChoose(id); m_owner->m_canvas->SetCurrentTool(ToolType::ERASER_TOOL); };
+    toolIdToFunctionMap[toolBar2_ids[3]] = [this](int id) { OneChoose(id); m_owner->m_canvas->SetCurrentTool(ToolType::TEXT_TOOL); };
+    toolIdToFunctionMap[toolBar2_ids[4]] = [this](int id) { OneChoose(id); m_owner->m_canvas->SetCurrentTool(ToolType::WIRE_TOOL); };
 
-	// ³õÊ¼»¯¹¤¾ßÀ¸ 3 µÄ ID ºÍÂ·¾¶
-	toolBar3_ids.resize(8); // ¹¤¾ßÀ¸ 3 ÓĞ 8 ¸ö¹¤¾ß
-	for (int i = 0; i < 8; ++i) {
-		toolBar3_ids[i] = wxNewId();
-	}
-	toolBar3_toolPaths = {
-		"res\\tool_icons\\plus.png", "res\\tool_icons\\up.png", "res\\tool_icons\\down.png", "res\\tool_icons\\wrong.png",
-		"res\\tool_icons\\start.png", "res\\tool_icons\\3.png", "res\\tool_icons\\2.png", "res\\tool_icons\\1.png"
-	};
-	toolBar3_labels = {
-		"Plus", "Up", "Down", "Wrong", "1", "2", "3", "4"
-	};
-	toolIdToFunctionMap[toolBar3_ids[0]] = [this](int id) { OneChoose(id); };
-	toolIdToFunctionMap[toolBar3_ids[1]] = [this](int id) { OneChoose(id); };
-	toolIdToFunctionMap[toolBar3_ids[2]] = [this](int id) { OneChoose(id); };
-	toolIdToFunctionMap[toolBar3_ids[3]] = [this](int id) { OneChoose(id); };
-	toolIdToFunctionMap[toolBar3_ids[4]] = [this](int id) { OneChoose(id); };
-	toolIdToFunctionMap[toolBar3_ids[5]] = [this](int id) { OneChoose(id); };
-	toolIdToFunctionMap[toolBar3_ids[6]] = [this](int id) { OneChoose(id); };
-	toolIdToFunctionMap[toolBar3_ids[7]] = [this](int id) { OneChoose(id); };
+    // åˆå§‹åŒ–å·¥å…·æ  3 çš„ ID å’Œè·¯å¾„
+    toolBar3_ids.resize(8); // å·¥å…·æ  3 æœ‰ 8 ä¸ªå·¥å…·
+    for (int i = 0; i < 8; ++i) {
+        toolBar3_ids[i] = wxNewId();
+    }
+    toolBar3_toolPaths = {
+        "res\\tool_icons\\plus.png", "res\\tool_icons\\up.png", "res\\tool_icons\\down.png", "res\\tool_icons\\wrong.png",
+        "res\\tool_icons\\start.png", "res\\tool_icons\\3.png", "res\\tool_icons\\2.png", "res\\tool_icons\\1.png"
+    };
+    toolBar3_labels = {
+        "Plus", "Up", "Down", "Wrong", "1", "2", "3", "4"
+    };
+    toolIdToFunctionMap[toolBar3_ids[0]] = [this](int id) { OneChoose(id); };
+    toolIdToFunctionMap[toolBar3_ids[1]] = [this](int id) { OneChoose(id); };
+    toolIdToFunctionMap[toolBar3_ids[2]] = [this](int id) { OneChoose(id); };
+    toolIdToFunctionMap[toolBar3_ids[3]] = [this](int id) { OneChoose(id); };
+    toolIdToFunctionMap[toolBar3_ids[4]] = [this](int id) { OneChoose(id); };
+    toolIdToFunctionMap[toolBar3_ids[5]] = [this](int id) { OneChoose(id); };
+    toolIdToFunctionMap[toolBar3_ids[6]] = [this](int id) { OneChoose(id); };
+    toolIdToFunctionMap[toolBar3_ids[7]] = [this](int id) { OneChoose(id); };
 }
 
 
 
-// ÊµÏÖÑùÊ½
+// å®ç°æ ·å¼
 wxToolBar* ToolBars::CreateToolBar1() {
-	wxToolBar* toolbar = new wxToolBar(m_owner, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTB_FLAT);
-	toolbar->SetToolBitmapSize(wxSize(24, 24)); // ÉèÖÃÍ¼±ê´óĞ¡
-	//Ìí¼Ó¹¤¾ßÀ¸ 1 µÄ¹¤¾ß
-	for (size_t i = 0; i < toolBar1_ids.size(); ++i) {
-		wxBitmap bitmap(toolBar1_toolPaths[i], wxBITMAP_TYPE_PNG);
-		//ShowTool(toolbar, toolBar1_ids[i], toolBar1_labels[i], bitmap);
-		if (i==4 ||i==5) toolbar->AddCheckTool(toolBar1_ids[i], toolBar1_labels[i], bitmap);
-		else toolbar->AddTool(toolBar1_ids[i], toolBar1_labels[i], bitmap);
-		if (i == 2 || i == 3 || i == 5) toolbar->AddSeparator();
-		toolbar->Bind(wxEVT_TOOL, &ToolBars::OnToolClicked, this, toolBar1_ids[i]);
-	}
+    wxToolBar* toolbar = new wxToolBar(m_owner, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTB_FLAT);
+    toolbar->SetToolBitmapSize(wxSize(24, 24)); // è®¾ç½®å›¾æ ‡å¤§å°
+    //æ·»åŠ å·¥å…·æ  1 çš„å·¥å…·
+    for (size_t i = 0; i < toolBar1_ids.size(); ++i) {
+        wxBitmap bitmap(toolBar1_toolPaths[i], wxBITMAP_TYPE_PNG);
+        //ShowTool(toolbar, toolBar1_ids[i], toolBar1_labels[i], bitmap);
+        if (i==4 ||i==5) toolbar->AddCheckTool(toolBar1_ids[i], toolBar1_labels[i], bitmap);
+        else toolbar->AddTool(toolBar1_ids[i], toolBar1_labels[i], bitmap);
+        if (i == 2 || i == 3 || i == 5) toolbar->AddSeparator();
+        toolbar->Bind(wxEVT_TOOL, &ToolBars::OnToolClicked, this, toolBar1_ids[i]);
+    }
 
-	return toolbar;
+    return toolbar;
 }
 
-// ´´½¨¹¤¾ßÀ¸ 2
+// åˆ›å»ºå·¥å…·æ  2
 wxToolBar* ToolBars::CreateToolBar2() {
-	wxToolBar* toolbar = new wxToolBar(m_owner, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTB_FLAT);
-	toolbar->SetToolBitmapSize(wxSize(24, 24)); // ÉèÖÃÍ¼±ê´óĞ¡
-	wxInitAllImageHandlers();
-	// Ìí¼Ó¹¤¾ßÀ¸ 2 µÄ¹¤¾ß
-	for (size_t i = 0; i < toolBar2_ids.size(); ++i) {
-		wxBitmap bitmap(toolBar2_toolPaths[i], wxBITMAP_TYPE_PNG);
-		//ShowTool(toolbar, toolBar2_ids[i], toolBar2_labels[i], wxBitmap(toolBar2_toolPaths[i], wxBITMAP_TYPE_PNG));
-		toolbar->AddCheckTool(toolBar2_ids[i], toolBar2_labels[i], bitmap);
-		toolbar->Bind(wxEVT_TOOL, &ToolBars::OnToolClicked, this, toolBar2_ids[i]);
-	}
+    wxToolBar* toolbar = new wxToolBar(m_owner, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTB_FLAT);
+    toolbar->SetToolBitmapSize(wxSize(24, 24)); // è®¾ç½®å›¾æ ‡å¤§å°
+    wxInitAllImageHandlers();
+    // æ·»åŠ å·¥å…·æ  2 çš„å·¥å…·
+    for (size_t i = 0; i < toolBar2_ids.size(); ++i) {
+        wxBitmap bitmap(toolBar2_toolPaths[i], wxBITMAP_TYPE_PNG);
+        //ShowTool(toolbar, toolBar2_ids[i], toolBar2_labels[i], wxBitmap(toolBar2_toolPaths[i], wxBITMAP_TYPE_PNG));
+        toolbar->AddCheckTool(toolBar2_ids[i], toolBar2_labels[i], bitmap);
+        toolbar->Bind(wxEVT_TOOL, &ToolBars::OnToolClicked, this, toolBar2_ids[i]);
+    }
 
-	return toolbar;
+    return toolbar;
 }
 
-// ´´½¨¹¤¾ßÀ¸ 3
+// åˆ›å»ºå·¥å…·æ  3
 wxToolBar* ToolBars::CreateToolBar3() {
-	wxToolBar* toolbar = new wxToolBar(m_owner, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTB_FLAT);
-	toolbar->SetToolBitmapSize(wxSize(24, 24)); // ÉèÖÃÍ¼±ê´óĞ¡
+    wxToolBar* toolbar = new wxToolBar(m_owner, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTB_FLAT);
+    toolbar->SetToolBitmapSize(wxSize(24, 24)); // è®¾ç½®å›¾æ ‡å¤§å°
 
-	// Ìí¼Ó¹¤¾ßÀ¸ 3 µÄ¹¤¾ß
-	wxInitAllImageHandlers();
-	for (size_t i = 0; i < toolBar3_ids.size(); ++i) {
-		wxBitmap bitmap(toolBar3_toolPaths[i], wxBITMAP_TYPE_PNG);
-		//ShowTool(toolbar, toolBar3_ids[i], toolBar3_labels[i], bitmap);
-		toolbar->AddCheckTool(toolBar3_ids[i], toolBar3_labels[i], bitmap);
-		toolbar->Bind(wxEVT_TOOL, &ToolBars::OnToolClicked, this, toolBar3_ids[i]);
-	}
+    // æ·»åŠ å·¥å…·æ  3 çš„å·¥å…·
+    wxInitAllImageHandlers();
+    for (size_t i = 0; i < toolBar3_ids.size(); ++i) {
+        wxBitmap bitmap(toolBar3_toolPaths[i], wxBITMAP_TYPE_PNG);
+        //ShowTool(toolbar, toolBar3_ids[i], toolBar3_labels[i], bitmap);
+        toolbar->AddCheckTool(toolBar3_ids[i], toolBar3_labels[i], bitmap);
+        toolbar->Bind(wxEVT_TOOL, &ToolBars::OnToolClicked, this, toolBar3_ids[i]);
+    }
 
-	return toolbar;
+    return toolbar;
 }
 
 ToolBars::~ToolBars() {
-	// Îö¹¹º¯ÊıµÄÊµÏÖ
-	// Èç¹ûÃ»ÓĞĞèÒªÇåÀíµÄ×ÊÔ´£¬¿ÉÒÔ±£³ÖÎª¿Õ
+    // ææ„å‡½æ•°çš„å®ç°
+    // å¦‚æœæ²¡æœ‰éœ€è¦æ¸…ç†çš„èµ„æºï¼Œå¯ä»¥ä¿æŒä¸ºç©º
 }
 
 void ToolBars::OnToolClicked(wxCommandEvent& event) {
-	int toolId = event.GetId();
+    int toolId = event.GetId();
 
-	// °²È«¼ì²é£ºÈ·±£ m_owner ºÍ¹¤¾ß¹ÜÀíÆ÷´æÔÚ
-	if (!m_owner) {
-		wxLogError("ToolBars: m_owner is null!");
-		return;
-	}
+    // å®‰å…¨æ£€æŸ¥ï¼šç¡®ä¿ m_owner å’Œå·¥å…·ç®¡ç†å™¨å­˜åœ¨
+    if (!m_owner) {
+        wxLogError("ToolBars: m_owner is null!");
+        return;
+    }
 
-	//CanvasEventHandler* CanvasEventHandler = m_owner->GetCanvasEventHandler();
-	//if (!CanvasEventHandler) {
-	//	wxLogError("ToolBars: CanvasEventHandler is null!");
-	//	return;
-	//}
+    //CanvasEventHandler* CanvasEventHandler = m_owner->GetCanvasEventHandler();
+    //if (!CanvasEventHandler) {
+    //	wxLogError("ToolBars: CanvasEventHandler is null!");
+    //	return;
+    //}
 
-	// ²éÕÒ¶ÔÓ¦µÄ¹¤¾ß ID ²¢µ÷ÓÃÆä·½·¨
-	auto it = toolIdToFunctionMap.find(toolId);
-	if (it != toolIdToFunctionMap.end()) {
-		it->second(toolId);
-	}
+    // æŸ¥æ‰¾å¯¹åº”çš„å·¥å…· ID å¹¶è°ƒç”¨å…¶æ–¹æ³•
+    auto it = toolIdToFunctionMap.find(toolId);
+    if (it != toolIdToFunctionMap.end()) {
+        it->second(toolId);
+    }
 }
 
 void ToolBars::OneChoose(int toolId) {
-	// ÅĞ¶Ï¹¤¾ß ID ÊôÓÚÄÄ¸ö¹¤¾ßÀ¸£¬È»ºóÖ»È¡Ïû¸Ã¹¤¾ßÀ¸ÄÚÆäËû¹¤¾ßµÄÑ¡Ôñ
-	bool found = false;
+    // åˆ¤æ–­å·¥å…· ID å±äºå“ªä¸ªå·¥å…·æ ï¼Œç„¶ååªå–æ¶ˆè¯¥å·¥å…·æ å†…å…¶ä»–å·¥å…·çš„é€‰æ‹©
+    bool found = false;
 
-	// ¼ì²é¹¤¾ßÀ¸1
-	for (size_t i = 0; i < toolBar1_ids.size(); ++i) {
-		if (toolBar1_ids[i] == toolId) {
-			found = true;
-			// Ö»È¡Ïû¹¤¾ßÀ¸1ÄÚÆäËû¹¤¾ßµÄÑ¡Ôñ
-			for (size_t j = 0; j < toolBar1_ids.size(); ++j) {
-				if (toolBar1_ids[j] != toolId) {
-					toolBar1->ToggleTool(toolBar1_ids[j], false);
-				}
-			}
-			break;
-		}
-	}
+    // æ£€æŸ¥å·¥å…·æ 1
+    for (size_t i = 0; i < toolBar1_ids.size(); ++i) {
+        if (toolBar1_ids[i] == toolId) {
+            found = true;
+            // åªå–æ¶ˆå·¥å…·æ 1å†…å…¶ä»–å·¥å…·çš„é€‰æ‹©
+            for (size_t j = 0; j < toolBar1_ids.size(); ++j) {
+                if (toolBar1_ids[j] != toolId) {
+                    toolBar1->ToggleTool(toolBar1_ids[j], false);
+                }
+            }
+            break;
+        }
+    }
 
-	if (found) return; // Èç¹ûÒÑ¾­ÔÚ¹¤¾ßÀ¸1ÕÒµ½£¬Ö±½Ó·µ»Ø
+    if (found) return; // å¦‚æœå·²ç»åœ¨å·¥å…·æ 1æ‰¾åˆ°ï¼Œç›´æ¥è¿”å›
 
-	// ¼ì²é¹¤¾ßÀ¸2
-	for (size_t i = 0; i < toolBar2_ids.size(); ++i) {
-		if (toolBar2_ids[i] == toolId) {
-			found = true;
-			// Ö»È¡Ïû¹¤¾ßÀ¸2ÄÚÆäËû¹¤¾ßµÄÑ¡Ôñ
-			for (size_t j = 0; j < toolBar2_ids.size(); ++j) {
-				if (toolBar2_ids[j] != toolId) {
-					toolBar2->ToggleTool(toolBar2_ids[j], false);
-				}
-			}
-			break;
-		}
-	}
+    // æ£€æŸ¥å·¥å…·æ 2
+    for (size_t i = 0; i < toolBar2_ids.size(); ++i) {
+        if (toolBar2_ids[i] == toolId) {
+            found = true;
+            // åªå–æ¶ˆå·¥å…·æ 2å†…å…¶ä»–å·¥å…·çš„é€‰æ‹©
+            for (size_t j = 0; j < toolBar2_ids.size(); ++j) {
+                if (toolBar2_ids[j] != toolId) {
+                    toolBar2->ToggleTool(toolBar2_ids[j], false);
+                }
+            }
+            break;
+        }
+    }
 
-	if (found) return;
+    if (found) return;
 
-	// ¼ì²é¹¤¾ßÀ¸3
-	for (size_t i = 0; i < toolBar3_ids.size(); ++i) {
-		if (toolBar3_ids[i] == toolId) {
-			// Ö»È¡Ïû¹¤¾ßÀ¸3ÄÚÆäËû¹¤¾ßµÄÑ¡Ôñ
-			for (size_t j = 0; j < toolBar3_ids.size(); ++j) {
-				if (toolBar3_ids[j] != toolId) {
-					toolBar3->ToggleTool(toolBar3_ids[j], false);
-				}
-			}
-			break;
-		}
-	}
+    // æ£€æŸ¥å·¥å…·æ 3
+    for (size_t i = 0; i < toolBar3_ids.size(); ++i) {
+        if (toolBar3_ids[i] == toolId) {
+            // åªå–æ¶ˆå·¥å…·æ 3å†…å…¶ä»–å·¥å…·çš„é€‰æ‹©
+            for (size_t j = 0; j < toolBar3_ids.size(); ++j) {
+                if (toolBar3_ids[j] != toolId) {
+                    toolBar3->ToggleTool(toolBar3_ids[j], false);
+                }
+            }
+            break;
+        }
+    }
 }
 
 void ToolBars::ChoosePageOne_toolBar1(int toolId) {
-	//¹¤¾ßÀ¸3µÄµÚÒ»Ò³£ºtoolBar1_ids[0] µ½ toolBar3_ids[7]
-	for (size_t i = 0; i < toolBar1_ids.size(); ++i) {
-		// Èç¹ûÊÇµÚÒ»Ò³µÄ¹¤¾ß£¬ÔòÉèÖÃÎªÆôÓÃ×´Ì¬
-		HideTool(toolBar1, toolBar1_ids[i]);
-		if (i <= 7) {
-			ShowTool(toolBar1, toolBar1_ids[i], toolBar1_labels[i], wxBitmap(toolBar1_toolPaths[i], wxBITMAP_TYPE_PNG));
-		}
+    //å·¥å…·æ 3çš„ç¬¬ä¸€é¡µï¼štoolBar1_ids[0] åˆ° toolBar3_ids[7]
+    for (size_t i = 0; i < toolBar1_ids.size(); ++i) {
+        // å¦‚æœæ˜¯ç¬¬ä¸€é¡µçš„å·¥å…·ï¼Œåˆ™è®¾ç½®ä¸ºå¯ç”¨çŠ¶æ€
+        HideTool(toolBar1, toolBar1_ids[i]);
+        if (i <= 7) {
+            ShowTool(toolBar1, toolBar1_ids[i], toolBar1_labels[i], wxBitmap(toolBar1_toolPaths[i], wxBITMAP_TYPE_PNG));
+        }
 
-		//HideTool(toolBar1, toolBar1_ids[0]);
-		//HideTool(toolBar1, toolBar1_ids[1]);
-		//HideTool(toolBar1, toolBar1_ids[2]);
-		//HideTool(toolBar1, toolBar1_ids[3]);
-	}
-	OneChoose(toolBar2_ids[0]); // Ä¬ÈÏÑ¡ÔñµÚÒ»¸ö¹¤¾ß
+        //HideTool(toolBar1, toolBar1_ids[0]);
+        //HideTool(toolBar1, toolBar1_ids[1]);
+        //HideTool(toolBar1, toolBar1_ids[2]);
+        //HideTool(toolBar1, toolBar1_ids[3]);
+    }
+    OneChoose(toolBar2_ids[0]); // é»˜è®¤é€‰æ‹©ç¬¬ä¸€ä¸ªå·¥å…·
 }
 
 void ToolBars::ChoosePageTwo_toolBar1(int toolId) {
-	// ¹¤¾ßÀ¸3µÄµÚ¶şÒ³£ºtoolBar3_ids[7] µ½ toolBar3_ids[15]
-	for (size_t i = 0; i < toolBar1_ids.size(); ++i) {
-		// Èç¹ûÊÇµÚ¶şÒ³µÄ¹¤¾ß£¬ÔòÉèÖÃÎªÆôÓÃ×´Ì¬
-		HideTool(toolBar1, toolBar1_ids[i]);
-		if (i >= 5) {
-			ShowTool(toolBar1, toolBar1_ids[i], toolBar1_labels[i], wxBitmap(toolBar1_toolPaths[i], wxBITMAP_TYPE_PNG));
-		}
-	}
-	OneChoose(toolBar2_ids[1]);
+    // å·¥å…·æ 3çš„ç¬¬äºŒé¡µï¼štoolBar3_ids[7] åˆ° toolBar3_ids[15]
+    for (size_t i = 0; i < toolBar1_ids.size(); ++i) {
+        // å¦‚æœæ˜¯ç¬¬äºŒé¡µçš„å·¥å…·ï¼Œåˆ™è®¾ç½®ä¸ºå¯ç”¨çŠ¶æ€
+        HideTool(toolBar1, toolBar1_ids[i]);
+        if (i >= 5) {
+            ShowTool(toolBar1, toolBar1_ids[i], toolBar1_labels[i], wxBitmap(toolBar1_toolPaths[i], wxBITMAP_TYPE_PNG));
+        }
+    }
+    OneChoose(toolBar2_ids[1]);
 }
 
 
 void ToolBars::ChoosePageOne_toolBar3(int toolId) {
-	// ¹¤¾ßÀ¸3µÄµÚÒ»Ò³£ºtoolBar3_ids[0] µ½ toolBar3_ids[3]
-	for (size_t i = 0; i < toolBar3_ids.size(); ++i) {
-		// Èç¹ûÊÇµÚÒ»Ò³µÄ¹¤¾ß£¬ÔòÉèÖÃÎªÆôÓÃ×´Ì¬
-		HideTool(toolBar3, toolBar3_ids[i]);
-		if (i <= 3) {
-			ShowTool(toolBar3, toolBar3_ids[i], toolBar3_labels[i], wxBitmap(toolBar3_toolPaths[i], wxBITMAP_TYPE_PNG));
-		}
-	}
-	OneChoose(toolBar2_ids[2]);
+    // å·¥å…·æ 3çš„ç¬¬ä¸€é¡µï¼štoolBar3_ids[0] åˆ° toolBar3_ids[3]
+    for (size_t i = 0; i < toolBar3_ids.size(); ++i) {
+        // å¦‚æœæ˜¯ç¬¬ä¸€é¡µçš„å·¥å…·ï¼Œåˆ™è®¾ç½®ä¸ºå¯ç”¨çŠ¶æ€
+        HideTool(toolBar3, toolBar3_ids[i]);
+        if (i <= 3) {
+            ShowTool(toolBar3, toolBar3_ids[i], toolBar3_labels[i], wxBitmap(toolBar3_toolPaths[i], wxBITMAP_TYPE_PNG));
+        }
+    }
+    OneChoose(toolBar2_ids[2]);
 }
 
 void ToolBars::ChoosePageTwo_toolBar3(int toolId) {
-	// ¹¤¾ßÀ¸3µÄµÚ¶şÒ³£ºtoolBar3_ids[4] µ½ toolBar3_ids[7]
-	for (size_t i = 0; i < toolBar3_ids.size(); ++i) {
-		// Èç¹ûÊÇµÚ¶şÒ³µÄ¹¤¾ß£¬ÔòÉèÖÃÎªÆôÓÃ×´Ì¬
-		HideTool(toolBar3, toolBar3_ids[i]);
-		if (i >= 4) {
-			ShowTool(toolBar3, toolBar3_ids[i], toolBar3_labels[i], wxBitmap(toolBar3_toolPaths[i], wxBITMAP_TYPE_PNG));
-		}
-	}
-	OneChoose(toolBar2_ids[3]);
+    // å·¥å…·æ 3çš„ç¬¬äºŒé¡µï¼štoolBar3_ids[4] åˆ° toolBar3_ids[7]
+    for (size_t i = 0; i < toolBar3_ids.size(); ++i) {
+        // å¦‚æœæ˜¯ç¬¬äºŒé¡µçš„å·¥å…·ï¼Œåˆ™è®¾ç½®ä¸ºå¯ç”¨çŠ¶æ€
+        HideTool(toolBar3, toolBar3_ids[i]);
+        if (i >= 4) {
+            ShowTool(toolBar3, toolBar3_ids[i], toolBar3_labels[i], wxBitmap(toolBar3_toolPaths[i], wxBITMAP_TYPE_PNG));
+        }
+    }
+    OneChoose(toolBar2_ids[3]);
 }
 
 
 void ToolBars::HideTool(wxToolBar* toolbar, int toolId) {
-	// ÒÆ³ı¹¤¾ß
-	toolbar->DeleteTool(toolId);
-	toolbar->Realize(); // ÖØĞÂ²¼¾Ö¹¤¾ßÀ¸
+    // ç§»é™¤å·¥å…·
+    toolbar->DeleteTool(toolId);
+    toolbar->Realize(); // é‡æ–°å¸ƒå±€å·¥å…·æ 
 }
 
 void ToolBars::ShowTool(wxToolBar* toolbar, int toolId, const wxString& label, const wxBitmap& bitmap) {
-	// Ìí¼Ó¹¤¾ß
-	toolbar->AddCheckTool(toolId, label, bitmap);
-	toolbar->Bind(wxEVT_TOOL, &ToolBars::OnToolClicked, this, toolId);
-	toolbar->Realize(); // ÖØĞÂ²¼¾Ö¹¤¾ßÀ¸
+    // æ·»åŠ å·¥å…·
+    toolbar->AddCheckTool(toolId, label, bitmap);
+    toolbar->Bind(wxEVT_TOOL, &ToolBars::OnToolClicked, this, toolId);
+    toolbar->Realize(); // é‡æ–°å¸ƒå±€å·¥å…·æ 
 }

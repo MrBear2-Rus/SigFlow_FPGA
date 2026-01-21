@@ -1,4 +1,4 @@
-﻿#ifdef Polygon
+#ifdef Polygon
 #undef Polygon
 #endif
 

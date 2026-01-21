@@ -5,11 +5,11 @@
 #include <wx/cursor.h>
 #include "CanvasPanel.h"
 
-// ÊÂ¼ş¶¨Òå
+// äº‹ä»¶å®šä¹‰
 wxDEFINE_EVENT(TOOL_STATE_CHANGED, wxCommandEvent);
 
 ToolStateMachine::ToolStateMachine(CanvasPanel* canvas)
-	: m_canvas(canvas),
+    : m_canvas(canvas),
     m_currentTool(ToolType::DRAG_TOOL),
     m_dragState(DragToolState::IDLE),
     m_selectState(SelectToolState::IDLE),
@@ -18,7 +18,7 @@ ToolStateMachine::ToolStateMachine(CanvasPanel* canvas)
     m_wireState(WireToolState::IDLE),
     m_drawingState(DrawingToolState::IDLE) {
 
-    // ³õÊ¼»¯ÀúÊ·¼ÇÂ¼
+    // åˆå§‹åŒ–å†å²è®°å½•
     PushStateToHistory();
 }
 
@@ -27,13 +27,13 @@ ToolStateMachine::~ToolStateMachine() {
 
 void ToolStateMachine::SetCurrentTool(ToolType tool) {
     if (m_currentTool != tool) {
-        // ±£´æµ±Ç°×´Ì¬µ½ÀúÊ·
+        // ä¿å­˜å½“å‰çŠ¶æ€åˆ°å†å²
         PushStateToHistory();
 
         ToolType oldTool = m_currentTool;
         m_currentTool = tool;
 
-        // ÖØÖÃĞÂ¹¤¾ßµÄ×´Ì¬£¨¸ù¾İĞèÇó¾ö¶¨ÊÇ·ñÖØÖÃ£©
+        // é‡ç½®æ–°å·¥å…·çš„çŠ¶æ€ï¼ˆæ ¹æ®éœ€æ±‚å†³å®šæ˜¯å¦é‡ç½®ï¼‰
         ResetCurrentToolState();
 
         SendStateChangeEvent(wxString::Format("Tool changed from %d to %d",
@@ -185,7 +185,7 @@ void ToolStateMachine::PushStateToHistory() {
 
     m_stateHistory.push_back(history);
 
-    // ÏŞÖÆÀúÊ·¼ÇÂ¼´óĞ¡
+    // é™åˆ¶å†å²è®°å½•å¤§å°
     if (m_stateHistory.size() > MAX_HISTORY_SIZE) {
         m_stateHistory.erase(m_stateHistory.begin());
     }
@@ -196,14 +196,14 @@ bool ToolStateMachine::Undo() {
         return false;
     }
 
-    // ÒÆ³ıµ±Ç°×´Ì¬
+    // ç§»é™¤å½“å‰çŠ¶æ€
     m_stateHistory.pop_back();
 
-    // »Ö¸´µ½ÉÏÒ»¸ö×´Ì¬
+    // æ¢å¤åˆ°ä¸Šä¸€ä¸ªçŠ¶æ€
     ToolStateHistory previousState = m_stateHistory.back();
     m_currentTool = previousState.toolType;
 
-    // ÖØÖÃµ±Ç°¹¤¾ß×´Ì¬
+    // é‡ç½®å½“å‰å·¥å…·çŠ¶æ€
     ResetCurrentToolState();
 
     SendStateChangeEvent("State undone");
@@ -212,7 +212,7 @@ bool ToolStateMachine::Undo() {
 
 void ToolStateMachine::ClearHistory() {
     m_stateHistory.clear();
-    PushStateToHistory(); // ÖÁÉÙ±£Áôµ±Ç°×´Ì¬
+    PushStateToHistory(); // è‡³å°‘ä¿ç•™å½“å‰çŠ¶æ€
 }
 
 void ToolStateMachine::ResetAllStates() {

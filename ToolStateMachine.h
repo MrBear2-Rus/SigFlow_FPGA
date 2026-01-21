@@ -6,74 +6,74 @@
 
 class CanvasPanel;
 
-// ¹¤¾ßÀàĞÍÃ¶¾Ù
+// å·¥å…·ç±»å‹æšä¸¾
 enum class ToolType {
-    DRAG_TOOL,        // ÍÏ×§¹¤¾ß£¨Ä¬ÈÏ¹¤¾ß£©
-    SELECT_TOOL,      // Ñ¡ÖĞ¹¤¾ß
-    TEXT_TOOL,        // ÎÄ±¾¹¤¾ß  
-    COMPONENT_TOOL,   // Ôª¼ş·ÅÖÃ¹¤¾ß
-    WIRE_TOOL,        // µ¼Ïß»æÖÆ¹¤¾ß
-    DRAWING_TOOL,      // »æÍ¼¹¤¾ß
-    ERASER_TOOL       // ²Á³ı¹¤¾ß
+    DRAG_TOOL,        // æ‹–æ‹½å·¥å…·ï¼ˆé»˜è®¤å·¥å…·ï¼‰
+    SELECT_TOOL,      // é€‰ä¸­å·¥å…·
+    TEXT_TOOL,        // æ–‡æœ¬å·¥å…·  
+    COMPONENT_TOOL,   // å…ƒä»¶æ”¾ç½®å·¥å…·
+    WIRE_TOOL,        // å¯¼çº¿ç»˜åˆ¶å·¥å…·
+    DRAWING_TOOL,      // ç»˜å›¾å·¥å…·
+    ERASER_TOOL       // æ“¦é™¤å·¥å…·
 };
 
-// ÍÏ×§¹¤¾ß×´Ì¬
+// æ‹–æ‹½å·¥å…·çŠ¶æ€
 enum class DragToolState {
     IDLE,
-    CANVAS_DRAGGING,        // »­²¼ÍÏ¶¯
+    CANVAS_DRAGGING,        // ç”»å¸ƒæ‹–åŠ¨
 };
 
-// Ñ¡ÖĞ¹¤¾ß×´Ì¬
+// é€‰ä¸­å·¥å…·çŠ¶æ€
 enum class SelectToolState {
     IDLE,
-    CLICK_SELECT,           // µã»÷Ñ¡Ôñ
-    RECTANGLE_SELECT,       // ¾ØĞÎ¿òÑ¡
+    CLICK_SELECT,           // ç‚¹å‡»é€‰æ‹©
+    RECTANGLE_SELECT,       // çŸ©å½¢æ¡†é€‰
     DRAG_SELECT,
 };
 
-// ÎÄ±¾¹¤¾ß×´Ì¬
+// æ–‡æœ¬å·¥å…·çŠ¶æ€
 enum class TextToolState {
     IDLE,
-    CANVAS_TEXT_EDITING,    // »­²¼ÎÄ±¾±à¼­
-    COMPONENT_LABEL_EDITING // Ôª¼ş±êÇ©±à¼­
+    CANVAS_TEXT_EDITING,    // ç”»å¸ƒæ–‡æœ¬ç¼–è¾‘
+    COMPONENT_LABEL_EDITING // å…ƒä»¶æ ‡ç­¾ç¼–è¾‘
 };
 
-// Ôª¼ş¹¤¾ß×´Ì¬
+// å…ƒä»¶å·¥å…·çŠ¶æ€
 enum class ComponentToolState {
     IDLE,
-    COMPONENT_PREVIEW       // Ôª¼şÔ¤ÀÀ
+    COMPONENT_PREVIEW       // å…ƒä»¶é¢„è§ˆ
 };
 
-// µ¼Ïß¹¤¾ß×´Ì¬
+// å¯¼çº¿å·¥å…·çŠ¶æ€
 enum class WireToolState {
     IDLE,
-    WIRE_DRAWING,           // µ¼Ïß»æÖÆÖĞ
-	WIRE_EDITING,		   // µ¼Ïß±à¼­ÖĞ
+    WIRE_DRAWING,           // å¯¼çº¿ç»˜åˆ¶ä¸­
+    WIRE_EDITING,		   // å¯¼çº¿ç¼–è¾‘ä¸­
 };
 
-// »æÍ¼¹¤¾ß×´Ì¬
+// ç»˜å›¾å·¥å…·çŠ¶æ€
 enum class DrawingToolState {
     IDLE,
-    DRAWING_RECTANGLE,      // »æÖÆ¾ØĞÎ
-    DRAWING_LINE,           // »æÖÆÖ±Ïß
-    DRAWING_CIRCLE         // »æÖÆÔ²ĞÎ
+    DRAWING_RECTANGLE,      // ç»˜åˆ¶çŸ©å½¢
+    DRAWING_LINE,           // ç»˜åˆ¶ç›´çº¿
+    DRAWING_CIRCLE         // ç»˜åˆ¶åœ†å½¢
 };
 
-// ²Á³ı¹¤¾ß×´Ì¬
+// æ“¦é™¤å·¥å…·çŠ¶æ€
 enum class EraserToolState {
     IDLE,
-    CLICK_ERASER,           // µã»÷²Á³ı
-    RECTANGLE_ERASER,       // ¾ØĞÎ¿ò²Á³ı
+    CLICK_ERASER,           // ç‚¹å‡»æ“¦é™¤
+    RECTANGLE_ERASER,       // çŸ©å½¢æ¡†æ“¦é™¤
 };
 
-// ×´Ì¬ÀúÊ·¼ÇÂ¼£¨ÓÃÓÚ³·»Ø£©
+// çŠ¶æ€å†å²è®°å½•ï¼ˆç”¨äºæ’¤å›ï¼‰
 struct ToolStateHistory {
     ToolType toolType;
     wxLongLong timestamp;
-    // ¿ÉÒÔÀ©Õ¹ÆäËûĞèÒª¼ÇÂ¼µÄ×´Ì¬ĞÅÏ¢
+    // å¯ä»¥æ‰©å±•å…¶ä»–éœ€è¦è®°å½•çš„çŠ¶æ€ä¿¡æ¯
 };
 
-// ¹¤¾ß×´Ì¬¸Ä±äÊÂ¼ş
+// å·¥å…·çŠ¶æ€æ”¹å˜äº‹ä»¶
 wxDECLARE_EVENT(TOOL_STATE_CHANGED, wxCommandEvent);
 
 class ToolStateMachine : public wxEvtHandler {
@@ -81,41 +81,41 @@ public:
     ToolStateMachine(CanvasPanel* canvas);
     ~ToolStateMachine();
 
-	CanvasPanel* m_canvas;
+    CanvasPanel* m_canvas;
     
-    // Ö÷¹¤¾ßÇĞ»»½Ó¿Ú
+    // ä¸»å·¥å…·åˆ‡æ¢æ¥å£
     void SetCurrentTool(ToolType tool);
     ToolType GetCurrentTool() const { return m_currentTool; }
 
-    // ÍÏ×§¹¤¾ß×´Ì¬¹ÜÀí
+    // æ‹–æ‹½å·¥å…·çŠ¶æ€ç®¡ç†
     void SetDragState(DragToolState state);
     DragToolState GetDragState() const { return m_dragState; }
 
-    // Ñ¡ÖĞ¹¤¾ß×´Ì¬¹ÜÀí  
+    // é€‰ä¸­å·¥å…·çŠ¶æ€ç®¡ç†  
     void SetSelectState(SelectToolState state);
     SelectToolState GetSelectState() const { return m_selectState; }
 
-    // ÎÄ±¾¹¤¾ß×´Ì¬¹ÜÀí
+    // æ–‡æœ¬å·¥å…·çŠ¶æ€ç®¡ç†
     void SetTextState(TextToolState state);
     TextToolState GetTextState() const { return m_textState; }
 
-    // Ôª¼ş¹¤¾ß×´Ì¬¹ÜÀí
+    // å…ƒä»¶å·¥å…·çŠ¶æ€ç®¡ç†
     void SetComponentState(ComponentToolState state);
     ComponentToolState GetComponentState() const { return m_componentState; }
 
-    // µ¼Ïß¹¤¾ß×´Ì¬¹ÜÀí
+    // å¯¼çº¿å·¥å…·çŠ¶æ€ç®¡ç†
     void SetWireState(WireToolState state);
     WireToolState GetWireState() const { return m_wireState; }
 
-    // »æÍ¼¹¤¾ß×´Ì¬¹ÜÀí
+    // ç»˜å›¾å·¥å…·çŠ¶æ€ç®¡ç†
     void SetDrawingState(DrawingToolState state);
     DrawingToolState GetDrawingState() const { return m_drawingState; }
 
-    // ²Á³ı¹¤¾ß×´Ì¬¹ÜÀí
+    // æ“¦é™¤å·¥å…·çŠ¶æ€ç®¡ç†
     void SetEraserState(EraserToolState state);
     EraserToolState GetEraserState() const { return m_eraserState; }
 
-    // ±ã½İ×´Ì¬²éÑ¯·½·¨
+    // ä¾¿æ·çŠ¶æ€æŸ¥è¯¢æ–¹æ³•
     bool IsIdle() const;
     bool IsCurrentToolIdle() const;
     bool IsDragging() const;
@@ -125,7 +125,7 @@ public:
     bool IsDrawingWire() const;
     bool IsDrawingShape() const;
 
-    // ¹¤¾ßÀàĞÍ¿ìËÙ²éÑ¯
+    // å·¥å…·ç±»å‹å¿«é€ŸæŸ¥è¯¢
     bool IsDragTool() const { return m_currentTool == ToolType::DRAG_TOOL; }
     bool IsSelectTool() const { return m_currentTool == ToolType::SELECT_TOOL; }
     bool IsTextTool() const { return m_currentTool == ToolType::TEXT_TOOL; }
@@ -133,23 +133,23 @@ public:
     bool IsWireTool() const { return m_currentTool == ToolType::WIRE_TOOL; }
     bool IsDrawingTool() const { return m_currentTool == ToolType::DRAWING_TOOL; }
 
-    // ×´Ì¬ÀúÊ·¹ÜÀí£¨ÓÃÓÚ³·»Ø£©
+    // çŠ¶æ€å†å²ç®¡ç†ï¼ˆç”¨äºæ’¤å›ï¼‰
     void PushStateToHistory();
     bool CanUndo() const { return m_stateHistory.size() > 1; }
     bool Undo();
     void ClearHistory();
 
-    // ×´Ì¬ÖØÖÃ
+    // çŠ¶æ€é‡ç½®
     void ResetAllStates();
     void ResetCurrentToolState();
 
-    // »ñÈ¡µ±Ç°¹¤¾ß×´Ì¬µÄ×Ö·û´®±íÊ¾£¨ÓÃÓÚµ÷ÊÔ£©
+    // è·å–å½“å‰å·¥å…·çŠ¶æ€çš„å­—ç¬¦ä¸²è¡¨ç¤ºï¼ˆç”¨äºè°ƒè¯•ï¼‰
     wxString GetCurrentStateString() const;
 
 private:
     ToolType m_currentTool;
 
-    // ¸÷¹¤¾ß×´Ì¬
+    // å„å·¥å…·çŠ¶æ€
     DragToolState m_dragState;
     SelectToolState m_selectState;
     TextToolState m_textState;
@@ -158,14 +158,14 @@ private:
     DrawingToolState m_drawingState;
     EraserToolState m_eraserState;
 
-    // ×´Ì¬ÀúÊ·£¨ÓÃÓÚ³·»Ø£©
+    // çŠ¶æ€å†å²ï¼ˆç”¨äºæ’¤å›ï¼‰
     std::vector<ToolStateHistory> m_stateHistory;
     static const int MAX_HISTORY_SIZE = 50;
 
-    // ·¢ËÍ×´Ì¬¸Ä±äÊÂ¼ş
+    // å‘é€çŠ¶æ€æ”¹å˜äº‹ä»¶
     void SendStateChangeEvent(const wxString& stateInfo = "");
 
-    // ÖØÖÃËùÓĞ¹¤¾ß×´Ì¬µ½¿ÕÏĞ
+    // é‡ç½®æ‰€æœ‰å·¥å…·çŠ¶æ€åˆ°ç©ºé—²
     void ResetAllToolStatesToIdle();
 };
 

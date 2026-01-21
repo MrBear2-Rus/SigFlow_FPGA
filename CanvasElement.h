@@ -84,7 +84,7 @@ struct BezierShape {
     }
 };
 
-// ���α��������ߣ�4�����Ƶ㣩
+// 三次贝塞尔曲线（4个控制点）
 struct CubicBezierShape {
     Point p0, p1, p2, p3;
     wxColour color;
@@ -105,7 +105,7 @@ struct Path {
 
 using Shape = std::variant<Line, PolyShape, Circle, Text, Path, ArcShape, BezierShape, CubicBezierShape>;
 
-// 门尺寸参数结构体
+// 闂ㄥ昂瀵稿弬鏁扮粨鏋勪綋
 struct GateSizeParams {
     int width;
     int height;
@@ -115,7 +115,7 @@ struct GateSizeParams {
         : width(w), height(h), pinSpacing(ps) {}
 };
 
-// 通用门属性结构体
+// 閫氱敤闂ㄥ睘鎬х粨鏋勪綋
 struct GateProperties {
     wxString facing = "East";
     int dataBits = 1;
@@ -139,7 +139,7 @@ struct GateProperties {
         }
     }
     
-    // 门的高度根据输入数量动态计�?
+    // 闂ㄧ殑楂樺害鏍规嵁杈撳叆鏁伴噺鍔ㄦ€佽绠?
     int GetActualHeight() const {
         GateSizeParams params = GetSizeParams();
         int extraInputs = numberOfInputs - 2;
@@ -147,7 +147,7 @@ struct GateProperties {
         return params.height + extraInputs * params.pinSpacing;
     }
     
-    // 引脚间距保持固定
+    // 寮曡剼闂磋窛淇濇寔鍥哄畾
     int GetActualPinSpacing() const {
         GateSizeParams params = GetSizeParams();
         return params.pinSpacing;
@@ -267,7 +267,7 @@ public:
     void ReSetPinStatus();
 
 
-    // Ԫ����������״̬�������������
+    // 元件的引脚与状态管理，仿真相关
 
 public:
     void initTruthTable();
@@ -282,22 +282,22 @@ public:
     void SetState(bool state) { m_state = state; }
 
 
-    // ����Ԫ��ID����ʶ��Pin_Input
+    // 设置元件ID用于识别Pin_Input
 
     
 
-    // ״̬���Ʒ���
+    // 状态控制方法
     void SetOutputState(LogicSignal state);
 
     int GetOutputState() const { return m_outputState; }
 
-    // AND门属性访问方�?- 只有 AND_Gate 需要属性编�?
+    // AND闂ㄥ睘鎬ц闂柟娉?- 鍙湁 AND_Gate 闇€瑕佸睘鎬х紪杈?
     bool IsAndGate() const { return m_id == "AND_Gate"; }
     AndGateProperties& GetAndGateProps() { return m_andGateProps; }
     const AndGateProperties& GetAndGateProps() const { return m_andGateProps; }
     void SetAndGateProps(const AndGateProperties& props) { m_andGateProps = props; }
     
-    // 通用逻辑门判断和属性访问方�?
+    // 閫氱敤閫昏緫闂ㄥ垽鏂拰灞炴€ц闂柟娉?
     bool IsLogicGate() const { 
         return m_id == "AND_Gate" || m_id == "AND_Gate_Rect" ||
                m_id == "OR_Gate" || m_id == "OR_Gate_Rect" ||
@@ -311,27 +311,27 @@ public:
     const GateProperties& GetGateProps() const { return m_gateProps; }
     void SetGateProps(const GateProperties& props) { m_gateProps = props; }
     
-    // 根据属性重新生成形�?
+    // 鏍规嵁灞炴€ч噸鏂扮敓鎴愬舰鐘?
     void RegenerateShapes();
     
-    // 为AND门应用方向变�?
+    // 涓篈ND闂ㄥ簲鐢ㄦ柟鍚戝彉鎹?
     void ApplyFacingTransform(const wxString& oldFacing, const wxString& newFacing);
     
-    // 清除现有形状
+    // 娓呴櫎鐜版湁褰㈢姸
     void ClearShapes() { m_shapes.clear(); }
     
-    // 清除引脚
+    // 娓呴櫎寮曡剼
     void ClearPins() { m_inputPins.clear(); m_outputPins.clear(); }
     
-    // 序列�?反序列化门属�?
+    // 搴忓垪鍖?鍙嶅簭鍒楀寲闂ㄥ睘鎬?
     wxString SerializeGatePropsToJson() const;
     void DeserializeGatePropsFromJson(const wxString& json);
 
     std::vector<Pin> m_inputPins;
     std::vector<Pin> m_outputPins;
 
-    // ����״̬��ID��Ա
-    bool m_state = false; // Ĭ��״̬Ϊ0/false
+    // 添加状态和ID成员
+    bool m_state = false; // 默认状态为0/false
 
     LogicSignal m_outputState = LogicSignal::E; 
 

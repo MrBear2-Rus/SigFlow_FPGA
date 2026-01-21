@@ -4,19 +4,19 @@
 
 enum EDITOR_MODE {Verilog, Markdown, JsonStyle, Text};
 
-// Scintilla Ö§³Ö 0-31£¬½¨Òé´Ó 0 ¿ªÊ¼
+// Scintilla æ”¯æŒ 0-31ï¼Œå»ºè®®ä» 0 å¼€å§‹
 #define INDIC_ERROR      0
 #define INDIC_WARNING    1
-#define INDIC_HEALTH_AURA 2 // ÓÃÓÚ¿é±³¾°¸ßÁÁ
+#define INDIC_HEALTH_AURA 2 // ç”¨äºå—èƒŒæ™¯é«˜äº®
 
-// --- ×´Ì¬±ê¼Ç (Markers) ID ·ÖÅä ---
-// Scintilla Ö§³Ö 0-31¡£×¢Òâ£º0-24 Í¨³£ÓÉÓÃ»§¶¨Òå£¬25-31 ³£ÓÃÓÚÕÛµşÍ¼±ê
+// --- çŠ¶æ€æ ‡è®° (Markers) ID åˆ†é… ---
+// Scintilla æ”¯æŒ 0-31ã€‚æ³¨æ„ï¼š0-24 é€šå¸¸ç”±ç”¨æˆ·å®šä¹‰ï¼Œ25-31 å¸¸ç”¨äºæŠ˜å å›¾æ ‡
 #define MARKER_ID_STABLE     1
 #define MARKER_ID_CORRUPTED  2
 #define MARKER_ID_INCOMPLETE 3
 
-// --- ÓïÒåÑùÊ½ (Styles) ID ·ÖÅä ---
-// 0-127 ÊÇ±ê×¼ Lexer Õ¼ÓÃ»ò±£ÁôÇø£¬½¨Òé´Ó½ÏºóµÄÎ»ÖÃ¿ªÊ¼×Ô¶¨Òå
+// --- è¯­ä¹‰æ ·å¼ (Styles) ID åˆ†é… ---
+// 0-127 æ˜¯æ ‡å‡† Lexer å ç”¨æˆ–ä¿ç•™åŒºï¼Œå»ºè®®ä»è¾ƒåçš„ä½ç½®å¼€å§‹è‡ªå®šä¹‰
 #define STYLE_SEMANTIC_PORT  100
 #define STYLE_SEMANTIC_PARAM 101
 #define STYLE_SEMANTIC_INST  102
@@ -25,44 +25,44 @@ enum EDITOR_MODE {Verilog, Markdown, JsonStyle, Text};
 class SigTextEditor : public wxStyledTextCtrl {
 public:
 
-	SigTextEditor(wxWindow* parent);
-	wxString m_currentFilePath;
-	int temp_version;
-	EDITOR_MODE mode;
-	bool m_isLoading ;
-	//LintRes m_latestAnalysis;
+    SigTextEditor(wxWindow* parent);
+    wxString m_currentFilePath;
+    int temp_version;
+    EDITOR_MODE mode;
+    bool m_isLoading ;
+    //LintRes m_latestAnalysis;
 
-	void SetMode(EDITOR_MODE mode);
-	void SetVerilogStyle();
-	void SetVerilogIDE();
-	void SetMarkdownStyle();
-	void SetJsonStyle();
-	void SetTextStyle();
-
-
-	bool VisualFeedBack(const LintResult res);
-
-	//void RenderDiagnosticIndicators(const std::vector<LintMessage>& msgs);
-	void RenderLineMarker(const std::vector<Stability> line_status);
-	void MarkerDeleteAllByID(int markerId);
-	void RenderFoldingStructure(const std::vector<bool> is_lines_header, const std::vector<int> line_depth);
-	//void RenderSemanticColors(const std::vector<VerilogBlock>& blocks);
-
-	//void ClearAllFeedBack();
-
-	//void OnMouseDwell(wxStyledTextEvent& event);
-	//void ShowReactiveDetail(int pos, const LintMessage& msg);
-	void OnMarginClick(wxStyledTextEvent& event);
+    void SetMode(EDITOR_MODE mode);
+    void SetVerilogStyle();
+    void SetVerilogIDE();
+    void SetMarkdownStyle();
+    void SetJsonStyle();
+    void SetTextStyle();
 
 
-	void DebugFoldLevels();
+    bool VisualFeedBack(const LintResult res);
 
-	bool SaveIfModified();
-	int GetSnapVersion() { return temp_version; };
-	void OnTextChanged(wxStyledTextEvent& event);
-	bool OpenFile(wxString path);
-	bool SaveFile();
-	bool SaveFileAs(wxString path);
-	wxString GetCurrentPath() { return m_currentFilePath; }
+    //void RenderDiagnosticIndicators(const std::vector<LintMessage>& msgs);
+    void RenderLineMarker(const std::vector<Stability> line_status);
+    void MarkerDeleteAllByID(int markerId);
+    void RenderFoldingStructure(const std::vector<bool> is_lines_header, const std::vector<int> line_depth);
+    //void RenderSemanticColors(const std::vector<VerilogBlock>& blocks);
+
+    //void ClearAllFeedBack();
+
+    //void OnMouseDwell(wxStyledTextEvent& event);
+    //void ShowReactiveDetail(int pos, const LintMessage& msg);
+    void OnMarginClick(wxStyledTextEvent& event);
+
+
+    void DebugFoldLevels();
+
+    bool SaveIfModified();
+    int GetSnapVersion() { return temp_version; };
+    void OnTextChanged(wxStyledTextEvent& event);
+    bool OpenFile(wxString path);
+    bool SaveFile();
+    bool SaveFileAs(wxString path);
+    wxString GetCurrentPath() { return m_currentFilePath; }
 
 };

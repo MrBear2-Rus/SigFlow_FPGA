@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <wx/wx.h>
 #include <vector>
 #include <chrono>
@@ -21,7 +21,7 @@ struct HoverInfo {
 
     // 1. 引脚 (Pin) 悬停信息
     int pinIndex = -1;         // 悬停引脚的索引。-1 表示没有悬停在任何引脚上。
-	bool isInputPin = false;   // 悬停引脚是否为输入引脚。
+    bool isInputPin = false;   // 悬停引脚是否为输入引脚。
     wxPoint pinPos;       // 悬停引脚在世界坐标系中的位置。
 
     // 2. 导线 (Wire) 悬停信息
@@ -35,22 +35,22 @@ struct HoverInfo {
     int elementIndex = -1;     // 悬停元件的索引。-1 表示没有悬停在任何元件上。
     wxString elementName;      // 悬停元件的名称。
 
-	// 4. 文本框 (Text Element) 悬停信息
-	int textIndex = -1; // 悬停文本框的索引。-1 表示没有悬停在任何文本框上。
+    // 4. 文本框 (Text Element) 悬停信息
+    int textIndex = -1; // 悬停文本框的索引。-1 表示没有悬停在任何文本框上。
 
     // 辅助函数，判断是否悬停在某个具体对象上
     bool IsOverPin() const { return pinIndex != -1; }
     bool IsOverCell() const { return cellIndex != -1; }
     bool IsOverElement() const { return elementIndex != -1; }
-	bool IsOverText() const { return textIndex != -1; }
+    bool IsOverText() const { return textIndex != -1; }
     bool IsOverMidCell() const { return cellIndex != -1 && isCellMiddle; }
     bool IsEmptyArea() const {
         return pinIndex == -1 && cellIndex == -1 && elementIndex == -1 && textIndex == -1;
-	}
+    }
    
 
     // 构造函数
-	HoverInfo() : pinIndex(-1), isInputPin(false), cellIndex(-1), wireIndex(-1), elementIndex(-1), textIndex(-1), wireSectionIndex(-1){}
+    HoverInfo() : pinIndex(-1), isInputPin(false), cellIndex(-1), wireIndex(-1), elementIndex(-1), textIndex(-1), wireSectionIndex(-1){}
 };
 
 class CanvasPanel : public wxPanel

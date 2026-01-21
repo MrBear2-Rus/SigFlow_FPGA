@@ -3,8 +3,8 @@
 #include <vector>
 #include <json/json.h>   
 
-// Ç°ÏòÉùÃ÷£¬±ÜÃâÑ­»·°üº¬
+// å‰å‘å£°æ˜ï¼Œé¿å…å¾ªç¯åŒ…å«
 class CanvasElement;
 
-// È«¾Öº¯Êı£º¶Á JSON ¡ú ·µ»ØÔª¼şÁĞ±í
+// å…¨å±€å‡½æ•°ï¼šè¯» JSON â†’ è¿”å›å…ƒä»¶åˆ—è¡¨
 std::vector<CanvasElement> LoadCanvasElements(const wxString& jsonPath);

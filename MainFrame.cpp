@@ -159,6 +159,7 @@ MainFrame::MainFrame()
 MainFrame::~MainFrame()
 {
     m_auiMgr.UnInit();   // �����ֶ�����ʼ��
+    m_refreshTimer->Stop();
 }
 
 void MainFrame::OnToolboxElement(wxCommandEvent& evt)

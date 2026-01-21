@@ -1,4 +1,4 @@
-﻿#include <wx/wx.h>
+#include <wx/wx.h>
 #include "MainFrame.h"
 #include <wx/log.h>
 #include <fstream>

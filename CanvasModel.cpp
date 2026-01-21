@@ -1,4 +1,4 @@
-﻿#include "CanvasModel.h"
+#include "CanvasModel.h"
 #include "CanvasElement.h"
 #include <wx/filename.h>
 #include <wx/stdpaths.h>

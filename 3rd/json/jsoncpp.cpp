@@ -1,4 +1,4 @@
-/// Json-cpp amalgamated source (https://github.com/open-source-parsers/jsoncpp/).
+﻿/// Json-cpp amalgamated source (https://github.com/open-source-parsers/jsoncpp/).
 /// It is intended to be used with #include "json/json.h"
 
 // //////////////////////////////////////////////////////////////////////

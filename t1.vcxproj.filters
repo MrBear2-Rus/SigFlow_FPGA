@@ -13,171 +13,207 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="源文件\3rd">
+      <UniqueIdentifier>{1222eda3-bd45-4b2e-8819-f7a29c9d3e88}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\3rd">
+      <UniqueIdentifier>{3acc6417-f5bd-4903-9d02-3444baed499f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\gui">
+      <UniqueIdentifier>{d4ed1daf-4eea-4293-b01c-3c8b839e91db}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\canvas_core">
+      <UniqueIdentifier>{4ac8f9d5-bcb7-4a5f-bca8-93e0373fc5e7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\text_analysis">
+      <UniqueIdentifier>{e5c19a15-6f96-496b-9bc9-7fd495434b83}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\gui">
+      <UniqueIdentifier>{9225b880-c0c9-4e2f-bf09-8a63969e9b67}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\canvas_core">
+      <UniqueIdentifier>{e7c82d33-8312-4b6d-9647-4accad8d8dd2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\text_analysis">
+      <UniqueIdentifier>{a815a929-4d7f-48ec-a8a7-73c41bf96404}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\toolbox_core">
+      <UniqueIdentifier>{88f8167c-b6d2-4c56-b749-ad8edc1030c5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\toolbox_core">
+      <UniqueIdentifier>{5bd72766-d70a-45d7-876c-fa3fe8d1c193}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\gui\canvas">
+      <UniqueIdentifier>{92290ef0-4797-457a-a49f-d15c94b4e1f0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\gui\canvas">
+      <UniqueIdentifier>{b32f01bd-c5de-4ef7-a20f-c582a0e31da2}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cMain.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="MainMenuBar.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="MainFrame.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="ToolboxPanel.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="ToolboxModel.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="CanvasPanel.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="PropertyPanel.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="3rd\json\jsoncpp.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="CanvasModel.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="CanvasElement.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Wire.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="ToolBars.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="UndoStack.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="UndoNotifier.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="CanvasTextElement.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="HandyToolKit.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="CanvasEventHandler.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="ToolStateMachine.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="SimulationEngine.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="GatePainter.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="3rd\tree-sitter-verilog\src\parser.c">
-      <Filter>源文件</Filter>
+      <Filter>源文件\3rd</Filter>
     </ClCompile>
     <ClCompile Include="3rd\tree-sitter\lib\src\lib.c">
-      <Filter>源文件</Filter>
+      <Filter>源文件\3rd</Filter>
     </ClCompile>
-    <ClCompile Include="AsyncAnalysisCenter.cpp">
-      <Filter>源文件</Filter>
+    <ClCompile Include="MainFrame.cpp">
+      <Filter>源文件\gui</Filter>
     </ClCompile>
-    <ClCompile Include="SigTextEditor.cpp">
-      <Filter>源文件</Filter>
+    <ClCompile Include="MainMenuBar.cpp">
+      <Filter>源文件\gui</Filter>
     </ClCompile>
     <ClCompile Include="ProjectTreePanel.cpp">
-      <Filter>源文件</Filter>
+      <Filter>源文件\gui</Filter>
+    </ClCompile>
+    <ClCompile Include="PropertyPanel.cpp">
+      <Filter>源文件\gui</Filter>
+    </ClCompile>
+    <ClCompile Include="SigTextEditor.cpp">
+      <Filter>源文件\gui</Filter>
+    </ClCompile>
+    <ClCompile Include="ToolboxPanel.cpp">
+      <Filter>源文件\gui</Filter>
     </ClCompile>
     <ClCompile Include="AtomsAnalysis.cpp">
-      <Filter>源文件</Filter>
+      <Filter>源文件\text_analysis</Filter>
+    </ClCompile>
+    <ClCompile Include="AsyncAnalysisCenter.cpp">
+      <Filter>源文件\text_analysis</Filter>
+    </ClCompile>
+    <ClCompile Include="ToolBars.cpp">
+      <Filter>源文件\gui</Filter>
+    </ClCompile>
+    <ClCompile Include="Wire.cpp">
+      <Filter>源文件\canvas_core</Filter>
+    </ClCompile>
+    <ClCompile Include="UndoStack.cpp">
+      <Filter>源文件\canvas_core</Filter>
+    </ClCompile>
+    <ClCompile Include="UndoNotifier.cpp">
+      <Filter>源文件\canvas_core</Filter>
+    </ClCompile>
+    <ClCompile Include="CanvasModel.cpp">
+      <Filter>源文件\canvas_core</Filter>
+    </ClCompile>
+    <ClCompile Include="CanvasElement.cpp">
+      <Filter>源文件\canvas_core</Filter>
+    </ClCompile>
+    <ClCompile Include="3rd\json\jsoncpp.cpp">
+      <Filter>源文件\3rd</Filter>
+    </ClCompile>
+    <ClCompile Include="ToolboxModel.cpp">
+      <Filter>源文件\toolbox_core</Filter>
+    </ClCompile>
+    <ClCompile Include="CanvasEventHandler.cpp">
+      <Filter>源文件\gui\canvas</Filter>
+    </ClCompile>
+    <ClCompile Include="CanvasPanel.cpp">
+      <Filter>源文件\gui\canvas</Filter>
+    </ClCompile>
+    <ClCompile Include="GatePainter.cpp">
+      <Filter>源文件\gui\canvas</Filter>
+    </ClCompile>
+    <ClCompile Include="HandyToolKit.cpp">
+      <Filter>源文件\gui\canvas</Filter>
+    </ClCompile>
+    <ClCompile Include="ToolStateMachine.cpp">
+      <Filter>源文件\gui\canvas</Filter>
+    </ClCompile>
+    <ClCompile Include="CanvasTextElement.cpp">
+      <Filter>源文件\canvas_core</Filter>
+    </ClCompile>
+    <ClCompile Include="SimulationEngine.cpp">
+      <Filter>源文件\canvas_core</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="MainMenuBar.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="MainFrame.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="ToolboxPanel.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="ToolboxModel.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="PropertyPanel.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="3rd\json\json.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="CanvasElement.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="CanvasModel.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="my_log.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="Wire.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="ToolBars.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="UndoStack.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="CanvasPanel.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="UndoNotifier.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="CanvasTextElement.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="HandyToolKit.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="CanvasEventHandler.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="ToolStateMachine.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="SimulationEngine.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="GatePainter.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="3rd\tree-sitter-verilog\src\tree_sitter\alloc.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="3rd\tree-sitter-verilog\src\tree_sitter\array.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="3rd\tree-sitter-verilog\src\tree_sitter\parser.h">
-      <Filter>头文件</Filter>
+      <Filter>头文件\3rd</Filter>
     </ClInclude>
     <ClInclude Include="3rd\tree-sitter\lib\include\tree_sitter\api.h">
-      <Filter>头文件</Filter>
+      <Filter>头文件\3rd</Filter>
     </ClInclude>
-    <ClInclude Include="AsyncAnalysisCenter.h">
-      <Filter>头文件</Filter>
+    <ClInclude Include="3rd\tree-sitter-verilog\src\tree_sitter\array.h">
+      <Filter>头文件\3rd</Filter>
+    </ClInclude>
+    <ClInclude Include="3rd\tree-sitter-verilog\src\tree_sitter\parser.h">
+      <Filter>头文件\3rd</Filter>
     </ClInclude>
     <ClInclude Include="SigTextEditor.h">
-      <Filter>头文件</Filter>
+      <Filter>头文件\gui</Filter>
+    </ClInclude>
+    <ClInclude Include="MainFrame.h">
+      <Filter>头文件\gui</Filter>
+    </ClInclude>
+    <ClInclude Include="ToolBars.h">
+      <Filter>头文件\gui</Filter>
+    </ClInclude>
+    <ClInclude Include="PropertyPanel.h">
+      <Filter>头文件\gui</Filter>
     </ClInclude>
     <ClInclude Include="ProjectTreePanel.h">
-      <Filter>头文件</Filter>
+      <Filter>头文件\gui</Filter>
+    </ClInclude>
+    <ClInclude Include="ToolboxPanel.h">
+      <Filter>头文件\gui</Filter>
+    </ClInclude>
+    <ClInclude Include="CanvasModel.h">
+      <Filter>头文件\canvas_core</Filter>
+    </ClInclude>
+    <ClInclude Include="CanvasElement.h">
+      <Filter>头文件\canvas_core</Filter>
+    </ClInclude>
+    <ClInclude Include="Wire.h">
+      <Filter>头文件\canvas_core</Filter>
+    </ClInclude>
+    <ClInclude Include="UndoStack.h">
+      <Filter>头文件\canvas_core</Filter>
+    </ClInclude>
+    <ClInclude Include="AsyncAnalysisCenter.h">
+      <Filter>头文件\text_analysis</Filter>
+    </ClInclude>
+    <ClInclude Include="UndoNotifier.h">
+      <Filter>头文件\canvas_core</Filter>
+    </ClInclude>
+    <ClInclude Include="SimulationEngine.h">
+      <Filter>头文件\canvas_core</Filter>
     </ClInclude>
     <ClInclude Include="AtomsAnalysis.h">
-      <Filter>头文件</Filter>
+      <Filter>头文件\text_analysis</Filter>
+    </ClInclude>
+    <ClInclude Include="CanvasTextElement.h">
+      <Filter>头文件\canvas_core</Filter>
+    </ClInclude>
+    <ClInclude Include="3rd\json\json.h">
+      <Filter>头文件\3rd</Filter>
+    </ClInclude>
+    <ClInclude Include="MainMenuBar.h">
+      <Filter>头文件\gui</Filter>
+    </ClInclude>
+    <ClInclude Include="ToolboxModel.h">
+      <Filter>头文件\toolbox_core</Filter>
+    </ClInclude>
+    <ClInclude Include="CanvasEventHandler.h">
+      <Filter>头文件\gui\canvas</Filter>
+    </ClInclude>
+    <ClInclude Include="CanvasPanel.h">
+      <Filter>头文件\gui\canvas</Filter>
+    </ClInclude>
+    <ClInclude Include="GatePainter.h">
+      <Filter>头文件\gui\canvas</Filter>
+    </ClInclude>
+    <ClInclude Include="ToolStateMachine.h">
+      <Filter>头文件\gui\canvas</Filter>
+    </ClInclude>
+    <ClInclude Include="HandyToolKit.h">
+      <Filter>头文件\gui\canvas</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

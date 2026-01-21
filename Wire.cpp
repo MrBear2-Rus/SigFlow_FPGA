@@ -56,13 +56,13 @@ void Wire::GenerateCells()
         wxPoint p1 = pts[i].pos;
         int dx = abs(p1.x - p0.x);
         int dy = abs(p1.y - p0.y);
-        int steps = std::max(dx, dy) / 5;          // Ã¿ 2 px Ò»¸ñ
+        int steps = std::max(dx, dy) / 5;          // æ¯ 2 px ä¸€æ ¼
         if (steps == 0) steps = 1;
         for (int s = 0; s <= steps; ++s) {
             double t = double(s) / steps;
             wxPoint cell((1 - t) * p0.x + t * p1.x,
                 (1 - t) * p0.y + t * p1.y);
-            // È¥ÖØ£¨¿ÉÑ¡£©
+            // å»é‡ï¼ˆå¯é€‰ï¼‰
             if (cells.empty() || cell != cells.back().pos)
                 cells.push_back({cell, CellType::Norm, i-1, i});
         }
@@ -79,21 +79,21 @@ void Wire::GenerateCells()
 std::vector<ControlPoint> Wire::Route(const ControlPoint& start, const ControlPoint& end) {
     std::vector<ControlPoint> out;
 
-    // ±ß½çÇé¿ö£ºÆğµãºÍÖÕµãÏàÍ¬
+    // è¾¹ç•Œæƒ…å†µï¼šèµ·ç‚¹å’Œç»ˆç‚¹ç›¸åŒ
     if (start.pos == end.pos) {
         out.push_back({ start.pos, start.type });
         out.push_back({ end.pos, end.type });
         return out;
     }
 
-    // Ìí¼ÓÆğµã
+    // æ·»åŠ èµ·ç‚¹
     out.push_back({ start.pos, start.type });
 
-    // ´¦Àí×ÔÓÉµãµÄÇé¿ö
+    // å¤„ç†è‡ªç”±ç‚¹çš„æƒ…å†µ
     CPType effectiveStartType = start.type;
     CPType effectiveEndType = end.type;
 
-    // Èç¹ûÓĞÒ»¸öÊÇ×ÔÓÉµã£¬¸ù¾İÁíÒ»¸öµãµÄÀàĞÍÈ·¶¨ĞĞÎª
+    // å¦‚æœæœ‰ä¸€ä¸ªæ˜¯è‡ªç”±ç‚¹ï¼Œæ ¹æ®å¦ä¸€ä¸ªç‚¹çš„ç±»å‹ç¡®å®šè¡Œä¸º
     if (start.type == CPType::Free) {
         if (end.type == CPType::Free) {
             effectiveStartType = CPType::Pin;
@@ -113,13 +113,13 @@ std::vector<ControlPoint> Wire::Route(const ControlPoint& start, const ControlPo
         }
     }
 
-    // ¸ù¾İ±ê×¼»¯ºóµÄÀàĞÍ½øĞĞÂ·ÓÉ
+    // æ ¹æ®æ ‡å‡†åŒ–åçš„ç±»å‹è¿›è¡Œè·¯ç”±
     if (effectiveStartType == CPType::Branch && effectiveEndType == CPType::Branch) {
-        // ·ÖÖ§µãµ½·ÖÖ§µã£ºÏÈÊúÖ±£¬ÔÙË®Æ½£¬ÔÙÊúÖ±£¬Æ½·ÖÊúÖ±Âä²î
+        // åˆ†æ”¯ç‚¹åˆ°åˆ†æ”¯ç‚¹ï¼šå…ˆç«–ç›´ï¼Œå†æ°´å¹³ï¼Œå†ç«–ç›´ï¼Œå¹³åˆ†ç«–ç›´è½å·®
         int mid_y1 = start.pos.y + (end.pos.y - start.pos.y) / 2;
         int mid_y2 = start.pos.y + (end.pos.y - start.pos.y) / 2;
 
-        // ¶ÔÆëµ½Íø¸ñ
+        // å¯¹é½åˆ°ç½‘æ ¼
         mid_y1 = mid_y1 / 20 * 20;
         mid_y2 = mid_y2 / 20 * 20;
 
@@ -138,11 +138,11 @@ std::vector<ControlPoint> Wire::Route(const ControlPoint& start, const ControlPo
         }
     }
     else if (effectiveStartType == CPType::Pin && effectiveEndType == CPType::Pin) {
-        // Òı½Åµ½Òı½Å£ºÏÈË®Æ½£¬ÔÙÊúÖ±£¬ÔÙË®Æ½£¬Æ½·ÖË®Æ½²î
+        // å¼•è„šåˆ°å¼•è„šï¼šå…ˆæ°´å¹³ï¼Œå†ç«–ç›´ï¼Œå†æ°´å¹³ï¼Œå¹³åˆ†æ°´å¹³å·®
         int mid_x1 = start.pos.x + (end.pos.x - start.pos.x) / 2;
         int mid_x2 = start.pos.x + (end.pos.x - start.pos.x) / 2;
 
-        // ¶ÔÆëµ½Íø¸ñ
+        // å¯¹é½åˆ°ç½‘æ ¼
         mid_x1 = mid_x1 / 20 * 20;
         mid_x2 = mid_x2 / 20 * 20;
 
@@ -161,25 +161,25 @@ std::vector<ControlPoint> Wire::Route(const ControlPoint& start, const ControlPo
         }
     }
     else if (effectiveStartType == CPType::Branch && effectiveEndType == CPType::Pin) {
-        // ·ÖÖ§µ½Òı½Å£ºÏÈÊúÖ±ÔÙË®Æ½
+        // åˆ†æ”¯åˆ°å¼•è„šï¼šå…ˆç«–ç›´å†æ°´å¹³
         wxPoint med(start.pos.x, end.pos.y);
-        med.y = med.y / 20 * 20; // ¶ÔÆëµ½Íø¸ñ
+        med.y = med.y / 20 * 20; // å¯¹é½åˆ°ç½‘æ ¼
 
         if (med != start.pos && med != end.pos) {
             out.push_back({ med, CPType::Bend });
         }
     }
     else if (effectiveStartType == CPType::Pin && effectiveEndType == CPType::Branch) {
-        // Òı½Åµ½·ÖÖ§£ºÏÈË®Æ½ÔÙÊúÖ±
+        // å¼•è„šåˆ°åˆ†æ”¯ï¼šå…ˆæ°´å¹³å†ç«–ç›´
         wxPoint med(end.pos.x, start.pos.y);
-        med.x = med.x / 20 * 20; // ¶ÔÆëµ½Íø¸ñ
+        med.x = med.x / 20 * 20; // å¯¹é½åˆ°ç½‘æ ¼
 
         if (med != start.pos && med != end.pos) {
             out.push_back({ med, CPType::Bend });
         }
     }
     else {
-        // Ä¬ÈÏÇé¿ö£ºÊ¹ÓÃÕı½»Â·ÓÉ×÷Îªºó±¸
+        // é»˜è®¤æƒ…å†µï¼šä½¿ç”¨æ­£äº¤è·¯ç”±ä½œä¸ºåå¤‡
         int med_x = (start.pos.x + end.pos.x) / 2;
         med_x = med_x / 20 * 20;
         wxPoint med_1(med_x, start.pos.y);
@@ -193,7 +193,7 @@ std::vector<ControlPoint> Wire::Route(const ControlPoint& start, const ControlPo
         }
     }
 
-    // Ìí¼ÓÖÕµã
+    // æ·»åŠ ç»ˆç‚¹
     out.push_back({ end.pos, end.type });
 
     return out;

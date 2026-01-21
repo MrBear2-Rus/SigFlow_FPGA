@@ -1,4 +1,4 @@
-﻿//﻿#include "ToolboxPanel.h"
+//﻿#include "ToolboxPanel.h"
 #include "ToolboxPanel.h"
 #include "ToolboxModel.h"
 #include <wx/artprov.h>

@@ -1,4 +1,4 @@
-﻿#include "MainMenuBar.h"
+#include "MainMenuBar.h"
 #include "MainFrame.h"  // 为了转发调用 DoFileXXX
 #include <wx/config.h>
 
@@ -191,10 +191,10 @@ wxMenu* MainMenuBar::CreateEditMenu()
     m->AppendSeparator();
 
     /* 用 wxID_HIGHEST+10 起步，避免与系统 ID 冲突 */
-    m->Append(wxID_HIGHEST + 10, "Raise Selection\tCtrl+↑");
-    m->Append(wxID_HIGHEST + 11, "Lower Selection\tCtrl+↓");
-    m->Append(wxID_HIGHEST + 12, "Raise to Top\tCtrl+Shift+↑");
-    m->Append(wxID_HIGHEST + 13, "Lower to Bottom\tCtrl+Shift+↓");
+    m->Append(wxID_HIGHEST + 10, "Raise Selection\tCtrl+UP");
+    m->Append(wxID_HIGHEST + 11, "Lower Selection\tCtrl+DOWN");
+    m->Append(wxID_HIGHEST + 12, "Raise to Top\tCtrl+Shift+UP");
+    m->Append(wxID_HIGHEST + 13, "Lower to Bottom\tCtrl+Shift+DOWN");
     m->AppendSeparator();
 
     m->Append(wxID_HIGHEST + 14, "Add Vertex");

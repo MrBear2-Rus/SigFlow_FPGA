@@ -51,7 +51,7 @@ struct LintResult {
     std::vector<int> stable_lines;
 };
 
-// --- ×Ô¶¨ÒåÊÂ¼ş¶¨Òå ---
+// --- è‡ªå®šä¹‰äº‹ä»¶å®šä¹‰ ---
 wxDECLARE_EVENT(EVT_ANALYSIS_COMPLETE, wxThreadEvent);
 
 class AsyncAnalysisCenter : public wxThreadHelper {
@@ -59,11 +59,11 @@ public:
     AsyncAnalysisCenter(wxEvtHandler* parentHandler);
     ~AsyncAnalysisCenter();
 
-    // Éú²úÕß½Ó¿Ú£ºÓÉ UI Ïß³Ìµ÷ÓÃ
+    // ç”Ÿäº§è€…æ¥å£ï¼šç”± UI çº¿ç¨‹è°ƒç”¨
     void PushTask(const wxString& projectPath, const wxString& filePath);
 
 protected:
-    // Ïû·ÑÕßºËĞÄ£ººóÌ¨Ïß³ÌÑ­»·
+    // æ¶ˆè´¹è€…æ ¸å¿ƒï¼šåå°çº¿ç¨‹å¾ªç¯
     virtual wxThread::ExitCode Entry() override;
 
 private:
@@ -77,11 +77,11 @@ private:
     VerilatorResult Verilator(wxString path);
     
 
-    wxEvtHandler* m_parentHandler;  // ½ÓÊÕÊÂ¼şµÄ UI ´°¿Ú¾ä±ú
-    std::string m_projectPath;     // ´ı´¦ÀíµÄ´úÂë»º³åÇø
-    std::string m_pendingPath;     // ´ı´¦ÀíµÄ´úÂë»º³åÇø
-    bool m_hasNewTask;             // ÈÎÎñ±ê¼Ç
-    std::mutex m_mutex;            // ±£»¤»º³åÇøµÄ»¥³âËø
+    wxEvtHandler* m_parentHandler;  // æ¥æ”¶äº‹ä»¶çš„ UI çª—å£å¥æŸ„
+    std::string m_projectPath;     // å¾…å¤„ç†çš„ä»£ç ç¼“å†²åŒº
+    std::string m_pendingPath;     // å¾…å¤„ç†çš„ä»£ç ç¼“å†²åŒº
+    bool m_hasNewTask;             // ä»»åŠ¡æ ‡è®°
+    std::mutex m_mutex;            // ä¿æŠ¤ç¼“å†²åŒºçš„äº’æ–¥é”
 
 
     TSParser* parser = nullptr;
