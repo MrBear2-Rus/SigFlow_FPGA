@@ -78,7 +78,7 @@
     <ClCompile Include="ToolboxPanel.cpp">
       <Filter>源文件\gui</Filter>
     </ClCompile>
-    <ClCompile Include="AtomsAnalysis.cpp">
+    <ClCompile Include="LogicBridge.cpp">
       <Filter>源文件\text_analysis</Filter>
     </ClCompile>
     <ClCompile Include="AsyncAnalysisCenter.cpp">
@@ -128,6 +128,9 @@
     </ClCompile>
     <ClCompile Include="SimulationEngine.cpp">
       <Filter>源文件\canvas_core</Filter>
+    </ClCompile>
+    <ClCompile Include="TreeSitterLinter.cpp">
+      <Filter>源文件\text_analysis</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -185,7 +188,7 @@
     <ClInclude Include="SimulationEngine.h">
       <Filter>头文件\canvas_core</Filter>
     </ClInclude>
-    <ClInclude Include="AtomsAnalysis.h">
+    <ClInclude Include="LogicBridge.h">
       <Filter>头文件\text_analysis</Filter>
     </ClInclude>
     <ClInclude Include="CanvasTextElement.h">
@@ -214,6 +217,9 @@
     </ClInclude>
     <ClInclude Include="HandyToolKit.h">
       <Filter>头文件\gui\canvas</Filter>
+    </ClInclude>
+    <ClInclude Include="TreeSitterLinter.h">
+      <Filter>头文件\text_analysis</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

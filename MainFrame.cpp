@@ -158,8 +158,9 @@ MainFrame::MainFrame()
 
 MainFrame::~MainFrame()
 {
-    m_auiMgr.UnInit();   // �����ֶ�����ʼ��
     m_refreshTimer->Stop();
+    m_auiMgr.UnInit();   // �����ֶ�����ʼ��
+    
 }
 
 void MainFrame::OnToolboxElement(wxCommandEvent& evt)
@@ -1047,7 +1048,7 @@ void MainFrame::OnUndoStackChanged()
     if (undoItem)
     {
         wxString base = m_canvas->UndoStackGetUndoName(); // "Add AND Gate"
-		wxString text = m_canvas->UndoStackCanUndo()
+        wxString text = m_canvas->UndoStackCanUndo()
             ? wxString("Undo ") + base + wxString("\tCtrl+Z")
             : wxString("Can't Undo");
         undoItem->SetItemLabel(text);

@@ -25,7 +25,7 @@
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\wxWidgets-3.2.2.1\include;C:\wxWidgets-3.2.2.1\include\msvc;C:\wxWidgets-3.2.2.1\lib\vc_x64_lib\mswud;$(ProjectDir)3rd;$(ProjectDir)3rd\tree-sitter\lib\include;$(ProjectDir)3rd\tree-sitter\lib\src;$(ProjectDir)3rd\tree-sitter-verilog\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <ClCompile Include="AsyncAnalysisCenter.cpp" />
-    <ClCompile Include="AtomsAnalysis.cpp" />
+    <ClCompile Include="LogicBridge.cpp" />
     <ClCompile Include="CanvasElement.cpp" />
     <ClCompile Include="CanvasModel.cpp" />
     <ClCompile Include="CanvasPanel.cpp" />
@@ -42,6 +42,7 @@
     <ClCompile Include="ToolBars.cpp" />
     <ClCompile Include="ToolboxModel.cpp" />
     <ClCompile Include="ToolboxPanel.cpp" />
+    <ClCompile Include="TreeSitterLinter.cpp" />
     <ClCompile Include="UndoNotifier.cpp" />
     <ClCompile Include="UndoStack.cpp" />
     <ClCompile Include="CanvasEventHandler.cpp" />
@@ -55,7 +56,7 @@
     <ClInclude Include="3rd\tree-sitter-verilog\src\tree_sitter\parser.h" />
     <ClInclude Include="3rd\tree-sitter\lib\include\tree_sitter\api.h" />
     <ClInclude Include="AsyncAnalysisCenter.h" />
-    <ClInclude Include="AtomsAnalysis.h" />
+    <ClInclude Include="LogicBridge.h" />
     <ClInclude Include="CanvasElement.h" />
     <ClInclude Include="CanvasModel.h" />
     <ClInclude Include="CanvasPanel.h" />
@@ -74,6 +75,7 @@
     <ClInclude Include="ToolboxPanel.h" />
     <ClInclude Include="CanvasEventHandler.h" />
     <ClInclude Include="ToolStateMachine.h" />
+    <ClInclude Include="TreeSitterLinter.h" />
     <ClInclude Include="UndoNotifier.h" />
     <ClInclude Include="UndoStack.h" />
     <ClInclude Include="Wire.h" />
@@ -165,7 +167,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;WIN32;__WXMSW__;_WINDOWS;NOPCH;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;WIN32;__WXMSW__;_WINDOWS;NOPCH;_CRT_SECURE_NO_WARNINGS;SLANG_DEBUG;_ITERATOR_DEBUG_LEVEL=2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>C:\wxWidgets-3.2.2.1\include;C:\wxWidgets-3.2.2.1\include\msvc;C:\wxWidgets-3.2.2.1\lib\vc_x64_lib\mswud;$(ProjectDir)3rd;$(ProjectDir)3rd\tree-sitter\lib\include;$(ProjectDir)3rd\tree-sitter-verilog\src;$(ProjectDir)external\slang-sdk\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>

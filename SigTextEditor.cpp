@@ -1,4 +1,4 @@
-#include "SigTextEditor.h"
+﻿#include "SigTextEditor.h"
 #include <wx/filename.h>
 
 SigTextEditor::SigTextEditor(wxWindow* parent)
@@ -8,7 +8,7 @@ SigTextEditor::SigTextEditor(wxWindow* parent)
     SetProperty("fold.compact", "0"); // 不要压缩空行折叠
     SetProperty("fold.comment", "1"); // 如果有注释折叠可以开启
     Bind(wxEVT_STC_MARGINCLICK, &SigTextEditor::OnMarginClick, this);
-    Bind(wxEVT_STC_CHANGE, &SigTextEditor::OnTextChanged, this);
+    Bind(wxEVT_STC_MODIFIED, &SigTextEditor::OnTextChanged, this);
 }
 
 
@@ -299,13 +299,20 @@ bool SigTextEditor::SaveIfModified() {
 }
 
 void SigTextEditor::OnTextChanged(wxStyledTextEvent& event) {
+    // 1. 获取变更类型的位掩码
     int type = event.GetModificationType();
 
-    // 只在 插入文本、删除文本、撤销、重做 时增加版本
-    if (m_isLoading && (type & (wxSTC_MOD_INSERTTEXT | wxSTC_MOD_DELETETEXT |
-        wxSTC_PERFORMED_UNDO | wxSTC_PERFORMED_REDO))) {
+    // 2. 检查是否涉及内容的实质性改变
+    // wxSTC_MOD_INSERTTEXT: 插入了文字
+    // wxSTC_MOD_DELETETEXT: 删除了文字
+    bool isContentChanged = (type & wxSTC_MOD_INSERTTEXT) || (type & wxSTC_MOD_DELETETEXT);
+
+    // 3. 过滤逻辑
+    if (!m_isLoading && isContentChanged) {
         this->temp_version++;
+        // 这里可以执行你的逻辑，比如通知 AsyncAnalysisCenter
     }
+
     event.Skip();
 }
 
@@ -632,7 +639,7 @@ void SigTextEditor::OnMarginClick(wxStyledTextEvent& event) {
 
 void SigTextEditor::DebugFoldLevels() {
     int total_lines = GetLineCount();
-    wxLogDebug("--- Folding Debug Info (Detailed) ---");
+    //wxLogDebug("--- Folding Debug Info (Detailed) ---");
 
     for (int i = 0; i < total_lines; ++i) {
         // 1. 获取原始的 Level 信息
@@ -669,8 +676,8 @@ void SigTextEditor::DebugFoldLevels() {
             is_header ? "<-- HEADER" : ""
         );
 
-        wxLogDebug(info);
+        //wxLogDebug(info);
     }
-    wxLogDebug("-------------------------------------");
+    //wxLogDebug("-------------------------------------");
 }
 
