@@ -167,16 +167,16 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;WIN32;__WXMSW__;_WINDOWS;NOPCH;_CRT_SECURE_NO_WARNINGS;SLANG_DEBUG;_ITERATOR_DEBUG_LEVEL=2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;WIN32;__WXMSW__;_WINDOWS;NOPCH;_CRT_SECURE_NO_WARNINGS;SLANG_DEBUG;_ITERATOR_DEBUG_LEVEL=2;WXUSINGDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\wxWidgets-3.2.2.1\include;C:\wxWidgets-3.2.2.1\include\msvc;C:\wxWidgets-3.2.2.1\lib\vc_x64_lib\mswud;$(ProjectDir)3rd;$(ProjectDir)3rd\tree-sitter\lib\include;$(ProjectDir)3rd\tree-sitter-verilog\src;$(ProjectDir)external\slang-sdk\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)3rd\wxWidgets-3.2.9\include;$(ProjectDir)3rd\wxWidgets-3.2.9\include\msvc;$(ProjectDir)3rd\wxWidgets-3.2.9\lib\vc_x64_dll\mswud;$(ProjectDir)3rd;$(ProjectDir)3rd\tree-sitter\lib\include;$(ProjectDir)3rd\tree-sitter-verilog\src;$(ProjectDir)external\slang-sdk\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\wxWidgets-3.2.2.1\lib\vc_x64_lib;$(ProjectDir)external\slang-sdk\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ProjectDir)3rd\wxWidgets-3.2.9\lib\vc_x64_dll;$(ProjectDir)external\slang-sdk\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>wxmsw32ud_core.lib;wxbase32ud.lib;wxtiffd.lib;wxjpegd.lib;wxpngd.lib;wxzlibd.lib;wxregexud.lib;wxexpatd.lib;winmm.lib;comctl32.lib;rpcrt4.lib;wsock32.lib;wininet.lib;advapi32.lib;svlang.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
