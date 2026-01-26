@@ -1132,27 +1132,18 @@ void MainFrame::OnRefreshTimer(wxTimerEvent& event) {
         if (file.IsOpened()) {
             if (file.Write(currentCode)) {
                 file.Close();
-                m_analysisCenter->PushTask(m_currentProjectPath, cachePath);
+                m_analysisCenter->PushTask(m_workspacePath, cachePath);
             }
         }
     }
 }
 
 void MainFrame::OnAnalysisComplete(wxThreadEvent& event) {
-    LintResult result = event.GetPayload<LintResult>();
+    AnalysisResult result = event.GetPayload<AnalysisResult>();
 
 
-    // 内部应包含：更新 Margin Markers(Blocks), 更新 Indicators(Wave lines)
-    m_verilogEditor->VisualFeedBack(result);
-
-    //// 4. 辅助反馈
-    //if (!result.slang_success) {
-    //    SetStatusText("Semantic Analysis (Slang) Failed - Check Includes");
-    //}
-    //else {
-    //    SetStatusText(wxString::Format("Found %d Blocks, %d Messages",
-    //        (int)result.blocks.size(), (int)result.lintMessages.size()));
-    //}
+    if (result.linted) m_verilogEditor->VisualFeedBack(result.lint);
+    //if (result.parsed) m_canvas->
 }
 
 

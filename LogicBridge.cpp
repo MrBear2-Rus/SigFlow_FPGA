@@ -4,13 +4,29 @@
 #include <slang/ast/symbols/PortSymbols.h>
 #include <slang/ast/symbols/VariableSymbols.h>
 #include <slang/ast/symbols/MemberSymbols.h>
+#include <slang/ast/symbols/CompilationUnitSymbols.h>
+
+#include <slang/ast/Expression.h>
+#include <slang/ast/expressions/AssignmentExpressions.h>
+#include <slang/ast/expressions/MiscExpressions.h>
+
+#include <slang/ast/ASTVisitor.h>
+
 #include <slang/text/SourceManager.h>
 #include <slang/syntax//AllSyntax.h>
 
-SchematicBuffer LogicBridge::BuildSnapshot(const slang::ast::Compilation& comp) {
+
+struct VariableScanner : public slang::ast::ASTVisitor<VariableScanner, true, true> {
+    std::vector<const slang::ast::Symbol*> symbols;
+
+    void handle(const slang::ast::NamedValueExpression& expr) {
+        symbols.push_back(&expr.symbol);
+    }
+};
+
+
+LogicBridge::SchematicBuffer LogicBridge::BuildSnapshot(const slang::ast::Compilation& comp) {
     SchematicBuffer buffer;
-    NodeId ni = 0;
-    PinId pi = 0;
 
     const slang::SourceManager* smPtr = comp.getSourceManager();
     if (!smPtr) return buffer;
@@ -22,26 +38,189 @@ SchematicBuffer LogicBridge::BuildSnapshot(const slang::ast::Compilation& comp) 
     const slang::ast::Scope& scp = symol.as<slang::ast::Scope>();
 
     for (const slang::ast::Symbol& sym : scp.members()) {
-        auto* inst = sym.as_if<slang::ast::InstanceSymbol>();
-        if (!inst) continue;
+        if (sym.kind != slang::ast::SymbolKind::Instance) continue;
 
-        GraphicNode top = BuildNode(inst->body, sm, ni);
-        top.pins = BuildPort(buffer, inst->body, pi);
-        NodeId topId = top.id;
+        std::optional<GraphicTop> topN = BuildTop(sym, sm); // 处理顶层模块自身信息
+        if (!topN.has_value()) continue;
+        GraphicTop top = topN.value();
+        std::vector<GraphicId> pins;
+        std::vector<GraphicId> nodes;
 
-        buffer.nodes.emplace(topId, std::move(top));
-        buffer.topLevelModules.push_back(topId);
+        const slang::ast::InstanceSymbol& inst = sym.as<slang::ast::InstanceSymbol>();
+        for (const slang::ast::Symbol& sym : inst.body.members()){
+            if (auto* port = sym.as_if<slang::ast::PortSymbol>()) { // 顶层模块的端口信息
+                GraphicPin pin = BuildPin(*port, sm);
+                pins.push_back(pin.id);
+                buffer.SigBelongNode.emplace(pin.id, top.id);
+                buffer.signals.emplace(pin.id, std::move(pin));
 
-        ExtractChildren(inst->body, sm, buffer,ni,pi);
+            }
+            else if (auto* net = sym.as_if<slang::ast::NetSymbol>()) { // 模块内的信号信息
+                GraphicSignal wire = BuildNet(*net, sm);
+                buffer.SigBelongNode.emplace(wire.id, top.id);
+                buffer.signals.emplace(wire.id, std::move(wire));
+
+            }
+            else{
+                GraphicNode node;
+                node = BuildNode(sym, sm);
+
+
+                // 按类收集专有知识，在Slang中，任何语法单元都是Symbol，但这里我们只收集需要绘制为节点的Symbol
+                if (auto* prim = sym.as_if<slang::ast::PrimitiveInstanceSymbol>()) { //门
+                    std::vector<GraphicId> prim_pins;
+
+                    auto connections = prim->getPortConnections();
+                    for (size_t i = 0; i < connections.size(); ++i) {
+                        auto* conn = connections[i];
+                        GraphicPin prim_pin;
+
+                        if (i == 0) {
+                            prim_pin.id = std::format("{}.{}", node.id, "out");
+                            prim_pin.name = "out";
+                            prim_pin.direction = PinDirection::Out;
+                        }
+                        else {
+                            prim_pin.id = std::format("{}.{}{}", node.id, "in", i);
+                            prim_pin.name = "in" + std::to_string(i);
+                            prim_pin.direction = PinDirection::In;
+                        }
+                        prim_pin.type = SignalType::Pin;
+
+                        if (const auto* externalSym = conn->getSymbolReference()) {
+                            GraphicId signalId = externalSym->getHierarchicalPath();
+                            buffer.SigConnections.emplace(prim_pin.id, signalId);
+                            buffer.SigConnections.emplace(signalId, prim_pin.id);
+                        }
+
+                        prim_pins.push_back(prim_pin.id);
+                        buffer.SigBelongNode.emplace(prim_pin.id, node.id);
+                        buffer.signals.emplace(prim_pin.id, std::move(prim_pin));
+                        
+
+                    }
+                    buffer.nodeHasPins.emplace(node.id, prim_pins);
+                }
+                else if (auto* inst = sym.as_if<slang::ast::InstanceSymbol>()) { //模块实例
+
+                    std::vector<GraphicId> inst_pins;
+                    for (auto* conn : inst->getPortConnections()) {
+                        GraphicPin inst_pin;
+                        const auto& port = conn->port;   // Definition 阶段的 PortSymbol
+
+                        inst_pin.id = conn->port.getHierarchicalPath();
+
+
+                        inst_pin.name = std::string(port.name);
+                        inst_pin.type = SignalType::Pin;
+
+                        const auto& symport = port.as<slang::ast::PortSymbol>();
+                        switch (symport.direction) {
+                        case slang::ast::ArgumentDirection::In:
+                            inst_pin.direction = PinDirection::In;
+                            break;
+                        case slang::ast::ArgumentDirection::Out:
+                            inst_pin.direction = PinDirection::Out;
+                            break;
+                        case slang::ast::ArgumentDirection::InOut:
+                            inst_pin.direction = PinDirection::InOut;
+                            break;
+                        case slang::ast::ArgumentDirection::Ref:
+                            inst_pin.direction = PinDirection::Ref;
+                        }
+                        inst_pins.push_back(inst_pin.id);
+
+                        if (const auto* expr = conn->getExpression()) {
+                            if (const auto* externalSym = expr->getSymbolReference()) {
+                                GraphicId signalId = externalSym->getHierarchicalPath();
+
+                                buffer.SigConnections.emplace(inst_pin.id, signalId);
+                                buffer.SigConnections.emplace(signalId,  inst_pin.id);
+                            }
+                        }
+                        buffer.SigBelongNode.emplace(inst_pin.id, node.id);
+                        buffer.signals.emplace(inst_pin.id, inst_pin);
+                    }
+                    buffer.nodeHasPins.emplace(node.id, inst_pins);
+                    const auto& def = inst->getDefinition();
+                    buffer.nodeHasDef.emplace(node.id, def.getHierarchicalPath());
+
+                }
+                else if (auto* cas = sym.as_if<slang::ast::ContinuousAssignSymbol>()) { //赋值语句
+                    // 将赋值语句作为一个Node，分析其输入输出
+                    std::vector<GraphicId> cas_pins;
+
+                    auto& ass = cas->getAssignment();
+                    if (auto* assgiment = ass.as_if<slang::ast::AssignmentExpression>()) {
+                        const slang::ast::Expression& target = assgiment->left();
+                        if (auto output = target.as_if<slang::ast::NamedValueExpression>()) {
+                            // 左侧为输出，建为pin
+                            GraphicSignal outpin;
+                            outpin.id = std::format("{}.{}", node.id, "out");
+                            outpin.name = "out";
+                            outpin.type = SignalType::Pin;
+                            outpin.direction = PinDirection::Out;
+                            buffer.signals.emplace(outpin.id, outpin);
+                            buffer.SigBelongNode.emplace(outpin.id, node.id);
+                            cas_pins.push_back(outpin.id);
+
+                            const slang::ast::Symbol& out_sym = output->symbol;
+                            GraphicId signalId = out_sym.getHierarchicalPath();
+                            buffer.SigConnections.emplace(outpin.id, signalId);
+                            buffer.SigConnections.emplace(signalId, outpin.id);
+                        }
+
+
+                        const slang::ast::Expression& source = assgiment->right();
+
+                        VariableScanner scanner;
+                        source.visit(scanner); // 这会自动递归遍历 source 及其所有子节点
+                        int count = 1;
+                        for (auto in_sym : scanner.symbols) {
+                            GraphicSignal inpin;
+                            inpin.name = std::format("{}{}","in", count++);;
+                            inpin.id = std::format("{}.{}", node.id, inpin.name);
+                            inpin.type = SignalType::Pin;
+                            inpin.direction = PinDirection::In;
+                            buffer.signals.emplace(inpin.id, inpin);
+                            buffer.SigBelongNode.emplace(inpin.id, node.id);
+                            cas_pins.push_back(inpin.id);
+
+                            GraphicId signalId = in_sym->getHierarchicalPath();
+                            buffer.SigConnections.emplace(inpin.id, signalId);
+                            buffer.SigConnections.emplace(signalId, inpin.id);
+
+                        }
+                        buffer.nodeHasPins.emplace(node.id, cas_pins);
+
+
+
+                    }
+
+
+
+                }
+                else {
+                    continue;
+                }
+                nodes.push_back(node.id);
+                buffer.nodes.emplace(node.id, std::move(node));
+            }
+            
+        }
+        buffer.topHasNodes.emplace(top.id, nodes);
+        buffer.topHasPins.emplace(top.id, pins);
+
+        buffer.tops.emplace(top.id, top);
     }
-
+    
     return buffer;
 }
 
 
-SourceLocation GetSourceLocation(const slang::ast::Symbol& sym, const slang::SourceManager& sm) {
+LogicBridge::SourceLocation GetSourceLocation(const slang::ast::Symbol& sym, const slang::SourceManager& sm) {
     auto getSingleLoc = [&](slang::SourceLocation loc) {
-        SourceLocation sl;
+        LogicBridge::SourceLocation sl;
         if (!loc) {
             sl.filePath = "<unknown>";
             sl.startLine = -1;
@@ -64,7 +243,7 @@ SourceLocation GetSourceLocation(const slang::ast::Symbol& sym, const slang::Sou
 
         };
 
-    SourceLocation sl;
+    LogicBridge::SourceLocation sl;
     if (const auto* syn = sym.getSyntax()) {
         auto range = syn->sourceRange();
         auto startloc = sm.getFullyOriginalLoc(range.start());
@@ -86,6 +265,29 @@ SourceLocation GetSourceLocation(const slang::ast::Symbol& sym, const slang::Sou
             sl = getSingleLoc(sym.location);
         }
     }
+    else if (auto* inst = sym.as_if<slang::ast::InstanceSymbol>()) {
+        const auto* syntax = inst->body.getSyntax();
+        auto range = syntax->sourceRange();
+        auto startloc = sm.getFullyOriginalLoc(range.start());
+        auto endloc = sm.getFullyOriginalLoc(range.end());
+
+        if (startloc && endloc) {
+            // end 是 exclusive，GUI 显示通常减 1
+            auto endCol = sm.getDisplayColumnNumber(endloc);
+            if (endCol > 0)
+                endCol--;
+
+            sl.filePath = std::string(sm.getFileName(startloc));
+            sl.startLine = sm.getLineNumber(startloc);
+            sl.startCol = sm.getDisplayColumnNumber(startloc);
+            sl.endLine = sm.getLineNumber(endloc);
+            sl.endCol = endCol;
+        }
+        else {
+            sl = getSingleLoc(sym.location);
+        }
+
+    }
     else {
         sl = getSingleLoc(sym.location);
     }
@@ -93,366 +295,92 @@ SourceLocation GetSourceLocation(const slang::ast::Symbol& sym, const slang::Sou
 
 }
 
-GraphicNode LogicBridge::BuildNode(const slang::ast::Symbol& sym, const slang::SourceManager& sm, NodeId& node_id) {
-    GraphicNode node;
-    node.id = node_id++;
+std::optional<LogicBridge::GraphicTop> LogicBridge::BuildTop(const slang::ast::Symbol& sym, const slang::SourceManager& sm) {
+    LogicBridge::GraphicTop top;
+    if (sym.kind != slang::ast::SymbolKind::Instance) return std::nullopt;
+    
+    top.id = sym.getHierarchicalPath();
+    if (top.id.find(".") != std::string::npos) return std::nullopt;
 
+    top.name = std::string(sym.name);
+    top.typeName = std::string(slang::ast::toString(sym.kind));
+    top.sourceLocation = GetSourceLocation(sym, sm);
+
+    const auto* syntax = sym.getSyntax();
+    //top.verilogCode = syntax->toString();
+    return top;
+}
+
+
+LogicBridge::GraphicNode LogicBridge::BuildNode(const slang::ast::Symbol& sym, const slang::SourceManager& sm) {
+    LogicBridge::GraphicNode node;
+    node.id = sym.getHierarchicalPath();
     node.name = std::string(sym.name);
     node.typeName = std::string(slang::ast::toString(sym.kind));
-    node.sourceLocation = GetSourceLocation(sym, sm);
-    // logicDescription
 
+    if (auto* prim = sym.as_if<slang::ast::PrimitiveInstanceSymbol>()) { //门
+        // 精确化typeName
+        if (auto* syntax = prim->getSyntax()) {
+            if (syntax->kind == slang::syntax::SyntaxKind::HierarchicalInstance) {
+                // 向上看一眼它的父节点，那才是包含 "xor" 关键字的地方
+                auto* parent = syntax->parent;
+                if (parent && parent->kind == slang::syntax::SyntaxKind::PrimitiveInstantiation) {
+                    auto& primSyntax = parent->as<slang::syntax::PrimitiveInstantiationSyntax>();
+                    node.typeName = std::string(primSyntax.type.valueText());
+                }
+                else if (parent && parent->kind == slang::syntax::SyntaxKind::HierarchyInstantiation) {
+                    auto& hierSyntax = parent->as<slang::syntax::HierarchyInstantiationSyntax>();
+                    node.typeName = std::string(hierSyntax.type.valueText());
+                }
+            }
+        }
+    }
+
+
+    node.sourceLocation = GetSourceLocation(sym, sm);
+
+    const auto* syntax = sym.getSyntax();
+    node.verilogCode = syntax->toString();
+    if (sym.kind == slang::ast::SymbolKind::ContinuousAssign) {
+        node.name = "("+node.verilogCode+")";
+        node.id =  node.id +"." + node.name;
+    }
     return node;
 }
 
-std::vector<PinId> LogicBridge::BuildPort(SchematicBuffer& buffer, const slang::ast::Symbol& sym, PinId& id) {
-    std::vector<PinId> pins_ids;
-    if (!sym.isScope()) return pins_ids;
+LogicBridge::GraphicPin LogicBridge::BuildPin(const slang::ast::PortSymbol& port, const slang::SourceManager& sm) {
+    GraphicPin pin;
+    pin.id = port.getHierarchicalPath();
+    pin.name = std::string(port.name);
+    pin.type = SignalType::Pin;
 
-    const auto& scope = sym.as<slang::ast::Scope>();
-    for (const auto& member : scope.members()) {
-        if (member.kind == slang::ast::SymbolKind::Port) {
-            const auto& port = member.as<slang::ast::PortSymbol>();
-
-            GraphicPin pin;
-
-            pin.id = id++;
-            pin.name = std::string(port.name);
-
-            // 3. 映射方向
-            // Slang 定义了 PortDirection 枚举：In, Out, InOut
-            switch (port.direction) {
-            case slang::ast::ArgumentDirection::In:
-                pin.direction = PinDirection::In;
-                break;
-            case slang::ast::ArgumentDirection::Out:
-                pin.direction = PinDirection::Out;
-                break;
-            case slang::ast::ArgumentDirection::InOut:
-                pin.direction = PinDirection::InOut;
-                break;
-            case slang::ast::ArgumentDirection::Ref:
-                pin.direction = PinDirection::Ref;
-            }
-
-            // 至于 connectedPins，目前不一定每个pin都有自己的id，因此暂不收集
-
-            buffer.pins.emplace(pin.id ,std::move(pin));
-            pins_ids.push_back(pin.id);
-        }
+    switch (port.direction) {
+    case slang::ast::ArgumentDirection::In:
+        pin.direction = PinDirection::In;
+        break;
+    case slang::ast::ArgumentDirection::Out:
+        pin.direction = PinDirection::Out;
+        break;
+    case slang::ast::ArgumentDirection::InOut:
+        pin.direction = PinDirection::InOut;
+        break;
+    case slang::ast::ArgumentDirection::Ref:
+        pin.direction = PinDirection::Ref;
+        break;
     }
-    return pins_ids;
+
+    return pin;
 }
 
+LogicBridge::GraphicSignal LogicBridge::BuildNet(const slang::ast::NetSymbol& port, const slang::SourceManager& sm) {
+    GraphicSignal net;
 
 
+    net.id = port.getHierarchicalPath();
+    net.name = std::string(port.name);
+    net.type = SignalType::Net;
 
-
-
-void LogicBridge::ExtractChildren(const slang::ast::Symbol& sym,
-    const slang::SourceManager& sm,
-    SchematicBuffer& buffer,
-    NodeId& node_id,
-    PinId& pin_id) {
-    if (!sym.isScope()) return;
-    const slang::ast::Scope& scope = sym.as<slang::ast::Scope>();
-
-    for (const slang::ast::Symbol& member : scope.members()) {
-        if (auto* inst = member.as_if<slang::ast::InstanceSymbol>()) {
-            GraphicNode node;
-            node.id = node_id++;
-            node.name = std::string(inst->name);
-            node.typeName = std::string(slang::ast::toString(inst->kind));
-
-            node.sourceLocation = GetSourceLocation(*inst, sm);
-
-            // logicDescription
-
-
-
-            // 收集Pins以及
-            std::vector<PinId> pins;
-            for (auto* conn : inst->getPortConnections()) {
-                GraphicPin pin;
-                pin.id = pin_id++;
-                const auto& port = conn->port;   // Definition 阶段的 PortSymbol
-
-                pin.name = std::string(port.name);
-
-                const auto& symport = port.as<slang::ast::PortSymbol>();
-                switch (symport.direction) {
-                case slang::ast::ArgumentDirection::In:
-                    pin.direction = PinDirection::In;
-                    break;
-                case slang::ast::ArgumentDirection::Out:
-                    pin.direction = PinDirection::Out;
-                    break;
-                case slang::ast::ArgumentDirection::InOut:
-                    pin.direction = PinDirection::InOut;
-                    break;
-                case slang::ast::ArgumentDirection::Ref:
-                    pin.direction = PinDirection::Ref;
-                }
-
-                pins.push_back(pin.id);
-                buffer.pins.emplace(pin.id, std::move(pin));
-                // 最后再收集connectPins
-            }
-            node.pins = pins;
-            buffer.nodes.emplace(node.id, std::move(node));
-        }
-        else if (auto* prim = member.as_if<slang::ast::PrimitiveInstanceSymbol>()) {
-            GraphicNode node;
-            node.id = node_id++;
-
-            // 1. 获取原语名称 (如果代码写的是 and u1(...)，名字就是 u1；如果是 and(...)，名字可能为空)
-            node.name = prim->name.empty() ? "primitive" : std::string(prim->name);
-
-            // 2. 获取原语类型 (例如 "and", "xor", "buf")
-            node.typeName = "Gate";
-            if (auto* syntax = prim->getSyntax()) {
-                if (syntax->kind == slang::syntax::SyntaxKind::HierarchicalInstance) {
-                    // 向上看一眼它的父节点，那才是包含 "xor" 关键字的地方
-                    auto* parent = syntax->parent;
-                    if (parent && parent->kind == slang::syntax::SyntaxKind::PrimitiveInstantiation) {
-                        auto& primSyntax = parent->as<slang::syntax::PrimitiveInstantiationSyntax>();
-                        node.typeName = std::string(primSyntax.type.valueText());
-                    }
-                    else if (parent && parent->kind == slang::syntax::SyntaxKind::HierarchyInstantiation) {
-                        auto& hierSyntax = parent->as<slang::syntax::HierarchyInstantiationSyntax>();
-                        node.typeName = std::string(hierSyntax.type.valueText());
-                    }
-                }
-            }
-
-            //const slang::ast::Symbol& symShell = prim->tostring;
-            //node.typeName = std::string(prim->primitiveType.name);
-
-            node.sourceLocation = GetSourceLocation(*prim, sm);
-
-            // 3. 收集引脚
-            std::vector<PinId> pins;
-            auto connections = prim->getPortConnections();
-
-            for (size_t i = 0; i < connections.size(); ++i) {
-                auto* conn = connections[i];
-                GraphicPin pin;
-                pin.id = pin_id++;
-
-                if (i == 0) {
-                    pin.name = "out";
-                    pin.direction = PinDirection::Out;
-                }
-                else {
-                    pin.name = "in" + std::to_string(i);
-                    pin.direction = PinDirection::In;
-                }
-
-                // 处理连接逻辑 (和 Instance 一样，后续需要通过 expr 找 Net)
-                //if (auto* expr = conn->getExpression()) {
-                //    // 这里逻辑和之前一致，用来存 connectedPins
-                //}
-
-                pins.push_back(pin.id);
-                buffer.pins.emplace(pin.id, std::move(pin));
-            }
-
-            node.pins = pins;
-            buffer.nodes.emplace(node.id, std::move(node));
-        }
-        //else if (auto* prim = member.as_if<slang::ast::NetSymbol>()) {
-
-        //}
-        //else if (auto* prim = member.as_if<slang::ast::ContinuousAssignSymbol>()) {
-        //    GraphicNode node;
-        //    node.id = node_id++;
-        //    node.name = "";
-        //    node.typeName = prim->kind
-
-        //    const auto* syntax = prim->getSyntax();
-
-        //}
-    }
-}
-
-
-
-
-
-LogicView LogicFromSymbol(const slang::ast::Symbol& sym, const slang::SourceManager& sm) {
-    LogicView view;
-
-    // 1. 获取原始代码片段 (verilogCode)
-    // 注意：Symbol 接口中只有 location，没有 getSourceRange()。
-    // 我们需要通过 getSyntax() 获取语法节点，再拿到 Range。
-    const auto* syntax = sym.getSyntax();
-    if (syntax) {
-        auto range = syntax->sourceRange();
-        if (range != slang::SourceRange::NoLocation) {
-            slang::SourceLocation start = range.start();
-            slang::SourceLocation end = range.end();
-
-            if (sm.isFileLoc(start) && sm.isFileLoc(end)) {
-                slang::BufferID bid = start.buffer();
-                uint32_t startOff = start.offset();
-                uint32_t endOff = end.offset();
-                // 获取该 Buffer 的全部文本，然后进行切片
-                std::string_view fullText = sm.getSourceText(bid);
-                if (endOff >= startOff && endOff <= fullText.size()) {
-                    view.verilogCode = std::string(fullText.substr(startOff, endOff - startOff));
-                }
-            }
-        }
-    }
-
-    //// 2. 处理门级原语 (PrimitiveInstanceSymbol)
-    //if (sym.kind == slang::ast::SymbolKind::PrimitiveInstance) {
-    //    // 使用 Symbol 接口中提供的 as<T> 进行强制转换
-    //    const auto& prim = sym.as<slang::ast::PrimitiveInstanceSymbol>();
-    //    // prim.primitiveType 是一个 PrimitiveSymbol，它有自己的 name
-    //    view.expression = std::string(prim.primitiveType.name) + " gate logic";
-    //}
-
-    //// 3. 处理连续赋值语句 (ContinuousAssignSymbol)
-    //else if (sym.kind == slang::ast::SymbolKind::ContinuousAssign) {
-    //    const auto& asgn = sym.as<slang::ast::ContinuousAssignSymbol>();
-
-    //    // getAssignment() 返回 Assignment 对象，该对象代表 "LHS = RHS"
-    //    // format() 会将其渲染为标准的 Verilog 字符串
-    //    view.expression = asgn.getAssignment().format();
-    //}
-
-    //// 4. 处理模块实例或 UDP 实例 (InstanceSymbol)
-    //else if (sym.kind == slang::ast::SymbolKind::Instance) {
-    //    const auto& inst = sym.as<slang::ast::InstanceSymbol>();
-
-    //    // getDefinition() 返回该实例引用的定义 (DefinitionSymbol)
-    //    const auto& def = inst.getDefinition();
-
-    //    // 通过定义关联的语法节点判定其性质
-    //    auto defSyntax = def.getSyntax();
-    //    if (defSyntax && defSyntax->kind == slang::syntax::SyntaxKind::UdpDeclaration) {
-    //        // 如果是 UDP，通常需要处理其真值表
-    //        view.truthTable = ExtractTruthTable(def);
-    //        view.expression = "UDP: " + std::string(def.name);
-    //    }
-    //    else {
-    //        // 普通模块实例
-    //        view.expression = "Module: " + std::string(def.name);
-    //    }
-    //}
-
-    return view;
-}
-
-
-
-inline const char* ToString(slang::ast::SymbolKind kind) {
-    using SK = slang::ast::SymbolKind;
-    switch (kind) {
-    case SK::Unknown: return "Unknown";
-    case SK::Root: return "Root";
-    case SK::Definition: return "Definition";
-    case SK::CompilationUnit: return "CompilationUnit";
-    case SK::DeferredMember: return "DeferredMember";
-    case SK::TransparentMember: return "TransparentMember";
-    case SK::EmptyMember: return "EmptyMember";
-    case SK::PredefinedIntegerType: return "PredefinedIntegerType";
-    case SK::ScalarType: return "ScalarType";
-    case SK::FloatingType: return "FloatingType";
-    case SK::EnumType: return "EnumType";
-    case SK::EnumValue: return "EnumValue";
-    case SK::PackedArrayType: return "PackedArrayType";
-    case SK::FixedSizeUnpackedArrayType: return "FixedSizeUnpackedArrayType";
-    case SK::DynamicArrayType: return "DynamicArrayType";
-    case SK::DPIOpenArrayType: return "DPIOpenArrayType";
-    case SK::AssociativeArrayType: return "AssociativeArrayType";
-    case SK::QueueType: return "QueueType";
-    case SK::PackedStructType: return "PackedStructType";
-    case SK::UnpackedStructType: return "UnpackedStructType";
-    case SK::PackedUnionType: return "PackedUnionType";
-    case SK::UnpackedUnionType: return "UnpackedUnionType";
-    case SK::ClassType: return "ClassType";
-    case SK::CovergroupType: return "CovergroupType";
-    case SK::VoidType: return "VoidType";
-    case SK::NullType: return "NullType";
-    case SK::CHandleType: return "CHandleType";
-    case SK::StringType: return "StringType";
-    case SK::EventType: return "EventType";
-    case SK::UnboundedType: return "UnboundedType";
-    case SK::TypeRefType: return "TypeRefType";
-    case SK::UntypedType: return "UntypedType";
-    case SK::SequenceType: return "SequenceType";
-    case SK::PropertyType: return "PropertyType";
-    case SK::VirtualInterfaceType: return "VirtualInterfaceType";
-    case SK::TypeAlias: return "TypeAlias";
-    case SK::ErrorType: return "ErrorType";
-    case SK::ForwardingTypedef: return "ForwardingTypedef";
-    case SK::NetType: return "NetType";
-    case SK::Parameter: return "Parameter";
-    case SK::TypeParameter: return "TypeParameter";
-    case SK::Port: return "Port";
-    case SK::MultiPort: return "MultiPort";
-    case SK::InterfacePort: return "InterfacePort";
-    case SK::Modport: return "Modport";
-    case SK::ModportPort: return "ModportPort";
-    case SK::ModportClocking: return "ModportClocking";
-    case SK::Instance: return "Instance";
-    case SK::InstanceBody: return "InstanceBody";
-    case SK::InstanceArray: return "InstanceArray";
-    case SK::Package: return "Package";
-    case SK::ExplicitImport: return "ExplicitImport";
-    case SK::WildcardImport: return "WildcardImport";
-    case SK::Attribute: return "Attribute";
-    case SK::Genvar: return "Genvar";
-    case SK::GenerateBlock: return "GenerateBlock";
-    case SK::GenerateBlockArray: return "GenerateBlockArray";
-    case SK::ProceduralBlock: return "ProceduralBlock";
-    case SK::StatementBlock: return "StatementBlock";
-    case SK::Net: return "Net";
-    case SK::Variable: return "Variable";
-    case SK::FormalArgument: return "FormalArgument";
-    case SK::Field: return "Field";
-    case SK::ClassProperty: return "ClassProperty";
-    case SK::Subroutine: return "Subroutine";
-    case SK::ContinuousAssign: return "ContinuousAssign";
-    case SK::ElabSystemTask: return "ElabSystemTask";
-    case SK::GenericClassDef: return "GenericClassDef";
-    case SK::MethodPrototype: return "MethodPrototype";
-    case SK::UninstantiatedDef: return "UninstantiatedDef";
-    case SK::Iterator: return "Iterator";
-    case SK::PatternVar: return "PatternVar";
-    case SK::ConstraintBlock: return "ConstraintBlock";
-    case SK::DefParam: return "DefParam";
-    case SK::Specparam: return "Specparam";
-    case SK::Primitive: return "Primitive";
-    case SK::PrimitivePort: return "PrimitivePort";
-    case SK::PrimitiveInstance: return "PrimitiveInstance";
-    case SK::SpecifyBlock: return "SpecifyBlock";
-    case SK::Sequence: return "Sequence";
-    case SK::Property: return "Property";
-    case SK::AssertionPort: return "AssertionPort";
-    case SK::ClockingBlock: return "ClockingBlock";
-    case SK::ClockVar: return "ClockVar";
-    case SK::LocalAssertionVar: return "LocalAssertionVar";
-    case SK::LetDecl: return "LetDecl";
-    case SK::Checker: return "Checker";
-    case SK::CheckerInstance: return "CheckerInstance";
-    case SK::CheckerInstanceBody: return "CheckerInstanceBody";
-    case SK::RandSeqProduction: return "RandSeqProduction";
-    case SK::CovergroupBody: return "CovergroupBody";
-    case SK::Coverpoint: return "Coverpoint";
-    case SK::CoverCross: return "CoverCross";
-    case SK::CoverCrossBody: return "CoverCrossBody";
-    case SK::CoverageBin: return "CoverageBin";
-    case SK::TimingPath: return "TimingPath";
-    case SK::PulseStyle: return "PulseStyle";
-    case SK::SystemTimingCheck: return "SystemTimingCheck";
-    case SK::AnonymousProgram: return "AnonymousProgram";
-    case SK::NetAlias: return "NetAlias";
-    case SK::ConfigBlock: return "ConfigBlock";
-    default: return "Unknown";
-    }
+    return net;
 }
 
 
@@ -582,11 +510,11 @@ void LogicBridge::printSnapshot(const SchematicBuffer& ss) {
 
     // 打印顶层模块
     output += "Top-level modules:\n";
-    for (NodeId topId : ss.topLevelModules) {
-        auto it = ss.nodes.find(topId);
-        if (it != ss.nodes.end()) {
+    for (const auto& [id, top] : ss.tops) {
+        auto it = ss.tops.find(id);
+        if (it != ss.tops.end()) {
             const auto& node = it->second;
-            output += std::format("  [{}] {} ({}) {} [{}:{}]-[{}:{}]\n",
+            output += std::format("[{}] {} ({}) {} [{}:{}]-[{}:{}]\n",
                 node.id,
                 node.name,
                 node.typeName,
@@ -595,27 +523,31 @@ void LogicBridge::printSnapshot(const SchematicBuffer& ss) {
                 node.sourceLocation.startCol,
                 node.sourceLocation.endLine,
                 node.sourceLocation.endCol);
+            output += "Pins:\n";
+            for (GraphicId pinId : ss.topHasPins.at(node.id)) {
+                output += std::format("{}\n",pinId);
+            }
+            output += "Nodes:\n";
+            for (GraphicId nodeId : ss.topHasNodes.at(node.id)) {
+                output += std::format("{}\n", nodeId);
+            }
+            output += std::format("\n");
         }
     }
 
     // 打印所有节点
     output += "\nAll nodes:\n";
     for (const auto& [id, node] : ss.nodes) {
-        output += std::format("Node [{}] Name: {}, Type: {}\n", node.id, node.name, node.typeName);
+        output += std::format("Node [{}] \n Name: {}, Type: {}\n", node.id, node.name, node.typeName);
 
         // 输出逻辑描述
-        if (!node.logicDescription.verilogCode.empty())
-            output += std::format("  Verilog code: {}\n", node.logicDescription.verilogCode);
-        if (!node.logicDescription.expression.empty())
-            output += std::format("  Expression: {}\n", node.logicDescription.expression);
-        if (!node.logicDescription.truthTable.empty())
-            output += std::format("  Truth Table: {}\n", node.logicDescription.truthTable);
-
+        if (!node.verilogCode.empty())
+            output += std::format("  Verilog code: {}\n", node.verilogCode);
         // 输出 pins
         output += "  Pins:\n";
-        for (PinId pid : node.pins) {
-            auto pit = ss.pins.find(pid);
-            if (pit == ss.pins.end()) continue;
+        for (GraphicId pid : ss.nodeHasPins.at(node.id)) {
+            auto pit = ss.signals.find(pid);
+            if (pit == ss.signals.end()) continue;
             const auto& pin = pit->second;
 
             output += std::format("    [{}] {} ({})", pin.id, pin.name,
@@ -623,12 +555,6 @@ void LogicBridge::printSnapshot(const SchematicBuffer& ss) {
                 pin.direction == PinDirection::Out ? "Out" :
                 pin.direction == PinDirection::InOut ? "InOut" : "Ref");
 
-            if (!pin.connectedPins.empty()) {
-                output += " -> Connected to pins: ";
-                for (PinId cid : pin.connectedPins) {
-                    output += std::to_string(cid) + " ";
-                }
-            }
             output += "\n";
         }
         output += std::format("{} [{}:{}]-[{}:{}]\n", node.sourceLocation.filePath,
@@ -637,8 +563,31 @@ void LogicBridge::printSnapshot(const SchematicBuffer& ss) {
             node.sourceLocation.endLine,
             node.sourceLocation.endCol);
 
+        auto it = ss.nodeHasDef.find(node.id);
+        if (it != ss.nodeHasDef.end()) {
+            output += std::format("Definition:{}", it->second);
+        }
         output += "\n";
     }
+    output += "\nAll Signals:\n";
+    for (const auto& [id, signal] : ss.signals) {
+        output += std::format("{}\n{} {} {}\n",
+            signal.id,
+            signal.name,
+            static_cast<int>(signal.type),
+            static_cast<int>(signal.direction));
+
+        auto range = ss.SigConnections.equal_range(signal.id);
+
+        for (auto it = range.first; it != range.second; ++it) {
+            GraphicId pinId = it->second; // 这就是其中一个连接的引脚 ID
+            output += std::format("Connected to: {}\n", pinId);
+        }
+        output += "\n";
+    }
+
+
+
 
     wxLogDebug("%s", output.c_str());
 }

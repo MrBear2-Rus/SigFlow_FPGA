@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "TreeSitterLinter.h"
+#include "LogicBridge.h"
 
 #include <wx/wx.h>
 #include <wx/thread.h>
@@ -27,6 +28,17 @@ struct SlangProject {
     std::vector<std::string> persistentIncludes;
     std::vector<std::string> persistentTops;
 };
+
+
+struct AnalysisResult {
+    bool linted;
+    LintResult lint;
+
+    bool parsed;
+    LogicBridge::SchematicBuffer schematic;
+};
+
+
 
 
 // --- 自定义事件定义 ---

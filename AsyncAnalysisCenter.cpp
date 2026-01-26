@@ -83,18 +83,24 @@ wxThread::ExitCode AsyncAnalysisCenter::Entry() {
         }
         ///////////////////////////////////////////////////////////////////////////////////////
 
-        
-        LintResult res;
+        AnalysisResult res;
 
         // Tree-Sitter分析
         std::vector<BlockInfo> TSRes = TSLinter.LintFromPath(filePath);
         //PrintTreeSitterResult(TSRes);
-        res.block_infos = TSRes;
-        res.is_lines_header = isLineHeader(TSRes, line_count);
-        res.line_depth = GetLineDepth(TSRes, line_count);
-        res.line_status = GetLineStatus(TSRes, line_count);
-        res.stable_lines = GetStableLines(TSRes);
+        res.linted = true;
+        res.lint.block_infos = TSRes;
+        res.lint.is_lines_header = isLineHeader(TSRes, line_count);
+        res.lint.line_depth = GetLineDepth(TSRes, line_count);
+        res.lint.line_status = GetLineStatus(TSRes, line_count);
+        res.lint.stable_lines = GetStableLines(TSRes);
         
+        // 包装结果并推回 UI 线程
+        wxThreadEvent* event = new wxThreadEvent(EVT_ANALYSIS_COMPLETE);
+        event->SetPayload(res); // 现在 Payload 是 LintRes
+        m_parentHandler->QueueEvent(event);
+
+
 
 
 
@@ -105,7 +111,7 @@ wxThread::ExitCode AsyncAnalysisCenter::Entry() {
 
         // 注册 Driver 报错引擎 
         auto& engine = driver.diagEngine;
-        
+
         class MyDiagClient : public slang::DiagnosticClient {
         public:
             void report(const slang::ReportedDiagnostic& diag) override {
@@ -122,41 +128,18 @@ wxThread::ExitCode AsyncAnalysisCenter::Entry() {
         driver.parseAllSources();
         // Slang Logic Analysis
         const auto compilation = driver.createCompilation();
-        //compilation->geta
 
-
-        //compilation->
-        //const Design& design = compilation->getdesign
-
-
-
-
-
-
-
-        const auto& root = compilation->getRoot();
-
-        LogicBridge::Elaborate(*compilation);
-        LogicBridge::GetDefinitions(*compilation);
-
-        SchematicBuffer sb = LogicBridge::BuildSnapshot(*compilation);
-        LogicBridge::printSnapshot(sb);
-
-
-
-
-
-
-
-
-
-
-
-        // 包装结果并推回 UI 线程
-        wxThreadEvent* event = new wxThreadEvent(EVT_ANALYSIS_COMPLETE);
+        res.schematic = LogicBridge::BuildSnapshot(*compilation);
+        res.parsed = true;
+        LogicBridge::printSnapshot(res.schematic);
+        event = new wxThreadEvent(EVT_ANALYSIS_COMPLETE);
         event->SetPayload(res); // 现在 Payload 是 LintRes
         m_parentHandler->QueueEvent(event);
+
+
+
     }
+
     return (wxThread::ExitCode)0;
 }
 
