@@ -2,6 +2,8 @@
 #include <slang/ast/Symbol.h>
 #include <slang/ast/symbols/InstanceSymbols.h>
 #include <slang/ast/symbols/PortSymbols.h>
+#include <slang/ast/symbols/VariableSymbols.h>
+#include <slang/ast/symbols/MemberSymbols.h>
 #include <slang/text/SourceManager.h>
 #include <slang/syntax//AllSyntax.h>
 
@@ -144,6 +146,9 @@ std::vector<PinId> LogicBridge::BuildPort(SchematicBuffer& buffer, const slang::
 
 
 
+
+
+
 void LogicBridge::ExtractChildren(const slang::ast::Symbol& sym,
     const slang::SourceManager& sm,
     SchematicBuffer& buffer,
@@ -255,6 +260,18 @@ void LogicBridge::ExtractChildren(const slang::ast::Symbol& sym,
             node.pins = pins;
             buffer.nodes.emplace(node.id, std::move(node));
         }
+        //else if (auto* prim = member.as_if<slang::ast::NetSymbol>()) {
+
+        //}
+        //else if (auto* prim = member.as_if<slang::ast::ContinuousAssignSymbol>()) {
+        //    GraphicNode node;
+        //    node.id = node_id++;
+        //    node.name = "";
+        //    node.typeName = prim->kind
+
+        //    const auto* syntax = prim->getSyntax();
+
+        //}
     }
 }
 
@@ -614,6 +631,12 @@ void LogicBridge::printSnapshot(const SchematicBuffer& ss) {
             }
             output += "\n";
         }
+        output += std::format("{} [{}:{}]-[{}:{}]\n", node.sourceLocation.filePath,
+            node.sourceLocation.startLine,
+            node.sourceLocation.startCol,
+            node.sourceLocation.endLine,
+            node.sourceLocation.endCol);
+
         output += "\n";
     }
 
