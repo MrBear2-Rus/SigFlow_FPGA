@@ -38,6 +38,7 @@
     <ClCompile Include="PropertyPanel.cpp" />
     <ClCompile Include="HandyToolKit.cpp" />
     <ClCompile Include="SigTextEditor.cpp" />
+    <ClCompile Include="SigTree.cpp" />
     <ClCompile Include="SimulationEngine.cpp" />
     <ClCompile Include="ToolBars.cpp" />
     <ClCompile Include="ToolboxModel.cpp" />
@@ -69,6 +70,7 @@
     <ClInclude Include="ProjectTreePanel.h" />
     <ClInclude Include="PropertyPanel.h" />
     <ClInclude Include="SigTextEditor.h" />
+    <ClInclude Include="SigTree.h" />
     <ClInclude Include="SimulationEngine.h" />
     <ClInclude Include="ToolBars.h" />
     <ClInclude Include="ToolboxModel.h" />

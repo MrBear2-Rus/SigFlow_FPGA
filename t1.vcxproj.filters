@@ -49,6 +49,12 @@
     <Filter Include="头文件\gui\canvas">
       <UniqueIdentifier>{b32f01bd-c5de-4ef7-a20f-c582a0e31da2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="源文件\sigtree">
+      <UniqueIdentifier>{1999574b-24a3-4c59-8d4c-dae9057bc333}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\sigtree">
+      <UniqueIdentifier>{eed0e8e2-fd3d-439c-8bf8-7f38ab0b77f9}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cMain.cpp">
@@ -131,6 +137,9 @@
     </ClCompile>
     <ClCompile Include="TreeSitterLinter.cpp">
       <Filter>源文件\text_analysis</Filter>
+    </ClCompile>
+    <ClCompile Include="SigTree.cpp">
+      <Filter>源文件\sigtree</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -220,6 +229,9 @@
     </ClInclude>
     <ClInclude Include="TreeSitterLinter.h">
       <Filter>头文件\text_analysis</Filter>
+    </ClInclude>
+    <ClInclude Include="SigTree.h">
+      <Filter>头文件\sigtree</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

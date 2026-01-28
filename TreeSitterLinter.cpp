@@ -141,7 +141,7 @@ void DumpTree(TSNode node, const wxString& src, int indent) {
             ts_node_end_byte(node) - ts_node_start_byte(node))
         << "\n";
 
-    //wxLogDebug("%s", line);
+    wxLogDebug("%s", line);
     //OutputDebugStringA(line);
 
     uint32_t n = ts_node_child_count(node);

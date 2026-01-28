@@ -1,6 +1,7 @@
 ﻿#include "AsyncAnalysisCenter.h"
 #include "LogicBridge.h"
 
+#include <tree_sitter/api.h>
 #include <json/json.h>
 #include <regex>
 #include <wx/file.h>
@@ -17,7 +18,7 @@
 #include <wx/textfile.h>
 #include <stack>
 
-
+extern "C" TSLanguage* tree_sitter_verilog();
 
 // 定义事件 ID
 wxDEFINE_EVENT(EVT_ANALYSIS_COMPLETE, wxThreadEvent);
@@ -37,7 +38,6 @@ std::vector<Stability> GetLineStatus(
 AsyncAnalysisCenter::AsyncAnalysisCenter(wxEvtHandler* parentHandler)
     : m_parentHandler(parentHandler), m_hasNewTask(false)
 {
-
 }
 
 AsyncAnalysisCenter::~AsyncAnalysisCenter() {
@@ -74,20 +74,43 @@ wxThread::ExitCode AsyncAnalysisCenter::Entry() {
             m_hasNewTask = false;
         }
 
+        std::string code;
         int line_count;
-        wxTextFile file;
-        if (file.Open(filePath)) {
-            size_t count = file.GetLineCount();
-            file.Close();
-            line_count = static_cast<int>(count);
+        wxFile file(filePath);
+        if (file.IsOpened()) {
+            wxString content;
+            if (file.ReadAll(&content)) {
+                code = content.ToStdString();
+
+                // 关键：利用 wxString 的逻辑直接数行数
+                // 这种方法会自动处理 \n, \r\n 等不同系统的换行符
+                line_count = (int)content.Freq('\n') + 1;
+
+                // 如果文件最后一行没换行，Freq 结果也是准的
+            }
+        }
+        else {
+            // 错误处理：文件打开失败
         }
         ///////////////////////////////////////////////////////////////////////////////////////
+        sigTree = new SigFlowTree(projectPath.ToStdString());
+
+        TSParser* parser = ts_parser_new();
+        ts_parser_set_language(parser, tree_sitter_verilog());
+
+
+        TSTree* new_tree = ts_parser_parse_string(parser, nullptr, code.c_str(), code.length());
+        TSNode root = ts_tree_root_node(new_tree);
+        TSTreeCursor cursor = ts_tree_cursor_new(root);
+        std::string fp = filePath.ToStdString();
+        sigTree->UpdateTreeFromTS(&cursor, sigTree->root, fp, code);
+        sigTree->PrintTree();
+
 
         AnalysisResult res;
 
         // Tree-Sitter分析
         std::vector<BlockInfo> TSRes = TSLinter.LintFromPath(filePath);
-        //PrintTreeSitterResult(TSRes);
         res.linted = true;
         res.lint.block_infos = TSRes;
         res.lint.is_lines_header = isLineHeader(TSRes, line_count);

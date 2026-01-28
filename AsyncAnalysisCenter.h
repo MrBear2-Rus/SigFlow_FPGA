@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "TreeSitterLinter.h"
 #include "LogicBridge.h"
+#include "SigTree.h"
 
 #include <wx/wx.h>
 #include <wx/thread.h>
@@ -69,5 +70,6 @@ private:
     std::mutex m_mutex;            // 保护缓冲区的互斥锁
 
     TreeSitterLinter TSLinter;
+    SigFlowTree* sigTree;
 
 };
