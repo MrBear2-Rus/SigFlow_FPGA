@@ -1,5 +1,4 @@
 ﻿#include "AsyncAnalysisCenter.h"
-#include "LogicBridge.h"
 
 #include <tree_sitter/api.h>
 #include <json/json.h>
@@ -105,7 +104,9 @@ wxThread::ExitCode AsyncAnalysisCenter::Entry() {
         std::string fp = filePath.ToStdString();
         sigTree->UpdateTreeFromTS(&cursor, sigTree->root, fp, code);
         sigTree->PrintTree();
-
+        //char* tree_str = ts_node_string(root);
+        //wxLogDebug(tree_str);
+        //free(tree_str);
 
         AnalysisResult res;
 
@@ -124,7 +125,7 @@ wxThread::ExitCode AsyncAnalysisCenter::Entry() {
         m_parentHandler->QueueEvent(event);
 
 
-
+        /*
 
 
         // Slang分析
@@ -160,7 +161,7 @@ wxThread::ExitCode AsyncAnalysisCenter::Entry() {
         m_parentHandler->QueueEvent(event);
 
 
-
+        */
     }
 
     return (wxThread::ExitCode)0;

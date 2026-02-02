@@ -25,7 +25,6 @@
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\wxWidgets-3.2.2.1\include;C:\wxWidgets-3.2.2.1\include\msvc;C:\wxWidgets-3.2.2.1\lib\vc_x64_lib\mswud;$(ProjectDir)3rd;$(ProjectDir)3rd\tree-sitter\lib\include;$(ProjectDir)3rd\tree-sitter\lib\src;$(ProjectDir)3rd\tree-sitter-verilog\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <ClCompile Include="AsyncAnalysisCenter.cpp" />
-    <ClCompile Include="LogicBridge.cpp" />
     <ClCompile Include="CanvasElement.cpp" />
     <ClCompile Include="CanvasModel.cpp" />
     <ClCompile Include="CanvasPanel.cpp" />
@@ -39,7 +38,6 @@
     <ClCompile Include="HandyToolKit.cpp" />
     <ClCompile Include="SigTextEditor.cpp" />
     <ClCompile Include="SigTree.cpp" />
-    <ClCompile Include="SimulationEngine.cpp" />
     <ClCompile Include="ToolBars.cpp" />
     <ClCompile Include="ToolboxModel.cpp" />
     <ClCompile Include="ToolboxPanel.cpp" />
@@ -48,6 +46,7 @@
     <ClCompile Include="UndoStack.cpp" />
     <ClCompile Include="CanvasEventHandler.cpp" />
     <ClCompile Include="ToolStateMachine.cpp" />
+    <ClCompile Include="VerilogStructuring.cpp" />
     <ClCompile Include="Wire.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -57,7 +56,6 @@
     <ClInclude Include="3rd\tree-sitter-verilog\src\tree_sitter\parser.h" />
     <ClInclude Include="3rd\tree-sitter\lib\include\tree_sitter\api.h" />
     <ClInclude Include="AsyncAnalysisCenter.h" />
-    <ClInclude Include="LogicBridge.h" />
     <ClInclude Include="CanvasElement.h" />
     <ClInclude Include="CanvasModel.h" />
     <ClInclude Include="CanvasPanel.h" />
@@ -71,7 +69,6 @@
     <ClInclude Include="PropertyPanel.h" />
     <ClInclude Include="SigTextEditor.h" />
     <ClInclude Include="SigTree.h" />
-    <ClInclude Include="SimulationEngine.h" />
     <ClInclude Include="ToolBars.h" />
     <ClInclude Include="ToolboxModel.h" />
     <ClInclude Include="ToolboxPanel.h" />
@@ -80,6 +77,7 @@
     <ClInclude Include="TreeSitterLinter.h" />
     <ClInclude Include="UndoNotifier.h" />
     <ClInclude Include="UndoStack.h" />
+    <ClInclude Include="VerilogStructuring.h" />
     <ClInclude Include="Wire.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

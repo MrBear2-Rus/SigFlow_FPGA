@@ -1,8 +1,10 @@
-#pragma once
+﻿#pragma once
 #include <wx/stc/stc.h>
 #include "AsyncAnalysisCenter.h"
 
 enum EDITOR_MODE {Verilog, Markdown, JsonStyle, Text};
+
+
 
 // Scintilla 支持 0-31，建议从 0 开始
 #define INDIC_ERROR      0

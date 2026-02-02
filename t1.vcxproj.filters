@@ -84,9 +84,6 @@
     <ClCompile Include="ToolboxPanel.cpp">
       <Filter>源文件\gui</Filter>
     </ClCompile>
-    <ClCompile Include="LogicBridge.cpp">
-      <Filter>源文件\text_analysis</Filter>
-    </ClCompile>
     <ClCompile Include="AsyncAnalysisCenter.cpp">
       <Filter>源文件\text_analysis</Filter>
     </ClCompile>
@@ -132,14 +129,14 @@
     <ClCompile Include="CanvasTextElement.cpp">
       <Filter>源文件\canvas_core</Filter>
     </ClCompile>
-    <ClCompile Include="SimulationEngine.cpp">
-      <Filter>源文件\canvas_core</Filter>
-    </ClCompile>
     <ClCompile Include="TreeSitterLinter.cpp">
       <Filter>源文件\text_analysis</Filter>
     </ClCompile>
     <ClCompile Include="SigTree.cpp">
       <Filter>源文件\sigtree</Filter>
+    </ClCompile>
+    <ClCompile Include="VerilogStructuring.cpp">
+      <Filter>源文件\text_analysis</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -194,12 +191,6 @@
     <ClInclude Include="UndoNotifier.h">
       <Filter>头文件\canvas_core</Filter>
     </ClInclude>
-    <ClInclude Include="SimulationEngine.h">
-      <Filter>头文件\canvas_core</Filter>
-    </ClInclude>
-    <ClInclude Include="LogicBridge.h">
-      <Filter>头文件\text_analysis</Filter>
-    </ClInclude>
     <ClInclude Include="CanvasTextElement.h">
       <Filter>头文件\canvas_core</Filter>
     </ClInclude>
@@ -232,6 +223,9 @@
     </ClInclude>
     <ClInclude Include="SigTree.h">
       <Filter>头文件\sigtree</Filter>
+    </ClInclude>
+    <ClInclude Include="VerilogStructuring.h">
+      <Filter>头文件\text_analysis</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

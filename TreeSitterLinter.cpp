@@ -125,13 +125,19 @@ std::string LoadCodeFromPath(const wxString& path)
 void DumpTree(TSNode node, const wxString& src, int indent) {
     wxString line;
 
+    line << "|-";
     for (int i = 0; i < indent; ++i)
-        line << "  ";
+        line << "-";
 
-    line << ts_node_type(node);
+    line  << "{" << indent << "L}" << ts_node_type(node);
 
     if (ts_node_is_named(node))
         line << " [named]";
+
+    if (ts_node_is_missing(node)) line << " [missing]";
+    if (ts_node_has_error(node)) line << " [has error]";
+    if(ts_node_is_error(node)) line << " [error]";
+    
 
     line << "  (" << ts_node_start_byte(node)
         << "," << ts_node_end_byte(node) << ")";

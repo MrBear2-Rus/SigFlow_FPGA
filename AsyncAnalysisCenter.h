@@ -1,6 +1,5 @@
 ﻿#pragma once
 #include "TreeSitterLinter.h"
-#include "LogicBridge.h"
 #include "SigTree.h"
 
 #include <wx/wx.h>
@@ -34,9 +33,6 @@ struct SlangProject {
 struct AnalysisResult {
     bool linted;
     LintResult lint;
-
-    bool parsed;
-    LogicBridge::SchematicBuffer schematic;
 };
 
 

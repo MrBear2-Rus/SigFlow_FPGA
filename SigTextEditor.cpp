@@ -37,6 +37,7 @@ void SigTextEditor::SetMode(EDITOR_MODE mode) {
 void SigTextEditor::SetVerilogStyle() {
     SetLexer(wxSTC_LEX_VERILOG);
 
+
     // 1. 基础全局样式 (白色背景，黑色字)
     wxFont codeFont(12, wxFONTFAMILY_TELETYPE, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
     StyleSetFont(wxSTC_STYLE_DEFAULT, codeFont);
@@ -51,37 +52,115 @@ void SigTextEditor::SetVerilogStyle() {
     StyleSetForeground(wxSTC_STYLE_LINENUMBER, wxColour(100, 100, 100)); // 灰色数字
     SetMarginMask(0, 0);
 
-    // 3. 配置关键字 (保持不变)
-    SetKeyWords(0, "module endmodule input output inout wire reg assign "
-        "always initial begin end if else case endcase parameter "
-        "localparam generate endgenerate posedge negedge or "
-        "integer genvar function endfunction task endtask "
-        "default for while repeat forever wait");
-    SetKeyWords(1, "$display $monitor $write $finish $stop $random");
 
-    // 4. 应用浅色模式语法高亮
-    // 关键字 - 蓝色 (经典 IDE 风格)
-    StyleSetForeground(wxSTC_V_WORD, wxColour(0, 0, 255));
-    StyleSetBold(wxSTC_V_WORD, false); // 白色背景下通常不需要太粗
+    SetKeyWords(0, "module endmodule always assign begin end if else case for while");
+    SetKeyWords(1, "wire reg logic integer parameter localparam genvar");
+    SetKeyWords(2, "and nand or nor xor xnor buf not");
+    SetKeyWords(3, "$display $monitor $finish $time");
+    SetKeyWords(4, "input output inout");
+    SetKeyWords(5, "`define `ifdef `ifndef `endif `include");
 
-    // 系统任务 ($) - 紫色或洋红色
-    StyleSetForeground(wxSTC_V_WORD2, wxColour(175, 0, 219));
 
-    // 注释 - 绿色 (经典的森林绿)
-    StyleSetForeground(wxSTC_V_COMMENT, wxColour(0, 128, 0));
-    StyleSetForeground(wxSTC_V_COMMENTLINE, wxColour(0, 128, 0));
+    // ===============================
+    // 基础默认
+    // ===============================
+    StyleSetForeground(wxSTC_V_DEFAULT, wxColour(0, 0, 0));
+    StyleSetBackground(wxSTC_V_DEFAULT, wxColour(255, 255, 255));
+    StyleClearAll();
 
-    // 字符串 - 棕红色
-    StyleSetForeground(wxSTC_V_STRING, wxColour(163, 21, 21));
+    // ===============================
+    // 结构关键字 (module / always / begin / end)
+    // ===============================
+    StyleSetForeground(wxSTC_V_WORD, wxColour(0, 64, 128));   // 深结构蓝
+    StyleSetBold(wxSTC_V_WORD, true);
 
-    // 数字 - 蓝绿色或保持黑色
-    StyleSetForeground(wxSTC_V_NUMBER, wxColour(9, 134, 88));
+    // ===============================
+    // Gate primitives (and/nand/or/...)
+    // ===============================
+    StyleSetForeground(wxSTC_V_WORD3, wxColour(0, 102, 153)); // 蓝青
+    StyleSetBold(wxSTC_V_WORD3, false);
 
-    // 操作符 - 黑色
+    // ===============================
+    // 系统任务 / 系统函数 ($display...)
+    // ===============================
+    StyleSetForeground(wxSTC_V_WORD2, wxColour(128, 0, 128)); // 紫
+    StyleSetBold(wxSTC_V_WORD2, false);
+
+    // ===============================
+    // 端口方向关键字
+    // ===============================
+    StyleSetForeground(wxSTC_V_INPUT, wxColour(0, 128, 128)); // teal
+    StyleSetBold(wxSTC_V_INPUT, true);
+
+    StyleSetForeground(wxSTC_V_OUTPUT, wxColour(0, 102, 204)); // 蓝
+    StyleSetBold(wxSTC_V_OUTPUT, true);
+
+    StyleSetForeground(wxSTC_V_INOUT, wxColour(0, 153, 102)); // 绿
+    StyleSetBold(wxSTC_V_INOUT, true);
+
+    // ===============================
+    // 类型 / 数据声明 (wire/reg/integer...)
+    // ===============================
+    StyleSetForeground(wxSTC_V_WORD2, wxColour(128, 0, 128)); // 已用于系统任务（Scintilla复用）
+
+    // ===============================
+    // 标识符
+    // ===============================
+    StyleSetForeground(wxSTC_V_IDENTIFIER, wxColour(80, 80, 80)); // 中性深灰
+    StyleSetBold(wxSTC_V_IDENTIFIER, false);
+
+    // ===============================
+    // 数字 / 常量
+    // ===============================
+    StyleSetForeground(wxSTC_V_NUMBER, wxColour(163, 21, 21)); // 红棕
+
+    // ===============================
+    // 字符串
+    // ===============================
+    StyleSetForeground(wxSTC_V_STRING, wxColour(128, 64, 0));  // 棕橙
+
+    StyleSetForeground(wxSTC_V_STRINGEOL, wxColour(200, 0, 0));
+    StyleSetBackground(wxSTC_V_STRINGEOL, wxColour(255, 235, 235));
+
+    // ===============================
+    // 操作符 / 符号
+    // ===============================
     StyleSetForeground(wxSTC_V_OPERATOR, wxColour(0, 0, 0));
 
-    // 预处理/宏 - 紫褐色
-    StyleSetForeground(wxSTC_V_PREPROCESSOR, wxColour(100, 40, 100));
+    // ===============================
+    // 端口连接名 (.port)
+    // ===============================
+    StyleSetForeground(wxSTC_V_PORT_CONNECT, wxColour(0, 102, 153));
+    StyleSetBold(wxSTC_V_PORT_CONNECT, true);
+
+    // ===============================
+    // 预处理 / 宏
+    // ===============================
+    StyleSetForeground(wxSTC_V_PREPROCESSOR, wxColour(140, 0, 100));
+    StyleSetBold(wxSTC_V_PREPROCESSOR, true);
+
+    // ===============================
+    // 注释
+    // ===============================
+    StyleSetForeground(wxSTC_V_COMMENT, wxColour(0, 128, 0));
+    StyleSetForeground(wxSTC_V_COMMENTLINE, wxColour(0, 128, 0));
+    StyleSetForeground(wxSTC_V_COMMENTLINEBANG, wxColour(0, 153, 0));
+    StyleSetItalic(wxSTC_V_COMMENT, true);
+    StyleSetItalic(wxSTC_V_COMMENTLINE, true);
+
+    // ===============================
+    // 注释中的关键词 (TODO / FIXME)
+    // ===============================
+    StyleSetForeground(wxSTC_V_COMMENT_WORD, wxColour(0, 102, 0));
+    StyleSetBold(wxSTC_V_COMMENT_WORD, true);
+
+    // ===============================
+    // 用户自定义 (pragma / annotation / IDE hint)
+    // ===============================
+    StyleSetForeground(wxSTC_V_USER, wxColour(255, 128, 0)); // 橙色
+    StyleSetBold(wxSTC_V_USER, true);
+
+
 
     // 5. 编辑器 UI 细节
     SetCaretForeground(wxColour(0, 0, 0));            // 黑色光标

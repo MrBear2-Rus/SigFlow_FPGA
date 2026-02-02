@@ -1,4 +1,4 @@
-#include <wx/graphics.h> 
+﻿#include <wx/graphics.h> 
 #include <wx/dcbuffer.h>
 #include <wx/dcgraph.h>  
 
@@ -369,6 +369,20 @@ void CanvasPanel::OnPaint(wxPaintEvent&) {
             gc->SetBrush(wxColor(128, 128, 128, 32));
             gc->DrawRectangle(eraRect.x, eraRect.y, eraRect.width, eraRect.height);
         }
+        gc->DrawText("sig\nflow", 20, 20);
+        wxFont info(12, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD);
+        wxGraphicsFont font = gc->CreateFont(info, *wxBLACK);
+        gc->SetFont(font);
+        gc->DrawText("sigflow", 20, 40);
+        wxFont infoy(12, wxFONTFAMILY_TELETYPE, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD);
+        wxGraphicsFont fonty = gc->CreateFont(infoy, *wxBLACK);
+        gc->SetFont(fonty);
+        gc->DrawText("sigflow", 20, 60);
+        wxFont infox(12, wxFONTFAMILY_ROMAN, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD);
+        wxGraphicsFont fontx = gc->CreateFont(infox, *wxBLACK);
+        gc->SetFont(fontx);
+        gc->DrawText("sigflow", 20, 80);
+
         delete gcdc; // 释放资源
     }
     else {

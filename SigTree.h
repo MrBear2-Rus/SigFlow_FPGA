@@ -45,6 +45,8 @@ public:
     }
 };
 
+
+
 enum class TopNodeType {
     Module, // 顶层模块
     UDP,
@@ -77,8 +79,10 @@ enum class PortDirection { In, Out, InOut, Ref };
 struct Port {
     std::string identifier;
     PortDirection direction;
+    std::string conn;
 };
 
+enum class GateType {And, Nand, Or, Nor, Xor, Xnor, Buf, Not};
 
 
 
@@ -94,11 +98,8 @@ struct VerilogInfo {
 
 
 struct SchematicInfo {
-
-
-
-
-
+    std::complex<double> pos;
+    std::complex<double> size;
 };
 
 
@@ -148,8 +149,12 @@ public:
     std::string identifier; // 标识符
     SecondNode() { type = SigTreeNodeType::Second; };
     SecondNodeType secondType;
+    std::string gatetype;
     void PrintSecondNode();
     std::vector<Port> ports;
+    std::string defIdentifier;
+
+    //TopNode* definition;
 };
 
 class NetNode : public SigTreeNode {
@@ -169,6 +174,22 @@ class SigFlowTree {
 public:
     Arena arena;
     ProjectNode* root;
+
+    TSQuery* top;
+    uint32_t top_error_offset;
+    TSQueryError top_error_type;
+
+    TSQuery* second;
+    uint32_t second_error_offset;
+    TSQueryError second_error_type;
+
+    TSQuery* net;
+    uint32_t net_error_offset;
+    TSQueryError net_error_type;
+
+
+
+
 
     SigFlowTree() = default;
     SigFlowTree(std::string projectPath);

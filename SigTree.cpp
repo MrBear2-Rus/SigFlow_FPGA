@@ -8,6 +8,8 @@
 #include <windows.h>
 #include <regex>
 
+extern "C" TSLanguage* tree_sitter_verilog();
+
 namespace fs = std::filesystem;
 
 TopNodeType isTSNodeTop(std::string node_type);
@@ -47,6 +49,61 @@ SigFlowTree::SigFlowTree(std::string projectPath) {
             this->root->children.push_back(arena.make<FileNode>(file.asString()));
         }
     }
+
+    const char* top_temp = R"(
+                ;; 1. 模块定义捕获（独立，保证只要有模块名就能匹配）
+                (module_declaration
+                  (module_header 
+                    (simple_identifier) @mod.name))
+
+                ;; 2. 端口捕获（利用层级无关性，直接抓取 ansi_port_declaration）
+                (ansi_port_declaration
+                  (net_port_header1
+                    [(port_direction) @port.dir])
+                  (port_identifier
+                    (simple_identifier) @port.name))
+
+        )";
+    top = ts_query_new(tree_sitter_verilog(), top_temp, strlen(top_temp), &top_error_offset, &top_error_type);
+
+    const char* sec_temp = R"(
+                 (module_instantiation
+                    (simple_identifier)@modinst.modname
+                    (hierarchical_instance
+                        (name_of_instance)@modinst.instname
+                        (list_of_port_connections
+                            (named_port_connection
+                                (port_identifier
+                                    (simple_identifier)@modinst.portname)
+                                (expression
+                                    (primary
+                                        (simple_identifier)@modinst.portconn)))))
+                    )
+                 (gate_instantiation
+                    (n_input_gatetype)@gate.type
+                    (n_input_gate_instance
+                        (name_of_instance)@gate.name
+                        (output_terminal)@gate.output
+                        (input_terminal)@gate.input)
+                    )
+
+        )";
+
+    second = ts_query_new(tree_sitter_verilog(), sec_temp, strlen(sec_temp), &net_error_offset, &net_error_type);
+
+
+    const char* net_temp = R"(
+                    (net_declaration
+                        (net_type) @net.type
+                        (list_of_net_decl_assignments
+                            (net_decl_assignment
+                                (simple_identifier)@net.name)))
+
+        )";
+
+    net = ts_query_new(tree_sitter_verilog(), net_temp, strlen(net_temp), &net_error_offset, &net_error_type);
+
+
 }
 
 
@@ -87,63 +144,45 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
             TopNode* tn = arena.make<TopNode>();
             tn->topType = top_type;
 
-            //TSNode idNode = ts_node_child_by_field_name(currentNode, "name", 4);
-            //if (ts_node_is_null(idNode)) {
-            //    tn->identifier = "<unnamed>";
-            //}
-            //else {
-            //    tn->identifier = code.substr(ts_node_start_byte(idNode),
-            //        ts_node_end_byte(idNode) - ts_node_start_byte(idNode));
-            //}
-            for (int i = 0; i < ts_node_child_count(currentNode); i++) {
-                TSNode module_header = ts_node_child(currentNode, i);
-                if (ts_node_type(module_header) == "module_header") {
-                    for (int j = 0; j < ts_node_child_count(module_header); j++) {
-                        TSNode simple_identifier = ts_node_child(module_header, j);
-                        if (ts_node_type(simple_identifier) == "simple_identifier") {
-                            tn->identifier = code.substr(ts_node_start_byte(simple_identifier),
-                                ts_node_end_byte(simple_identifier) - ts_node_start_byte(simple_identifier));
-                            break;
-                        }
+
+            // 找Port和ID
+            TSQueryCursor* cursor = ts_query_cursor_new();
+            ts_query_cursor_exec(cursor, top, currentNode);
+
+            TSQueryMatch match;
+            while (ts_query_cursor_next_match(cursor, &match)) {
+                Port p;
+                p.direction = PortDirection::InOut;
+
+                for (uint16_t i = 0; i < match.capture_count; i++) {
+                    TSQueryCapture capture = match.captures[i];
+
+                    // 3. 识别零件的标签名（通过 ID 换取字符串）
+                    uint32_t name_len;
+                    const char* tag_name = ts_query_capture_name_for_id(top, capture.index, &name_len);
+                    
+                    // 4. 根据标签名分发逻辑
+                    if (strcmp(tag_name, "mod.name") == 0) {
+                        TSNode nameNode = capture.node;
+                        tn->identifier = code.substr(ts_node_start_byte(nameNode),
+                            ts_node_end_byte(nameNode) - ts_node_start_byte(nameNode));
+ 
                     }
-                }
-            }
-            
-
-
-
-
-            TSNode portsNode = ts_node_child_by_field_name(currentNode, "ports", 5);
-            if (!ts_node_is_null(portsNode)) {
-                // 遍历端口列表括号里的每一个子节点
-                uint32_t portCount = ts_node_child_count(portsNode);
-                for (uint32_t i = 0; i < portCount; i++) {
-                    TSNode portChild = ts_node_child(portsNode, i);
-                    if (std::string(ts_node_type(portChild)) == "ansi_port_declaration") {
-                        // 调用你封装好的解析函数
-                        Port p;
-                        // 使用 Field 拿 direction
-                        TSNode dirNode = ts_node_child_by_field_name(portChild, "direction", 9);
-                        if (!ts_node_is_null(dirNode)) {
-                            std::string d = code.substr(ts_node_start_byte(dirNode),
-                                ts_node_end_byte(dirNode) - ts_node_start_byte(dirNode));
-
-                            if (d == "input") p.direction = PortDirection::In;
-                            else if (d == "output") p.direction = PortDirection::Out;
-                        }
-                        // 使用 Field 拿 name
-                        TSNode pidNode = ts_node_child_by_field_name(portChild, "name", 4);
-                        if (ts_node_is_null(pidNode)) {
-                            p.identifier = "<unnamed>";
-                        }
-                        else {
-                            p.identifier = code.substr(ts_node_start_byte(pidNode),
-                                ts_node_end_byte(pidNode) - ts_node_start_byte(pidNode));
-                        }
+                    else if (strcmp(tag_name, "port.dir") == 0) {
+                        std::string d = code.substr(ts_node_start_byte(capture.node),
+                            ts_node_end_byte(capture.node) - ts_node_start_byte(capture.node));
+                        if (d == "input") p.direction = PortDirection::In;
+                        else if (d == "output") p.direction = PortDirection::Out;
+                    }
+                    else if (strcmp(tag_name, "port.name") == 0) {
+                        p.identifier = code.substr(ts_node_start_byte(capture.node),
+                            ts_node_end_byte(capture.node) - ts_node_start_byte(capture.node));
                         tn->ports.push_back(p);
                     }
                 }
             }
+
+            ts_query_cursor_delete(cursor);
 
 
             tn->parent = newParent;
@@ -158,99 +197,128 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
         SecondNodeType second_type = isTSNodeSecond(node_type);
         // 找Net
         if (node_type == "net_declaration") {
-            NetNode* nn = arena.make<NetNode>();
-            //TSNode idNode = ts_node_child_by_field_name(currentNode, "name", 4);
-            //if (ts_node_is_null(idNode)) {
-            //    nn->identifier = "<unnamed>";
-            //}
-            //else {
-            //    nn->identifier = code.substr(ts_node_start_byte(idNode),
-            //        ts_node_end_byte(idNode) - ts_node_start_byte(idNode));
-            //}
-            for (int i = 0; i < ts_node_child_count(currentNode); i++) {
-                TSNode simple_identifier = ts_node_child(currentNode, i);
-                if (ts_node_type(simple_identifier) == "simple_identifier") {
-                    nn->identifier = code.substr(ts_node_start_byte(simple_identifier),
-                        ts_node_end_byte(simple_identifier) - ts_node_start_byte(simple_identifier));
-                    break;
+            
+
+            TSQueryCursor* cursor = ts_query_cursor_new();
+            ts_query_cursor_exec(cursor, net, currentNode);
+
+            TSQueryMatch match;
+            while (ts_query_cursor_next_match(cursor, &match)) {
+                NetNode* nn = arena.make<NetNode>();
+                for (uint16_t i = 0; i < match.capture_count; i++) {
+                    TSQueryCapture capture = match.captures[i];
+
+                    // 3. 识别零件的标签名（通过 ID 换取字符串）
+                    uint32_t name_len;
+                    const char* tag_name = ts_query_capture_name_for_id(net, capture.index, &name_len);
+
+                    // 4. 根据标签名分发逻辑
+                    if (strcmp(tag_name, "net.name") == 0) {
+                        TSNode nameNode = capture.node;
+                        nn->identifier = code.substr(ts_node_start_byte(nameNode),
+                            ts_node_end_byte(nameNode) - ts_node_start_byte(nameNode));
+                        CollectSigTreeNodeInfoTS(nn, currentNode, filePath, code);
+                        nn->parent = newParent;
+                        newParent->children.push_back(nn);
+                    }
+
                 }
             }
-
-            nn->parent = newParent;
-            CollectSigTreeNodeInfoTS(nn, currentNode, filePath, code);
-            newParent->children.push_back(nn);
-
         }
         // 找Second
         else if (second_type != SecondNodeType::Null) {
             SecondNode* sn = arena.make<SecondNode>();
             sn->secondType = second_type;
 
-            //TSNode idNode = ts_node_child_by_field_name(currentNode, "name", 4);
-            //if (ts_node_is_null(idNode)) {
-            //    sn->identifier = "<unnamed>";
-            //}
-            //else {
-            //    sn->identifier = code.substr(ts_node_start_byte(idNode),
-            //        ts_node_end_byte(idNode) - ts_node_start_byte(idNode));
-            //}
+            if (second_type == SecondNodeType::ModuleInstance) {
+                TSQueryCursor* cursor = ts_query_cursor_new();
+                ts_query_cursor_exec(cursor, second, currentNode);
 
-            for (int i = 0; i < ts_node_child_count(currentNode); i++) {
-                TSNode s = ts_node_child(currentNode, i);
-                if (ts_node_type(s) == "simple_identifier") {
-                    sn->identifier = code.substr(ts_node_start_byte(s),
-                        ts_node_end_byte(s) - ts_node_start_byte(s));
-                    break;   
-                }
-                else if (ts_node_type(s) == "list_of_net_decl_assignments") {
-                    for (int j = 0; j < ts_node_child_count(s); j++) {
-                        TSNode net_dec_ass = ts_node_child(s, j);
-                        for (int z = 0; z < ts_node_child_count(net_dec_ass); z++) {
-                            TSNode simple_identifier = ts_node_child(net_dec_ass, z);
-                            if (ts_node_type(simple_identifier) == "simple_identifier") {
-                                sn->identifier = code.substr(ts_node_start_byte(simple_identifier),
-                                    ts_node_end_byte(simple_identifier) - ts_node_start_byte(simple_identifier));
-                                break;
-                            }
-                        }
-                    }
-                    
-                }
-            }
+                TSQueryMatch match;
+                while (ts_query_cursor_next_match(cursor, &match)) {
+                    Port p;
+                    p.direction = PortDirection::Ref;
 
-            
+                    for (uint16_t i = 0; i < match.capture_count; i++) {
+                        TSQueryCapture capture = match.captures[i];
 
-            TSNode portsNode = ts_node_child_by_field_name(currentNode, "ports", 5);
-            if (!ts_node_is_null(portsNode)) {
-                // 遍历端口列表括号里的每一个子节点
-                uint32_t portCount = ts_node_child_count(portsNode);
-                for (uint32_t i = 0; i < portCount; i++) {
-                    TSNode portChild = ts_node_child(portsNode, i);
-                    if (std::string(ts_node_type(portChild)) == "ansi_port_declaration") {
-                        // 调用你封装好的解析函数
-                        Port p;
-                        // 使用 Field 拿 direction
-                        TSNode dirNode = ts_node_child_by_field_name(portChild, "direction", 9);
-                        if (!ts_node_is_null(dirNode)) {
-                            std::string d = code.substr(ts_node_start_byte(dirNode),
-                                ts_node_end_byte(dirNode) - ts_node_start_byte(dirNode));
+                        // 3. 识别零件的标签名（通过 ID 换取字符串）
+                        uint32_t name_len;
+                        const char* tag_name = ts_query_capture_name_for_id(second, capture.index, &name_len);
 
-                            if (d == "input") p.direction = PortDirection::In;
-                            else if (d == "output") p.direction = PortDirection::Out;
+                        // 4. 根据标签名分发逻辑
+                        if (strcmp(tag_name, "modinst.modname") == 0) {
+                            TSNode nameNode = capture.node;
+                            sn->defIdentifier = code.substr(ts_node_start_byte(nameNode),
+                                ts_node_end_byte(nameNode) - ts_node_start_byte(nameNode));
                         }
-                        // 使用 Field 拿 name
-                        TSNode pidNode = ts_node_child_by_field_name(portChild, "name", 4);
-                        if (ts_node_is_null(pidNode)) {
-                            p.identifier = "<unnamed>";
+                        else if (strcmp(tag_name, "modinst.instname") == 0) {
+                            TSNode nameNode = capture.node;
+                            sn->identifier = code.substr(ts_node_start_byte(nameNode),
+                                ts_node_end_byte(nameNode) - ts_node_start_byte(nameNode));
                         }
-                        else {
-                            p.identifier = code.substr(ts_node_start_byte(pidNode),
-                                ts_node_end_byte(pidNode) - ts_node_start_byte(pidNode));
+                        else if (strcmp(tag_name, "modinst.portname") == 0) {
+                            TSNode nameNode = capture.node;
+                            p.identifier = code.substr(ts_node_start_byte(nameNode),
+                                ts_node_end_byte(nameNode) - ts_node_start_byte(nameNode));
                         }
-                        sn->ports.push_back(p);
+                        else if (strcmp(tag_name, "modinst.portconn") == 0) {
+                            TSNode nameNode = capture.node;
+                            p.conn = code.substr(ts_node_start_byte(nameNode),
+                                ts_node_end_byte(nameNode) - ts_node_start_byte(nameNode));
+                            sn->ports.push_back(p);
+                        }
                     }
                 }
             }
+            else if (second_type == SecondNodeType::GateInstance) {
+                TSQueryCursor* cursor = ts_query_cursor_new();
+                ts_query_cursor_exec(cursor, second, currentNode);
+
+                TSQueryMatch match;
+                int gate_input_count = 1;
+                int gate_output_count = 1;
+                while (ts_query_cursor_next_match(cursor, &match)) {
+                    Port p;
+                    p.direction = PortDirection::Ref;
+
+                    for (uint16_t i = 0; i < match.capture_count; i++) {
+                        TSQueryCapture capture = match.captures[i];
+
+                        uint32_t name_len;
+                        const char* tag_name = ts_query_capture_name_for_id(second, capture.index, &name_len);
+
+                        if (strcmp(tag_name, "gate.type") == 0) {
+                            TSNode nameNode = capture.node;
+                            sn->gatetype = code.substr(ts_node_start_byte(capture.node),
+                                ts_node_end_byte(capture.node) - ts_node_start_byte(capture.node));
+                        }
+                        else if (strcmp(tag_name, "gate.name") == 0) {
+                            TSNode nameNode = capture.node;
+                            sn->identifier = code.substr(ts_node_start_byte(capture.node),
+                                ts_node_end_byte(capture.node) - ts_node_start_byte(capture.node));
+                        }
+                        else if (strcmp(tag_name, "gate.output") == 0) {
+                            TSNode nameNode = capture.node;
+                            p.identifier = std::format("out{}", gate_output_count++);
+                            p.direction = PortDirection::Out;
+                            p.conn = code.substr(ts_node_start_byte(capture.node),
+                                ts_node_end_byte(capture.node) - ts_node_start_byte(capture.node));
+                            sn->ports.push_back(p);
+                        }
+                        else if (strcmp(tag_name, "gate.input") == 0) {
+                            TSNode nameNode = capture.node;
+                            p.identifier = std::format("in{}", gate_input_count++);
+                            p.direction = PortDirection::In;
+                            p.conn = code.substr(ts_node_start_byte(capture.node),
+                                ts_node_end_byte(capture.node) - ts_node_start_byte(capture.node));
+                            sn->ports.push_back(p);
+                        }
+                    }
+                }
+ 
+            }
+
             sn->parent = newParent;
             CollectSigTreeNodeInfoTS(sn, currentNode, filePath, code);
             newParent->children.push_back(sn);
@@ -429,7 +497,7 @@ void TopNode::PrintTopNode() {
 void SecondNode::PrintSecondNode() {
     SigTreeNode::PrintSigTreeNode();
     std::string info;
-
+    info = "definition: " + defIdentifier + "\n";
     info = "Identifier: " + identifier + "\n";
 
     switch (secondType) {
@@ -449,8 +517,25 @@ void SecondNode::PrintSecondNode() {
         info += "SecondType: Unknown\n";
     }
 
+
     for (Port& p : ports) {
-        info += "port: " + p.identifier + " " + std::string(p.direction == PortDirection::In ? "In" : "Out") + "\n";
+
+        std::string pd;
+        switch (p.direction) {
+        case PortDirection::In:
+            pd = "In";
+            break;
+        case PortDirection::Out:
+            pd = "Out";
+            break;
+        case PortDirection::InOut:
+            pd = "InOut";
+            break;
+        case PortDirection::Ref:
+            pd = "Ref";
+            break;
+        }
+        info += "port: " + p.identifier + " " + pd + " to: " + p.conn + "\n";
     }
 
     OutputDebugStringA(info.c_str());

@@ -143,6 +143,13 @@ MainFrame::MainFrame()
     /* һ�����ύ */
     m_auiMgr.Update();
 
+
+
+    // 加载项目，分析得到SigTree
+
+
+
+
     // ���ĳ���֪ͨ
     UndoNotifier::Subscribe([this](const wxString& name, bool canUndo) {
         this->OnUndoStackChanged();
@@ -1108,6 +1115,13 @@ wxString MainFrame::GetWorkspaceCopyPath(const wxString& m_currentFilePath) {
 
     return wxEmptyString; // 如果不在项目内，返回空
 }
+
+
+
+
+
+
+
 
 void MainFrame::OnRefreshTimer(wxTimerEvent& event) {
     if (m_verilogEditor->GetModify() && snap_version != m_verilogEditor->GetSnapVersion()) {
