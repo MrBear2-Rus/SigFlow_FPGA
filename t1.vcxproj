@@ -40,6 +40,8 @@
     <ClCompile Include="SigFlowTreePanel.cpp" />
     <ClCompile Include="SigTextEditor.cpp" />
     <ClCompile Include="SigTree.cpp" />
+    <ClCompile Include="TerminalController.cpp" />
+    <ClCompile Include="TerminalCtrl.cpp" />
     <ClCompile Include="ToolboxModel.cpp" />
     <ClCompile Include="ToolboxPanel.cpp" />
     <ClCompile Include="TreeSitterLinter.cpp" />
@@ -49,6 +51,8 @@
     <ClCompile Include="ToolStateMachine.cpp" />
     <ClCompile Include="VerilogStructuring.cpp" />
     <ClCompile Include="Wire.cpp" />
+    <ClCompile Include="Simulation\SimulationEngine.cpp" />
+    <ClCompile Include="Simulation\VerilatorRunner.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="3rd\json\json.h" />
@@ -72,6 +76,8 @@
     <ClInclude Include="SigFlowTreePanel.h" />
     <ClInclude Include="SigTextEditor.h" />
     <ClInclude Include="SigTree.h" />
+    <ClInclude Include="TerminalController.h" />
+    <ClInclude Include="TerminalCtrl.h" />
     <ClInclude Include="ToolboxModel.h" />
     <ClInclude Include="ToolboxPanel.h" />
     <ClInclude Include="CanvasEventHandler.h" />
@@ -81,6 +87,8 @@
     <ClInclude Include="UndoStack.h" />
     <ClInclude Include="VerilogStructuring.h" />
     <ClInclude Include="Wire.h" />
+    <ClInclude Include="Simulation\SimulationEngine.h" />
+    <ClInclude Include="Simulation\VerilatorRunner.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

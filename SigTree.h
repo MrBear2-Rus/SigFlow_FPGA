@@ -63,6 +63,12 @@ enum class SecondNodeType {
     Null
 };
 
+enum class NetType {
+    Wire,
+    Reg,
+    Logic,
+};
+
 
 
 enum class SigTreeNodeType {

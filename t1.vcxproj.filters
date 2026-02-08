@@ -61,6 +61,18 @@
     <Filter Include="源文件\gui\propertyPanel">
       <UniqueIdentifier>{9ba870a6-00d2-463e-9492-46ecf278f079}</UniqueIdentifier>
     </Filter>
+    <Filter Include="源文件\simulation">
+      <UniqueIdentifier>{a1b2c3d4-e5f6-7890-abcd-ef1234567890}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\simulation">
+      <UniqueIdentifier>{b2c3d4e5-f6a7-8901-bcde-f23456789012}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\gui\terminal">
+      <UniqueIdentifier>{3074e575-5bc7-4f7f-97b0-aab4ab67a80c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\gui\terminal">
+      <UniqueIdentifier>{76683726-d924-4444-8f82-da1426516998}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cMain.cpp">
@@ -146,6 +158,12 @@
     </ClCompile>
     <ClCompile Include="SFNPropertyPanel.cpp">
       <Filter>源文件\gui\propertyPanel</Filter>
+    </ClCompile>
+    <ClCompile Include="TerminalController.cpp">
+      <Filter>源文件\gui\terminal</Filter>
+    </ClCompile>
+    <ClCompile Include="TerminalCtrl.cpp">
+      <Filter>源文件\gui\terminal</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -238,6 +256,24 @@
     </ClInclude>
     <ClInclude Include="SFNPropertyPanel.h">
       <Filter>头文件\gui\propertyPanel</Filter>
+    </ClInclude>
+    <ClCompile Include="Simulation\SimulationEngine.cpp">
+      <Filter>源文件\simulation</Filter>
+    </ClCompile>
+    <ClCompile Include="Simulation\VerilatorRunner.cpp">
+      <Filter>源文件\simulation</Filter>
+    </ClCompile>
+    <ClInclude Include="Simulation\SimulationEngine.h">
+      <Filter>头文件\simulation</Filter>
+    </ClInclude>
+    <ClInclude Include="Simulation\VerilatorRunner.h">
+      <Filter>头文件\simulation</Filter>
+    </ClInclude>
+    <ClInclude Include="TerminalCtrl.h">
+      <Filter>头文件\gui\terminal</Filter>
+    </ClInclude>
+    <ClInclude Include="TerminalController.h">
+      <Filter>头文件\gui\terminal</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

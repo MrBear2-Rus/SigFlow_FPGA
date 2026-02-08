@@ -10,7 +10,7 @@ class MyApp : public wxApp
 public:
     bool OnInit() override
     {
-        MyLog("===== APP STARTED =====\n");
+        //MyLog("===== APP STARTED =====\n");
         (new MainFrame)->Show();
         return true;
     }

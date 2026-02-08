@@ -15,7 +15,9 @@
 #include "SigTree.h"
 #include "SigFlowTreePanel.h"
 #include "SFNPropertyPanel.h"
+#include "Simulation/SimulationEngine.h"
 
+#include "TerminalCtrl.h"
 
 class ToolBars;
 class CanvasPanel;
@@ -40,6 +42,7 @@ private:
     SigFlowTree* sigTree;
     SigFlowTreePanel* m_sigFlowTreePanel;
     SFNPropertyPanel* m_sfnPropertyPanel;
+    TerminalCtrl* m_terminalCtrl;
 
     void RefreshTitle();
     // 声明事件处理函数
@@ -121,6 +124,11 @@ public:
     void DoSimTicksEnabled(bool on);
     void DoSimSetTickFreq(int hz);
     void DoSimLogging();
+    
+    /* Verilator 仿真接口 */
+    void DoSimCompile();      // 编译仿真模型
+    void DoSimRun();          // 运行仿真
+    void DoSimClean();        // 清理仿真缓存
 
     /* Window 菜单业务接口 */
     void DoWindowCombinationalAnalysis();
@@ -144,6 +152,9 @@ public:
     CanvasPanel* m_canvas;
 
     void UpdateCursor();        // 根据 m_pendingTool 更新十字/箭头
+
+    // 仿真引擎
+    std::unique_ptr<SimulationEngine> m_simEngine;
 
     void OnToolboxElement(wxCommandEvent& evt);
     
