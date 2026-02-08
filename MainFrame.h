@@ -1,4 +1,4 @@
-﻿// MainFrame.h
+// MainFrame.h
 #pragma once
 #include <wx/wx.h>
 #include <wx/aui/aui.h>
@@ -13,7 +13,7 @@
 #include "SigTextEditor.h"
 #include "ProjectTreePanel.h"
 #include "SigTree.h"
-
+#include "TerminalCtrl.h"
 
 class ToolBars;
 class CanvasPanel;
@@ -33,6 +33,7 @@ private:
     AsyncAnalysisCenter* m_analysisCenter; // 异步中心指针
     ProjectTreePanel* m_projectTreePanel;
     SigFlowTree* sigTree;
+    TerminalCtrl* m_terminalCtrl;
 
     void RefreshTitle();
     // 声明事件处理函数

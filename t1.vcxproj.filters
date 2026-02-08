@@ -55,6 +55,12 @@
     <Filter Include="头文件\sigtree">
       <UniqueIdentifier>{eed0e8e2-fd3d-439c-8bf8-7f38ab0b77f9}</UniqueIdentifier>
     </Filter>
+    <Filter Include="头文件\gui\terminal">
+      <UniqueIdentifier>{3074e575-5bc7-4f7f-97b0-aab4ab67a80c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\gui\terminal">
+      <UniqueIdentifier>{76683726-d924-4444-8f82-da1426516998}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cMain.cpp">
@@ -137,6 +143,12 @@
     </ClCompile>
     <ClCompile Include="VerilogStructuring.cpp">
       <Filter>源文件\text_analysis</Filter>
+    </ClCompile>
+    <ClCompile Include="TerminalController.cpp">
+      <Filter>源文件\gui\terminal</Filter>
+    </ClCompile>
+    <ClCompile Include="TerminalCtrl.cpp">
+      <Filter>源文件\gui\terminal</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -226,6 +238,12 @@
     </ClInclude>
     <ClInclude Include="VerilogStructuring.h">
       <Filter>头文件\text_analysis</Filter>
+    </ClInclude>
+    <ClInclude Include="TerminalCtrl.h">
+      <Filter>头文件\gui\terminal</Filter>
+    </ClInclude>
+    <ClInclude Include="TerminalController.h">
+      <Filter>头文件\gui\terminal</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

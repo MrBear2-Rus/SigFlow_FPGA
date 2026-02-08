@@ -38,6 +38,8 @@
     <ClCompile Include="HandyToolKit.cpp" />
     <ClCompile Include="SigTextEditor.cpp" />
     <ClCompile Include="SigTree.cpp" />
+    <ClCompile Include="TerminalController.cpp" />
+    <ClCompile Include="TerminalCtrl.cpp" />
     <ClCompile Include="ToolBars.cpp" />
     <ClCompile Include="ToolboxModel.cpp" />
     <ClCompile Include="ToolboxPanel.cpp" />
@@ -69,6 +71,8 @@
     <ClInclude Include="PropertyPanel.h" />
     <ClInclude Include="SigTextEditor.h" />
     <ClInclude Include="SigTree.h" />
+    <ClInclude Include="TerminalController.h" />
+    <ClInclude Include="TerminalCtrl.h" />
     <ClInclude Include="ToolBars.h" />
     <ClInclude Include="ToolboxModel.h" />
     <ClInclude Include="ToolboxPanel.h" />

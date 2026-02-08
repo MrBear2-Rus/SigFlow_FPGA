@@ -64,6 +64,12 @@ enum class SecondNodeType {
     Null
 };
 
+enum class NetType {
+    Wire,
+    Reg,
+    Logic,
+};
+
 
 
 enum class SigTreeNodeType {
@@ -161,8 +167,8 @@ class NetNode : public SigTreeNode {
 public:
     std::string identifier; // 标识符
     NetNode() { type = SigTreeNodeType::Net; };
-    bool isNet = true;
     void PrintNetNode();
+    NetType netType;
 };
 
 

@@ -1,4 +1,4 @@
-﻿#include "SigTree.h"
+#include "SigTree.h"
 
 #include <json/json.h>
 #include <iostream>
@@ -547,7 +547,21 @@ void NetNode::PrintNetNode() {
     std::string info;
 
     info = "Identifier: " + identifier + "\n";
-
+    switch (netType)
+    {
+        case NetType::Wire:
+            info += "NetType: Wire\n";
+            break;
+        case NetType::Reg:
+            info += "NetType: Reg\n";
+            break;
+        case NetType::Logic:
+            info += "NetType: Logic\n";
+            break;
+    default:
+        info += "NetType: Unknown\n";
+        break;
+    }
     OutputDebugStringA(info.c_str());
 
 }

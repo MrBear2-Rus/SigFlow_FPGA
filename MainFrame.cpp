@@ -1,4 +1,4 @@
-﻿#include <wx/msgdlg.h>
+#include <wx/msgdlg.h>
 #include <wx/filename.h> 
 #include <wx/sstream.h>
 #include <wx/aui/aui.h>
@@ -91,6 +91,7 @@ MainFrame::MainFrame()
     m_projectTreePanel = new ProjectTreePanel(this);
     this->Bind(wxEVT_MENU, &MainFrame::OnOpenFileFromTree, this, ID_OPEN_FILE_FROM_TREE);
 
+    m_terminalCtrl = new TerminalCtrl(this);
 
     /* �������������Ϊһ�� AUI Pane ͣ�� */
     m_auiMgr.AddPane(sidePanel, wxAuiPaneInfo()
@@ -119,6 +120,17 @@ MainFrame::MainFrame()
         .Bottom()
         .Layer(1)
         .Position(1)
+        .CloseButton(false)
+        .BestSize(-1, 250)
+        .MinSize(-1, 150)
+        .Resizable(true));
+
+    m_auiMgr.AddPane(m_terminalCtrl, wxAuiPaneInfo()
+        .Name("terminal")
+        .Caption("Terminal")
+        .Bottom()
+        .Layer(1)
+        .Position(2)
         .CloseButton(false)
         .BestSize(-1, 250)
         .MinSize(-1, 150)
