@@ -1,6 +1,7 @@
 #include "MainMenuBar.h"
 #include "MainFrame.h"  // 为了转发调用 DoFileXXX
 #include <wx/config.h>
+#include <windows.h>  // For OutputDebugStringA and MessageBoxA
 
 enum
 {
@@ -72,6 +73,10 @@ EVT_MENU(wxID_HIGHEST + 210, MainMenuBar::OnSetTickFreq)
 EVT_MENU(wxID_HIGHEST + 211, MainMenuBar::OnSetTickFreq)
 EVT_MENU(wxID_HIGHEST + 212, MainMenuBar::OnSetTickFreq)
 EVT_MENU(wxID_HIGHEST + 213, MainMenuBar::OnLogging)
+
+EVT_MENU(wxID_HIGHEST + 220, MainMenuBar::OnSimCompile)
+EVT_MENU(wxID_HIGHEST + 221, MainMenuBar::OnSimRun)
+EVT_MENU(wxID_HIGHEST + 222, MainMenuBar::OnSimClean)
 
 EVT_MENU(wxID_ICONIZE_FRAME, MainMenuBar::OnMinimize)
 EVT_MENU(wxID_MAXIMIZE_FRAME, MainMenuBar::OnMaximize)
@@ -245,6 +250,12 @@ wxMenu* MainMenuBar::CreateProjectMenu()
 wxMenu* MainMenuBar::CreateSimulateMenu()
 {
     wxMenu* m = new wxMenu;
+
+    /* Verilator 仿真 */
+    m->Append(wxID_HIGHEST + 220, "Compile Simulation Model\tF5", "使用Verilator编译当前Verilog文件");
+    m->Append(wxID_HIGHEST + 221, "Run Simulation\tF6", "运行仿真并生成波形");
+    m->Append(wxID_HIGHEST + 222, "Clean Simulation Cache", "清理仿真编译缓存");
+    m->AppendSeparator();
 
     m->AppendCheckItem(wxID_HIGHEST + 200, "Simulation Enabled\tCtrl+E");
     m->Append(wxID_HIGHEST + 201, "Reset Simulation\tCtrl+R");
@@ -523,4 +534,27 @@ void MainMenuBar::OnLibraryRef(wxCommandEvent&)
 void MainMenuBar::OnAbout(wxCommandEvent&)
 {
     m_owner->DoHelpAbout();
+}
+
+// 仿真相关事件处理
+void MainMenuBar::OnSimCompile(wxCommandEvent&) 
+{ 
+    OutputDebugStringA("=== OnSimCompile called ===\n");
+    if (m_owner) {
+        OutputDebugStringA("m_owner is valid, calling DoSimCompile...\n");
+        m_owner->DoSimCompile(); 
+    } else {
+        OutputDebugStringA("ERROR: m_owner is NULL!\n");
+        MessageBoxA(NULL, "m_owner is NULL!", "Error", MB_OK | MB_ICONERROR);
+    }
+}
+
+void MainMenuBar::OnSimRun(wxCommandEvent&) 
+{ 
+    m_owner->DoSimRun(); 
+}
+
+void MainMenuBar::OnSimClean(wxCommandEvent&) 
+{ 
+    m_owner->DoSimClean(); 
 }

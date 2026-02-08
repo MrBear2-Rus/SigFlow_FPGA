@@ -50,6 +50,8 @@
     <ClCompile Include="ToolStateMachine.cpp" />
     <ClCompile Include="VerilogStructuring.cpp" />
     <ClCompile Include="Wire.cpp" />
+    <ClCompile Include="Simulation\SimulationEngine.cpp" />
+    <ClCompile Include="Simulation\VerilatorRunner.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="3rd\json\json.h" />
@@ -83,6 +85,8 @@
     <ClInclude Include="UndoStack.h" />
     <ClInclude Include="VerilogStructuring.h" />
     <ClInclude Include="Wire.h" />
+    <ClInclude Include="Simulation\SimulationEngine.h" />
+    <ClInclude Include="Simulation\VerilatorRunner.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

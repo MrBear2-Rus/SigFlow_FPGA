@@ -58,7 +58,7 @@ MainFrame::MainFrame()
 
     /* �Ѵ��ڽ��� AUI �������������ȣ� */
     m_auiMgr.SetManagedWindow(this);
-
+    m_auiMgr.SetFlags(wxAUI_MGR_DEFAULT | wxAUI_MGR_LIVE_RESIZE);
 
     /* �������뻭�����ȿհ�ռλ�� */
     m_canvas = new CanvasPanel(this, wxGetDisplaySize().x, wxGetDisplaySize().y);
@@ -386,14 +386,14 @@ void MainFrame::DoFileOpen(const wxString& path)
 {
     wxString filePath = path;
 
-    // ���û���ṩ·������ʾ�ļ�ѡ��Ի���
+    // 如果用户没有提供路径，显示文件选择对话框
     if (filePath.IsEmpty()) {
         wxFileDialog openDialog(
             this,
-            "�򿪵�·�ļ�",
-            "",
-            "",
-            "��·�ļ� (*.circ)|*.circ|�����ļ� (*.*)|*.*",
+            wxT("打开文件"),
+            wxT(""),
+            wxT(""),
+            wxT("电路文件 (*.circ)|*.circ|Verilog文件 (*.v;*.sv)|*.v;*.sv|所有文件 (*.*)|*.*"),
             wxFD_OPEN | wxFD_FILE_MUST_EXIST
         );
 
@@ -403,10 +403,24 @@ void MainFrame::DoFileOpen(const wxString& path)
         filePath = openDialog.GetPath();
     }
 
-    // ���Զ�ȡ�ļ�����
+    // 检查文件扩展名
+    wxFileName fn(filePath);
+    wxString ext = fn.GetExt().Lower();
+
+    // 如果是 Verilog 文件，直接在代码编辑器中打开
+    if (ext == wxT("v") || ext == wxT("sv")) {
+        if (m_verilogEditor) {
+            m_verilogEditor->OpenFile(filePath);
+            m_currentFilePath = filePath;
+            RefreshTitle();
+        }
+        return;
+    }
+
+    // 尝试读取文件内容
     wxFile file;
     if (!file.Open(filePath, wxFile::read)) {
-        wxMessageBox("�޷����ļ�: " + filePath, "����", wxOK | wxICON_ERROR);
+        wxMessageBox(wxT("无法打开文件: ") + filePath, wxT("错误"), wxOK | wxICON_ERROR);
         return;
     }
 
@@ -1187,4 +1201,188 @@ void MainFrame::RefreshTitle() {
         title += " [" + m_projectName + wxFileName::GetPathSeparator() + "]";
     }
     this->SetTitle(title);
+}
+
+// ============================================================================
+// Verilator 仿真接口实现
+// ============================================================================
+
+void MainFrame::DoSimCompile()
+{
+    // 最简单的测试 - 在函数最开始处
+    OutputDebugStringA("=== DoSimCompile ENTER ===\n");
+    
+    // 使用原始的 MessageBoxA 避免 wxWidgets 问题
+    MessageBoxA(NULL, "DoSimCompile called! Click OK to continue...", "Debug", MB_OK);
+    
+    OutputDebugStringA("=== After First MessageBox ===\n");
+    
+    // 检查 this 指针
+    if (this == nullptr) {
+        MessageBoxA(NULL, "this is NULL!", "Error", MB_OK | MB_ICONERROR);
+        return;
+    }
+    
+    OutputDebugStringA("=== this is valid ===\n");
+    
+    // 检查仿真引擎
+    if (!m_simEngine) {
+        OutputDebugStringA("Creating SimulationEngine...\n");
+        m_simEngine = std::make_unique<SimulationEngine>();
+        m_simEngine->SetProjectRoot(m_currentProjectPath);
+        OutputDebugStringA("SimulationEngine created\n");
+    }
+    
+    OutputDebugStringA("Checking m_currentFilePath...\n");
+    
+    // 测试访问 m_currentProjectPath
+    OutputDebugStringA("Testing m_currentProjectPath...\n");
+    if (m_currentProjectPath.IsEmpty()) {
+        OutputDebugStringA("Project path is empty\n");
+    } else {
+        OutputDebugStringA("Project path is valid\n");
+    }
+    
+    // 检查当前文件
+    OutputDebugStringA("About to check m_currentFilePath...\n");
+    if (m_currentFilePath.IsEmpty()) {
+        MessageBoxA(NULL, "No file open", "Debug", MB_OK);
+        return;
+    }
+    
+    OutputDebugStringA("File path is not empty\n");
+    
+    // 转换为 char* 显示
+    std::string filePathStr = m_currentFilePath.ToUTF8().data();
+    MessageBoxA(NULL, filePathStr.c_str(), "Current File", MB_OK);
+    
+    OutputDebugStringA("After file path message box\n");
+    
+    // 询问顶层模块名 - 使用 Windows API 避免 wxWidgets 问题
+    OutputDebugStringA("About to get top module name...\n");
+    
+    // 暂时使用硬编码值测试
+    char buffer[256] = "fulladder";
+    
+    // 简化：先用硬编码测试
+    int mbResult = MessageBoxA(NULL, "Use 'fulladder' as top module?", "Confirm", MB_YESNO);
+    if (mbResult != IDYES) {
+        OutputDebugStringA("User cancelled\n");
+        return;
+    }
+    
+    wxString topModule = wxString::FromUTF8(buffer);
+    OutputDebugStringA("Top module set to: fulladder\n");
+    
+    MessageBoxA(NULL, "About to compile...", "Debug", MB_OK);
+    OutputDebugStringA("About to prepare file list...\n");
+    
+    // 准备文件列表
+    std::vector<wxString> files;
+    files.push_back(m_currentFilePath);
+    
+    OutputDebugStringA("File list prepared, calling Compile...\n");
+    
+    // 执行编译
+    SimulationCompileResult result = m_simEngine->Compile(topModule, files);
+    
+    OutputDebugStringA("Compile returned\n");
+
+    OutputDebugStringA("Processing result...\n");
+    if (result.success) {
+        wxMessageBox(wxT("编译成功!\nDLL已生成"), wxT("完成"), wxOK | wxICON_INFORMATION);
+    } else {
+        // 简化错误显示，避免乱码
+        wxString simpleError = wxT("编译失败\n\n");
+        // 检查错误阶段（Verilator阶段或DLL阶段）
+        if (result.errorMessage.Contains(wxT("Verilator执行失败"))) {
+            simpleError += wxT("Verilator 执行失败，请检查代码语法");
+        } else if (result.errorMessage.Contains(wxT("DLL编译失败"))) {
+            simpleError += wxT("DLL 编译失败\n建议：\n1. 双击运行 Simulation\\compile_dll_vs.bat 手动编译\n2. 确保安装了 Visual Studio 2022");
+        } else {
+            simpleError += wxT("未知错误，请查看输出窗口");
+        }
+        wxMessageBox(simpleError, wxT("编译失败"), wxOK | wxICON_ERROR);
+    }
+
+    OutputDebugStringA("=== DoSimCompile EXIT ===\n");
+}
+
+void MainFrame::DoSimRun()
+{
+    if (!m_simEngine || !m_simEngine->IsCompiled("")) {
+        wxMessageBox("请先编译仿真模型", "运行仿真", wxOK | wxICON_WARNING);
+        return;
+    }
+
+    // 选择输出VCD文件路径
+    wxFileDialog saveDialog(
+        this,
+        "保存波形文件",
+        m_currentProjectPath,
+        "waveform.vcd",
+        "VCD files (*.vcd)|*.vcd",
+        wxFD_SAVE | wxFD_OVERWRITE_PROMPT
+    );
+
+    if (saveDialog.ShowModal() == wxID_CANCEL) {
+        return;
+    }
+
+    wxString vcdPath = saveDialog.GetPath();
+    
+    // 运行仿真
+    SetStatusText("正在运行仿真...", 0);
+    SimulationRunResult result = m_simEngine->RunSimulation(vcdPath);
+
+    if (result.success) {
+        wxMessageBox(
+            wxString::Format("仿真完成!\n波形文件: %s", result.vcdPath),
+            "仿真完成",
+            wxOK | wxICON_INFORMATION
+        );
+        
+        // TODO: 打开波形查看器或显示波形
+    } else {
+        wxMessageBox(
+            wxString::Format("仿真失败!\n%s", result.errorMessage),
+            "仿真错误",
+            wxOK | wxICON_ERROR
+        );
+    }
+
+    SetStatusText("就绪", 0);
+}
+
+void MainFrame::DoSimClean()
+{
+    if (!m_simEngine) {
+        wxMessageBox("没有仿真缓存需要清理", "清理缓存", wxOK | wxICON_INFORMATION);
+        return;
+    }
+
+    wxString topModule = wxGetTextFromUser(
+        "请输入要清理的顶层模块名称 (留空清理所有):",
+        "清理仿真缓存",
+        "",
+        this
+    );
+
+    if (topModule.IsEmpty()) {
+        // 询问是否清理所有
+        int result = wxMessageBox(
+            "确定要清理所有仿真缓存吗?",
+            "确认清理",
+            wxYES_NO | wxICON_QUESTION
+        );
+        if (result != wxYES) {
+            return;
+        }
+    }
+
+    if (m_simEngine->CleanCache(topModule)) {
+        wxMessageBox("缓存清理完成", "清理完成", wxOK | wxICON_INFORMATION);
+    } else {
+        wxMessageBox("缓存清理失败", "错误", wxOK | wxICON_ERROR);
+    }
 }

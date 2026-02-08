@@ -14,22 +14,22 @@ std::vector<CanvasElement> LoadCanvasElements(const wxString& jsonPath)
     if (!f) return {};*/
 
     wxString absPath = wxFileName(jsonPath).GetFullPath();
-    MyLog("LoadCanvas: absolute path [%s]\n", absPath.ToUTF8().data());
-    MyLog("LoadCanvas: file exists = %d\n", wxFileName::FileExists(jsonPath));
+    //MyLog("LoadCanvas: absolute path [%s]\n", absPath.ToUTF8().data());
+    //MyLog("LoadCanvas: file exists = %d\n", wxFileName::FileExists(jsonPath));
 
     std::ifstream test(jsonPath.ToStdString());
-    MyLog("LoadCanvas: ifstream good = %d\n", test.good());
+    //MyLog("LoadCanvas: ifstream good = %d\n", test.good());
 
 
     if (test.good()) {
         test.seekg(0, std::ios::end);
         size_t size = test.tellg();
-        MyLog("LoadCanvas: file size = %zu bytes\n", size);
+        //MyLog("LoadCanvas: file size = %zu bytes\n", size);
         test.seekg(0, std::ios::beg);
     }
 
     std::ifstream f(jsonPath.ToStdString(), std::ios::binary);
-    MyLog("LoadCanvas: try open [%s]\n", jsonPath.ToUTF8().data());
+    //MyLog("LoadCanvas: try open [%s]\n", jsonPath.ToUTF8().data());
     if (!f) { MyLog("LoadCanvas: file not found!\n"); return {}; }
 
 
@@ -72,8 +72,8 @@ std::vector<CanvasElement> LoadCanvasElements(const wxString& jsonPath)
                 int endX = shape["end"]["x"].asInt();
                 int endY = shape["end"]["y"].asInt();
                 // �����־��ȷ��ˮƽֱ�ߣ�y������ͬ��������
-                MyLog("Loaded Line: start(%d,%d) �� end(%d,%d) [type: %s]\n",
-                    startX, startY, endX, endY, type.ToUTF8().data());
+                /*MyLog("Loaded Line: start(%d,%d) �� end(%d,%d) [type: %s]\n",
+                    startX, startY, endX, endY, type.ToUTF8().data());*/
                 ce.AddShape(Line{
                     {startX, startY},
                     {endX, endY},
