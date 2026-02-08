@@ -18,6 +18,7 @@
 #include <wx/stdpaths.h>
 #include <wx/aui/tabart.h>
 #include <wx/simplebook.h>
+#include <wx/splitter.h>
 
 extern std::vector<CanvasElement> g_elements;
 
@@ -87,10 +88,6 @@ MainFrame::MainFrame()
     GetStatusBar()->SetFieldsCount(4, widths);
     GetStatusBar()->SetStatusStyles(4, style);
 
-    // 工具栏
-    //m_toolBars = new ToolBars(this);
-    //AddToolBarsToAuiManager();
-
     // 画布
     m_canvas = new CanvasPanel(this, FromDIP(2560), FromDIP(1960));
     m_canvas->SetBackgroundColour(*wxWHITE);
@@ -125,6 +122,8 @@ MainFrame::MainFrame()
     wxAuiToolBar* sideBar = new wxAuiToolBar(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
         wxAUI_TB_VERTICAL | wxAUI_TB_NO_TOOLTIPS);
     sideBar->SetBackgroundColour(wxColour(225, 230, 235));
+
+    // 终端
     m_terminalCtrl = new TerminalCtrl(this);
 
     wxBitmapBundle bundle = wxBitmapBundle::FromSVGFile("res\\icons\\project.svg", wxSize(24, 24));
@@ -217,11 +216,23 @@ MainFrame::MainFrame()
     rightNotebook->AddPage(m_propPanel, "Canvas Elements");
     
 
+
+    wxSplitterWindow* mainSplitter = new wxSplitterWindow(this, wxID_ANY,
+        wxDefaultPosition, wxDefaultSize,
+        wxSP_LIVE_UPDATE | wxSP_3DSASH | wxBORDER_NONE);
+    m_verilogEditor->Reparent(mainSplitter);
+    m_canvas->Reparent(mainSplitter);
+    int initialCanvasHeight = FromDIP(860);
+    mainSplitter->SplitHorizontally(m_canvas, m_verilogEditor, initialCanvasHeight);; // 0 表示平分
+    mainSplitter->SetMinimumPaneSize(FromDIP(50)); // 防止某个窗口被缩成 0 找不到了
+
+
+
     wxAuiNotebook* bottomNotebook = new wxAuiNotebook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
         wxAUI_NB_TOP | wxAUI_NB_TAB_MOVE | wxAUI_NB_TAB_EXTERNAL_MOVE | wxAUI_NB_TAB_SPLIT);
 
-    m_verilogEditor->Reparent(bottomNotebook);
-    bottomNotebook->AddPage(m_verilogEditor, "Text Editor");
+    
+    bottomNotebook->AddPage(m_terminalCtrl, "Terminal");
 
 
     // 1. 先最大化窗口，确保尺寸基准正确
@@ -234,7 +245,7 @@ MainFrame::MainFrame()
     // --- 定义比例 ---
     int leftW = dcSize.x * 0.1;  // 15%
     int rightW = dcSize.x * 0.1;  // 40%
-    int bottomH = dcSize.y * 0.3; // 30%
+    int bottomH = dcSize.y * 0.1; // 30%
 
     // 3. 配置 Pane
     m_auiMgr.AddPane(topBar, wxAuiPaneInfo()
@@ -288,7 +299,10 @@ MainFrame::MainFrame()
         .MaximizeButton(true)
         .CloseButton(false));
 
-    m_auiMgr.AddPane(m_canvas, wxAuiPaneInfo().Name("canvas").CenterPane());
+    m_auiMgr.AddPane(mainSplitter, wxAuiPaneInfo()
+        .Name("center_area")
+        .CenterPane()       // 设为中心区域
+        .PaneBorder(false));
 
     // --- 4. 暴力修正方案：手动干预 Sash 位置 ---
     m_auiMgr.Update();
