@@ -55,6 +55,12 @@
     <Filter Include="头文件\sigtree">
       <UniqueIdentifier>{eed0e8e2-fd3d-439c-8bf8-7f38ab0b77f9}</UniqueIdentifier>
     </Filter>
+    <Filter Include="头文件\gui\propertyPanel">
+      <UniqueIdentifier>{8bf2fadf-a1e8-48e9-bc29-f93353d13260}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\gui\propertyPanel">
+      <UniqueIdentifier>{9ba870a6-00d2-463e-9492-46ecf278f079}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cMain.cpp">
@@ -86,9 +92,6 @@
     </ClCompile>
     <ClCompile Include="AsyncAnalysisCenter.cpp">
       <Filter>源文件\text_analysis</Filter>
-    </ClCompile>
-    <ClCompile Include="ToolBars.cpp">
-      <Filter>源文件\gui</Filter>
     </ClCompile>
     <ClCompile Include="Wire.cpp">
       <Filter>源文件\canvas_core</Filter>
@@ -138,6 +141,12 @@
     <ClCompile Include="VerilogStructuring.cpp">
       <Filter>源文件\text_analysis</Filter>
     </ClCompile>
+    <ClCompile Include="SigFlowTreePanel.cpp">
+      <Filter>源文件\gui</Filter>
+    </ClCompile>
+    <ClCompile Include="SFNPropertyPanel.cpp">
+      <Filter>源文件\gui\propertyPanel</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="my_log.h">
@@ -159,9 +168,6 @@
       <Filter>头文件\gui</Filter>
     </ClInclude>
     <ClInclude Include="MainFrame.h">
-      <Filter>头文件\gui</Filter>
-    </ClInclude>
-    <ClInclude Include="ToolBars.h">
       <Filter>头文件\gui</Filter>
     </ClInclude>
     <ClInclude Include="PropertyPanel.h">
@@ -226,6 +232,12 @@
     </ClInclude>
     <ClInclude Include="VerilogStructuring.h">
       <Filter>头文件\text_analysis</Filter>
+    </ClInclude>
+    <ClInclude Include="SigFlowTreePanel.h">
+      <Filter>头文件\gui</Filter>
+    </ClInclude>
+    <ClInclude Include="SFNPropertyPanel.h">
+      <Filter>头文件\gui\propertyPanel</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

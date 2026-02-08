@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 // HandyToolKit.h
 #include <wx/wx.h>
 #include <wx/popupwin.h>
@@ -13,7 +13,7 @@ public:
     HandyToolKit(CanvasPanel* parent, CanvasEventHandler* ce);
     ~HandyToolKit() = default;
 
-    void CreateTools();
+    void CreateTools(int size);
     int GetSelectedTool() const { return m_selectedTool; }
 
 private:
@@ -41,7 +41,7 @@ private:
     std::vector<ToolInfo> m_tools;
     int m_selectedTool;
     int m_hoveredTool;
-    
+    int m_toolSize;
     CanvasEventHandler* m_CanvasEventHandler;
 
     CanvasPanel* m_canvas;

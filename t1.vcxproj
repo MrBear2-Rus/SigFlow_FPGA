@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -36,9 +36,10 @@
     <ClCompile Include="ProjectTreePanel.cpp" />
     <ClCompile Include="PropertyPanel.cpp" />
     <ClCompile Include="HandyToolKit.cpp" />
+    <ClCompile Include="SFNPropertyPanel.cpp" />
+    <ClCompile Include="SigFlowTreePanel.cpp" />
     <ClCompile Include="SigTextEditor.cpp" />
     <ClCompile Include="SigTree.cpp" />
-    <ClCompile Include="ToolBars.cpp" />
     <ClCompile Include="ToolboxModel.cpp" />
     <ClCompile Include="ToolboxPanel.cpp" />
     <ClCompile Include="TreeSitterLinter.cpp" />
@@ -67,9 +68,10 @@
     <ClInclude Include="HandyToolKit.h" />
     <ClInclude Include="ProjectTreePanel.h" />
     <ClInclude Include="PropertyPanel.h" />
+    <ClInclude Include="SFNPropertyPanel.h" />
+    <ClInclude Include="SigFlowTreePanel.h" />
     <ClInclude Include="SigTextEditor.h" />
     <ClInclude Include="SigTree.h" />
-    <ClInclude Include="ToolBars.h" />
     <ClInclude Include="ToolboxModel.h" />
     <ClInclude Include="ToolboxPanel.h" />
     <ClInclude Include="CanvasEventHandler.h" />
@@ -179,6 +181,9 @@
       <AdditionalLibraryDirectories>$(ProjectDir)3rd\wxWidgets-3.2.9\lib\vc_x64_dll;$(ProjectDir)external\slang-sdk\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>wxmsw32ud_core.lib;wxbase32ud.lib;wxtiffd.lib;wxjpegd.lib;wxpngd.lib;wxzlibd.lib;wxregexud.lib;wxexpatd.lib;winmm.lib;comctl32.lib;rpcrt4.lib;wsock32.lib;wininet.lib;advapi32.lib;svlang.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <Manifest>
+      <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>

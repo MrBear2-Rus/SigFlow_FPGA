@@ -1,25 +1,68 @@
 ﻿#include "VerilogStructuring.h"
+#include "TreeSitterLinter.h"
 
-
+#include <unordered_set>
 #include <tree_sitter/api.h>
-
-
+#include <sstream>
 
 
 
 
 
 extern "C" TSLanguage* tree_sitter_verilog();
+std::string get_stable_code(const std::string& code, const std::vector<int>& stable_lines);
+std::vector<int> GetStableLines(const std::vector<BlockInfo>& blocks);
+
+StructeredPackage VerilogStructuring(const std::string& code) {
+    StructeredPackage sp;
+    TreeSitterLinter TSLinter;
+
+    sp.TSRes = TSLinter.Lint(code);
+    std::vector<int> stable_lines = GetStableLines(sp.TSRes);
+    sp.stable_code = get_stable_code(code, stable_lines);
+
+    return sp;
+}
+
+std::vector<int> GetStableLines(const std::vector<BlockInfo>& blocks) {
+    std::vector<int> out;
+    std::unordered_set<int> reject;
+    for (auto& b : blocks) {
+        for (auto& c : b.child_ids) reject.insert(c);
+    }
+
+    for (auto& b : blocks) {
+        if (reject.find(b.id) == reject.end() && b.stability == Stability::Stable) {
+            for (int i = b.start_line; i <= b.end_line; i++) {
+                out.push_back(i);
+                //OutputDebugStringA(wxString::Format("[%d] ", i));
+            }
+
+        }
+    }
 
 
-StructuringReport VerilogStructuring(const std::string& code) {
-    StructuringReport rp;
+    return out;
+}
 
-    TSParser* parser = ts_parser_new();
-    TSTree* tree = ts_parser_parse_string(parser, NULL, code.c_str(), code.length());
+std::string get_stable_code(const std::string& code, const std::vector<int>& stable_lines) {
+    std::vector<std::string> all_lines;
+    std::string line;
+    std::istringstream iss(code);
 
+    // 1. 将 code 切分为行
+    all_lines.push_back("\n");
+    while (std::getline(iss, line)) {
+        all_lines.push_back(line);
+    }
 
-    //struct TOKENS* tokens = lex_code(code.c_str());
+    // 2. 根据行号拼接（假设 stable_lines 从 0 开始索引）
+    std::string stable_code;
+    for (int line_num : stable_lines) {
+        if (line_num >= 0 && line_num < all_lines.size()) {
+            stable_code += all_lines[line_num] + "\n";
+        }
+    }
 
-    return rp;
+    return stable_code;
 }

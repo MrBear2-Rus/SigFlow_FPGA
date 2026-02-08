@@ -1,7 +1,6 @@
-// HandyToolKit.cpp
+﻿// HandyToolKit.cpp
 #include "HandyToolKit.h"
 #include <wx/dcbuffer.h>
-#include "MainFrame.h"
 #include <wx/wx.h>
 #include <wx/graphics.h>
 
@@ -19,36 +18,42 @@ HandyToolKit::HandyToolKit(CanvasPanel* parent, CanvasEventHandler* ce)
 {   
     wxInitAllImageHandlers();
     SetBackgroundStyle(wxBG_STYLE_PAINT);
-    CreateTools();
+    int baseSize = 24; // 稍微调大一点点，24在4K屏缩放后可能依然偏小
+    m_toolSize = FromDIP(baseSize);
 
+    CreateTools(m_toolSize);
     SetExtraStyle(GetExtraStyle() | wxWS_EX_TRANSIENT);
 
-    // 设置合适的大小
-    SetSize(wxSize(5*24, 24));
+    SetSize(wxSize(5 * m_toolSize, m_toolSize));
 }
 
-void HandyToolKit::CreateTools()
+void HandyToolKit::CreateTools(int size)
 {
-    // 创建工具列表
     m_tools.clear();
 
-    
-    // 添加工具
-    wxBitmap drag("res\\icons\\poke.png", wxBITMAP_TYPE_PNG);
-	drag.Rescale(drag, wxSize(24, 24));
-    wxBitmap choose("res\\icons\\select.png", wxBITMAP_TYPE_PNG);
-    choose.Rescale(choose, wxSize(24, 24));
-    wxBitmap text("res\\icons\\text.png", wxBITMAP_TYPE_PNG);
-    text.Rescale(text, wxSize(24, 24));
-    wxBitmap wire("res\\icons\\wiring.png", wxBITMAP_TYPE_PNG);
-    wire.Rescale(wire, wxSize(24, 24));
-    wxBitmap eraser("res\\icons\\eraser.png", wxBITMAP_TYPE_PNG);
-    eraser.Rescale(eraser, wxSize(24, 24));
-    m_tools.push_back({ "Choose", choose, wxRect(24, 0, 24, 24), [this](void) {m_CanvasEventHandler->SetCurrentTool(ToolType::SELECT_TOOL); } });
-    m_tools.push_back({ "Drag", drag, wxRect(0, 0, 24, 24), [this](void) {m_CanvasEventHandler->SetCurrentTool(ToolType::DRAG_TOOL); } });
-    m_tools.push_back({ "Eraser", eraser, wxRect(48, 0, 24, 24), [this](void) {m_CanvasEventHandler->SetCurrentTool(ToolType::ERASER_TOOL); } });
-    m_tools.push_back({ "Text", text, wxRect(72, 0, 24, 24), [this](void) {m_CanvasEventHandler->SetCurrentTool(ToolType::TEXT_TOOL); } });
-    m_tools.push_back({ "Wire", wire, wxRect(96, 0, 24, 24), [this](void) {m_CanvasEventHandler->SetCurrentTool(ToolType::WIRE_TOOL); } });
+    // 定义辅助加载函数
+    auto LoadAndRescale = [&](const wxString& path) {
+        wxImage img(path, wxBITMAP_TYPE_PNG);
+        if (!img.IsOk()) return wxBitmap();
+        // 使用高质量缩放算法
+        return wxBitmap(img.Scale(size, size, wxIMAGE_QUALITY_HIGH));
+        };
+
+    // 重新定义工具矩形，x坐标基于缩放后的 size
+    m_tools.push_back({ "Choose", LoadAndRescale("res\\icons\\select.png"), wxRect(size, 0, size, size),
+        [this]() { m_CanvasEventHandler->SetCurrentTool(ToolType::SELECT_TOOL); } });
+
+    m_tools.push_back({ "Drag", LoadAndRescale("res\\icons\\poke.png"), wxRect(0, 0, size, size),
+        [this]() { m_CanvasEventHandler->SetCurrentTool(ToolType::DRAG_TOOL); } });
+
+    m_tools.push_back({ "Eraser", LoadAndRescale("res\\icons\\eraser.png"), wxRect(size * 2, 0, size, size),
+        [this]() { m_CanvasEventHandler->SetCurrentTool(ToolType::ERASER_TOOL); } });
+
+    m_tools.push_back({ "Text", LoadAndRescale("res\\icons\\text.png"), wxRect(size * 3, 0, size, size),
+        [this]() { m_CanvasEventHandler->SetCurrentTool(ToolType::TEXT_TOOL); } });
+
+    m_tools.push_back({ "Wire", LoadAndRescale("res\\icons\\wiring.png"), wxRect(size * 4, 0, size, size),
+        [this]() { m_CanvasEventHandler->SetCurrentTool(ToolType::WIRE_TOOL); } });
 }
 
 void HandyToolKit::OnPaint(wxPaintEvent& event)
@@ -75,7 +80,7 @@ void HandyToolKit::OnPaint(wxPaintEvent& event)
 
         // 绘制图标（居中）
         if (tool.icon.IsOk()) {
-            int iconX = tool.rect.x + (tool.rect.width - tool.icon.GetWidth()) / 2;
+            int iconX = tool.rect.x + (tool.rect.width - tool.icon.GetWidth()) / 2 ;
             int iconY = tool.rect.y + (tool.rect.height - tool.icon.GetHeight()) / 2 - 5;
             dc.DrawBitmap(tool.icon, tool.rect.x, tool.rect.y, true);
         }
@@ -98,86 +103,16 @@ void HandyToolKit::DrawToolButton(wxDC& dc, const wxRect& rect, bool isHovered)
 
     // 如果悬停，添加透明效果
     if (isHovered) {
-        // 多种悬停效果可选：
+        wxColour color = wxColour(100, 150, 255);
+        wxColour transparentColor(color.Red(), color.Green(), color.Blue(), 80);
+        dc.SetBrush(wxBrush(transparentColor));
+        dc.SetPen(wxPen(transparentColor));
+        dc.DrawRectangle(rect);
 
-        // 效果1：半透明色块
-        DrawSemiTransparentOverlay(dc, rect, wxColour(100, 150, 255), 80);
-
-        // 效果2：发光边框
-        // DrawGlowBorder(dc, rect, wxColour(100, 150, 255), 3);
-
-        // 效果3：渐变高亮
-        // DrawGradientHighlight(dc, rect, wxColour(200, 220, 255), wxColour(100, 150, 255));
     }
 }
 
-// 绘制半透明覆盖层
-void HandyToolKit::DrawSemiTransparentOverlay(wxDC& dc, const wxRect& rect, const wxColour& color, int alpha)
-{
-//#if wxUSE_GRAPHICS_CONTEXT
-    //// 使用图形上下文（推荐）
-    //wxGraphicsContext* gc = wxGraphicsContext::Create(dc);
-    //if (gc) {
-    //    wxColour transparentColor(color.Red(), color.Green(), color.Blue(), alpha);
-    //    gc->SetBrush(transparentColor);
-    //    gc->DrawRectangle(rect.x, rect.y, rect.width, rect.height);
-    //    delete gc;
-    //}
-//#else
-    // 回退方案：使用带透明度的颜色
-    wxColour transparentColor(color.Red(), color.Green(), color.Blue(), alpha);
-    dc.SetBrush(wxBrush(transparentColor));
-    dc.SetPen(wxPen(transparentColor));
-    dc.DrawRectangle(rect);
-//#endif
-}
 
-//// 可选：绘制发光边框效果
-void HandyToolKit::DrawGlowBorder(wxDC& dc, const wxRect& rect, const wxColour& color, int glowWidth)
-{
-//#if wxUSE_GRAPHICS_CONTEXT
-//    wxGraphicsContext* gc = wxGraphicsContext::Create(dc);
-//    if (gc) {
-//        // 创建渐变画刷
-//        wxGraphicsBrush brush = gc->CreateLinearGradientBrush(
-//            rect.x, rect.y,
-//            rect.x + rect.width, rect.y + rect.height,
-//            wxColour(color.Red(), color.Green(), color.Blue(), 50),
-//            wxColour(color.Red(), color.Green(), color.Blue(), 150));
-//
-//        gc->SetBrush(brush);
-//        gc->SetPen(*wxTRANSPARENT_PEN);
-//
-//        // 绘制稍大的矩形作为发光效果
-//        wxRect glowRect = rect;
-//        glowRect.Inflate(glowWidth);
-//        gc->DrawRectangle(glowRect.x, glowRect.y, glowRect.width, glowRect.height);
-//
-//        delete gc;
-    }
-//#endif
-//}
-//
-//// 可选：绘制渐变高亮效果
-void HandyToolKit::DrawGradientHighlight(wxDC& dc, const wxRect& rect, const wxColour& startColor, const wxColour& endColor)
-{
-//#if wxUSE_GRAPHICS_CONTEXT
-//    wxGraphicsContext* gc = wxGraphicsContext::Create(dc);
-//    if (gc) {
-//        // 创建垂直渐变
-//        wxGraphicsBrush brush = gc->CreateLinearGradientBrush(
-//            rect.x, rect.y,
-//            rect.x, rect.y + rect.height,
-//            startColor, endColor);
-//
-//        gc->SetBrush(brush);
-//        gc->SetPen(*wxTRANSPARENT_PEN);
-//        gc->DrawRectangle(rect.x, rect.y, rect.width, rect.height);
-//
-//        delete gc;
-    }
-//#endif
-//}
 void HandyToolKit::OnMouseMove(wxMouseEvent& event)
 {
     wxPoint pos = event.GetPosition();
@@ -187,7 +122,7 @@ void HandyToolKit::OnMouseMove(wxMouseEvent& event)
     // 检查鼠标在哪个工具上
     for (size_t i = 0; i < m_tools.size(); i++) {
         if (m_tools[i].rect.Contains(pos)) {
-			m_canvas->SetStatus(wxString::Format("工具: %s", m_tools[i].name.ToUTF8().data()));
+			m_canvas->SetStatus(wxString::Format("Tool: %s", m_tools[i].name.ToUTF8().data()));
             m_hoveredTool = i;
             break;
         }
@@ -220,13 +155,6 @@ void HandyToolKit::OnRightUp(wxMouseEvent& event)
 
     // 注意：这里不调用event.Skip()，因为我们处理了这个事件
 }
-
-//void QuickToolBar::OnKillFocus(wxFocusEvent& event)
-//{
-//    // 失去焦点时自动关闭
-//    Hide();
-//    event.Skip();
-//}
 
 void HandyToolKit::OnKillFocus(wxFocusEvent& event) {
     wxWindow* focused = wxWindow::FindFocus();

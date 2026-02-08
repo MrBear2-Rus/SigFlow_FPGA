@@ -43,10 +43,10 @@ AsyncAnalysisCenter::~AsyncAnalysisCenter() {
 
 }
 
-void AsyncAnalysisCenter::PushTask(const wxString& projectPath, const wxString& filePath) {
+void AsyncAnalysisCenter::PushTask(const wxString& projectPath, const wxString& code) {
     std::lock_guard<std::mutex> lock(m_mutex);
     m_projectPath = projectPath;
-    m_pendingPath = filePath; // 记录待分析的文件路径 哈哈
+    m_pendingCode = code; // 记录待分析的文件路径 哈哈
     m_hasNewTask = true;
 
     wxThread* thread = GetThread();
@@ -60,7 +60,7 @@ void AsyncAnalysisCenter::PushTask(const wxString& projectPath, const wxString& 
 wxThread::ExitCode AsyncAnalysisCenter::Entry() {
     while (!GetThread()->TestDestroy()) {
         wxString projectPath;
-        wxString filePath;
+        wxString code;
         {
             std::unique_lock<std::mutex> lock(m_mutex);
             // 改进：使用条件变量代替 Sleep，提高响应速度
@@ -69,35 +69,24 @@ wxThread::ExitCode AsyncAnalysisCenter::Entry() {
                 continue;
             }
             projectPath = m_projectPath;
-            filePath = m_pendingPath;
+            code = m_pendingCode;
             m_hasNewTask = false;
         }
 
-        std::string code;
-        int line_count;
-        wxFile file(filePath);
-        if (file.IsOpened()) {
-            wxString content;
-            if (file.ReadAll(&content)) {
-                code = content.ToStdString();
+        size_t line_count = std::count(code.begin(), code.end(), '\n');
 
-                // 关键：利用 wxString 的逻辑直接数行数
-                // 这种方法会自动处理 \n, \r\n 等不同系统的换行符
-                line_count = (int)content.Freq('\n') + 1;
+        // 如果最后一行没有以 \n 结尾，通常也算作一行
+        if (code.Last() != '\n') {
+            line_count++;
+        }
 
-                // 如果文件最后一行没换行，Freq 结果也是准的
-            }
-        }
-        else {
-            // 错误处理：文件打开失败
-        }
         ///////////////////////////////////////////////////////////////////////////////////////
-        sigTree = new SigFlowTree(projectPath.ToStdString());
+        //sigTree = new SigFlowTree(projectPath.ToStdString());
 
         TSParser* parser = ts_parser_new();
         ts_parser_set_language(parser, tree_sitter_verilog());
 
-
+        /*
         TSTree* new_tree = ts_parser_parse_string(parser, nullptr, code.c_str(), code.length());
         TSNode root = ts_tree_root_node(new_tree);
         TSTreeCursor cursor = ts_tree_cursor_new(root);
@@ -117,14 +106,13 @@ wxThread::ExitCode AsyncAnalysisCenter::Entry() {
         res.lint.is_lines_header = isLineHeader(TSRes, line_count);
         res.lint.line_depth = GetLineDepth(TSRes, line_count);
         res.lint.line_status = GetLineStatus(TSRes, line_count);
-        res.lint.stable_lines = GetStableLines(TSRes);
         
         // 包装结果并推回 UI 线程
         wxThreadEvent* event = new wxThreadEvent(EVT_ANALYSIS_COMPLETE);
         event->SetPayload(res); // 现在 Payload 是 LintRes
         m_parentHandler->QueueEvent(event);
 
-
+        */
         /*
 
 
@@ -240,29 +228,6 @@ std::unique_ptr<SlangProject> AsyncAnalysisCenter::LoadProject(const wxString& p
 
 
 
-
-
-
-std::vector<int> GetStableLines(const std::vector<BlockInfo>& blocks) {
-    std::vector<int> out;
-    std::unordered_set<int> reject;
-    for (auto& b : blocks) {
-        for (auto& c : b.child_ids) reject.insert(c);
-    }
-
-    for (auto& b : blocks) {
-        if (reject.find(b.id) == reject.end() && b.stability == Stability::Stable) {
-            for (int i = b.start_line; i <= b.end_line; i++) {
-                out.push_back(i);
-                //OutputDebugStringA(wxString::Format("[%d] ", i));
-            }
-
-        }
-    }
-
-
-    return out;
-}
 
 
 

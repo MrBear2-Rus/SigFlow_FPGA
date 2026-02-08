@@ -1,48 +1,54 @@
-#include "Wire.h"
+﻿#include "Wire.h"
 #include "CanvasPanel.h"
 
-void Wire::Draw(wxDC& dc) const {
+void Wire::Draw(wxGraphicsContext* gc) const {
     if (pts.size() < 2) return;
-    for (size_t i = 1; i < pts.size() + 1; ++i) {
-        
-        if (i != pts.size()) {
-            if (status == LogicSignal::ZERO) dc.SetPen(wxPen(colors[0], 3));
-            else dc.SetPen(wxPen(colors[1], 3));
-            dc.DrawLine(pts[i - 1].pos, pts[i].pos);
-        }
-        switch (pts[i - 1].type) {
-        case CPType::Pin:
-            break;
-        case CPType::Branch:
-            dc.SetPen(wxPen(colors[2], 1));
-            dc.SetBrush(wxBrush(colors[2], wxBRUSHSTYLE_SOLID));
-            dc.DrawCircle(pts[i - 1].pos, 3);
-            break;
-        case CPType::Free:
-            if (status == LogicSignal::ZERO) {
-                dc.SetPen(wxPen(colors[0], 2));
-                dc.SetBrush(wxBrush(colors[0], wxBRUSHSTYLE_SOLID));
-            }
-            else {
-                dc.SetPen(wxPen(colors[1], 2));
-                dc.SetBrush(wxBrush(colors[1], wxBRUSHSTYLE_SOLID));
-            }
-            
-            dc.DrawCircle(pts[i - 1].pos, 3);
-            break;
-        }
+
+    // 1. 创建路径（把所有线段合并成一个矢量对象）
+    wxGraphicsPath wirePath = gc->CreatePath();
+    for (size_t i = 1; i < pts.size(); ++i) {
+        wirePath.MoveToPoint(pts[i - 1].pos.x, pts[i - 1].pos.y);
+        wirePath.AddLineToPoint(pts[i].pos.x, pts[i].pos.y);
+    }
+
+    // 2. 一次性描边（极大地降低 CPU 开销）
+    wxColour strokeColor = (status == LogicSignal::ZERO) ? colors[0] : colors[1];
+    gc->SetPen(wxPen(strokeColor, 3));
+    gc->StrokePath(wirePath);
+
+    // 3. 绘制节点（打点）
+    for (const auto& pt : pts) {
+        if (pt.type == CPType::Pin) continue;
+
+        // 设置节点的颜色逻辑
+        wxColour dotColor = (pt.type == CPType::Branch) ? colors[2] : strokeColor;
+        gc->SetPen(wxPen(dotColor, 1));
+        gc->SetBrush(wxBrush(dotColor));
+
+        // GC 中画圆的方法是 DrawEllipse
+        gc->DrawEllipse(pt.pos.x - 3, pt.pos.y - 3, 6, 6);
     }
 }
 
-void Wire::DrawColor(wxDC& dc) const {
+void Wire::DrawColor(wxGraphicsContext* gc) const {
     if (pts.size() < 2) return;
-    dc.SetPen(wxPen(wxColor(44, 145, 224), 2));
-    for (size_t i = 1; i < pts.size(); ++i)
-        dc.DrawLine(pts[i - 1].pos, pts[i].pos);
 
-    dc.SetPen(wxPen(wxColor(44, 145, 224, 32), 8));
-    for (size_t i = 1; i < pts.size(); ++i)
-        dc.DrawLine(pts[i - 1].pos, pts[i].pos);
+    // 1. 创建一次路径，复用两次
+    wxGraphicsPath path = gc->CreatePath();
+    path.MoveToPoint(pts[0].pos.x, pts[0].pos.y);
+    for (size_t i = 1; i < pts.size(); ++i) {
+        path.AddLineToPoint(pts[i].pos.x, pts[i].pos.y);
+    }
+
+    // 2. 绘制外层发光效果（光晕）
+    // 使用 Alpha 通道 (32) 实现半透明，线宽加大到 8
+    gc->SetPen(wxPen(wxColor(44, 145, 224, 32), 8));
+    gc->StrokePath(path);
+
+    // 3. 绘制内层核心线（实线）
+    // 覆盖在光晕之上，线宽为 2
+    gc->SetPen(wxPen(wxColor(44, 145, 224), 2));
+    gc->StrokePath(path);
 }
 
 

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <wx/wx.h>
 #include <vector>
 #include <tuple>
@@ -45,8 +45,8 @@ public:
     explicit Wire(std::vector<ControlPoint> v) : pts(std::move(v)) {}
 
     // 核心接口
-    void Draw(wxDC& dc) const;                          // 画线
-    void DrawColor(wxDC& dc) const;
+    void Draw(wxGraphicsContext* gc) const;                          // 画线
+    void DrawColor(wxGraphicsContext* gc) const;
     void AddPoint(const ControlPoint& cp) { pts.push_back(cp); }
     void Clear() { pts.clear(); }
     bool Empty() const { return pts.empty(); }

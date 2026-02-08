@@ -2,6 +2,7 @@
 #include <wx/filename.h> 
 #include <wx/sstream.h>
 #include <wx/aui/aui.h>
+#include <wx/progdlg.h>
 
 #include "MainFrame.h"
 #include "MainMenuBar.h"
@@ -12,12 +13,16 @@
 #include "my_log.h"
 #include "UndoStack.h"
 #include "UndoNotifier.h"
-#include "ToolBars.h"
 #include "HandyToolKit.h"
 #include <wx/stc/stc.h>
 #include <wx/stdpaths.h>
+#include <wx/aui/tabart.h>
+#include <wx/simplebook.h>
 
 extern std::vector<CanvasElement> g_elements;
+
+wxDEFINE_EVENT(EVT_SFTREE_NODE_ACTIVATED, wxCommandEvent);
+wxDEFINE_EVENT(EVT_SFTREE_CHANGED, wxCommandEvent);
 
 wxBEGIN_EVENT_TABLE(MainFrame, wxFrame)
 EVT_MENU(wxID_ABOUT, MainFrame::OnAbout)
@@ -26,141 +31,300 @@ EVT_MENU(wxID_HIGHEST + 900, MainFrame::OnToolboxElement)
 EVT_MENU(wxID_HIGHEST + 901, MainFrame::OnToolSelected)
 wxEND_EVENT_TABLE()
 
+enum {
+    ID_SIDEBAR_START = wxID_HIGHEST + 1000, // 从一个安全的数字开始
+
+
+    ID_PROJ,
+    ID_FLOW,
+    ID_TBOX,
+    ID_OTHER_TOOL,
+
+    ID_TB_NEW,
+    ID_TB_OPEN,
+    ID_TB_SAVE,
+    ID_TB_RECLAIM,
+    ID_TB_START,
+    ID_TB_STOP,
+};
 
 MainFrame::MainFrame()
     : wxFrame(nullptr, wxID_ANY, "SigFlow")
 {
+    // 图标
     wxInitAllImageHandlers();
     wxIconBundle icons;
-    //icons.AddIcon("res\\icons\\icon_24.png", wxBITMAP_TYPE_PNG);
-    //icons.AddIcon("res\\icons\\icon_32.png", wxBITMAP_TYPE_PNG);
-    //icons.AddIcon("res\\icons\\icon_64.png", wxBITMAP_TYPE_PNG);
-    //icons.AddIcon("res\\icons\\icon_128.png", wxBITMAP_TYPE_PNG);
     icons.AddIcon("res\\icons\\icon_256.png", wxBITMAP_TYPE_PNG);
     SetIcons(icons);
 
+    // 标题
+    SetTitle("SigFlow [no project]");
+
+    // 元件模型库
     wxString jsonPath = wxFileName(wxGetCwd(), "canvas_elements.json").GetFullPath();
     MyLog("MainFrame: JSON full path = [%s]\n", jsonPath.ToUTF8().data());
     g_elements = LoadCanvasElements(jsonPath);
 
     Bind(wxEVT_CLOSE_WINDOW, &MainFrame::OnClose, this);
-
-    /* �˵� & ״̬�� */
-    SetMenuBar(new MainMenuBar(this));
-    CreateStatusBar(1);
-    int widths[] = { 800, 200, 400, 100 };
-    int style[] = { wxSB_NORMAL, wxSB_NORMAL, wxSB_FLAT, wxSB_FLAT };
-    GetStatusBar()->SetFieldsCount(4, widths);
-    GetStatusBar()->SetStatusStyles(4, style);
-
-    SetTitle("SigFlow [no project]");
-    static_cast<MainMenuBar*>(GetMenuBar())->SetCurrentDocInWindowList("Untitled");
-
-    /* �Ѵ��ڽ��� AUI �������������ȣ� */
-    m_auiMgr.SetManagedWindow(this);
-
-
-    /* �������뻭�����ȿհ�ռλ�� */
-    m_canvas = new CanvasPanel(this, wxGetDisplaySize().x, wxGetDisplaySize().y);
-    m_canvas->SetBackgroundColour(*wxWHITE);
-    m_canvas->SetFocus();
-
-    // ������
-    m_toolBars = new ToolBars(this);
-    AddToolBarsToAuiManager();
-
-    /* ��������� + ���Ա������µ��ţ� */
-    wxPanel* sidePanel = new wxPanel(this);  // ���
-    wxBoxSizer* sideSizer = new wxBoxSizer(wxVERTICAL);
-
-    ToolboxPanel* toolbox = new ToolboxPanel(sidePanel);  // �������� sidePanel
-    sideSizer->Add(toolbox, 1, wxEXPAND);    // �ϣ��������������죩
-
-
-    sidePanel->SetSizer(sideSizer);
-
-    m_verilogEditor = new SigTextEditor(this);
-
-    m_analysisCenter = new AsyncAnalysisCenter(this);
-    this->Bind(EVT_ANALYSIS_COMPLETE, &MainFrame::OnAnalysisComplete, this);
     
+    // 计时器
     m_refreshTimer = new wxTimer(this, 100000);
     this->Bind(wxEVT_TIMER, &MainFrame::OnRefreshTimer, this, 100000);
     m_refreshTimer->Start(1000);
 
+    // 构造SigTree
+    sigTree = new SigFlowTree();
+
+
+    /* 面板加载 */
+    m_auiMgr.SetManagedWindow(this);
+
+    /* 菜单栏*/
+    SetMenuBar(new MainMenuBar(this));
+    CreateStatusBar(1);
+    int widths[] = { FromDIP(800), FromDIP(400), FromDIP(400), FromDIP(100) };
+    int style[] = { wxSB_NORMAL, wxSB_NORMAL, wxSB_FLAT, wxSB_FLAT };
+    GetStatusBar()->SetFieldsCount(4, widths);
+    GetStatusBar()->SetStatusStyles(4, style);
+
+    // 工具栏
+    //m_toolBars = new ToolBars(this);
+    //AddToolBarsToAuiManager();
+
+    // 画布
+    m_canvas = new CanvasPanel(this, FromDIP(2560), FromDIP(1960));
+    m_canvas->SetBackgroundColour(*wxWHITE);
+    m_canvas->SetFocus();
+
+    // 元件库
+    ToolboxPanel* toolbox = new ToolboxPanel(this);
+    // 构造树面板
+    m_sigFlowTreePanel = new SigFlowTreePanel(this, sigTree);
+
+    // 画布元素属性栏
+    m_propPanel = new PropertyPanel(this);
+    m_propPanel->ShowElement("Select Tool");
+
+    // SigTreeNode属性栏
+    m_sfnPropertyPanel = new SFNPropertyPanel(this, sigTree);
+    this->Bind(EVT_SFTREE_NODE_ACTIVATED, &MainFrame::OnSFNodeActivated, this);
+    this->Bind(EVT_SFTREE_CHANGED, &MainFrame::OnSFTreeChanged, this);
+
+    // 文本编辑面板
+    m_verilogEditor = new SigTextEditor(this);
+
+    // 异步IDE分析
+    m_analysisCenter = new AsyncAnalysisCenter(this);
+    this->Bind(EVT_ANALYSIS_COMPLETE, &MainFrame::OnAnalysisComplete, this);
+
+    // 项目树面板
     m_projectTreePanel = new ProjectTreePanel(this);
     this->Bind(wxEVT_MENU, &MainFrame::OnOpenFileFromTree, this, ID_OPEN_FILE_FROM_TREE);
 
+    // 侧边工具栏
+    wxAuiToolBar* sideBar = new wxAuiToolBar(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+        wxAUI_TB_VERTICAL | wxAUI_TB_NO_TOOLTIPS);
+    sideBar->SetBackgroundColour(wxColour(225, 230, 235));
 
-    /* �������������Ϊһ�� AUI Pane ͣ�� */
-    m_auiMgr.AddPane(sidePanel, wxAuiPaneInfo()
-        .Name("side")               // ͳһ����
-        .Caption("Toolbox & Properties")
-        .Left()
-        .Layer(1)
-        .Position(1)
+    wxBitmapBundle bundle = wxBitmapBundle::FromSVGFile("res\\icons\\project.svg", wxSize(24, 24));
+    wxBitmap myBitmap = bundle.GetBitmap(FromDIP(wxSize(24, 24)));
+
+    wxImage img("res\\icons\\icon_256.png", wxBITMAP_TYPE_PNG);
+    wxImage smallImg = img.Scale(FromDIP(24), FromDIP(24), wxIMAGE_QUALITY_HIGH);
+    wxBitmap myIcon(smallImg);
+
+    wxBitmapBundle bundle_1 = wxBitmapBundle::FromSVGFile("res\\icons\\lib.svg", wxSize(24, 24));
+    wxBitmap lib = bundle_1.GetBitmap(FromDIP(wxSize(24, 24)));
+
+    sideBar->AddTool(ID_PROJ, wxEmptyString, myBitmap, "Project Manager", wxITEM_CHECK);
+    sideBar->AddTool(ID_FLOW, wxEmptyString, myIcon, "SigFlow Tree", wxITEM_CHECK);
+    sideBar->AddTool(ID_TBOX, wxEmptyString, lib, "Component Library", wxITEM_CHECK);
+    sideBar->ToggleTool(ID_PROJ, 1);
+    sideBar->SetArtProvider(new MyCustomToolBarArt());
+    wxSimplebook* leftSideNotebook = new wxSimplebook(this, wxID_ANY);
+
+    m_projectTreePanel->Reparent(leftSideNotebook);
+    m_sigFlowTreePanel->Reparent(leftSideNotebook);
+    toolbox->Reparent(leftSideNotebook);
+    leftSideNotebook->AddPage(m_projectTreePanel, "Project Manager");
+    leftSideNotebook->AddPage(m_sigFlowTreePanel, "SigFlow Tree");
+    leftSideNotebook->AddPage(toolbox, "Component Library");
+
+    Bind(wxEVT_TOOL, [=](wxCommandEvent& e) {
+        int clickedId = e.GetId();
+        wxAuiPaneInfo& pane = m_auiMgr.GetPane(leftSideNotebook);
+        // 1. 实现互斥选中（就像 Notebook 切换标签一样）
+        sideBar->ToggleTool(ID_PROJ, clickedId == ID_PROJ);
+        sideBar->ToggleTool(ID_FLOW, clickedId == ID_FLOW);
+        sideBar->ToggleTool(ID_TBOX, clickedId == ID_TBOX);
+
+        // 2. 刷新工具栏视觉状态
+        sideBar->Refresh();
+
+        // 3. 切换右侧面板（假设你用了 wxSimplebook）
+        if (clickedId == ID_PROJ) {
+            leftSideNotebook->SetSelection(0);
+            pane.Caption("Project Manager");
+        }
+        else if (clickedId == ID_FLOW) {
+            leftSideNotebook->SetSelection(1);
+            pane.Caption("SigFlow Tree");
+        }
+        else if (clickedId == ID_TBOX) {
+            leftSideNotebook->SetSelection(2);
+            pane.Caption("Component Library");
+        }
+        m_auiMgr.Update();
+        }, ID_PROJ, ID_TBOX); // 
+    sideBar->Realize();
+
+    // 顶端工具栏
+    wxAuiToolBar* topBar = new wxAuiToolBar(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+        wxAUI_TB_HORIZONTAL | wxAUI_TB_PLAIN_BACKGROUND);
+
+    wxSize tbIconSize = FromDIP(wxSize(24, 24));
+    topBar->SetToolBitmapSize(tbIconSize);
+
+    // 辅助 Lambda 用于高质量加载图标
+    auto GetIcon = [&](const wxString& path) {
+        wxImage img(path);
+        if (!img.IsOk()) return wxBitmapBundle();
+        return wxBitmapBundle::FromBitmap(img.Scale(tbIconSize.x, tbIconSize.y, wxIMAGE_QUALITY_HIGH));
+        };
+
+    // --- 左侧：项目与控制组 ---
+    topBar->AddTool(ID_TB_NEW, "New", GetIcon("res\\icons\\new.png"), "New Project");
+    topBar->AddTool(ID_TB_OPEN, "Open", GetIcon("res\\icons\\open.png"), "Open Project");
+    topBar->AddTool(ID_TB_SAVE, "Save", GetIcon("res\\icons\\save.png"), "Save All");
+    topBar->AddSeparator();
+
+    topBar->AddTool(ID_TB_RECLAIM, "Reclaim", GetIcon("res\\icons\\reclaim.png"), "Reclaim Memory");
+    topBar->AddSeparator();
+
+    topBar->AddTool(ID_TB_START, "Start", GetIcon("res\\icons\\start.png"), "Start Simulation");
+    topBar->AddTool(ID_TB_STOP, "Stop", GetIcon("res\\icons\\stop.png"), "Stop Simulation");
+
+
+    topBar->Realize();
+    
+    wxAuiNotebook* rightNotebook = new wxAuiNotebook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+        wxAUI_NB_TOP | wxAUI_NB_TAB_MOVE | wxAUI_NB_TAB_EXTERNAL_MOVE | wxAUI_NB_TAB_SPLIT);
+
+    m_sfnPropertyPanel->Reparent(rightNotebook);
+    m_propPanel->Reparent(rightNotebook);
+    rightNotebook->AddPage(m_sfnPropertyPanel, "SigFlow Node");
+    rightNotebook->AddPage(m_propPanel, "Canvas Elements");
+    
+
+    wxAuiNotebook* bottomNotebook = new wxAuiNotebook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+        wxAUI_NB_TOP | wxAUI_NB_TAB_MOVE | wxAUI_NB_TAB_EXTERNAL_MOVE | wxAUI_NB_TAB_SPLIT);
+
+    m_verilogEditor->Reparent(bottomNotebook);
+    bottomNotebook->AddPage(m_verilogEditor, "Text Editor");
+
+
+    // 1. 先最大化窗口，确保尺寸基准正确
+    this->Maximize(true);
+    this->Layout(); // 让基础布局先跑一遍
+
+    // 2. 获取当前真正的物理可用区域
+    wxSize dcSize = this->GetClientSize();
+
+    // --- 定义比例 ---
+    int leftW = dcSize.x * 0.1;  // 15%
+    int rightW = dcSize.x * 0.1;  // 40%
+    int bottomH = dcSize.y * 0.3; // 30%
+
+    // 3. 配置 Pane
+    m_auiMgr.AddPane(topBar, wxAuiPaneInfo()
+        .Name("topBar")
+        .Top()
+        .Layer(8)
+        .MinSize(10000, 24)
+        .CaptionVisible(false)
         .CloseButton(false)
-        .BestSize(280, 700)        // �ܸ߶�����������
-        .MinSize(200, 400)
-        .FloatingSize(280, 700)
-        .Gripper(true)
-        .PaneBorder(false));
-
-    /* ��������ԭ�� */
-    m_auiMgr.AddPane(m_canvas, wxAuiPaneInfo()
-        .Name("canvas")
-        .CenterPane()
-        .CloseButton(false)
-        .MinSize(400, 300));
-
-    m_auiMgr.AddPane(m_verilogEditor, wxAuiPaneInfo()
-        .Name("text_editor")
-        .Caption("Text Editor")
-        .Bottom()
-        .Layer(1)
-        .Position(1)
-        .CloseButton(false)
-        .BestSize(-1, 250)
-        .MinSize(-1, 150)
-        .Resizable(true));
-
-
-    m_auiMgr.AddPane(m_projectTreePanel, wxAuiPaneInfo()
-        .Name("project_resource_manager")
-        .Caption("Project Resource Manager")
-        .Right()
-        .Layer(1)
-        .Position(1)
-        .CloseButton(false)
-        .BestSize(280, 700)        // �ܸ߶�����������
-        .MinSize(200, 400)
-        .FloatingSize(280, 700)
-        .Gripper(true)
-        .PaneBorder(false)
+        .Gripper(false)
+        .Fixed()
+        .PaneBorder(false) // 移除 AUI 管理的边框
+        .Movable(false)    // 固定位置，防止用户拖动导致 UI 错位
     );
 
+    m_auiMgr.AddPane(sideBar, wxAuiPaneInfo()
+        .Name("sideNav")
+        .Left()
+        .Layer(10)               // 高 Layer 值保证它在最左侧“长条”显示
+        .CaptionVisible(false)
+        .CloseButton(false)
+        .PinButton(false)
+        .Gripper(false)
+        .PaneBorder(false)       // 尝试使用 PaneBorder
+        .Fixed()
+        .MinSize(FromDIP(45), -1)
+        .BestSize(FromDIP(45), -1));
 
-    /* һ�����ύ */
+    m_auiMgr.AddPane(leftSideNotebook, wxAuiPaneInfo()
+        .Name("left_sidebar").Caption("Project Manager").Left().Layer(9)
+        .BestSize(leftW, -1)
+        .MinSize(FromDIP(100), -1)
+        .FloatingSize(leftW, 600) // 诱导 AUI 记录这个宽度
+        .PaneBorder(false)
+        .Floatable(false)
+        .CaptionVisible(true).CloseButton(false).MaximizeButton(false));
+
+    m_auiMgr.AddPane(rightNotebook, wxAuiPaneInfo()
+        .Name("right_sidebar").Caption("Property").Right().Layer(8)
+        .BestSize(rightW, -1)
+        .MinSize(FromDIP(100), -1)
+        .FloatingSize(rightW, 600)
+        .MaximizeButton(true)
+        .CloseButton(false));
+
+    m_auiMgr.AddPane(bottomNotebook, wxAuiPaneInfo()
+        .Name("bottom_tabs").Caption("Console").Bottom().Layer(8)
+        .BestSize(-1, bottomH)
+        .MinSize(-1, FromDIP(80))
+        .FloatingSize(800, bottomH)
+        .MaximizeButton(true)
+        .CloseButton(false));
+
+    m_auiMgr.AddPane(m_canvas, wxAuiPaneInfo().Name("canvas").CenterPane());
+
+    // --- 4. 暴力修正方案：手动干预 Sash 位置 ---
     m_auiMgr.Update();
 
+    // 如果 Update 后还是没变，这是因为 AUI 的内部状态已经锁定。
+    // 我们尝试手动修改 PaneInfo 里的 dock_size 并再次强制 Update。
+    m_auiMgr.GetPane("left_sidebar").BestSize(leftW, -1);
+    m_auiMgr.GetPane("right_sidebar").BestSize(rightW, -1);
+    m_auiMgr.GetPane("bottom_tabs").BestSize(-1, bottomH);
+
+    m_auiMgr.Update();
+
+   
 
 
-    // 加载项目，分析得到SigTree
+    m_auiMgr.SetFlags(m_auiMgr.GetFlags() |
+        wxAUI_MGR_ALLOW_ACTIVE_PANE |
+        wxAUI_MGR_ALLOW_FLOATING |    // 允许浮动
+        wxAUI_MGR_LIVE_RESIZE);       // 实时调整大小，体验更好
+    ModernDockArt* mda = new ModernDockArt();
+    m_auiMgr.SetArtProvider(mda);
+    mda->UpdateMetrics(this);
+    this->Bind(wxEVT_DPI_CHANGED, [this](wxDPIChangedEvent& evt) {
+        ModernDockArt* art = static_cast<ModernDockArt*>(m_auiMgr.GetArtProvider());
+        art->UpdateMetrics(this);
+        m_auiMgr.Update();
+        evt.Skip();
+        });
 
-
-
+    m_auiMgr.Update();
 
     // ���ĳ���֪ͨ
     UndoNotifier::Subscribe([this](const wxString& name, bool canUndo) {
         this->OnUndoStackChanged();
         });
 
-    // 创建属性面板后，显示默认内容
-    m_propPanel = new PropertyPanel(sidePanel);
-    sideSizer->Add(m_propPanel, 1, wxEXPAND);
 
-    // 显示默认属性
-    m_propPanel->ShowElement("Select Tool");
 }
 
 MainFrame::~MainFrame()
@@ -217,6 +381,45 @@ bool MirrorDirectory(const wxString& source, const wxString& dest) {
 }
 
 
+
+void DumpTree(TSNode node, const wxString& src, int indent) {
+    wxString line;
+
+    line << "|-";
+    for (int i = 0; i < indent; ++i)
+        line << "-";
+
+    line << "{" << indent << "L}" << ts_node_type(node);
+
+    if (ts_node_is_named(node))
+        line << " [named]";
+
+    if (ts_node_is_missing(node)) line << " [missing]";
+    if (ts_node_has_error(node)) line << " [has error]";
+    if (ts_node_is_error(node)) line << " [error]";
+
+
+    line << "  (" << ts_node_start_byte(node)
+        << "," << ts_node_end_byte(node) << ")";
+
+    line << "  text=\""
+        << src.substr(ts_node_start_byte(node),
+            ts_node_end_byte(node) - ts_node_start_byte(node))
+        << "\n";
+
+    wxLogDebug("%s", line);
+    //OutputDebugStringA(line);
+
+    uint32_t n = ts_node_child_count(node);
+    for (uint32_t i = 0; i < n; ++i)
+        DumpTree(ts_node_child(node, i), src, indent + 1);
+}
+
+
+#include "VerilogStructuring.h"
+#include <tree_sitter/api.h>
+extern "C" TSLanguage* tree_sitter_verilog();
+
 //ֻ�Ǵ�һ���´��ڣ���������д������κθı�
 void MainFrame::DoFileOpenProject() {
     wxDirDialog dlg(this, "Open Project Directory", "",
@@ -224,8 +427,97 @@ void MainFrame::DoFileOpenProject() {
 
     if (dlg.ShowModal() == wxID_OK) {
         wxString path = dlg.GetPath();
+
+        wxProgressDialog progress("Loading Project", "Initializing...",
+            100, this,
+            wxPD_APP_MODAL | wxPD_AUTO_HIDE | wxPD_SMOOTH);
+
+
         m_projectTreePanel->LoadProject(path);
         m_currentProjectPath = path;
+
+        sigTree->LoadProject(path.ToStdString());
+
+
+        wxString fullPath = path + wxFileName::GetPathSeparator() + "sigflow.project";
+        wxFile file(fullPath);
+        wxString content;
+        file.ReadAll(&content);
+        std::string utf8Content = content.ToUTF8().data();
+
+        Json::Value root;
+        Json::CharReaderBuilder builder;
+        std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
+        std::string errs;
+
+
+        if (reader->parse(utf8Content.c_str(), utf8Content.c_str() + utf8Content.size(), &root, &errs)) {
+            if (root["paths"].isMember("source_files")) {
+                auto& sourceFiles = root["paths"]["source_files"];
+                int totalFiles = sourceFiles.size();
+                progress.SetRange(totalFiles + 2); // 文件数 + 解析JSON(1) + 镜像(1)
+
+                int currentStep = 0;
+
+                for (const auto& file : root["paths"]["source_files"]) {
+
+                    currentStep++;
+                    wxString fileName = file.asString();
+
+                    // --- 2. 更新进度条文字 ---
+                    progress.Update(currentStep, "Parsing: " + fileName);
+
+                    // 1. 获取文件的绝对路径
+                    wxFileName fn1(file.asString());
+                    fn1.MakeAbsolute(path);
+                    wxString wxAbsPath = fn1.GetFullPath();
+                    std::string absPath1 = wxAbsPath.ToStdString();
+
+                    // 2. 读取该文件的实际内容 (关键步骤)
+                    wxFile vFile(wxAbsPath, wxFile::read);
+                    if (!vFile.IsOpened()) continue; // 如果文件打不开，跳过
+
+                    wxString fileContent;
+                    vFile.ReadAll(&fileContent);
+                    vFile.Close();
+
+                    std::string stdCode = fileContent.ToStdString();
+
+                    // 3. 为当前文件构造 Tree-sitter 资源
+                    TSParser* parser = ts_parser_new();
+                    ts_parser_set_language(parser, tree_sitter_verilog());
+
+                    // 解析当前读取到的 stdCode，而不是全局的 sp.stable_code
+                    TSTree* new_tree = ts_parser_parse_string(parser, nullptr, stdCode.c_str(), stdCode.length());
+                    
+                    if (new_tree) {
+                        TSNode rootNode = ts_tree_root_node(new_tree);
+                        // 调试打印
+                        // DumpTree(rootNode, stdCode, 0); 
+
+                        TSTreeCursor cursor = ts_tree_cursor_new(rootNode);
+
+                        // 4. 更新数据模型
+                        // 注意：这里传入的是当前文件的路径 absPath1 和当前文件的代码 stdCode
+                        DumpTree(rootNode, stdCode, 0);
+                        sigTree->UpdateTreeFromTS(&cursor, sigTree->root, absPath1, stdCode);
+
+                        // 清理 TS 局部资源
+                        ts_tree_cursor_delete(&cursor);
+                        ts_tree_delete(new_tree);
+                    }
+                    ts_parser_delete(parser);
+                }
+
+                // 5. 所有文件解析完成后，一次性刷新 UI
+                // 不要在 for 循环内部 Refresh，否则文件多了会非常卡
+                
+                sigTree->LinkInstsWithDefs();
+                sigTree->PrintTree();
+            }
+        }
+
+        progress.Update(progress.GetRange() - 1, "Creating Workspace Mirror...");
 
         wxString workspacePath = m_currentProjectPath + wxFileName::GetPathSeparator() +
             ".sigflow" + wxFileName::GetPathSeparator() + "workspace";
@@ -244,6 +536,10 @@ void MainFrame::DoFileOpenProject() {
             m_projectTreePanel->LoadProject(m_currentProjectPath);
             RefreshTitle();
         }
+
+        progress.Update(progress.GetRange(), "Load Complete!");
+        wxCommandEvent evt(EVT_SFTREE_CHANGED);
+        OnSFTreeChanged(evt);
     }
 }
 
@@ -969,71 +1265,6 @@ void MainFrame::DoHelpAbout()
         wxT("About"), wxOK | wxICON_INFORMATION, this);
 }
 
-void MainFrame::AddToolBarsToAuiManager() {
-    if (!m_toolBars) return;
-
-    wxToolBar* toolBar1 = m_toolBars->toolBar1;
-    wxToolBar* toolBar2 = m_toolBars->toolBar2;
-    //wxToolBar* toolBar3 = m_toolBars->toolBar3;
-
-    // ���ù�������С
-    toolBar1->SetSizeHints(-1, 28);
-    toolBar2->SetSizeHints(-1, 28);
-    //toolBar3->SetSizeHints(-1, 28);
-
-    // ȷ����������ʵ��
-    toolBar1->Realize();
-    toolBar2->Realize();
-    //toolBar3->Realize();
-
-    // ʹ��AUI���������ӹ�����
-    m_auiMgr.AddPane(toolBar1, wxAuiPaneInfo()
-        .Name("Toolbar1")
-        .Caption("Tools")
-        .ToolbarPane()
-        .Top()
-        .Row(0)
-        .LeftDockable(false)
-        .RightDockable(false)
-        .BottomDockable(false)
-        .Gripper(false)
-        .CloseButton(false)
-        .PaneBorder(false)
-        .Resizable(false)
-        .BestSize(10000, 28));
-
-    m_auiMgr.AddPane(toolBar2, wxAuiPaneInfo()
-        .Name("Toolbar2")
-        .Caption("Navigation")
-        .ToolbarPane()
-        .Top()
-        .Row(1)  // �ڶ���
-        .LeftDockable(false)
-        .RightDockable(false)
-        .BottomDockable(false)
-        .Gripper(false)
-        .CloseButton(false)
-        .PaneBorder(false)
-        .Resizable(false)
-        .BestSize(10000, 28));
-
-    //m_auiMgr.AddPane(toolBar3, wxAuiPaneInfo()
-    //    .Name("Toolbar3")
-    //    .Caption("Actions")
-    //    .ToolbarPane()
-    //    .Top()
-    //    .Row(2)  // ������
-    //    .LeftDockable(false)
-    //    .RightDockable(false)
-    //    .BottomDockable(false)
-    //    .Gripper(false)
-    //    .CloseButton(false)
-    //    .PaneBorder(false)
-    //    .Resizable(false)
-    //    .BestSize(10000, 28));
-    //m_toolBars->ChoosePageOne_toolBar1(-1); // ��ʼ��������״̬
-    //m_toolBars->ChoosePageOne_toolBar3(-1); // ��ʼ��������״̬
-}
 
 void MainFrame::OnOpenFileFromTree(wxCommandEvent& evt) {
     wxString path = evt.GetString();
@@ -1120,9 +1351,6 @@ wxString MainFrame::GetWorkspaceCopyPath(const wxString& m_currentFilePath) {
 
 
 
-
-
-
 void MainFrame::OnRefreshTimer(wxTimerEvent& event) {
     if (m_verilogEditor->GetModify() && snap_version != m_verilogEditor->GetSnapVersion()) {
         snap_version = m_verilogEditor->GetSnapVersion();
@@ -1135,6 +1363,7 @@ void MainFrame::OnRefreshTimer(wxTimerEvent& event) {
 
         // 1. 获取最新代码内容
         wxString currentCode = m_verilogEditor->GetText();
+        StructeredPackage sp = VerilogStructuring(currentCode.ToStdString());
 
         // 2. [优化] 只有内容真正改变才推送，避免仅光标移动触发分析
         // if (currentCode == m_lastCode) return; 
@@ -1144,9 +1373,10 @@ void MainFrame::OnRefreshTimer(wxTimerEvent& event) {
         wxFile file(cachePath, wxFile::write);
         // 4. 保存快照：这里建议用 WriteStringToFile 避免干扰 STC 的撤销栈
         if (file.IsOpened()) {
-            if (file.Write(currentCode)) {
+            if (file.Write(sp.stable_code)) {
                 file.Close();
-                m_analysisCenter->PushTask(m_workspacePath, cachePath);
+
+                // 处理WorkSpace文件
             }
         }
     }
@@ -1176,3 +1406,21 @@ void MainFrame::RefreshTitle() {
     }
     this->SetTitle(title);
 }
+
+
+void MainFrame::OnSFNodeActivated(wxCommandEvent& event) {
+    SigTreeNode* node = static_cast<SigTreeNode*>(event.GetClientData());
+    if (node && m_sfnPropertyPanel) {
+        m_sfnPropertyPanel->LoadNode(node);
+    }
+}
+void MainFrame:: OnSFTreeChanged(wxCommandEvent& event) {
+    m_sigFlowTreePanel->Fresh();
+    m_sfnPropertyPanel->Fresh();
+}
+void MainFrame::PropertyLoadNode(SigTreeNode* node) {
+    m_sfnPropertyPanel->LoadNode(node);
+}
+
+
+

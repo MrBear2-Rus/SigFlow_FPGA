@@ -30,7 +30,7 @@ CanvasPanel::CanvasPanel(MainFrame* parent, size_t size_x, size_t size_y)
         wxFULL_REPAINT_ON_RESIZE | wxBORDER_NONE),
     m_mainFrame(parent),
     m_size{wxSize(size_x,size_y)},
-    m_offset(0, 0), m_scale(1.0f), m_grid(20),
+    m_offset(0, 0), m_scale(1.0f), m_grid(FromDIP(20)),
     m_hoverInfo{}, m_hasFocus(false),
     m_hiddenTextCtrl(nullptr),
     m_isUsingHiddenCtrl(false), m_currentEditingTextIndex(-1) {
@@ -229,30 +229,28 @@ void CanvasPanel::ReclaimElement(CanvasElement element, int index) {
 }
 
 void CanvasPanel::OnPaint(wxPaintEvent&) {
+    //return;
     if (isSim) Simulate();
     LayoutScrollbars();
     wxAutoBufferedPaintDC dc(this);
     dc.Clear();
-    
-    wxGCDC* gcdc = nullptr;
-    wxGraphicsContext* gc = nullptr;
 
-    if (wxGraphicsRenderer::GetDefaultRenderer()) {
-        gcdc = new wxGCDC(dc);
-        gc = gcdc->GetGraphicsContext();
-    }
+    wxRect updateRect = GetUpdateRegion().GetBox();
+
+    std::unique_ptr<wxGraphicsContext> gc(wxGraphicsRenderer::GetDefaultRenderer()->CreateContext(dc));
+
 
     if (gc) {
         // 启用高质量抗锯齿
-        gc->SetAntialiasMode(wxANTIALIAS_DEFAULT);
+        //gc->SetAntialiasMode(wxANTIALIAS_DEFAULT);
 
         // 应用缩放和偏移（逻辑坐标 -> 设备坐标）
         gc->Scale(m_scale, m_scale);
         gc->Translate(m_offset.x / m_scale, m_offset.y / m_scale);
 
         // 高DPI适配：获取设备缩放因子
-        double dpiScale = GetContentScaleFactor();
-        gc->Scale(dpiScale, dpiScale);
+        //double dpiScale = GetContentScaleFactor();
+        //gc->Scale(dpiScale, dpiScale);
 
         // 绘制网格（逻辑坐标，线宽随缩放自适应）
         const wxColour gridColor(240, 240, 240);
@@ -272,17 +270,17 @@ void CanvasPanel::OnPaint(wxPaintEvent&) {
 
         // 绘制导线（矢量线段）
         gc->SetPen(wxPen(*wxBLACK, 1.5 / m_scale)); // 导线宽度自适应
-        for (const auto& w : m_wires) w.Draw(*gcdc);
-        if (m_toolStateMachine->GetWireState() == WireToolState::WIRE_DRAWING) m_previewWire.Draw(*gcdc);
+        for (const auto& w : m_wires) w.Draw(gc.get());
+        if (m_toolStateMachine->GetWireState() == WireToolState::WIRE_DRAWING) m_previewWire.Draw(gc.get());
 
         // 绘制预览元素
         if (m_toolStateMachine->GetComponentState() == ComponentToolState::COMPONENT_PREVIEW) {
-            m_previewElement.Draw(*gcdc);
+            m_previewElement.Draw(gc.get());
         }
 
         // 绘制元素（使用矢量绘制）
         for (size_t i = 0; i < m_elements.size(); ++i) {
-            m_elements[i].Draw(*gcdc); // 确保元素内部使用gc绘制
+            m_elements[i].Draw(gc.get()); // 确保元素内部使用gc绘制
         }
 
         // 悬停引脚高亮（绿色空心圆）
@@ -316,7 +314,7 @@ void CanvasPanel::OnPaint(wxPaintEvent&) {
 
         // 绘制文本元素 - 修改为使用 unique_ptr
         for (auto& textElem : m_textElements) {
-            textElem.Draw(*gcdc);
+            textElem.Draw(gc.get());
         }
 
         // 绘制选中边框
@@ -350,7 +348,7 @@ void CanvasPanel::OnPaint(wxPaintEvent&) {
                 gc->DrawRectangle(b.x - 7, b.y - 7, b.width + 13, b.height + 13);
             }
             for (size_t i = 0; i < m_selWireIdx.size(); i++) {
-                m_wires[m_selWireIdx[i]].DrawColor(*gcdc);
+                m_wires[m_selWireIdx[i]].DrawColor(gc.get());
 
             }
         }
@@ -369,68 +367,7 @@ void CanvasPanel::OnPaint(wxPaintEvent&) {
             gc->SetBrush(wxColor(128, 128, 128, 32));
             gc->DrawRectangle(eraRect.x, eraRect.y, eraRect.width, eraRect.height);
         }
-        gc->DrawText("sig\nflow", 20, 20);
-        wxFont info(12, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD);
-        wxGraphicsFont font = gc->CreateFont(info, *wxBLACK);
-        gc->SetFont(font);
-        gc->DrawText("sigflow", 20, 40);
-        wxFont infoy(12, wxFONTFAMILY_TELETYPE, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD);
-        wxGraphicsFont fonty = gc->CreateFont(infoy, *wxBLACK);
-        gc->SetFont(fonty);
-        gc->DrawText("sigflow", 20, 60);
-        wxFont infox(12, wxFONTFAMILY_ROMAN, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD);
-        wxGraphicsFont fontx = gc->CreateFont(infox, *wxBLACK);
-        gc->SetFont(fontx);
-        gc->DrawText("sigflow", 20, 80);
 
-        delete gcdc; // 释放资源
-    }
-    else {
-        // 如果无法获取 GraphicsContext，回退到原始绘制方法
-        // 应用缩放和偏移
-        dc.SetUserScale(m_scale, m_scale);
-        dc.SetDeviceOrigin(m_offset.x, m_offset.y);  // 设置设备原点偏移
-
-        // 1. 绘制网格（网格大小随缩放自适应）
-        const wxColour c(240, 240, 240);
-        dc.SetPen(wxPen(c, 1));
-        // 计算可见区域的网格范围（基于缩放后的画布大小）
-        wxSize sz = GetClientSize();
-        int maxX = static_cast<int>(sz.x);  // 转换为画布坐标
-        int maxY = static_cast<int>(sz.y);
-        for (int x = 0; x < maxX; x += m_grid)
-            dc.DrawLine(x, 0, x, maxY);
-        for (int y = 0; y < maxY; y += m_grid)
-            dc.DrawLine(0, y, maxX, y);
-
-        // 绘制预览元素
-        if (m_toolStateMachine->GetComponentState() == ComponentToolState::COMPONENT_PREVIEW) {
-            m_previewElement.Draw(dc);
-        }
-
-        // 3. 绘制导线（导线坐标基于画布，缩放由DC处理）
-        for (const auto& w : m_wires) w.Draw(dc);
-        if (m_toolStateMachine->GetWireState() == WireToolState::WIRE_DRAWING) m_CanvasEventHandler->m_tempWire.Draw(dc);
-
-        // 4. 悬停引脚：绿色空心圆
-        if (m_hoverInfo.pinIndex != -1) {
-            dc.SetBrush(*wxTRANSPARENT_BRUSH);              // 不填充 → 空心
-            dc.SetPen(wxPen(wxColour(0, 255, 0), 1));       // 绿色边框，线宽 2
-            dc.DrawCircle(m_hoverInfo.pinPos, 3);                // 半径 3 像素
-        }
-
-        if (m_hoverInfo.cellIndex != -1) {
-            /*MyLog("DRAW GREEN CELL: wire=%zu cell=%zu  pos=(%d,%d)\n",
-                m_hoverCellWire, m_hoverCellIdx,
-                m_hoverCellPos.x, m_hoverCellPos.y);*/
-            dc.SetBrush(*wxTRANSPARENT_BRUSH);
-            dc.SetPen(wxPen(wxColour(0, 255, 0), 1));
-            dc.DrawCircle(m_hoverInfo.cellPos, 3);
-        }
-        // 5. 绘制文本元素 - 修改为使用 unique_ptr
-        for (auto& textElem : m_textElements) {
-            textElem.Draw(dc);
-        }
     }
 }
 
@@ -555,7 +492,7 @@ void CanvasPanel::DeleteSelected() {
 }
 
 void CanvasPanel::OnRightDown(wxMouseEvent& evt) {
-    m_HandyToolKit->SetPosition(evt.GetPosition() + wxPoint(240, 124));
+    m_HandyToolKit->SetPosition(ClientToScreen(evt.GetPosition()) + FromDIP(wxPoint(24, 0)));
     m_HandyToolKit->Show();
     m_HandyToolKit->SetFocus();
 }
@@ -625,7 +562,7 @@ void CanvasPanel::UpdateHoverInfo(const wxPoint& screenPos) {
     else m_hoverInfo.elementName = "";
 
     m_hoverInfo.textIndex = textIndex;
-    Refresh(); // 触发重绘以显示悬停效果
+    // Refresh(); // 触发重绘以显示悬停效果
     wxString hover = "";
     if (m_hoverInfo.IsOverPin()) {
         hover = (wxString::Format("Hover on: %sPin[%d]",

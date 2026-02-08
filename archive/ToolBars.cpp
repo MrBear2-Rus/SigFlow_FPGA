@@ -1,4 +1,4 @@
-#include <wx/wx.h>
+﻿#include <wx/wx.h>
 #include <wx/artprov.h>
 #include <wx/toolbar.h>	
 #include "ToolBars.h"
