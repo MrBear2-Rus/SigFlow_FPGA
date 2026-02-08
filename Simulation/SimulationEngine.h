@@ -76,6 +76,9 @@ private:
 
     // 创建目录（如果不存在）
     bool CreateDirectoryRecursive(const wxString& path);
+    
+    // 创建 sc_time_stub.cpp 文件
+    void CreateScTimeStub(const wxString& path);
 
     // 执行系统命令并捕获输出
     int ExecuteCommand(const wxString& cmd, wxString& output, wxString& error);

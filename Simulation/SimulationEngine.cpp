@@ -6,7 +6,7 @@
 #include <wx/dir.h>
 #include <filesystem>
 #include <fstream>
-#include <windows.h>  // For OutputDebugStringA
+#include <windows.h>  // For Windows API
 
 namespace fs = std::filesystem;
 
@@ -358,9 +358,39 @@ bool SimulationEngine::RunVerilator(const wxString& topModule,
     return true;
 }
 
+void SimulationEngine::CreateScTimeStub(const wxString& path)
+{
+    OutputDebugStringA("Creating sc_time_stub.cpp at: ");
+    OutputDebugStringA(path.ToUTF8());
+    OutputDebugStringA("\n");
+    
+    const char* stubContent = 
+        "// Stub for sc_time_stamp function required by Verilator\n"
+        "#include <cstdint>\n"
+        "\n"
+        "static uint64_t g_sim_time = 0;\n"
+        "\n"
+        "extern \"C\" double sc_time_stamp() {\n"
+        "    return static_cast<double>(g_sim_time);\n"
+        "}\n"
+        "\n"
+        "void advance_sim_time(uint64_t delta) {\n"
+        "    g_sim_time += delta;\n"
+        "}\n";
+    
+    wxFile file(path, wxFile::write);
+    if (file.IsOpened()) {
+        file.Write(wxString::FromUTF8(stubContent));
+        file.Close();
+        OutputDebugStringA("sc_time_stub.cpp created successfully\n");
+    } else {
+        OutputDebugStringA("ERROR: Failed to create sc_time_stub.cpp\n");
+    }
+}
+
 bool SimulationEngine::CompileToDll(const wxString& topModule, wxString& errorMsg)
 {
-    OutputDebugStringA("CompileToDll entered\n");
+    OutputDebugStringA("=== CompileToDll entered ===\n");
     ReportProgress(60, "正在编译DLL...");
 
     wxString cacheDir = GetCacheDirectory(topModule);
@@ -383,80 +413,131 @@ bool SimulationEngine::CompileToDll(const wxString& topModule, wxString& errorMs
     OutputDebugStringA("Obj dir: ");
     OutputDebugStringA(objDir.ToUTF8());
     OutputDebugStringA("\n");
-    
-    // 检查必要的文件是否存在
-    OutputDebugStringA("Checking required files...\n");
-    const char* requiredFiles[] = {
-        "C:\\msys64\\mingw64\\share\\verilator\\include\\verilated.cpp",
-        "C:\\msys64\\mingw64\\share\\verilator\\include\\verilated_vcd_c.cpp",
-        "C:\\msys64\\mingw64\\share\\verilator\\include\\verilated_threads.cpp"
-    };
-    for (const auto& file : requiredFiles) {
-        if (!wxFileExists(file)) {
-            OutputDebugStringA("ERROR: ");
-            OutputDebugStringA(file);
-            OutputDebugStringA(" not found\n");
-            errorMsg = wxString::Format(wxT("找不到文件: %s"), wxString(file));
-            return false;
-        }
-        OutputDebugStringA("Found: ");
-        OutputDebugStringA(file);
-        OutputDebugStringA("\n");
-    }
-    
-    OutputDebugStringA("Building compile command...\n");
-    
-    // 构建编译命令
-    wxString cmd;
-    
-    // 如果找到了vcvars，使用它设置环境
-    wxString vcvarsPath = FindVCVarsPath();
-    if (!vcvarsPath.IsEmpty()) {
-        cmd = "\"" + vcvarsPath + "\" && ";
-    }
-    
-    // 使用 cl.exe 编译
-    cmd += "cl /LD /O2 /MD /EHsc /W3 ";
-    cmd += "/Fe\"" + dllPath + "\" ";
-    
-    // 添加生成的 C++ 文件
-    cmd += "\"" + objDir + "\\*.cpp\" ";
-    
-    // 添加 Verilator 运行时文件
-    cmd += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated.cpp\" ";
-    cmd += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated_vcd_c.cpp\" ";
-    cmd += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated_threads.cpp\" ";
-    
-    // 添加 include 路径
-    cmd += "/I\"C:\\msys64\\mingw64\\share\\verilator\\include\" ";
-    cmd += "/I\"C:\\msys64\\mingw64\\share\\verilator\\include\\vltstd\" ";
-    cmd += "/I\"" + objDir + "\" ";
-    
-    // 添加 Windows 库
-    cmd += "/link /DLL /MACHINE:X64 ws2_32.lib ";
-    
-    OutputDebugStringA("Compile command built\n");
-    OutputDebugStringA("Command: ");
-    OutputDebugStringA(cmd.ToUTF8());
+    OutputDebugStringA("DLL path: ");
+    OutputDebugStringA(dllPath.ToUTF8());
     OutputDebugStringA("\n");
     
-    wxString output, error;
-    OutputDebugStringA("Executing compile command...\n");
-    int ret = ExecuteCommand(cmd, output, error);
-    OutputDebugStringA(("Compile returned: " + std::to_string(ret) + "\n").c_str());
+    // 确保项目根目录是绝对路径
+    wxFileName projectRootFn(m_projectRoot);
+    projectRootFn.MakeAbsolute();
+    wxString projectRoot = projectRootFn.GetFullPath();
     
-    // 输出前几行错误信息用于调试
-    if (!error.IsEmpty()) {
-        OutputDebugStringA("Error output (first 500 chars):\n");
-        wxString errPrefix = error.Left(500);
-        OutputDebugStringA(errPrefix.ToUTF8());
+    OutputDebugStringA("Project root: ");
+    OutputDebugStringA(projectRoot.ToUTF8());
+    OutputDebugStringA("\n");
+    
+    // 查找 Visual Studio
+    OutputDebugStringA("Finding vcvars...\n");
+    wxString vcvarsPath = FindVCVarsPath();
+    if (vcvarsPath.IsEmpty()) {
+        OutputDebugStringA("ERROR: Visual Studio not found\n");
+        errorMsg = wxT("找不到 Visual Studio，请安装 VS 2022");
+        return false;
+    }
+    OutputDebugStringA("Found vcvars: ");
+    OutputDebugStringA(vcvarsPath.ToUTF8());
+    OutputDebugStringA("\n");
+    
+    // 创建 sc_time_stub.cpp 如果不存在
+    wxString stubPath = projectRoot + "\\Simulation\\sc_time_stub.cpp";
+    OutputDebugStringA("Stub path: ");
+    OutputDebugStringA(stubPath.ToUTF8());
+    OutputDebugStringA("\n");
+    
+    if (!wxFileExists(stubPath)) {
+        OutputDebugStringA("Stub file not found, creating...\n");
+        CreateScTimeStub(stubPath);
+    } else {
+        OutputDebugStringA("Stub file already exists\n");
+    }
+    
+    // 检查 stub 文件是否真的存在
+    if (!wxFileExists(stubPath)) {
+        OutputDebugStringA("ERROR: Failed to create stub file\n");
+        errorMsg = wxT("无法创建 sc_time_stub.cpp");
+        return false;
+    }
+    
+    // 创建临时批处理文件来执行编译
+    OutputDebugStringA("Creating temp batch file...\n");
+    wxString batchPath = cacheDir + "\\compile_dll.bat";
+    {
+        wxFile batchFile(batchPath, wxFile::write);
+        if (!batchFile.IsOpened()) {
+            errorMsg = wxT("无法创建编译脚本");
+            return false;
+        }
+        
+        wxString batchContent;
+        batchContent += "@echo off\n";
+        batchContent += "chcp 65001 >nul\n";
+        batchContent += "call \"" + vcvarsPath + "\"\n";
+        batchContent += "if %errorLevel% neq 0 exit /b %errorLevel%\n";
+        batchContent += "cl /LD /O2 /MD /EHsc /W3 ";
+        batchContent += "/Fe\"" + dllPath + "\" ";
+        batchContent += "/Fo\"" + objDir + "\\\" ";
+        batchContent += "\"" + objDir + "\\*.cpp\" ";
+        batchContent += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated.cpp\" ";
+        batchContent += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated_vcd_c.cpp\" ";
+        batchContent += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated_threads.cpp\" ";
+        batchContent += "\"" + stubPath + "\" ";
+        batchContent += "/I\"C:\\msys64\\mingw64\\share\\verilator\\include\" ";
+        batchContent += "/I\"C:\\msys64\\mingw64\\share\\verilator\\include\\vltstd\" ";
+        batchContent += "/I\"" + objDir + "\" ";
+        batchContent += "/link /DLL /MACHINE:X64 ws2_32.lib\n";
+        batchContent += "exit /b %errorLevel%\n";
+        
+        batchFile.Write(batchContent);
+        batchFile.Close();
+    }
+    
+    // 检查批处理文件内容
+    {
+        wxFile checkFile(batchPath, wxFile::read);
+        if (checkFile.IsOpened()) {
+            wxString content;
+            checkFile.ReadAll(&content);
+            checkFile.Close();
+            OutputDebugStringA("Batch content (first 500 chars):\n");
+            OutputDebugStringA(content.Left(500).ToUTF8());
+            OutputDebugStringA("\n--- end ---\n");
+        }
+    }
+    
+    wxString cmd = "cmd /C \"" + batchPath + "\"";
+    
+    OutputDebugStringA("Batch file: ");
+    OutputDebugStringA(batchPath.ToUTF8());
+    OutputDebugStringA("\n");
+    OutputDebugStringA("Executing batch file...\n");
+    wxString output, error;
+    int ret = ExecuteCommand(cmd, output, error);
+    
+    // 输出错误信息以便调试
+    if (ret != 0) {
+        OutputDebugStringA("Batch file failed. Error output:\n");
+        if (!error.IsEmpty()) {
+            wxString errFirst = error.Left(1000);
+            OutputDebugStringA(errFirst.ToUTF8());
+        }
+        OutputDebugStringA("\n\nStandard output:\n");
+        if (!output.IsEmpty()) {
+            wxString outFirst = output.Left(1000);
+            OutputDebugStringA(outFirst.ToUTF8());
+        }
         OutputDebugStringA("\n");
     }
+    
+    // 清理临时批处理文件
+    wxRemoveFile(batchPath);
+    OutputDebugStringA(("Compile returned: " + std::to_string(ret) + "\n").c_str());
     
     if (ret != 0) {
         OutputDebugStringA("Compile failed\n");
-        errorMsg = wxT("DLL编译失败 (返回值: ") + wxString::Format(wxT("%d"), ret);
-        errorMsg += wxT(")\n\n可能原因:\n1. 缺少Verilator运行时文件\n2. 缺少Windows SDK\n3. 编译器环境不完整");
+        errorMsg = wxString::Format(wxT("DLL编译失败 (错误码: %d)"), ret);
+        if (!error.IsEmpty()) {
+            errorMsg += wxT("\n\n错误信息:\n") + error.Left(500);
+        }
         return false;
     }
     

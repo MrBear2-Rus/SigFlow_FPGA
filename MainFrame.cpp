@@ -1282,12 +1282,13 @@ void MainFrame::DoSimCompile()
     } else {
         // 简化错误显示，避免乱码
         wxString simpleError = wxT("编译失败\n\n");
-        if (result.errorMessage.Contains(wxT("Verilator"))) {
+        // 检查错误阶段（Verilator阶段或DLL阶段）
+        if (result.errorMessage.Contains(wxT("Verilator执行失败"))) {
             simpleError += wxT("Verilator 执行失败，请检查代码语法");
-        } else if (result.errorMessage.Contains(wxT("DLL"))) {
-            simpleError += wxT("DLL 编译失败\n请确保在 Visual Studio 环境中运行");
+        } else if (result.errorMessage.Contains(wxT("DLL编译失败"))) {
+            simpleError += wxT("DLL 编译失败\n建议：\n1. 双击运行 Simulation\\compile_dll_vs.bat 手动编译\n2. 确保安装了 Visual Studio 2022");
         } else {
-            simpleError += wxT("请查看输出窗口获取详细信息");
+            simpleError += wxT("未知错误，请查看输出窗口");
         }
         wxMessageBox(simpleError, wxT("编译失败"), wxOK | wxICON_ERROR);
     }
