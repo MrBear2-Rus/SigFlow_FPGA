@@ -98,7 +98,7 @@ void TerminalCtrl::SubmitCurrentLine()
 //输出 & 错误打印
 void TerminalCtrl::PrintOutput(const wxString& text)
 {
-    AppendText(text)  
+    AppendText(text);
     if (!text.EndsWith("\n"))
         AppendText("\n");
 }
