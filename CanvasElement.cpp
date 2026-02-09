@@ -1,4 +1,4 @@
-#ifdef Polygon
+﻿#ifdef Polygon
 #undef Polygon
 #endif
 
@@ -10,6 +10,7 @@
 #include <limits>
 #include <wx/dcgraph.h>
 #include <wx/graphics.h>
+#include <sstream>
 
 std::vector<wxPoint> CanvasElement::CalculateBezier(const Point& p0, const Point& p1, const Point& p2, int segments) const
 {
@@ -46,20 +47,15 @@ CanvasElement::CanvasElement(const wxString& name, const wxPoint& pos)
     }
 }
 
-void CanvasElement::Draw(wxDC& dc) const
+void CanvasElement::Draw(wxGraphicsContext* gc) const
 {
-    // 优先使用矢量绘制
-    if (auto gcdc = dynamic_cast<wxGCDC*>(&dc)) {
-        DrawVector(*gcdc);
-    }
-    else {
-        DrawFallback(dc); // 兼容回退
-    }
+
+    DrawVector(gc);
+
 }
 
-void CanvasElement::DrawVector(wxGCDC& gcdc) const
+void CanvasElement::DrawVector(wxGraphicsContext* gc) const
 {
-    wxGraphicsContext* gc = gcdc.GetGraphicsContext();
     if (!gc) return;
 
     wxGraphicsMatrix origMatrix = gc->GetTransform();
@@ -244,7 +240,22 @@ void CanvasElement::DrawVector(wxGCDC& gcdc) const
             else if constexpr (std::is_same_v<T, Path>) {
                 gc->SetPen(wxPen(s.stroke, s.strokeWidth));
                 gc->SetBrush(s.fill ? wxBrush(s.stroke) : *wxTRANSPARENT_BRUSH);
-                DrawPathFallback(gcdc, s, [&](const Point& p) { return wxPoint(p.x, p.y); });
+
+                wxGraphicsPath gPath = gc->CreatePath();
+
+                // 如果你的 d 字符串符合 SVG 标准，且你不想引入复杂的解析器
+                // 这里演示如何从字符串构建路径（假设格式为简单指令）
+                // 如果你有现成的解析函数，请替换此处逻辑
+                std::stringstream ss(s.d);
+                char cmd;
+                double x, y;
+                while (ss >> cmd >> x >> y) {
+                    if (cmd == 'M' || cmd == 'm') gPath.MoveToPoint(x, y);
+                    else if (cmd == 'L' || cmd == 'l') gPath.AddLineToPoint(x, y);
+                }
+
+                if (s.fill) gPath.CloseSubpath();
+                gc->DrawPath(gPath);
             }
 
             }, shape);  // 确保 std::visit 的 lambda 正确闭合

@@ -13,12 +13,18 @@
 #include "SigTextEditor.h"
 #include "ProjectTreePanel.h"
 #include "SigTree.h"
+#include "SigFlowTreePanel.h"
+#include "SFNPropertyPanel.h"
 #include "Simulation/SimulationEngine.h"
 
+#include "TerminalCtrl.h"
 
 class ToolBars;
 class CanvasPanel;
 class HandyToolKit;
+
+wxDECLARE_EVENT(EVT_SFTREE_NODE_ACTIVATED, wxCommandEvent);
+wxDECLARE_EVENT(EVT_SFTREE_CHANGED, wxCommandEvent);
 
 class MainFrame : public wxFrame
 {
@@ -34,6 +40,9 @@ private:
     AsyncAnalysisCenter* m_analysisCenter; // 异步中心指针
     ProjectTreePanel* m_projectTreePanel;
     SigFlowTree* sigTree;
+    SigFlowTreePanel* m_sigFlowTreePanel;
+    SFNPropertyPanel* m_sfnPropertyPanel;
+    TerminalCtrl* m_terminalCtrl;
 
     void RefreshTitle();
     // 声明事件处理函数
@@ -132,9 +141,9 @@ public:
     void DoHelpLibraryRef();
     void DoHelpAbout();
 
-    // 工具栏
-    ToolBars* m_toolBars;
-    void AddToolBarsToAuiManager();
+    void OnSFNodeActivated(wxCommandEvent& event);
+    void OnSFTreeChanged(wxCommandEvent& event);
+    void PropertyLoadNode(SigTreeNode* node);
 
 private:
     wxAuiManager m_auiMgr;
@@ -160,3 +169,57 @@ public:
 
 // 事件表定义放在类外部
 // 注意：不要在类的声明内部定义事件表
+
+
+class ModernDockArt : public wxAuiDefaultDockArt {
+public:
+    ModernDockArt() {
+        // --- 静态属性：这些不随 DPI 改变 ---
+        SetMetric(wxAUI_DOCKART_GRADIENT_TYPE, wxAUI_GRADIENT_NONE);
+        SetMetric(wxAUI_DOCKART_PANE_BORDER_SIZE, 1);
+        SetMetric(wxAUI_DOCKART_GRIPPER_SIZE, 0); // 彻底干掉神人拖拽柄
+        SetMetric(wxAUI_DOCKART_SASH_SIZE, wxWindow::FromDIP(16, nullptr));
+
+
+        // --- 颜色属性：通常颜色不随 DPI 缩放 ---
+        SetColour(wxAUI_DOCKART_BACKGROUND_COLOUR, wxColour(255, 255, 255));
+        SetColour(wxAUI_DOCKART_SASH_COLOUR, wxColour(230, 230, 230));
+        SetColour(wxAUI_DOCKART_INACTIVE_CAPTION_COLOUR, wxColour(225, 230, 235));
+        SetColor(wxAUI_DOCKART_ACTIVE_CAPTION_COLOUR, wxColour(225, 230, 235));
+        SetColour(wxAUI_DOCKART_INACTIVE_CAPTION_TEXT_COLOUR, wxColour(120, 130, 140));
+        SetColour(wxAUI_DOCKART_ACTIVE_CAPTION_TEXT_COLOUR, wxColour(120, 130, 140));
+    }
+
+    // --- 动态属性：在 MainFrame 中调用这个函数 ---
+    void UpdateMetrics(wxWindow* parent) {
+        // 关键：根据传入的 parent 动态计算像素
+        SetMetric(wxAUI_DOCKART_SASH_SIZE, parent->FromDIP(2));
+
+        // 标题栏文字适配
+        wxFont captionFont = wxSystemSettings::GetFont(wxSYS_DEFAULT_GUI_FONT);
+        captionFont.SetFractionalPointSize(captionFont.GetFractionalPointSize() * 1.05);
+        SetFont(wxAUI_DOCKART_CAPTION_FONT, captionFont);
+    }
+};
+
+
+class MyCustomToolBarArt : public wxAuiDefaultToolBarArt {
+public:
+    void DrawButton(wxDC& dc, wxWindow* wnd, const wxAuiToolBarItem& item,
+        const wxRect& rect) override {
+        // 如果这个按钮被选中了 (Toggle 状态)
+        if (item.GetState() & wxAUI_BUTTON_STATE_CHECKED) {
+            // 1. 画你想要的背景，比如一个圆角矩形，或者干脆纯色
+            dc.SetPen(*wxTRANSPARENT_PEN);
+            dc.SetBrush(wxBrush(wxColour(255, 255, 255))); // 选中变白
+            dc.DrawRectangle(rect);
+
+            // 2. 甚至可以画一根侧边的“指示条”（像 VS Code 那样）
+            dc.SetBrush(wxBrush(wxColour(0, 120, 215))); // 蓝色指示条
+            dc.DrawRectangle(rect.x, rect.y + 2, 3, rect.height - 4);
+        }
+
+        // 最后调用基类画图标，或者你自己画图标
+        wxAuiDefaultToolBarArt::DrawButton(dc, wnd, item, rect);
+    }
+};

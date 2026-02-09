@@ -47,7 +47,7 @@ public:
     ~AsyncAnalysisCenter();
 
     // 生产者接口：由 UI 线程调用
-    void PushTask(const wxString& projectPath, const wxString& filePath);
+    void PushTask(const wxString& projectPath, const wxString& code);
 
 protected:
     // 消费者核心：后台线程循环
@@ -61,7 +61,7 @@ private:
 
     wxEvtHandler* m_parentHandler;  // 接收事件的 UI 窗口句柄
     std::string m_projectPath;     // 待处理的代码缓冲区
-    std::string m_pendingPath;     // 待处理的代码缓冲区
+    std::string m_pendingCode;     // 待处理的代码缓冲区
     bool m_hasNewTask;             // 任务标记
     std::mutex m_mutex;            // 保护缓冲区的互斥锁
 

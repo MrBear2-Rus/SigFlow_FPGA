@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include <vector>
 #include <string>
-
+#include "TreeSitterLinter.h"
 
 
 struct StructuringReport {
@@ -17,9 +17,13 @@ struct StructuringReport {
     std::vector<Suggestion> structuralFixes; // 用于 Tab 补全
 };
 
+struct StructeredPackage {
+    std::vector<BlockInfo> TSRes;
+    std::string stable_code;
+};
 
 
-StructuringReport VerilogStructuring(const std::string& code);
+StructeredPackage VerilogStructuring(const std::string& code);
 
 
 

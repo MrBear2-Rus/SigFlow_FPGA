@@ -1,4 +1,4 @@
-#include "CanvasTextElement.h"
+﻿#include "CanvasTextElement.h"
 #include "CanvasPanel.h"
 
 CanvasTextElement::CanvasTextElement(CanvasPanel* parent, const wxString& text, const wxPoint& pos)
@@ -76,54 +76,87 @@ void CanvasTextElement::SyncFromHiddenCtrl() {
 }
 
 // 绘制方法保持不变
-void CanvasTextElement::Draw(wxDC& dc) {
+void CanvasTextElement::Draw(wxGraphicsContext* gc) {
     if (m_editing) {
-        DrawEditingState(dc);
+        DrawEditingState(gc);
     }
     else {
-        DrawNormalState(dc);
+        DrawNormalState(gc);
     }
 }
 
-void CanvasTextElement::DrawNormalState(wxDC& dc) {
-    dc.SetBrush(*wxTRANSPARENT_BRUSH);
-    dc.SetPen(wxPen(wxColour(*wxLIGHT_GREY), 3));
-    dc.DrawRectangle(wxRect(m_position - wxPoint(1, 1), m_size + wxSize(2, 2)));
-    //DrawRoundedRect(dc, wxRect(m_position, m_size+wxSize(2,2)), 4);
-    DrawTextContent(dc);
+void CanvasTextElement::DrawNormalState(wxGraphicsContext* gc) {
+    if (!gc) return;
+
+    // 1. 设置画笔：灰色，线宽 3
+    gc->SetPen(wxPen(wxColour(*wxLIGHT_GREY), 3));
+    gc->SetBrush(*wxTRANSPARENT_BRUSH);
+
+    // 2. 绘制矩形（使用逻辑坐标，精确控制 1px 的偏移）
+    // 注意：GC 的 DrawRectangle 参数是 (x, y, w, h)
+    gc->DrawRectangle(m_position.x - 1, m_position.y - 1, m_size.x + 2, m_size.y + 2);
+
+    // 3. 绘制文字（内部也需改为接受 gc）
+    DrawTextContent(gc);
 }
 
-void CanvasTextElement::DrawEditingState(wxDC& dc) {
-    dc.SetBrush(*wxTRANSPARENT_BRUSH);
-    dc.SetPen(wxPen(wxColour(*wxBLACK), 3));
-    dc.DrawRectangle(wxRect(m_position - wxPoint(1, 1), m_size + wxSize(2, 2)));
-    //DrawRoundedRect(dc, wxRect(m_position, m_size + wxSize(2, 2)), 4);
-    DrawTextContent(dc);
+void CanvasTextElement::DrawEditingState(wxGraphicsContext* gc) {
+    if (!gc) return;
 
-    // 绘制光标（模拟）
+    // 1. 绘制黑色边框
+    gc->SetPen(wxPen(wxColour(*wxBLACK), 3));
+    gc->SetBrush(*wxTRANSPARENT_BRUSH);
+    gc->DrawRectangle(m_position.x - 1, m_position.y - 1, m_size.x + 2, m_size.y + 2);
+
+    DrawTextContent(gc);
+
+    // 2. 绘制光标
     if (m_editing) {
-        wxSize textSize = dc.GetTextExtent(m_text);
-        int cursorX = m_position.x + 8 + textSize.x;
-        int cursorY1 = m_position.y + 5;
-        int cursorY2 = m_position.y + m_size.y - 5;
-        dc.SetPen(wxPen(*wxBLACK, 1));
-        dc.DrawLine(cursorX, cursorY1, cursorX, cursorY2);
+        // 在 GC 中，使用 GetTextExtent 获取尺寸
+        double textW, textH, descent, externalLeading;
+        gc->GetTextExtent(m_text, &textW, &textH, &descent, &externalLeading);
+
+        // 这里的 8 是你代码里的偏移量，建议也加上 FromDIP(8) 做适配
+        double cursorX = m_position.x + 8 + textW;
+        double cursorY1 = m_position.y + 5;
+        double cursorY2 = m_position.y + m_size.y - 5;
+
+        // 绘制光标线（用 StrokeLine）
+        gc->SetPen(wxPen(*wxBLACK, 1));
+        gc->StrokeLine(cursorX, cursorY1, cursorX, cursorY2);
     }
 }
 
-void CanvasTextElement::DrawTextContent(wxDC& dc) {
-    dc.SetFont(GetModernFont());
-    dc.SetTextForeground(wxColour(60, 60, 60));
+void CanvasTextElement::DrawTextContent(wxGraphicsContext* gc) {
+    if (!gc) return;
 
-    wxSize textSize = dc.GetTextExtent(m_text);
-    int textY = m_position.y + (m_size.y - textSize.y) / 2;
-    dc.DrawText(m_text, m_position.x + 8, textY);
+    // 1. 创建并设置字体
+    // 注意：gc->CreateFont 将字体和颜色打包在一起
+    wxGraphicsFont gcFont = gc->CreateFont(GetModernFont(), wxColour(60, 60, 60));
+    gc->SetFont(gcFont);
+
+    // 2. 获取精确的文字尺寸（浮点数）
+    double textW, textH, descent, externalLeading;
+    gc->GetTextExtent(m_text, &textW, &textH, &descent, &externalLeading);
+
+    // 3. 计算垂直居中位置 (使用 double 避免整数除法的舍入误差)
+    double textY = m_position.y + (m_size.y - textH) / 2.0;
+
+    // 4. 绘制文字
+    wxGraphicsFont gFont = gc->CreateFont(wxFont(10, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL), *wxBLACK);
+
+    // 2. 必须显式设置给 gc
+    gc->SetFont(gFont);
+    gc->DrawText(m_text, m_position.x + 8, textY);
 }
 
-void CanvasTextElement::DrawRoundedRect(wxDC& dc, const wxRect& rect, int radius) {
-    dc.DrawRoundedRectangle(rect, radius);
-}
+void CanvasTextElement::DrawRoundedRect(wxGraphicsContext* gc, const wxRect& rect, double radius) {
+    if (!gc) return;
 
+    // 直接使用 gc 的圆角矩形接口
+    // 参数：x, y, width, height, radius
+    gc->DrawRoundedRectangle(rect.x, rect.y, rect.width, rect.height, radius);
+}
 wxFont CanvasTextElement::GetModernFont() {
     return wxFont(11, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL,
         wxFONTWEIGHT_NORMAL, false, "Segoe UI");

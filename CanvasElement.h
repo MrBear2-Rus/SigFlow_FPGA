@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <wx/wx.h>
 #include <wx/dcgraph.h>  
@@ -239,7 +239,7 @@ private:
     AndGateProperties m_andGateProps;
     GateProperties m_gateProps;
     
-    void DrawVector(wxGCDC& gcdc) const;
+    void DrawVector(wxGraphicsContext* gc) const;
     std::vector<wxPoint> CalculateBezier(const Point& p0, const Point& p1, const Point& p2, int segments = 16) const;
     std::vector<wxPoint> CalculateCubicBezier(const Point& p0, const Point& p1, const Point& p2, const Point& p3, int segments = 32) const;
     void DrawFallback(wxDC& dc) const;
@@ -256,7 +256,7 @@ public:
     int GetRotation() const { return m_rotation; }
     void SetAnchorPoint(const wxPoint& anchor) { m_anchorPoint = anchor; }
     const std::vector<Shape>& GetShapes() const { return m_shapes; }
-    void Draw(wxDC& dc) const;
+    void Draw(wxGraphicsContext* gc) const;
     wxRect GetBounds() const;
     void SetId(const wxString& id) { m_id = id; }
     const wxString& GetId() const { return m_id; }

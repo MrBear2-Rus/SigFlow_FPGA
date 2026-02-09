@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #ifndef CANVASTEXTELEMENT_H
 #define CANVASTEXTELEMENT_H
 
@@ -13,7 +13,7 @@ public:
     ~CanvasTextElement();
 
     // 绘制方法
-    void Draw(wxDC& dc);
+    void Draw(wxGraphicsContext* gc);
     bool Contains(const wxPoint& point) const;
     wxRect GetBounds() const;
 
@@ -44,10 +44,10 @@ public:
     wxFont GetModernFont();
 
 private:
-    void DrawNormalState(wxDC& dc);
-    void DrawEditingState(wxDC& dc);
-    void DrawTextContent(wxDC& dc);
-    void DrawRoundedRect(wxDC& dc, const wxRect& rect, int radius);
+    void DrawNormalState(wxGraphicsContext* gc);
+    void DrawEditingState(wxGraphicsContext* gc);
+    void DrawTextContent(wxGraphicsContext* gc);
+    void DrawRoundedRect(wxGraphicsContext* gc, const wxRect& rect, double radius);
     void UpdateSize();
 
 private:

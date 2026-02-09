@@ -1,9 +1,8 @@
-#include <wx/msgdlg.h>
+﻿#include <wx/msgdlg.h>
 
 #include "CanvasEventHandler.h"
 #include "CanvasTextElement.h"
 #include "HandyToolKit.h"
-#include "ToolBars.h"
 #include "MainFrame.h"
 
 CanvasEventHandler::CanvasEventHandler(CanvasPanel* canvas, ToolStateMachine* toolstate)

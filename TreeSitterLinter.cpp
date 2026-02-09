@@ -34,7 +34,7 @@ std::vector<BlockInfo> TreeSitterLinter::Lint(wxString code) {
     //tree = new_tree;
     TSNode root_node = ts_tree_root_node(new_tree);
     int id_count = 1;
-    DumpTree(root_node, code);
+    //DumpTree(root_node, code);
     TraverseNode(root_node, code, res, id_count);
 
     std::sort(res.begin(), res.end(), [](const BlockInfo& a, const BlockInfo& b) {
@@ -121,7 +121,7 @@ std::string LoadCodeFromPath(const wxString& path)
     return code;
 }
 
-
+/*
 void DumpTree(TSNode node, const wxString& src, int indent) {
     wxString line;
 
@@ -154,7 +154,7 @@ void DumpTree(TSNode node, const wxString& src, int indent) {
     for (uint32_t i = 0; i < n; ++i)
         DumpTree(ts_node_child(node, i), src, indent + 1);
 }
-
+*/
 
 
 bool contains_missing(TSNode node) {
