@@ -263,10 +263,16 @@
     <ClCompile Include="Simulation\VerilatorRunner.cpp">
       <Filter>源文件\simulation</Filter>
     </ClCompile>
+    <ClCompile Include="Simulation\ProcessRunner.cpp">
+      <Filter>源文件\simulation</Filter>
+    </ClCompile>
     <ClInclude Include="Simulation\SimulationEngine.h">
       <Filter>头文件\simulation</Filter>
     </ClInclude>
     <ClInclude Include="Simulation\VerilatorRunner.h">
+      <Filter>头文件\simulation</Filter>
+    </ClInclude>
+    <ClInclude Include="Simulation\ProcessRunner.h">
       <Filter>头文件\simulation</Filter>
     </ClInclude>
     <ClInclude Include="TerminalCtrl.h">

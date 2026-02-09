@@ -1,4 +1,5 @@
 #include "SimulationEngine.h"
+#include "ProcessRunner.h"
 #include <wx/process.h>
 #include <wx/txtstrm.h>
 #include <wx/stdpaths.h>
@@ -7,6 +8,7 @@
 #include <filesystem>
 #include <fstream>
 #include <windows.h>  // For Windows API
+#include <wx/timer.h>
 
 namespace fs = std::filesystem;
 
@@ -468,6 +470,11 @@ bool SimulationEngine::CompileToDll(const wxString& topModule, wxString& errorMs
             return false;
         }
         
+        // 修正路径：确保没有双反斜杠，/Fo路径不以反斜杠结尾
+        wxString safeStubPath = stubPath;
+        safeStubPath.Replace("\\\\", "\\");  // 先去除双反斜杠
+        safeStubPath.Replace("/", "\\");       // 再统一为 Windows 反斜杠
+        
         wxString batchContent;
         batchContent += "@echo off\n";
         batchContent += "chcp 65001 >nul\n";
@@ -475,12 +482,13 @@ bool SimulationEngine::CompileToDll(const wxString& topModule, wxString& errorMs
         batchContent += "if %errorLevel% neq 0 exit /b %errorLevel%\n";
         batchContent += "cl /LD /O2 /MD /EHsc /W3 ";
         batchContent += "/Fe\"" + dllPath + "\" ";
-        batchContent += "/Fo\"" + objDir + "\\\" ";
+        // /Fo 路径不能以反斜杠结尾（否则会转义引号），且不要引号包裹
+        batchContent += "/Fo" + objDir + "\\ ";
         batchContent += "\"" + objDir + "\\*.cpp\" ";
         batchContent += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated.cpp\" ";
         batchContent += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated_vcd_c.cpp\" ";
         batchContent += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated_threads.cpp\" ";
-        batchContent += "\"" + stubPath + "\" ";
+        batchContent += "\"" + safeStubPath + "\" ";
         batchContent += "/I\"C:\\msys64\\mingw64\\share\\verilator\\include\" ";
         batchContent += "/I\"C:\\msys64\\mingw64\\share\\verilator\\include\\vltstd\" ";
         batchContent += "/I\"" + objDir + "\" ";
@@ -489,54 +497,78 @@ bool SimulationEngine::CompileToDll(const wxString& topModule, wxString& errorMs
         
         batchFile.Write(batchContent);
         batchFile.Close();
-    }
-    
-    // 检查批处理文件内容
-    {
-        wxFile checkFile(batchPath, wxFile::read);
-        if (checkFile.IsOpened()) {
-            wxString content;
-            checkFile.ReadAll(&content);
-            checkFile.Close();
-            OutputDebugStringA("Batch content (first 500 chars):\n");
-            OutputDebugStringA(content.Left(500).ToUTF8());
-            OutputDebugStringA("\n--- end ---\n");
-        }
-    }
-    
-    wxString cmd = "cmd /C \"" + batchPath + "\"";
-    
-    OutputDebugStringA("Batch file: ");
-    OutputDebugStringA(batchPath.ToUTF8());
-    OutputDebugStringA("\n");
-    OutputDebugStringA("Executing batch file...\n");
-    wxString output, error;
-    int ret = ExecuteCommand(cmd, output, error);
-    
-    // 输出错误信息以便调试
-    if (ret != 0) {
-        OutputDebugStringA("Batch file failed. Error output:\n");
-        if (!error.IsEmpty()) {
-            wxString errFirst = error.Left(1000);
-            OutputDebugStringA(errFirst.ToUTF8());
-        }
-        OutputDebugStringA("\n\nStandard output:\n");
-        if (!output.IsEmpty()) {
-            wxString outFirst = output.Left(1000);
-            OutputDebugStringA(outFirst.ToUTF8());
-        }
+        
+        OutputDebugStringA("Batch file created at: ");
+        OutputDebugStringA(batchPath.ToUTF8());
         OutputDebugStringA("\n");
     }
     
-    // 清理临时批处理文件
-    wxRemoveFile(batchPath);
-    OutputDebugStringA(("Compile returned: " + std::to_string(ret) + "\n").c_str());
+    // 初始化编译状态
+    m_isCompiling = true;
+    m_dllCompileSuccess = false;
+    m_lastCompileLog.Clear();
     
-    if (ret != 0) {
+    // 创建 ProcessRunner 并设置回调
+    m_processRunner = std::make_unique<ProcessRunner>();
+    
+    // 设置输出回调（实时接收编译输出）
+    m_processRunner->SetOutputCallback([this](const wxString& output, bool isError) {
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_lastCompileLog += output;
+        }
+        
+        // 如果有外部回调，也通知外部
+        if (m_outputCallback) {
+            m_outputCallback(output, isError);
+        }
+        
+        // 输出到调试窗口
+        OutputDebugStringA(isError ? "[ERR] " : "[OUT] ");
+        OutputDebugStringA(output.ToUTF8());
+    });
+    
+    // 设置完成回调
+    m_processRunner->SetCompletionCallback([this, dllPath, batchPath](int exitCode) {
+        OutputDebugStringA(("Compile process finished with exit code: " + std::to_string(exitCode) + "\n").c_str());
+        
+        m_isCompiling = false;
+        m_dllCompileSuccess = (exitCode == 0 && wxFileExists(dllPath));
+        
+        if (m_dllCompileSuccess) {
+            OutputDebugStringA("DLL compiled successfully!\n");
+        } else {
+            OutputDebugStringA("DLL compilation failed!\n");
+        }
+        
+        // 保留批处理文件用于调试（如果编译失败）
+        if (m_dllCompileSuccess) {
+            wxRemoveFile(batchPath);
+        } else {
+            OutputDebugStringA(("Batch file kept for debugging: " + batchPath.ToStdString() + "\n").c_str());
+        }
+    });
+    
+    // 使用 ProcessRunner 异步执行批处理
+    OutputDebugStringA("Starting async compilation...\n");
+    if (!m_processRunner->RunBatchFile(batchPath, projectRoot)) {
+        errorMsg = wxT("启动编译进程失败");
+        m_isCompiling = false;
+        return false;
+    }
+    
+    // 同步等待编译完成（因为 CompileToDll 是同步接口）
+    // 如果需要异步，可以修改这里，但当前设计是同步等待
+    OutputDebugStringA("Waiting for compilation to complete...\n");
+    m_processRunner->WaitForCompletion(INFINITE);
+    
+    OutputDebugStringA(("Compile returned: " + std::to_string(m_processRunner->GetExitCode()) + "\n").c_str());
+    
+    if (!m_dllCompileSuccess) {
         OutputDebugStringA("Compile failed\n");
-        errorMsg = wxString::Format(wxT("DLL编译失败 (错误码: %d)"), ret);
-        if (!error.IsEmpty()) {
-            errorMsg += wxT("\n\n错误信息:\n") + error.Left(500);
+        errorMsg = wxString::Format(wxT("DLL编译失败 (错误码: %d)"), m_processRunner->GetExitCode());
+        if (!m_lastCompileLog.IsEmpty()) {
+            errorMsg += wxT("\n\n编译日志:\n") + m_lastCompileLog.Left(2000);
         }
         return false;
     }
@@ -590,4 +622,18 @@ SimulationRunResult SimulationEngine::RunSimulation(const wxString& outputVcdPat
     
     result.errorMessage = "仿真运行功能尚未实现";
     return result;
+}
+
+bool SimulationEngine::IsCompiling() const
+{
+    return m_isCompiling;
+}
+
+void SimulationEngine::CancelCompile()
+{
+    if (m_processRunner && m_isCompiling) {
+        OutputDebugStringA("Cancelling compilation...\n");
+        m_processRunner->Terminate();
+        m_isCompiling = false;
+    }
 }

@@ -4,6 +4,13 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <mutex>
+
+// 前向声明
+class ProcessRunner;
+
+// 编译输出回调
+using CompileOutputCallback = std::function<void(const wxString& line, bool isError)>;
 
 // 仿真编译结果
 struct SimulationCompileResult {
@@ -54,11 +61,31 @@ public:
     // 获取最后一次编译的信息
     const SimulationCompileResult& GetLastCompileResult() const { return m_lastResult; }
 
+    // 获取最后一次编译的完整日志
+    wxString GetLastCompileLog() const { return m_lastCompileLog; }
+
+    // 设置编译输出回调（实时接收编译输出）
+    void SetCompileOutputCallback(CompileOutputCallback callback) { m_outputCallback = callback; }
+
+    // 检查是否正在编译中
+    bool IsCompiling() const;
+
+    // 取消当前编译
+    void CancelCompile();
+
 private:
     wxString m_projectRoot;         // 项目根目录
     wxString m_currentTopModule;    // 当前顶层模块名
     SimulationCompileResult m_lastResult;
     CompileProgressCallback m_progressCallback;
+    CompileOutputCallback m_outputCallback;
+
+    // 异步进程执行器
+    std::unique_ptr<ProcessRunner> m_processRunner;
+    wxString m_lastCompileLog;      // 最后一次编译的完整日志
+    bool m_isCompiling = false;     // 是否正在编译中
+    bool m_dllCompileSuccess = false; // DLL编译是否成功
+    mutable std::mutex m_mutex;     // 保护编译日志的互斥锁
 
     // 获取缓存目录路径: <projectRoot>/.sigflow/sim/<topModule>/
     wxString GetCacheDirectory(const wxString& topModule) const;
