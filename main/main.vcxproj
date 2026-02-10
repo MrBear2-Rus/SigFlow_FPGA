@@ -196,7 +196,9 @@
     </Manifest>
     <PostBuildEvent>
       <Command>if not exist "$(OutDir)res" mkdir "$(OutDir)res"
-xcopy "$(ProjectDir)res\*.*" "$(OutDir)res\" /Y /E /D</Command>
+xcopy "$(ProjectDir)res\*.*" "$(OutDir)res\" /Y /E /D /I
+
+xcopy "$(ProjectDir)canvas_elements.json" "$(OutDir)" /Y /D</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
