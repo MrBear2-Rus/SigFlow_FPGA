@@ -53,6 +53,7 @@
     <ClCompile Include="Wire.cpp" />
     <ClCompile Include="Simulation\SimulationEngine.cpp" />
     <ClCompile Include="Simulation\VerilatorRunner.cpp" />
+    <ClCompile Include="Simulation\ProcessRunner.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AsyncAnalysisCenter.h" />
@@ -86,6 +87,7 @@
     <ClInclude Include="Wire.h" />
     <ClInclude Include="Simulation\SimulationEngine.h" />
     <ClInclude Include="Simulation\VerilatorRunner.h" />
+    <ClInclude Include="Simulation\ProcessRunner.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
