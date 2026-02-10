@@ -19,11 +19,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="3rd\json\jsoncpp.cpp" />
-    <ClCompile Include="3rd\tree-sitter-verilog\src\parser.c" />
-    <ClCompile Include="3rd\tree-sitter\lib\src\lib.c">
-      <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\wxWidgets-3.2.2.1\include;C:\wxWidgets-3.2.2.1\include\msvc;C:\wxWidgets-3.2.2.1\lib\vc_x64_lib\mswud;$(ProjectDir)3rd;$(ProjectDir)3rd\tree-sitter\lib\include;$(ProjectDir)3rd\tree-sitter\lib\src;$(ProjectDir)3rd\tree-sitter-verilog\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>
+    <ClCompile Include="..\3rd\json\jsoncpp.cpp" />
+    <ClCompile Include="..\3rd\tree-sitter-verilog\src\parser.c" />
+    <ClCompile Include="..\3rd\tree-sitter\lib\src\lib.c" />
     <ClCompile Include="AsyncAnalysisCenter.cpp" />
     <ClCompile Include="CanvasElement.cpp" />
     <ClCompile Include="CanvasModel.cpp" />
@@ -33,6 +31,8 @@
     <ClCompile Include="GatePainter.cpp" />
     <ClCompile Include="MainFrame.cpp" />
     <ClCompile Include="MainMenuBar.cpp" />
+    <ClCompile Include="PluginManager.cpp" />
+    <ClCompile Include="PluginStore.cpp" />
     <ClCompile Include="ProjectTreePanel.cpp" />
     <ClCompile Include="PropertyPanel.cpp" />
     <ClCompile Include="HandyToolKit.cpp" />
@@ -55,11 +55,6 @@
     <ClCompile Include="Simulation\VerilatorRunner.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="3rd\json\json.h" />
-    <ClInclude Include="3rd\tree-sitter-verilog\src\tree_sitter\alloc.h" />
-    <ClInclude Include="3rd\tree-sitter-verilog\src\tree_sitter\array.h" />
-    <ClInclude Include="3rd\tree-sitter-verilog\src\tree_sitter\parser.h" />
-    <ClInclude Include="3rd\tree-sitter\lib\include\tree_sitter\api.h" />
     <ClInclude Include="AsyncAnalysisCenter.h" />
     <ClInclude Include="CanvasElement.h" />
     <ClInclude Include="CanvasModel.h" />
@@ -70,6 +65,8 @@
     <ClInclude Include="MainMenuBar.h" />
     <ClInclude Include="my_log.h" />
     <ClInclude Include="HandyToolKit.h" />
+    <ClInclude Include="PluginManager.h" />
+    <ClInclude Include="PluginStore.h" />
     <ClInclude Include="ProjectTreePanel.h" />
     <ClInclude Include="PropertyPanel.h" />
     <ClInclude Include="SFNPropertyPanel.h" />
@@ -96,6 +93,7 @@
     <ProjectGuid>{2b96978e-1aba-4660-b3a9-dc26c6889c83}</ProjectGuid>
     <RootNamespace>t1</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>main</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -131,15 +129,19 @@
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="GlobalConfig.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="GlobalConfig.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="GlobalConfig.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="GlobalConfig.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -179,19 +181,21 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;WIN32;__WXMSW__;_WINDOWS;NOPCH;_CRT_SECURE_NO_WARNINGS;SLANG_DEBUG;_ITERATOR_DEBUG_LEVEL=2;WXUSINGDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir)3rd\wxWidgets-3.2.9\include;$(ProjectDir)3rd\wxWidgets-3.2.9\include\msvc;$(ProjectDir)3rd\wxWidgets-3.2.9\lib\vc_x64_dll\mswud;$(ProjectDir)3rd;$(ProjectDir)3rd\tree-sitter\lib\include;$(ProjectDir)3rd\tree-sitter-verilog\src;$(ProjectDir)external\slang-sdk\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(ProjectDir)3rd\wxWidgets-3.2.9\lib\vc_x64_dll;$(ProjectDir)external\slang-sdk\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>wxmsw32ud_core.lib;wxbase32ud.lib;wxtiffd.lib;wxjpegd.lib;wxpngd.lib;wxzlibd.lib;wxregexud.lib;wxexpatd.lib;winmm.lib;comctl32.lib;rpcrt4.lib;wsock32.lib;wininet.lib;advapi32.lib;svlang.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <Manifest>
       <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
     </Manifest>
+    <PostBuildEvent>
+      <Command>if not exist "$(OutDir)res" mkdir "$(OutDir)res"
+xcopy "$(ProjectDir)res\*.*" "$(OutDir)res\" /Y /E /D</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>

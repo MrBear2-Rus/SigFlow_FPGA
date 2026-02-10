@@ -6,7 +6,7 @@
 #include <wx/xml/xml.h>
 #include <wx/mstream.h>
 
-#include "3rd/json/json.h"
+#include <json/json.h>
 #include "PropertyPanel.h"
 #include <wx/stc/stc.h>
 #include "AsyncAnalysisCenter.h"
@@ -18,6 +18,8 @@
 #include "Simulation/SimulationEngine.h"
 
 #include "TerminalCtrl.h"
+
+#include "PluginManager.h"
 
 class ToolBars;
 class CanvasPanel;
@@ -44,6 +46,7 @@ private:
     SFNPropertyPanel* m_sfnPropertyPanel;
     TerminalCtrl* m_terminalCtrl;
 
+    PluginManager* m_pluginMgr;
     void RefreshTitle();
     // 声明事件处理函数
     void OnAnalysisComplete(wxThreadEvent& event);

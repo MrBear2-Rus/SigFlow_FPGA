@@ -141,6 +141,25 @@ MainFrame::MainFrame()
     sideBar->AddTool(ID_TBOX, wxEmptyString, lib, "Component Library", wxITEM_CHECK);
     sideBar->ToggleTool(ID_PROJ, 1);
     sideBar->SetArtProvider(new MyCustomToolBarArt());
+
+
+    // 插件加载
+
+    m_pluginMgr = new PluginManager();
+    m_pluginMgr->LoadPlugins("./plugins");
+
+    // 获取所有插件列表，准备在菜单或工具栏显示
+    const auto& plugins = m_pluginMgr->GetAllPlugins();
+    for (auto* p : plugins) {
+        m_terminalCtrl->PrintOutput(p->GetName() + " Loaded\n");
+    }
+
+    ISigPlugin* pDeepSeek = m_pluginMgr->GetPlugin("DeepSeek_Assistant");
+
+
+
+
+
     wxSimplebook* leftSideNotebook = new wxSimplebook(this, wxID_ANY);
 
     m_projectTreePanel->Reparent(leftSideNotebook);
@@ -214,6 +233,10 @@ MainFrame::MainFrame()
     m_propPanel->Reparent(rightNotebook);
     rightNotebook->AddPage(m_sfnPropertyPanel, "SigFlow Node");
     rightNotebook->AddPage(m_propPanel, "Canvas Elements");
+    if (pDeepSeek) {
+        wxPanel* aiPanel = pDeepSeek->CreatePanel(rightNotebook);
+        rightNotebook->AddPage(aiPanel, "DeepSeek Assistant");
+    }
     
 
 
@@ -233,6 +256,7 @@ MainFrame::MainFrame()
 
     
     bottomNotebook->AddPage(m_terminalCtrl, "Terminal");
+
 
 
     // 1. 先最大化窗口，确保尺寸基准正确

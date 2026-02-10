@@ -16,9 +16,6 @@
     <Filter Include="源文件\3rd">
       <UniqueIdentifier>{1222eda3-bd45-4b2e-8819-f7a29c9d3e88}</UniqueIdentifier>
     </Filter>
-    <Filter Include="头文件\3rd">
-      <UniqueIdentifier>{3acc6417-f5bd-4903-9d02-3444baed499f}</UniqueIdentifier>
-    </Filter>
     <Filter Include="头文件\gui">
       <UniqueIdentifier>{d4ed1daf-4eea-4293-b01c-3c8b839e91db}</UniqueIdentifier>
     </Filter>
@@ -73,16 +70,16 @@
     <Filter Include="源文件\gui\terminal">
       <UniqueIdentifier>{76683726-d924-4444-8f82-da1426516998}</UniqueIdentifier>
     </Filter>
+    <Filter Include="头文件\plugin">
+      <UniqueIdentifier>{01d55f79-143f-4786-af11-22ca509d694c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\plugin">
+      <UniqueIdentifier>{deded1a5-91dd-4aad-9366-8226f65c7a88}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cMain.cpp">
       <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="3rd\tree-sitter-verilog\src\parser.c">
-      <Filter>源文件\3rd</Filter>
-    </ClCompile>
-    <ClCompile Include="3rd\tree-sitter\lib\src\lib.c">
-      <Filter>源文件\3rd</Filter>
     </ClCompile>
     <ClCompile Include="MainFrame.cpp">
       <Filter>源文件\gui</Filter>
@@ -119,9 +116,6 @@
     </ClCompile>
     <ClCompile Include="CanvasElement.cpp">
       <Filter>源文件\canvas_core</Filter>
-    </ClCompile>
-    <ClCompile Include="3rd\json\jsoncpp.cpp">
-      <Filter>源文件\3rd</Filter>
     </ClCompile>
     <ClCompile Include="ToolboxModel.cpp">
       <Filter>源文件\toolbox_core</Filter>
@@ -165,22 +159,25 @@
     <ClCompile Include="TerminalCtrl.cpp">
       <Filter>源文件\gui\terminal</Filter>
     </ClCompile>
+    <ClCompile Include="PluginManager.cpp">
+      <Filter>源文件\plugin</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rd\json\jsoncpp.cpp">
+      <Filter>源文件\3rd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rd\tree-sitter\lib\src\lib.c">
+      <Filter>源文件\3rd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rd\tree-sitter-verilog\src\parser.c">
+      <Filter>源文件\3rd</Filter>
+    </ClCompile>
+    <ClCompile Include="PluginStore.cpp">
+      <Filter>源文件\gui</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="my_log.h">
       <Filter>头文件</Filter>
-    </ClInclude>
-    <ClInclude Include="3rd\tree-sitter-verilog\src\tree_sitter\alloc.h">
-      <Filter>头文件\3rd</Filter>
-    </ClInclude>
-    <ClInclude Include="3rd\tree-sitter\lib\include\tree_sitter\api.h">
-      <Filter>头文件\3rd</Filter>
-    </ClInclude>
-    <ClInclude Include="3rd\tree-sitter-verilog\src\tree_sitter\array.h">
-      <Filter>头文件\3rd</Filter>
-    </ClInclude>
-    <ClInclude Include="3rd\tree-sitter-verilog\src\tree_sitter\parser.h">
-      <Filter>头文件\3rd</Filter>
     </ClInclude>
     <ClInclude Include="SigTextEditor.h">
       <Filter>头文件\gui</Filter>
@@ -217,9 +214,6 @@
     </ClInclude>
     <ClInclude Include="CanvasTextElement.h">
       <Filter>头文件\canvas_core</Filter>
-    </ClInclude>
-    <ClInclude Include="3rd\json\json.h">
-      <Filter>头文件\3rd</Filter>
     </ClInclude>
     <ClInclude Include="MainMenuBar.h">
       <Filter>头文件\gui</Filter>
@@ -274,6 +268,12 @@
     </ClInclude>
     <ClInclude Include="TerminalController.h">
       <Filter>头文件\gui\terminal</Filter>
+    </ClInclude>
+    <ClInclude Include="PluginManager.h">
+      <Filter>头文件\plugin</Filter>
+    </ClInclude>
+    <ClInclude Include="PluginStore.h">
+      <Filter>头文件\gui</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
