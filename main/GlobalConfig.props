@@ -14,8 +14,8 @@
       <AdditionalLibraryDirectories>$(SolutionDir)3rd\wxWidgets-3.2.9\lib\vc_x64_dll;$(SolutionDir)external\slang-sdk;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /Y /D "$(SolutionDir)3rd\wxWidgets-3.2.9\lib\vc_x64_dll\*.dll" "$(OutDir)"
-xcopy /Y /D "$(SolutionDir)external\slang-sdk\*.dll" "$(OutDir)"</Command>
+      <Command>
+      </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup />

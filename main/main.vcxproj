@@ -198,7 +198,9 @@
       <Command>if not exist "$(OutDir)res" mkdir "$(OutDir)res"
 xcopy "$(ProjectDir)res\*.*" "$(OutDir)res\" /Y /E /D /I
 
-xcopy "$(ProjectDir)canvas_elements.json" "$(OutDir)" /Y /D</Command>
+xcopy "$(ProjectDir)canvas_elements.json" "$(OutDir)" /Y /D
+xcopy /Y /D /I "$(SolutionDir)3rd\wxWidgets-3.2.9\lib\vc_x64_dll\*.dll" "$(OutDir)\"
+xcopy /Y /D /I "$(SolutionDir)external\slang-sdk\*.dll" "$(OutDir)\"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
