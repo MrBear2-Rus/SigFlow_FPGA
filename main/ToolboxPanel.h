@@ -18,7 +18,7 @@ private:
     wxImageList* m_imgList;
 
     // 原有函数声明
-    void LoadToolIcon(const wxString& toolName, const wxString& pngFileName);
+    void LoadToolIcon(const wxString& toolName, const wxString& svgFileName);
     int GetToolIconIndex(const wxString& toolName);
     void OnItemActivated(wxTreeEvent& evt);
     void OnBeginDrag(wxTreeEvent& evt);

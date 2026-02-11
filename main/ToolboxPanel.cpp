@@ -14,9 +14,12 @@
 #include <wx/image.h>
 #include <map>
 #include <wx/arrstr.h>
+#include <wx/bmpbndl.h>
 
 
-#define ICON_FOLDER wxT("res/icons/")
+
+#define SVG_FOLDER wxT("res/svg/")
+
 
 static void MY_LOG(const wxString & s)
 {
@@ -48,7 +51,7 @@ ToolboxPanel::ToolboxPanel(wxWindow* parent)
     : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxSize(250, -1))
 {
     // 添加 PNG 图像处理器初始化
-    wxImage::AddHandler(new wxPNGHandler);
+    //wxImage::AddHandler(new wxPNGHandler);
 
     // 创建布局
     wxBoxSizer* mainSizer = new wxBoxSizer(wxVERTICAL);
@@ -65,87 +68,87 @@ ToolboxPanel::ToolboxPanel(wxWindow* parent)
     m_imgList->Add(wxArtProvider::GetBitmap(wxART_FOLDER, wxART_OTHER, wxSize(24, 24))); // 0: 文件夹图标
 
     // 加载所有工具图标
-    LoadToolIcon("Wire", "wiring.png");               // 1: Wiring-Wire
-    LoadToolIcon("Splitter", "splitter.png");         // 2: Wiring-Splitter
-    LoadToolIcon("Pin (Input)", "pinInput.png");      // 3: Wiring-Pin (Input)
-    LoadToolIcon("Pin (Output)", "pinOutput.png");    // 4: Wiring-Pin (Output)
-    LoadToolIcon("Probe", "probe.png");               // 5: Wiring-Probe
-    LoadToolIcon("Tunnel", "tunnel.png");             // 6: Wiring-Tunnel
-    LoadToolIcon("Pull Resistor", "pullrect.png");    // 7: Wiring-Pull Resistor
-    LoadToolIcon("Clock", "clock.png");               // 8: Wiring-Clock
-    LoadToolIcon("Constant", "constant.png");         // 9: Wiring-Constant
-    LoadToolIcon("Power", "power.png");               // 10: Wiring-Power
-    LoadToolIcon("Ground", "ground.png");             // 11: Wiring-Ground
-    LoadToolIcon("Transmission Gate", "transmis.png");// 12: Wiring-Transmission Gate
-    LoadToolIcon("Bit Extender", "extender.png");     // 13: Wiring-Bit Extender
+    LoadToolIcon("Wire", "wiring.svg");               // 1: Wiring-Wire
+    LoadToolIcon("Splitter", "splitter.svg");         // 2: Wiring-Splitter
+    LoadToolIcon("Pin (Input)", "pinInput.svg");      // 3: Wiring-Pin (Input)
+    LoadToolIcon("Pin (Output)", "pinOutput.svg");    // 4: Wiring-Pin (Output)
+    LoadToolIcon("Probe", "probe.svg");               // 5: Wiring-Probe
+    LoadToolIcon("Tunnel", "tunnel.svg");             // 6: Wiring-Tunnel
+    LoadToolIcon("Pull Resistor", "pullrect.svg");    // 7: Wiring-Pull Resistor
+    LoadToolIcon("Clock", "clock.svg");               // 8: Wiring-Clock
+    LoadToolIcon("Constant", "constant.svg");         // 9: Wiring-Constant
+    LoadToolIcon("Power", "power.svg");               // 10: Wiring-Power
+    LoadToolIcon("Ground", "ground.svg");             // 11: Wiring-Ground
+    LoadToolIcon("Transmission Gate", "transmis.svg");// 12: Wiring-Transmission Gate
+    LoadToolIcon("Bit Extender", "extender.svg");     // 13: Wiring-Bit Extender
 
     // Gates 分类（逻辑门）
-    LoadToolIcon("Buffer Gate", "bufferGate.png");    // 14: Gates-Buffer Gate
-    LoadToolIcon("AND Gate", "andGate.png");          // 15: Gates-AND Gate
-    LoadToolIcon("AND Gate (Rect)", "andGateRect.png");// 16: Gates-AND Gate(Rect)
-    LoadToolIcon("NAND Gate", "nandGate.png");        // 17: Gates-NAND Gate
-    LoadToolIcon("NAND Gate (Rect)", "nandGateRect.png");// 18: Gates-NAND Gate(Rect)
-    LoadToolIcon("OR Gate", "orGate.png");            // 19: Gates-OR Gate
-    LoadToolIcon("OR Gate (Rect)", "orGateRect.png"); // 20: Gates-OR Gate(Rect)
-    LoadToolIcon("NOR Gate", "norGate.png");          // 21: Gates-NOR Gate
-    LoadToolIcon("NOR Gate (Rect)", "norGateRect.png");// 22: Gates-NOR Gate(Rect)
-    LoadToolIcon("XOR Gate", "xorGate.png");          // 23: Gates-XOR Gate
-    LoadToolIcon("XOR Gate (Rect)", "xorGateRect.png");// 24: Gates-XOR Gate(Rect)
-    LoadToolIcon("XNOR Gate", "xnorGate.png");        // 25: Gates-XNOR Gate
-    LoadToolIcon("XNOR Gate (Rect)", "xnorGateRect.png");// 26: Gates-XNOR Gate(Rect)
-    LoadToolIcon("Odd Parity Gate", "parityOddGate.png");// 27: Gates-Odd Parity Gate
-    LoadToolIcon("Even Parity Gate", "parityEvenGate.png");// 28: Gates-Even Parity Gate
-    LoadToolIcon("Controlled Buffer", "controlledBuffer.png");// 29: Gates-Controlled Buffer
-    LoadToolIcon("Controlled Inverter", "controlledInverter.png");// 30: Gates-Controlled Inverter
+    LoadToolIcon("Buffer Gate", "bufferGate.svg");    // 14: Gates-Buffer Gate
+    LoadToolIcon("AND Gate", "andGate.svg");          // 15: Gates-AND Gate
+    LoadToolIcon("AND Gate (Rect)", "andGateRect.svg");// 16: Gates-AND Gate(Rect)
+    LoadToolIcon("NAND Gate", "nandGate.svg");        // 17: Gates-NAND Gate
+    LoadToolIcon("NAND Gate (Rect)", "nandGateRect.svg");// 18: Gates-NAND Gate(Rect)
+    LoadToolIcon("OR Gate", "orGate.svg");            // 19: Gates-OR Gate
+    LoadToolIcon("OR Gate (Rect)", "orGateRect.svg"); // 20: Gates-OR Gate(Rect)
+    LoadToolIcon("NOR Gate", "norGate.svg");          // 21: Gates-NOR Gate
+    LoadToolIcon("NOR Gate (Rect)", "norGateRect.svg");// 22: Gates-NOR Gate(Rect)
+    LoadToolIcon("XOR Gate", "xorGate.svg");          // 23: Gates-XOR Gate
+    LoadToolIcon("XOR Gate (Rect)", "xorGateRect.svg");// 24: Gates-XOR Gate(Rect)
+    LoadToolIcon("XNOR Gate", "xnorGate.svg");        // 25: Gates-XNOR Gate
+    LoadToolIcon("XNOR Gate (Rect)", "xnorGateRect.svg");// 26: Gates-XNOR Gate(Rect)
+    LoadToolIcon("Odd Parity Gate", "parityOddGate.svg");// 27: Gates-Odd Parity Gate
+    LoadToolIcon("Even Parity Gate", "parityEvenGate.svg");// 28: Gates-Even Parity Gate
+    LoadToolIcon("Controlled Buffer", "controlledBuffer.svg");// 29: Gates-Controlled Buffer
+    LoadToolIcon("Controlled Inverter", "controlledInverter.svg");// 30: Gates-Controlled Inverter
 
     // Plexers 分类
-    LoadToolIcon("Multiplexer", "multiplexer.png");   // 31: Plexers-Multiplexer
-    LoadToolIcon("Demultiplexer", "demultiplexer.png");// 32: Plexers-Demultiplexer
-    LoadToolIcon("Decoder", "decoder.png");           // 33: Plexers-Decoder
-    LoadToolIcon("Priority Encoder", "priencod.png"); // 34: Plexers-Priority Encoder
-    LoadToolIcon("Bit Selector", "bitSelector.png");  // 35: Plexers-Bit Selector
+    LoadToolIcon("Multiplexer", "multiplexer.svg");   // 31: Plexers-Multiplexer
+    LoadToolIcon("Demultiplexer", "demultiplexer.svg");// 32: Plexers-Demultiplexer
+    LoadToolIcon("Decoder", "decoder.svg");           // 33: Plexers-Decoder
+    LoadToolIcon("Priority Encoder", "priencod.svg"); // 34: Plexers-Priority Encoder
+    LoadToolIcon("Bit Selector", "bitSelector.svg");  // 35: Plexers-Bit Selector
 
     // Arithmetic 分类
-    LoadToolIcon("Adder", "adder.png");               // 36: Arithmetic-Adder
-    LoadToolIcon("Subtractor", "subtractor.png");     // 37: Arithmetic-Subtractor
-    LoadToolIcon("Multiplier", "multiplier.png");     // 38: Arithmetic-Multiplier
-    LoadToolIcon("Divider", "divider.png");           // 39: Arithmetic-Divider
-    LoadToolIcon("Negator", "negator.png");           // 40: Arithmetic-Negator
-    LoadToolIcon("Comparator", "comparator.png");     // 41: Arithmetic-Comparator
-    LoadToolIcon("Shifter", "shifter.png");           // 42: Arithmetic-Shifter
-    LoadToolIcon("Bit Adder", "bitadder.png");        // 43: Arithmetic-Bit Adder
-    LoadToolIcon("Bit Finder", "bitfindr.png");       // 44: Arithmetic-Bit Finder
+    LoadToolIcon("Adder", "adder.svg");               // 36: Arithmetic-Adder
+    LoadToolIcon("Subtractor", "subtractor.svg");     // 37: Arithmetic-Subtractor
+    LoadToolIcon("Multiplier", "multiplier.svg");     // 38: Arithmetic-Multiplier
+    LoadToolIcon("Divider", "divider.svg");           // 39: Arithmetic-Divider
+    LoadToolIcon("Negator", "negator.svg");           // 40: Arithmetic-Negator
+    LoadToolIcon("Comparator", "comparator.svg");     // 41: Arithmetic-Comparator
+    LoadToolIcon("Shifter", "shifter.svg");           // 42: Arithmetic-Shifter
+    LoadToolIcon("Bit Adder", "bitadder.svg");        // 43: Arithmetic-Bit Adder
+    LoadToolIcon("Bit Finder", "bitfindr.svg");       // 44: Arithmetic-Bit Finder
 
     // Memory 分类
-    LoadToolIcon("D Flip-Flop", "dFlipFlop.png");     // 45: Memory-D Flip-Flop
-    LoadToolIcon("T Flip-Flop", "tFlipFlop.png");     // 46: Memory-T Flip-Flop
-    LoadToolIcon("JK Flip-Flop", "jkFlipFlop.png");   // 47: Memory-JK Flip-Flop
-    LoadToolIcon("SR Flip-Flop", "srFlipFlop.png");   // 48: Memory-SR Flip-Flop
-    LoadToolIcon("Register", "register.png");         // 49: Memory-Register
-    LoadToolIcon("Counter", "counter.png");           // 50: Memory-Counter
-    LoadToolIcon("Shift Register", "shiftreg.png");   // 51: Memory-Shift Register
-    LoadToolIcon("Random Generator", "random.png");   // 52: Memory-Random Generator
-    LoadToolIcon("RAM", "ram.png");                   // 53: Memory-RAM
-    LoadToolIcon("ROM", "rom.png");                   // 54: Memory-ROM
+    LoadToolIcon("D Flip-Flop", "dFlipFlop.svg");     // 45: Memory-D Flip-Flop
+    LoadToolIcon("T Flip-Flop", "tFlipFlop.svg");     // 46: Memory-T Flip-Flop
+    LoadToolIcon("JK Flip-Flop", "jkFlipFlop.svg");   // 47: Memory-JK Flip-Flop
+    LoadToolIcon("SR Flip-Flop", "srFlipFlop.svg");   // 48: Memory-SR Flip-Flop
+    LoadToolIcon("Register", "register.svg");         // 49: Memory-Register
+    LoadToolIcon("Counter", "counter.svg");           // 50: Memory-Counter
+    LoadToolIcon("Shift Register", "shiftreg.svg");   // 51: Memory-Shift Register
+    LoadToolIcon("Random Generator", "random.svg");   // 52: Memory-Random Generator
+    LoadToolIcon("RAM", "ram.svg");                   // 53: Memory-RAM
+    LoadToolIcon("ROM", "rom.svg");                   // 54: Memory-ROM
 
     // Input/Output 分类
-    LoadToolIcon("Button", "button.png");             // 55: Input/Output-Button
-    LoadToolIcon("Joystick", "joystick.png");         // 56: Input/Output-Joystick
-    LoadToolIcon("Keyboard", "keyboard.png");         // 57: Input/Output-Keyboard
-    LoadToolIcon("LED", "led.png");                   // 58: Input/Output-LED
-    LoadToolIcon("7-Segment Display", "7seg.png");    // 59: Input/Output-7-Segment Display
-    LoadToolIcon("Hex Digit Display", "hexdig.png");  // 60: Input/Output-Hex Digit Display
-    LoadToolIcon("LED Matrix", "dotmat.png");         // 61: Input/Output-LED Matrix
-    LoadToolIcon("TTY", "tty.png");                   // 62: Input/Output-TTY
+    LoadToolIcon("Button", "button.svg");             // 55: Input/Output-Button
+    LoadToolIcon("Joystick", "joystick.svg");         // 56: Input/Output-Joystick
+    LoadToolIcon("Keyboard", "keyboard.svg");         // 57: Input/Output-Keyboard
+    LoadToolIcon("LED", "led.svg");                   // 58: Input/Output-LED
+    LoadToolIcon("7-Segment Display", "7seg.svg");    // 59: Input/Output-7-Segment Display
+    LoadToolIcon("Hex Digit Display", "hexdig.svg");  // 60: Input/Output-Hex Digit Display
+    LoadToolIcon("LED Matrix", "dotmat.svg");         // 61: Input/Output-LED Matrix
+    LoadToolIcon("TTY", "tty.svg");                   // 62: Input/Output-TTY
 
     // Tools 分类
-    LoadToolIcon("Poke Tool", "poke.png");            // 63: Tools-Poke Tool
-    LoadToolIcon("Edit Tool", "select.png");          // 64: Tools-Edit Tool
-    LoadToolIcon("Select Tool", "select.png");        // 65: Tools-Select Tool
-    LoadToolIcon("Wiring Tool", "wiring.png");        // 66: Tools-Wiring Tool
-    LoadToolIcon("Text Tool", "text.png");            // 67: Tools-Text Tool
-    LoadToolIcon("Menu Tool", "menu.png");            // 68: Tools-Menu Tool
-    LoadToolIcon("Label Tool", "text.png");          // 69: Tools-Label Tool
+    LoadToolIcon("Poke Tool", "poke.svg");            // 63: Tools-Poke Tool
+    LoadToolIcon("Edit Tool", "select.svg");          // 64: Tools-Edit Tool
+    LoadToolIcon("Select Tool", "select.svg");        // 65: Tools-Select Tool
+    LoadToolIcon("Wiring Tool", "wiring.svg");        // 66: Tools-Wiring Tool
+    LoadToolIcon("Text Tool", "text.svg");            // 67: Tools-Text Tool
+    LoadToolIcon("Menu Tool", "menu.svg");            // 68: Tools-Menu Tool
+    LoadToolIcon("Label Tool", "text.svg");          // 69: Tools-Label Tool
 
     m_tree->AssignImageList(m_imgList);
 
@@ -163,23 +166,71 @@ ToolboxPanel::ToolboxPanel(wxWindow* parent)
     m_tree->Bind(wxEVT_TREE_SEL_CHANGED, &ToolboxPanel::OnToolSelected, this);
 }
 
-void ToolboxPanel::LoadToolIcon(const wxString& toolName, const wxString& pngFileName)
+void ToolboxPanel::LoadToolIcon(const wxString& toolName, const wxString& svgFileName)
 {
-    wxString fullPath = ICON_FOLDER + pngFileName;
-    MY_LOG("🔍 开始加载图标：" + toolName + " → 文件路径：" + fullPath);
+    wxString fullPath = SVG_FOLDER + svgFileName;
 
-    // 加载PNG并检查是否有效
-    wxBitmap icon(fullPath, wxBITMAP_TYPE_PNG);
-    bool isLoaded = icon.IsOk();
+    MY_LOG("🔍 开始加载 SVG 图标：" + toolName + " → 文件路径：" + fullPath);
 
-    if (isLoaded) {
-        int iconIndex = m_imgList->Add(icon); // 添加到图像列表
-        MY_LOG("✅ 加载成功：" + toolName + " → 图标索引：" + wxString::Format("%d", iconIndex) + "，图像列表当前数量：" + wxString::Format("%d", m_imgList->GetImageCount()));
+    if (!wxFileExists(fullPath)) {
+        MY_LOG("❌ SVG 文件不存在：" + fullPath);
+        return;
     }
-    else {
-        MY_LOG("❌ 加载失败：" + toolName + " → 文件不存在/损坏/格式错误");
+
+    // 先渲染为较大的尺寸，避免被裁剪
+    const int targetSize = 24;
+    const int renderSize = 64;  // 先大尺寸渲染
+
+    wxBitmapBundle bundle = wxBitmapBundle::FromSVGFile(fullPath, wxSize(renderSize, renderSize));
+
+    if (!bundle.IsOk()) {
+        MY_LOG("❌ SVG 加载失败：" + toolName);
+        return;
     }
+
+    wxBitmap largeBmp = bundle.GetBitmap(wxSize(renderSize, renderSize));
+
+    if (!largeBmp.IsOk()) {
+        MY_LOG("❌ SVG 生成大尺寸 Bitmap 失败：" + toolName);
+        return;
+    }
+
+    wxImage img = largeBmp.ConvertToImage();
+
+    // 计算等比例缩放
+    int w = img.GetWidth();
+    int h = img.GetHeight();
+
+    double scale = std::min(
+        (double)targetSize / w,
+        (double)targetSize / h
+    );
+
+    int newW = (int)(w * scale);
+    int newH = (int)(h * scale);
+
+    img = img.Scale(newW, newH, wxIMAGE_QUALITY_HIGH);
+
+    // 创建 24x24 透明背景
+    wxBitmap finalBmp(targetSize, targetSize, 32);
+    wxMemoryDC dc(finalBmp);
+    dc.SetBackground(*wxWHITE_BRUSH);
+
+    dc.Clear();
+
+    int offsetX = (targetSize - newW) / 2;
+    int offsetY = (targetSize - newH) / 2;
+
+    dc.DrawBitmap(wxBitmap(img), offsetX, offsetY, true);
+    dc.SelectObject(wxNullBitmap);
+
+    int iconIndex = m_imgList->Add(finalBmp);
+
+    MY_LOG("✅ SVG 加载成功（等比例居中）：" + toolName +
+        " → 图标索引：" + wxString::Format("%d", iconIndex));
 }
+
+
 
 // 构建工具树
 void ToolboxPanel::Rebuild()
