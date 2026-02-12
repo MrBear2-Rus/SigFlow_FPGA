@@ -1,4 +1,4 @@
-//﻿#include "ToolboxPanel.h"
+﻿//﻿#include "ToolboxPanel.h"
 #include "ToolboxPanel.h"
 #include "ToolboxModel.h"
 #include <wx/artprov.h>
@@ -100,6 +100,10 @@ ToolboxPanel::ToolboxPanel(wxWindow* parent)
     LoadToolIcon("Even Parity Gate", "parityEvenGate.svg");// 28: Gates-Even Parity Gate
     LoadToolIcon("Controlled Buffer", "controlledBuffer.svg");// 29: Gates-Controlled Buffer
     LoadToolIcon("Controlled Inverter", "controlledInverter.svg");// 30: Gates-Controlled Inverter
+    LoadToolIcon("u1", "andGateRect.svg");// 30: Gates-Controlled Inverter
+    LoadToolIcon("u2", "andGateRect.svg");// 30: Gates-Controlled Inverter
+    LoadToolIcon("assign_1", "andGateRect.svg");// 30: Gates-Controlled Inverter
+    LoadToolIcon("assign_2", "andGateRect.svg");// 30: Gates-Controlled Inverter
 
     // Plexers 分类
     LoadToolIcon("Multiplexer", "multiplexer.svg");   // 31: Plexers-Multiplexer
@@ -280,6 +284,10 @@ void ToolboxPanel::Rebuild()
     gatesTools.Add("Even Parity Gate");
     gatesTools.Add("Controlled Buffer");
     gatesTools.Add("Controlled Inverter");
+    gatesTools.Add("u1");
+    gatesTools.Add("u2");
+    gatesTools.Add("assign_1");
+    gatesTools.Add("assign_2");  
     wxTreeItemId gatesId = m_tree->AppendItem(root, "Gates", 0, 0);
     m_tree->SetItemBold(gatesId, true);
     for (size_t i = 0; i < gatesTools.GetCount(); i++) {

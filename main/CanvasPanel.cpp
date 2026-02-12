@@ -588,7 +588,7 @@ void CanvasPanel::UpdateHoverInfo(const wxPoint& screenPos) {
     }
     else if (m_hoverInfo.IsOverCell()) {
         if (m_hoverInfo.isCellMiddle) {
-            hover = (wxString::Format("Hover on: Wire[%d] Section[%d] 控制点",
+            hover = (wxString::Format("Hover on: Wire[%d] Section[%d] ControlPoint",
                 m_hoverInfo.wireIndex, m_hoverInfo.wireSectionIndex));
         }
         else {

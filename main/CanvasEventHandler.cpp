@@ -587,8 +587,12 @@ void CanvasEventHandler::HandleTextTool() {
     // 检查是否点击了现有文本元素
     if (m_hoverInfo.IsOverText()) StartTextEditing(m_hoverInfo.textIndex);
     else {
+        int x = static_cast<int>(m_hoverInfo.canvasPos.x);
+        int y = static_cast<int>(m_hoverInfo.canvasPos.y);
         m_canvas->CreateTextElement(m_hoverInfo.canvasPos, "");
-        m_canvas->SetStatus(wxString::Format("Placed：(%d, %d)", m_hoverInfo.canvasPos.x, m_hoverInfo.canvasPos.y));
+        wxString statusText;
+        statusText.Printf(wxT("Placed：(%d, %d)"), x, y);
+        m_canvas->SetStatus(statusText);
     }
 }
 
