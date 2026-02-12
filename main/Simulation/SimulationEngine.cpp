@@ -324,10 +324,13 @@ bool SimulationEngine::RunVerilator(const wxString& topModule,
     // 注意：Verilator 5.x 不支持 --shared，只生成 C++ 代码
     wxString cmd = verilatorPath;
     cmd += " -cc";
+    cmd += " -O0";  // 禁用优化，保留完整电路结构
     cmd += " --Wno-DECLFILENAME";
+    cmd += " --Wno-TIMESCALEMOD";  // 忽略 timescale 不一致警告
+    cmd += " --timing";  // 支持时序控制（如 #1 延迟）
     cmd += " --Mdir " + objDir;
     cmd += " --top-module " + topModule;
-    cmd += " --trace --trace-underscore --trace-structs";
+    cmd += " --trace --trace-underscore --trace-structs";  // 波形跟踪接口
     // 只生成 C++，不编译可执行文件（--exe 和 --build 也不需要）
     
     // 添加所有Verilog文件
@@ -366,13 +369,14 @@ void SimulationEngine::CreateScTimeStub(const wxString& path)
     OutputDebugStringA(path.ToUTF8());
     OutputDebugStringA("\n");
     
+    // C++20 模式下使用普通 C++ 链接，不加 extern "C"
     const char* stubContent = 
         "// Stub for sc_time_stamp function required by Verilator\n"
         "#include <cstdint>\n"
         "\n"
         "static uint64_t g_sim_time = 0;\n"
         "\n"
-        "extern \"C\" double sc_time_stamp() {\n"
+        "double sc_time_stamp() {\n"
         "    return static_cast<double>(g_sim_time);\n"
         "}\n"
         "\n"
@@ -440,24 +444,24 @@ bool SimulationEngine::CompileToDll(const wxString& topModule, wxString& errorMs
     OutputDebugStringA(vcvarsPath.ToUTF8());
     OutputDebugStringA("\n");
     
-    // 创建 sc_time_stub.cpp 如果不存在
-    wxString stubPath = projectRoot + "\\Simulation\\sc_time_stub.cpp";
+    // 直接使用软件目录下的 sc_time_stub.cpp，不复制
+    wxString softwareDir = GetSoftwareDirectory();
+    wxString stubPath = softwareDir + "\\main\\Simulation\\sc_time_stub.cpp";
+    
     OutputDebugStringA("Stub path: ");
     OutputDebugStringA(stubPath.ToUTF8());
     OutputDebugStringA("\n");
     
+    // 检查 stub 文件是否存在
     if (!wxFileExists(stubPath)) {
-        OutputDebugStringA("Stub file not found, creating...\n");
+        OutputDebugStringA("Stub file not found, trying to create...\n");
+        // 尝试在缓存目录创建
+        stubPath = cacheDir + "\\sc_time_stub.cpp";
         CreateScTimeStub(stubPath);
-    } else {
-        OutputDebugStringA("Stub file already exists\n");
-    }
-    
-    // 检查 stub 文件是否真的存在
-    if (!wxFileExists(stubPath)) {
-        OutputDebugStringA("ERROR: Failed to create stub file\n");
-        errorMsg = wxT("无法创建 sc_time_stub.cpp");
-        return false;
+        if (!wxFileExists(stubPath)) {
+            errorMsg = wxT("无法创建 sc_time_stub.cpp");
+            return false;
+        }
     }
     
     // 创建临时批处理文件来执行编译
@@ -480,7 +484,7 @@ bool SimulationEngine::CompileToDll(const wxString& topModule, wxString& errorMs
         batchContent += "chcp 65001 >nul\n";
         batchContent += "call \"" + vcvarsPath + "\"\n";
         batchContent += "if %errorLevel% neq 0 exit /b %errorLevel%\n";
-        batchContent += "cl /LD /O2 /MD /EHsc /W3 ";
+        batchContent += "cl /LD /O2 /MD /EHsc /W3 /std:c++20 ";  // C++20 标准协程
         batchContent += "/Fe\"" + dllPath + "\" ";
         // /Fo 路径不能以反斜杠结尾（否则会转义引号），且不要引号包裹
         batchContent += "/Fo" + objDir + "\\ ";
@@ -488,7 +492,8 @@ bool SimulationEngine::CompileToDll(const wxString& topModule, wxString& errorMs
         batchContent += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated.cpp\" ";
         batchContent += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated_vcd_c.cpp\" ";
         batchContent += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated_threads.cpp\" ";
-        batchContent += "\"" + safeStubPath + "\" ";
+        batchContent += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated_timing.cpp\" ";
+        batchContent += "\"" + stubPath + "\" ";
         batchContent += "/I\"C:\\msys64\\mingw64\\share\\verilator\\include\" ";
         batchContent += "/I\"C:\\msys64\\mingw64\\share\\verilator\\include\\vltstd\" ";
         batchContent += "/I\"" + objDir + "\" ";
@@ -636,4 +641,44 @@ void SimulationEngine::CancelCompile()
         m_processRunner->Terminate();
         m_isCompiling = false;
     }
+}
+
+// 获取软件自身所在目录（用于找到 sc_time_stub.cpp 等工具文件）
+wxString SimulationEngine::GetSoftwareDirectory() const
+{
+    // 方法1: 尝试从环境变量获取
+    wxString envPath;
+    if (wxGetEnv("SIGFLOW_ROOT", &envPath) && !envPath.IsEmpty()) {
+        return envPath;
+    }
+    
+    // 方法2: 基于可执行文件路径推导
+    wxString exePath = wxStandardPaths::Get().GetExecutablePath();
+    wxFileName exeDir(exePath);
+    wxString path = exeDir.GetPath();
+    
+    // 输出调试信息
+    OutputDebugStringA("Executable path: ");
+    OutputDebugStringA(path.ToUTF8());
+    OutputDebugStringA("\n");
+    
+    // 如果在 x64/Release 或 x64/Debug 下，向上两级
+    if (path.Lower().Contains("x64")) {
+        exeDir.RemoveLastDir();  // 去掉 Release/Debug
+        exeDir.RemoveLastDir();  // 去掉 x64
+        path = exeDir.GetPath();
+    }
+    
+    // 检查是否在 main 目录下
+    if (path.EndsWith("main") || path.EndsWith("main\\")) {
+        // 已经在 main 目录，软件根目录是上级
+        exeDir.RemoveLastDir();
+    }
+    
+    wxString result = exeDir.GetPath();
+    OutputDebugStringA("Software directory: ");
+    OutputDebugStringA(result.ToUTF8());
+    OutputDebugStringA("\n");
+    
+    return result;
 }

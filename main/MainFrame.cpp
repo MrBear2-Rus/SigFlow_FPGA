@@ -3,6 +3,9 @@
 #include <wx/sstream.h>
 #include <wx/aui/aui.h>
 #include <wx/progdlg.h>
+#include <wx/textdlg.h>
+
+#include "../3rd/json/json.h"
 
 #include "MainFrame.h"
 #include "MainMenuBar.h"
@@ -704,7 +707,7 @@ void MainFrame::DoFileOpen(const wxString& path)
             wxT("打开文件"),
             wxT(""),
             wxT(""),
-            wxT("电路文件 (*.circ)|*.circ|Verilog文件 (*.v;*.sv)|*.v;*.sv|所有文件 (*.*)|*.*"),
+            wxT("电路文件 (*.circ)|*.circ|所有文件 (*.*)|*.*"),
             wxFD_OPEN | wxFD_FILE_MUST_EXIST
         );
 
@@ -718,15 +721,7 @@ void MainFrame::DoFileOpen(const wxString& path)
     wxFileName fn(filePath);
     wxString ext = fn.GetExt().Lower();
 
-    // 如果是 Verilog 文件，直接在代码编辑器中打开
-    if (ext == wxT("v") || ext == wxT("sv")) {
-        if (m_verilogEditor) {
-            m_verilogEditor->OpenFile(filePath);
-            m_currentFilePath = filePath;
-            RefreshTitle();
-        }
-        return;
-    }
+    // 注：不再支持直接打开单个 .v 文件，必须通过项目方式打开
 
     // 尝试读取文件内容
     wxFile file;
@@ -1470,104 +1465,220 @@ void MainFrame::PropertyLoadNode(SigTreeNode* node) {
 // Verilator 仿真接口实现
 // ============================================================================
 
+// 从 sigflow.project 读取编译配置
+bool MainFrame::LoadProjectConfig(const wxString& projectPath, 
+                                   wxString& outTopModule,
+                                   std::vector<wxString>& outSourceFiles)
+{
+    wxString configPath = projectPath + "\\sigflow.project";
+    
+    if (!wxFileExists(configPath)) {
+        OutputDebugStringA("sigflow.project not found\n");
+        return false;
+    }
+    
+    // 读取文件内容
+    wxFile file(configPath, wxFile::read);
+    if (!file.IsOpened()) {
+        OutputDebugStringA("Failed to open sigflow.project\n");
+        return false;
+    }
+    
+    wxString jsonContent;
+    file.ReadAll(&jsonContent);
+    file.Close();
+    
+    // 解析 JSON
+    Json::Value root;
+    Json::CharReaderBuilder builder;
+    std::string errors;
+    
+    std::string jsonStr = jsonContent.ToUTF8().data();
+    std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
+    
+    if (!reader->parse(jsonStr.c_str(), jsonStr.c_str() + jsonStr.size(), &root, &errors)) {
+        OutputDebugStringA(("JSON parse error: " + errors + "\n").c_str());
+        return false;
+    }
+    
+    // 读取 top_module
+    if (root.isMember("build") && root["build"].isMember("top_module")) {
+        const Json::Value& topModules = root["build"]["top_module"];
+        if (topModules.isArray() && !topModules.empty()) {
+            outTopModule = wxString::FromUTF8(topModules[0].asString());
+            OutputDebugStringA(("Top module from config: " + outTopModule.ToStdString() + "\n").c_str());
+        }
+    }
+    
+    // 读取 source_files
+    if (root.isMember("paths") && root["paths"].isMember("source_files")) {
+        const Json::Value& sources = root["paths"]["source_files"];
+        if (sources.isArray()) {
+            for (const auto& src : sources) {
+                wxString relPath = wxString::FromUTF8(src.asString());
+                wxString fullPath = projectPath + "\\" + relPath;
+                // 将正斜杠转换为反斜杠
+                fullPath.Replace("/", "\\");
+                outSourceFiles.push_back(fullPath);
+                OutputDebugStringA(("Source file: " + fullPath.ToStdString() + "\n").c_str());
+            }
+        }
+    }
+    
+    // 读取 library_files
+    if (root.isMember("paths") && root["paths"].isMember("library_files")) {
+        const Json::Value& libs = root["paths"]["library_files"];
+        if (libs.isArray()) {
+            for (const auto& lib : libs) {
+                wxString relPath = wxString::FromUTF8(lib.asString());
+                if (!relPath.IsEmpty()) {
+                    wxString fullPath = projectPath + "\\" + relPath;
+                    fullPath.Replace("/", "\\");
+                    outSourceFiles.push_back(fullPath);
+                    OutputDebugStringA(("Library file: " + fullPath.ToStdString() + "\n").c_str());
+                }
+            }
+        }
+    }
+    
+    return !outTopModule.IsEmpty() && !outSourceFiles.empty();
+}
+
 void MainFrame::DoSimCompile()
 {
-    // 最简单的测试 - 在函数最开始处
     OutputDebugStringA("=== DoSimCompile ENTER ===\n");
     
-    // 使用原始的 MessageBoxA 避免 wxWidgets 问题
-    MessageBoxA(NULL, "DoSimCompile called! Click OK to continue...", "Debug", MB_OK);
-    
-    OutputDebugStringA("=== After First MessageBox ===\n");
-    
-    // 检查 this 指针
-    if (this == nullptr) {
-        MessageBoxA(NULL, "this is NULL!", "Error", MB_OK | MB_ICONERROR);
+    // 安全检查
+    if (!this) {
+        OutputDebugStringA("ERROR: this is NULL\n");
         return;
     }
     
-    OutputDebugStringA("=== this is valid ===\n");
-    
-    // 检查仿真引擎
-    if (!m_simEngine) {
-        OutputDebugStringA("Creating SimulationEngine...\n");
-        m_simEngine = std::make_unique<SimulationEngine>();
-        m_simEngine->SetProjectRoot(m_currentProjectPath);
-        OutputDebugStringA("SimulationEngine created\n");
-    }
-    
-    OutputDebugStringA("Checking m_currentFilePath...\n");
-    
-    // 测试访问 m_currentProjectPath
-    OutputDebugStringA("Testing m_currentProjectPath...\n");
-    if (m_currentProjectPath.IsEmpty()) {
-        OutputDebugStringA("Project path is empty\n");
-    } else {
-        OutputDebugStringA("Project path is valid\n");
-    }
-    
-    // 检查当前文件
-    OutputDebugStringA("About to check m_currentFilePath...\n");
-    if (m_currentFilePath.IsEmpty()) {
-        MessageBoxA(NULL, "No file open", "Debug", MB_OK);
+    // 1. 检查项目是否打开 - 使用临时变量避免多次访问
+    wxString projectPath = m_currentProjectPath;
+    if (projectPath.IsEmpty()) {
+        wxMessageBox("请先打开项目", "编译仿真", wxOK | wxICON_WARNING);
         return;
     }
     
-    OutputDebugStringA("File path is not empty\n");
+    // 2. 从 sigflow.project 读取配置
+    wxString topModule;
+    std::vector<wxString> verilogFiles;
     
-    // 转换为 char* 显示
-    std::string filePathStr = m_currentFilePath.ToUTF8().data();
-    MessageBoxA(NULL, filePathStr.c_str(), "Current File", MB_OK);
-    
-    OutputDebugStringA("After file path message box\n");
-    
-    // 询问顶层模块名 - 使用 Windows API 避免 wxWidgets 问题
-    OutputDebugStringA("About to get top module name...\n");
-    
-    // 暂时使用硬编码值测试
-    char buffer[256] = "fulladder";
-    
-    // 简化：先用硬编码测试
-    int mbResult = MessageBoxA(NULL, "Use 'fulladder' as top module?", "Confirm", MB_YESNO);
-    if (mbResult != IDYES) {
-        OutputDebugStringA("User cancelled\n");
-        return;
-    }
-    
-    wxString topModule = wxString::FromUTF8(buffer);
-    OutputDebugStringA("Top module set to: fulladder\n");
-    
-    MessageBoxA(NULL, "About to compile...", "Debug", MB_OK);
-    OutputDebugStringA("About to prepare file list...\n");
-    
-    // 准备文件列表
-    std::vector<wxString> files;
-    files.push_back(m_currentFilePath);
-    
-    OutputDebugStringA("File list prepared, calling Compile...\n");
-    
-    // 执行编译
-    SimulationCompileResult result = m_simEngine->Compile(topModule, files);
-    
-    OutputDebugStringA("Compile returned\n");
-
-    OutputDebugStringA("Processing result...\n");
-    if (result.success) {
-        wxMessageBox(wxT("编译成功!\nDLL已生成"), wxT("完成"), wxOK | wxICON_INFORMATION);
-    } else {
-        // 简化错误显示，避免乱码
-        wxString simpleError = wxT("编译失败\n\n");
-        // 检查错误阶段（Verilator阶段或DLL阶段）
-        if (result.errorMessage.Contains(wxT("Verilator执行失败"))) {
-            simpleError += wxT("Verilator 执行失败，请检查代码语法");
-        } else if (result.errorMessage.Contains(wxT("DLL编译失败"))) {
-            simpleError += wxT("DLL 编译失败\n建议：\n1. 双击运行 Simulation\\compile_dll_vs.bat 手动编译\n2. 确保安装了 Visual Studio 2022");
-        } else {
-            simpleError += wxT("未知错误，请查看输出窗口");
+    if (!LoadProjectConfig(projectPath, topModule, verilogFiles)) {
+        // 配置文件读取失败，回退到手动收集和输入
+        OutputDebugStringA("Failed to load project config, falling back to manual mode\n");
+        
+        // 手动收集 src/*.v 和 lib/*.v
+        wxString srcDir = projectPath + "\\src";
+        wxString libDir = projectPath + "\\lib";
+        
+        if (wxDir::Exists(srcDir)) {
+            wxDir dir;
+            if (dir.Open(srcDir)) {
+                wxString filename;
+                bool hasFile = dir.GetFirst(&filename, "*.v", wxDIR_FILES);
+                while (hasFile) {
+                    verilogFiles.push_back(srcDir + "\\" + filename);
+                    hasFile = dir.GetNext(&filename);
+                }
+            }
         }
-        wxMessageBox(simpleError, wxT("编译失败"), wxOK | wxICON_ERROR);
+        
+        if (wxDir::Exists(libDir)) {
+            wxDir dir;
+            if (dir.Open(libDir)) {
+                wxString filename;
+                bool hasFile = dir.GetFirst(&filename, "*.v", wxDIR_FILES);
+                while (hasFile) {
+                    verilogFiles.push_back(libDir + "\\" + filename);
+                    hasFile = dir.GetNext(&filename);
+                }
+            }
+        }
+        
+        if (verilogFiles.empty()) {
+            wxMessageBox("项目中没有找到 Verilog 文件\n请确保项目包含 src/ 或 lib/ 目录", 
+                         "编译仿真", wxOK | wxICON_WARNING);
+            return;
+        }
+        
+        // 询问顶层模块名
+        wxFileName projectFn(projectPath);
+        wxString defaultTopModule = projectFn.GetFullName();
+        
+        wxString prompt;
+        prompt.Printf("找到 %u 个 Verilog 文件\n请输入顶层模块名称:", (unsigned)verilogFiles.size());
+        
+        wxTextEntryDialog dialog(NULL, prompt, "编译仿真", defaultTopModule);
+        if (dialog.ShowModal() != wxID_OK) {
+            return;
+        }
+        
+        topModule = dialog.GetValue();
+        if (topModule.IsEmpty()) {
+            wxMessageBox("顶层模块名称不能为空", "编译仿真", wxOK | wxICON_WARNING);
+            return;
+        }
+    } else {
+        // 配置读取成功，询问用户确认
+        // 使用字符串拼接避免 Printf 问题
+        wxString confirmMsg = "从 sigflow.project 读取的配置:\n顶层模块: ";
+        confirmMsg += topModule;
+        confirmMsg += "\n源文件数: ";
+        confirmMsg += wxString::Format("%u", (unsigned)verilogFiles.size());
+        confirmMsg += "\n\n确认编译?";
+        
+        int result = wxMessageBox(confirmMsg, "编译仿真", wxYES_NO | wxICON_QUESTION);
+        if (result != wxYES) {
+            return;
+        }
     }
-
+    if (topModule.IsEmpty()) {
+        wxMessageBox("顶层模块名称不能为空", "编译仿真", wxOK | wxICON_WARNING);
+        return;
+    }
+    
+    // 4. 初始化仿真引擎
+    if (!m_simEngine) {
+        m_simEngine = std::make_unique<SimulationEngine>();
+    }
+    
+    // 关键：设置项目根目录（用于确定.sigflow缓存位置）
+    m_simEngine->SetProjectRoot(projectPath);
+    
+    // 5. 设置编译输出回调（显示编译日志）
+    m_simEngine->SetCompileOutputCallback([this](const wxString& line, bool isError) {
+        // 可以在这里输出到日志窗口
+        OutputDebugStringA(isError ? "[ERR] " : "[OUT] ");
+        OutputDebugStringA(line.ToUTF8());
+        OutputDebugStringA("\n");
+    });
+    
+    // 6. 执行编译
+    SetStatusText("正在编译仿真模型...", 0);
+    SimulationCompileResult result = m_simEngine->Compile(topModule, verilogFiles);
+    SetStatusText(result.success ? "编译完成" : "编译失败", 0);
+    
+    // 7. 显示结果 - 使用字符串拼接避免 Printf 问题
+    if (result.success) {
+        wxString successMsg = "编译成功!\nDLL路径: ";
+        successMsg += result.dllPath;
+        wxMessageBox(successMsg, "编译完成", wxOK | wxICON_INFORMATION);
+    } else {
+        wxString errorMsg = "编译失败\n\n";
+        if (result.errorMessage.Contains("Verilator")) {
+            errorMsg += "Verilator 阶段失败，请检查代码语法\n";
+        } else if (result.errorMessage.Contains("DLL")) {
+            errorMsg += "DLL 编译失败\n";
+            errorMsg += "建议：检查 .sigflow\\sim\\";
+            errorMsg += topModule;
+            errorMsg += "\\compile_dll.bat 手动调试";
+        }
+        errorMsg += "\n\n详细错误：\n" + result.errorMessage;
+        wxMessageBox(errorMsg, "编译失败", wxOK | wxICON_ERROR);
+    }
+    
     OutputDebugStringA("=== DoSimCompile EXIT ===\n");
 }
 

@@ -1,19 +1,16 @@
 // Stub for sc_time_stamp function required by Verilator
 #include <cstdint>
 
-#ifdef _WIN32
-    #define DLLEXPORT __declspec(dllexport)
-#else
-    #define DLLEXPORT
-#endif
+// 注意：Verilator 在 C++20 模式下使用普通 C++ 链接
+// 不需要 extern "C"，也不需要 __declspec(dllexport)
+// 因为最终链接到同一个 DLL 中
 
 static uint64_t g_sim_time = 0;
 
-// Verilator 使用 C++ 链接（不是 extern "C"）
-DLLEXPORT double sc_time_stamp() {
+double sc_time_stamp() {
     return static_cast<double>(g_sim_time);
 }
 
-DLLEXPORT void advance_sim_time(uint64_t delta) {
+void advance_sim_time(uint64_t delta) {
     g_sim_time += delta;
 }

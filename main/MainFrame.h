@@ -129,6 +129,9 @@ public:
     void DoSimLogging();
     
     /* Verilator 仿真接口 */
+    bool LoadProjectConfig(const wxString& projectPath, 
+                           wxString& outTopModule,
+                           std::vector<wxString>& outSourceFiles);  // 读取项目配置
     void DoSimCompile();      // 编译仿真模型
     void DoSimRun();          // 运行仿真
     void DoSimClean();        // 清理仿真缓存

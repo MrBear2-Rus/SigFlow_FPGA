@@ -116,6 +116,9 @@ private:
     // 获取Visual Studio的VCVarsPath（用于设置编译环境）
     wxString FindVCVarsPath() const;
 
+    // 获取软件自身所在目录（用于找到 sc_time_stub.cpp 等工具文件）
+    wxString GetSoftwareDirectory() const;
+
     // 进度报告辅助函数
     void ReportProgress(int percent, const wxString& status);
 };
