@@ -953,12 +953,12 @@ void MainFrame::DoFileOpen(const wxString& path)
         child = child->GetNext();
     }
 
-    // ����״̬
+    // 更新状态
     m_currentFilePath = filePath;
     m_isModified = false;
     SetTitle(wxFileName(filePath).GetFullName());
     static_cast<MainMenuBar*>(GetMenuBar())->AddFileToHistory(filePath);
-    SetStatusText("�Ѵ�: " + filePath);
+    SetStatusText(wxT("已打开: ") + filePath);
 }
 
 
@@ -1688,7 +1688,7 @@ void MainFrame::DoSimCompile()
     // 1. 检查项目是否打开 - 使用临时变量避免多次访问
     wxString projectPath = m_currentProjectPath;
     if (projectPath.IsEmpty()) {
-        wxMessageBox("请先打开项目", "编译仿真", wxOK | wxICON_WARNING);
+        wxMessageBox(wxT("请先打开项目"), wxT("编译仿真"), wxOK | wxICON_WARNING);
         return;
     }
     
@@ -1729,8 +1729,8 @@ void MainFrame::DoSimCompile()
         }
         
         if (verilogFiles.empty()) {
-            wxMessageBox("项目中没有找到 Verilog 文件\n请确保项目包含 src/ 或 lib/ 目录", 
-                         "编译仿真", wxOK | wxICON_WARNING);
+            wxMessageBox(wxT("项目中没有找到 Verilog 文件\n请确保项目包含 src/ 或 lib/ 目录"), 
+                         wxT("编译仿真"), wxOK | wxICON_WARNING);
             return;
         }
         
@@ -1748,25 +1748,24 @@ void MainFrame::DoSimCompile()
         
         topModule = dialog.GetValue();
         if (topModule.IsEmpty()) {
-            wxMessageBox("顶层模块名称不能为空", "编译仿真", wxOK | wxICON_WARNING);
+            wxMessageBox(wxT("顶层模块名称不能为空"), wxT("编译仿真"), wxOK | wxICON_WARNING);
             return;
         }
     } else {
         // 配置读取成功，询问用户确认
-        // 使用字符串拼接避免 Printf 问题
-        wxString confirmMsg = "从 sigflow.project 读取的配置:\n顶层模块: ";
+        wxString confirmMsg = wxT("从 sigflow.project 读取的配置:\n顶层模块: ");
         confirmMsg += topModule;
-        confirmMsg += "\n源文件数: ";
-        confirmMsg += wxString::Format("%u", (unsigned)verilogFiles.size());
-        confirmMsg += "\n\n确认编译?";
+        confirmMsg += wxT("\n源文件数: ");
+        confirmMsg += wxString::Format(wxT("%u"), (unsigned)verilogFiles.size());
+        confirmMsg += wxT("\n\n确认编译?");
         
-        int result = wxMessageBox(confirmMsg, "编译仿真", wxYES_NO | wxICON_QUESTION);
+        int result = wxMessageBox(confirmMsg, wxT("编译仿真"), wxYES_NO | wxICON_QUESTION);
         if (result != wxYES) {
             return;
         }
     }
     if (topModule.IsEmpty()) {
-        wxMessageBox("顶层模块名称不能为空", "编译仿真", wxOK | wxICON_WARNING);
+        wxMessageBox(wxT("顶层模块名称不能为空"), wxT("编译仿真"), wxOK | wxICON_WARNING);
         return;
     }
     
@@ -1787,27 +1786,27 @@ void MainFrame::DoSimCompile()
     });
     
     // 6. 执行编译
-    SetStatusText("正在编译仿真模型...", 0);
+    SetStatusText(wxT("正在编译仿真模型..."), 0);
     SimulationCompileResult result = m_simEngine->Compile(topModule, verilogFiles);
-    SetStatusText(result.success ? "编译完成" : "编译失败", 0);
+    SetStatusText(result.success ? wxT("编译完成") : wxT("编译失败"), 0);
     
     // 7. 显示结果 - 使用字符串拼接避免 Printf 问题
     if (result.success) {
-        wxString successMsg = "编译成功!\nDLL路径: ";
+        wxString successMsg = wxT("编译成功!\nDLL路径: ");
         successMsg += result.dllPath;
-        wxMessageBox(successMsg, "编译完成", wxOK | wxICON_INFORMATION);
+        wxMessageBox(successMsg, wxT("编译完成"), wxOK | wxICON_INFORMATION);
     } else {
-        wxString errorMsg = "编译失败\n\n";
-        if (result.errorMessage.Contains("Verilator")) {
-            errorMsg += "Verilator 阶段失败，请检查代码语法\n";
-        } else if (result.errorMessage.Contains("DLL")) {
-            errorMsg += "DLL 编译失败\n";
-            errorMsg += "建议：检查 .sigflow\\sim\\";
+        wxString errorMsg = wxT("编译失败\n\n");
+        if (result.errorMessage.Contains(wxT("Verilator"))) {
+            errorMsg += wxT("Verilator 阶段失败，请检查代码语法\n");
+        } else if (result.errorMessage.Contains(wxT("DLL"))) {
+            errorMsg += wxT("DLL 编译失败\n");
+            errorMsg += wxT("建议：检查 .sigflow\\sim\\");
             errorMsg += topModule;
-            errorMsg += "\\compile_dll.bat 手动调试";
+            errorMsg += wxT("\\compile_dll.bat 手动调试");
         }
-        errorMsg += "\n\n详细错误：\n" + result.errorMessage;
-        wxMessageBox(errorMsg, "编译失败", wxOK | wxICON_ERROR);
+        errorMsg += wxT("\n\n详细错误：\n") + result.errorMessage;
+        wxMessageBox(errorMsg, wxT("编译失败"), wxOK | wxICON_ERROR);
     }
     
     OutputDebugStringA("=== DoSimCompile EXIT ===\n");
@@ -1816,7 +1815,7 @@ void MainFrame::DoSimCompile()
 void MainFrame::DoSimRun()
 {
     if (!m_simEngine || !m_simEngine->IsCompiled("")) {
-        wxMessageBox("请先编译仿真模型", "运行仿真", wxOK | wxICON_WARNING);
+        wxMessageBox(wxT("请先编译仿真模型"), wxT("运行仿真"), wxOK | wxICON_WARNING);
         return;
     }
 
@@ -1837,47 +1836,43 @@ void MainFrame::DoSimRun()
     wxString vcdPath = saveDialog.GetPath();
     
     // 运行仿真
-    SetStatusText("正在运行仿真...", 0);
+    SetStatusText(wxT("正在运行仿真..."), 0);
     SimulationRunResult result = m_simEngine->RunSimulation(vcdPath);
 
     if (result.success) {
-        wxMessageBox(
-            wxString::Format("仿真完成!\n波形文件: %s", result.vcdPath),
-            "仿真完成",
-            wxOK | wxICON_INFORMATION
-        );
+        wxString msg = wxT("仿真完成!\n波形文件: ");
+        msg += result.vcdPath;
+        wxMessageBox(msg, wxT("仿真完成"), wxOK | wxICON_INFORMATION);
         
         // TODO: 打开波形查看器或显示波形
     } else {
-        wxMessageBox(
-            wxString::Format("仿真失败!\n%s", result.errorMessage),
-            "仿真错误",
-            wxOK | wxICON_ERROR
-        );
+        wxString msg = wxT("仿真失败!\n");
+        msg += result.errorMessage;
+        wxMessageBox(msg, wxT("仿真错误"), wxOK | wxICON_ERROR);
     }
 
-    SetStatusText("就绪", 0);
+    SetStatusText(wxT("就绪"), 0);
 }
 
 void MainFrame::DoSimClean()
 {
     if (!m_simEngine) {
-        wxMessageBox("没有仿真缓存需要清理", "清理缓存", wxOK | wxICON_INFORMATION);
+        wxMessageBox(wxT("没有仿真缓存需要清理"), wxT("清理缓存"), wxOK | wxICON_INFORMATION);
         return;
     }
 
     wxString topModule = wxGetTextFromUser(
-        "请输入要清理的顶层模块名称 (留空清理所有):",
-        "清理仿真缓存",
-        "",
+        wxT("请输入要清理的顶层模块名称 (留空清理所有):"),
+        wxT("清理仿真缓存"),
+        wxT(""),
         this
     );
 
     if (topModule.IsEmpty()) {
         // 询问是否清理所有
         int result = wxMessageBox(
-            "确定要清理所有仿真缓存吗?",
-            "确认清理",
+            wxT("确定要清理所有仿真缓存吗?"),
+            wxT("确认清理"),
             wxYES_NO | wxICON_QUESTION
         );
         if (result != wxYES) {
@@ -1886,8 +1881,8 @@ void MainFrame::DoSimClean()
     }
 
     if (m_simEngine->CleanCache(topModule)) {
-        wxMessageBox("缓存清理完成", "清理完成", wxOK | wxICON_INFORMATION);
+        wxMessageBox(wxT("缓存清理完成"), wxT("清理完成"), wxOK | wxICON_INFORMATION);
     } else {
-        wxMessageBox("缓存清理失败", "错误", wxOK | wxICON_ERROR);
+        wxMessageBox(wxT("缓存清理失败"), wxT("错误"), wxOK | wxICON_ERROR);
     }
 }

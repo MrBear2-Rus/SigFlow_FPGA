@@ -252,9 +252,9 @@ wxMenu* MainMenuBar::CreateSimulateMenu()
     wxMenu* m = new wxMenu;
 
     /* Verilator 仿真 */
-    m->Append(wxID_HIGHEST + 220, "Compile Simulation Model\tF5", "使用Verilator编译当前Verilog文件");
-    m->Append(wxID_HIGHEST + 221, "Run Simulation\tF6", "运行仿真并生成波形");
-    m->Append(wxID_HIGHEST + 222, "Clean Simulation Cache", "清理仿真编译缓存");
+    m->Append(wxID_HIGHEST + 220, wxT("Compile Simulation Model\tF5"), wxT("使用Verilator编译当前Verilog文件"));
+    m->Append(wxID_HIGHEST + 221, wxT("Run Simulation\tF6"), wxT("运行仿真并生成波形"));
+    m->Append(wxID_HIGHEST + 222, wxT("Clean Simulation Cache"), wxT("清理仿真编译缓存"));
     m->AppendSeparator();
 
     m->AppendCheckItem(wxID_HIGHEST + 200, "Simulation Enabled\tCtrl+E");
