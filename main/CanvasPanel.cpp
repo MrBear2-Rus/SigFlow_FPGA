@@ -258,14 +258,32 @@ void CanvasPanel::OnPaint(wxPaintEvent&) {
         gc->SetPen(wxPen(gridColor, 1.0 / m_scale)); // 笔宽在逻辑坐标下调整
 
         wxSize sz = wxSize(m_size.x + 1, m_size.y + 1);
-        int maxX = static_cast<int>(sz.x);
-        int maxY = static_cast<int>(sz.y);
+        wxSize clientSize = GetClientSize();
 
-        for (int x = 0; x < maxX; x += m_grid) {
-            gc->StrokeLine(x, 0, x, maxY);
+        // 2. 计算视口在“逻辑坐标系”下的左上角和右下角
+        // 左上角就是屏幕的 (0,0)   
+        double logicLeft = -m_offset.x / m_scale;
+        double logicTop = -m_offset.y / m_scale;
+        // 右下角就是屏幕的 (width, height)
+        double logicRight = (clientSize.x - m_offset.x) / m_scale;
+        double logicBottom = (clientSize.y - m_offset.y) / m_scale;
+
+        // 3. 对齐网格：找到视口左侧和上方第一个需要绘制的网格点
+        // 这样即使你拖动了 5.5 个像素，网格也会在正确的位置连续出现
+        double startX = std::floor(logicLeft / m_grid) * m_grid;
+        double startY = std::floor(logicTop / m_grid) * m_grid;
+
+        // 4. 只绘制视野内的网格线
+        gc->SetPen(wxPen(wxColour(230, 230, 230), 1.0 / m_scale)); // 笔宽随缩放变细，保持视觉 1px
+
+        // 垂直线：从左往右画
+        for (double x = startX; x <= logicRight; x += m_grid) {
+            gc->StrokeLine(x, logicTop, x, logicBottom);
         }
-        for (int y = 0; y < maxY; y += m_grid) {
-            gc->StrokeLine(0, y, maxX, y);
+
+        // 水平线：从上往下画
+        for (double y = startY; y <= logicBottom; y += m_grid) {
+            gc->StrokeLine(logicLeft, y, logicRight, y);
         }
 
         // 绘制导线（矢量线段）
