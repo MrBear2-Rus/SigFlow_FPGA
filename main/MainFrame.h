@@ -76,6 +76,7 @@ public:
 
     /* File 菜单业务接口 */
     void DoFileOpenProject();
+    void DoFileNewProject();
     void DoFileNew();
     void DoFileOpen(const wxString& path = {});
     void DoFileSave();

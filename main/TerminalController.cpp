@@ -1,4 +1,4 @@
-#include "TerminalController.h"
+﻿#include "TerminalController.h"
 
 #include <sstream>
 #include <vector>
@@ -31,7 +31,7 @@ void TerminalController::submitLine(const std::string& line,
         output =
             "Available commands:\n"
             "  help        show this message\n"
-            "  echo <msg>  echo message\n";
+            "  echo <msg>  echo message";
         return;
     }
 
