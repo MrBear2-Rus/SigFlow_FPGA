@@ -19,14 +19,6 @@
 #include <wx/aui/tabart.h>
 #include <wx/simplebook.h>
 #include <wx/splitter.h>
-#include <wx/dirdlg.h>
-#include <wx/filefn.h>
-#include <wx/filename.h>
-#include <wx/textdlg.h>
-#include <wx/wfstream.h>
-#include <wx/txtstrm.h>
-#include <wx/msgdlg.h>
-#include <wx/filepicker.h>
 
 extern std::vector<CanvasElement> g_elements;
 
@@ -60,10 +52,6 @@ enum {
 MainFrame::MainFrame()
     : wxFrame(nullptr, wxID_ANY, "SigFlow")
 {
-
-    // 终端
-    m_terminalCtrl = new TerminalCtrl(this);
-
     // 图标
     wxInitAllImageHandlers();
     wxBitmapBundle svgIcon = wxBitmapBundle::FromSVGFile("res\\svg_icons\\icon.svg", wxSize(24, 24));
@@ -78,7 +66,7 @@ MainFrame::MainFrame()
     wxString jsonPath = wxFileName(wxGetCwd(), "canvas_elements.json").GetFullPath();
     MyLog("MainFrame: JSON full path = [%s]\n", jsonPath.ToUTF8().data());
     g_elements = LoadCanvasElements(jsonPath);
-    m_terminalCtrl->PrintOutput("ToolBox Loaded.");
+
     Bind(wxEVT_CLOSE_WINDOW, &MainFrame::OnClose, this);
     
     // 计时器
@@ -96,7 +84,7 @@ MainFrame::MainFrame()
     /* 菜单栏*/
     SetMenuBar(new MainMenuBar(this));
     CreateStatusBar(1);
-    int widths[] = { -4, -2, -2, FromDIP(100) };
+    int widths[] = { FromDIP(800), FromDIP(400), FromDIP(400), FromDIP(100) };
     int style[] = { wxSB_NORMAL, wxSB_NORMAL, wxSB_FLAT, wxSB_FLAT };
     GetStatusBar()->SetFieldsCount(4, widths);
     GetStatusBar()->SetStatusStyles(4, style);
@@ -105,17 +93,15 @@ MainFrame::MainFrame()
     m_canvas = new CanvasPanel(this, FromDIP(2560), FromDIP(1960));
     m_canvas->SetBackgroundColour(*wxWHITE);
     m_canvas->SetFocus();
-    m_terminalCtrl->PrintOutput("Canvas Loaded.");
+
     // 元件库
     ToolboxPanel* toolbox = new ToolboxPanel(this);
-    m_terminalCtrl->PrintOutput("Toolbox Panel Loaded.");
     // 构造树面板
     m_sigFlowTreePanel = new SigFlowTreePanel(this, sigTree);
-    m_terminalCtrl->PrintOutput("SigFlow Tree Panel Loaded.");
+
     // 画布元素属性栏
     m_propPanel = new PropertyPanel(this);
     m_propPanel->ShowElement("Select Tool");
-    m_terminalCtrl->PrintOutput("Property Panel Loaded.");
 
     // SigTreeNode属性栏
     m_sfnPropertyPanel = new SFNPropertyPanel(this, sigTree);
@@ -124,7 +110,7 @@ MainFrame::MainFrame()
 
     // 文本编辑面板
     m_verilogEditor = new SigTextEditor(this);
-    m_terminalCtrl->PrintOutput("Text Editor Loaded.");
+
     // 异步IDE分析
     m_analysisCenter = new AsyncAnalysisCenter(this);
     this->Bind(EVT_ANALYSIS_COMPLETE, &MainFrame::OnAnalysisComplete, this);
@@ -137,6 +123,9 @@ MainFrame::MainFrame()
     wxAuiToolBar* sideBar = new wxAuiToolBar(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
         wxAUI_TB_VERTICAL | wxAUI_TB_NO_TOOLTIPS);
     sideBar->SetBackgroundColour(wxColour(225, 230, 235));
+ 
+    // 终端
+    m_terminalCtrl = new TerminalCtrl(this);
 
     auto GetIcon = [&](const wxString& path) {
         wxBitmapBundle bundle = wxBitmapBundle::FromSVGFile(path, wxSize(24, 24));
@@ -158,7 +147,7 @@ MainFrame::MainFrame()
     // 获取所有插件列表，准备在菜单或工具栏显示
     const auto& plugins = m_pluginMgr->GetAllPlugins();
     for (auto* p : plugins) {
-        m_terminalCtrl->PrintOutput(p->GetName() + " Loaded");
+        m_terminalCtrl->PrintOutput(p->GetName() + " Loaded\n");
     }
 
     ISigPlugin* pDeepSeek = m_pluginMgr->GetPlugin("DeepSeek_Assistant");
@@ -212,13 +201,7 @@ MainFrame::MainFrame()
 
     // --- 左侧：项目与控制组 ---
     topBar->AddTool(ID_TB_NEW, "New", GetIcon("res\\svg_icons\\new_project.svg"), "New Project");
-    topBar->Bind(wxEVT_MENU, [this](wxCommandEvent&) {
-        this->DoFileNewProject(); // 这里调用的是原有的无参函数
-        }, ID_TB_NEW);
     topBar->AddTool(ID_TB_OPEN, "Open", GetIcon("res\\svg_icons\\open_project.svg"), "Open Project");
-    topBar->Bind(wxEVT_MENU, [this](wxCommandEvent&) {
-        this->DoFileOpenProject(); // 这里调用的是原有的无参函数
-        }, ID_TB_OPEN);
     topBar->AddTool(ID_TB_SAVE, "Save", GetIcon("res\\svg_icons\\save_project.svg"), "Save All");
     topBar->AddSeparator();
 
@@ -313,7 +296,7 @@ MainFrame::MainFrame()
         .CaptionVisible(true).CloseButton(false).MaximizeButton(false));
 
     m_auiMgr.AddPane(rightNotebook, wxAuiPaneInfo()
-        .Name("right_sidebar").Caption("Side Panel").Right().Layer(8)
+        .Name("right_sidebar").Caption("Property").Right().Layer(8)
         .BestSize(rightW, -1)
         .MinSize(FromDIP(100), -1)
         .FloatingSize(rightW, 600)
@@ -587,120 +570,6 @@ void MainFrame::DoFileOpenProject() {
     }
 }
 
-void MainFrame::DoFileNewProject() {
-    // 1. 创建一个基础对话框
-    wxDialog dlg(this, wxID_ANY, "Create New Project", wxDefaultPosition, wxDefaultSize);
-    dlg.SetMinSize(wxSize(1000, -1));
-    // 2. 创建主布局管理器
-    wxBoxSizer* mainSizer = new wxBoxSizer(wxVERTICAL);
-
-    // --- 第一行：项目名称 ---
-    mainSizer->Add(new wxStaticText(&dlg, wxID_ANY, "Project Name:"), 0, wxALL, 10);
-
-    wxTextCtrl* nameInput = new wxTextCtrl(&dlg, wxID_ANY, "NewProject");
-    mainSizer->Add(nameInput, 0, wxEXPAND | wxLEFT | wxRIGHT, 10);
-
-    // --- 第二行：项目位置 ---
-    mainSizer->Add(new wxStaticText(&dlg, wxID_ANY, "Location:"), 0, wxALL, 10);
-    // wxDirPickerCtrl 完美符合你的需求：左侧路径文本，右侧 "..." 按钮
-    wxDirPickerCtrl* pathPicker = new wxDirPickerCtrl(&dlg, wxID_ANY, wxEmptyString, "Select Folder");
-    mainSizer->Add(pathPicker, 0, wxEXPAND | wxLEFT | wxRIGHT, 10);
-
-    // --- 第三行：标准按钮 (OK/Cancel) ---
-    // CreateStdDialogButtonSizer 会根据操作系统习惯自动排列按钮顺序
-    mainSizer->AddStretchSpacer();
-    wxSizer* buttonSizer = dlg.CreateStdDialogButtonSizer(wxOK | wxCANCEL);
-    mainSizer->Add(buttonSizer, 0, wxALIGN_RIGHT | wxALL, 10);
-
-    dlg.SetSizer(mainSizer);
-    dlg.Fit();
-    dlg.CenterOnParent();
-    // 3. 显示并获取结果
-    if (dlg.ShowModal() == wxID_OK) {
-        wxString projectName = nameInput->GetValue();
-        wxString parentPath = pathPicker->GetPath();
-
-        if (projectName.IsEmpty() || parentPath.IsEmpty()) {
-            wxMessageBox("Project name or path cannot be empty.", "Error", wxICON_ERROR);
-            return;
-        }
-
-        // 3. 构建完整的项目根目录路径
-        wxFileName projectDir(parentPath, "");
-        projectDir.AppendDir(projectName);
-        wxString rootPath = projectDir.GetPath();
-
-        // 检查目录是否已存在
-        if (wxDirExists(rootPath)) {
-            wxMessageBox("The directory already exists. Please change the project name or location.", "Failed to create", wxICON_ERROR);
-            return;
-        }
-
-        // 4. 开始创建目录结构
-        if (!wxMkdir(rootPath)) {
-            wxMessageBox("  The project root directory cannot be created.", "error", wxICON_ERROR);
-            return;
-        }
-
-        // 定义子目录列表
-        wxArrayString subDirs;
-        subDirs.Add("src");
-        subDirs.Add("lib");
-        subDirs.Add(".cache");
-        subDirs.Add(".sigflow");
-
-        for (const auto& sub : subDirs) {
-            wxFileName subPath(rootPath, "");
-            subPath.AppendDir(sub);
-            if (!wxMkdir(subPath.GetPath())) {
-                wxMessageBox("Directory cannot be created: " + sub, "warning", wxICON_WARNING);
-            }
-        }
-
-        // 5. 创建 sigflow.project 配置文件
-        wxFileName configFilePath(rootPath, "sigflow.project");
-        wxFileOutputStream output(configFilePath.GetFullPath());
-        if (!output.IsOk()) {
-            wxMessageBox("The project configuration file cannot be created.", "error", wxICON_ERROR);
-            return;
-        }
-
-        wxTextOutputStream txt(output);
-
-        // 写入 JSON 内容（这里保持原样，仅替换项目名）
-        wxString jsonContent = wxString::Format(R"({
-  "project_name": "%s",
-  "version": "1.0",
-  "build": {
-    "top_module": [],
-    "target_dir": ".sigflow/bin",
-    "standard": "1364-2005"
-  },
-  "paths": {
-    "include_dirs": [
-      "src",
-      "lib"
-    ],
-    "source_files": [],
-    "library_files": []
-  },
-  "defines": {
-    "DEBUG_ENABLE": 1,
-    "SIMULATION": true,
-    "CLOCK_PERIOD": 10
-  },
-  "tool_specific": {
-    "verilator": ["--trace", "--Wno-fatal"],
-    "iverilog": ["-g2012"],
-    "slang": ["-W all"]
-  }
-})", projectName);
-
-        txt << jsonContent;
-
-        wxLogStatus("Project '%s' has been successfully created to: %s", projectName, rootPath);
-    }
-}
 
 void MainFrame::DoFileNew() {
     // ֱ�Ӵ���һ���µĿհ�MainFrame����
