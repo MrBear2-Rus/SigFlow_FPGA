@@ -54,10 +54,11 @@ MainFrame::MainFrame()
 {
     // 图标
     wxInitAllImageHandlers();
-    wxIconBundle icons;
-    icons.AddIcon("res\\icons\\icon_256.png", wxBITMAP_TYPE_PNG);
-    SetIcons(icons);
+    wxBitmapBundle svgIcon = wxBitmapBundle::FromSVGFile("res\\svg_icons\\icon.svg", wxSize(24, 24));
+    wxIcon icon = svgIcon.GetIconFor(this);
+    SetIcon(icon);
 
+    wxSize tbIconSize = FromDIP(wxSize(12, 12));
     // 标题
     SetTitle("SigFlow [no project]");
 
@@ -122,23 +123,18 @@ MainFrame::MainFrame()
     wxAuiToolBar* sideBar = new wxAuiToolBar(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
         wxAUI_TB_VERTICAL | wxAUI_TB_NO_TOOLTIPS);
     sideBar->SetBackgroundColour(wxColour(225, 230, 235));
-
+ 
     // 终端
     m_terminalCtrl = new TerminalCtrl(this);
 
-    wxBitmapBundle bundle = wxBitmapBundle::FromSVGFile("res\\icons\\project.svg", wxSize(24, 24));
-    wxBitmap myBitmap = bundle.GetBitmap(FromDIP(wxSize(24, 24)));
+    auto GetIcon = [&](const wxString& path) {
+        wxBitmapBundle bundle = wxBitmapBundle::FromSVGFile(path, wxSize(24, 24));
+        return bundle.GetBitmap(FromDIP((tbIconSize, tbIconSize)));
+        };
 
-    wxImage img("res\\icons\\icon_256.png", wxBITMAP_TYPE_PNG);
-    wxImage smallImg = img.Scale(FromDIP(24), FromDIP(24), wxIMAGE_QUALITY_HIGH);
-    wxBitmap myIcon(smallImg);
-
-    wxBitmapBundle bundle_1 = wxBitmapBundle::FromSVGFile("res\\icons\\lib.svg", wxSize(24, 24));
-    wxBitmap lib = bundle_1.GetBitmap(FromDIP(wxSize(24, 24)));
-
-    sideBar->AddTool(ID_PROJ, wxEmptyString, myBitmap, "Project Manager", wxITEM_CHECK);
-    sideBar->AddTool(ID_FLOW, wxEmptyString, myIcon, "SigFlow Tree", wxITEM_CHECK);
-    sideBar->AddTool(ID_TBOX, wxEmptyString, lib, "Component Library", wxITEM_CHECK);
+    sideBar->AddTool(ID_PROJ, wxEmptyString, GetIcon("res\\icons\\project.svg"), "Project Manager", wxITEM_CHECK);
+    sideBar->AddTool(ID_FLOW, wxEmptyString, GetIcon("res\\svg_icons\\icon.svg"), "SigFlow Tree", wxITEM_CHECK);
+    sideBar->AddTool(ID_TBOX, wxEmptyString, GetIcon("res\\icons\\lib.svg"), "Component Library", wxITEM_CHECK);
     sideBar->ToggleTool(ID_PROJ, 1);
     sideBar->SetArtProvider(new MyCustomToolBarArt());
 
@@ -201,27 +197,19 @@ MainFrame::MainFrame()
     wxAuiToolBar* topBar = new wxAuiToolBar(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
         wxAUI_TB_HORIZONTAL | wxAUI_TB_PLAIN_BACKGROUND);
 
-    wxSize tbIconSize = FromDIP(wxSize(24, 24));
     topBar->SetToolBitmapSize(tbIconSize);
 
-    // 辅助 Lambda 用于高质量加载图标
-    auto GetIcon = [&](const wxString& path) {
-        wxImage img(path);
-        if (!img.IsOk()) return wxBitmapBundle();
-        return wxBitmapBundle::FromBitmap(img.Scale(tbIconSize.x, tbIconSize.y, wxIMAGE_QUALITY_HIGH));
-        };
-
     // --- 左侧：项目与控制组 ---
-    topBar->AddTool(ID_TB_NEW, "New", GetIcon("res\\icons\\new.png"), "New Project");
-    topBar->AddTool(ID_TB_OPEN, "Open", GetIcon("res\\icons\\open.png"), "Open Project");
-    topBar->AddTool(ID_TB_SAVE, "Save", GetIcon("res\\icons\\save.png"), "Save All");
+    topBar->AddTool(ID_TB_NEW, "New", GetIcon("res\\svg_icons\\new_project.svg"), "New Project");
+    topBar->AddTool(ID_TB_OPEN, "Open", GetIcon("res\\svg_icons\\open_project.svg"), "Open Project");
+    topBar->AddTool(ID_TB_SAVE, "Save", GetIcon("res\\svg_icons\\save_project.svg"), "Save All");
     topBar->AddSeparator();
 
-    topBar->AddTool(ID_TB_RECLAIM, "Reclaim", GetIcon("res\\icons\\reclaim.png"), "Reclaim Memory");
+    topBar->AddTool(ID_TB_RECLAIM, "Reclaim", GetIcon("res\\svg_icons\\reclaim.svg"), "Reclaim Memory");
     topBar->AddSeparator();
 
-    topBar->AddTool(ID_TB_START, "Start", GetIcon("res\\icons\\start.png"), "Start Simulation");
-    topBar->AddTool(ID_TB_STOP, "Stop", GetIcon("res\\icons\\stop.png"), "Stop Simulation");
+    topBar->AddTool(ID_TB_START, "Start", GetIcon("res\\svg_icons\\start.svg"), "Start Simulation");
+    topBar->AddTool(ID_TB_STOP, "Stop", GetIcon("res\\svg_icons\\end.svg"), "Stop Simulation");
 
 
     topBar->Realize();
