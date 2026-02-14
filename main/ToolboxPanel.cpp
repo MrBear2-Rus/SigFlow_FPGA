@@ -284,10 +284,6 @@ void ToolboxPanel::Rebuild()
     gatesTools.Add("Even Parity Gate");
     gatesTools.Add("Controlled Buffer");
     gatesTools.Add("Controlled Inverter");
-    gatesTools.Add("u1");
-    gatesTools.Add("u2");
-    gatesTools.Add("assign_1");
-    gatesTools.Add("assign_2");  
     wxTreeItemId gatesId = m_tree->AppendItem(root, "Gates", 0, 0);
     m_tree->SetItemBold(gatesId, true);
     for (size_t i = 0; i < gatesTools.GetCount(); i++) {

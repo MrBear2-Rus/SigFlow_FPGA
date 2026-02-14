@@ -195,13 +195,16 @@
       <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
     </Manifest>
     <PostBuildEvent>
-      <Command>if not exist "$(OutDir)res" mkdir "$(OutDir)res"
-xcopy "$(ProjectDir)res\*.*" "$(OutDir)res\" /Y /E /D /I
-
-xcopy "$(ProjectDir)canvas_elements.json" "$(OutDir)" /Y /D
-xcopy /Y /D /I "$(SolutionDir)3rd\wxWidgets-3.2.9\lib\vc_x64_dll\*.dll" "$(OutDir)\"
+      <Command>xcopy /Y /D /I "$(SolutionDir)3rd\wxWidgets-3.2.9\lib\vc_x64_dll\*.dll" "$(OutDir)\"
 xcopy /Y /D /I "$(SolutionDir)external\slang-sdk\*.dll" "$(OutDir)\"</Command>
     </PostBuildEvent>
+    <PreBuildEvent>
+      <Command>if exist "$(OutDir)res" rd /s /q "$(OutDir)res"
+mklink /J "$(OutDir)res" "$(ProjectDir)res"
+
+if exist "$(OutDir)canvas_elements.json" del /f /q "$(OutDir)canvas_elements.json"
+mklink /H "$(OutDir)canvas_elements.json" "$(ProjectDir)canvas_elements.json"</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>

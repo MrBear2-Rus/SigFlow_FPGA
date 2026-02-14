@@ -90,7 +90,7 @@ MainFrame::MainFrame()
     GetStatusBar()->SetStatusStyles(4, style);
 
     // 画布
-    m_canvas = new CanvasPanel(this, FromDIP(2560), FromDIP(1960));
+    m_canvas = new CanvasPanel(this, FromDIP(1123), FromDIP(794));
     m_canvas->SetBackgroundColour(*wxWHITE);
     m_canvas->SetFocus();
 

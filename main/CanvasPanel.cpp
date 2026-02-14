@@ -30,7 +30,7 @@ CanvasPanel::CanvasPanel(MainFrame* parent, size_t size_x, size_t size_y)
         wxFULL_REPAINT_ON_RESIZE | wxBORDER_NONE),
     m_mainFrame(parent),
     m_size{wxSize(size_x,size_y)},
-    m_offset(0, 0), m_scale(1.0f), m_grid(FromDIP(20)),
+    m_offset(0, 0), m_scale(1.0f), m_grid(20),
     m_hoverInfo{}, m_hasFocus(false),
     m_hiddenTextCtrl(nullptr),
     m_isUsingHiddenCtrl(false), m_currentEditingTextIndex(-1) {
