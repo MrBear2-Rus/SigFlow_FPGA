@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "pch.h"
 #include "ISigPlugin.h" // 确保路径指向你的 SDK 目录
 #include <string>
@@ -21,6 +21,7 @@ private:
     std::string m_apiUrl;
 
     wxString memory;
+    wxString m_latestCode;
     wxArrayString memory_queue;
 
     std::atomic<bool> m_isReleased{false}; 

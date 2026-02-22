@@ -7,11 +7,11 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(SolutionDir)plugin_sdk;$(SolutionDir)3rd\wxWidgets-3.2.9\include;$(SolutionDir)3rd\wxWidgets-3.2.9\include\msvc;$(SolutionDir)3rd\wxWidgets-3.2.9\lib\vc_x64_dll\mswud;$(SolutionDir)3rd;$(SolutionDir)3rd\tree-sitter\lib\include;$(SolutionDir)3rd\tree-sitter-verilog\src;$(SolutionDir)external\slang-sdk\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)plugin_sdk;$(SolutionDir)3rd\include;$(SolutionDir)3rd;$(SolutionDir)3rd\tree-sitter\lib\include;$(SolutionDir)3rd\tree-sitter-verilog\src;$(SolutionDir)external\slang-sdk\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WXUSINGDLL;__WXMSW__;UNICODE;_UNICODE;_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>$(SolutionDir)3rd\wxWidgets-3.2.9\lib\vc_x64_dll;$(SolutionDir)external\slang-sdk;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)external\slang-sdk;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <PostBuildEvent>
       <Command>

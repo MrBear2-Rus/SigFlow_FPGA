@@ -1,4 +1,4 @@
-﻿#include <wx/msgdlg.h>
+#include <wx/msgdlg.h>
 #include <wx/filename.h> 
 #include <wx/sstream.h>
 #include <wx/aui/aui.h>
@@ -155,8 +155,23 @@ MainFrame::MainFrame()
 
     // 插件加载
 
+    //m_pluginMgr = new PluginManager();
+    //m_pluginMgr->LoadPlugins("./plugins");
+    // 插件加载
     m_pluginMgr = new PluginManager();
-    m_pluginMgr->LoadPlugins("./plugins");
+
+    // 1. 获取当前 main.exe 的绝对路径
+    wxString exePath = wxStandardPaths::Get().GetExecutablePath();
+    // 2. 提取 exe 所在的目录
+    wxString exeDir = wxFileName(exePath).GetPath();
+    // 3. 拼接出 plugins 文件夹的绝对路径
+    wxString pluginDir = exeDir + wxFileName::GetPathSeparator() + "plugins";
+
+    // 打印出来确认一下（可选）
+    m_terminalCtrl->PrintOutput("Plugin Directory: " + pluginDir);
+
+    // 4. 加载插件
+    m_pluginMgr->LoadPlugins(pluginDir.ToStdString());
 
     // 获取所有插件列表，准备在菜单或工具栏显示
     const auto& plugins = m_pluginMgr->GetAllPlugins();

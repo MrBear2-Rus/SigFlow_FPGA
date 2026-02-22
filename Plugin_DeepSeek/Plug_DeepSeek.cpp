@@ -1,6 +1,6 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "Plug_DeepSeek.h"
-
+#include <wx/clipbrd.h>  // <--- 新增这一行：剪贴板支持库
 #include <wx/statline.h>
 #include <iostream>
 #include <winhttp.h>
@@ -52,16 +52,32 @@ void Plug_DeepSeek::Release() {
     delete this; // 安全自毁
 }
 
-std::string Plug_DeepSeek::ProcessCommand(const std::string& cmd) {
-    // 这里构造发送给 DS 的 Prompt
-    std::string fullPrompt = memory.ToStdString() +
+//std::string Plug_DeepSeek::ProcessCommand(const std::string& cmd) {
+//    // 这里构造发送给 DS 的 Prompt
+//    std::string fullPrompt = memory.ToStdString() +
+//
+//        "你是一个严格遵守格式的 Verilog 专家。无论用户问什么，你都必须且只能按以下格式回复，严禁任何前言和后语：\n"
+//    "## 1. 分析\n...\n"
+//    "## 2. 纯代码\n...\n"
+//    "## 3. 简要总结\n...\n"
+//    "## 4. 记忆存储\n...\n\n"
+//    "现在开始！用户的请求是：" + cmd;
+//
+//    return CallDeepSeekAPI(fullPrompt);
+//}
 
+std::string Plug_DeepSeek::ProcessCommand(const std::string& cmd) {
+    // 修复编码隐患：必须用 ToUTF8() 转换为标准 UTF-8 字节流，切忌使用 ToStdString()
+    std::string memStr = memory.IsEmpty() ? "" : std::string(memory.ToUTF8().data());
+
+    // 只要配置了 /utf-8 编译项，这里的双引号中文就是安全的 UTF-8
+    std::string fullPrompt = memStr +
         "你是一个严格遵守格式的 Verilog 专家。无论用户问什么，你都必须且只能按以下格式回复，严禁任何前言和后语：\n"
-    "## 1. 分析\n...\n"
-    "## 2. 纯代码\n...\n"
-    "## 3. 简要总结\n...\n"
-    "## 4. 记忆存储\n...\n\n"
-    "现在开始！用户的请求是：" + cmd;
+        "## 1. 分析\n...\n"
+        "## 2. 纯代码\n...\n"
+        "## 3. 简要总结\n...\n"
+        "## 4. 记忆存储\n...\n\n"
+        "现在开始！用户的请求是：" + cmd;
 
     return CallDeepSeekAPI(fullPrompt);
 }
@@ -159,7 +175,6 @@ extern "C" __declspec(dllexport) ISigPlugin* CreateSigPlugin() {
     return new Plug_DeepSeek();
 }
 
-
 wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
     // 1. 创建主面板
     wxPanel* panel = new wxPanel(parent, wxID_ANY);
@@ -173,10 +188,11 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
     // 输入框 (支持回车发送)
     wxTextCtrl* inputCtrl = new wxTextCtrl(panel, wxID_ANY, wxEmptyString,
         wxDefaultPosition, wxDefaultSize, wxTE_PROCESS_ENTER);
-    inputCtrl->SetHint("输入问题，按回车或点击发送...");
+    inputCtrl->SetHint(wxString::FromUTF8("输入问题，按回车或点击发送..."));
 
-    // 发送按钮
-    wxButton* sendBtn = new wxButton(panel, wxID_ANY, "发送", wxDefaultPosition, wxSize(100, -1));
+    // --- 修改区：增加复制按钮，调整按钮宽度 ---
+    wxButton* copyBtn = new wxButton(panel, wxID_ANY, wxString::FromUTF8("复制代码"), wxDefaultPosition, wxSize(80, -1));
+    wxButton* sendBtn = new wxButton(panel, wxID_ANY, wxString::FromUTF8("发送"), wxDefaultPosition, wxSize(80, -1));
     sendBtn->SetDefault(); // 设置为默认按钮（回车触发）
 
     // 3. 布局管理 (使用 Sizer)
@@ -187,9 +203,10 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
     mainSizer->Add(historyCtrl, 1, wxEXPAND | wxLEFT | wxRIGHT, 10);
     mainSizer->Add(new wxStaticLine(panel), 0, wxEXPAND | wxALL, 10);
 
-    // 将输入框和按钮放入横向布局
+    // --- 修改区：将复制按钮加入横向布局 ---
     inputSizer->Add(inputCtrl, 1, wxEXPAND | wxRIGHT, 10);
-    inputSizer->Add(sendBtn, 0, wxALIGN_CENTER_VERTICAL);
+    inputSizer->Add(copyBtn, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 5); // 复制按钮
+    inputSizer->Add(sendBtn, 0, wxALIGN_CENTER_VERTICAL);              // 发送按钮
 
     mainSizer->Add(inputSizer, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 10);
 
@@ -202,66 +219,92 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
 
         // UI 反馈
         historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLUE));
-        historyCtrl->AppendText("\n用户: " + userMsg + "\n");
+        historyCtrl->AppendText(wxString::FromUTF8("\n用户: ") + userMsg + "\n");
         historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLACK));
-        historyCtrl->AppendText("DeepSeek: 正在思考...\n");
+        historyCtrl->AppendText(wxString::FromUTF8("DeepSeek: 正在思考...\n"));
         inputCtrl->Clear();
 
         std::string promptUtf8 = userMsg.ToUTF8().data();
 
-        m_threads.emplace_back([this, panel, promptUtf8]() { // 确保按值捕获 promptUtf8
-            // 这里的 promptUtf8 现在是安全的 UTF-8 字节流
-            std::string response = this->CallDeepSeekAPI(promptUtf8);
+        m_threads.emplace_back([this, panel, promptUtf8]() {
+            // 修复业务 Bug：改为调用 ProcessCommand，让用户输入穿上“提示词马甲”后再发给 API
+            std::string response = this->ProcessCommand(promptUtf8);
 
             if (m_isReleased) return;
 
             wxThreadEvent* evt = new wxThreadEvent(EVT_AI_RESPONSE);
-            // API 返回的通常也是 UTF-8，后面处理记得 FromUTF8
+            // API 返回的纯正 UTF-8 解析为 wxString
             evt->SetString(wxString::FromUTF8(response));
             wxQueueEvent(panel, evt);
             });
         };
+
+    // --- 修改区：复制按钮的点击事件 ---
+    copyBtn->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
+        if (this->m_latestCode.IsEmpty()) return;
+
+        // 打开剪贴板并写入代码
+        if (wxTheClipboard->Open()) {
+            wxTheClipboard->SetData(new wxTextDataObject(this->m_latestCode));
+            wxTheClipboard->Close();
+            // 可以在主程序状态栏显示一条提示
+            wxLogStatus(wxString::FromUTF8("代码已成功复制到剪贴板！"));
+        }
+        });
 
     // 5. 处理返回的事件
     panel->Bind(EVT_AI_RESPONSE, [this, historyCtrl](wxThreadEvent& evt) {
         // 这里的代码会在【主线程/UI线程】执行，安全更新控件
         wxString response = evt.GetString();
 
-        historyCtrl->AppendText(response + "\n");
-        /*
-        DSResult res =  ParseDSResponse(response);
+        // 1. 解析 AI 的严格格式回复
+        DSResult res = ParseDSResponse(response);
 
+        // 兜底机制：如果 AI 偶尔抽风没按格式返回，就直接显示原文
+        if (res.analysis.IsEmpty() && res.code.IsEmpty()) {
+            historyCtrl->AppendText(response + "\n");
+            historyCtrl->ShowPosition(historyCtrl->GetLastPosition());
+            return;
+        }
+
+        // 2. 漂亮地分块显示
+        // [分析] - 蓝色标题，黑色内容
         historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLUE));
-        historyCtrl->AppendText("\n[分析]\n");
+        historyCtrl->AppendText(wxString::FromUTF8("\n[分析]\n"));
         historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLACK));
         historyCtrl->AppendText(res.analysis + "\n");
 
-        historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLUE));
-        historyCtrl->AppendText("\n[代码]\n");
+        // [代码] - 蓝色标题，黑色内容
+        if (!res.code.IsEmpty()) {
+            // --- 修改区：将最新解析出来的代码存入变量，供复制按钮使用 ---
+            this->m_latestCode = res.code;
+
+            historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLUE));
+            historyCtrl->AppendText(wxString::FromUTF8("\n[纯代码]\n"));
+            historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLACK));
+            historyCtrl->AppendText(res.code + "\n");
+        }
+
+        // [总结] - 暗绿色标题，同行黑色内容
+        historyCtrl->SetDefaultStyle(wxTextAttr(wxColour(0, 128, 0)));
+        historyCtrl->AppendText(wxString::FromUTF8("\n[总结]: "));
         historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLACK));
-        historyCtrl->AppendText(res.code + "\n");
+        historyCtrl->AppendText(res.summary + "\n\n");
 
-        historyCtrl->SetDefaultStyle(wxTextAttr(wxColour(0, 128, 0))); // 暗绿色
-        historyCtrl->AppendText("[总结]: ");
-        historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLACK));
-        historyCtrl->AppendText(res.summary + "\n");
-
-        if (!res.memory.empty()) {
-            // 我们可以维护一个 wxArrayString 成员变量 m_memoryList
-            memory_queue.Add(res.memory);
-
-            // 2. 数量控制：比如只保留最近的 10 条最重要的记忆
-            while (memory_queue.GetCount() > 10) {
-                memory_queue.RemoveAt(0); // 删掉最老的
+        // 3. 处理长期记忆 (对用户不可见，只在底层运转)
+        if (!res.memory.IsEmpty()) {
+            this->memory_queue.Add(res.memory);
+            while (this->memory_queue.GetCount() > 10) {
+                this->memory_queue.RemoveAt(0);
             }
-
-            // 3. 重新合成给 AI 看的记忆字符串
-            this->memory = "";
-            for (const auto& m : memory_queue) {
+            this->memory = wxString::FromUTF8("【之前的记忆上下文】:\n");
+            for (const auto& m : this->memory_queue) {
                 this->memory += "- " + m + "\n";
             }
-        }*/
+            this->memory += wxString::FromUTF8("【记忆上下文结束】\n\n");
+        }
 
+        // 滚动到最底部
         historyCtrl->ShowPosition(historyCtrl->GetLastPosition());
         });
 
@@ -271,14 +314,15 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
     return panel;
 }
 
+
 DSResult ParseDSResponse(const wxString& raw) {
     DSResult res;
 
-    // 定义四个锚点
-    wxString tag1 = "## 1. 分析";
-    wxString tag2 = "## 2. 纯代码";
-    wxString tag3 = "## 3. 简要总结";
-    wxString tag4 = "## 4. 记忆存储";
+    // 必须用 wxString::FromUTF8 告诉 wxWidgets 这些是 UTF-8 字符串
+    wxString tag1 = wxString::FromUTF8("## 1. 分析");
+    wxString tag2 = wxString::FromUTF8("## 2. 纯代码");
+    wxString tag3 = wxString::FromUTF8("## 3. 简要总结");
+    wxString tag4 = wxString::FromUTF8("## 4. 记忆存储");
 
     // 寻找位置
     int pos1 = raw.Find(tag1);
@@ -297,22 +341,11 @@ DSResult ParseDSResponse(const wxString& raw) {
         int start = pos2 + tag2.Length();
         wxString rawCodePart = raw.Mid(start, pos3 - start).Trim(true).Trim(false);
 
-        // 清洗 Markdown 代码块标记 ```verilog ... ```
-        if (rawCodePart.Contains("```")) {
-            // 提取第一个 ``` 之后的内容，再去掉结尾的 ```
-            wxString content = rawCodePart.AfterFirst('\n'); // 跳过 ```verilog 那一行
-            if (content.Contains("```")) {
-                res.code = content.BeforeLast('`').Trim(true).Trim(false);
-                // 此时 res.code 里的反引号可能还没清干净，做个彻底清理
-                res.code.Replace("```", "");
-            }
-            else {
-                res.code = content.Trim(true).Trim(false);
-            }
-        }
-        else {
-            res.code = rawCodePart;
-        }
+        // 终极清洗法：直接暴力替换掉所有的 Markdown 代码块标记
+        rawCodePart.Replace("```verilog", "");
+        rawCodePart.Replace("```", "");
+
+        res.code = rawCodePart.Trim(true).Trim(false);
     }
 
     // 3. 提取总结 (tag3 到 tag4 之间)
