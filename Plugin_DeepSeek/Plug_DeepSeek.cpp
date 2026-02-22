@@ -52,19 +52,6 @@ void Plug_DeepSeek::Release() {
     delete this; // 安全自毁
 }
 
-//std::string Plug_DeepSeek::ProcessCommand(const std::string& cmd) {
-//    // 这里构造发送给 DS 的 Prompt
-//    std::string fullPrompt = memory.ToStdString() +
-//
-//        "你是一个严格遵守格式的 Verilog 专家。无论用户问什么，你都必须且只能按以下格式回复，严禁任何前言和后语：\n"
-//    "## 1. 分析\n...\n"
-//    "## 2. 纯代码\n...\n"
-//    "## 3. 简要总结\n...\n"
-//    "## 4. 记忆存储\n...\n\n"
-//    "现在开始！用户的请求是：" + cmd;
-//
-//    return CallDeepSeekAPI(fullPrompt);
-//}
 
 std::string Plug_DeepSeek::ProcessCommand(const std::string& cmd) {
     // 修复编码隐患：必须用 ToUTF8() 转换为标准 UTF-8 字节流，切忌使用 ToStdString()
