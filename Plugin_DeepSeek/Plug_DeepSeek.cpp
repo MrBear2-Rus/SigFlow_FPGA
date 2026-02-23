@@ -6,6 +6,11 @@
 #include <winhttp.h>
 #include <nlohmann/json.hpp> // 需要安装 json 库
 #include <Windows.h>
+#include <filesystem>
+#include <fstream>
+#include <sstream>
+#include <set>
+#include <vector>
 
 #pragma comment(lib, "winhttp.lib") // 告诉编译器自动链接 winhttp 库
 using json = nlohmann::json;
@@ -17,6 +22,121 @@ struct DSResult {
 };
 
 DSResult ParseDSResponse(const wxString& raw);
+
+// 查找解决方案/仓库根目录：从当前工作目录向上查找第一个包含 `.sln` 的目录，找不到则返回当前工作目录
+static std::string FindSolutionRoot() {
+    namespace fs = std::filesystem;
+    fs::path p = fs::current_path();
+    while (true) {
+        try {
+                for (auto &entry : fs::directory_iterator(p)) {
+                // 1) 传统的 Visual Studio 解决方案
+                if (entry.is_regular_file() && entry.path().extension() == ".sln") return p.string();
+
+                // 2) sigflow 项目标记文件
+                if (entry.is_regular_file() && entry.path().filename() == "sigflow.project") return p.string();
+
+                // 3) .sigflow 工作区目录
+                if (entry.is_directory() && entry.path().filename() == ".sigflow") return p.string();
+            }
+        }
+        catch (...) {
+            // 忽略不可访问的目录
+        }
+
+        if (p.has_parent_path()) p = p.parent_path();
+        else break;
+    }
+    return std::filesystem::current_path().string();
+}
+
+// 遍历项目文件并汇总为一个文本块，包含文件名和文件内容。为避免过大，会限制最大字符数和文件数量。
+static std::string GatherProjectFiles(const std::string& rootPath, size_t maxTotalChars = 150000, size_t maxFiles = 200) {
+    namespace fs = std::filesystem;
+    std::string result;
+    size_t total = 0;
+    size_t count = 0;
+
+    std::set<std::string> ignoreDirs = {".git", "build", "bin", "obj", ".vs", "Debug", "Release"};
+    std::set<std::string> allowedExt = {".cpp",".c",".h",".hpp",".txt",".md",".py",".cs",".java",".json",".xml",".sln",".vcxproj",".vcxproj.filters",".rc",".yml",".yaml",".ini",".cmake",".makefile",".pro",".project",".v",".sv",".vh",".svh"};
+
+    try {
+        for (auto it = fs::recursive_directory_iterator(rootPath); it != fs::recursive_directory_iterator(); ++it) {
+            if (count >= maxFiles || total >= maxTotalChars) break;
+
+            try {
+                const auto& p = it->path();
+                if (p.has_filename()) {
+                    std::string fname = p.filename().string();
+                    // 跳过忽略目录
+                    for (const auto& ig : ignoreDirs) {
+                        if (fname == ig) { it.disable_recursion_pending(); goto cont; }
+                    }
+                }
+
+                if (!it->is_regular_file()) { cont: ; continue; }
+
+                std::string ext = p.extension().string();
+                // 小写扩展名
+                for (auto &ch : ext) ch = (char)tolower(ch);
+
+                if (allowedExt.find(ext) == allowedExt.end()) continue;
+
+                std::ifstream ifs(p, std::ios::in | std::ios::binary);
+                if (!ifs) continue;
+                std::stringstream ss;
+                ss << ifs.rdbuf();
+                std::string content = ss.str();
+
+                // 限制单文件大小以避免超长
+                const size_t maxPerFile = 20000;
+                if (content.size() > maxPerFile) content = content.substr(0, maxPerFile) + "\n...<truncated>...\n";
+
+                std::string header = "==== " + p.string() + " ====\n";
+                if (total + header.size() + content.size() > maxTotalChars) break;
+
+                result += header;
+                result += content + "\n\n";
+
+                total += header.size() + content.size();
+                ++count;
+            }
+            catch (...) { continue; }
+        }
+    }
+    catch (...) { /* 忽略遍历异常 */ }
+
+    if (result.empty()) result = "<No project files collected>";
+    return result;
+}
+
+// 在 rootPath 下查找首个包含 Verilog 文件（.v/.sv/.vh/.svh）的子目录，优先返回较浅的目录。
+static std::string FindVerilogSubdir(const std::string& rootPath) {
+    namespace fs = std::filesystem;
+    std::vector<std::string> verilogExts = {".v", ".sv", ".vh", ".svh"};
+    try {
+        for (auto it = fs::recursive_directory_iterator(rootPath); it != fs::recursive_directory_iterator(); ++it) {
+            try {
+                if (!it->is_directory()) continue;
+                const auto dir = it->path();
+                size_t found = 0;
+                for (auto& entry : fs::directory_iterator(dir)) {
+                    if (!entry.is_regular_file()) continue;
+                    std::string ext = entry.path().extension().string();
+                    for (auto &ch : ext) ch = (char)tolower(ch);
+                    for (const auto& ve : verilogExts) {
+                        if (ext == ve) { ++found; break; }
+                    }
+                    if (found) break;
+                }
+                if (found) return dir.string();
+            }
+            catch (...) { continue; }
+        }
+    }
+    catch (...) { }
+    return std::string();
+}
 
 
 
@@ -30,7 +150,13 @@ wxDEFINE_EVENT(EVT_AI_RESPONSE, wxThreadEvent);
 Plug_DeepSeek::Plug_DeepSeek() {
     m_apiKey = "sk-8801be45326a4776ac37f3b120ee1888"; // 实际开发建议从配置文件读取
     m_apiUrl = "https://api.deepseek.com/chat/completions";
+    m_projectRoot = "";
 
+}
+
+// 接收宿主传入的项目根路径
+void Plug_DeepSeek::SetProjectRoot(const std::string& path) {
+    if (!path.empty()) m_projectRoot = path;
 }
 
 Plug_DeepSeek::~Plug_DeepSeek() {}
@@ -57,14 +183,69 @@ std::string Plug_DeepSeek::ProcessCommand(const std::string& cmd) {
     // 修复编码隐患：必须用 ToUTF8() 转换为标准 UTF-8 字节流，切忌使用 ToStdString()
     std::string memStr = memory.IsEmpty() ? "" : std::string(memory.ToUTF8().data());
 
-    // 只要配置了 /utf-8 编译项，这里的双引号中文就是安全的 UTF-8
-    std::string fullPrompt = memStr +
-        "你是一个严格遵守格式的 Verilog 专家。无论用户问什么，你都必须且只能按以下格式回复，严禁任何前言和后语：\n"
-        "## 1. 分析\n...\n"
-        "## 2. 纯代码\n...\n"
-        "## 3. 简要总结\n...\n"
-        "## 4. 记忆存储\n...\n\n"
-        "现在开始！用户的请求是：" + cmd;
+    // 支持特殊命令：/scanproject 或 /scan 来收集本仓库/解决方案下的所有文本源码文件并发送给 AI
+    std::string fullPrompt;
+    const std::string scanCmd = "/scanproject";
+    const std::string scanCmd2 = "/scan";
+
+    if (cmd.rfind(scanCmd, 0) == 0 || cmd.rfind(scanCmd2, 0) == 0) {
+        // 从命令中提取后续用户问题（空格后的部分）
+        std::string userQuestion;
+        size_t pos = cmd.find(' ');
+        std::string userPath;
+        if (pos != std::string::npos) {
+            userQuestion = cmd.substr(pos + 1);
+            // 如果用户同时指定了路径和问题，支持格式：/scan <path> ;; <question>
+            // 用双分号分隔路径与问题（简单解析）
+            size_t sep = userQuestion.find(";;");
+            if (sep != std::string::npos) {
+                userPath = userQuestion.substr(0, sep);
+                // 去掉可能的空格
+                while (!userPath.empty() && isspace((unsigned char)userPath.back())) userPath.pop_back();
+                // 剩余为实际问题
+                userQuestion = userQuestion.substr(sep + 2);
+                while (!userQuestion.empty() && isspace((unsigned char)userQuestion.front())) userQuestion.erase(userQuestion.begin());
+            }
+        }
+        else userQuestion = "请基于项目内容回答用户的问题。";
+
+        // 找到仓库/解决方案根目录
+        // 优先使用宿主传入的项目路径（由主程序在打开项目时提供），否则回退到自动搜索
+        std::string root;
+        if (!m_projectRoot.empty()) root = m_projectRoot;
+        else root = FindSolutionRoot();
+        std::string targetRoot;
+
+        if (!userPath.empty()) {
+            // 如果用户指定了路径，支持相对路径（相对于 solution root）或绝对路径
+            namespace fs = std::filesystem;
+            fs::path p(userPath);
+            if (p.is_relative()) p = fs::path(root) / p;
+            if (fs::exists(p) && fs::is_directory(p)) targetRoot = p.string();
+        }
+
+        // 如果没有用户路径，尝试智能定位 Verilog 源码目录
+        if (targetRoot.empty()) {
+            std::string verDir = FindVerilogSubdir(root);
+            if (!verDir.empty()) targetRoot = verDir;
+            else targetRoot = root; // 回退到整个解决方案根
+        }
+
+        std::string projectFiles = GatherProjectFiles(targetRoot);
+
+        fullPrompt = memStr + "下面是项目中收集到的文件内容（已做截断以避免过大）:\n" + projectFiles + "\n";
+        fullPrompt += "你是一个项目分析专家。请基于上面提供的项目内容回答用户的问题（不要添加与项目无关的内容）。用户的问题：" + userQuestion;
+    }
+    else {
+        // 只要配置了 /utf-8 编译项，这里的双引号中文就是安全的 UTF-8
+        fullPrompt = memStr +
+            "你是一个严格遵守格式的 Verilog 专家。无论用户问什么，你都必须且只能按以下格式回复，严禁任何前言和后语：\n"
+            "## 1. 分析\n...\n"
+            "## 2. 纯代码\n...\n"
+            "## 3. 简要总结\n...\n"
+            "## 4. 记忆存储\n...\n\n"
+            "现在开始！用户的请求是：" + cmd;
+    }
 
     return CallDeepSeekAPI(fullPrompt);
 }

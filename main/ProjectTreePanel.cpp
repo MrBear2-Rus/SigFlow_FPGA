@@ -1,6 +1,8 @@
-﻿#include "ProjectTreePanel.h"
+#include "ProjectTreePanel.h"
 #include <wx/dir.h>
 #include <wx/filename.h>
+
+wxDEFINE_EVENT(EVT_PROJECT_LOADED, wxCommandEvent);
 
 ProjectTreePanel::ProjectTreePanel(wxWindow* parent)
     : wxPanel(parent, wxID_ANY)
@@ -90,6 +92,11 @@ void ProjectTreePanel::AddWatchRecursive(const wxString& dir)
 void ProjectTreePanel::LoadProject(const wxString& projectRoot)
 {
     m_projectRoot = projectRoot;
+
+    // 通知宿主：项目已经加载（事件携带项目路径）
+    wxCommandEvent evt(EVT_PROJECT_LOADED);
+    evt.SetString(projectRoot);
+    wxPostEvent(GetParent(), evt);
 
     if (!IsValidSigFlowProject(projectRoot)) {
         wxMessageBox("Not a SigFlow project. Opened as plain folder.");

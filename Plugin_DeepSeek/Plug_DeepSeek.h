@@ -15,6 +15,7 @@ public:
     wxPanel* CreatePanel(wxWindow* parent) override;
     std::string ProcessCommand(const std::string& cmd) override;
     void Release() override;
+    void SetProjectRoot(const std::string& path) override;
 
 private:
     std::string m_apiKey;
@@ -26,6 +27,7 @@ private:
 
     std::atomic<bool> m_isReleased{false}; 
     std::vector<std::thread> m_threads;
+    std::string m_projectRoot;
 
     // 内部辅助函数：处理网络请求
     static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp);

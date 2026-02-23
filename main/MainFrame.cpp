@@ -134,6 +134,13 @@ MainFrame::MainFrame()
 
     // 项目树面板
     m_projectTreePanel = new ProjectTreePanel(this);
+    // 监听项目加载事件，及时把路径传给插件
+    this->Bind(EVT_PROJECT_LOADED, [this](wxCommandEvent& evt) {
+        ISigPlugin* p = m_pluginMgr->GetPlugin("DeepSeek_Assistant");
+        if (p) {
+            p->SetProjectRoot(std::string(evt.GetString().ToUTF8().data()));
+        }
+    });
     this->Bind(wxEVT_MENU, &MainFrame::OnOpenFileFromTree, this, ID_OPEN_FILE_FROM_TREE);
 
     // 侧边工具栏
@@ -180,6 +187,14 @@ MainFrame::MainFrame()
     }
 
     ISigPlugin* pDeepSeek = m_pluginMgr->GetPlugin("DeepSeek_Assistant");
+    
+    // 如果插件存在，优先把当前打开的项目路径传递给插件（若 ProjectTreePanel 已加载项目）
+    if (pDeepSeek) {
+        wxString projRoot = m_projectTreePanel->GetProjectRoot();
+        if (!projRoot.IsEmpty()) {
+            pDeepSeek->SetProjectRoot(std::string(projRoot.ToUTF8().data()));
+        }
+    }
 
 
 
