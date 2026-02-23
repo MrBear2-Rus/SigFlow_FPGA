@@ -30,6 +30,56 @@ struct DSResult {
 
 DSResult ParseDSResponse(const wxString& raw);
 
+// Helper: create safe filename from raw token
+static std::string MakeSafeFilename(const std::string& raw, const std::string& defaultExt = ".v") {
+    if (raw.empty()) return std::string("untitled") + defaultExt;
+    // remove surrounding whitespace
+    size_t s = 0, e = raw.size();
+    while (s < e && isspace((unsigned char)raw[s])) ++s;
+    while (e > s && isspace((unsigned char)raw[e-1])) --e;
+    std::string name = raw.substr(s, e - s);
+
+    // strip surrounding quotes/backticks
+    if ((name.size() >= 2) && ((name.front() == '"' && name.back() == '"') || (name.front() == '\'' && name.back() == '\'' ) || (name.front() == '`' && name.back() == '`'))) {
+        name = name.substr(1, name.size()-2);
+    }
+
+    // if contains path separators, return cleaned basename (caller should preserve parent path separately)
+    for (auto &c : name) if (c == '\\') c = '/';
+    size_t lastSlash = name.find_last_of('/');
+    std::string base = (lastSlash == std::string::npos) ? name : name.substr(lastSlash + 1);
+
+    // remove illegal chars and convert CamelCase to lower_with_underscore heuristically
+    std::string out;
+    for (size_t i = 0; i < base.size(); ++i) {
+        char c = base[i];
+        if (isalnum((unsigned char)c) || c == '_' || c == '-' || c == '$' || c == '.') {
+            out.push_back(c);
+        } else if (isspace((unsigned char)c) || c == ':' || c == '/') {
+            out.push_back('_');
+        } else {
+            // replace other punctuation
+            out.push_back('_');
+        }
+    }
+
+    if (out.empty()) out = "untitled";
+
+    // If starts with digit, prefix
+    if (isdigit((unsigned char)out[0])) out = std::string("m_") + out;
+
+    // ensure lower-case (except extension)
+    size_t dot = out.find_last_of('.');
+    std::string nameNoExt = (dot == std::string::npos) ? out : out.substr(0, dot);
+    std::string ext = (dot == std::string::npos) ? std::string() : out.substr(dot);
+    for (auto &c : nameNoExt) if (isupper((unsigned char)c)) c = (char)tolower(c);
+    for (auto &c : ext) if (isupper((unsigned char)c)) c = (char)tolower(c);
+
+    if (ext.empty()) ext = defaultExt;
+
+    return nameNoExt + ext;
+}
+
 // 查找解决方案/仓库根目录：从当前工作目录向上查找第一个包含 `.sln` 的目录，找不到则返回当前工作目录
 static std::string FindSolutionRoot() {
     namespace fs = std::filesystem;
@@ -312,11 +362,60 @@ std::string Plug_DeepSeek::ProcessCommand(const std::string& cmd) {
     std::string memStr = memory.IsEmpty() ? "" : std::string(memory.ToUTF8().data());
 
     // 支持特殊命令：/scanproject 或 /scan 来收集本仓库/解决方案下的所有文本源码文件并发送给 AI
+    // 新增命令：/autogen 用于自动生成单文件或多文件 Verilog/相关源码，并写入到 projectRoot/src/ 或 projectRoot/lib/
+    // 兼容旧命令 /genfile
+    // 语法示例：
+    //   /autogen <optional-filename> ;; <prompt>
+    // 如果任务需要多个文件，AI 在回复的 "## 2. 纯代码" 部分应以如下可解析格式输出多文件：
+    // ==== path/to/file1.v ====
+    // <file1 content>
+    // ==== path/to/lib/header.svh ====
+    // <file2 content>
+    // 否则，单文件情况下直接返回代码块。
+    const std::string genCmd = "/autogen";
+    const std::string legacyGenCmd = "/genfile"; // 兼容
     std::string fullPrompt;
     const std::string scanCmd = "/scanproject";
     const std::string scanCmd2 = "/scan";
 
-    if (cmd.rfind(scanCmd, 0) == 0 || cmd.rfind(scanCmd2, 0) == 0) {
+    // 处理 /autogen 或 兼容 /genfile 命令（优先于 /scan）
+    if (cmd.rfind(genCmd, 0) == 0 || cmd.rfind(legacyGenCmd, 0) == 0) {
+        // 解析可选的文件名与提示（使用双分号 ';;' 分隔）
+        std::string userInput;
+        size_t pos = cmd.find(' ');
+        std::string filename;
+        std::string userQuestion = "请生成符合 Verilog 语法、可综合的模块实现。";
+        if (pos != std::string::npos) {
+            userInput = cmd.substr(pos + 1);
+            size_t sep = userInput.find(";;");
+            if (sep != std::string::npos) {
+                filename = userInput.substr(0, sep);
+                while (!filename.empty() && isspace((unsigned char)filename.back())) filename.pop_back();
+                userQuestion = userInput.substr(sep + 2);
+                while (!userQuestion.empty() && isspace((unsigned char)userQuestion.front())) userQuestion.erase(userQuestion.begin());
+            }
+            else {
+                // 如果只有一部分，视为问题文本
+                userQuestion = userInput;
+            }
+        }
+
+        // 设置自动创建标志与可选文件名；允许多文件解析
+        this->m_autoCreatePending = true;
+        this->m_autoFilename = filename;
+        this->m_autoAllowMulti = true;
+
+        // 构造提示，要求 AI 在需要多文件时使用可解析的分隔格式
+        fullPrompt = memStr +
+            "你是一个严格遵守格式的 Verilog/SystemVerilog 专家。无论用户问什么，你都必须且只能按以下格式回复，严禁任何前言和后语：\n"
+            "## 1. 分析\n...\n"
+            "## 2. 纯代码\n(如果需要多个文件，请在这里以以下格式输出多文件内容：\n"
+            "==== path/to/file1.v ====\n<file1 content>\n==== path/to/lib/header.svh ====\n<file2 content>\n)\n"
+            "## 3. 简要总结\n...\n"
+            "## 4. 记忆存储\n...\n\n"
+            "现在开始！用户的请求是：" + userQuestion;
+    }
+    else if (cmd.rfind(scanCmd, 0) == 0 || cmd.rfind(scanCmd2, 0) == 0) {
         // 从命令中提取后续用户问题（空格后的部分）
         std::string userQuestion;
         size_t pos = cmd.find(' ');
@@ -898,6 +997,222 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
             historyCtrl->AppendText(wxString::FromUTF8("\n[纯代码]\n"));
             historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLACK));
             historyCtrl->AppendText(res.code + "\n");
+        }
+
+        // 如果处于自动创建文件模式，则在获取到代码后尝试将其写入到 projectRoot/src/<name>.v
+        if (this->m_autoCreatePending && !res.code.IsEmpty()) {
+            // Helper: extract multiple files from the provided code text
+            auto ExtractFiles = [](const std::string& code) {
+                std::map<std::string, std::string> files;
+
+                // 1) 按 ==== filename ==== 格式分割
+                size_t pos = 0;
+                std::string marker = "==== ";
+                bool foundMarker = false;
+                while (true) {
+                    size_t hdr = code.find(marker, pos);
+                    if (hdr == std::string::npos) break;
+                    foundMarker = true;
+                    size_t nameStart = hdr + marker.size();
+                    size_t nameEnd = code.find(" ====", nameStart);
+                    if (nameEnd == std::string::npos) break;
+                    std::string name = code.substr(nameStart, nameEnd - nameStart);
+                    size_t contentStart = nameEnd + 5; // length of " ===="
+                    // skip possible newline
+                    if (contentStart < code.size() && (code[contentStart] == '\r' || code[contentStart] == '\n')) ++contentStart;
+                    if (contentStart < code.size() && code[contentStart] == '\n') ++contentStart;
+                    size_t next = code.find(marker, contentStart);
+                    std::string content;
+                    if (next == std::string::npos) content = code.substr(contentStart);
+                    else content = code.substr(contentStart, next - contentStart);
+                    // trim trailing whitespace
+                    while (!content.empty() && (content.back()=='\n' || content.back()=='\r')) content.pop_back();
+                    files[name] = content;
+                    pos = next;
+                    if (pos == std::string::npos) break;
+                }
+
+                if (!files.empty()) return files;
+
+                // 2) 查找 ``` fenced code blocks，尝试从 fence 行中解析文件名，例如 ```verilog filename.v
+                pos = 0;
+                while (true) {
+                    size_t f1 = code.find("```", pos);
+                    if (f1 == std::string::npos) break;
+                    size_t lineEnd = code.find('\n', f1);
+                    if (lineEnd == std::string::npos) break;
+                    std::string fenceLine = code.substr(f1+3, lineEnd - (f1+3));
+                    // try to find a filename in the fenceLine
+                    std::string filename;
+                    // split by space and take last token if contains a dot
+                    std::istringstream iss(fenceLine);
+                    std::string token;
+                    while (iss >> token) {
+                        if (token.find('.') != std::string::npos) filename = token;
+                    }
+                    size_t f2 = code.find("```", lineEnd+1);
+                    if (f2 == std::string::npos) break;
+                    std::string content = code.substr(lineEnd+1, f2 - (lineEnd+1));
+                    if (!filename.empty()) files[filename] = content;
+                    pos = f2 + 3;
+                }
+                if (!files.empty()) return files;
+
+                // 3) 尝试按 module ... endmodule 切分为多个文件
+                std::string lower = code;
+                for (auto &c : lower) c = (char)tolower(c);
+                size_t searchPos = 0;
+                std::vector<std::pair<size_t,size_t>> modRanges;
+                while (true) {
+                    size_t mpos = lower.find("module ", searchPos);
+                    if (mpos == std::string::npos) break;
+                    // find corresponding endmodule after mpos
+                    size_t epos = lower.find("endmodule", mpos);
+                    if (epos == std::string::npos) break;
+                    // include the word 'endmodule' length
+                    size_t endpos = epos + strlen("endmodule");
+                    modRanges.emplace_back(mpos, endpos);
+                    searchPos = endpos;
+                }
+                if (modRanges.size() > 1) {
+                    // take any header before first module as common header
+                    size_t headerEnd = modRanges.front().first;
+                    std::string header = code.substr(0, headerEnd);
+                    for (size_t i = 0; i < modRanges.size(); ++i) {
+                        size_t s = modRanges[i].first;
+                        size_t e = modRanges[i].second;
+                        std::string block = code.substr(s, e - s);
+                        // extract module name
+                        size_t nameStart = s + strlen("module ");
+                        while (nameStart < code.size() && isspace((unsigned char)code[nameStart])) ++nameStart;
+                        size_t nameEnd = nameStart;
+                        while (nameEnd < code.size() && (isalnum((unsigned char)code[nameEnd]) || code[nameEnd]=='_' || code[nameEnd]=='$')) ++nameEnd;
+                        std::string modname = "module_" + std::to_string(i+1);
+                        if (nameEnd > nameStart) modname = code.substr(nameStart, nameEnd - nameStart);
+                        std::string fname = MakeSafeFilename(modname + ".v", ".v");
+                        // include header in first file
+                        if (i == 0 && !header.empty()) files[fname] = header + "\n" + block;
+                        else files[fname] = block;
+                    }
+                    return files;
+                }
+
+                // 4) fallback: single unnamed file
+                files["" ] = code;
+                return files;
+            };
+
+            try {
+                std::string codeUtf8 = std::string(res.code.ToUTF8().data());
+                auto files = ExtractFiles(codeUtf8);
+
+                namespace fs = std::filesystem;
+                fs::path baseSrc = (!this->m_projectRoot.empty()) ? fs::path(this->m_projectRoot) : fs::current_path();
+                fs::path srcDir = baseSrc / "src";
+                fs::path libDir = baseSrc / "lib";
+                std::error_code ec;
+                fs::create_directories(srcDir, ec);
+                fs::create_directories(libDir, ec);
+
+                // If only one unnamed file, determine filename similarly to previous behavior
+                if (files.size() == 1 && files.begin()->first.empty()) {
+                    std::string filename = this->m_autoFilename;
+                    if (filename.empty()) {
+                        // try extract module name
+                        std::string lower = codeUtf8;
+                        for (auto &c : lower) c = (char)tolower(c);
+                        size_t mpos = lower.find("module ");
+                        if (mpos != std::string::npos) {
+                            size_t nameStart = mpos + 7;
+                            while (nameStart < codeUtf8.size() && isspace((unsigned char)codeUtf8[nameStart])) ++nameStart;
+                            size_t nameEnd = nameStart;
+                            while (nameEnd < codeUtf8.size() && (isalnum((unsigned char)codeUtf8[nameEnd]) || codeUtf8[nameEnd]=='_' || codeUtf8[nameEnd]=='$')) ++nameEnd;
+                            if (nameEnd > nameStart) filename = codeUtf8.substr(nameStart, nameEnd - nameStart);
+                        }
+                    }
+                    if (filename.empty()) {
+                        auto now = std::chrono::system_clock::now();
+                        std::time_t t = std::chrono::system_clock::to_time_t(now);
+                        std::tm tm;
+                        localtime_s(&tm, &t);
+                        std::ostringstream ss;
+                        ss << "auto_v_" << std::put_time(&tm, "%Y%m%d%H%M%S");
+                        filename = ss.str();
+                    }
+                    filename = MakeSafeFilename(filename, ".v");
+                    fs::path outPath = srcDir / filename;
+                    std::ofstream ofs(outPath, std::ios::out | std::ios::binary);
+                    if (ofs) {
+                        ofs << files.begin()->second;
+                        ofs.close();
+                        wxString msg = wxString::FromUTF8("已在: ") + wxString::FromUTF8(outPath.string()) + wxString::FromUTF8(" 创建 Verilog 文件。");
+                        wxLogStatus(msg);
+                        historyCtrl->AppendText(msg + wxString::FromUTF8("\n"));
+                    } else {
+                        wxString msg = wxString::FromUTF8("错误：无法写入文件: ") + wxString::FromUTF8(outPath.string());
+                        wxLogError(msg);
+                        historyCtrl->AppendText(msg + wxString::FromUTF8("\n"));
+                    }
+                } else {
+                    // multiple files (or named single file)
+                    for (const auto &p : files) {
+                        std::string fname = p.first;
+                        std::string content = p.second;
+                        fs::path outPath;
+                        if (fname.empty()) {
+                            // should not happen here, skip
+                            continue;
+                        }
+                        // If filename contains directory path, preserve it relative to project root
+                        fs::path fp(fname);
+                        std::string base = fp.filename().string();
+                        std::string ext = fp.extension().string();
+                        if (ext.empty()) ext = ".v";
+                        std::string safeBase = MakeSafeFilename(base, ext);
+                        if (fp.has_parent_path()) {
+                            fs::path parent = fp.parent_path();
+                            // decide whether parent contains lib
+                            if (parent.string().find("lib") != std::string::npos) {
+                                fs::create_directories(libDir / parent, ec);
+                                outPath = libDir / parent / safeBase;
+                            } else {
+                                fs::create_directories(srcDir / parent, ec);
+                                outPath = srcDir / parent / safeBase;
+                            }
+                        } else {
+                            // decide by extension/heuristic: header extensions go to lib
+                            std::string lcExt = ext;
+                            for (auto &c : lcExt) c = (char)tolower(c);
+                            if (lcExt == ".svh" || lcExt == ".vh") {
+                                outPath = libDir / safeBase;
+                            } else {
+                                outPath = srcDir / safeBase;
+                            }
+                        }
+
+                        std::ofstream ofs(outPath, std::ios::out | std::ios::binary);
+                        if (ofs) {
+                            ofs << content;
+                            ofs.close();
+                            wxString msg = wxString::FromUTF8("已在: ") + wxString::FromUTF8(outPath.string()) + wxString::FromUTF8(" 创建文件。");
+                            wxLogStatus(msg);
+                            historyCtrl->AppendText(msg + wxString::FromUTF8("\n"));
+                        } else {
+                            wxString msg = wxString::FromUTF8("错误：无法写入文件: ") + wxString::FromUTF8(outPath.string());
+                            wxLogError(msg);
+                            historyCtrl->AppendText(msg + wxString::FromUTF8("\n"));
+                        }
+                    }
+                }
+            }
+            catch (...) {
+                wxLogError(wxString::FromUTF8("自动创建文件时发生异常。"));
+            }
+
+            // Reset flags
+            this->m_autoCreatePending = false;
+            this->m_autoFilename.clear();
+            this->m_autoAllowMulti = false;
         }
 
         historyCtrl->SetDefaultStyle(wxTextAttr(wxColour(0, 128, 0)));

@@ -45,6 +45,13 @@ private:
     // 当前 Panel 指针（用于流式分块回传 UI）
     wxWindow* m_panel = nullptr;
 
+    // 自动生成文件模式：当用户使用 /genfile 命令时置位，
+    // 在收到 AI 代码输出后插件会自动将代码写入到项目的 src 目录
+    std::atomic<bool> m_autoCreatePending{false};
+    std::string m_autoFilename; // 可选的用户指定文件名
+    // 当使用 /autogen 时允许多文件输出解析
+    std::atomic<bool> m_autoAllowMulti{false};
+
     // 请求管理与取消支持
     std::atomic<bool> m_requestInProgress{false};
     std::atomic<bool> m_cancelRequest{false};
