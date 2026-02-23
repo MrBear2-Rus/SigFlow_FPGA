@@ -11,6 +11,11 @@
 #include <sstream>
 #include <set>
 #include <vector>
+#include <map>
+#include <chrono>
+#include <iomanip>
+#include <cstdlib>
+#include <functional>
 
 #pragma comment(lib, "winhttp.lib") // 告诉编译器自动链接 winhttp 库
 using json = nlohmann::json;
@@ -39,6 +44,8 @@ static std::string FindSolutionRoot() {
                 // 3) .sigflow 工作区目录
                 if (entry.is_directory() && entry.path().filename() == ".sigflow") return p.string();
             }
+
+        
         }
         catch (...) {
             // 忽略不可访问的目录
@@ -152,6 +159,125 @@ Plug_DeepSeek::Plug_DeepSeek() {
     m_apiUrl = "https://api.deepseek.com/chat/completions";
     m_projectRoot = "";
 
+    // 设计决策：将历史对话保存在当前用户的 Local AppData 下的插件目录中，
+    // 这样无需管理员权限且对多用户环境友好。
+    const char* localApp = std::getenv("LOCALAPPDATA");
+    if (localApp && localApp[0] != '\0') {
+        m_dataDir = std::string(localApp) + "\\SuperEDA\\DeepSeekPlugin";
+    }
+    else {
+        // 回退到当前可写目录
+        m_dataDir = std::filesystem::current_path().string() + "\\DeepSeekPluginData";
+    }
+    m_historyFile = m_dataDir + "\\history.json";
+
+    // 尝试加载已有的历史对话
+    try {
+        // create dir if needed
+        std::error_code ec;
+        std::filesystem::create_directories(m_dataDir, ec);
+        if (!ec) {
+            std::ifstream ifs(m_historyFile);
+            if (ifs) {
+                nlohmann::json j;
+                ifs >> j;
+                if (j.is_array()) {
+                    for (auto &it : j) {
+                        if (it.contains("name") && it.contains("content")) {
+                            std::string name = it["name"].get<std::string>();
+                            std::string content = it["content"].get<std::string>();
+                            m_savedConversations.push_back(name);
+                            m_conversationContents[name] = content;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    catch (...) { /* 忽略加载异常 */ }
+
+}
+
+// 将当前内存的会话列表写入磁盘
+void Plug_DeepSeek::SaveConversationsToDisk() {
+    try {
+        nlohmann::json j = nlohmann::json::array();
+        for (const auto& name : m_savedConversations) {
+            nlohmann::json it;
+            it["name"] = name;
+            auto cit = m_conversationContents.find(name);
+            if (cit != m_conversationContents.end()) it["content"] = cit->second;
+            else it["content"] = "";
+            j.push_back(it);
+        }
+
+        std::ofstream ofs(m_historyFile, std::ios::trunc);
+        if (ofs) ofs << j.dump(2);
+    }
+    catch (...) { /* 忽略写盘错误 */ }
+}
+
+void Plug_DeepSeek::AddConversation(const std::string& name, const std::string& content) {
+    // 保持简单：如果已存在同名会话，追加索引
+    std::string finalName = name;
+    int idx = 1;
+    while (m_conversationContents.find(finalName) != m_conversationContents.end()) {
+        finalName = name + " (" + std::to_string(idx++) + ")";
+    }
+    m_savedConversations.push_back(finalName);
+    m_conversationContents[finalName] = content;
+    SaveConversationsToDisk();
+}
+
+void Plug_DeepSeek::RemoveConversation(const std::string& name) {
+    auto it = std::find(m_savedConversations.begin(), m_savedConversations.end(), name);
+    if (it != m_savedConversations.end()) m_savedConversations.erase(it);
+    m_conversationContents.erase(name);
+    SaveConversationsToDisk();
+}
+
+void Plug_DeepSeek::RenameConversation(const std::string& oldName, const std::string& newName) {
+    if (oldName == newName) return;
+    // ensure newName doesn't collide
+    std::string finalName = newName;
+    int idx = 1;
+    while (m_conversationContents.find(finalName) != m_conversationContents.end()) {
+        finalName = newName + " (" + std::to_string(idx++) + ")";
+    }
+
+    auto it = m_conversationContents.find(oldName);
+    if (it == m_conversationContents.end()) return;
+    std::string content = it->second;
+    m_conversationContents.erase(it);
+    m_conversationContents[finalName] = content;
+
+    // replace in vector
+    for (auto &n : m_savedConversations) {
+        if (n == oldName) { n = finalName; break; }
+    }
+
+    // adjust current session name if needed
+    if (m_currentSessionName == oldName) m_currentSessionName = finalName;
+
+    SaveConversationsToDisk();
+}
+
+void Plug_DeepSeek::ExportConversation(const std::string& name, const std::string& path) {
+    auto it = m_conversationContents.find(name);
+    if (it == m_conversationContents.end()) return;
+    try {
+        std::ofstream ofs(path, std::ios::binary);
+        if (ofs) ofs << it->second;
+    }
+    catch (...) { }
+}
+
+bool Plug_DeepSeek::LoadConversationIntoSession(const std::string& name) {
+    auto it = m_conversationContents.find(name);
+    if (it == m_conversationContents.end()) return false;
+    m_currentSessionName = name;
+    m_currentSessionHistory = it->second;
+    return true;
 }
 
 // 接收宿主传入的项目根路径
@@ -364,48 +490,124 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
     sendBtn->SetDefault(); // 设置为默认按钮（回车触发）
 
     // 3. 布局管理 (使用 Sizer)
-    wxBoxSizer* mainSizer = new wxBoxSizer(wxVERTICAL);
+    wxBoxSizer* outerSizer = new wxBoxSizer(wxHORIZONTAL);
+
+    // 左侧：会话列表与操作按钮
+    wxPanel* leftPanel = new wxPanel(panel, wxID_ANY);
+    wxBoxSizer* leftSizer = new wxBoxSizer(wxVERTICAL);
+    wxListBox* convoList = new wxListBox(leftPanel, wxID_ANY);
+    wxButton* loadBtn = new wxButton(leftPanel, wxID_ANY, wxString::FromUTF8("加载"));
+    wxButton* renameBtn = new wxButton(leftPanel, wxID_ANY, wxString::FromUTF8("重命名"));
+    wxButton* exportBtn = new wxButton(leftPanel, wxID_ANY, wxString::FromUTF8("导出"));
+    wxButton* deleteBtn = new wxButton(leftPanel, wxID_ANY, wxString::FromUTF8("删除"));
+
+    // 填充已保存会话
+    for (const auto& n : m_savedConversations) convoList->Append(wxString::FromUTF8(n));
+
+    leftSizer->Add(convoList, 1, wxEXPAND | wxALL, 6);
+    leftSizer->Add(loadBtn, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 6);
+    leftSizer->Add(renameBtn, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 6);
+    leftSizer->Add(exportBtn, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 6);
+    leftSizer->Add(deleteBtn, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 6);
+    leftPanel->SetSizer(leftSizer);
+
+    // 右侧：历史对话与输入
+    wxBoxSizer* rightSizer = new wxBoxSizer(wxVERTICAL);
+    rightSizer->Add(historyCtrl, 1, wxEXPAND | wxLEFT | wxRIGHT, 10);
+    rightSizer->Add(new wxStaticLine(panel), 0, wxEXPAND | wxALL, 10);
+
     wxBoxSizer* inputSizer = new wxBoxSizer(wxHORIZONTAL);
-
-    // 将历史框放入主布局 (比例为 1，填满剩余空间)
-    mainSizer->Add(historyCtrl, 1, wxEXPAND | wxLEFT | wxRIGHT, 10);
-    mainSizer->Add(new wxStaticLine(panel), 0, wxEXPAND | wxALL, 10);
-
-    // --- 修改区：将复制按钮加入横向布局 ---
     inputSizer->Add(inputCtrl, 1, wxEXPAND | wxRIGHT, 10);
     inputSizer->Add(copyBtn, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 5); // 复制按钮
+    // 新对话按钮放在右侧输入区
+    wxButton* newConvBtn = new wxButton(panel, wxID_ANY, wxString::FromUTF8("新对话"), wxDefaultPosition, wxSize(80, -1));
+    inputSizer->Add(newConvBtn, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 5); // 新对话按钮
     inputSizer->Add(sendBtn, 0, wxALIGN_CENTER_VERTICAL);              // 发送按钮
 
-    mainSizer->Add(inputSizer, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 10);
+    rightSizer->Add(inputSizer, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 10);
 
-    panel->SetSizer(mainSizer);
+    outerSizer->Add(leftPanel, 0, wxEXPAND | wxALL, 4);
+    outerSizer->Add(rightSizer, 1, wxEXPAND | wxALL, 2);
+
+    panel->SetSizer(outerSizer);
 
     // 4. 事件绑定
-    auto onSend = [this, historyCtrl, inputCtrl, panel](wxCommandEvent& event) {
-        wxString userMsg = inputCtrl->GetValue();
-        if (userMsg.IsEmpty()) return;
 
-        // UI 反馈
-        historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLUE));
-        historyCtrl->AppendText(wxString::FromUTF8("\n用户: ") + userMsg + "\n");
-        historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLACK));
-        historyCtrl->AppendText(wxString::FromUTF8("DeepSeek: 正在思考...\n"));
-        inputCtrl->Clear();
+    // 新对话按钮：保存当前对话到本地历史并清空界面
+    newConvBtn->Bind(wxEVT_BUTTON, [this, historyCtrl, convoList](wxCommandEvent&) {
+        // 优先保存当前会话内存上下文，否则回退到 UI 文本
+        std::string cur = this->m_currentSessionHistory.empty() ? std::string(historyCtrl->GetValue().ToUTF8().data()) : this->m_currentSessionHistory;
+        // 生成基于时间戳的名称
+        auto now = std::chrono::system_clock::now();
+        std::time_t t = std::chrono::system_clock::to_time_t(now);
+        std::tm tm;
+        localtime_s(&tm, &t);
+        std::ostringstream ss;
+        ss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+        std::string name = std::string("会话 ") + ss.str();
 
-        std::string promptUtf8 = userMsg.ToUTF8().data();
+        // 保存（允许空内容以表示一个新的空会话）
+        this->AddConversation(name, cur);
+        convoList->Append(wxString::FromUTF8(name));
 
-        m_threads.emplace_back([this, panel, promptUtf8]() {
-            // 修复业务 Bug：改为调用 ProcessCommand，让用户输入穿上“提示词马甲”后再发给 API
-            std::string response = this->ProcessCommand(promptUtf8);
+        // 清空 UI 与会话状态，开启新对话
+        historyCtrl->Clear();
+        this->m_latestCode.Clear();
+        this->memory_queue.Clear();
+        this->memory.Clear();
+        this->m_currentSessionName.clear();
+        this->m_currentSessionHistory.clear();
+        wxLogStatus(wxString::FromUTF8("对话已保存，本地新对话已创建。"));
+    });
+    
+    // 加载会话到当前工作区（可以继续对话）
+    loadBtn->Bind(wxEVT_BUTTON, [this, convoList, historyCtrl](wxCommandEvent&) {
+        int sel = convoList->GetSelection();
+        if (sel == wxNOT_FOUND) {
+            wxLogStatus(wxString::FromUTF8("请先选择要加载的会话。"));
+            return;
+        }
+        wxString name = convoList->GetString(sel);
+        if (this->LoadConversationIntoSession(std::string(name.ToUTF8().data()))) {
+            historyCtrl->SetValue(wxString::FromUTF8(this->m_currentSessionHistory));
+            wxLogStatus(wxString::FromUTF8("会话已加载，可继续对话。"));
+        }
+    });
 
-            if (m_isReleased) return;
+    // 重命名会话
+    renameBtn->Bind(wxEVT_BUTTON, [this, convoList](wxCommandEvent&) {
+        int sel = convoList->GetSelection();
+        if (sel == wxNOT_FOUND) return;
+        wxString oldName = convoList->GetString(sel);
+        wxString newName = wxGetTextFromUser(wxString::FromUTF8("输入新的会话名称:"), wxString::FromUTF8("重命名会话"), oldName);
+        if (newName.IsEmpty() || newName == oldName) return;
+        this->RenameConversation(std::string(oldName.ToUTF8().data()), std::string(newName.ToUTF8().data()));
+        convoList->SetString(sel, newName);
+    });
 
-            wxThreadEvent* evt = new wxThreadEvent(EVT_AI_RESPONSE);
-            // API 返回的纯正 UTF-8 解析为 wxString
-            evt->SetString(wxString::FromUTF8(response));
-            wxQueueEvent(panel, evt);
-            });
-        };
+    // 导出到文件
+    exportBtn->Bind(wxEVT_BUTTON, [this, convoList](wxCommandEvent&) {
+        int sel = convoList->GetSelection();
+        if (sel == wxNOT_FOUND) return;
+        wxString name = convoList->GetString(sel);
+        wxFileDialog saveFile(nullptr, wxString::FromUTF8("导出会话到文件"), wxEmptyString, name + ".txt", wxString::FromUTF8("文本文件 (*.txt)|*.txt"), wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
+        if (saveFile.ShowModal() == wxID_OK) {
+            wxString path = saveFile.GetPath();
+            this->ExportConversation(std::string(name.ToUTF8().data()), std::string(path.ToUTF8().data()));
+            wxLogStatus(wxString::FromUTF8("会话已导出。"));
+        }
+    });
+
+    // 删除会话
+    deleteBtn->Bind(wxEVT_BUTTON, [this, convoList](wxCommandEvent&) {
+        int sel = convoList->GetSelection();
+        if (sel == wxNOT_FOUND) return;
+        wxString name = convoList->GetString(sel);
+        this->RemoveConversation(std::string(name.ToUTF8().data()));
+        convoList->Delete(sel);
+        wxLogStatus(wxString::FromUTF8("会话已删除。"));
+    });
+    
 
     // --- 修改区：复制按钮的点击事件 ---
     copyBtn->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
@@ -474,10 +676,82 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
 
         // 滚动到最底部
         historyCtrl->ShowPosition(historyCtrl->GetLastPosition());
+        
+        // 追加完整原文到当前会话上下文，便于后续继续对话
+        try {
+            std::string raw = std::string(response.ToUTF8().data());
+            if (!raw.empty()) this->m_currentSessionHistory += raw + "\n";
+        } catch (...) { }
+
         });
 
-    sendBtn->Bind(wxEVT_BUTTON, onSend);
-    inputCtrl->Bind(wxEVT_TEXT_ENTER, onSend);
+    auto onSend = [this, historyCtrl, inputCtrl, panel](wxCommandEvent& event) {
+        wxString userMsg = inputCtrl->GetValue();
+        if (userMsg.IsEmpty()) return;
+
+        // UI 反馈
+        historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLUE));
+        historyCtrl->AppendText(wxString::FromUTF8("\n用户: ") + userMsg + "\n");
+        historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLACK));
+        historyCtrl->AppendText(wxString::FromUTF8("DeepSeek: 正在思考...\n"));
+        inputCtrl->Clear();
+
+        std::string promptUtf8 = userMsg.ToUTF8().data();
+
+        m_threads.emplace_back([this, panel, promptUtf8]() {
+            // 修复业务 Bug：改为调用 ProcessCommand，让用户输入穿上“提示词马甲”后再发给 API
+            std::string response = this->ProcessCommand(promptUtf8);
+
+            if (m_isReleased) return;
+
+            wxThreadEvent* evt = new wxThreadEvent(EVT_AI_RESPONSE);
+            // API 返回的纯正 UTF-8 解析为 wxString
+            evt->SetString(wxString::FromUTF8(response));
+            wxQueueEvent(panel, evt);
+        });
+    };
+
+    sendBtn->Bind(wxEVT_BUTTON, [this, historyCtrl, inputCtrl, panel](wxCommandEvent& event) {
+        wxString userMsg = inputCtrl->GetValue();
+        if (userMsg.IsEmpty()) return;
+        // 将用户输入追加到当前会话上下文，以便后续消息带上历史
+        this->m_currentSessionHistory += std::string("用户: ") + std::string(userMsg.ToUTF8().data()) + "\n";
+
+        historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLUE));
+        historyCtrl->AppendText(wxString::FromUTF8("\n用户: ") + userMsg + "\n");
+        historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLACK));
+        historyCtrl->AppendText(wxString::FromUTF8("DeepSeek: 正在思考...\n"));
+        inputCtrl->Clear();
+
+        std::string promptUtf8 = userMsg.ToUTF8().data();
+        m_threads.emplace_back([this, panel, promptUtf8]() {
+            std::string response = this->ProcessCommand(promptUtf8);
+            if (m_isReleased) return;
+            wxThreadEvent* evt = new wxThreadEvent(EVT_AI_RESPONSE);
+            evt->SetString(wxString::FromUTF8(response));
+            wxQueueEvent(panel, evt);
+        });
+    }, wxID_ANY);
+
+    inputCtrl->Bind(wxEVT_TEXT_ENTER, [this, historyCtrl, inputCtrl, panel](wxCommandEvent& event) {
+        wxString userMsg = inputCtrl->GetValue();
+        if (userMsg.IsEmpty()) return;
+
+        historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLUE));
+        historyCtrl->AppendText(wxString::FromUTF8("\n用户: ") + userMsg + "\n");
+        historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLACK));
+        historyCtrl->AppendText(wxString::FromUTF8("DeepSeek: 正在思考...\n"));
+        inputCtrl->Clear();
+
+        std::string promptUtf8 = userMsg.ToUTF8().data();
+        m_threads.emplace_back([this, panel, promptUtf8]() {
+            std::string response = this->ProcessCommand(promptUtf8);
+            if (m_isReleased) return;
+            wxThreadEvent* evt = new wxThreadEvent(EVT_AI_RESPONSE);
+            evt->SetString(wxString::FromUTF8(response));
+            wxQueueEvent(panel, evt);
+        });
+    }, wxID_ANY);
 
     return panel;
 }
