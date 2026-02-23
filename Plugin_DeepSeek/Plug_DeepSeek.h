@@ -6,6 +6,9 @@
 #include <thread>
 #include <map>
 #include <vector>
+#include <atomic>
+#include <mutex>
+#include <winhttp.h>
 
 class Plug_DeepSeek : public ISigPlugin {
 public:
@@ -39,10 +42,24 @@ private:
     std::atomic<bool> m_isReleased{false}; 
     std::vector<std::thread> m_threads;
     std::string m_projectRoot;
+    // 当前 Panel 指针（用于流式分块回传 UI）
+    wxWindow* m_panel = nullptr;
+
+    // 请求管理与取消支持
+    std::atomic<bool> m_requestInProgress{false};
+    std::atomic<bool> m_cancelRequest{false};
+    std::mutex m_requestMutex;
+    // WinHTTP 句柄快照，用于取消
+    HINTERNET m_hSessionHandle = NULL;
+    HINTERNET m_hConnectHandle = NULL;
+    HINTERNET m_hRequestHandle = NULL;
 
     // 内部辅助函数：处理网络请求
     static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp);
-    std::string CallDeepSeekAPI(const std::string& prompt);
+    // 如果 panel 非空且 stream 为 true，则会使用增量回传（流式）并在完成时返回完整响应字符串
+    std::string CallDeepSeekAPI(const std::string& prompt, wxWindow* panel = nullptr, bool stream = false);
+    // 取消正在进行的请求（线程安全）
+    void CancelCurrentRequest();
 
     // 本地持久化相关
     void SaveConversationsToDisk();

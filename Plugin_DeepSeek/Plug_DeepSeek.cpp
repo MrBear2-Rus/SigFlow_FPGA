@@ -16,6 +16,8 @@
 #include <iomanip>
 #include <cstdlib>
 #include <functional>
+#include <atomic>
+#include <mutex>
 
 #pragma comment(lib, "winhttp.lib") // 告诉编译器自动链接 winhttp 库
 using json = nlohmann::json;
@@ -373,79 +375,257 @@ std::string Plug_DeepSeek::ProcessCommand(const std::string& cmd) {
             "现在开始！用户的请求是：" + cmd;
     }
 
-    return CallDeepSeekAPI(fullPrompt);
+    // 如果存在已设置的 panel，则启用流式回传，便于增量显示
+    return CallDeepSeekAPI(fullPrompt, this->m_panel, true);
 }
-
-std::string Plug_DeepSeek::CallDeepSeekAPI(const std::string& prompt) {
+std::string Plug_DeepSeek::CallDeepSeekAPI(const std::string& prompt, wxWindow* panel, bool stream) {
     std::string responseData;
     HINTERNET hSession = NULL, hConnect = NULL, hRequest = NULL;
 
-    // 1. 初始化 WinHTTP (增加对 HTTPS 协议的兼容性支持)
-    hSession = WinHttpOpen(L"EDA Assistant/1.0", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
-    if (!hSession) return "Error: WinHttpOpen failed.";
-    else WinHttpSetTimeouts(hSession, 60000, 60000, 60000, 120000);
+    // 简短的重试策略参数
+    const int maxRetries = 3;
+    int attempt = 0;
 
-    // 2. 指定服务器
-    hConnect = WinHttpConnect(hSession, L"api.deepseek.com", INTERNET_DEFAULT_HTTPS_PORT, 0);
+    // 标记请求开始
+    m_requestInProgress = true;
+    m_cancelRequest = false;
 
-    if (hConnect) {
-        // 3. 创建请求 (确保开启了 WINHTTP_FLAG_SECURE 以支持 HTTPS)
+    while (attempt < maxRetries && !m_cancelRequest) {
+        ++attempt;
+
+        // 1. 初始化 WinHTTP
+        hSession = WinHttpOpen(L"EDA Assistant/1.0", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+        if (!hSession) {
+            responseData = "Error: WinHttpOpen failed.";
+            break;
+        }
+        WinHttpSetTimeouts(hSession, 60000, 60000, 60000, 120000);
+
+        // 快照句柄以便取消
+        {
+            std::lock_guard<std::mutex> lk(m_requestMutex);
+            m_hSessionHandle = hSession;
+        }
+
+        // 2. 指定服务器
+        hConnect = WinHttpConnect(hSession, L"api.deepseek.com", INTERNET_DEFAULT_HTTPS_PORT, 0);
+        {
+            std::lock_guard<std::mutex> lk(m_requestMutex);
+            m_hConnectHandle = hConnect;
+        }
+
+        if (!hConnect) {
+            responseData = "Error: WinHttpConnect failed.";
+            WinHttpCloseHandle(hSession);
+            continue;
+        }
+
+        // 3. 创建请求
         hRequest = WinHttpOpenRequest(hConnect, L"POST", L"/chat/completions", NULL, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE);
-    }
+        {
+            std::lock_guard<std::mutex> lk(m_requestMutex);
+            m_hRequestHandle = hRequest;
+        }
 
-    if (hRequest) {
+        if (!hRequest) {
+            responseData = "Error: WinHttpOpenRequest failed.";
+            WinHttpCloseHandle(hConnect);
+            WinHttpCloseHandle(hSession);
+            continue;
+        }
+
         // 4. 构造 Payload 和 Header
         json payload = {
             {"model", "deepseek-chat"},
             {"messages", {{{"role", "user"}, {"content", prompt}}}},
             {"temperature", 0.0},
-            {"stream", false}
+            {"stream", stream}
         };
         std::string jsonStr = payload.dump();
 
-        // 转换 API Key (注意：确保 m_apiKey 不为空)
         std::wstring wKey(m_apiKey.begin(), m_apiKey.end());
         std::wstring headers = L"Content-Type: application/json\r\nAuthorization: Bearer " + wKey + L"\r\n";
 
-        // 5. 发送请求
         BOOL bResults = WinHttpSendRequest(hRequest, headers.c_str(), (DWORD)-1L, (LPVOID)jsonStr.c_str(), (DWORD)jsonStr.length(), (DWORD)jsonStr.length(), 0);
+        if (!bResults) {
+            responseData = "Error: WinHttpSendRequest failed.";
+            // cleanup and maybe retry
+        } else {
+            bResults = WinHttpReceiveResponse(hRequest, NULL);
+        }
 
-        // 6. 接收返回内容
-        if (bResults) bResults = WinHttpReceiveResponse(hRequest, NULL);
+        // 检查 HTTP 状态码
+        DWORD statusCode = 0;
+        DWORD statusSize = sizeof(statusCode);
+        if (hRequest && WinHttpQueryHeaders(hRequest, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER, WINHTTP_HEADER_NAME_BY_INDEX, &statusCode, &statusSize, WINHTTP_NO_HEADER_INDEX)) {
+            // statusCode now contains numeric HTTP status
+        }
 
-        if (bResults) {
+        // handle auth error / rate limit / server errors
+        if (statusCode == 401) {
+            responseData = "DeepSeek API Error: Unauthorized (401). Check API key.";
+            // don't retry
+            bResults = FALSE;
+        }
+
+        if (!bResults) {
+            // gather WinHTTP error if available
+            if (responseData.empty()) responseData = "Error: Network request failed.";
+        }
+
+        if (bResults && stream && panel) {
+            // 流式读取并增量回传
+            DWORD dwSize = 0;
+            std::string sseBuf;
+            std::string assembledContent;
+            do {
+                if (m_cancelRequest) break;
+                if (!WinHttpQueryDataAvailable(hRequest, &dwSize)) break;
+                if (dwSize == 0) break;
+
+                std::vector<char> buffer(dwSize + 1);
+                DWORD dwDownloaded = 0;
+                if (WinHttpReadData(hRequest, buffer.data(), dwSize, &dwDownloaded) && dwDownloaded > 0) {
+                    // accumulate raw
+                    responseData.append(buffer.data(), dwDownloaded);
+                    // append to sse buffer for event parsing
+                    sseBuf.append(buffer.data(), dwDownloaded);
+
+                    // process complete SSE events separated by "\n\n"
+                    size_t pos = 0;
+                    while ((pos = sseBuf.find("\n\n")) != std::string::npos) {
+                        std::string event = sseBuf.substr(0, pos);
+                        sseBuf.erase(0, pos + 2);
+
+                        // extract lines that start with "data:"
+                        std::istringstream iss(event);
+                        std::string line;
+                        std::string dataStr;
+                        while (std::getline(iss, line)) {
+                            if (line.rfind("data:", 0) == 0) {
+                                std::string d = line.substr(5);
+                                if (!d.empty() && d[0] == ' ') d.erase(0, 1);
+                                dataStr += d;
+                            }
+                        }
+
+                        if (dataStr.empty()) continue;
+                        if (dataStr == "[DONE]") {
+                            // stream finished marker
+                            continue;
+                        }
+
+                        // try parse JSON and extract delta.content
+                        try {
+                            auto j = json::parse(dataStr);
+                            if (j.contains("choices") && j["choices"].is_array() && !j["choices"].empty()) {
+                                auto& ch = j["choices"][0];
+                                // prefer delta.content (stream)
+                                if (ch.contains("delta") && ch["delta"].contains("content")) {
+                                    std::string delta = ch["delta"]["content"].get<std::string>();
+                                    assembledContent += delta;
+                                    wxThreadEvent* partEvt = new wxThreadEvent(EVT_AI_RESPONSE);
+                                    partEvt->SetString(wxString::FromUTF8(delta));
+                                    partEvt->SetInt(1);
+                                    wxQueueEvent(panel, partEvt);
+                                }
+                                else if (ch.contains("message") && ch["message"].contains("content")) {
+                                    std::string content = ch["message"]["content"].get<std::string>();
+                                    assembledContent += content;
+                                    wxThreadEvent* partEvt = new wxThreadEvent(EVT_AI_RESPONSE);
+                                    partEvt->SetString(wxString::FromUTF8(content));
+                                    partEvt->SetInt(1);
+                                    wxQueueEvent(panel, partEvt);
+                                }
+                            }
+                        }
+                        catch (...) {
+                            // ignore malformed event
+                        }
+                    }
+                }
+            } while (dwSize > 0 && !m_cancelRequest);
+
+            // 最终事件（包含完整解析出的内容或回退到原始响应）
+            if (!m_cancelRequest) {
+                std::string finalStr = !assembledContent.empty() ? assembledContent : responseData;
+                // if finalStr looks like JSON, try extract message.content as fallback
+                try {
+                    auto resJson = json::parse(responseData);
+                    if (resJson.contains("choices") && resJson["choices"].is_array() && !resJson["choices"].empty()) {
+                        auto& firstChoice = resJson["choices"][0];
+                        if (firstChoice.contains("message") && firstChoice["message"].contains("content")) {
+                            finalStr = firstChoice["message"]["content"].get<std::string>();
+                        }
+                    }
+                } catch (...) { /* ignore */ }
+
+                wxThreadEvent* finalEvt = new wxThreadEvent(EVT_AI_RESPONSE);
+                finalEvt->SetString(wxString::FromUTF8(finalStr));
+                finalEvt->SetInt(2);
+                wxQueueEvent(panel, finalEvt);
+            } else {
+                // cancellation notification
+                wxThreadEvent* cancelEvt = new wxThreadEvent(EVT_AI_RESPONSE);
+                cancelEvt->SetString(wxString::FromUTF8("Error: Request cancelled by user."));
+                cancelEvt->SetInt(3);
+                wxQueueEvent(panel, cancelEvt);
+            }
+
+        } else if (bResults) {
+            // 非流式：一次性读取全部
             DWORD dwSize = 0;
             do {
                 if (!WinHttpQueryDataAvailable(hRequest, &dwSize)) break;
                 if (dwSize == 0) break;
 
-                char* pszOutBuffer = new char[dwSize + 1];
+                std::vector<char> buffer(dwSize + 1);
                 DWORD dwDownloaded = 0;
-                if (WinHttpReadData(hRequest, (LPVOID)pszOutBuffer, dwSize, &dwDownloaded)) {
-                    responseData.append(pszOutBuffer, dwDownloaded);
+                if (WinHttpReadData(hRequest, buffer.data(), dwSize, &dwDownloaded) && dwDownloaded > 0) {
+                    responseData.append(buffer.data(), dwDownloaded);
                 }
-                delete[] pszOutBuffer;
             } while (dwSize > 0);
         }
+
+        // 清理本次请求句柄快照
+        {
+            std::lock_guard<std::mutex> lk(m_requestMutex);
+            m_hRequestHandle = NULL;
+            m_hConnectHandle = NULL;
+            m_hSessionHandle = NULL;
+        }
+
+        if (hRequest) WinHttpCloseHandle(hRequest);
+        if (hConnect) WinHttpCloseHandle(hConnect);
+        if (hSession) WinHttpCloseHandle(hSession);
+
+        // 如果状态码为 429 或 5xx，允许重试（带指数退避）
+        if (statusCode == 429 || (statusCode >= 500 && statusCode < 600)) {
+            if (attempt < maxRetries && !m_cancelRequest) {
+                int backoffMs = 500 * (1 << (attempt - 1));
+                Sleep(backoffMs);
+                responseData.clear();
+                continue; // retry
+            }
+        }
+
+        break; // exit retry loop
     }
 
-    // --- 资源清理 (提前执行，防止内存泄漏) ---
-    if (hRequest) WinHttpCloseHandle(hRequest);
-    if (hConnect) WinHttpCloseHandle(hConnect);
-    if (hSession) WinHttpCloseHandle(hSession);
+    m_requestInProgress = false;
 
-    if (responseData.empty()) return "Error: No data from API.";
+    if (m_cancelRequest) return std::string("Error: Request cancelled by user.");
 
-    // --- 7. 安全解析 (核心修改区) ---
+    if (responseData.empty()) return std::string("Error: No data from API.");
+
+    // 解析并返回（非流式或最终返回）
     try {
         auto resJson = json::parse(responseData);
 
-        // A. 检查 DeepSeek 是否返回了业务错误 (如 API Key 失效、余额不足)
         if (resJson.contains("error")) {
             return "DeepSeek API Error: " + resJson["error"]["message"].get<std::string>();
         }
 
-        // B. 严谨地层层验证 JSON 结构
         if (resJson.contains("choices") && resJson["choices"].is_array() && !resJson["choices"].empty()) {
             auto& firstChoice = resJson["choices"][0];
             if (firstChoice.contains("message") && firstChoice["message"].contains("content")) {
@@ -456,11 +636,28 @@ std::string Plug_DeepSeek::CallDeepSeekAPI(const std::string& prompt) {
         return "Error: Unexpected JSON format. Raw Response: " + responseData;
     }
     catch (const json::exception& e) {
-        // 捕获 nlohmann::json 抛出的类型错误或解析错误
         return "JSON Error: " + std::string(e.what()) + "\nRaw data: " + responseData;
     }
     catch (...) {
         return "Critical Error: An unknown exception occurred during parsing.";
+    }
+}
+
+void Plug_DeepSeek::CancelCurrentRequest() {
+    m_cancelRequest = true;
+    std::lock_guard<std::mutex> lk(m_requestMutex);
+    if (m_hRequestHandle) {
+        // Closing the request handle should interrupt ongoing WinHttpReadData/Query operations
+        WinHttpCloseHandle(m_hRequestHandle);
+        m_hRequestHandle = NULL;
+    }
+    if (m_hConnectHandle) {
+        WinHttpCloseHandle(m_hConnectHandle);
+        m_hConnectHandle = NULL;
+    }
+    if (m_hSessionHandle) {
+        WinHttpCloseHandle(m_hSessionHandle);
+        m_hSessionHandle = NULL;
     }
 }
 
@@ -472,6 +669,8 @@ extern "C" __declspec(dllexport) ISigPlugin* CreateSigPlugin() {
 wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
     // 1. 创建主面板
     wxPanel* panel = new wxPanel(parent, wxID_ANY);
+    // 保存 panel 指针以便网络代码可以回传流
+    this->m_panel = panel;
     panel->SetBackgroundColour(wxColour(245, 245, 245)); // 浅灰色背景
 
     // 2. 创建控件
@@ -488,6 +687,9 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
     wxButton* copyBtn = new wxButton(panel, wxID_ANY, wxString::FromUTF8("复制代码"), wxDefaultPosition, wxSize(80, -1));
     wxButton* sendBtn = new wxButton(panel, wxID_ANY, wxString::FromUTF8("发送"), wxDefaultPosition, wxSize(80, -1));
     sendBtn->SetDefault(); // 设置为默认按钮（回车触发）
+    // 取消按钮（用于中断正在进行的请求）
+    wxButton* cancelBtn = new wxButton(panel, wxID_ANY, wxString::FromUTF8("取消"), wxDefaultPosition, wxSize(80, -1));
+    cancelBtn->Disable();
 
     // 3. 布局管理 (使用 Sizer)
     wxBoxSizer* outerSizer = new wxBoxSizer(wxHORIZONTAL);
@@ -522,7 +724,8 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
     // 新对话按钮放在右侧输入区
     wxButton* newConvBtn = new wxButton(panel, wxID_ANY, wxString::FromUTF8("新对话"), wxDefaultPosition, wxSize(80, -1));
     inputSizer->Add(newConvBtn, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 5); // 新对话按钮
-    inputSizer->Add(sendBtn, 0, wxALIGN_CENTER_VERTICAL);              // 发送按钮
+    inputSizer->Add(cancelBtn, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 5);  // 取消按钮
+    inputSizer->Add(sendBtn, 0, wxALIGN_CENTER_VERTICAL);               // 发送按钮
 
     rightSizer->Add(inputSizer, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 10);
 
@@ -622,9 +825,49 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
         }
         });
 
-    // 5. 处理返回的事件
-    panel->Bind(EVT_AI_RESPONSE, [this, historyCtrl](wxThreadEvent& evt) {
-        // 这里的代码会在【主线程/UI线程】执行，安全更新控件
+    // 取消按钮绑定：请求取消当前正在进行的网络请求
+    cancelBtn->Bind(wxEVT_BUTTON, [this, panel, sendBtn, inputCtrl, cancelBtn, historyCtrl](wxCommandEvent&) {
+        if (!this->m_requestInProgress) return;
+        this->CancelCurrentRequest();
+        wxLogStatus(wxString::FromUTF8("请求取消中..."));
+        // 立即禁用取消按钮，等待回调恢复 UI
+        cancelBtn->Disable();
+    });
+
+    // 5. 处理返回的事件（支持流分块、完成和取消信号）
+    panel->Bind(EVT_AI_RESPONSE, [this, historyCtrl, sendBtn, inputCtrl, cancelBtn](wxThreadEvent& evt) {
+        int code = evt.GetInt();
+        // code meanings: 0 (default) = final non-stream content (string contains final AI-formatted reply)
+        // 1 = partial stream chunk (append directly)
+        // 2 = final stream content (string contains full AI-formatted reply)
+        // 3 = cancelled
+        // 4 = request finished (re-enable UI)
+
+        if (code == 1) {
+            // 部分流式数据，直接追加到历史窗口
+            historyCtrl->AppendText(evt.GetString());
+            historyCtrl->ShowPosition(historyCtrl->GetLastPosition());
+            return;
+        }
+
+        if (code == 3) {
+            wxMessageBox(evt.GetString(), wxString::FromUTF8("请求已取消"), wxOK | wxICON_INFORMATION);
+            // re-enable UI
+            if (sendBtn) sendBtn->Enable();
+            if (inputCtrl) inputCtrl->Enable();
+            if (cancelBtn) cancelBtn->Disable();
+            return;
+        }
+
+        if (code == 4) {
+            // 仅表示请求生命周期结束，恢复 UI
+            if (sendBtn) sendBtn->Enable();
+            if (inputCtrl) inputCtrl->Enable();
+            if (cancelBtn) cancelBtn->Disable();
+            return;
+        }
+
+        // 默认或 final (code == 0 or 2)
         wxString response = evt.GetString();
 
         // 1. 解析 AI 的严格格式回复
@@ -634,84 +877,84 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
         if (res.analysis.IsEmpty() && res.code.IsEmpty()) {
             historyCtrl->AppendText(response + "\n");
             historyCtrl->ShowPosition(historyCtrl->GetLastPosition());
+            // 追加完整原文到当前会话上下文
+            try { this->m_currentSessionHistory += std::string(response.ToUTF8().data()) + "\n"; } catch (...) {}
+            // 恢复 UI
+            if (sendBtn) sendBtn->Enable();
+            if (inputCtrl) inputCtrl->Enable();
+            if (cancelBtn) cancelBtn->Disable();
             return;
         }
 
-        // 2. 漂亮地分块显示
-        // [分析] - 蓝色标题，黑色内容
+        // 2. 漂亮地分块显示（分析/代码/总结）
         historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLUE));
         historyCtrl->AppendText(wxString::FromUTF8("\n[分析]\n"));
         historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLACK));
         historyCtrl->AppendText(res.analysis + "\n");
 
-        // [代码] - 蓝色标题，黑色内容
         if (!res.code.IsEmpty()) {
-            // --- 修改区：将最新解析出来的代码存入变量，供复制按钮使用 ---
             this->m_latestCode = res.code;
-
             historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLUE));
             historyCtrl->AppendText(wxString::FromUTF8("\n[纯代码]\n"));
             historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLACK));
             historyCtrl->AppendText(res.code + "\n");
         }
 
-        // [总结] - 暗绿色标题，同行黑色内容
         historyCtrl->SetDefaultStyle(wxTextAttr(wxColour(0, 128, 0)));
         historyCtrl->AppendText(wxString::FromUTF8("\n[总结]: "));
         historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLACK));
         historyCtrl->AppendText(res.summary + "\n\n");
 
-        // 3. 处理长期记忆 (对用户不可见，只在底层运转)
         if (!res.memory.IsEmpty()) {
             this->memory_queue.Add(res.memory);
             while (this->memory_queue.GetCount() > 10) {
                 this->memory_queue.RemoveAt(0);
             }
             this->memory = wxString::FromUTF8("【之前的记忆上下文】:\n");
-            for (const auto& m : this->memory_queue) {
-                this->memory += "- " + m + "\n";
-            }
+            for (const auto& m : this->memory_queue) this->memory += "- " + m + "\n";
             this->memory += wxString::FromUTF8("【记忆上下文结束】\n\n");
         }
 
-        // 滚动到最底部
         historyCtrl->ShowPosition(historyCtrl->GetLastPosition());
-        
-        // 追加完整原文到当前会话上下文，便于后续继续对话
-        try {
-            std::string raw = std::string(response.ToUTF8().data());
-            if (!raw.empty()) this->m_currentSessionHistory += raw + "\n";
-        } catch (...) { }
 
-        });
+        try { this->m_currentSessionHistory += std::string(response.ToUTF8().data()) + "\n"; } catch (...) {}
 
-    auto onSend = [this, historyCtrl, inputCtrl, panel](wxCommandEvent& event) {
+        // 恢复 UI
+        if (sendBtn) sendBtn->Enable();
+        if (inputCtrl) inputCtrl->Enable();
+        if (cancelBtn) cancelBtn->Disable();
+    });
+
+    auto onSend = [this, historyCtrl, inputCtrl, panel, sendBtn, cancelBtn](wxCommandEvent& event) {
         wxString userMsg = inputCtrl->GetValue();
         if (userMsg.IsEmpty()) return;
 
-        // UI 反馈
+        // UI 反馈并禁用重复点击
         historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLUE));
         historyCtrl->AppendText(wxString::FromUTF8("\n用户: ") + userMsg + "\n");
         historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLACK));
         historyCtrl->AppendText(wxString::FromUTF8("DeepSeek: 正在思考...\n"));
         inputCtrl->Clear();
+        if (sendBtn) sendBtn->Disable();
+        if (inputCtrl) inputCtrl->Disable();
+        if (cancelBtn) cancelBtn->Enable();
 
         std::string promptUtf8 = userMsg.ToUTF8().data();
 
         m_threads.emplace_back([this, panel, promptUtf8]() {
-            // 修复业务 Bug：改为调用 ProcessCommand，让用户输入穿上“提示词马甲”后再发给 API
-            std::string response = this->ProcessCommand(promptUtf8);
+            // 调用 ProcessCommand（内部会在流式模式下向 panel 回传部分/最终事件）
+            this->ProcessCommand(promptUtf8);
 
             if (m_isReleased) return;
 
-            wxThreadEvent* evt = new wxThreadEvent(EVT_AI_RESPONSE);
-            // API 返回的纯正 UTF-8 解析为 wxString
-            evt->SetString(wxString::FromUTF8(response));
-            wxQueueEvent(panel, evt);
+            // 通知 UI 恢复
+            wxThreadEvent* doneEvt = new wxThreadEvent(EVT_AI_RESPONSE);
+            doneEvt->SetInt(4);
+            wxQueueEvent(panel, doneEvt);
         });
     };
 
-    sendBtn->Bind(wxEVT_BUTTON, [this, historyCtrl, inputCtrl, panel](wxCommandEvent& event) {
+    sendBtn->Bind(wxEVT_BUTTON, [this, historyCtrl, inputCtrl, panel, sendBtn, cancelBtn](wxCommandEvent& event) {
         wxString userMsg = inputCtrl->GetValue();
         if (userMsg.IsEmpty()) return;
         // 将用户输入追加到当前会话上下文，以便后续消息带上历史
@@ -722,18 +965,21 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
         historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLACK));
         historyCtrl->AppendText(wxString::FromUTF8("DeepSeek: 正在思考...\n"));
         inputCtrl->Clear();
+        if (sendBtn) sendBtn->Disable();
+        if (inputCtrl) inputCtrl->Disable();
+        if (cancelBtn) cancelBtn->Enable();
 
         std::string promptUtf8 = userMsg.ToUTF8().data();
         m_threads.emplace_back([this, panel, promptUtf8]() {
-            std::string response = this->ProcessCommand(promptUtf8);
+            this->ProcessCommand(promptUtf8);
             if (m_isReleased) return;
-            wxThreadEvent* evt = new wxThreadEvent(EVT_AI_RESPONSE);
-            evt->SetString(wxString::FromUTF8(response));
-            wxQueueEvent(panel, evt);
+            wxThreadEvent* doneEvt = new wxThreadEvent(EVT_AI_RESPONSE);
+            doneEvt->SetInt(4);
+            wxQueueEvent(panel, doneEvt);
         });
     }, wxID_ANY);
 
-    inputCtrl->Bind(wxEVT_TEXT_ENTER, [this, historyCtrl, inputCtrl, panel](wxCommandEvent& event) {
+    inputCtrl->Bind(wxEVT_TEXT_ENTER, [this, historyCtrl, inputCtrl, panel, sendBtn, cancelBtn](wxCommandEvent& event) {
         wxString userMsg = inputCtrl->GetValue();
         if (userMsg.IsEmpty()) return;
 
@@ -742,14 +988,17 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
         historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLACK));
         historyCtrl->AppendText(wxString::FromUTF8("DeepSeek: 正在思考...\n"));
         inputCtrl->Clear();
+        if (sendBtn) sendBtn->Disable();
+        if (inputCtrl) inputCtrl->Disable();
+        if (cancelBtn) cancelBtn->Enable();
 
         std::string promptUtf8 = userMsg.ToUTF8().data();
         m_threads.emplace_back([this, panel, promptUtf8]() {
-            std::string response = this->ProcessCommand(promptUtf8);
+            this->ProcessCommand(promptUtf8);
             if (m_isReleased) return;
-            wxThreadEvent* evt = new wxThreadEvent(EVT_AI_RESPONSE);
-            evt->SetString(wxString::FromUTF8(response));
-            wxQueueEvent(panel, evt);
+            wxThreadEvent* doneEvt = new wxThreadEvent(EVT_AI_RESPONSE);
+            doneEvt->SetInt(4);
+            wxQueueEvent(panel, doneEvt);
         });
     }, wxID_ANY);
 
