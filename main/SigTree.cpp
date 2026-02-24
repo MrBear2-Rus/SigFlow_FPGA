@@ -8,6 +8,8 @@
 #include <windows.h>
 #include <regex>
 #include <set>
+#include <queue>
+
 extern "C" TSLanguage* tree_sitter_verilog();
 
 namespace fs = std::filesystem;
@@ -1326,4 +1328,114 @@ void SigFlowTree::UnregisterNodeRecursive(SigTreeNode* node) {
     for (auto child : node->children) {
         UnregisterNodeRecursive(child);
     }
+}
+
+FileNode* SigFlowTree::GetFileNode(std::string filePath) {
+    for (SigTreeNode* cld : root->children) {
+        FileNode* fn = static_cast<FileNode*>(cld);
+        if (fn->filePath == filePath) return fn;
+    }
+    return nullptr;
+}
+
+
+std::vector<int> SigFlowTree::SecondNodeTopoLevel(TopNode* tn)
+{
+    if (!tn) return {};
+
+    // 1️⃣ 收集 SecondNode
+    std::vector<SecondNode*> nodes;
+    for (auto* child : tn->children)
+    {
+        if (child->type == SigTreeNodeType::Second)
+            nodes.push_back(static_cast<SecondNode*>(child));
+    }
+
+    int n = nodes.size();
+    std::vector<int> indegree(n, 0);
+    std::vector<int> level(n, 0);
+
+    // 建立索引映射
+    std::unordered_map<SecondNode*, int> index;
+    for (int i = 0; i < n; ++i)
+        index[nodes[i]] = i;
+
+    // 2️⃣ 构建图（邻接表）
+    std::vector<std::vector<int>> adj(n);
+
+    for (int i = 0; i < n; ++i)
+    {
+        for (int j = 0; j < n; ++j)
+        {
+            if (i == j) continue;
+
+            // i.out → j.in ?
+            for (auto& p_out : nodes[i]->ports)
+            {
+                if (p_out.direction != PortDirection::Out)
+                    continue;
+
+                for (auto& p_in : nodes[j]->ports)
+                {
+                    if (p_in.direction != PortDirection::In)
+                        continue;
+
+                    if (!p_out.conn.empty() && p_out.conn == p_in.conn)
+                    {
+                        adj[i].push_back(j);
+                        indegree[j]++;
+                    }
+                }
+            }
+        }
+    }
+
+    // 3️⃣ Kahn 拓扑分层
+    std::queue<int> q;
+
+    for (int i = 0; i < n; ++i)
+    {
+        if (indegree[i] == 0)
+        {
+            level[i] = 0;
+            q.push(i);
+        }
+    }
+
+    int processed = 0;
+
+    while (!q.empty())
+    {
+        int u = q.front();
+        q.pop();
+        processed++;
+
+        for (int v : adj[u])
+        {
+            level[v] = std::max(level[v], level[u] + 1);
+            indegree[v]--;
+
+            if (indegree[v] == 0)
+                q.push(v);
+        }
+    }
+
+    // 4️⃣ 处理环（剩余 indegree > 0 的节点）
+    if (processed < n)
+    {
+        int maxLevel = 0;
+        for (int i = 0; i < n; ++i)
+            maxLevel = std::max(maxLevel, level[i]);
+
+        for (int i = 0; i < n; ++i)
+        {
+            if (indegree[i] > 0)
+            {
+                // 将环内节点设为同一层
+                level[i] = maxLevel;
+            }
+        }
+    }
+
+    return level;
 }

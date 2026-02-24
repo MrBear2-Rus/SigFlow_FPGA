@@ -1,9 +1,8 @@
-#pragma once
+﻿#pragma once
 #include <wx/wx.h>
 #include <map>
 #include "ToolStateMachine.h"
 #include "Wire.h"
-#include "UndoStack.h"
 #include "CanvasPanel.h"
 
 class CanvasEventHandler {

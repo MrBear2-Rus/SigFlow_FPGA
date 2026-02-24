@@ -90,9 +90,6 @@
     <ClCompile Include="ProjectTreePanel.cpp">
       <Filter>源文件\gui</Filter>
     </ClCompile>
-    <ClCompile Include="PropertyPanel.cpp">
-      <Filter>源文件\gui</Filter>
-    </ClCompile>
     <ClCompile Include="SigTextEditor.cpp">
       <Filter>源文件\gui</Filter>
     </ClCompile>
@@ -103,12 +100,6 @@
       <Filter>源文件\text_analysis</Filter>
     </ClCompile>
     <ClCompile Include="Wire.cpp">
-      <Filter>源文件\canvas_core</Filter>
-    </ClCompile>
-    <ClCompile Include="UndoStack.cpp">
-      <Filter>源文件\canvas_core</Filter>
-    </ClCompile>
-    <ClCompile Include="UndoNotifier.cpp">
       <Filter>源文件\canvas_core</Filter>
     </ClCompile>
     <ClCompile Include="CanvasModel.cpp">
@@ -124,9 +115,6 @@
       <Filter>源文件\gui\canvas</Filter>
     </ClCompile>
     <ClCompile Include="CanvasPanel.cpp">
-      <Filter>源文件\gui\canvas</Filter>
-    </ClCompile>
-    <ClCompile Include="GatePainter.cpp">
       <Filter>源文件\gui\canvas</Filter>
     </ClCompile>
     <ClCompile Include="HandyToolKit.cpp">
@@ -185,9 +173,6 @@
     <ClInclude Include="MainFrame.h">
       <Filter>头文件\gui</Filter>
     </ClInclude>
-    <ClInclude Include="PropertyPanel.h">
-      <Filter>头文件\gui</Filter>
-    </ClInclude>
     <ClInclude Include="ProjectTreePanel.h">
       <Filter>头文件\gui</Filter>
     </ClInclude>
@@ -203,14 +188,8 @@
     <ClInclude Include="Wire.h">
       <Filter>头文件\canvas_core</Filter>
     </ClInclude>
-    <ClInclude Include="UndoStack.h">
-      <Filter>头文件\canvas_core</Filter>
-    </ClInclude>
     <ClInclude Include="AsyncAnalysisCenter.h">
       <Filter>头文件\text_analysis</Filter>
-    </ClInclude>
-    <ClInclude Include="UndoNotifier.h">
-      <Filter>头文件\canvas_core</Filter>
     </ClInclude>
     <ClInclude Include="CanvasTextElement.h">
       <Filter>头文件\canvas_core</Filter>
@@ -225,9 +204,6 @@
       <Filter>头文件\gui\canvas</Filter>
     </ClInclude>
     <ClInclude Include="CanvasPanel.h">
-      <Filter>头文件\gui\canvas</Filter>
-    </ClInclude>
-    <ClInclude Include="GatePainter.h">
       <Filter>头文件\gui\canvas</Filter>
     </ClInclude>
     <ClInclude Include="ToolStateMachine.h">

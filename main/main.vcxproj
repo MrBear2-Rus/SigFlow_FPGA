@@ -28,13 +28,11 @@
     <ClCompile Include="CanvasPanel.cpp" />
     <ClCompile Include="CanvasTextElement.cpp" />
     <ClCompile Include="cMain.cpp" />
-    <ClCompile Include="GatePainter.cpp" />
     <ClCompile Include="MainFrame.cpp" />
     <ClCompile Include="MainMenuBar.cpp" />
     <ClCompile Include="PluginManager.cpp" />
     <ClCompile Include="PluginStore.cpp" />
     <ClCompile Include="ProjectTreePanel.cpp" />
-    <ClCompile Include="PropertyPanel.cpp" />
     <ClCompile Include="HandyToolKit.cpp" />
     <ClCompile Include="SFNPropertyPanel.cpp" />
     <ClCompile Include="SigFlowTreePanel.cpp" />
@@ -45,8 +43,6 @@
     <ClCompile Include="ToolboxModel.cpp" />
     <ClCompile Include="ToolboxPanel.cpp" />
     <ClCompile Include="TreeSitterLinter.cpp" />
-    <ClCompile Include="UndoNotifier.cpp" />
-    <ClCompile Include="UndoStack.cpp" />
     <ClCompile Include="CanvasEventHandler.cpp" />
     <ClCompile Include="ToolStateMachine.cpp" />
     <ClCompile Include="VerilogStructuring.cpp" />
@@ -61,7 +57,6 @@
     <ClInclude Include="CanvasModel.h" />
     <ClInclude Include="CanvasPanel.h" />
     <ClInclude Include="CanvasTextElement.h" />
-    <ClInclude Include="GatePainter.h" />
     <ClInclude Include="MainFrame.h" />
     <ClInclude Include="MainMenuBar.h" />
     <ClInclude Include="my_log.h" />
@@ -69,7 +64,6 @@
     <ClInclude Include="PluginManager.h" />
     <ClInclude Include="PluginStore.h" />
     <ClInclude Include="ProjectTreePanel.h" />
-    <ClInclude Include="PropertyPanel.h" />
     <ClInclude Include="SFNPropertyPanel.h" />
     <ClInclude Include="SigFlowTreePanel.h" />
     <ClInclude Include="SigTextEditor.h" />
@@ -81,8 +75,6 @@
     <ClInclude Include="CanvasEventHandler.h" />
     <ClInclude Include="ToolStateMachine.h" />
     <ClInclude Include="TreeSitterLinter.h" />
-    <ClInclude Include="UndoNotifier.h" />
-    <ClInclude Include="UndoStack.h" />
     <ClInclude Include="VerilogStructuring.h" />
     <ClInclude Include="Wire.h" />
     <ClInclude Include="Simulation\SimulationEngine.h" />

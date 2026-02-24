@@ -66,6 +66,8 @@ void SigFlowTreePanel::OnItemActivated(wxTreeEvent& event) {
 void SigFlowTreePanel::Fresh() {
     if (!tree) return;
 
+
+
     tree->Freeze(); // 防止频繁重绘闪烁
     tree->DeleteAllItems();
 
@@ -74,12 +76,15 @@ void SigFlowTreePanel::Fresh() {
         return;
     }
 
-    SigTreeNode* logicRoot = sfTree->root;
+    SigTreeNode* logicRoot;
+    if (fn) logicRoot = fn;
+
+    else logicRoot = sfTree->root;
     if (!logicRoot) return;
 
     wxString rootLabel;
-    if (logicRoot->type == SigTreeNodeType::Project) {
-        auto proj = static_cast<ProjectNode*>(logicRoot);
+    if (sfTree->root->type == SigTreeNodeType::Project) {
+        auto proj = static_cast<ProjectNode*>(sfTree->root);
         // 提取文件名作为显示名称，或者直接显示路径
         rootLabel = wxString::FromUTF8(proj->projectPath);
     }
@@ -90,7 +95,7 @@ void SigFlowTreePanel::Fresh() {
     wxTreeItemId uiRoot = tree->AddRoot(
         rootLabel,
         -1, -1,
-        new SigTreeItemData(logicRoot)
+        new SigTreeItemData(sfTree->root)
     );
 
     this->BuildBranch(uiRoot, logicRoot);

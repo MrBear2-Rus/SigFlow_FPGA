@@ -5,6 +5,13 @@
 
 class CanvasPanel;
 
+struct WireAnchor {
+    size_t wireIdx;   
+    size_t ptIdx;     
+    bool   isInput;   
+    size_t pinIdx;    
+    wxPoint oldPos;   
+};
 enum class CPType { Pin, Bend, Free, Branch };
 enum class CellType { Mid, Norm };
 enum LogicSignal {

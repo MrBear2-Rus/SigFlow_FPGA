@@ -4,6 +4,8 @@
 #include <tree_sitter/api.h>
 #include <slang/ast/Compilation.h>
 
+#include "CanvasElement.h"
+
 class Arena {
     std::vector<std::unique_ptr<char[]>> blocks;
     size_t blockSize = 1 << 20; // 1MB
@@ -305,8 +307,11 @@ public:
     void HangInst(SecondNode* inst);
     void ConstructDefinitionTable();
     void ConstructInstanceTable();
-    
 
+
+    // 节点查询
+    FileNode* GetFileNode(std::string filePath);
+    static std::vector<int> SecondNodeTopoLevel(TopNode* tn);
 
     void PrintTree();
 

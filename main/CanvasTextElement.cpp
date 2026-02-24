@@ -29,7 +29,7 @@ void CanvasTextElement::DetachHiddenTextCtrl() {
 void CanvasTextElement::UpdateHiddenTextCtrlPosition() {
     if (m_hiddenTextCtrl && m_editing) {
         // 将隐藏TextCtrl移动到CanvasTextElement的位置
-        wxPoint screenPos = m_parent->CanvasToScreen(m_position);
+        wxPoint screenPos = m_parent->CanvasToClient(m_position);
         wxSize screenSize = wxSize(
             static_cast<int>(m_size.x * m_parent->GetScale()),
             static_cast<int>(m_size.y * m_parent->GetScale())

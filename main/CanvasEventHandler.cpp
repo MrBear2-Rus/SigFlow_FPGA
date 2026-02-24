@@ -3,7 +3,6 @@
 #include "CanvasEventHandler.h"
 #include "CanvasTextElement.h"
 #include "HandyToolKit.h"
-#include "MainFrame.h"
 
 CanvasEventHandler::CanvasEventHandler(CanvasPanel* canvas, ToolStateMachine* toolstate)
     : m_canvas(canvas), m_toolStateMachine(toolstate), m_isTemporaryAction(false), m_eventHandled(false),
@@ -195,7 +194,7 @@ void CanvasEventHandler::OnCanvasLeftDown(wxMouseEvent& evt) {
             m_eventHandled = true;
         }
         else if (m_hoverInfo.IsOverElement()) {
-            m_canvas->ElementStatusChange(m_hoverInfo.elementIndex);
+            //m_canvas->ElementStatusChange(m_hoverInfo.elementIndex);
             m_eventHandled = true;
         }
         break;
@@ -319,7 +318,7 @@ void CanvasEventHandler::CancelWireDrawing() {
 
 void CanvasEventHandler::HandleComponentTool() {
     if (!m_currentComponent.IsEmpty()) {
-        m_canvas->AddElement(m_currentComponent, m_hoverInfo.snappedPos);
+        //m_canvas->AddElement(m_currentComponent, m_hoverInfo.snappedPos);
         m_canvas->SetStatus(wxString::Format("Placed: %s, Snapped to (%d, %d)", m_currentComponent, m_hoverInfo.snappedPos.x, m_hoverInfo.snappedPos.y));
         SetCurrentTool(ToolType::SELECT_TOOL);
         m_currentComponent.Clear(); // 清空当前元件
@@ -330,7 +329,7 @@ void CanvasEventHandler::HandleComponentTool() {
 }
 
 void CanvasEventHandler::OnCanvasLeftUp(wxMouseEvent& evt) {
-    wxPoint canvasPos = m_canvas->ScreenToCanvas(evt.GetPosition());
+    wxPoint canvasPos = m_canvas->ClientToCanvas(evt.GetPosition());
     ToolType currentTool = m_toolStateMachine->GetCurrentTool();
     
     // 单击选中
@@ -341,7 +340,6 @@ void CanvasEventHandler::OnCanvasLeftUp(wxMouseEvent& evt) {
     }
     // 选中拖动
     else if (m_toolStateMachine->GetSelectState() == SelectToolState::DRAG_SELECT) {
-        m_canvas->UndoStackPush(std::make_unique<CmdMoveSelected>(m_textElemIdx, m_compntIdx, m_wireIdx, m_textElemPos, m_compntPos, m_wirePos, m_movingWires));
         m_canvas->SetStatus(wxString::Format("Select Tool: End Dragging"));
         m_toolStateMachine->SetSelectState(SelectToolState::IDLE);
         m_eventHandled = true;
@@ -469,7 +467,7 @@ void CanvasEventHandler::OnCanvasMouseWheel(wxMouseEvent& evt) {
     if (evt.ControlDown()) {
         // 处理缩放
         wxPoint mouseScreenPos = evt.GetPosition();
-        wxPoint mouseCanvasPos = m_canvas->ScreenToCanvas(mouseScreenPos);
+        wxPoint mouseCanvasPos = m_canvas->ScreenToClient(mouseScreenPos);
 
         float oldScale = m_canvas->GetScale();
         float newScale;
@@ -484,7 +482,7 @@ void CanvasEventHandler::OnCanvasMouseWheel(wxMouseEvent& evt) {
         m_canvas->SetScale(newScale);
 
         // 调整偏移量，使鼠标指向的画布位置保持不变
-        wxPoint newMouseScreenPos = m_canvas->CanvasToScreen(mouseCanvasPos);
+        wxPoint newMouseScreenPos = m_canvas->CanvasToClient(mouseCanvasPos);
         wxPoint offset = m_canvas->GetoffSet();
         m_canvas->SetoffSet(offset + mouseScreenPos - newMouseScreenPos);
 
@@ -808,13 +806,13 @@ void CanvasEventHandler::StartSelectedDragging(const wxPoint& startPos) {
     std::vector<wxPoint> points;
     m_movingWires.clear();
 
-    const std::vector<CanvasElement> elements = m_canvas->GetElements();
+    //const std::vector<CanvasElement> elements = m_canvas->GetElements();
     const std::vector<CanvasTextElement> textElements = m_canvas->GetTextElements();
     const std::vector<Wire> wires = m_canvas->GetWires();
 
     for (int i = 0; i < m_compntIdx.size(); i++) {
         StartElementDragging(i);
-        m_compntPos.push_back(elements[m_compntIdx[i]].GetPos());
+        //m_compntPos.push_back(elements[m_compntIdx[i]].GetPos());
     }
     for (int i = 0; i < m_textElemIdx.size(); i++) {
         m_textElemPos.push_back(textElements[m_textElemIdx[i]].GetPosition());
@@ -829,9 +827,10 @@ void CanvasEventHandler::StartSelectedDragging(const wxPoint& startPos) {
 }
 
 void CanvasEventHandler::StartElementDragging(int i) {
-    if (m_compntIdx[i] < 0 || m_compntIdx[i] >= (int)m_canvas->GetElements().size()) return;
+    //if (m_compntIdx[i] < 0 || m_compntIdx[i] >= (int)m_canvas->GetElements().size()) return;
 
     // 收集该元件所有引脚对应的导线端点
+    /*
     const auto& elem = m_canvas->GetElements()[m_compntIdx[i]];
 
     std::vector<WireAnchor> tmp;
@@ -850,10 +849,10 @@ void CanvasEventHandler::StartElementDragging(int i) {
                     tmp.push_back({ w, wire.pts.size() - 1, isIn, p });
             }
         }
-    };
-    collect(elem.GetInputPins(), true);
-    collect(elem.GetOutputPins(), false);
-    m_movingWires.push_back(tmp);
+    };*/
+    //collect(elem.GetInputPins(), true);
+    //collect(elem.GetOutputPins(), false);
+    //m_movingWires.push_back(tmp);
 }
 
 void CanvasEventHandler::UpdateSelectedDragging() {
@@ -861,9 +860,9 @@ void CanvasEventHandler::UpdateSelectedDragging() {
 
     wxPoint raw = m_hoverInfo.canvasPos - m_selectedDragPos;
     wxPoint delta((raw.x + grid / 2) / grid * grid, (raw.y + grid / 2) / grid * grid);
-
+    /*
     for (int i = 0; i < m_compntIdx.size(); i++) {
-        m_canvas->ElementSetPos(m_compntIdx[i], m_compntPos[i] + delta);
+        //m_canvas->ElementSetPos(m_compntIdx[i], m_compntPos[i] + delta);
 
         for (const auto& aw : m_movingWires[i]) {
             if (aw.wireIdx >= m_canvas->GetWires().size()) continue;
@@ -871,6 +870,7 @@ void CanvasEventHandler::UpdateSelectedDragging() {
             const Wire& wire = m_canvas->GetWires()[aw.wireIdx];
 
             // 计算新引脚世界坐标
+            
             const auto& elem = m_canvas->GetElements()[m_compntIdx[i]];
             const auto& pins = aw.isInput ? elem.GetInputPins() : elem.GetOutputPins();
             if (aw.pinIdx >= pins.size()) continue;
@@ -889,7 +889,7 @@ void CanvasEventHandler::UpdateSelectedDragging() {
             }
             m_canvas->UpdateWire(tmp_wire, aw.wireIdx);
         }
-    }
+    }*/
     for (int i = 0; i < m_textElemIdx.size(); i++) {
         m_canvas->TextSetPos(m_textElemIdx[i], m_textElemPos[i] + delta);
 
@@ -988,12 +988,12 @@ void CanvasEventHandler::UpdateRectangleSelect(wxMouseEvent& evt) {
         m_compntIdx.clear();
         m_textElemIdx.clear();
         m_wireIdx.clear();
-        searchSelectedElements1(m_compntIdx, m_canvas->GetElements());
+        //searchSelectedElements1(m_compntIdx, m_canvas->GetElements());
         searchSelectedElements1(m_textElemIdx, m_canvas->GetTextElements());
         searchSelectedElements1(m_wireIdx, m_canvas->GetWires());
     }
     else {
-        searchSelectedElements0(m_compntIdx, m_compntRecIdx, m_canvas->GetElements());
+        //searchSelectedElements0(m_compntIdx, m_compntRecIdx, m_canvas->GetElements());
         searchSelectedElements0(m_textElemIdx, m_textRecElemIdx, m_canvas->GetTextElements());
         searchSelectedElements0(m_wireIdx, m_wireRecIdx, m_canvas->GetWires());
     }
@@ -1003,16 +1003,6 @@ void CanvasEventHandler::UpdateRectangleSelect(wxMouseEvent& evt) {
 void CanvasEventHandler::FinishRectangleSelect() {
     m_toolStateMachine->SetSelectState(SelectToolState::IDLE);
     m_canvas->ClearSelectionRect();
-    
-    // 更新属性面板显示选中的元件
-    MainFrame* mainFrame = m_canvas->GetMainFrame();
-    if (mainFrame) {
-        if (m_compntIdx.size() == 1) {
-            mainFrame->UpdatePropertyPanel(m_compntIdx[0]);
-        } else {
-            mainFrame->UpdatePropertyPanel(-1);
-        }
-    }
 }
 
 void CanvasEventHandler::FinishClickSelect(wxMouseEvent& evt) {
@@ -1055,18 +1045,6 @@ void CanvasEventHandler::FinishClickSelect(wxMouseEvent& evt) {
         //}
     }
     m_toolStateMachine->SetSelectState(SelectToolState::IDLE);
-    
-    // 更新属性面板显示选中的元件
-    MainFrame* mainFrame = m_canvas->GetMainFrame();
-    if (mainFrame) {
-        if (m_compntIdx.size() == 1) {
-            // 只选中了一个元件，显示其属性
-            mainFrame->UpdatePropertyPanel(m_compntIdx[0]);
-        } else {
-            // 没有选中或选中多个，显示默认
-            mainFrame->UpdatePropertyPanel(-1);
-        }
-    }
 }
 
 void CanvasEventHandler::DeleteSelected() {
@@ -1080,8 +1058,8 @@ void CanvasEventHandler::DeleteSelected() {
     m_canvas->UpdateSelection(m_compntIdx, m_textElemIdx, m_wireIdx);
 
     for(auto& idx : m_compntIdx) {
-        elements.push_back(m_canvas->GetElements()[idx]);
-        m_canvas->DeleteElement(idx);
+        //elements.push_back(m_canvas->GetElements()[idx]);
+        //m_canvas->DeleteElement(idx);
     }
     for (auto& idx : m_wireIdx) {
         wires.push_back(m_canvas->GetWires()[idx]);
@@ -1092,7 +1070,6 @@ void CanvasEventHandler::DeleteSelected() {
         texts.push_back(m_canvas->GetTextElements()[idx]);
         m_canvas->DeleteTextElement(idx);
     }
-    m_canvas->UndoStackPush(std::make_unique<CmdDeleteSelected>(elements, m_compntIdx, wires, m_wireIdx, texts, m_textElemIdx));
     m_compntIdx.clear();
     m_wireIdx.clear();
     m_textElemIdx.clear();
@@ -1118,8 +1095,8 @@ void CanvasEventHandler::HandleEraserTool() {
     else {
         m_toolStateMachine->SetEraserState(EraserToolState::CLICK_ERASER);
         if (m_hoverInfo.elementIndex != -1) {
-            elements.push_back(m_canvas->GetElements()[m_hoverInfo.elementIndex]);
-            m_canvas->DeleteElement(m_hoverInfo.elementIndex);
+            //elements.push_back(m_canvas->GetElements()[m_hoverInfo.elementIndex]);
+            //m_canvas->DeleteElement(m_hoverInfo.elementIndex);
         }
         if (m_hoverInfo.wireIndex != -1) {
             wires.push_back(m_canvas->GetWires()[m_hoverInfo.wireIndex]);
@@ -1129,7 +1106,6 @@ void CanvasEventHandler::HandleEraserTool() {
             texts.push_back(m_canvas->GetTextElements()[m_hoverInfo.textIndex]);
             m_canvas->DeleteTextElement(m_hoverInfo.textIndex);
         }
-        m_canvas->UndoStackPush(std::make_unique<CmdDeleteSelected>(elements, std::vector<int>{m_hoverInfo.elementIndex == -1 ? 0 : m_hoverInfo.elementIndex}, wires, std::vector<int>{m_hoverInfo.wireIndex == -1 ? 0 : m_hoverInfo.wireIndex}, texts, std::vector<int>{m_hoverInfo.textIndex == -1 ? 0 : m_hoverInfo.textIndex}));
     }
 }
 
@@ -1158,7 +1134,7 @@ void CanvasEventHandler::FinishRectangleEraser() {
             }
         }
     };
-    searchEraserElements(m_compntDelIdx, m_canvas->GetElements());
+    //searchEraserElements(m_compntDelIdx, m_canvas->GetElements());
     searchEraserElements(m_wireDelIdx, m_canvas->GetWires());
     searchEraserElements(m_textDelIdx, m_canvas->GetTextElements());
 
@@ -1168,8 +1144,8 @@ void CanvasEventHandler::FinishRectangleEraser() {
 
 
     for (auto& idx : m_compntDelIdx) {
-        elements.push_back(m_canvas->GetElements()[idx]);
-        m_canvas->DeleteElement(idx);
+        //elements.push_back(m_canvas->GetElements()[idx]);
+        //m_canvas->DeleteElement(idx);
     }
     for (auto& idx : m_wireDelIdx) {
         wires.push_back(m_canvas->GetWires()[idx]);
@@ -1179,7 +1155,6 @@ void CanvasEventHandler::FinishRectangleEraser() {
         texts.push_back(m_canvas->GetTextElements()[idx]);
         m_canvas->DeleteTextElement(idx);
     }
-    m_canvas->UndoStackPush(std::make_unique<CmdDeleteSelected>(elements, m_compntDelIdx, wires, m_wireDelIdx, texts, m_textDelIdx));
     m_canvas->ClearEraserRect();
     m_toolStateMachine->SetEraserState(EraserToolState::IDLE);
 }

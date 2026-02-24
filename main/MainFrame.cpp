@@ -3,22 +3,19 @@
 #include <wx/sstream.h>
 #include <wx/aui/aui.h>
 #include <wx/progdlg.h>
-
-#include "MainFrame.h"
-#include "MainMenuBar.h"
-#include "CanvasPanel.h"
-#include "PropertyPanel.h"
-#include "ToolboxPanel.h"   // ��Ĳ����
-#include "CanvasModel.h"
-#include "my_log.h"
-#include "UndoStack.h"
-#include "UndoNotifier.h"
-#include "HandyToolKit.h"
 #include <wx/stc/stc.h>
 #include <wx/stdpaths.h>
 #include <wx/aui/tabart.h>
 #include <wx/simplebook.h>
 #include <wx/splitter.h>
+
+#include "MainFrame.h"
+#include "MainMenuBar.h"
+#include "CanvasPanel.h"
+#include "ToolboxPanel.h"  
+#include "CanvasModel.h"
+#include "my_log.h"
+
 
 extern std::vector<CanvasElement> g_elements;
 
@@ -84,8 +81,8 @@ MainFrame::MainFrame()
     /* 菜单栏*/
     SetMenuBar(new MainMenuBar(this));
     CreateStatusBar(1);
-    int widths[] = { FromDIP(800), FromDIP(400), FromDIP(400), FromDIP(100) };
-    int style[] = { wxSB_NORMAL, wxSB_NORMAL, wxSB_FLAT, wxSB_FLAT };
+    int widths[] = { -4, -2, FromDIP(100), FromDIP(100) };
+    int style[] = { wxSB_NORMAL, wxSB_NORMAL, wxSB_NORMAL, wxSB_NORMAL };
     GetStatusBar()->SetFieldsCount(4, widths);
     GetStatusBar()->SetStatusStyles(4, style);
 
@@ -98,10 +95,6 @@ MainFrame::MainFrame()
     ToolboxPanel* toolbox = new ToolboxPanel(this);
     // 构造树面板
     m_sigFlowTreePanel = new SigFlowTreePanel(this, sigTree);
-
-    // 画布元素属性栏
-    m_propPanel = new PropertyPanel(this);
-    m_propPanel->ShowElement("Select Tool");
 
     // SigTreeNode属性栏
     m_sfnPropertyPanel = new SFNPropertyPanel(this, sigTree);
@@ -218,9 +211,7 @@ MainFrame::MainFrame()
         wxAUI_NB_TOP | wxAUI_NB_TAB_MOVE | wxAUI_NB_TAB_EXTERNAL_MOVE | wxAUI_NB_TAB_SPLIT);
 
     m_sfnPropertyPanel->Reparent(rightNotebook);
-    m_propPanel->Reparent(rightNotebook);
-    rightNotebook->AddPage(m_sfnPropertyPanel, "SigFlow Node");
-    rightNotebook->AddPage(m_propPanel, "Canvas Elements");
+    rightNotebook->AddPage(m_sfnPropertyPanel, "Property");
     if (pDeepSeek) {
         wxPanel* aiPanel = pDeepSeek->CreatePanel(rightNotebook);
         rightNotebook->AddPage(aiPanel, "DeepSeek Assistant");
@@ -296,7 +287,7 @@ MainFrame::MainFrame()
         .CaptionVisible(true).CloseButton(false).MaximizeButton(false));
 
     m_auiMgr.AddPane(rightNotebook, wxAuiPaneInfo()
-        .Name("right_sidebar").Caption("Property").Right().Layer(8)
+        .Name("right_sidebar").Caption("Side Panel").Right().Layer(8)
         .BestSize(rightW, -1)
         .MinSize(FromDIP(100), -1)
         .FloatingSize(rightW, 600)
@@ -346,11 +337,6 @@ MainFrame::MainFrame()
 
     m_auiMgr.Update();
 
-    // ���ĳ���֪ͨ
-    UndoNotifier::Subscribe([this](const wxString& name, bool canUndo) {
-        this->OnUndoStackChanged();
-        });
-
 
 }
 
@@ -363,6 +349,7 @@ MainFrame::~MainFrame()
 
 void MainFrame::OnToolboxElement(wxCommandEvent& evt)
 {
+    /*
     MyLog("MainFrame: received <%s>\n", evt.GetString().ToUTF8().data());
 
     wxString name = evt.GetString();
@@ -373,7 +360,7 @@ void MainFrame::OnToolboxElement(wxCommandEvent& evt)
     CanvasElement clone = *it;
     clone.SetPos(wxPoint(100, 100));   
     //m_canvas->AddElement(clone);     
-    m_canvas->SetCurrentComponent(name);  
+    m_canvas->SetCurrentComponent(name);  */
 }
 
 bool MirrorDirectory(const wxString& source, const wxString& dest) {
@@ -631,6 +618,7 @@ bool MainFrame::SaveToFile(const wxString& filePath) {
 
 wxString MainFrame::GenerateFileContent()
 {
+    /*
     // 1. ����XML�ĵ�
     wxXmlDocument doc;
 
@@ -690,7 +678,8 @@ wxString MainFrame::GenerateFileContent()
     // 8. ���XML����
     wxStringOutputStream strStream;
     doc.Save(strStream, wxXML_DOCUMENT_TYPE_NODE);
-    return strStream.GetString();
+    return strStream.GetString();*/
+    return "";
 }
 
 void MainFrame::DoFileOpen(const wxString& path)
@@ -749,7 +738,7 @@ void MainFrame::DoFileOpen(const wxString& path)
     }
 
     // ��յ�ǰ����
-    m_canvas->ClearAll();
+    //m_canvas->ClearAll();
 
     // �������ڵ�
     wxXmlNode* root = doc.GetRoot();
@@ -783,7 +772,7 @@ void MainFrame::DoFileOpen(const wxString& path)
             // �Ƴ��������й���rotation�Ķ�ȡ
             // int rotation = wxAtoi(child->GetAttribute("rotation", "0"));
 
-            m_canvas->AddElement(name, wxPoint(x, y));
+            //m_canvas->AddElement(name, wxPoint(x, y));
             // 同时移除设置旋转角度的逻辑（如果有的话）
         }
 
@@ -839,41 +828,7 @@ void MainFrame::DoFileOpen(const wxString& path)
 void MainFrame::OnToolSelected(wxCommandEvent& evt) {
   wxString toolName = evt.GetString();
     std::map<wxString, wxVariant> currentProps;
-    
-    // 1. 获取当前选中的元件索引
-    // 我们需要检查是否有选中的元件，这里假设CanvasPanel有获取选中索引的方法
-    // 如果还没有，我们可以先简化处理
-    
-    // 简化版本：暂时不处理选中状态，直接显示工具属性
-    // 你可以在CanvasPanel中添加以下方法来获取选中索引：
-    // std::vector<int> GetSelectedElementIndexes() const { return m_selElemIdx; }
-    // std::vector<int> GetSelectedWireIndexes() const { return m_selWireIdx; }
-    // std::vector<int> GetSelectedTextIndexes() const { return m_selTxtIdx; }
-    
-    // 临时修复：直接显示属性
-    // 3. 显示属性面板
-    if (m_propPanel) {
-        m_propPanel->ShowElement(toolName, currentProps);
-    }
-}
-
-// 更新属性面板显示选中的元件
-void MainFrame::UpdatePropertyPanel(int elementIndex)
-{
-    if (!m_propPanel) return;
-    
-    if (elementIndex < 0 || elementIndex >= (int)m_canvas->GetElements().size()) {
-        // 没有选中元件，显示默认
-        m_propPanel->ShowElement("Select Tool");
-        return;
-    }
-    
-    // 获取选中的元件
-    const auto& elements = m_canvas->GetElements();
-    if (elementIndex < (int)elements.size()) {
-        CanvasElement* elem = const_cast<CanvasElement*>(&elements[elementIndex]);
-        m_propPanel->ShowCanvasElement(elem);
-    }
+   
 }
 
 
@@ -898,6 +853,7 @@ void MainFrame::UpdatePropertyPanel(int elementIndex)
 // 1. ����ΪBookShelf�淶��.node�ļ�
 bool MainFrame::SaveAsNodeFile(const wxString& filePath)
 {
+    /*
     wxFile file;
     // ���Դ��ļ�����ʧ�ܷ���false
     if (!file.Exists(filePath)) {
@@ -950,12 +906,13 @@ bool MainFrame::SaveAsNodeFile(const wxString& filePath)
 
     // д���ļ����ر�
     file.Write(content);
-    file.Close();
+    file.Close();*/
     return true;
 }
 
 bool MainFrame::SaveAsNetFile(const wxString& filePath)
 {
+    /*
     // ���Դ��������ļ�
     wxFile file;
     if (!file.Exists(filePath))
@@ -1091,7 +1048,7 @@ bool MainFrame::SaveAsNetFile(const wxString& filePath)
 
     // д���ļ����ر�
     file.Write(content);
-    file.Close();
+    file.Close();*/
     return true;
 }
 
@@ -1220,15 +1177,12 @@ void MainFrame::OnAbout(wxCommandEvent&)
 
 void MainFrame::DoEditUndo()
 {
-    m_canvas->UndoStackUndo();
-    OnUndoStackChanged();   // 刷新菜单
 }
 
 void MainFrame::DoEditCut() { wxMessageBox("Edit->Cut"); }
 void MainFrame::DoEditCopy() { wxMessageBox("Edit->Copy"); }
 void MainFrame::DoEditPaste() { wxMessageBox("Edit->Paste"); }
 void MainFrame::DoEditDelete() { 
-    m_canvas->GetCanvasEventHandler()->DeleteSelected();
 }
 void MainFrame::DoEditDuplicate() { wxMessageBox("Edit->Duplicate"); }
 void MainFrame::DoEditSelectAll() { wxMessageBox("Edit->SelectAll"); }
@@ -1311,6 +1265,9 @@ void MainFrame::OnOpenFileFromTree(wxCommandEvent& evt) {
     wxString path = evt.GetString();
     m_verilogEditor->OpenFile(path);   // 你已有的打开文件逻辑
     m_currentFilePath = path;
+    FileNode* fn = sigTree->GetFileNode(path.ToStdString());
+    m_sigFlowTreePanel->SetFileNode(fn);
+    m_canvas->SetFileNode(fn);
     RefreshTitle();
 }
 
@@ -1326,12 +1283,7 @@ void MainFrame::OnUndoStackChanged()
     wxMenuItem* undoItem = editMenu->FindItem(wxID_UNDO);
     if (undoItem)
     {
-        wxString base = m_canvas->UndoStackGetUndoName(); // "Add AND Gate"
-        wxString text = m_canvas->UndoStackCanUndo()
-            ? wxString("Undo ") + base + wxString("\tCtrl+Z")
-            : wxString("Can't Undo");
-        undoItem->SetItemLabel(text);
-        undoItem->Enable(m_canvas->UndoStackCanUndo());
+
     }
 
 }

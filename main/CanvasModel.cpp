@@ -1,4 +1,4 @@
-#include "CanvasModel.h"
+﻿#include "CanvasModel.h"
 #include "CanvasElement.h"
 #include <wx/filename.h>
 #include <wx/stdpaths.h>
@@ -44,7 +44,7 @@ std::vector<CanvasElement> LoadCanvasElements(const wxString& jsonPath)
         wxString id = wxString::FromUTF8(elem["id"].asString());
         wxString name = wxString::FromUTF8(elem["name"].asString());
         wxPoint  pos(elem["anchorPoint"][0].asInt(), elem["anchorPoint"][1].asInt());
-        CanvasElement ce(name, pos);
+        CanvasElement ce(pos);
 
         // 设置元件ID
         ce.SetId(id);
@@ -147,7 +147,6 @@ std::vector<CanvasElement> LoadCanvasElements(const wxString& jsonPath)
             }
 
         }
-        ce.initTruthTable();
         out.push_back(ce);
     }
     return out;

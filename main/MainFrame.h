@@ -7,7 +7,6 @@
 #include <wx/mstream.h>
 
 #include <json/json.h>
-#include "PropertyPanel.h"
 #include <wx/stc/stc.h>
 #include "AsyncAnalysisCenter.h"
 #include "SigTextEditor.h"
@@ -150,7 +149,6 @@ public:
 
 private:
     wxAuiManager m_auiMgr;
-    PropertyPanel* m_propPanel = nullptr;
 public:
     CanvasPanel* m_canvas;
 
@@ -162,9 +160,6 @@ public:
     void OnToolboxElement(wxCommandEvent& evt);
     
 public:
-    // 更新属性面板显示选中元件
-    void UpdatePropertyPanel(int elementIndex);
-    PropertyPanel* GetPropertyPanel() const { return m_propPanel; }
 
     // 事件表声明
     wxDECLARE_EVENT_TABLE();
