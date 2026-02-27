@@ -150,7 +150,7 @@ public:
 private:
     wxAuiManager m_auiMgr;
 public:
-    CanvasPanel* m_canvas;
+    std::vector<CanvasPanel*> m_canvas;
 
     void UpdateCursor();        // 根据 m_pendingTool 更新十字/箭头
 

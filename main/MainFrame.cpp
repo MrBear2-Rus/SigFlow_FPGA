@@ -17,7 +17,7 @@
 #include "my_log.h"
 
 
-extern std::vector<CanvasElement> g_elements;
+extern std::vector<SecondElement> g_elements;
 
 wxDEFINE_EVENT(EVT_SFTREE_NODE_ACTIVATED, wxCommandEvent);
 wxDEFINE_EVENT(EVT_SFTREE_CHANGED, wxCommandEvent);
@@ -62,7 +62,8 @@ MainFrame::MainFrame()
     // 元件模型库
     wxString jsonPath = wxFileName(wxGetCwd(), "canvas_elements.json").GetFullPath();
     MyLog("MainFrame: JSON full path = [%s]\n", jsonPath.ToUTF8().data());
-    g_elements = LoadCanvasElements(jsonPath);
+    g_elements = LoadSecondElements(jsonPath);
+
 
     Bind(wxEVT_CLOSE_WINDOW, &MainFrame::OnClose, this);
     
@@ -87,9 +88,10 @@ MainFrame::MainFrame()
     GetStatusBar()->SetStatusStyles(4, style);
 
     // 画布
-    m_canvas = new CanvasPanel(this, FromDIP(1123), FromDIP(794));
-    m_canvas->SetBackgroundColour(*wxWHITE);
-    m_canvas->SetFocus();
+    CanvasPanel* canvas = new CanvasPanel(this, FromDIP(1123), FromDIP(794));
+    canvas->SetBackgroundColour(*wxWHITE);
+    canvas->SetFocus();
+    m_canvas.push_back(canvas);
 
     // 元件库
     ToolboxPanel* toolbox = new ToolboxPanel(this);
@@ -216,16 +218,23 @@ MainFrame::MainFrame()
         wxPanel* aiPanel = pDeepSeek->CreatePanel(rightNotebook);
         rightNotebook->AddPage(aiPanel, "DeepSeek Assistant");
     }
-    
+
+    wxAuiNotebook* canvases = new wxAuiNotebook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+        wxAUI_NB_TOP | wxAUI_NB_TAB_MOVE | wxAUI_NB_TAB_EXTERNAL_MOVE | wxAUI_NB_TAB_SPLIT);
+    for (auto* canvas : m_canvas) {
+        canvas->Reparent(canvases);
+        canvases->AddPage(canvas, canvas->GetNote());
+    }
+
 
 
     wxSplitterWindow* mainSplitter = new wxSplitterWindow(this, wxID_ANY,
         wxDefaultPosition, wxDefaultSize,
         wxSP_LIVE_UPDATE | wxSP_3DSASH | wxBORDER_NONE);
     m_verilogEditor->Reparent(mainSplitter);
-    m_canvas->Reparent(mainSplitter);
+    canvases->Reparent(mainSplitter);
     int initialCanvasHeight = FromDIP(860);
-    mainSplitter->SplitHorizontally(m_canvas, m_verilogEditor, initialCanvasHeight);; // 0 表示平分
+    mainSplitter->SplitHorizontally(canvases, m_verilogEditor, initialCanvasHeight);; // 0 表示平分
     mainSplitter->SetMinimumPaneSize(FromDIP(50)); // 防止某个窗口被缩成 0 找不到了
 
 
@@ -684,6 +693,7 @@ wxString MainFrame::GenerateFileContent()
 
 void MainFrame::DoFileOpen(const wxString& path)
 {
+    /*
     wxString filePath = path;
 
     // 如果用户没有提供路径，显示文件选择对话框
@@ -821,7 +831,7 @@ void MainFrame::DoFileOpen(const wxString& path)
     m_isModified = false;
     SetTitle(wxFileName(filePath).GetFullName());
     static_cast<MainMenuBar*>(GetMenuBar())->AddFileToHistory(filePath);
-    SetStatusText("�Ѵ�: " + filePath);
+    SetStatusText("�Ѵ�: " + filePath);*/
 }
 
 
@@ -1267,7 +1277,20 @@ void MainFrame::OnOpenFileFromTree(wxCommandEvent& evt) {
     m_currentFilePath = path;
     FileNode* fn = sigTree->GetFileNode(path.ToStdString());
     m_sigFlowTreePanel->SetFileNode(fn);
-    m_canvas->SetFileNode(fn);
+
+    while (m_canvas.size() < fn->children.size()) {
+        CanvasPanel* ca = new CanvasPanel(this, FromDIP(1123), FromDIP(794));
+        m_canvas.push_back(ca);
+    }
+    if (m_canvas.size() > fn->children.size()) {
+        m_canvas.resize(fn->children.size());
+    }
+
+    for (int i = 0; i < m_canvas.size(); i++) {
+        TopNode* tn = static_cast<TopNode*>(fn->children[i]);
+        m_canvas[i]->SetTopNode(tn);
+    }
+    
     RefreshTitle();
 }
 

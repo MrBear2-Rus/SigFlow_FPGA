@@ -1048,7 +1048,7 @@ void CanvasEventHandler::FinishClickSelect(wxMouseEvent& evt) {
 }
 
 void CanvasEventHandler::DeleteSelected() {
-    std::vector<CanvasElement> elements;
+    std::vector<SecondElement> elements;
     std::vector<Wire> wires;
     std::vector<CanvasTextElement> texts;
 
@@ -1079,7 +1079,7 @@ void CanvasEventHandler::DeleteSelected() {
 
 
 void CanvasEventHandler::HandleEraserTool() {
-    std::vector<CanvasElement> elements;
+    std::vector<SecondElement> elements;
     std::vector<Wire> wires;
     std::vector<CanvasTextElement> texts;
 
@@ -1120,7 +1120,7 @@ void CanvasEventHandler::UpdateRectangleEraser() {
 }
 
 void CanvasEventHandler::FinishRectangleEraser() {
-    std::vector<CanvasElement> elements;
+    std::vector<SecondElement> elements;
     std::vector<Wire> wires;
     std::vector<CanvasTextElement> texts;
 

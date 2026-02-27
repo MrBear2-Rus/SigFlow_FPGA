@@ -86,9 +86,8 @@ private:
     // ==================== 画布中元素管理 ====================
 private:
     // 元件和连线数据
-    std::vector<TopModuleBox> m_tbox;
-    std::unordered_map<int, int> tbox_to_elems;
-    std::vector<CanvasElement> m_elems;
+    TopModuleBox m_tbox;
+    std::vector<SecondElement> m_elems;
     std::vector<CanvasTextElement> m_textElements;
     std::vector<Wire> m_wires;
 
@@ -102,7 +101,7 @@ private:
     wxRect m_eraserRect;
 
     // 预览元素
-    CanvasElement m_previewElement;
+    SecondElement m_previewElement;
     Wire m_previewWire;
 
     // 文本编辑
@@ -274,16 +273,15 @@ public:
         return allSelected;
     }
 
-    FileNode* fn;
-    void SetFileNode(FileNode* n) { fn = n; UpdateCanvasElements(); Refresh(); };
+    TopNode* tn;
+    void SetTopNode(TopNode* node);
     void UpdateCanvasElements();
-    void CompleteAutoLay();
-    CanvasElement MakeBlockBox(SecondNode* sn);
-    CanvasElement MakeBlockBox(int in, int out, int inout);
-    std::optional<CanvasElement> CloneElement(const std::string& name);
-    CanvasElement MakeCanvasElement(SecondNode* sn);
-    std::vector<CanvasElement> GetCanvasElements(TopNode* n);
-    std::unordered_map<int, int> GetLevelBounds(std::vector<int> topoLevels, std::vector<CanvasElement>* p_elems);
+    void CompleteAutoLayout();
+    void CompleteAutoWiring();
+    std::vector<SecondElement> GetSecondElements(TopNode* n);
+    std::unordered_map<int, int> GetLevelBounds(std::vector<int> topoLevels, std::vector<SecondElement>* p_elems);
+
+    wxString GetNote();
 
     // ==================== 事件表 ====================
     wxDECLARE_EVENT_TABLE();

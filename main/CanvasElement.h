@@ -8,7 +8,9 @@
 #include <variant>
 #include "Wire.h"
 
+struct Port;
 class SecondNode;
+class TopNode;
 
 struct Point {
     int x, y;
@@ -57,13 +59,15 @@ struct Text {
 
 struct Pin {
     Point pos;
-    wxString name;
     bool isInput;
-    int connectionWireId;
-    bool isLeft;
-    Pin(Point p = Point(), wxString n = "", bool input = true)
-        : pos(p), name(n), isInput(input), connectionWireId(-1), isLeft(0){
+    Port* self;
+
+    // 改进后的构造函数
+    Pin(Point p = Point(), bool input = true, Port* s = nullptr)
+        : pos(p), isInput(input), self(s) // 全部使用初始化列表
+    {
     }
+    wxString GetIdentifier();
 };
 
 struct ArcShape {
@@ -107,49 +111,84 @@ struct Path {
 using Shape = std::variant<Line, PolyShape, Circle, Text, Path, ArcShape, BezierShape, CubicBezierShape>;
 
 
-class CanvasElement
+class TopModuleBox {
+public:
+    wxString type;
+    wxPoint m_pos;
+    wxRect m_bound;
+    std::vector<Shape> m_shapes;
+
+    TopNode* self;
+
+    std::vector<Pin> m_inPins;
+    std::vector<Pin> m_outPins;
+
+    TopModuleBox() = default;
+    TopModuleBox(wxPoint start, wxPoint end, TopNode* self);
+
+    wxString GetType() { return type; };
+    wxString GetIdentifier();
+    const wxPoint& GetPos() const { return m_pos; }
+    void SetPos(const wxPoint& p) { m_pos = p; }
+    const std::vector<Shape>& GetShapes() const { return m_shapes; }
+    wxRect GetBounds() const;
+    void UpdateShapes(wxRect b, std::vector<Shape> sps) { m_bound = b; m_shapes = sps; };
+
+    void AddInputPin(const Point& p) { m_inPins.push_back(Pin(p, true, nullptr)); }
+    void AddOutputPin(const Point& p) { m_outPins.push_back(Pin(p, false, nullptr)); }
+    void AddInputPin(const Point& p, Port* port) { m_inPins.push_back(Pin(p, true, port)); }
+    void AddOutputPin(const Point& p, Port* port) { m_outPins.push_back(Pin(p, false, port)); }
+    const std::vector<Pin>& GetInputPins() const { return m_inPins; }
+    const std::vector<Pin>& GetOutputPins() const { return m_outPins; }
+
+    std::vector<wxPoint> CalculateBezier(const Point& p0, const Point& p1, const Point& p2, int segments = 16) const;
+    std::vector<wxPoint> CalculateCubicBezier(const Point& p0, const Point& p1, const Point& p2, const Point& p3, int segments = 32) const;
+
+    void Draw(wxGraphicsContext* gc) const;
+};
+
+class SecondElement
 {
 public:
-    wxString m_id;
+    wxString type;
     wxPoint m_pos;
+    wxRect m_bound;
     std::vector<Shape> m_shapes;
 
     SecondNode* self;
 
-    wxString GetName() { return m_id; };
-    void SetId(wxString id) { m_id = id; };
+    std::vector<Pin> m_inPins;
+    std::vector<Pin> m_outPins;
+    std::vector<Pin> m_inoutPins;
+
+    SecondElement() = default;
+    SecondElement(SecondNode* sn, std::vector<SecondElement>& templates);
+    void MakeBlackBox();
+
+    void SetSecondNode(SecondNode* sn) { self = sn; };
+    wxString GetType() { return type; };
+    wxString GetIdentifier();
+    const wxPoint& GetPos() const { return m_pos; }
+    void SetPos(const wxPoint& p) { m_pos = p;}
+    const std::vector<Shape>& GetShapes() const { return m_shapes; }
+    wxRect GetBounds() const;
+    void UpdateShapes(wxRect b, std::vector<Shape> sps) { m_bound = b; m_shapes = sps; };
+
+    void AddInputPin(const Point& p) { m_inPins.push_back(Pin(p, true, nullptr)); }
+    void AddOutputPin(const Point& p) { m_outPins.push_back(Pin(p, false, nullptr)); }
+    void AddInputPin(const Point& p, Port* port) { m_inPins.push_back(Pin(p, true, port)); }
+    void AddOutputPin(const Point& p, Port* port) { m_outPins.push_back(Pin(p, false, port)); }
+    void AddInOutputPin(const Point& p, Port* port) { m_inoutPins.push_back(Pin(p, false, port)); }
+    const std::vector<Pin>& GetInputPins() const { return m_inPins; }
+    const std::vector<Pin>& GetOutputPins() const { return m_outPins; }
+    const std::vector<Pin>& GetInOutputPins() const { return m_inoutPins; }
+
     std::vector<wxPoint> CalculateBezier(const Point& p0, const Point& p1, const Point& p2, int segments = 16) const;
     std::vector<wxPoint> CalculateCubicBezier(const Point& p0, const Point& p1, const Point& p2, const Point& p3, int segments = 32) const;
-
-public:
-
-    void AddShape(const Shape& shape) { m_shapes.push_back(shape); }
-    void SetPos(const wxPoint& p) { m_pos = p; }
-    const wxPoint& GetPos() const { return m_pos; }
-    const std::vector<Shape>& GetShapes() const { return m_shapes; }
-    virtual void Draw(wxGraphicsContext* gc) const;
-    wxRect GetBounds() const;
-    void AddInputPin(const Point& p, const wxString& name) { m_inputPins.push_back(Pin(p, name, true)); }
-    void AddOutputPin(const Point& p, const wxString& name) { m_outputPins.push_back(Pin(p, name, false)); }
-
-
-    CanvasElement() = default;
-    CanvasElement(const wxPoint& pos);
-    const std::vector<Pin>& GetInputPins() const { return m_inputPins; }
-    const std::vector<Pin>& GetOutputPins() const { return m_outputPins; }
     
-
-    std::vector<Pin> m_inputPins;
-    std::vector<Pin> m_outputPins;
+    void Draw(wxGraphicsContext* gc) const;
 
 };
 
 
-class InputElement : public CanvasElement {
-    wxString m_id;
-    bool m_state;
-    void Draw(wxGraphicsContext* gc) const override;
-};
 
-class TopModuleBox : public CanvasElement {
-};

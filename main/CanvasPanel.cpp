@@ -162,10 +162,30 @@ void CanvasPanel::OnPaint(wxPaintEvent&) {
             m_previewElement.Draw(gc.get());
         }
 
+        if(!m_tbox.m_shapes.empty()) m_tbox.Draw(gc.get());
+
         // 绘制元素（使用矢量绘制）
         for (size_t i = 0; i < m_elems.size(); ++i) {
             m_elems[i].Draw(gc.get()); // 确保元素内部使用gc绘制
         }
+
+        /* 元件形状调试
+        CanvasElement ele = CloneElement("XNOR_Gate").value();
+        wxPoint pos = wxPoint(100, 100);
+        ele.SetPos(pos);
+        ele.Draw(gc.get());
+        wxRect r = ele.GetBounds();
+
+        double radius = 3.0; // 点的半径
+
+        gc->SetBrush(*wxRED_BRUSH); // 填充颜色
+        gc->SetPen(*wxTRANSPARENT_PEN); // 无边框
+        // 绘制一个以 pt 为中心的圆
+        gc->DrawEllipse(pos.x - radius, pos.y - radius, radius * 2, radius * 2);
+
+        gc->SetBrush(wxBrush(wxColour(200, 200, 200, 128))); // 半透明灰色
+        gc->SetPen(wxPen(*wxBLACK, 2)); // 2像素宽的黑边
+        gc->DrawRectangle(r.x, r.y, r.width, r.height);*/
 
         // 悬停引脚高亮（绿色空心圆）
         if (m_hoverInfo.IsOverPin()) {
@@ -257,20 +277,19 @@ void CanvasPanel::OnPaint(wxPaintEvent&) {
 
 int CanvasPanel::HitElementTest(const wxPoint& canvasPos)
 {
-    /*
-    for (size_t i = 0; i < m_elements.size(); ++i) {
+    for (size_t i = 0; i < m_elems.size(); ++i) {
         // 元素的边界是画布坐标，直接比较
-        if (m_elements[i].GetBounds().Contains(canvasPos)) {
+        if (m_elems[i].GetBounds().Contains(canvasPos)) {
             return i;
         }
-    }*/
+    }
     return -1;
 }
 
 int CanvasPanel::HitHoverPin(const wxPoint& canvasPos, bool* isInput, wxPoint* worldPos){
-    /*
-    for (size_t i = 0; i < m_elements.size(); ++i) {
-        const auto& elem = m_elements[i];
+    
+    for (size_t i = 0; i < m_elems.size(); ++i) {
+        const auto& elem = m_elems[i];
         // 输入引脚尖端（突出 1 px）
         for (size_t p = 0; p < elem.GetInputPins().size(); ++p) {
             wxPoint tip = elem.GetPos() + wxPoint(elem.GetInputPins()[p].pos.x - 1,
@@ -291,7 +310,40 @@ int CanvasPanel::HitHoverPin(const wxPoint& canvasPos, bool* isInput, wxPoint* w
                 return p;
             }
         }
-    }*/
+
+        // 输出引脚尖端（突出 1 px）
+        for (size_t p = 0; p < elem.GetInOutputPins().size(); ++p) {
+            wxPoint tip = elem.GetPos() + wxPoint(elem.GetInOutputPins()[p].pos.x + 1,
+                elem.GetInOutputPins()[p].pos.y);
+            if (abs(canvasPos.x - tip.x) <= 4 && abs(canvasPos.y - tip.y) <= 4) {
+                *isInput = false;
+                *worldPos = tip;
+                return p;
+            }
+        }
+    }
+
+    const auto& elem = m_tbox;
+    // 输入引脚尖端（突出 1 px）
+    for (size_t p = 0; p < elem.GetInputPins().size(); ++p) {
+        wxPoint tip = elem.GetPos() + wxPoint(elem.GetInputPins()[p].pos.x - 1,
+            elem.GetInputPins()[p].pos.y);
+        if (abs(canvasPos.x - tip.x) <= 4 && abs(canvasPos.y - tip.y) <= 4) {
+            *isInput = true;
+            *worldPos = tip;
+            return p;
+        }
+    }
+    // 输出引脚尖端（突出 1 px）
+    for (size_t p = 0; p < elem.GetOutputPins().size(); ++p) {
+        wxPoint tip = elem.GetPos() + wxPoint(elem.GetOutputPins()[p].pos.x + 1,
+            elem.GetOutputPins()[p].pos.y);
+        if (abs(canvasPos.x - tip.x) <= 4 && abs(canvasPos.y - tip.y) <= 4) {
+            *isInput = false;
+            *worldPos = tip;
+            return p;
+        }
+    }
     return -1;
 }
 
@@ -444,8 +496,8 @@ void CanvasPanel::UpdateHoverInfo(const wxPoint& screenPos) {
     m_hoverInfo.cellPos = cellWorldPos;
 
     m_hoverInfo.elementIndex = elementIndex;
-    //if (elementIndex != -1) m_hoverInfo.elementName = m_elements[elementIndex].GetName();
-    //else m_hoverInfo.elementName = "";
+    if (elementIndex != -1) m_hoverInfo.elementName = m_elems[elementIndex].GetIdentifier();
+    else m_hoverInfo.elementName = "";
 
     m_hoverInfo.textIndex = textIndex;
     // Refresh(); // 触发重绘以显示悬停效果
@@ -732,273 +784,94 @@ bool CanvasPanel::IsNear(const wxPoint& a, const wxPoint& b, int tol) {
     return std::abs(a.x - b.x) <= tol && std::abs(a.y - b.y) <= tol;
 }
 
+void CanvasPanel::SetTopNode(TopNode* node) {
+    tn = node;
+    UpdateCanvasElements();
+    CompleteAutoLayout();
+    CompleteAutoWiring();
+    Refresh();
+}
+
+void CanvasPanel::CompleteAutoWiring() {
+
+}
+
+void CanvasPanel::CompleteAutoLayout() {
+    std::vector<SecondElement>& elems = m_elems;
+    std::vector<int> topoLevels = SigFlowTree::SecondNodeTopoLevel(tn);
+    std::unordered_map<int, int> levelBounds = GetLevelBounds(topoLevels, &elems);
+
+    std::unordered_map<int, int> levelCurrentY;
+    std::unordered_map<int, int> levelStartX;
+
+    wxPoint start = wxPoint(60, 40);
+
+    int currentX = start.x + 100; // 画布初始左边距
+    int totalLevels = 0;
+    for (auto const& [lev, width] : levelBounds) {
+        totalLevels = std::max(totalLevels, lev);
+    }
+
+    for (int l = 0; l <= totalLevels; ++l) {
+        if (levelBounds.count(l)) {
+            levelStartX[l] = currentX;
+            currentX += levelBounds[l] + 100;
+        }
+    }
+
+    for (size_t i = 0; i < topoLevels.size(); ++i) {
+        int lev = topoLevels[i];
+        SecondElement& ce = elems[i];
+
+        // 初始化该层的 Y 坐标起始值
+        if (levelCurrentY.find(lev) == levelCurrentY.end()) {
+            levelCurrentY[lev] = start.y + 40; // 画布初始上边距
+        }
+
+        // 获取当前元件的尺寸（从 GetBounds 中获取）
+        wxRect rect = ce.GetBounds();
+
+        // 计算位置：
+        // X 使用预存的该层起始 X
+        // Y 使用该层当前的累计 Y
+        wxPoint targetPos(levelStartX[lev], levelCurrentY[lev]);
+        ce.SetPos(targetPos);
+
+        // 更新该层下一元件的 Y 坐标：当前高度 + 元件自身高度 + 间隔20
+        levelCurrentY[lev] += rect.GetHeight() + 60;
+    }
+    int maxY = 0;
+    if (!levelCurrentY.empty()) {
+        auto it = std::max_element(levelCurrentY.begin(), levelCurrentY.end(),
+            [](const std::pair<int, int>& a, const std::pair<int, int>& b) {
+                return a.second < b.second; // 比较 value
+            });
+
+        maxY = it->second;
+        // 如果需要对应的层级(Key): int maxKey = it->first;
+    }
+    wxPoint end = wxPoint(levelStartX[totalLevels] + levelBounds[totalLevels] + 100, maxY + 80);
+    m_tbox = TopModuleBox(start, end, tn);
+}
+
 void CanvasPanel::UpdateCanvasElements(){
-    for (auto* cld : fn->children) {
-        TopNode* tn = static_cast<TopNode*>(cld);
-        int num_in = 0;
-        int num_out = 0;
-        int num_inout = 0;
-
-        for (auto p : tn->ports) {
-            switch (p.direction) {
-            case PortDirection::In:
-                num_in++;
-                break;
-            case PortDirection::Out:
-                num_out++;
-                break;
-            default:
-                num_inout++;
-                break;
-            }
-        }
-
-        std::vector<int> topoLevels = SigFlowTree::SecondNodeTopoLevel(tn);
-        std::vector<CanvasElement> elems = GetCanvasElements(tn);
-        std::unordered_map<int, int> levelBounds = GetLevelBounds(topoLevels, &elems);
-
-        std::unordered_map<int, int> levelCurrentY;
-        std::unordered_map<int, int> levelStartX;
-        int currentX = 60; // 画布初始左边距
-        int totalLevels = 0;
-        for (auto const& [lev, width] : levelBounds) {
-            totalLevels = std::max(totalLevels, lev);
-        }
-
-        for (int l = 0; l <= totalLevels; ++l) {
-            if (levelBounds.count(l)) {
-                levelStartX[l] = currentX;
-                currentX += levelBounds[l] + 20;
-            }
-        }
-
-        for (size_t i = 0; i < topoLevels.size(); ++i) {
-            int lev = topoLevels[i];
-            CanvasElement& ce = elems[i];
-
-            // 初始化该层的 Y 坐标起始值
-            if (levelCurrentY.find(lev) == levelCurrentY.end()) {
-                levelCurrentY[lev] = 50; // 画布初始上边距
-            }
-
-            // 获取当前元件的尺寸（从 GetBounds 中获取）
-            wxRect rect = ce.GetBounds();
-
-            // 计算位置：
-            // X 使用预存的该层起始 X
-            // Y 使用该层当前的累计 Y
-            wxPoint targetPos(levelStartX[lev], levelCurrentY[lev]);
-            ce.SetPos(targetPos);
-
-            // 更新该层下一元件的 Y 坐标：当前高度 + 元件自身高度 + 间隔20
-            levelCurrentY[lev] += rect.GetHeight() + 20;
-        }
-        m_elems = elems;
-
-
-
-
-
-    }
+    m_elems = GetSecondElements(tn);
 }
 
-CanvasElement CanvasPanel::MakeBlockBox(SecondNode* sn) {
-    int num_in = 0;
-    int num_out = 0;
-    int num_inout = 0;
-
-    for (auto p : sn->ports) {
-        switch (p.direction) {
-        case PortDirection::In:
-            num_in++;
-            break;
-        case PortDirection::Out:
-            num_out++;
-            break;
-        default:
-            num_inout++;
-            break;
-        }
-    }
-    return MakeBlockBox(num_in, num_out, num_inout);
-}
-
-CanvasElement CanvasPanel::MakeBlockBox(int in, int out, int inout)
-{
-    static constexpr int PIN_SPACING = 20;
-    static constexpr int BODY_WIDTH = 120;
-    static constexpr int BODY_MARGIN = 20;
-    static constexpr int PIN_LEN = 10;
-
-    int maxIO = std::max(in, out);
-
-    int bodyHeight;
-    if (maxIO <= 1)
-        bodyHeight = 2 * BODY_MARGIN + PIN_SPACING;
-    else
-        bodyHeight = (maxIO - 1) * PIN_SPACING + 2 * BODY_MARGIN;
-
-    int halfW = BODY_WIDTH / 2;
-    int halfH = bodyHeight / 2;
-
-    // 以 (0,0) 为中心
-    CanvasElement ce(wxPoint(0, 0));
-
-    std::vector<Point> rect = {
-        { -halfW, -halfH },
-        {  halfW, -halfH },
-        {  halfW,  halfH },
-        { -halfW,  halfH }
-    };
-
-    ce.AddShape(PolyShape{
-        rect,
-        wxColour(0,0,0)
-        });
-
-
-    auto computeStartY = [&](int count)
-        {
-            if (count <= 0) return 0;
-            int totalSpan = (count - 1) * PIN_SPACING;
-            return -totalSpan / 2;
-        };
-
-    int inStartY = computeStartY(in);
-    int outStartY = computeStartY(out);
-
-
-    for (int i = 0; i < in; ++i)
-    {
-        int y = inStartY + i * PIN_SPACING;
-
-        // 引脚线
-        ce.AddShape(Line{
-            { -halfW - PIN_LEN, y },
-            { -halfW,           y },
-            wxColour(0,0,0)
-            });
-
-        ce.AddInputPin({ -halfW - PIN_LEN, y }, wxString::Format("in%d", i));
-    }
-
-    for (int i = 0; i < out; ++i)
-    {
-        int y = outStartY + i * PIN_SPACING;
-
-        ce.AddShape(Line{
-            { halfW,           y },
-            { halfW + PIN_LEN, y },
-            wxColour(0,0,0)
-            });
-
-        ce.AddOutputPin({ halfW + PIN_LEN, y }, wxString::Format("out%d", i));
-    }
-    if (inout > 0)
-    {
-        int totalSpan = (inout - 1) * PIN_SPACING;
-        int startX = -totalSpan / 2;
-
-        for (int i = 0; i < inout; ++i)
-        {
-            int x = startX + i * PIN_SPACING;
-
-            ce.AddShape(Line{
-                { x, halfH },
-                { x, halfH + PIN_LEN },
-                wxColour(0,0,0)
-                });
-
-            ce.AddInputPin({ x, halfH + PIN_LEN }, wxString::Format("io%d", i));
-        }
-    }
-
-    return ce;
-}
-
-std::optional<CanvasElement> CanvasPanel::CloneElement(const std::string& name) {
-    extern std::vector<CanvasElement> g_elements;
-    auto it = std::find_if(g_elements.begin(), g_elements.end(),
-        [&]( CanvasElement& e) { return e.GetName() == name; });
-
-    if (it == g_elements.end()) return std::nullopt;
-
-    // 2. 克隆元素
-    CanvasElement clone = *it;
-    wxPoint pos = wxPoint(100, 100);
-    wxPoint standardpos = pos;
-
-    // 3. 计算偏移量 (优先逻辑：输出引脚 > 输入引脚 > 原点)
-    const auto& outputPins = clone.GetOutputPins();
-    const auto& inputPins = clone.GetInputPins();
-
-    if (!outputPins.empty()) {
-        const Pin& p = outputPins[0];
-        standardpos = pos - wxPoint(p.pos.x + m_grid, p.pos.y - m_grid);
-    }
-    else if (!inputPins.empty()) {
-        const Pin& p = inputPins[0];
-        standardpos = pos - wxPoint(p.pos.x + m_grid, p.pos.y - m_grid);
-    }
-
-    // 4. 应用新坐标
-    clone.SetPos(standardpos);
-
-    return clone;
-}
-
-CanvasElement CanvasPanel::MakeCanvasElement(SecondNode* sn) {
-    CanvasElement elem;
-    switch (sn->secondType) {
-    case SecondNodeType::GateInstance:{
-        if (sn->gatetype == "and") {
-            elem = CloneElement("AND_Gate").value();
-        }
-        else if (sn->gatetype == "nand") {
-            elem = CloneElement("NAND_Gate").value();
-        }
-        else if (sn->gatetype == "or") {
-            elem = CloneElement("OR_Gate").value();
-        }
-        else if (sn->gatetype == "nor") {
-            elem = CloneElement("NOR_Gate").value();
-        }
-        else if (sn->gatetype == "xor") {
-            elem = CloneElement("XOR_Gate").value();
-        }
-        break;
-        }
-    case SecondNodeType::ModuleInstance: {
-        std::optional<CanvasElement> out = CloneElement(sn->defIdentifier);
-        if (out.has_value()) elem = out.value();
-        else elem = MakeBlockBox(sn);
-        break;
-    }
-    case SecondNodeType::ContinuousAssign:
-        elem = MakeBlockBox(sn);
-        break;
-    case SecondNodeType::Always:
-        elem = MakeBlockBox(sn);
-        break;
-    }
-    elem.self = sn;
-    return elem;
-
-}
-
-std::vector<CanvasElement> CanvasPanel::GetCanvasElements(TopNode* n) {
-    std::vector<CanvasElement> elems;
+std::vector<SecondElement> CanvasPanel::GetSecondElements(TopNode* n) {
+    extern std::vector<SecondElement> g_elements;
+    std::vector<SecondElement> elems;
 
     for (auto* child : n->children)
     {
         if (child->type == SigTreeNodeType::Signal) continue;
         SecondNode* sn = static_cast<SecondNode*>(child);
-        elems.push_back(MakeCanvasElement(sn));
+        elems.push_back(SecondElement(sn, g_elements));
     }
     return elems;
 }
 
-std::unordered_map<int, int> CanvasPanel::GetLevelBounds(std::vector<int> topoLevels, std::vector<CanvasElement>* p_elems) {
+std::unordered_map<int, int> CanvasPanel::GetLevelBounds(std::vector<int> topoLevels, std::vector<SecondElement>* p_elems) {
     if (!p_elems || topoLevels.size() != p_elems->size()) {
         return {};
     }
@@ -1010,7 +883,7 @@ std::unordered_map<int, int> CanvasPanel::GetLevelBounds(std::vector<int> topoLe
 
     for (size_t i = 0; i < topoLevels.size(); ++i) {
         int level = topoLevels[i];
-        const CanvasElement& ce = (*p_elems)[i];
+        const SecondElement& ce = (*p_elems)[i];
 
         // 使用你提到的 GetBounds() 获取元件在画布上的实际矩形区域
         wxRect bounds = ce.GetBounds();
@@ -1032,4 +905,9 @@ std::unordered_map<int, int> CanvasPanel::GetLevelBounds(std::vector<int> topoLe
     }
 
     return resultWidths;
+}
+
+wxString CanvasPanel::GetNote() {
+    if (tn) return tn->identifier;
+    else return wxString("untitled");
 }

@@ -188,7 +188,8 @@ public:
     TopNode() { type = SigTreeNodeType::Top; };
     TopNodeType topType;
     void PrintTopNode();
-    std::vector<Port> ports;
+    std::vector<Port> in_ports;
+    std::vector<Port> out_ports;
     std::string ToVerilog() override;
     std::string GetDisplayName() override;
     virtual SigTreeNode* Clone(Arena& arena) const override {
@@ -214,7 +215,9 @@ public:
     SecondNodeType secondType;
     std::string gatetype;
     void PrintSecondNode();
-    std::vector<Port> ports;
+    std::vector<Port> in_ports;
+    std::vector<Port> out_ports;
+    std::vector<Port> inout_ports;
 
     std::string defIdentifier;
     TopNode* Definition;

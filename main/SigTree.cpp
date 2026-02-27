@@ -273,7 +273,8 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                     else if (strcmp(tag_name, "port.name") == 0) {
                         p.identifier = code.substr(ts_node_start_byte(capture.node),
                             ts_node_end_byte(capture.node) - ts_node_start_byte(capture.node));
-                        tn->ports.push_back(p);
+                        if (p.direction == PortDirection::In) tn->in_ports.push_back(p);
+                        else if(p.direction == PortDirection::Out) tn->out_ports.push_back(p);
                     }
                 }
             }
@@ -396,7 +397,7 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                             TSNode nameNode = capture.node;
                             p.conn = code.substr(ts_node_start_byte(nameNode),
                                 ts_node_end_byte(nameNode) - ts_node_start_byte(nameNode));
-                            sn->ports.push_back(p);
+                            sn->inout_ports.push_back(p);
                         }
                     }
                 }
@@ -441,14 +442,14 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                         p.identifier = std::format("out{}", gate_output_count++); // 门原语通常只有一个输出
                         p.direction = PortDirection::Out;
                         p.conn = text;
-                        sn->ports.push_back(p);
+                        sn->out_ports.push_back(p);
                     }
                     else if (strcmp(tag_name, "gate.input") == 0) {
                         Port p;
                         p.identifier = std::format("in{}", gate_input_count++);
                         p.direction = PortDirection::In;
                         p.conn = text;
-                        sn->ports.push_back(p);
+                        sn->in_ports.push_back(p);
                     }
                 } 
             }
@@ -505,7 +506,7 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                         p.conn = code.substr(ts_node_start_byte(nameNode),
                             ts_node_end_byte(nameNode) - ts_node_start_byte(nameNode));
 
-                        sn->ports.push_back(p);
+                        sn->in_ports.push_back(p);
 
                         sn->identifier = "@" + p.conn;
 
@@ -523,8 +524,8 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                         p.conn = code.substr(ts_node_start_byte(nameNode),
                             ts_node_end_byte(nameNode) - ts_node_start_byte(nameNode));
 
-                        sn->ports.push_back(p);
-                        exp.out_port_id = sn->ports.size() - 1;
+                        sn->out_ports.push_back(p);
+                        exp.out_port_id = sn->out_ports.size() - 1;
 
 
                         TSNode father = ts_node_parent(nameNode);
@@ -564,9 +565,9 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                         int input_count = 1;
                         ExpressionResult res = FormalizeExpression(capture.node, code, input_count, exp_input_count);
                         exp.nb_or_b_expression = res.template_text;
-                        int startIndex = (int)sn->ports.size();
-                        sn->ports.insert(sn->ports.end(), res.extracted_ports.begin(), res.extracted_ports.end());
-                        int endIndex = (int)sn->ports.size() ;
+                        int startIndex = (int)sn->in_ports.size();
+                        sn->in_ports.insert(sn->in_ports.end(), res.extracted_ports.begin(), res.extracted_ports.end());
+                        int endIndex = (int)sn->in_ports.size() ;
                         exp.in_port_ids.clear();
                         for (int i = startIndex; i < endIndex; ++i) {
                             exp.in_port_ids.push_back(i);
@@ -620,7 +621,7 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                         p.conn = code.substr(ts_node_start_byte(nameNode),
                             ts_node_end_byte(nameNode) - ts_node_start_byte(nameNode));
 
-                        sn->ports.push_back(p);
+                        sn->out_ports.push_back(p);
 
                     }
                     else if (strcmp(tag_name, "assign.rhs") == 0) {
@@ -629,7 +630,7 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                         int input_count = 1;
                         ExpressionResult res = FormalizeExpression(capture.node, code, input_count, -1);
                         sn->assign_expression = res.template_text;
-                        sn->ports.insert(sn->ports.end(), res.extracted_ports.begin(), res.extracted_ports.end());
+                        sn->in_ports.insert(sn->in_ports.end(), res.extracted_ports.begin(), res.extracted_ports.end());
                     }
                 }
 
@@ -723,7 +724,8 @@ void SigFlowTree::LinkInstsWithDefs() {
 
 void SigFlowTree::LinkSingleInstWithDef(SecondNode* inst) {
     if (!inst) return;
-
+    inst->in_ports.clear();
+    inst->out_ports.clear();
     // 1. 查找定义
     auto it = DefinitionTable.find(inst->defIdentifier);
 
@@ -733,18 +735,30 @@ void SigFlowTree::LinkSingleInstWithDef(SecondNode* inst) {
 
         // 2. 同步端口属性（方向等）
         // 这一步是确保实例的行为与其定义的模板一致
-        for (auto& instPort : inst->ports) {
-            auto defPortIt = std::find_if(def->ports.begin(), def->ports.end(),
+        for (auto& instPort : inst->inout_ports) {
+            auto defInPortIt = std::find_if(def->in_ports.begin(), def->in_ports.end(),
+                [&instPort](const Port& p) {
+                    return p.identifier == instPort.identifier;
+                });
+            auto defOutPortIt = std::find_if(def->out_ports.begin(), def->out_ports.end(),
                 [&instPort](const Port& p) {
                     return p.identifier == instPort.identifier;
                 });
 
-            if (defPortIt != def->ports.end()) {
+            if (defInPortIt != def->in_ports.end()) {
                 // 同步来自定义的关键元数据
-                instPort.direction = defPortIt->direction;
+                instPort.direction = defInPortIt->direction;
+                inst->in_ports.push_back(instPort);
             }
+            else if(defOutPortIt != def->out_ports.end()){
+                instPort.direction = defOutPortIt->direction;
+                inst->out_ports.push_back(instPort);
+
+            }
+            
             // 如果没找到，instPort.direction 保持默认或之前状态
         }
+        inst->inout_ports.clear();
     }
     else {
         // 找不到定义，置为空以防野指针
@@ -754,11 +768,18 @@ void SigFlowTree::LinkSingleInstWithDef(SecondNode* inst) {
 
 void SigFlowTree::HangInst(SecondNode* inst) {
     // 保持defIdentifier，用于寻找可能的引用
+    inst->inout_ports.clear();
     inst->Definition = nullptr;
-    for (auto& port : inst->ports) {
-
+    for (auto& port : inst->out_ports) {
         port.direction = PortDirection::InOut;
+        inst->inout_ports.push_back(port);
     }
+    inst->out_ports.clear();
+    for (auto& port : inst->in_ports) {
+        port.direction = PortDirection::InOut;
+        inst->inout_ports.push_back(port);
+    }
+    inst->in_ports.clear();
 }
 
 
@@ -863,14 +884,18 @@ std::string FileNode::ToVerilog() {
 
 std::string TopNode::ToVerilog() {
     std::string v = std::format("module {}", identifier);
-    if (!ports.empty()) {
-        v += "(";
-        for (auto port : ports) {
-            v += std::format("{} {},\n", port.portDirectionToStr(port.direction), port.identifier);
+    v += "(";
+    for (auto port : in_ports) {
+        v += std::format("{} {},\n", port.portDirectionToStr(port.direction), port.identifier);
 
-        }
-        v += ")\n";
     }
+    for (auto port : out_ports) {
+        v += std::format("{} {},\n", port.portDirectionToStr(port.direction), port.identifier);
+
+    }
+
+    v += ")\n";
+    
 
     for (auto* child : children) {
         v += child->ToVerilog();
@@ -910,28 +935,25 @@ std::string SecondNode::ToVerilog() {
 
 std::string SecondNode::ModuleInstanceToVerilog() {
     std::string v = std::format("{} ", identifier);
-    if (!ports.empty()) {
-        v += "(";
-        for (auto port : ports) {
-            v += std::format(".{}({}),\n", port.identifier, port.conn);
-        }
-        v += ")\n";
+    v += "(";
+    for (auto port : in_ports) {
+        v += std::format(".{}({}),\n", port.identifier, port.conn);
     }
+    for (auto port : out_ports) {
+        v += std::format(".{}({}),\n", port.identifier, port.conn);
+    }
+    v += ")\n";
+    
     return v;
 }
 
 std::string SecondNode::ContinuousAssignToVerilog() {
     std::string v = std::format("assign ");
-    for (auto port : ports) {
-        if (port.direction == PortDirection::Out) {
-            v += port.conn + " = ";
-            break;
-        }
+    for (auto port : out_ports) {
+        v += port.conn + " = ";
     }
-    for (auto port : ports) {
-        if (port.direction == PortDirection::In) {
-            v += port.conn + " _ ";
-        }
+    for (auto port : in_ports) {
+        v += port.conn + " = ";
     }
     v += ";\n";
     return v;
@@ -939,22 +961,17 @@ std::string SecondNode::ContinuousAssignToVerilog() {
 
 std::string SecondNode::GateInstanceToVerilog() {
     std::string v = gatetype + " " + identifier + " (";
-    for (auto port : ports) {
-        if (port.direction == PortDirection::Out) {
-            v += port.conn + ", ";
-            break;
-        }
-
+    for (auto port : out_ports) {
+        v += port.conn + " = ";
     }
-    for (auto port : ports) {
-        if (port.direction == PortDirection::In) {
-            v += port.conn + ", ";
-        }
+    for (auto port : in_ports) {
+        v += port.conn + " = ";
     }
     v += ");\n";
     return v;
 }
 void SecondNode::DelExpressionsPort(int del) {
+    /*
     if (del < 0 || del >= (int)ports.size()) return;
 
     // 1. 先删除实际的元素
@@ -980,10 +997,11 @@ void SecondNode::DelExpressionsPort(int del) {
                 ++it;
             }
         }
-    }
+    }*/
 }
 
 void SecondNode::AddExpressionsPort(int exp_id) {
+    /*
     if (exp_id < 0 || exp_id >= (int)nb_or_b_expressions.size()) return;
 
     NB_OR_B_Expression& exp = nb_or_b_expressions[exp_id];
@@ -1019,10 +1037,11 @@ void SecondNode::AddExpressionsPort(int exp_id) {
     ports.insert(ports.begin() + insertPos, newPort);
 
     // 5. 将新索引关联到当前表达式
-    exp.in_port_ids.push_back(insertPos);
+    exp.in_port_ids.push_back(insertPos);*/
 }
 
 void SecondNode::AddEmptyExpression() {
+    /*
     NB_OR_B_Expression newExp;
     newExp.nb_or_b_expression = ""; // 默认右值
     newExp.is_blocking = false;              // 默认非阻塞 <=
@@ -1037,7 +1056,7 @@ void SecondNode::AddEmptyExpression() {
     newExp.out_port_id = (int)this->ports.size();
     this->ports.push_back(outP);
 
-    this->nb_or_b_expressions.push_back(newExp);
+    this->nb_or_b_expressions.push_back(newExp);*/
 }
 
 void SecondNode::DelLastExpression() {
@@ -1061,7 +1080,7 @@ std::string SecondNode::GetDisplayName() {
         return gatetype + " " + identifier;
         break;
     case SecondNodeType::ContinuousAssign:
-        return SigFlowTree::ToString(secondType) + " " + ports[0].conn;
+        return SigFlowTree::ToString(secondType) + " " + out_ports[0].conn;
         break;
     default:
         return SigFlowTree::ToString(secondType) + " " + identifier;
@@ -1107,10 +1126,12 @@ void TopNode::PrintTopNode() {
         info += "TopType: Unknown\n";
     }
 
-    for (Port& p : ports) {
-        info += "port: " + p.identifier + " " + std::string(p.direction == PortDirection::In ? "In" : "Out") + "\n";
+    for (Port& p : in_ports) {
+        info += "port: " + p.identifier + " " + "In" + "\n";
     }
-
+    for (Port& p : in_ports) {
+        info += "port: " + p.identifier + " " + "Out" + "\n";
+    }
 
     OutputDebugStringA(info.c_str());
 }
@@ -1129,7 +1150,7 @@ void SecondNode::PrintSecondNode() {
     case SecondNodeType::Always:
         info += "SecondType: Always\n";
         for (int i = 0; i < nb_or_b_expressions.size(); i++) {
-            info += std::format("#{} {} {} {}\n", nb_or_b_expressions[i].delay, ports[nb_or_b_expressions[i].out_port_id].conn, nb_or_b_expressions[i].is_blocking?"=":"<=", nb_or_b_expressions[i].nb_or_b_expression);
+            //info += std::format("#{} {} {} {}\n", nb_or_b_expressions[i].delay, ports[nb_or_b_expressions[i].out_port_id].conn, nb_or_b_expressions[i].is_blocking?"=":"<=", nb_or_b_expressions[i].nb_or_b_expression);
             info += std::format("inPorts ids:");
             for (int id : nb_or_b_expressions[i].in_port_ids) {
                 info += std::format("{} ", id);
@@ -1153,24 +1174,16 @@ void SecondNode::PrintSecondNode() {
     }
 
 
-    for (Port& p : ports) {
+    for (Port& p : in_ports) {
+        info += "port: " + p.identifier + " " + "In" + " to: " + p.conn + "\n";
+    }
 
-        std::string pd;
-        switch (p.direction) {
-        case PortDirection::In:
-            pd = "In";
-            break;
-        case PortDirection::Out:
-            pd = "Out";
-            break;
-        case PortDirection::InOut:
-            pd = "InOut";
-            break;
-        case PortDirection::Ref:
-            pd = "Ref";
-            break;
-        }
-        info += "port: " + p.identifier + " " + pd + " to: " + p.conn + "\n";
+    for (Port& p : out_ports) {
+        info += "port: " + p.identifier + " " + "Out" + " to: " + p.conn + "\n";
+    }
+
+    for (Port& p : inout_ports) {
+        info += "port: " + p.identifier + " " + "InOut" + " to: " + p.conn + "\n";
     }
 
     OutputDebugStringA(info.c_str());
@@ -1370,15 +1383,11 @@ std::vector<int> SigFlowTree::SecondNodeTopoLevel(TopNode* tn)
             if (i == j) continue;
 
             // i.out → j.in ?
-            for (auto& p_out : nodes[i]->ports)
+            for (auto& p_out : nodes[i]->out_ports)
             {
-                if (p_out.direction != PortDirection::Out)
-                    continue;
 
-                for (auto& p_in : nodes[j]->ports)
+                for (auto& p_in : nodes[j]->in_ports)
                 {
-                    if (p_in.direction != PortDirection::In)
-                        continue;
 
                     if (!p_out.conn.empty() && p_out.conn == p_in.conn)
                     {

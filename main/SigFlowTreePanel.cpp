@@ -214,7 +214,8 @@ TopNode* SigFlowTreePanel::ShowCreateTopDialog(TopNodeType type, SigTreeNode* pa
 
     auto* idCtrl = new wxTextCtrl(&dlg, wxID_ANY);
 
-    std::vector<Port> ports;
+    std::vector<Port> in_ports;
+    std::vector<Port> out_ports;
 
     auto* portsSizer = new wxBoxSizer(wxVERTICAL);
 
@@ -223,34 +224,24 @@ TopNode* SigFlowTreePanel::ShowCreateTopDialog(TopNodeType type, SigTreeNode* pa
     rebuild = [&]() {
         portsSizer->Clear(true);
 
-        for (size_t i = 0; i < ports.size(); ++i) {
-            Port& p = ports[i];
+        for (size_t i = 0; i < in_ports.size(); ++i) {
+            Port& p = in_ports[i];
 
             auto* row = new wxBoxSizer(wxHORIZONTAL);
 
-            wxArrayString choices;
-            choices.Add("input");
-            choices.Add("output");
-            choices.Add("inout");
-            choices.Add("ref");
-
-            auto* dir = new wxChoice(&dlg, wxID_ANY, wxDefaultPosition, wxDefaultSize, choices);
-            dir->SetSelection((int)p.direction);
+            auto* dir = new wxTextCtrl(&dlg, wxID_ANY, "input");
+            dir->SetEditable(false);
 
             auto* name = new wxTextCtrl(&dlg, wxID_ANY, p.identifier);
 
             auto* del = new wxButton(&dlg, wxID_ANY, "x", wxDefaultPosition, wxSize(25, 25));
 
-            dir->Bind(wxEVT_CHOICE, [&, i](wxCommandEvent& e) {
-                ports[i].direction = static_cast<PortDirection>(e.GetSelection());
-                });
-
             name->Bind(wxEVT_TEXT, [&, i](wxCommandEvent& e) {
-                ports[i].identifier = e.GetString().ToStdString();
+                in_ports[i].identifier = e.GetString().ToStdString();
                 });
 
             del->Bind(wxEVT_BUTTON, [&, i](wxCommandEvent&) {
-                ports.erase(ports.begin() + i);
+                in_ports.erase(in_ports.begin() + i);
                 rebuild();
                 });
 
@@ -261,16 +252,54 @@ TopNode* SigFlowTreePanel::ShowCreateTopDialog(TopNodeType type, SigTreeNode* pa
             portsSizer->Add(row, 0, wxEXPAND | wxBOTTOM, 4);
         }
 
-        auto* addBtn = new wxButton(&dlg, wxID_ANY, "+ Add Port");
-        addBtn->Bind(wxEVT_BUTTON, [&](wxCommandEvent&) {
+        for (size_t i = 0; i < out_ports.size(); ++i) {
+            Port& p = out_ports[i];
+
+            auto* row = new wxBoxSizer(wxHORIZONTAL);
+
+            auto* dir = new wxTextCtrl(&dlg, wxID_ANY, "output");
+            dir->SetEditable(false);
+
+            auto* name = new wxTextCtrl(&dlg, wxID_ANY, p.identifier);
+
+            auto* del = new wxButton(&dlg, wxID_ANY, "x", wxDefaultPosition, wxSize(25, 25));
+
+            name->Bind(wxEVT_TEXT, [&, i](wxCommandEvent& e) {
+                in_ports[i].identifier = e.GetString().ToStdString();
+                });
+
+            del->Bind(wxEVT_BUTTON, [&, i](wxCommandEvent&) {
+                in_ports.erase(in_ports.begin() + i);
+                rebuild();
+                });
+
+            row->Add(dir, 0, wxRIGHT, 6);
+            row->Add(name, 1, wxEXPAND | wxRIGHT, 6);
+            row->Add(del, 0);
+
+            portsSizer->Add(row, 0, wxEXPAND | wxBOTTOM, 4);
+        }
+
+        auto* addInBtn = new wxButton(&dlg, wxID_ANY, "+ Add In");
+        addInBtn->Bind(wxEVT_BUTTON, [&](wxCommandEvent&) {
             Port p;
-            p.identifier = "port" + std::to_string(ports.size());
+            p.identifier = "port" + std::to_string(in_ports.size());
             p.direction = PortDirection::In;
-            ports.push_back(p);
+            in_ports.push_back(p);
             rebuild();
             });
 
-        portsSizer->Add(addBtn, 0, wxTOP, 6);
+        auto* addOutBtn = new wxButton(&dlg, wxID_ANY, "+ Add Out");
+        addOutBtn->Bind(wxEVT_BUTTON, [&](wxCommandEvent&) {
+            Port p;
+            p.identifier = "port" + std::to_string(in_ports.size());
+            p.direction = PortDirection::Out;
+            out_ports.push_back(p);
+            rebuild();
+            });
+
+        portsSizer->Add(addInBtn, 0, wxTOP, 6);
+        portsSizer->Add(addOutBtn, 0, wxTOP, 6);
 
         dlg.Layout();
         dlg.Fit();
@@ -304,7 +333,8 @@ TopNode* SigFlowTreePanel::ShowCreateTopDialog(TopNodeType type, SigTreeNode* pa
     node->type = SigTreeNodeType::Top;
     node->topType = type;
     node->identifier = id.ToStdString();
-    node->ports = std::move(ports);
+    node->in_ports = std::move(in_ports);
+    node->out_ports = std::move(out_ports);
 
     return node;
 }
@@ -477,15 +507,17 @@ SecondNode* SigFlowTreePanel::CreateModuleInstDialog(SigTreeNode* parent) {
     auto* portsMainSizer = new wxBoxSizer(wxVERTICAL);
 
     struct PortUI { std::string id; wxTextCtrl* connCtrl; };
-    std::vector<PortUI> portUIList;
+    std::vector<PortUI> in_portUIList;
+    std::vector<PortUI> out_portUIList;
 
     // 重构 rebuildPorts 以匹配 AddPortRowWithConn 的样式
     auto rebuildPorts = [&](int selection) {
         portsMainSizer->Clear(true);
-        portUIList.clear();
+        in_portUIList.clear();
+        out_portUIList.clear();
         TopNode* def = defPointers[selection];
 
-        for (const auto& p : def->ports) {
+        for (const auto& p : def->in_ports) {
             // 1. 分割线 (匹配 AddPortRowWithConn)
             wxStaticLine* line = new wxStaticLine(scrolled, wxID_ANY);
             portsMainSizer->Add(line, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 5);
@@ -519,7 +551,44 @@ SecondNode* SigFlowTreePanel::CreateModuleInstDialog(SigTreeNode* parent) {
             rowSizer->Add(editConn, 1, wxEXPAND | wxRIGHT, 10);
 
             portsMainSizer->Add(rowSizer, 0, wxEXPAND | wxTOP | wxBOTTOM, 2);
-            portUIList.push_back({ p.identifier, editConn });
+            in_portUIList.push_back({ p.identifier, editConn });
+        }
+
+        for (const auto& p : def->out_ports) {
+            // 1. 分割线 (匹配 AddPortRowWithConn)
+            wxStaticLine* line = new wxStaticLine(scrolled, wxID_ANY);
+            portsMainSizer->Add(line, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 5);
+
+            // 2. 水平布局行
+            wxBoxSizer* rowSizer = new wxBoxSizer(wxHORIZONTAL);
+
+            // --- 方向 (只读 TextCtrl) ---
+            wxTextCtrl* dirCtrl = new wxTextCtrl(scrolled, wxID_ANY, SigFlowTree::ToString(p.direction));
+            dirCtrl->SetEditable(false);
+            dirCtrl->SetBackgroundColour(scrolled->GetBackgroundColour()); // 与底色融为一体
+
+            // --- 引脚名 (只读 TextCtrl) ---
+            wxTextCtrl* editName = new wxTextCtrl(scrolled, wxID_ANY, p.identifier);
+            editName->SetEditable(false);
+            editName->SetBackgroundColour(scrolled->GetBackgroundColour());
+
+            // --- 链接符文本 ---
+            wxStaticText* colon = new wxStaticText(scrolled, wxID_ANY, "connected by");
+            colon->SetForegroundColour(wxColour(120, 120, 120));
+
+            // --- 连接的信号 (淡蓝色可编辑) ---
+            wxTextCtrl* editConn = new wxTextCtrl(scrolled, wxID_ANY, "");
+            editConn->SetHint("Connected Signal");
+            editConn->SetBackgroundColour(wxColour(240, 248, 255)); // 统一淡蓝色
+
+            // 3. 组合行布局 (比例分配：Dir 0, Name 1, Label 0, Conn 1)
+            rowSizer->Add(dirCtrl, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 10);
+            rowSizer->Add(editName, 1, wxEXPAND | wxLEFT, 5);
+            rowSizer->Add(colon, 0, wxALIGN_CENTER_VERTICAL | wxLEFT | wxRIGHT, 5);
+            rowSizer->Add(editConn, 1, wxEXPAND | wxRIGHT, 10);
+
+            portsMainSizer->Add(rowSizer, 0, wxEXPAND | wxTOP | wxBOTTOM, 2);
+            out_portUIList.push_back({ p.identifier, editConn });
         }
 
         scrolled->SetSizer(portsMainSizer);
@@ -547,12 +616,19 @@ SecondNode* SigFlowTreePanel::CreateModuleInstDialog(SigTreeNode* parent) {
     node->defIdentifier = defChoice->GetStringSelection().ToStdString();
     node->Definition = defPointers[defChoice->GetSelection()];
 
-    for (size_t i = 0; i < portUIList.size(); ++i) {
+    for (size_t i = 0; i < in_portUIList.size(); ++i) {
         Port p;
-        p.identifier = portUIList[i].id;
-        p.direction = node->Definition->ports[i].direction;
-        p.conn = portUIList[i].connCtrl->GetValue().ToStdString();
-        node->ports.push_back(p);
+        p.identifier = in_portUIList[i].id;
+        p.direction = node->Definition->in_ports[i].direction;
+        p.conn = in_portUIList[i].connCtrl->GetValue().ToStdString();
+        node->in_ports.push_back(p);
+    }
+    for (size_t i = 0; i < out_portUIList.size(); ++i) {
+        Port p;
+        p.identifier = out_portUIList[i].id;
+        p.direction = node->Definition->out_ports[i].direction;
+        p.conn = out_portUIList[i].connCtrl->GetValue().ToStdString();
+        node->out_ports.push_back(p);
     }
 
     return node;
@@ -671,7 +747,8 @@ SecondNode* SigFlowTreePanel::CreateGateInstDialog(SigTreeNode* parent) {
         p.identifier = ui.id;
         p.direction = ui.dir;
         p.conn = ui.connCtrl->GetValue().ToStdString();
-        node->ports.push_back(p);
+        if(ui.dir == PortDirection::In) node->in_ports.push_back(p);
+        else if (ui.dir == PortDirection::Out) node->out_ports.push_back(p);
     }
     return node;
 }
@@ -685,9 +762,10 @@ SecondNode* SigFlowTreePanel::CreateContiniousAssignDialog(SigTreeNode* parent) 
     // --- 临时数据模型 ---
     std::string idVal = "assign0";
     std::string exprVal = "";
-    std::vector<Port> tempPorts;
+    std::vector<Port> in_tempPorts;
+    std::vector<Port> out_tempPorts;
     // 默认添加一个输出端口
-    tempPorts.push_back({ "Out1", PortDirection::Out, "" });
+    out_tempPorts.push_back({ "Out1", PortDirection::Out, "" });
 
     // --- 1. 表单区域 (Identifier & Expression) ---
     auto* formPanel = new wxPanel(&dlg);
@@ -713,7 +791,43 @@ SecondNode* SigFlowTreePanel::CreateContiniousAssignDialog(SigTreeNode* parent) 
     // --- 3. 动态刷新 Ports 的 Lambda (参考 AddPortContinuousAssign 逻辑) ---
     auto rebuildPortsUI = [&]() {
         portsMainSizer->Clear(true);
-        for (auto& p : tempPorts) {
+        for (auto& p : out_tempPorts) {
+            auto* itemWrapper = new wxBoxSizer(wxVERTICAL);
+            auto* contentRow = new wxBoxSizer(wxHORIZONTAL);
+
+            auto* dirC = new wxTextCtrl(scrolled, wxID_ANY, SigFlowTree::ToString(p.direction));
+            dirC->SetEditable(false);
+            dirC->SetBackgroundColour(scrolled->GetBackgroundColour());
+
+            auto* editName = new wxTextCtrl(scrolled, wxID_ANY, p.identifier);
+            editName->SetEditable(false);
+            editName->SetBackgroundColour(scrolled->GetBackgroundColour());
+
+            auto* colon = new wxStaticText(scrolled, wxID_ANY, "connected by");
+            colon->SetForegroundColour(wxColour(120, 120, 120));
+
+            // 注意：对话框内实时更新 tempPorts 数据
+            auto* editConn = new wxTextCtrl(scrolled, wxID_ANY, p.conn);
+            editConn->SetHint("Connected Signal");
+            editConn->SetBackgroundColour(wxColour(240, 248, 255));
+
+            // 绑定实时更新到 tempPorts
+            editConn->Bind(wxEVT_TEXT, [&](wxCommandEvent& e) {
+                // 通过指针查找对应的 p 可能不安全（vector 扩容），这里用 item index 绑定更稳
+                // 但简便起见，对话框内可以用这种方式更新
+                p.conn = e.GetString().ToStdString();
+                });
+
+            contentRow->Add(dirC, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 10);
+            contentRow->Add(editName, 1, wxALIGN_CENTER_VERTICAL | wxLEFT, 5);
+            contentRow->Add(colon, 0, wxALIGN_CENTER_VERTICAL | wxLEFT | wxRIGHT, 5);
+            contentRow->Add(editConn, 1, wxALIGN_CENTER_VERTICAL | wxRIGHT, 10);
+
+            itemWrapper->Add(contentRow, 0, wxEXPAND | wxTOP | wxBOTTOM, 5);
+            itemWrapper->Add(new wxStaticLine(scrolled, wxID_ANY), 0, wxEXPAND | wxLEFT | wxRIGHT, 5);
+            portsMainSizer->Add(itemWrapper, 0, wxEXPAND);
+        }
+        for (auto& p : in_tempPorts) {
             auto* itemWrapper = new wxBoxSizer(wxVERTICAL);
             auto* contentRow = new wxBoxSizer(wxHORIZONTAL);
 
@@ -764,14 +878,14 @@ SecondNode* SigFlowTreePanel::CreateContiniousAssignDialog(SigTreeNode* parent) 
     addBtn->Bind(wxEVT_BUTTON, [&](wxCommandEvent&) {
         Port p;
         p.direction = PortDirection::In;
-        p.identifier = "In" + std::to_string(tempPorts.size()); // 简易编号
-        tempPorts.push_back(p);
+        p.identifier = "In" + std::to_string(in_tempPorts.size()); // 简易编号
+        in_tempPorts.push_back(p);
         rebuildPortsUI();
         });
 
     delBtn->Bind(wxEVT_BUTTON, [&](wxCommandEvent&) {
-        if (tempPorts.size() > 1) {
-            tempPorts.pop_back();
+        if (in_tempPorts.size() > 0) {
+            in_tempPorts.pop_back();
             rebuildPortsUI();
         }
         });
@@ -791,7 +905,8 @@ SecondNode* SigFlowTreePanel::CreateContiniousAssignDialog(SigTreeNode* parent) 
     node->type = SigTreeNodeType::Second;
     node->secondType = SecondNodeType::ContinuousAssign;
     node->assign_expression = exprCtrl->GetValue().ToStdString();
-    node->ports = tempPorts;
+    node->in_ports = in_tempPorts;
+    node->out_ports = out_tempPorts;
 
     return node;
 }
