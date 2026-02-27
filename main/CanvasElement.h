@@ -167,7 +167,7 @@ public:
 
     void SetSecondNode(SecondNode* sn) { self = sn; };
     wxString GetType() { return type; };
-    wxString GetIdentifier();
+    wxString GetIdentifier() const;
     const wxPoint& GetPos() const { return m_pos; }
     void SetPos(const wxPoint& p) { m_pos = p;}
     const std::vector<Shape>& GetShapes() const { return m_shapes; }

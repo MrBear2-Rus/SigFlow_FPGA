@@ -13,6 +13,7 @@
 class HandyToolKit;
 class CanvasEventHandler;
 class MainFrame;
+class CanvasNoteBook;
 
 struct HoverInfo {
     wxPoint screenPos;
@@ -56,7 +57,7 @@ struct HoverInfo {
 class CanvasPanel : public wxPanel
 {
 public:
-    CanvasPanel(MainFrame* parent, size_t size_x, size_t size_y);
+    CanvasPanel(CanvasNoteBook* parent, size_t size_x, size_t size_y);
 
     // ==================== 画布及画布子窗口的事件处理 ====================
 private:
@@ -113,6 +114,14 @@ private:
 public:
     //void ClearAll();
     void DeleteSelected();
+
+    void Save();
+    bool Read();
+
+
+    // 二级元件管理
+    void SecondSetPos(int i, wxPoint pos) { m_elems[i].SetPos(pos); RefreshRect(m_elems[i].GetBounds()); };
+    const std::vector<SecondElement>& GetSecond() const { return m_elems; };
 
     // 导线管理
     const std::vector<Wire>& GetWires() const { return m_wires; }
@@ -249,7 +258,7 @@ public:
 
     // ==================== 父窗口 ====================
 private:
-    MainFrame* m_mainFrame;
+    CanvasNoteBook* m_mainFrame;
 
 public:
     // 状态栏更新
@@ -259,7 +268,7 @@ public:
     bool IsNear(const wxPoint& a, const wxPoint& b, int tol = 2);
     
     // 获取主窗口
-    MainFrame* GetMainFrame() const { return m_mainFrame; }
+    CanvasNoteBook* GetMainFrame() const { return m_mainFrame; }
 
     // 添加获取选中索引的方法
     std::vector<int> GetSelectedElementIndexes() const { return m_selElemIdx; }
@@ -276,6 +285,7 @@ public:
     TopNode* tn;
     void SetTopNode(TopNode* node);
     void UpdateCanvasElements();
+    void LoadLayout();
     void CompleteAutoLayout();
     void CompleteAutoWiring();
     std::vector<SecondElement> GetSecondElements(TopNode* n);

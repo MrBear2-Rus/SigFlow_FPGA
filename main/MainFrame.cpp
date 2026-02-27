@@ -11,11 +11,10 @@
 
 #include "MainFrame.h"
 #include "MainMenuBar.h"
-#include "CanvasPanel.h"
 #include "ToolboxPanel.h"  
 #include "CanvasModel.h"
 #include "my_log.h"
-
+#include "CanvasNoteBook.h"
 
 extern std::vector<SecondElement> g_elements;
 
@@ -88,10 +87,7 @@ MainFrame::MainFrame()
     GetStatusBar()->SetStatusStyles(4, style);
 
     // 画布
-    CanvasPanel* canvas = new CanvasPanel(this, FromDIP(1123), FromDIP(794));
-    canvas->SetBackgroundColour(*wxWHITE);
-    canvas->SetFocus();
-    m_canvas.push_back(canvas);
+    m_canvas = new CanvasNoteBook(this, wxID_ANY, FromDIP(1123), FromDIP(794));
 
     // 元件库
     ToolboxPanel* toolbox = new ToolboxPanel(this);
@@ -219,22 +215,13 @@ MainFrame::MainFrame()
         rightNotebook->AddPage(aiPanel, "DeepSeek Assistant");
     }
 
-    wxAuiNotebook* canvases = new wxAuiNotebook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
-        wxAUI_NB_TOP | wxAUI_NB_TAB_MOVE | wxAUI_NB_TAB_EXTERNAL_MOVE | wxAUI_NB_TAB_SPLIT);
-    for (auto* canvas : m_canvas) {
-        canvas->Reparent(canvases);
-        canvases->AddPage(canvas, canvas->GetNote());
-    }
-
-
-
     wxSplitterWindow* mainSplitter = new wxSplitterWindow(this, wxID_ANY,
         wxDefaultPosition, wxDefaultSize,
         wxSP_LIVE_UPDATE | wxSP_3DSASH | wxBORDER_NONE);
     m_verilogEditor->Reparent(mainSplitter);
-    canvases->Reparent(mainSplitter);
+    m_canvas->Reparent(mainSplitter);
     int initialCanvasHeight = FromDIP(860);
-    mainSplitter->SplitHorizontally(canvases, m_verilogEditor, initialCanvasHeight);; // 0 表示平分
+    mainSplitter->SplitHorizontally(m_canvas, m_verilogEditor, initialCanvasHeight);; // 0 表示平分
     mainSplitter->SetMinimumPaneSize(FromDIP(50)); // 防止某个窗口被缩成 0 找不到了
 
 
@@ -321,6 +308,11 @@ MainFrame::MainFrame()
 
     // 如果 Update 后还是没变，这是因为 AUI 的内部状态已经锁定。
     // 我们尝试手动修改 PaneInfo 里的 dock_size 并再次强制 Update。
+    this->CallAfter([this]() {
+        if (m_canvas) {
+            m_canvas->AdjustScaleToFit(); // 你自定义的强制适配函数
+        }
+        });
     m_auiMgr.GetPane("left_sidebar").BestSize(leftW, -1);
     m_auiMgr.GetPane("right_sidebar").BestSize(rightW, -1);
     m_auiMgr.GetPane("bottom_tabs").BestSize(-1, bottomH);
@@ -1278,18 +1270,8 @@ void MainFrame::OnOpenFileFromTree(wxCommandEvent& evt) {
     FileNode* fn = sigTree->GetFileNode(path.ToStdString());
     m_sigFlowTreePanel->SetFileNode(fn);
 
-    while (m_canvas.size() < fn->children.size()) {
-        CanvasPanel* ca = new CanvasPanel(this, FromDIP(1123), FromDIP(794));
-        m_canvas.push_back(ca);
-    }
-    if (m_canvas.size() > fn->children.size()) {
-        m_canvas.resize(fn->children.size());
-    }
-
-    for (int i = 0; i < m_canvas.size(); i++) {
-        TopNode* tn = static_cast<TopNode*>(fn->children[i]);
-        m_canvas[i]->SetTopNode(tn);
-    }
+    m_canvas->SaveOrNotWindow();
+    m_canvas->SetFileNode(fn);
     
     RefreshTitle();
 }

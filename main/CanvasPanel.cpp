@@ -1,14 +1,21 @@
 ﻿#include <wx/graphics.h> 
 #include <wx/dcbuffer.h>
 #include <wx/dcgraph.h>  
+#include <wx/filename.h>
+#include <wx/file.h>
+#include <wx/stdpaths.h>
+#include <fstream>
+
+
 
 #include "CanvasPanel.h"
 #include "my_log.h"
+#include "json.hpp"
 
-#include "MainFrame.h"
 #include "ToolStateMachine.h"
 #include "HandyToolKit.h"
 #include "CanvasEventHandler.h"
+#include "CanvasNoteBook.h"
 
 wxBEGIN_EVENT_TABLE(CanvasPanel, wxPanel)
 EVT_PAINT(CanvasPanel::OnPaint)
@@ -25,12 +32,12 @@ EVT_KILL_FOCUS(CanvasPanel::OnKillFocus)
 EVT_SCROLL(CanvasPanel::OnScroll)
 wxEND_EVENT_TABLE()
 
-CanvasPanel::CanvasPanel(MainFrame* parent, size_t size_x, size_t size_y)
+CanvasPanel::CanvasPanel(CanvasNoteBook* parent, size_t size_x, size_t size_y)
     : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize,
         wxFULL_REPAINT_ON_RESIZE | wxBORDER_NONE),
     m_mainFrame(parent),
     m_size{wxSize(size_x,size_y)},
-    m_offset(0, 0), m_scale(1.0f), m_grid(20),
+    m_grid(20),
     m_hoverInfo{}, m_hasFocus(false),
     m_hiddenTextCtrl(nullptr),
     m_isUsingHiddenCtrl(false), m_currentEditingTextIndex(-1) {
@@ -55,6 +62,9 @@ CanvasPanel::CanvasPanel(MainFrame* parent, size_t size_x, size_t size_y)
     SetBackgroundStyle(wxBG_STYLE_PAINT);
     SetBackgroundColour(*wxWHITE);
 
+
+    SetScale(1.0);
+    SetoffSet(wxPoint(0, 0));
     SetFocus();
 }
 
@@ -125,16 +135,10 @@ void CanvasPanel::OnPaint(wxPaintEvent&) {
 
 
     if (gc) {
-        // 启用高质量抗锯齿
-        //gc->SetAntialiasMode(wxANTIALIAS_DEFAULT);
 
         // 应用缩放和偏移（逻辑坐标 -> 设备坐标）
         gc->Scale(m_scale, m_scale);
         gc->Translate(m_offset.x / m_scale, m_offset.y / m_scale);
-
-        // 高DPI适配：获取设备缩放因子
-        //double dpiScale = GetContentScaleFactor();
-        //gc->Scale(dpiScale, dpiScale);
 
         // 绘制网格（逻辑坐标，线宽随缩放自适应）
         const wxColour gridColor(240, 240, 240);
@@ -223,20 +227,20 @@ void CanvasPanel::OnPaint(wxPaintEvent&) {
 
         // 绘制选中边框
         if (m_toolStateMachine->GetCurrentTool() == ToolType::SELECT_TOOL) {
-            //for (size_t i = 0; i < m_selElemIdx.size(); i++) {
-            //    wxRect b = m_elements[m_selElemIdx[i]].GetBounds();
-            //    gc->SetPen(wxPen(wxColor(44, 145, 224), 2.0));
-            //    gc->SetBrush(*wxTRANSPARENT_BRUSH);
-            //    gc->DrawRectangle(b.x - 2, b.y - 3, b.width + 5, b.height + 5);
+            for (size_t i = 0; i < m_selElemIdx.size(); i++) {
+                wxRect b = m_elems[m_selElemIdx[i]].GetBounds();
+                gc->SetPen(wxPen(wxColor(44, 145, 224), 2.0));
+                gc->SetBrush(*wxTRANSPARENT_BRUSH);
+                gc->DrawRectangle(b.x - 2, b.y - 3, b.width + 5, b.height + 5);
 
-            //    gc->SetPen(wxPen(wxColor(44, 145, 224, 32), 2.0));
-            //    gc->SetBrush(*wxTRANSPARENT_BRUSH);
-            //    gc->DrawRectangle(b.x - 4, b.y - 5, b.width + 9, b.height + 9);
+                gc->SetPen(wxPen(wxColor(44, 145, 224, 32), 2.0));
+                gc->SetBrush(*wxTRANSPARENT_BRUSH);
+                gc->DrawRectangle(b.x - 4, b.y - 5, b.width + 9, b.height + 9);
 
-            //    gc->SetPen(wxPen(wxColor(44, 145, 224, 32), 4.0));
-            //    gc->SetBrush(*wxTRANSPARENT_BRUSH);
-            //    gc->DrawRectangle(b.x - 6, b.y - 7, b.width + 13, b.height + 13);
-            //}
+               gc->SetPen(wxPen(wxColor(44, 145, 224, 32), 4.0));
+                gc->SetBrush(*wxTRANSPARENT_BRUSH);
+                gc->DrawRectangle(b.x - 6, b.y - 7, b.width + 13, b.height + 13);
+            }
             for (size_t i = 0; i < m_selTxtIdx.size(); i++) {
                 wxRect b = m_textElements[m_selTxtIdx[i]].GetBounds();
                 gc->SetPen(wxPen(wxColor(44, 145, 224), 2.0));
@@ -428,6 +432,136 @@ void CanvasPanel::DeleteSelected() {
 
     Refresh();
 }
+
+using json = nlohmann::json;
+
+void CanvasPanel::Save() {
+    auto* n = tn->parent->parent;
+    ProjectNode* pn = static_cast<ProjectNode*>(n);
+    wxString cwd = pn->projectPath;
+    wxFileName targetDir;
+    targetDir.AssignDir(cwd + "/.sigflow/workspace/canvas");
+
+    if (!targetDir.DirExists()) {
+        targetDir.Mkdir(wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
+    }
+
+    // 1. 修正文件名：加上 .json 后缀
+    wxString filename = GetNote();
+    if (!filename.EndsWith(".json")) {
+        filename += ".json";
+    }
+
+    wxFileName filepath(targetDir.GetPath(), filename);
+
+    // 2. 构建 JSON 数据结构
+    json root;
+    root["canvas_name"] = GetNote().ToStdString();
+    root["elements"] = json::array(); // 初始化元素数组
+    
+
+    // 3. 遍历 m_elems 并填充数据
+    for (const auto& elem : m_elems) {
+        json element;
+        element["type"] = elem.type.ToStdString();
+        element["id"] = elem.GetIdentifier().ToStdString();
+        // 假设 GetPos() 返回 wxPoint
+        wxPoint pos = elem.GetPos();
+
+        element["x"] = pos.x;
+        element["y"] = pos.y;
+
+        // 如果需要保存更多信息（例如大小、标识符），在这里继续添加
+        // element["width"] = elem.m_bound.GetWidth();
+        // element["identifier"] = elem.identifier.ToStdString();
+
+        root["elements"].push_back(element);
+    }
+    json start, end;
+    start["x"] = m_tbox.GetPos().x;
+    start["y"] = m_tbox.GetPos().y;
+    end["x"] = m_tbox.GetPos().x + m_tbox.GetBounds().width;
+    end["y"] = m_tbox.GetPos().y + m_tbox.GetBounds().height;
+
+    root["topbox"]["start"] = start;
+    root["topbox"]["end"] = end;
+
+    // 4. 将 JSON 写入文件
+    std::ofstream file(filepath.GetFullPath().ToStdString());
+    if (file.is_open()) {
+        // 设置缩进为 4 个空格，使 JSON 可读
+        file << root.dump(4);
+        file.close();
+    }
+}
+
+
+
+bool CanvasPanel::Read() {
+    auto* n = tn->parent->parent;
+    ProjectNode* pn = static_cast<ProjectNode*>(n);
+    wxString cwd = pn->projectPath;
+    wxFileName filepath(cwd + "/.sigflow/workspace/canvas", GetNote() + ".json");
+
+    if (!filepath.FileExists()) {
+        return false;
+    }
+
+    std::ifstream file(filepath.GetFullPath().ToStdString());
+    if (!file.is_open()) return false;
+
+    json root;
+    try {
+        file >> root;
+    }
+    catch (...) {
+        return false;
+    }
+    file.close();
+
+    bool allElementsMatched = true;
+
+    if (root.contains("elements") && root["elements"].is_array()) {
+        // 1. 优化策略：创建一个 Identifier -> SecondElement* 的映射表
+        // 这样查找时间复杂度是 O(N)，而不是 O(N^2)
+        std::unordered_map<std::string, SecondElement*> idMap;
+        for (auto& elem : m_elems) {
+            idMap[elem.GetIdentifier().ToStdString()] = &elem;
+        }
+
+        // 2. 遍历 JSON 数据进行匹配更新
+        for (const auto& jElem : root["elements"]) {
+            if (jElem.contains("id") && jElem.contains("x") && jElem.contains("y")) {
+                std::string id = jElem["id"].get<std::string>();
+
+                // 3. 在映射表中查找对应元件
+                if (idMap.find(id) != idMap.end()) {
+                    int x = jElem["x"].get<int>();
+                    int y = jElem["y"].get<int>();
+
+                    // 4. 更新位置
+                    idMap[id]->SetPos(wxPoint(x, y));
+                }
+                else allElementsMatched = false;
+            }
+        }
+    }
+
+    if (root.contains("topbox")) {
+        wxPoint start(root["topbox"]["start"]["x"].get<int>(),
+            root["topbox"]["start"]["y"].get<int>());
+
+        wxPoint end(root["topbox"]["end"]["x"].get<int>(),
+            root["topbox"]["end"]["y"].get<int>());
+        m_tbox = TopModuleBox(start, end, tn);
+    }
+
+    Refresh(); // 重新绘制
+    return allElementsMatched;
+}
+
+
+
 
 void CanvasPanel::OnRightDown(wxMouseEvent& evt) {
     m_HandyToolKit->SetPosition(ClientToScreen(evt.GetPosition()) + FromDIP(wxPoint(24, 0)));
@@ -708,8 +842,12 @@ std::pair<wxPoint, wxPoint> CanvasPanel::ValidSetOffRange() {
 
 std::pair<float, float> CanvasPanel::ValidScaleRange() {
     // 对于最右侧最下侧的逻辑坐标 (m_size.x, m_size.y) 对应的设备坐标恰好为 (GetClientSize().x- m_hScroll->GetSize().y - 1, GetClientSize().y- m_hScroll->GetSize().y - 1) 时，计算出最小缩放比例
-    float minScaleX = static_cast<float>((GetClientSize().x - m_hScroll->GetSize().y - 1) - m_offset.x) / static_cast<float>(m_size.x);
-    float minScaleY = static_cast<float>((GetClientSize().y - m_hScroll->GetSize().y - 1) - m_offset.y) / static_cast<float>(m_size.y);
+    wxSize s = GetClientSize();
+    float h = m_hScroll->GetSize().y;
+    float x = (s.x - h - 1) - m_offset.x;
+    float y = (s.y - h - 1) - m_offset.y;
+    float minScaleX = static_cast<float>(x) / static_cast<float>(m_size.x);
+    float minScaleY = static_cast<float>(y) / static_cast<float>(m_size.y);
     float minScale = std::max(minScaleX, minScaleY);
     float maxScale = 5.0f; // 最大缩放比例
     return std::make_pair(minScale, maxScale);
@@ -787,9 +925,14 @@ bool CanvasPanel::IsNear(const wxPoint& a, const wxPoint& b, int tol) {
 void CanvasPanel::SetTopNode(TopNode* node) {
     tn = node;
     UpdateCanvasElements();
-    CompleteAutoLayout();
+    LoadLayout();
     CompleteAutoWiring();
     Refresh();
+}
+
+void CanvasPanel::LoadLayout() {
+    if (Read()) return;
+    CompleteAutoLayout();
 }
 
 void CanvasPanel::CompleteAutoWiring() {

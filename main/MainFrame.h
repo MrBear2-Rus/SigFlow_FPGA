@@ -21,11 +21,12 @@
 #include "PluginManager.h"
 
 class ToolBars;
-class CanvasPanel;
+class CanvasNoteBook;
 class HandyToolKit;
 
 wxDECLARE_EVENT(EVT_SFTREE_NODE_ACTIVATED, wxCommandEvent);
 wxDECLARE_EVENT(EVT_SFTREE_CHANGED, wxCommandEvent);
+
 
 class MainFrame : public wxFrame
 {
@@ -150,7 +151,8 @@ public:
 private:
     wxAuiManager m_auiMgr;
 public:
-    std::vector<CanvasPanel*> m_canvas;
+    //std::vector<CanvasPanel*> m_canvas;
+    CanvasNoteBook* m_canvas;
 
     void UpdateCursor();        // 根据 m_pendingTool 更新十字/箭头
 

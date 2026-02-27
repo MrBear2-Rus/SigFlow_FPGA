@@ -154,7 +154,7 @@ void SecondElement::MakeBlackBox() {
     m_bound = wxRect(0, 0, BODY_WIDTH, bodyHeight);
 }
 
-wxString SecondElement::GetIdentifier() { return self == nullptr ? wxString("none") : wxString(self->identifier); }
+wxString SecondElement::GetIdentifier() const { return self == nullptr ? wxString("none") : wxString(self->identifier); }
 
 wxRect SecondElement::GetBounds() const {
     wxRect rect = m_bound;

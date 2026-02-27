@@ -162,6 +162,12 @@
     <ClCompile Include="PluginStore.cpp">
       <Filter>源文件\gui</Filter>
     </ClCompile>
+    <ClCompile Include="SVGParser.cpp">
+      <Filter>源文件\gui</Filter>
+    </ClCompile>
+    <ClCompile Include="CanvasNoteBook.cpp">
+      <Filter>源文件\gui\canvas</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="my_log.h">
@@ -256,6 +262,12 @@
     </ClInclude>
     <ClInclude Include="PluginStore.h">
       <Filter>头文件\gui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\3rd\nanosvg\nanosvg.h">
+      <Filter>源文件\3rd</Filter>
+    </ClInclude>
+    <ClInclude Include="CanvasNoteBook.h">
+      <Filter>头文件\gui\canvas</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

@@ -1,4 +1,4 @@
-﻿#include "CanvasTextElement.h"
+#include "CanvasTextElement.h"
 #include "CanvasPanel.h"
 
 CanvasTextElement::CanvasTextElement(CanvasPanel* parent, const wxString& text, const wxPoint& pos)
@@ -218,4 +218,40 @@ wxRect CanvasTextElement::GetBounds() const{
 
 wxPoint CanvasTextElement::GetPosition() const {
 	return m_position;
+}
+
+CanvasTextElement::CanvasTextElement(CanvasTextElement&& other) noexcept
+    : m_parent(other.m_parent)
+    , m_text(std::move(other.m_text))
+    , m_position(other.m_position)
+    , m_size(other.m_size)
+    , m_editing(other.m_editing)
+    , m_hiddenTextCtrl(other.m_hiddenTextCtrl)
+{
+    other.m_hiddenTextCtrl = nullptr;
+}
+
+CanvasTextElement& CanvasTextElement::operator=(CanvasTextElement&& other) noexcept
+{
+    if (this == &other) return *this;
+
+    // 分离当前隐藏控件的关联
+    DetachHiddenTextCtrl();
+
+    m_parent = other.m_parent;
+    m_text = std::move(other.m_text);
+    m_position = other.m_position;
+    m_size = other.m_size;
+    m_editing = other.m_editing;
+    m_hiddenTextCtrl = other.m_hiddenTextCtrl;
+
+    other.m_parent = nullptr;
+    other.m_hiddenTextCtrl = nullptr;
+    other.m_editing = false;
+
+    // 如果当前处于编辑状态，重新关联
+    if (m_editing && m_hiddenTextCtrl) {
+        AttachHiddenTextCtrl(m_hiddenTextCtrl);
+    }
+    return *this;
 }

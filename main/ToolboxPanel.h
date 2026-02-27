@@ -24,5 +24,7 @@ private:
     void OnBeginDrag(wxTreeEvent& evt);
     void OnToolSelected(wxTreeEvent& evt);
 
+    std::map<wxString, wxString> m_displayToFile;  // 显示名称 -> 文件名（无扩展名）
+
     wxDECLARE_EVENT_TABLE();
 };

@@ -103,24 +103,51 @@ void CmdMoveSelected::undo(CanvasPanel* canvas) {
 
 void CmdDeleteSelected::undo(CanvasPanel* canvas) {
     for (int i = 0; i < Elements.size(); i++) {
-        canvas->ReclaimElement(Elements[i].elem, Elements[i].idx);
+        canvas->ReclaimElement(*Elements[i].elem, Elements[i].idx);
     }
     for (int i = 0; i < Wires.size(); i++) {
-        canvas->ReclaimWire(Wires[i].wire, Wires[i].idx);
+        canvas->ReclaimWire(*Wires[i].wire, Wires[i].idx);
     }
-    for (int i = 0; i < Texts.size(); i++) {
-        canvas->ReclaimText(Texts[i].txt, Texts[i].idx);
-    }
+    /*for (int i = 0; i < Texts.size(); i++) {
+        canvas->ReclaimText(*Texts[i].txt, Texts[i].idx);
+    }*/
 }
 
-//void CmdCopySelected::undo(CanvasPanel* canvas) {
-//    for (int i = 0; i < elementNames.size(); i++) {
-//        canvas->AddElementWithoutRecord(elementNames[i], elementPos[i]);
-//    }
-//    for (int i = 0; i < wires.size(); i++) {
-//        canvas->AddWireWithoutRecord(wires[i]);
-//    }
-//    for (int i = 0; i < txtBoxPos.size(); i++) {
-//        canvas->CreateTextElementWithoutRecord(txtBoxPos[i], txtBoxText[i]);
-//    }
-//}
+CmdDeleteSelected::CmdDeleteSelected(
+    std::vector<CanvasElement> elements,
+    std::vector<int> elementIdx,
+    std::vector<Wire> wires,
+    std::vector<int> wireIdx,
+    std::vector<CanvasTextElement> txtBoxes,
+    std::vector<int> txtBoxIdx)
+{
+    // 处理元件
+    for (size_t i = 0; i < elements.size(); ++i) {
+        Element_Re e;
+        e.elem = std::make_unique<CanvasElement>(std::move(elements[i]));
+        e.idx = elementIdx[i];
+        Elements.push_back(std::move(e));
+    }
+    std::sort(Elements.begin(), Elements.end(),
+        [](const auto& a, const auto& b) { return a.idx < b.idx; });
+
+    // 处理导线 —— 最关键！这里 std::move(wires[i]) 需要 Wire 有移动构造函数
+    for (size_t i = 0; i < wires.size(); ++i) {
+        Wire_Re w;
+        w.wire = std::make_unique<Wire>(std::move(wires[i]));
+        w.idx = wireIdx[i];
+        Wires.push_back(std::move(w));
+    }
+    std::sort(Wires.begin(), Wires.end(),
+        [](const auto& a, const auto& b) { return a.idx < b.idx; });
+
+    // 处理文本框
+    for (size_t i = 0; i < txtBoxes.size(); ++i) {
+        Text_Re t;
+        t.txt = std::make_unique<CanvasTextElement>(std::move(txtBoxes[i]));
+        t.idx = txtBoxIdx[i];
+        Texts.push_back(std::move(t));
+    }
+    std::sort(Texts.begin(), Texts.end(),
+        [](const auto& a, const auto& b) { return a.idx < b.idx; });
+}

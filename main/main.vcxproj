@@ -25,6 +25,7 @@
     <ClCompile Include="AsyncAnalysisCenter.cpp" />
     <ClCompile Include="CanvasElement.cpp" />
     <ClCompile Include="CanvasModel.cpp" />
+    <ClCompile Include="CanvasNoteBook.cpp" />
     <ClCompile Include="CanvasPanel.cpp" />
     <ClCompile Include="CanvasTextElement.cpp" />
     <ClCompile Include="cMain.cpp" />
@@ -38,6 +39,7 @@
     <ClCompile Include="SigFlowTreePanel.cpp" />
     <ClCompile Include="SigTextEditor.cpp" />
     <ClCompile Include="SigTree.cpp" />
+    <ClCompile Include="SVGParser.cpp" />
     <ClCompile Include="TerminalController.cpp" />
     <ClCompile Include="TerminalCtrl.cpp" />
     <ClCompile Include="ToolboxModel.cpp" />
@@ -52,9 +54,11 @@
     <ClCompile Include="Simulation\ProcessRunner.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\3rd\nanosvg\nanosvg.h" />
     <ClInclude Include="AsyncAnalysisCenter.h" />
     <ClInclude Include="CanvasElement.h" />
     <ClInclude Include="CanvasModel.h" />
+    <ClInclude Include="CanvasNoteBook.h" />
     <ClInclude Include="CanvasPanel.h" />
     <ClInclude Include="CanvasTextElement.h" />
     <ClInclude Include="MainFrame.h" />
@@ -139,7 +143,8 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <LibraryPath>$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(ProjectDir)external\slang-sdk\lib</LibraryPath>
+    <LibraryPath>$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(ProjectDir)external\slang-sdk\lib;$(WXWIN)\lib\vc_dll;</LibraryPath>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(WXWIN)\include;$(WXWIN)\include\msvc</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
