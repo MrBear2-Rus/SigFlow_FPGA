@@ -120,6 +120,7 @@ public:
 
 
     // 二级元件管理
+    void AddSecond(wxString type);
     void SecondSetPos(int i, wxPoint pos) { m_elems[i].SetPos(pos); RefreshRect(m_elems[i].GetBounds()); };
     const std::vector<SecondElement>& GetSecond() const { return m_elems; };
 

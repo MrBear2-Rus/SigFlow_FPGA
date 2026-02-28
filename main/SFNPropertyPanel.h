@@ -29,9 +29,9 @@ public:
         std::string& boundValue,
         const wxArrayString& choices);
 
-    void Add_BN_OR_B_Expressions(SecondNode* sn);
+    void Add_BN_OR_B_Expressions(AlwaysNode* an);
     void Add_BN_OR_B_Expression(wxSizer* groupSizer, std::vector<Port>& ports, NB_OR_B_Expression& exp);
-    void Add_BN_OR_B_Ports(wxSizer* groupSizer, SecondNode* sn, std::vector<Port>& in_ports, std::vector<Port>& out_ports, int exp_id);
+    void Add_BN_OR_B_Ports(wxSizer* groupSizer, AlwaysNode* an, std::vector<Port>& in_ports, std::vector<Port>& out_ports, int exp_id);
     void Add_BN_OR_B_Port(wxSizer* groupSizer, Port& p);
 
     void ShowChangePortsList(std::vector<Port>& ports);

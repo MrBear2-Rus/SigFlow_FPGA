@@ -40,12 +40,51 @@ std::vector<wxPoint> SecondElement::CalculateCubicBezier(const Point& p0, const 
 
 SecondElement::SecondElement(SecondNode* sn, std::vector<SecondElement>& templates):self(sn) {
     switch (sn->secondType) {
-    case SecondNodeType::GateInstance: 
-    case SecondNodeType::ModuleInstance:{
+    case SecondNodeType::GateInstance: {
         // 1. 在指针容器中查找
+        GateInstNode* gn = static_cast<GateInstNode*>(sn);
+
         auto it = std::find_if(templates.begin(), templates.end(),
             [&](const SecondElement& e) {
-                return e.type == sn->gatetype || e.type == sn->defIdentifier;
+                return e.type == SigFlowTree::ToString(gn->gatetype);
+            });
+
+        if (it != templates.end()) {
+            // 2. 使用虚函数 Clone，确保获取的是真实的子类类型
+            const SecondElement& templateElement = *it;
+
+            this->type = templateElement.type;
+            this->m_bound = templateElement.m_bound;
+            this->m_shapes = templateElement.m_shapes;
+
+            // 3. 深拷贝引脚，并修正引脚内部的指针指向当前 Node 的端口
+            size_t inCount = std::min((size_t)sn->in_ports.size(), templateElement.m_inPins.size());
+            for (size_t i = 0; i < inCount; i++) {
+                Pin newPin = templateElement.m_inPins[i];
+                newPin.self = &sn->in_ports[i];
+                m_inPins.push_back(newPin);
+            }
+
+            size_t outCount = std::min((size_t)sn->out_ports.size(), templateElement.m_outPins.size());
+            for (size_t i = 0; i < outCount; i++) {
+                Pin newPin = templateElement.m_outPins[i];
+                newPin.self = &sn->out_ports[i];
+                m_outPins.push_back(newPin);
+            }
+        }
+        else {
+            this->type = "inst";
+            MakeBlackBox();
+        }
+        break;
+    }
+    case SecondNodeType::ModuleInstance:{
+        // 1. 在指针容器中查找
+        ModuleInstNode* mn = static_cast<ModuleInstNode*>(sn);
+
+        auto it = std::find_if(templates.begin(), templates.end(),
+            [&](const SecondElement& e) {
+                return e.type == mn->defIdentifier;
             });
 
         if (it != templates.end()) {
@@ -99,7 +138,6 @@ SecondElement::SecondElement(SecondNode* sn, std::vector<SecondElement>& templat
 void SecondElement::MakeBlackBox() {
     int in = self->in_ports.size();
     int out = self->out_ports.size();
-    int inout = self->inout_ports.size();
 
     const int GRID = 20;
     const int BODY_WIDTH = 120;
@@ -146,9 +184,13 @@ void SecondElement::MakeBlackBox() {
         AddOutputPin({ BODY_WIDTH, y }, &self->out_ports[i]);
     }
 
-    for (int i = 0; i < inout; ++i) {
-        AddInOutputPin({ i * GRID,  bodyHeight }, &self->inout_ports[i]);
+    if (self->secondType == SecondNodeType::ModuleInstance) {
+        ModuleInstNode* mn = static_cast<ModuleInstNode*>(self);
+        for (int i = 0; i < mn->inout_ports.size(); ++i) {
+            AddInOutputPin({ i * GRID,  bodyHeight }, &mn->inout_ports[i]);
+        }
     }
+
 
     // 7. 设置边界：现在左上角是 (0,0)，宽高显而易见
     m_bound = wxRect(0, 0, BODY_WIDTH, bodyHeight);
@@ -540,25 +582,58 @@ TopModuleBox::TopModuleBox(wxPoint start, wxPoint end, TopNode* self) :
     m_shapes.push_back(Line(Point(0, height), Point(width, height)));
 
     // 2. 添加左侧输入引脚 (均分算法)
-    if (self->in_ports.size() > 0) {
+    if (self->GetInPorts().size() > 0) {
         // 如果只有一个引脚，放中间；多个引脚则平分 height
-        float segment = static_cast<float>(height) / (self->in_ports.size() + 1);
-        for (int i = 0; i < self->in_ports.size(); ++i) {
+        float segment = static_cast<float>(height) / (self->GetInPorts().size() + 1);
+        for (int i = 0; i < self->GetInPorts().size(); ++i) {
             // 第 i 个引脚的位置在第 i+1 个等分点上
             int py = static_cast<int>((i + 1) * segment);
-            m_inPins.push_back(Pin(Snap(Point(0, py)), true, &self->in_ports[i]));
+            m_inPins.push_back(Pin(Snap(Point(0, py)), true, &self->GetInPorts()[i]));
         }
     }
 
     // 3. 添加右侧输出引脚 (均分算法)
-    if (self->out_ports.size() > 0) {
-        float segment = static_cast<float>(height) / (self->out_ports.size() + 1);
-        for (int j = 0; j < self->out_ports.size(); ++j) {
+    if (self->GetOutPorts().size() > 0) {
+        float segment = static_cast<float>(height) / (self->GetOutPorts().size() + 1);
+        for (int j = 0; j < self->GetOutPorts().size(); ++j) {
             int py = static_cast<int>((j + 1) * segment);
-            m_outPins.push_back(Pin(Snap(Point(width, py)), false, &self->out_ports[j]));
+            m_outPins.push_back(Pin(Snap(Point(width, py)), false, &self->GetOutPorts()[j]));
         }
     }
 
     m_bound = wxRect(0, 0, width, height); // 注意：m_bound 建议也用相对坐标，或根据 SetPos 统一
     SetPos(start);
+}
+
+void TopModuleBox::SetEnd(wxPoint end) {
+    int width = end.x - m_pos.x;
+    int height = end.y - m_pos.y;
+
+    // 1. 绘制矩形边框 (相对坐标)
+    m_shapes.push_back(Line(Point(0, 0), Point(0, height)));
+    m_shapes.push_back(Line(Point(0, 0), Point(width, 0)));
+    m_shapes.push_back(Line(Point(width, 0), Point(width, height)));
+    m_shapes.push_back(Line(Point(0, height), Point(width, height)));
+
+    // 2. 添加左侧输入引脚 (均分算法)
+    if (self->GetInPorts().size() > 0) {
+        // 如果只有一个引脚，放中间；多个引脚则平分 height
+        float segment = static_cast<float>(height) / (self->GetInPorts().size() + 1);
+        for (int i = 0; i < self->GetInPorts().size(); ++i) {
+            // 第 i 个引脚的位置在第 i+1 个等分点上
+            int py = static_cast<int>((i + 1) * segment);
+            m_inPins.push_back(Pin(Snap(Point(0, py)), true, &self->GetInPorts()[i]));
+        }
+    }
+
+    // 3. 添加右侧输出引脚 (均分算法)
+    if (self->GetOutPorts().size() > 0) {
+        float segment = static_cast<float>(height) / (self->GetOutPorts().size() + 1);
+        for (int j = 0; j < self->GetOutPorts().size(); ++j) {
+            int py = static_cast<int>((j + 1) * segment);
+            m_outPins.push_back(Pin(Snap(Point(width, py)), false, &self->GetOutPorts()[j]));
+        }
+    }
+
+    m_bound = wxRect(0, 0, width, height); // 注意：m_bound 建议也用相对坐标，或根据 SetPos 统一
 }

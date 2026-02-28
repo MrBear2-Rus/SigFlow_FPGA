@@ -32,10 +32,10 @@ SigFlowTreePanel::SigFlowTreePanel(wxWindow* parent,SigFlowTree* sfTree)
 }
 
 void SigFlowTreePanel::BuildBranch(wxTreeItemId uiParent, SigTreeNode* logicParent) {
-    for (auto* child : logicParent->children) {
+    for (auto* child : logicParent->GetChildren()) {
         wxTreeItemId uiChild = tree->AppendItem(
             uiParent,
-            child->GetDisplayName(), // 自动根据类型返回正确的名字
+            child->GetName(), // 自动根据类型返回正确的名字
             -1, -1,
             new SigTreeItemData(child)
         );
@@ -195,10 +195,10 @@ void SigFlowTreePanel::OnDelete(wxCommandEvent&) {
     if (!data || !data->node) return;
 
     SigTreeNode* node = data->node;
-    if (!node->parent) return; // 不允许删 root
+    if (!node->GetParent()) return; // 不允许删 root
 
     // ---- 修改模型 ----
-    sfTree->RemoveChild(node->parent, node);
+    sfTree->RemoveChild(node->GetParent(), node);
 
     // ---- 同步刷新 ----
     Fresh();
@@ -329,13 +329,9 @@ TopNode* SigFlowTreePanel::ShowCreateTopDialog(TopNodeType type, SigTreeNode* pa
     if (id.empty())
         return nullptr;
 
-    auto* node = new TopNode();
-    node->type = SigTreeNodeType::Top;
-    node->topType = type;
-    node->identifier = id.ToStdString();
-    node->in_ports = std::move(in_ports);
-    node->out_ports = std::move(out_ports);
-
+    auto* node = new TopNode(id.ToStdString(), type);
+    node->UpdateInPorts(in_ports);
+    node->UpdateOutPorts(out_ports);
     return node;
 }
 
@@ -363,10 +359,7 @@ SignalNode* SigFlowTreePanel::ShowCreateSignalDialog(SignalType type, SigTreeNod
     if (id.empty())
         return nullptr;
 
-    auto* node = new SignalNode();
-    node->type = SigTreeNodeType::Signal;
-    node->signalType = type;
-    node->identifier = id.ToStdString();
+    auto* node = new SignalNode(id.ToStdString(), type);
     return node;
 }
 
@@ -380,89 +373,8 @@ SecondNode* SigFlowTreePanel::ShowCreateSecondDialog(SecondNodeType type, SigTre
     }
     case SecondNodeType::ContinuousAssign:{
         return CreateContiniousAssignDialog(parent);
-   }
-
+     }
     }
-
-
-
-
-    wxDialog dlg(this, wxID_ANY, "Create");
-
-
-
-    wxTextCtrl* idCtrl = nullptr;
-    wxTextCtrl* defCtrl = nullptr;
-    wxChoice* gateChoice = nullptr;
-    wxTextCtrl* exprCtrl = nullptr;
-
-    auto* form = new wxFlexGridSizer(2, 6, 6);
-    form->AddGrowableCol(1);
-
-    if (type == SecondNodeType::ModuleInstance ||
-        type == SecondNodeType::GateInstance) {
-        form->Add(new wxStaticText(&dlg, wxID_ANY, "Identifier:"));
-        idCtrl = new wxTextCtrl(&dlg, wxID_ANY);
-        form->Add(idCtrl, 1, wxEXPAND);
-    }
-
-    if (type == SecondNodeType::ModuleInstance) {
-        form->Add(new wxStaticText(&dlg, wxID_ANY, "Definition:"));
-        defCtrl = new wxTextCtrl(&dlg, wxID_ANY);
-        form->Add(defCtrl, 1, wxEXPAND);
-    }
-
-    if (type == SecondNodeType::GateInstance) {
-        form->Add(new wxStaticText(&dlg, wxID_ANY, "Gate Type:"));
-
-        wxArrayString gateTypes;
-        gateTypes.Add("and");
-        gateTypes.Add("nand");
-        gateTypes.Add("or");
-        gateTypes.Add("nor");
-        gateTypes.Add("xor");
-        gateTypes.Add("xnor");
-
-        gateChoice = new wxChoice(&dlg, wxID_ANY, wxDefaultPosition, wxDefaultSize, gateTypes);
-        gateChoice->SetSelection(0); // 默认选中 And
-
-        form->Add(gateChoice, 1, wxEXPAND);
-
-
-    }
-
-    if (type == SecondNodeType::ContinuousAssign ||
-        type == SecondNodeType::Always) {
-        form->Add(new wxStaticText(&dlg, wxID_ANY, "Expression:"));
-        exprCtrl = new wxTextCtrl(&dlg, wxID_ANY, "", wxDefaultPosition,
-            wxSize(300, -1));
-        form->Add(exprCtrl, 1, wxEXPAND);
-    }
-
-    auto* btns = dlg.CreateSeparatedButtonSizer(wxOK | wxCANCEL);
-
-    auto* root = new wxBoxSizer(wxVERTICAL);
-    root->Add(form, 1, wxEXPAND | wxALL, 10);
-    root->Add(btns, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 10);
-    dlg.SetSizerAndFit(root);
-
-    if (dlg.ShowModal() != wxID_OK)
-        return nullptr;
-
-    auto* node = new SecondNode();
-    node->type = SigTreeNodeType::Second;
-    node->secondType = type;
-
-    if (idCtrl)
-        node->identifier = idCtrl->GetValue().ToStdString();
-    if (defCtrl)
-        node->defIdentifier = defCtrl->GetValue().ToStdString();
-    if (gateChoice)
-        node->gatetype = gateChoice->GetStringSelection().ToStdString();
-    if (exprCtrl)
-        node->assign_expression = exprCtrl->GetValue().ToStdString();
-
-    return node;
 }
 
 SecondNode* SigFlowTreePanel::CreateModuleInstDialog(SigTreeNode* parent) {
@@ -517,7 +429,7 @@ SecondNode* SigFlowTreePanel::CreateModuleInstDialog(SigTreeNode* parent) {
         out_portUIList.clear();
         TopNode* def = defPointers[selection];
 
-        for (const auto& p : def->in_ports) {
+        for (const auto& p : def->GetInPorts()) {
             // 1. 分割线 (匹配 AddPortRowWithConn)
             wxStaticLine* line = new wxStaticLine(scrolled, wxID_ANY);
             portsMainSizer->Add(line, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 5);
@@ -554,7 +466,7 @@ SecondNode* SigFlowTreePanel::CreateModuleInstDialog(SigTreeNode* parent) {
             in_portUIList.push_back({ p.identifier, editConn });
         }
 
-        for (const auto& p : def->out_ports) {
+        for (const auto& p : def->GetOutPorts()) {
             // 1. 分割线 (匹配 AddPortRowWithConn)
             wxStaticLine* line = new wxStaticLine(scrolled, wxID_ANY);
             portsMainSizer->Add(line, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 5);
@@ -609,24 +521,20 @@ SecondNode* SigFlowTreePanel::CreateModuleInstDialog(SigTreeNode* parent) {
     if (dlg.ShowModal() != wxID_OK) return nullptr;
 
     // --- 构造返回节点 ---
-    auto* node = new SecondNode();
-    node->type = SigTreeNodeType::Second;
-    node->secondType = SecondNodeType::ModuleInstance;
-    node->identifier = idCtrl->GetValue().ToStdString();
-    node->defIdentifier = defChoice->GetStringSelection().ToStdString();
+    auto* node = new ModuleInstNode(idCtrl->GetValue().ToStdString(), defChoice->GetStringSelection().ToStdString());
     node->Definition = defPointers[defChoice->GetSelection()];
 
     for (size_t i = 0; i < in_portUIList.size(); ++i) {
         Port p;
         p.identifier = in_portUIList[i].id;
-        p.direction = node->Definition->in_ports[i].direction;
+        p.direction = node->Definition->GetInPorts()[i].direction;
         p.conn = in_portUIList[i].connCtrl->GetValue().ToStdString();
         node->in_ports.push_back(p);
     }
     for (size_t i = 0; i < out_portUIList.size(); ++i) {
         Port p;
         p.identifier = out_portUIList[i].id;
-        p.direction = node->Definition->out_ports[i].direction;
+        p.direction = node->Definition->GetOutPorts()[i].direction;
         p.conn = out_portUIList[i].connCtrl->GetValue().ToStdString();
         node->out_ports.push_back(p);
     }
@@ -736,11 +644,7 @@ SecondNode* SigFlowTreePanel::CreateGateInstDialog(SigTreeNode* parent) {
     if (dlg.ShowModal() != wxID_OK) return nullptr;
 
     // --- 数据封装 ---
-    auto* node = new SecondNode();
-    node->type = SigTreeNodeType::Second;
-    node->secondType = SecondNodeType::GateInstance;
-    node->identifier = idCtrl->GetValue().ToStdString();
-    node->gatetype = gateChoice->GetStringSelection().ToStdString();
+    auto* node = new GateInstNode(idCtrl->GetValue().ToStdString(), SigFlowTree::GateTypeFromString(gateChoice->GetStringSelection().ToStdString()));
 
     for (auto& ui : portUIList) {
         Port p;
@@ -901,10 +805,7 @@ SecondNode* SigFlowTreePanel::CreateContiniousAssignDialog(SigTreeNode* parent) 
     if (dlg.ShowModal() != wxID_OK) return nullptr;
 
     // --- 构造最终节点 ---
-    auto* node = new SecondNode();
-    node->type = SigTreeNodeType::Second;
-    node->secondType = SecondNodeType::ContinuousAssign;
-    node->assign_expression = exprCtrl->GetValue().ToStdString();
+    auto* node = new ContinuousAssignNode(out_tempPorts[0].identifier, exprCtrl->GetValue().ToStdString());
     node->in_ports = in_tempPorts;
     node->out_ports = out_tempPorts;
 

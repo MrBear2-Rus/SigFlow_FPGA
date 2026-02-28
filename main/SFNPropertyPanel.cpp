@@ -84,8 +84,8 @@ void SFNPropertyPanel::LoadNode(SigTreeNode* node) {
         AddTextRow("Type:", SigFlowTree::ToString(t->topType));
         AddChangeTextRow("Identifier:", static_cast<TopNode*>(node)->identifier);
 
-        AddPortRow(t->in_ports, PortDirection::In);
-        AddPortRow(t->out_ports, PortDirection::Out);
+        AddPortRow(t->GetInPorts(), PortDirection::In);
+        AddPortRow(t->GetOutPorts(), PortDirection::Out);
         
 
     }
@@ -107,7 +107,8 @@ void SFNPropertyPanel::LoadNode(SigTreeNode* node) {
 
 
         if (s->secondType == SecondNodeType::ModuleInstance) {
-            AddTextRow("Definition: ", s->defIdentifier);
+        
+            AddTextRow("Definition: ", static_cast<ModuleInstNode*>(s)->defIdentifier);
             AddChangeTextRow("Identifier:", s->identifier);
             for (auto& p : s->in_ports) {
                 AddPortRowWithConn(p.identifier, p.direction, p.conn);
@@ -117,7 +118,7 @@ void SFNPropertyPanel::LoadNode(SigTreeNode* node) {
             }
         }
         if (s->secondType == SecondNodeType::GateInstance) {
-            AddTextRow("Gate Type: ", s->gatetype);
+            AddTextRow("Gate Type: ", SigFlowTree::ToString(static_cast<GateInstNode*>(s)->gatetype));
             AddChangeTextRow("Identifier:", s->identifier);
             for (auto& p : s->in_ports) {
                 AddPortRowWithConn(p.identifier, p.direction, p.conn);
@@ -129,14 +130,14 @@ void SFNPropertyPanel::LoadNode(SigTreeNode* node) {
 
         
         if (s->secondType == SecondNodeType::ContinuousAssign) {
-           AddChangeTextRow("Expression:", s->assign_expression);
+           AddChangeTextRow("Expression:", static_cast<ContinuousAssignNode*>(s)->template_exp);
            AddPortContinuousAssign(s->in_ports, s->out_ports);
         }
             
 
 
         if (s->secondType == SecondNodeType::Always) {
-            Add_BN_OR_B_Expressions(s);
+            Add_BN_OR_B_Expressions(static_cast<AlwaysNode*>(s));
         }
     }
     break;
@@ -747,8 +748,8 @@ void SFNPropertyPanel::Add_BN_OR_B_Expression(wxSizer* groupSizer, std::vector<P
     groupSizer->Add(row, 0, wxEXPAND | wxBOTTOM, 8);
 }
 
-void SFNPropertyPanel::Add_BN_OR_B_Ports(wxSizer* groupSizer, SecondNode* sn, std::vector<Port>& in_ports, std::vector<Port>& out_ports, int exp_id) {
-    NB_OR_B_Expression& exp = sn->nb_or_b_expressions[exp_id];
+void SFNPropertyPanel::Add_BN_OR_B_Ports(wxSizer* groupSizer, AlwaysNode* an, std::vector<Port>& in_ports, std::vector<Port>& out_ports, int exp_id) {
+    NB_OR_B_Expression& exp = an->nb_or_b_expressions[exp_id];
     Add_BN_OR_B_Port(groupSizer, out_ports[exp.out_port_id]);
     for (int id : exp.in_port_ids) {
         Add_BN_OR_B_Port(groupSizer, in_ports[id]);
@@ -758,8 +759,8 @@ void SFNPropertyPanel::Add_BN_OR_B_Ports(wxSizer* groupSizer, SecondNode* sn, st
     wxButton* addBtn = new wxButton(this, wxID_ANY, "+ Add Port", wxDefaultPosition, wxDefaultSize);
     addBtn->SetForegroundColour(wxColour(0, 120, 215)); // 可选：设置为蓝色，增加视觉识别度
 
-    addBtn->Bind(wxEVT_BUTTON, [this, sn, exp_id](wxCommandEvent&) {
-        sn->AddExpressionsPort(exp_id);
+    addBtn->Bind(wxEVT_BUTTON, [this, an, exp_id](wxCommandEvent&) {
+        an->AddExpressionsPort(exp_id);
 
         this->LoadNode(m_node);
         });
@@ -768,13 +769,13 @@ void SFNPropertyPanel::Add_BN_OR_B_Ports(wxSizer* groupSizer, SecondNode* sn, st
     delBtn->SetForegroundColour(wxColour(200, 0, 0)); // 可选：设置为蓝色，增加视觉识别度
 
     // 4. 绑定点击事件
-    delBtn->Bind(wxEVT_BUTTON, [this, sn, &exp](wxCommandEvent&) {
+    delBtn->Bind(wxEVT_BUTTON, [this, an, &exp](wxCommandEvent&) {
 
 
         if (!exp.in_port_ids.empty()) {
             int pop_id = exp.in_port_ids.back();
             exp.in_port_ids.pop_back();
-            sn->DelExpressionsPort(pop_id);
+            an->DelExpressionsPort(pop_id);
             
         }
         else {
@@ -859,17 +860,17 @@ void SFNPropertyPanel::Add_BN_OR_B_Port(wxSizer* groupSizer, Port& p) {
 
 }
 
-void SFNPropertyPanel::Add_BN_OR_B_Expressions(SecondNode* sn) {
+void SFNPropertyPanel::Add_BN_OR_B_Expressions(AlwaysNode* an) {
     // --- 1. 遍历并绘制现有的表达式组 ---
-    for (int i = 0; i < (int)sn->nb_or_b_expressions.size(); i++) {
+    for (int i = 0; i < (int)an->nb_or_b_expressions.size(); i++) {
         wxBoxSizer* groupWrapper = new wxBoxSizer(wxVERTICAL);
-        NB_OR_B_Expression& exp = sn->nb_or_b_expressions[i];
+        NB_OR_B_Expression& exp = an->nb_or_b_expressions[i];
 
-        Add_BN_OR_B_Expression(groupWrapper, sn->out_ports, exp);
-        Add_BN_OR_B_Ports(groupWrapper, sn, sn->in_ports,sn->out_ports, i);
+        Add_BN_OR_B_Expression(groupWrapper, an->out_ports, exp);
+        Add_BN_OR_B_Ports(groupWrapper, an, an->in_ports, an->out_ports, i);
 
         // 组内分割线
-        if (i < (int)sn->nb_or_b_expressions.size() - 1) {
+        if (i < (int)an->nb_or_b_expressions.size() - 1) {
             groupWrapper->Add(new wxStaticLine(this, wxID_ANY), 0, wxEXPAND | wxTOP | wxBOTTOM, 10);
         }
 
@@ -894,14 +895,14 @@ void SFNPropertyPanel::Add_BN_OR_B_Expressions(SecondNode* sn) {
     m_mainSizer->Add(globalBtnSizer, 0, wxEXPAND | wxLEFT | wxRIGHT, 10);
 
     // --- 3. 绑定事件 ---
-    addExpBtn->Bind(wxEVT_BUTTON, [this, sn](wxCommandEvent&) {
-        sn->AddEmptyExpression();
+    addExpBtn->Bind(wxEVT_BUTTON, [this, an](wxCommandEvent&) {
+        an->AddEmptyExpression();
         this->LoadNode(m_node); // 重新触发全量绘制
         });
 
-    delExpBtn->Bind(wxEVT_BUTTON, [this, sn](wxCommandEvent&) {
-        if (!sn->nb_or_b_expressions.empty()) {
-            sn->DelLastExpression();
+    delExpBtn->Bind(wxEVT_BUTTON, [this, an](wxCommandEvent&) {
+        if (!an->nb_or_b_expressions.empty()) {
+            an->DelLastExpression();
             this->LoadNode(m_node);
         }
         });

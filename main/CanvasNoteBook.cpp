@@ -39,7 +39,7 @@ void CanvasNoteBook::DeleteAll() {
 void CanvasNoteBook::UpdateNoteBook() {
     DeleteAll();
     bool sel = true;
-    for (auto* cld : fn->children) {
+    for (auto* cld : fn->GetChildren()) {
         TopNode* tn = static_cast<TopNode*>(cld);
         CanvasPanel* ca = new CanvasPanel(this, this->size_x, this->size_y);
         ca->SetTopNode(tn);
@@ -65,7 +65,7 @@ void CanvasNoteBook::SaveOrNotWindow() {
     // 2. 弹出提示框询问用户
     if (!fn) return;
     wxMessageDialog dial(this,
-        wxString::Format("save %s?", fn->GetDisplayName()),
+        wxString::Format("save %s?", fn->GetName()),
         "save",
         wxYES_NO | wxCANCEL | wxICON_QUESTION);
 

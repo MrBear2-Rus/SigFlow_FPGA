@@ -436,7 +436,7 @@ void CanvasPanel::DeleteSelected() {
 using json = nlohmann::json;
 
 void CanvasPanel::Save() {
-    auto* n = tn->parent->parent;
+    auto* n = tn->GetParent()->GetParent();
     ProjectNode* pn = static_cast<ProjectNode*>(n);
     wxString cwd = pn->projectPath;
     wxFileName targetDir;
@@ -498,7 +498,7 @@ void CanvasPanel::Save() {
 
 
 bool CanvasPanel::Read() {
-    auto* n = tn->parent->parent;
+    auto* n = tn->GetParent()->GetParent();
     ProjectNode* pn = static_cast<ProjectNode*>(n);
     wxString cwd = pn->projectPath;
     wxFileName filepath(cwd + "/.sigflow/workspace/canvas", GetNote() + ".json");
@@ -1005,7 +1005,7 @@ std::vector<SecondElement> CanvasPanel::GetSecondElements(TopNode* n) {
     extern std::vector<SecondElement> g_elements;
     std::vector<SecondElement> elems;
 
-    for (auto* child : n->children)
+    for (auto* child : n->GetChildren())
     {
         if (child->type == SigTreeNodeType::Signal) continue;
         SecondNode* sn = static_cast<SecondNode*>(child);
@@ -1053,4 +1053,10 @@ std::unordered_map<int, int> CanvasPanel::GetLevelBounds(std::vector<int> topoLe
 wxString CanvasPanel::GetNote() {
     if (tn) return tn->identifier;
     else return wxString("untitled");
+}
+
+
+void CanvasPanel::AddSecond(wxString type) {
+    SecondNode* sn;
+
 }

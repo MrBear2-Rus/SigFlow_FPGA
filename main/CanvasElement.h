@@ -133,6 +133,7 @@ public:
     const std::vector<Shape>& GetShapes() const { return m_shapes; }
     wxRect GetBounds() const;
     void UpdateShapes(wxRect b, std::vector<Shape> sps) { m_bound = b; m_shapes = sps; };
+    void SetEnd(wxPoint end);
 
     void AddInputPin(const Point& p) { m_inPins.push_back(Pin(p, true, nullptr)); }
     void AddOutputPin(const Point& p) { m_outPins.push_back(Pin(p, false, nullptr)); }
