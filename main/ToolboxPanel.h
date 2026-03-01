@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <wx/wx.h>
 #include <wx/treectrl.h>
 #include <map>
@@ -13,6 +13,9 @@ public:
     // 添加公共访问方法
     wxTreeCtrl* GetTree() const { return m_tree; }
 
+    void AddDefinition(wxString defId);
+    void DelDefinition(wxString defId);
+
 private:
     wxTreeCtrl* m_tree;
     wxImageList* m_imgList;
@@ -25,6 +28,8 @@ private:
     void OnToolSelected(wxTreeEvent& evt);
 
     std::map<wxString, wxString> m_displayToFile;  // 显示名称 -> 文件名（无扩展名）
+
+    wxTreeItemId m_def;
 
     wxDECLARE_EVENT_TABLE();
 };

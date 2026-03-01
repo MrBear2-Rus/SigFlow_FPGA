@@ -19,7 +19,8 @@
 extern std::vector<SecondElement> g_elements;
 
 wxDEFINE_EVENT(EVT_SFTREE_NODE_ACTIVATED, wxCommandEvent);
-wxDEFINE_EVENT(EVT_SFTREE_CHANGED, wxCommandEvent);
+wxDEFINE_EVENT(EVT_SIGFLOWNODE_ADD, wxCommandEvent);
+wxDEFINE_EVENT(EVT_SIGFLOWNODE_DEL, wxCommandEvent);
 
 wxBEGIN_EVENT_TABLE(MainFrame, wxFrame)
 EVT_MENU(wxID_ABOUT, MainFrame::OnAbout)
@@ -72,8 +73,9 @@ MainFrame::MainFrame()
     m_refreshTimer->Start(1000);
 
     // 构造SigTree
-    sigTree = new SigFlowTree();
-
+    sigTree = new SigFlowTree(this);
+    this->Bind(EVT_SIGFLOWNODE_ADD, &MainFrame::OnSFNodeAdded, this);
+    this->Bind(EVT_SIGFLOWNODE_DEL, &MainFrame::OnSFNodeDeleted, this);
 
     /* 面板加载 */
     m_auiMgr.SetManagedWindow(this);
@@ -87,17 +89,16 @@ MainFrame::MainFrame()
     GetStatusBar()->SetStatusStyles(4, style);
 
     // 画布
-    m_canvas = new CanvasNoteBook(this, wxID_ANY, FromDIP(1123), FromDIP(794));
+    m_canvas = new CanvasNoteBook(this, sigTree, wxID_ANY, FromDIP(1123), FromDIP(794));
 
     // 元件库
-    ToolboxPanel* toolbox = new ToolboxPanel(this);
+    m_toolbox = new ToolboxPanel(this);
     // 构造树面板
     m_sigFlowTreePanel = new SigFlowTreePanel(this, sigTree);
 
     // SigTreeNode属性栏
     m_sfnPropertyPanel = new SFNPropertyPanel(this, sigTree);
     this->Bind(EVT_SFTREE_NODE_ACTIVATED, &MainFrame::OnSFNodeActivated, this);
-    this->Bind(EVT_SFTREE_CHANGED, &MainFrame::OnSFTreeChanged, this);
 
     // 文本编辑面板
     m_verilogEditor = new SigTextEditor(this);
@@ -151,10 +152,10 @@ MainFrame::MainFrame()
 
     m_projectTreePanel->Reparent(leftSideNotebook);
     m_sigFlowTreePanel->Reparent(leftSideNotebook);
-    toolbox->Reparent(leftSideNotebook);
+    m_toolbox->Reparent(leftSideNotebook);
     leftSideNotebook->AddPage(m_projectTreePanel, "Project Manager");
     leftSideNotebook->AddPage(m_sigFlowTreePanel, "SigFlow Tree");
-    leftSideNotebook->AddPage(toolbox, "Component Library");
+    leftSideNotebook->AddPage(m_toolbox, "Component Library");
 
     Bind(wxEVT_TOOL, [=](wxCommandEvent& e) {
         int clickedId = e.GetId();
@@ -350,18 +351,10 @@ MainFrame::~MainFrame()
 
 void MainFrame::OnToolboxElement(wxCommandEvent& evt)
 {
-    /*
-    MyLog("MainFrame: received <%s>\n", evt.GetString().ToUTF8().data());
 
     wxString name = evt.GetString();
-    auto it = std::find_if(g_elements.begin(), g_elements.end(),
-        [&](const CanvasElement& e) { return e.GetName() == name; });
-    if (it == g_elements.end()) return;
-
-    CanvasElement clone = *it;
-    clone.SetPos(wxPoint(100, 100));   
     //m_canvas->AddElement(clone);     
-    m_canvas->SetCurrentComponent(name);  */
+    m_canvas->SetCurrentComponent(name);  
 }
 
 bool MirrorDirectory(const wxString& source, const wxString& dest) {
@@ -531,6 +524,9 @@ void MainFrame::DoFileOpenProject() {
                 sigTree->PrintTree();
             }
         }
+        for (auto defId : sigTree->GetDefinitions()) {
+            m_toolbox->AddDefinition(defId);
+        }
 
         progress.Update(progress.GetRange() - 1, "Creating Workspace Mirror...");
 
@@ -553,7 +549,7 @@ void MainFrame::DoFileOpenProject() {
         }
 
         progress.Update(progress.GetRange(), "Load Complete!");
-        wxCommandEvent evt(EVT_SFTREE_CHANGED);
+        wxCommandEvent evt;
         OnSFTreeChanged(evt);
     }
 }
@@ -1415,7 +1411,19 @@ void MainFrame::OnSFNodeActivated(wxCommandEvent& event) {
 void MainFrame:: OnSFTreeChanged(wxCommandEvent& event) {
     m_sigFlowTreePanel->Fresh();
     m_sfnPropertyPanel->Fresh();
+    m_canvas->Refresh();
 }
+
+void MainFrame::OnSFNodeAdded(wxCommandEvent& event) {
+    OnSFTreeChanged(event);
+    m_canvas->SigFlowNodeAdded(static_cast<SigTreeNode*>(event.GetClientData()));
+}
+
+void MainFrame::OnSFNodeDeleted(wxCommandEvent& event) {
+    OnSFTreeChanged(event);
+    m_canvas->SigFlowNodeDeleted(static_cast<SigTreeNode*>(event.GetClientData()));
+}
+
 void MainFrame::PropertyLoadNode(SigTreeNode* node) {
     m_sfnPropertyPanel->LoadNode(node);
 }

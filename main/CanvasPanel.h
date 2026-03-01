@@ -3,6 +3,7 @@
 #include <vector>
 #include <chrono>
 #include <wx/graphics.h>
+#include <wx/event.h>
 
 #include "CanvasElement.h"
 #include "Wire.h"
@@ -14,6 +15,7 @@ class HandyToolKit;
 class CanvasEventHandler;
 class MainFrame;
 class CanvasNoteBook;
+
 
 struct HoverInfo {
     wxPoint screenPos;
@@ -57,7 +59,7 @@ struct HoverInfo {
 class CanvasPanel : public wxPanel
 {
 public:
-    CanvasPanel(CanvasNoteBook* parent, size_t size_x, size_t size_y);
+    CanvasPanel(CanvasNoteBook* parent, SigFlowTree* sftree, size_t size_x, size_t size_y);
 
     // ==================== 画布及画布子窗口的事件处理 ====================
 private:
@@ -120,7 +122,15 @@ public:
 
 
     // 二级元件管理
-    void AddSecond(wxString type);
+    void SetPreview(wxString type);
+    void SetPreviewPos(wxPoint pos);
+    void AddSecond(SecondNode* sn);
+    void AddSecond(wxString type, wxPoint pos);
+    void AddModuleInst(wxString def, wxPoint pos);
+    void AddGate(GateType type, wxPoint pos);
+    //void AddContinuousAssign(wxPoint pos);
+    void DelSecond(SecondNode* sn);
+    void DelSecond(int id);
     void SecondSetPos(int i, wxPoint pos) { m_elems[i].SetPos(pos); RefreshRect(m_elems[i].GetBounds()); };
     const std::vector<SecondElement>& GetSecond() const { return m_elems; };
 
@@ -283,6 +293,7 @@ public:
         return allSelected;
     }
 
+    SigFlowTree* sftree;
     TopNode* tn;
     void SetTopNode(TopNode* node);
     void UpdateCanvasElements();

@@ -6,7 +6,6 @@
 #include "SigTree.h"
 
 wxDECLARE_EVENT(EVT_SFTREE_NODE_ACTIVATED, wxCommandEvent);
-wxDECLARE_EVENT(EVT_SFTREE_CHANGED, wxCommandEvent);
 
 class SigTreeItemData : public wxTreeItemData {
 public:

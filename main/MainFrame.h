@@ -23,9 +23,9 @@
 class ToolBars;
 class CanvasNoteBook;
 class HandyToolKit;
+class ToolboxPanel;
 
 wxDECLARE_EVENT(EVT_SFTREE_NODE_ACTIVATED, wxCommandEvent);
-wxDECLARE_EVENT(EVT_SFTREE_CHANGED, wxCommandEvent);
 
 
 class MainFrame : public wxFrame
@@ -42,6 +42,7 @@ private:
     AsyncAnalysisCenter* m_analysisCenter; // 异步中心指针
     ProjectTreePanel* m_projectTreePanel;
     SigFlowTree* sigTree;
+    ToolboxPanel* m_toolbox;
     SigFlowTreePanel* m_sigFlowTreePanel;
     SFNPropertyPanel* m_sfnPropertyPanel;
     TerminalCtrl* m_terminalCtrl;
@@ -146,6 +147,8 @@ public:
 
     void OnSFNodeActivated(wxCommandEvent& event);
     void OnSFTreeChanged(wxCommandEvent& event);
+    void OnSFNodeAdded(wxCommandEvent& event);
+    void OnSFNodeDeleted(wxCommandEvent& event);
     void PropertyLoadNode(SigTreeNode* node);
 
 private:

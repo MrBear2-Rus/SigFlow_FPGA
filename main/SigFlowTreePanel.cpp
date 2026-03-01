@@ -40,7 +40,21 @@ void SigFlowTreePanel::BuildBranch(wxTreeItemId uiParent, SigTreeNode* logicPare
             new SigTreeItemData(child)
         );
         BuildBranch(uiChild, child);
-        tree->Expand(uiChild);
+        if (fn) {
+            if (fn->GetName() == child->GetName()) {
+                tree->Expand(uiChild);
+                tree->EnsureVisible(uiChild);
+            }
+            else {
+                for (auto* cld : fn->GetChildren()) {
+                    if (cld->GetName() == child->GetName()) tree->Expand(uiChild);
+                }
+            }
+        }
+        else {
+            tree->Expand(uiChild);
+        }
+        
     }
 }
 
@@ -76,10 +90,7 @@ void SigFlowTreePanel::Fresh() {
         return;
     }
 
-    SigTreeNode* logicRoot;
-    if (fn) logicRoot = fn;
-
-    else logicRoot = sfTree->root;
+    SigTreeNode* logicRoot = sfTree->root;
     if (!logicRoot) return;
 
     wxString rootLabel;
@@ -182,8 +193,6 @@ void SigFlowTreePanel::OnAddMenu(wxCommandEvent& e) {
     sfTree->AddChild(parent, newNode.get());
 
     Fresh();
-    wxCommandEvent evt(EVT_SFTREE_CHANGED);
-    ProcessWindowEvent(evt);
 }
 
 
@@ -203,9 +212,6 @@ void SigFlowTreePanel::OnDelete(wxCommandEvent&) {
     // ---- 同步刷新 ----
     Fresh();
 
-    // ---- 通知 ----
-    wxCommandEvent evt(EVT_SFTREE_CHANGED);
-    ProcessWindowEvent(evt);
 }
 
 TopNode* SigFlowTreePanel::ShowCreateTopDialog(TopNodeType type, SigTreeNode* parent) {
@@ -387,8 +393,11 @@ SecondNode* SigFlowTreePanel::CreateModuleInstDialog(SigTreeNode* parent) {
     for (auto const& [name, defPtr] : sfTree->DefinitionTable) {
         if (defPtr->topType == TopNodeType::Module) {
             TopNode* tn = static_cast<TopNode*>(parent);
-            if (name != tn->identifier) defNames.Add(name);
-            defPointers.push_back(defPtr);
+            if (name != tn->identifier) {
+                defNames.Add(name);
+                defPointers.push_back(defPtr);
+            }
+
         }
     }
 

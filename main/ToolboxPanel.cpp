@@ -96,32 +96,21 @@ ToolboxPanel::ToolboxPanel(wxWindow* parent)
     m_displayToFile["Bit Extender"] = "extender";
 
     // Gates 分类（逻辑门）
+    LoadToolIcon("AND Gate", "andGate.svg");          // 15: Gates-AND Gate
+    m_displayToFile["AND Gate"] = "and";
+    LoadToolIcon("NAND Gate", "nandGate.svg");        // 17: Gates-NAND Gate
+    m_displayToFile["NAND Gate"] = "nand";
+    LoadToolIcon("OR Gate", "orGate.svg");            // 19: Gates-OR Gate
+    m_displayToFile["OR Gate"] = "or";
+    LoadToolIcon("NOR Gate", "norGate.svg");          // 21: Gates-NOR Gate
+    m_displayToFile["NOR Gate"] = "nor";
+    LoadToolIcon("XOR Gate", "xorGate.svg");          // 23: Gates-XOR Gate
+    m_displayToFile["XOR Gate"] = "xor";
+    LoadToolIcon("XNOR Gate", "xnorGate.svg");        // 25: Gates-XNOR Gate
+    m_displayToFile["XNOR Gate"] = "xnor";
+
     LoadToolIcon("Buffer Gate", "bufferGate.svg");    // 14: Gates-Buffer Gate
     m_displayToFile["Buffer Gate"] = "bufferGate";
-    LoadToolIcon("AND Gate", "andGate.svg");          // 15: Gates-AND Gate
-    m_displayToFile["AND Gate"] = "andGate";
-    LoadToolIcon("AND Gate (Rect)", "andGateRect.svg");// 16: Gates-AND Gate(Rect)
-    m_displayToFile["AND Gate (Rect)"] = "andGateRect";
-    LoadToolIcon("NAND Gate", "nandGate.svg");        // 17: Gates-NAND Gate
-    m_displayToFile["NAND Gate"] = "nandGate";
-    LoadToolIcon("NAND Gate (Rect)", "nandGateRect.svg");// 18: Gates-NAND Gate(Rect)
-    m_displayToFile["NAND Gate (Rect)"] = "nandGateRect";
-    LoadToolIcon("OR Gate", "orGate.svg");            // 19: Gates-OR Gate
-    m_displayToFile["OR Gate"] = "orGate";
-    LoadToolIcon("OR Gate (Rect)", "orGateRect.svg"); // 20: Gates-OR Gate(Rect)
-    m_displayToFile["OR Gate (Rect)"] = "orGateRect";
-    LoadToolIcon("NOR Gate", "norGate.svg");          // 21: Gates-NOR Gate
-    m_displayToFile["NOR Gate"] = "norGate";
-    LoadToolIcon("NOR Gate (Rect)", "norGateRect.svg");// 22: Gates-NOR Gate(Rect)
-    m_displayToFile["NOR Gate (Rect)"] = "norGateRect";
-    LoadToolIcon("XOR Gate", "xorGate.svg");          // 23: Gates-XOR Gate
-    m_displayToFile["XOR Gate"] = "xorGate";
-    LoadToolIcon("XOR Gate (Rect)", "xorGateRect.svg");// 24: Gates-XOR Gate(Rect)
-    m_displayToFile["XOR Gate (Rect)"] = "xorGateRect";
-    LoadToolIcon("XNOR Gate", "xnorGate.svg");        // 25: Gates-XNOR Gate
-    m_displayToFile["XNOR Gate"] = "xnorGate";
-    LoadToolIcon("XNOR Gate (Rect)", "xnorGateRect.svg");// 26: Gates-XNOR Gate(Rect)
-    m_displayToFile["XNOR Gate (Rect)"] = "xnorGateRect";
     LoadToolIcon("Odd Parity Gate", "parityOddGate.svg");// 27: Gates-Odd Parity Gate
     m_displayToFile["Odd Parity Gate"] = "parityOddGate";
     LoadToolIcon("Even Parity Gate", "parityEvenGate.svg");// 28: Gates-Even Parity Gate
@@ -221,8 +210,6 @@ ToolboxPanel::ToolboxPanel(wxWindow* parent)
 
     m_tree->AssignImageList(m_imgList);
 
-    MY_LOG("✅ 图像列表已关联到工具树，图像数量：" + wxString::Format("%d", m_imgList->GetImageCount()));
-
     // 字体样式
     wxFont font(wxFontInfo(11).FaceName("Segoe UI"));
     m_tree->SetFont(font);
@@ -239,10 +226,8 @@ void ToolboxPanel::LoadToolIcon(const wxString& toolName, const wxString& svgFil
 {
     wxString fullPath = SVG_FOLDER + svgFileName;
 
-    //MY_LOG("🔍 开始加载 SVG 图标：" + toolName + " → 文件路径：" + fullPath);
 
     if (!wxFileExists(fullPath)) {
-        //MY_LOG("❌ SVG 文件不存在：" + fullPath);
         return;
     }
 
@@ -307,19 +292,38 @@ void ToolboxPanel::Rebuild()
     m_tree->DeleteAllItems();
     wxTreeItemId root = m_tree->AddRoot("Logisim Tools", 0, 0);
 
+    // ========== Input/Output 分类 ==========
+    wxArrayString ioDisplayNames;
+    ioDisplayNames.Add("Pin (Input)");
+    ioDisplayNames.Add("Pin (Output)");
+    ioDisplayNames.Add("Clock");
+    ioDisplayNames.Add("Power");
+    ioDisplayNames.Add("Ground");
+    ioDisplayNames.Add("Constant");
+    ioDisplayNames.Add("Button");
+    ioDisplayNames.Add("Joystick");
+    ioDisplayNames.Add("Keyboard");
+    ioDisplayNames.Add("LED");
+    ioDisplayNames.Add("7-Segment Display");
+    ioDisplayNames.Add("Hex Digit Display");
+    ioDisplayNames.Add("LED Matrix");
+    ioDisplayNames.Add("TTY");
+
+    wxTreeItemId ioId = m_tree->AppendItem(root, "Input/Output", 0, 0);
+    m_tree->SetItemBold(ioId, true);
+    for (const auto& displayName : ioDisplayNames) {
+        wxString fileName = m_displayToFile[displayName];
+        int iconIdx = GetToolIconIndex(displayName);
+        m_tree->AppendItem(ioId, displayName, iconIdx, iconIdx,
+            new wxStringTreeItemData(fileName));
+    }
+
     // ========== Wiring 分类 ==========
     wxArrayString wiringDisplayNames;
-    wiringDisplayNames.Add("Wire");
     wiringDisplayNames.Add("Splitter");
-    wiringDisplayNames.Add("Pin (Input)");
-    wiringDisplayNames.Add("Pin (Output)");
     wiringDisplayNames.Add("Probe");
     wiringDisplayNames.Add("Tunnel");
     wiringDisplayNames.Add("Pull Resistor");
-    wiringDisplayNames.Add("Clock");
-    wiringDisplayNames.Add("Constant");
-    wiringDisplayNames.Add("Power");
-    wiringDisplayNames.Add("Ground");
     wiringDisplayNames.Add("Transmission Gate");
     wiringDisplayNames.Add("Bit Extender");
 
@@ -334,23 +338,23 @@ void ToolboxPanel::Rebuild()
 
     // ========== Gates 分类 ==========
     wxArrayString gatesDisplayNames;
-    gatesDisplayNames.Add("Buffer Gate");
+    //gatesDisplayNames.Add("Buffer Gate");
     gatesDisplayNames.Add("AND Gate");
-    gatesDisplayNames.Add("AND Gate (Rect)");
+    //gatesDisplayNames.Add("AND Gate (Rect)");
     gatesDisplayNames.Add("NAND Gate");
-    gatesDisplayNames.Add("NAND Gate (Rect)");
+    //gatesDisplayNames.Add("NAND Gate (Rect)");
     gatesDisplayNames.Add("OR Gate");
-    gatesDisplayNames.Add("OR Gate (Rect)");
+    //gatesDisplayNames.Add("OR Gate (Rect)");
     gatesDisplayNames.Add("NOR Gate");
-    gatesDisplayNames.Add("NOR Gate (Rect)");
+    //gatesDisplayNames.Add("NOR Gate (Rect)");
     gatesDisplayNames.Add("XOR Gate");
-    gatesDisplayNames.Add("XOR Gate (Rect)");
+    //gatesDisplayNames.Add("XOR Gate (Rect)");
     gatesDisplayNames.Add("XNOR Gate");
-    gatesDisplayNames.Add("XNOR Gate (Rect)");
-    gatesDisplayNames.Add("Odd Parity Gate");
-    gatesDisplayNames.Add("Even Parity Gate");
-    gatesDisplayNames.Add("Controlled Buffer");
-    gatesDisplayNames.Add("Controlled Inverter");
+    //gatesDisplayNames.Add("XNOR Gate (Rect)");
+    //gatesDisplayNames.Add("Odd Parity Gate");
+    //gatesDisplayNames.Add("Even Parity Gate");
+    //gatesDisplayNames.Add("Controlled Buffer");
+    //gatesDisplayNames.Add("Controlled Inverter");
 
     wxTreeItemId gatesId = m_tree->AppendItem(root, "Gates", 0, 0);
     m_tree->SetItemBold(gatesId, true);
@@ -361,6 +365,37 @@ void ToolboxPanel::Rebuild()
             new wxStringTreeItemData(fileName));
     }
 
+    // ==========  Block 分类 ==========
+    wxArrayString blockDisplayNames;
+    blockDisplayNames.Add("Continuous Assign");
+    blockDisplayNames.Add("Always Block");
+
+
+    wxTreeItemId blockId = m_tree->AppendItem(root, "Grammer Block", 0, 0);
+    m_tree->SetItemBold(blockId, true);
+    for (const auto& displayName : blockDisplayNames) {
+        wxString fileName = m_displayToFile[displayName];
+        int iconIdx = GetToolIconIndex(displayName);
+        m_tree->AppendItem(blockId, displayName, iconIdx, iconIdx,
+            new wxStringTreeItemData(fileName));
+    }
+
+
+    // ==========  Definition 分类 ==========
+    wxArrayString defDisplayNames;
+
+
+    wxTreeItemId defId = m_tree->AppendItem(root, "Definition", 0, 0);
+    m_def = defId;
+    m_tree->SetItemBold(defId, true);
+    for (const auto& displayName : defDisplayNames) {
+        wxString fileName = m_displayToFile[displayName];
+        int iconIdx = GetToolIconIndex(displayName);
+        m_tree->AppendItem(defId, displayName, iconIdx, iconIdx,
+            new wxStringTreeItemData(fileName));
+    }
+
+    /*
     // ========== Plexers 分类 ==========
     wxArrayString plexersDisplayNames;
     plexersDisplayNames.Add("Multiplexer");
@@ -419,27 +454,9 @@ void ToolboxPanel::Rebuild()
         int iconIdx = GetToolIconIndex(displayName);
         m_tree->AppendItem(memoryId, displayName, iconIdx, iconIdx,
             new wxStringTreeItemData(fileName));
-    }
+    }*/
 
-    // ========== Input/Output 分类 ==========
-    wxArrayString ioDisplayNames;
-    ioDisplayNames.Add("Button");
-    ioDisplayNames.Add("Joystick");
-    ioDisplayNames.Add("Keyboard");
-    ioDisplayNames.Add("LED");
-    ioDisplayNames.Add("7-Segment Display");
-    ioDisplayNames.Add("Hex Digit Display");
-    ioDisplayNames.Add("LED Matrix");
-    ioDisplayNames.Add("TTY");
-
-    wxTreeItemId ioId = m_tree->AppendItem(root, "Input/Output", 0, 0);
-    m_tree->SetItemBold(ioId, true);
-    for (const auto& displayName : ioDisplayNames) {
-        wxString fileName = m_displayToFile[displayName];
-        int iconIdx = GetToolIconIndex(displayName);
-        m_tree->AppendItem(ioId, displayName, iconIdx, iconIdx,
-            new wxStringTreeItemData(fileName));
-    }
+    /*
 
     // ========== Tools 分类 ==========
     wxArrayString toolsDisplayNames;
@@ -459,7 +476,7 @@ void ToolboxPanel::Rebuild()
         m_tree->AppendItem(toolsId, displayName, iconIdx, iconIdx,
             new wxStringTreeItemData(fileName));
     }
-
+    */
     // 展开所有分类
     wxTreeItemIdValue cookie;
     wxTreeItemId child = m_tree->GetFirstChild(root, cookie);
@@ -601,5 +618,35 @@ void ToolboxPanel::OnToolSelected(wxTreeEvent& evt)
         wxCommandEvent propEvent(wxEVT_COMMAND_MENU_SELECTED, wxID_HIGHEST + 901);
         propEvent.SetString("");
         wxPostEvent(wxGetTopLevelParent(this), propEvent);
+    }
+}
+
+
+void ToolboxPanel::AddDefinition(wxString defId) {
+    if (!m_def.IsOk()) return;
+
+    // 1. 添加子项
+    m_tree->AppendItem(m_def, defId, 0, 0, new wxStringTreeItemData(defId));
+
+    // 2. 展开父节点 m_def
+    m_tree->Expand(m_def);
+
+    // 3. (可选) 确保新添加的项在视野内
+    // m_tree->EnsureVisible(id); 
+}
+
+
+void ToolboxPanel::DelDefinition(wxString defId) {
+    if (!m_def.IsOk()) return; // m_def 节点不存在
+
+    wxTreeItemIdValue cookie;
+    wxTreeItemId child = m_tree->GetFirstChild(m_def, cookie);
+
+    while (child.IsOk()) {
+        if (m_tree->GetItemText(child) == defId) {
+            m_tree->Delete(child);
+            return; // 找到并删除后退出
+        }
+        child = m_tree->GetNextChild(m_def, cookie);
     }
 }

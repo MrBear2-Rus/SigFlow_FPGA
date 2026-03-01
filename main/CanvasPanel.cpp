@@ -32,10 +32,11 @@ EVT_KILL_FOCUS(CanvasPanel::OnKillFocus)
 EVT_SCROLL(CanvasPanel::OnScroll)
 wxEND_EVENT_TABLE()
 
-CanvasPanel::CanvasPanel(CanvasNoteBook* parent, size_t size_x, size_t size_y)
+CanvasPanel::CanvasPanel(CanvasNoteBook* parent, SigFlowTree* sftree, size_t size_x, size_t size_y)
     : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize,
         wxFULL_REPAINT_ON_RESIZE | wxBORDER_NONE),
     m_mainFrame(parent),
+    sftree(sftree),
     m_size{wxSize(size_x,size_y)},
     m_grid(20),
     m_hoverInfo{}, m_hasFocus(false),
@@ -586,6 +587,7 @@ void CanvasPanel::SetCurrentComponent(const wxString& componentName) {
     m_toolStateMachine->SetCurrentTool(ToolType::COMPONENT_TOOL);
     m_toolStateMachine->SetComponentState(ComponentToolState::COMPONENT_PREVIEW);
     m_CanvasEventHandler->SetCurrentComponent(componentName);
+    SetPreview(componentName);
 }
 
 void CanvasPanel::UpdateHoverInfo(const wxPoint& screenPos) {
@@ -667,9 +669,12 @@ void CanvasPanel::UpdateHoverInfo(const wxPoint& screenPos) {
     // 修复后：
     wxString zoom = wxString::Format("%d%%", int(m_scale * 100));
 
-    m_mainFrame->SetStatusText(hover, 1);
-    m_mainFrame->SetStatusText(cursor, 2); 
-    m_mainFrame->SetStatusText(zoom, 3);
+    if (m_mainFrame) { // 检查是否正在退出
+        m_mainFrame->SetStatusText(hover, 1);
+        m_mainFrame->SetStatusText(cursor, 2);
+        m_mainFrame->SetStatusText(zoom, 3);
+    }
+
     m_CanvasEventHandler->UpdateHoverInfo(m_hoverInfo);
 }
 
@@ -940,61 +945,67 @@ void CanvasPanel::CompleteAutoWiring() {
 }
 
 void CanvasPanel::CompleteAutoLayout() {
-    std::vector<SecondElement>& elems = m_elems;
-    std::vector<int> topoLevels = SigFlowTree::SecondNodeTopoLevel(tn);
-    std::unordered_map<int, int> levelBounds = GetLevelBounds(topoLevels, &elems);
-
-    std::unordered_map<int, int> levelCurrentY;
-    std::unordered_map<int, int> levelStartX;
-
-    wxPoint start = wxPoint(60, 40);
-
-    int currentX = start.x + 100; // 画布初始左边距
-    int totalLevels = 0;
-    for (auto const& [lev, width] : levelBounds) {
-        totalLevels = std::max(totalLevels, lev);
+    if (m_elems.empty()) {
+        m_tbox = TopModuleBox(wxPoint(60, 40), wxPoint(700, 440), tn);
     }
+    else {
+        std::vector<SecondElement>& elems = m_elems;
+        std::vector<int> topoLevels = SigFlowTree::SecondNodeTopoLevel(tn);
+        std::unordered_map<int, int> levelBounds = GetLevelBounds(topoLevels, &elems);
 
-    for (int l = 0; l <= totalLevels; ++l) {
-        if (levelBounds.count(l)) {
-            levelStartX[l] = currentX;
-            currentX += levelBounds[l] + 100;
-        }
-    }
+        std::unordered_map<int, int> levelCurrentY;
+        std::unordered_map<int, int> levelStartX;
 
-    for (size_t i = 0; i < topoLevels.size(); ++i) {
-        int lev = topoLevels[i];
-        SecondElement& ce = elems[i];
+        wxPoint start = wxPoint(60, 40);
 
-        // 初始化该层的 Y 坐标起始值
-        if (levelCurrentY.find(lev) == levelCurrentY.end()) {
-            levelCurrentY[lev] = start.y + 40; // 画布初始上边距
+        int currentX = start.x + 100; // 画布初始左边距
+        int totalLevels = 0;
+        for (auto const& [lev, width] : levelBounds) {
+            totalLevels = std::max(totalLevels, lev);
         }
 
-        // 获取当前元件的尺寸（从 GetBounds 中获取）
-        wxRect rect = ce.GetBounds();
+        for (int l = 0; l <= totalLevels; ++l) {
+            if (levelBounds.count(l)) {
+                levelStartX[l] = currentX;
+                currentX += levelBounds[l] + 100;
+            }
+        }
 
-        // 计算位置：
-        // X 使用预存的该层起始 X
-        // Y 使用该层当前的累计 Y
-        wxPoint targetPos(levelStartX[lev], levelCurrentY[lev]);
-        ce.SetPos(targetPos);
+        for (size_t i = 0; i < topoLevels.size(); ++i) {
+            int lev = topoLevels[i];
+            SecondElement& ce = elems[i];
 
-        // 更新该层下一元件的 Y 坐标：当前高度 + 元件自身高度 + 间隔20
-        levelCurrentY[lev] += rect.GetHeight() + 60;
+            // 初始化该层的 Y 坐标起始值
+            if (levelCurrentY.find(lev) == levelCurrentY.end()) {
+                levelCurrentY[lev] = start.y + 40; // 画布初始上边距
+            }
+
+            // 获取当前元件的尺寸（从 GetBounds 中获取）
+            wxRect rect = ce.GetBounds();
+
+            // 计算位置：
+            // X 使用预存的该层起始 X
+            // Y 使用该层当前的累计 Y
+            wxPoint targetPos(levelStartX[lev], levelCurrentY[lev]);
+            ce.SetPos(targetPos);
+
+            // 更新该层下一元件的 Y 坐标：当前高度 + 元件自身高度 + 间隔20
+            levelCurrentY[lev] += rect.GetHeight() + 60;
+        }
+        int maxY = 0;
+        if (!levelCurrentY.empty()) {
+            auto it = std::max_element(levelCurrentY.begin(), levelCurrentY.end(),
+                [](const std::pair<int, int>& a, const std::pair<int, int>& b) {
+                    return a.second < b.second; // 比较 value
+                });
+
+            maxY = it->second;
+            // 如果需要对应的层级(Key): int maxKey = it->first;
+        }
+        wxPoint end = wxPoint(levelStartX[totalLevels] + levelBounds[totalLevels] + 100, maxY + 80);
+        m_tbox = TopModuleBox(start, end, tn);
     }
-    int maxY = 0;
-    if (!levelCurrentY.empty()) {
-        auto it = std::max_element(levelCurrentY.begin(), levelCurrentY.end(),
-            [](const std::pair<int, int>& a, const std::pair<int, int>& b) {
-                return a.second < b.second; // 比较 value
-            });
-
-        maxY = it->second;
-        // 如果需要对应的层级(Key): int maxKey = it->first;
-    }
-    wxPoint end = wxPoint(levelStartX[totalLevels] + levelBounds[totalLevels] + 100, maxY + 80);
-    m_tbox = TopModuleBox(start, end, tn);
+    
 }
 
 void CanvasPanel::UpdateCanvasElements(){
@@ -1056,7 +1067,127 @@ wxString CanvasPanel::GetNote() {
 }
 
 
-void CanvasPanel::AddSecond(wxString type) {
-    SecondNode* sn;
+void CanvasPanel::AddGate(GateType type, wxPoint pos) {
+    extern std::vector<SecondElement> g_elements;
 
+    GateInstNode* gn = new GateInstNode("new_"+SigFlowTree::ToString(type)+"_inst", type);
+    gn = static_cast<GateInstNode*>(sftree->AddChild(tn, gn));
+    Refresh();
+}
+
+void CanvasPanel::AddModuleInst(wxString def, wxPoint pos) {
+    extern std::vector<SecondElement> g_elements;
+    ModuleInstNode* mn = new ModuleInstNode("new_"+ def.ToStdString() + "_inst", def.ToStdString());
+
+    mn = static_cast<ModuleInstNode*>(sftree->AddChild(tn, mn));
+    Refresh();
+}
+
+void CanvasPanel::AddSecond(SecondNode* sn) {
+    extern std::vector<SecondElement> g_elements;
+    SecondElement s = SecondElement(sn, g_elements);
+    if (m_previewElement.GetIdentifier() == s.GetIdentifier()) {
+        s.SetPos(m_previewElement.GetPos());
+    }
+    else  s.SetPos(wxPoint(0, 0));
+    m_elems.push_back(s);
+    RefreshRect(s.GetBounds());
+}
+
+void CanvasPanel::AddSecond(wxString type, wxPoint pos) {
+    GateType gt = SigFlowTree::GateTypeFromString(type.ToStdString());
+    if (gt != GateType::Unknown) AddGate(gt, pos);
+    else AddModuleInst(type, pos);
+}
+
+void CanvasPanel::SetPreview(wxString type) {
+    GateType gt = SigFlowTree::GateTypeFromString(type.ToStdString());
+    if (gt != GateType::Unknown) {
+        extern std::vector<SecondElement> g_elements;
+
+        GateInstNode* gn = new GateInstNode("new_" + SigFlowTree::ToString(gt) + "_inst", gt);
+
+        SecondElement se = SecondElement(gn, g_elements);
+        se.SetPos(wxPoint(0, 0));
+        m_previewElement = se;
+        RefreshRect(se.GetBounds());
+    }
+    else {
+        extern std::vector<SecondElement> g_elements;
+        ModuleInstNode* mn = new ModuleInstNode("new_" + type.ToStdString() + "_inst", type.ToStdString());
+        sftree->LinkSingleInstWithDef(mn);
+        if (mn->Definition) {
+            wxCommandEvent evt;
+            ProcessWindowEvent(evt);
+
+            SecondElement se = SecondElement(mn, g_elements);
+            se.SetPos(wxPoint(0, 0));
+            m_previewElement = se;
+            Refresh();
+        }
+        else {
+
+        }
+    };
+}
+
+
+void CanvasPanel::SetPreviewPos(wxPoint pos) {
+    m_previewElement.SetPos(pos);
+    RefreshRect(m_previewElement.GetBounds());
+}
+
+
+void CanvasPanel::DelSecond(SecondNode* sn) {
+    // 1. 查找要删除元素的索引
+    int targetIdx = -1;
+    for (int i = 0; i < m_elems.size(); ++i) {
+        if (m_elems[i].self == sn) {
+            targetIdx = i;
+            break;
+        }
+    }
+
+    if (targetIdx == -1) return; // 没找到，直接返回
+
+    // 2. 清理选中索引 vector (m_selElemIdx)
+    // 移除等于 targetIdx 的索引
+    m_selElemIdx.erase(
+        std::remove(m_selElemIdx.begin(), m_selElemIdx.end(), targetIdx),
+        m_selElemIdx.end()
+    );
+
+    // 3. 将所有大于 targetIdx 的索引减 1 (因为元素被删了，后面的元素索引前移)
+    for (int& idx : m_selElemIdx) {
+        if (idx > targetIdx) {
+            idx--;
+        }
+    }
+
+    // 4. 最后删除 m_elems 中的元素
+    m_elems.erase(m_elems.begin() + targetIdx);
+}
+
+void CanvasPanel::DelSecond(int id) {
+    // 1. 安全检查：确保索引在有效范围内
+    if (id < 0 || id >= (int)m_elems.size()) {
+        return;
+    }
+
+    // 2. 清理选中索引数组 (m_selElemIdx)
+    // 2a. 移除等于该 id 的索引 (如果该元素当前被选中)
+    m_selElemIdx.erase(
+        std::remove(m_selElemIdx.begin(), m_selElemIdx.end(), id),
+        m_selElemIdx.end()
+    );
+
+    // 2b. 将所有大于该 id 的索引减 1
+    for (int& selIdx : m_selElemIdx) {
+        if (selIdx > id) {
+            selIdx--;
+        }
+    }
+
+    // 3. 删除 m_elems 中的元素
+    m_elems.erase(m_elems.begin() + id);
 }

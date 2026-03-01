@@ -1,4 +1,5 @@
 ﻿#include "SigTree.h"
+#include "MainFrame.h"
 
 #include <json/json.h>
 #include <iostream>
@@ -19,7 +20,7 @@ SecondNodeType isTSNodeSecond(std::string node_type);
 bool isTSNodeNet(std::string node_type);
 void CollectSigTreeNodeInfoTS(SigTreeNode* node, TSNode& TSnode, std::string filepath, std::string code);
 
-SigFlowTree::SigFlowTree() {
+SigFlowTree::SigFlowTree(MainFrame* parent): m_parent(parent) {
     const char* top_temp = R"(
                 ;; 1. 模块定义捕获（独立，保证只要有模块名就能匹配）
                 (module_declaration
@@ -718,6 +719,20 @@ void SigFlowTree::ConstructInstanceTable() {
     }
 }
 
+std::vector<std::string> SigFlowTree::GetDefinitions() {
+    std::vector<std::string> defs;
+
+    // 预分配内存以提高性能（可选，但推荐）
+    defs.reserve(DefinitionTable.size());
+
+    // 遍历 Map，提取所有的键（Definition Name）
+    for (auto const& [name, node] : DefinitionTable) {
+        defs.push_back(name);
+    }
+
+    return defs;
+}
+
 void SigFlowTree::LinkInstsWithDefs() {
     // 1. 遍历所有的实例节点
     for (auto& pair : InstanceTable) {
@@ -739,30 +754,41 @@ void SigFlowTree::LinkSingleInstWithDef(ModuleInstNode* inst) {
 
         // 2. 同步端口属性（方向等）
         // 这一步是确保实例的行为与其定义的模板一致
-        for (auto& instPort : inst->inout_ports) {
-            auto defInPortIt = std::find_if(def->GetInPorts().begin(), def->GetInPorts().end(),
-                [&instPort](const Port& p) {
-                    return p.identifier == instPort.identifier;
-                });
-            auto defOutPortIt = std::find_if(def->GetOutPorts().begin(), def->GetOutPorts().end(),
-                [&instPort](const Port& p) {
-                    return p.identifier == instPort.identifier;
-                });
+        if (inst->inout_ports.size() > 0) {
+            for (auto& instPort : inst->inout_ports) {
+                auto defInPortIt = std::find_if(def->GetInPorts().begin(), def->GetInPorts().end(),
+                    [&instPort](const Port& p) {
+                        return p.identifier == instPort.identifier;
+                    });
+                auto defOutPortIt = std::find_if(def->GetOutPorts().begin(), def->GetOutPorts().end(),
+                    [&instPort](const Port& p) {
+                        return p.identifier == instPort.identifier;
+                    });
 
-            if (defInPortIt != def->GetInPorts().end()) {
-                // 同步来自定义的关键元数据
-                instPort.direction = defInPortIt->direction;
-                inst->in_ports.push_back(instPort);
-            }
-            else if(defOutPortIt != def->GetOutPorts().end()) {
-                instPort.direction = defOutPortIt->direction;
-                inst->out_ports.push_back(instPort);
+                if (defInPortIt != def->GetInPorts().end()) {
+                    // 同步来自定义的关键元数据
+                    instPort.direction = defInPortIt->direction;
+                    inst->in_ports.push_back(instPort);
+                }
+                else if (defOutPortIt != def->GetOutPorts().end()) {
+                    instPort.direction = defOutPortIt->direction;
+                    inst->out_ports.push_back(instPort);
 
+                }
+
+                // 如果没找到，instPort.direction 保持默认或之前状态
             }
-            
-            // 如果没找到，instPort.direction 保持默认或之前状态
+            inst->inout_ports.clear();
         }
-        inst->inout_ports.clear();
+        else {
+            for (auto p : def->GetInPorts()) {
+                inst->in_ports.push_back(p);
+            }
+            for (auto p : def->GetOutPorts()) {
+                inst->out_ports.push_back(p);
+            }
+        }
+
     }
     else {
         // 找不到定义，置为空以防野指针
@@ -1131,7 +1157,7 @@ void SigTreeNode::RemoveChild(SigTreeNode* child) {
     if (it == children.end())
         return;
 
-    (*it)->parent = nullptr;
+    //(*it)->parent = nullptr;
     children.erase(it);
 }
 
@@ -1169,7 +1195,9 @@ void SigFlowTree::RemoveChild(SigTreeNode* parent, SigTreeNode* child) {
 
     UnregisterNodeRecursive(child);
     parent->RemoveChild(child);
-    
+    wxCommandEvent evt(EVT_SIGFLOWNODE_DEL);
+    evt.SetClientData(child);
+    wxPostEvent(m_parent->GetEventHandler(), evt);
 }
 
 SigTreeNode* SigFlowTree::AddChild(SigTreeNode* parent, SigTreeNode* externalNode) {
@@ -1196,6 +1224,9 @@ SigTreeNode* SigFlowTree::AddChild(SigTreeNode* parent, SigTreeNode* externalNod
     // C. 物理挂载 (此时 AddChild 应当总能成功)
     if (parent) {
         parent->AddChild(safeNode);
+        wxCommandEvent event(EVT_SIGFLOWNODE_ADD);
+        event.SetClientData(safeNode);
+        wxPostEvent(m_parent->GetEventHandler(), event);
     }
     else {
         this->root = static_cast<ProjectNode*>(safeNode);
@@ -1424,6 +1455,25 @@ void GateInstNode::Print() {
     SecondNode::Print();
 }
 
+ModuleInstNode::ModuleInstNode(std::string id, TopNode* Definition) :SecondNode(id, SecondNodeType::ModuleInstance) {
+    SetDefinition(Definition);
+    SetDefinition(Definition->identifier);
+}
+
+void ModuleInstNode::SetDefinition(std::string defIdentifier) {
+    this->defIdentifier = defIdentifier;
+}
+
+void ModuleInstNode::SetDefinition(TopNode* Definition) {
+    this->Definition = Definition;
+    inout_ports.clear();
+    for (auto p : Definition->GetInPorts()) {
+        in_ports.push_back(p);
+    }
+    for (auto p : Definition->GetOutPorts()) {
+        out_ports.push_back(p);
+    }
+}
 
 std::string ModuleInstNode::ToVerilog() {
     std::string v = std::format("{} ", identifier);

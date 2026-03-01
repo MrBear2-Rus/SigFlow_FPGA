@@ -46,7 +46,7 @@ void SFNPropertyPanel::Fresh_Self() {
     LoadNode(m_node);
     Thaw();
 
-    wxCommandEvent evt(EVT_SFTREE_CHANGED);
+    wxCommandEvent evt;
     wxPostEvent(this, evt);
 
     m_reloading = false;
@@ -194,7 +194,7 @@ void SFNPropertyPanel::AddChangeTextRow(const wxString& label, std::string& valu
 
         // 不在当前事件栈中触发 LoadNode 或 UI 重建
         CallAfter([this]() {
-            wxCommandEvent evt(EVT_SFTREE_CHANGED);
+            wxCommandEvent evt;
             wxPostEvent(this, evt);
             });
 
@@ -288,7 +288,7 @@ void SFNPropertyPanel::AddPortRow(std::vector<Port>& ps, PortDirection pd) {
 
             // 不在当前事件栈中触发 LoadNode 或 UI 重建
             CallAfter([this]() {
-                wxCommandEvent evt(EVT_SFTREE_CHANGED);
+                wxCommandEvent evt;
                 wxPostEvent(this, evt);
                 });
 
@@ -403,7 +403,7 @@ void SFNPropertyPanel::AddPortContinuousAssign(std::vector<Port>& in_ps, std::ve
 
             // 不在当前事件栈中触发 LoadNode 或 UI 重建
             CallAfter([this]() {
-                wxCommandEvent evt(EVT_SFTREE_CHANGED);
+                wxCommandEvent evt;
                 wxPostEvent(this, evt);
                 });
 
@@ -470,7 +470,7 @@ void SFNPropertyPanel::AddPortContinuousAssign(std::vector<Port>& in_ps, std::ve
 
             // 不在当前事件栈中触发 LoadNode 或 UI 重建
             CallAfter([this]() {
-                wxCommandEvent evt(EVT_SFTREE_CHANGED);
+                wxCommandEvent evt;
                 wxPostEvent(this, evt);
                 });
 
@@ -506,7 +506,7 @@ void SFNPropertyPanel::AddPortContinuousAssign(std::vector<Port>& in_ps, std::ve
     addBtn->Bind(wxEVT_BUTTON, [this, &in_ps](wxCommandEvent&) {
         // A. 准备默认数据
         Port newPort;
-        newPort.identifier = "In" + std::to_string(in_ps.size());
+        newPort.identifier = "In" + std::to_string(in_ps.size()+1);
         newPort.direction = PortDirection::In;
 
         // B. 更新数据模型
@@ -584,7 +584,7 @@ void SFNPropertyPanel::AddPortRowWithConn(const wxString& name, PortDirection di
 
         // 不在当前事件栈中触发 LoadNode 或 UI 重建
         CallAfter([this]() {
-            wxCommandEvent evt(EVT_SFTREE_CHANGED);
+            wxCommandEvent evt;
             wxPostEvent(this, evt);
             });
 
@@ -643,7 +643,7 @@ void SFNPropertyPanel::AddChoicesRow(const wxString& label,
         boundValue = choice->GetStringSelection().ToStdString();
 
         CallAfter([this]() {
-            wxCommandEvent evt(EVT_SFTREE_CHANGED, this->GetId());
+            wxCommandEvent evt(this->GetId());
             wxPostEvent(this, evt);
             });
         });
@@ -706,7 +706,7 @@ void SFNPropertyPanel::Add_BN_OR_B_Expression(wxSizer* groupSizer, std::vector<P
                 exp.delay = (float)val;
                 // 触发树变更事件，通知其他组件更新
                 this->CallAfter([this]() {
-                    wxPostEvent(this, wxCommandEvent(EVT_SFTREE_CHANGED));
+                    wxPostEvent(this, wxCommandEvent());
                     });
             }
         }
@@ -721,7 +721,7 @@ void SFNPropertyPanel::Add_BN_OR_B_Expression(wxSizer* groupSizer, std::vector<P
     opChoice->Bind(wxEVT_CHOICE, [this, &exp](wxCommandEvent& e) {
         exp.is_blocking = (e.GetSelection() == 0); // 0是 "=", 1是 "<="
         this->CallAfter([this]() {
-            wxPostEvent(this, wxCommandEvent(EVT_SFTREE_CHANGED));
+            wxPostEvent(this, wxCommandEvent());
             });
         });
 
@@ -735,7 +735,7 @@ void SFNPropertyPanel::Add_BN_OR_B_Expression(wxSizer* groupSizer, std::vector<P
             *dataPtr = ctrl->GetValue().ToStdString();
 
             this->CallAfter([this]() {
-                wxPostEvent(this, wxCommandEvent(EVT_SFTREE_CHANGED));
+                wxPostEvent(this, wxCommandEvent());
                 });
         }
         event.Skip();
@@ -831,7 +831,7 @@ void SFNPropertyPanel::Add_BN_OR_B_Port(wxSizer* groupSizer, Port& p) {
 
         // 不在当前事件栈中触发 LoadNode 或 UI 重建
         CallAfter([this]() {
-            wxCommandEvent evt(EVT_SFTREE_CHANGED);
+            wxCommandEvent evt;
             wxPostEvent(this, evt);
             });
 

@@ -3,8 +3,15 @@
 #include <vector>
 #include <tree_sitter/api.h>
 #include <slang/ast/Compilation.h>
+#include <wx/event.h>
 
 #include "CanvasElement.h"
+
+wxDECLARE_EVENT(EVT_SIGFLOWNODE_ADD, wxCommandEvent);
+wxDECLARE_EVENT(EVT_SIGFLOWNODE_DEL, wxCommandEvent);
+wxDECLARE_EVENT(EVT_SIGFLOWNODE_CHANGED, wxCommandEvent);
+
+class MainFrame;
 
 class Arena {
     std::vector<std::unique_ptr<char[]>> blocks;
@@ -309,14 +316,15 @@ class ModuleInstNode : public SecondNode {
 public:
     std::string defIdentifier;
     TopNode* Definition;
-    int magic_check = 0x12345678;
+
     ModuleInstNode() : SecondNode(SecondNodeType::ModuleInstance) {};
     ModuleInstNode(std::string id, std::string def) :SecondNode(id, SecondNodeType::ModuleInstance), defIdentifier(def) {};
-    ModuleInstNode(std::string id, TopNode* Definition) :SecondNode(id, SecondNodeType::ModuleInstance), Definition(Definition) {};
+    ModuleInstNode(std::string id, TopNode* Definition);
 
     std::vector<Port> inout_ports;
 
-
+    void SetDefinition(std::string defIdentifier);
+    void SetDefinition(TopNode* Definition);
 
     std::string ToVerilog() override;
     std::string GetName() override;
@@ -393,6 +401,8 @@ public:
 
 class SigFlowTree {
 public:
+    MainFrame* m_parent;
+
     Arena arena;
     ProjectNode* root;
 
@@ -412,7 +422,7 @@ public:
     std::map<std::string, ModuleInstNode*> InstanceTable;
     std::map<std::string, SignalNode*> SignalTable;
 
-    SigFlowTree();
+    SigFlowTree(MainFrame* parent);
     void LoadProject(std::string projectPath);
     void UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot, std::string& filePath, std::string& code);
     void UpdateTreeFromSlang(slang::ast::Compilation* compilation);
@@ -432,6 +442,7 @@ public:
     void HangInst(ModuleInstNode* inst);
     void ConstructDefinitionTable();
     void ConstructInstanceTable();
+    std::vector<std::string> GetDefinitions();
 
 
     // 节点查询

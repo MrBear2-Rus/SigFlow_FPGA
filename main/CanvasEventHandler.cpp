@@ -327,7 +327,7 @@ void CanvasEventHandler::HandleComponentTool() {
         m_hoverInfo.snappedPos.y);*/
 
     if (!m_currentComponent.IsEmpty()) {
-        //m_canvas->AddElement(m_currentComponent, m_hoverInfo.snappedPos);
+        m_canvas->AddSecond(m_currentComponent, m_hoverInfo.snappedPos);
         m_canvas->SetStatus(wxString::Format("Placed: %s, Snapped to (%d, %d)", m_currentComponent, m_hoverInfo.snappedPos.x, m_hoverInfo.snappedPos.y));
         SetCurrentTool(ToolType::SELECT_TOOL);
         m_currentComponent.Clear(); // 清空当前元件
@@ -720,7 +720,7 @@ void CanvasEventHandler::OnCanvasMouseMove(wxMouseEvent& evt) {
     // 元件放置预览
     else if (m_toolStateMachine->GetComponentState() == ComponentToolState::COMPONENT_PREVIEW) {
         wxPoint snappedPos = m_hoverInfo.snappedPos;
-        m_canvas->SetPreviewElement(m_currentComponent, snappedPos);
+        m_canvas->SetPreviewPos(snappedPos);
         m_canvas->SetStatus(wxString::Format("Placed %s: (%d, %d)", m_currentComponent, snappedPos.x, snappedPos.y));
         m_eventHandled = true;
     }
