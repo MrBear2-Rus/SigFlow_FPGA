@@ -1,0 +1,225 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\3rd\json\jsoncpp.cpp" />
+    <ClCompile Include="..\3rd\tree-sitter-verilog\src\parser.c" />
+    <ClCompile Include="..\3rd\tree-sitter\lib\src\lib.c" />
+    <ClCompile Include="AsyncAnalysisCenter.cpp" />
+    <ClCompile Include="CanvasElement.cpp" />
+    <ClCompile Include="CanvasModel.cpp" />
+    <ClCompile Include="CanvasNoteBook.cpp" />
+    <ClCompile Include="CanvasPanel.cpp" />
+    <ClCompile Include="CanvasTextElement.cpp" />
+    <ClCompile Include="cMain.cpp" />
+    <ClCompile Include="MainFrame.cpp" />
+    <ClCompile Include="MainMenuBar.cpp" />
+    <ClCompile Include="PluginManager.cpp" />
+    <ClCompile Include="PluginStore.cpp" />
+    <ClCompile Include="ProjectTreePanel.cpp" />
+    <ClCompile Include="HandyToolKit.cpp" />
+    <ClCompile Include="SFNPropertyPanel.cpp" />
+    <ClCompile Include="SigFlowTreePanel.cpp" />
+    <ClCompile Include="SigTextEditor.cpp" />
+    <ClCompile Include="SigTree.cpp" />
+    <ClCompile Include="SVGParser.cpp" />
+    <ClCompile Include="TerminalController.cpp" />
+    <ClCompile Include="TerminalCtrl.cpp" />
+    <ClCompile Include="ToolboxModel.cpp" />
+    <ClCompile Include="ToolboxPanel.cpp" />
+    <ClCompile Include="TreeSitterLinter.cpp" />
+    <ClCompile Include="CanvasEventHandler.cpp" />
+    <ClCompile Include="ToolStateMachine.cpp" />
+    <ClCompile Include="VerilogStructuring.cpp" />
+    <ClCompile Include="Wire.cpp" />
+    <ClCompile Include="Simulation\SimulationEngine.cpp" />
+    <ClCompile Include="Simulation\VerilatorRunner.cpp" />
+    <ClCompile Include="Simulation\ProcessRunner.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\3rd\nanosvg\nanosvg.h" />
+    <ClInclude Include="AsyncAnalysisCenter.h" />
+    <ClInclude Include="CanvasElement.h" />
+    <ClInclude Include="CanvasModel.h" />
+    <ClInclude Include="CanvasNoteBook.h" />
+    <ClInclude Include="CanvasPanel.h" />
+    <ClInclude Include="CanvasTextElement.h" />
+    <ClInclude Include="MainFrame.h" />
+    <ClInclude Include="MainMenuBar.h" />
+    <ClInclude Include="my_log.h" />
+    <ClInclude Include="HandyToolKit.h" />
+    <ClInclude Include="PluginManager.h" />
+    <ClInclude Include="PluginStore.h" />
+    <ClInclude Include="ProjectTreePanel.h" />
+    <ClInclude Include="SFNPropertyPanel.h" />
+    <ClInclude Include="SigFlowTreePanel.h" />
+    <ClInclude Include="SigTextEditor.h" />
+    <ClInclude Include="SigTree.h" />
+    <ClInclude Include="TerminalController.h" />
+    <ClInclude Include="TerminalCtrl.h" />
+    <ClInclude Include="ToolboxModel.h" />
+    <ClInclude Include="ToolboxPanel.h" />
+    <ClInclude Include="CanvasEventHandler.h" />
+    <ClInclude Include="ToolStateMachine.h" />
+    <ClInclude Include="TreeSitterLinter.h" />
+    <ClInclude Include="VerilogStructuring.h" />
+    <ClInclude Include="Wire.h" />
+    <ClInclude Include="Simulation\SimulationEngine.h" />
+    <ClInclude Include="Simulation\VerilatorRunner.h" />
+    <ClInclude Include="Simulation\ProcessRunner.h" />
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>16.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{2b96978e-1aba-4660-b3a9-dc26c6889c83}</ProjectGuid>
+    <RootNamespace>t1</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>main</ProjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v145</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v145</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v145</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v145</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="GlobalConfig.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="GlobalConfig.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="GlobalConfig.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="GlobalConfig.props" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LibraryPath>$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(ProjectDir)external\slang-sdk\lib;$(WXWIN)\lib\vc_dll;</LibraryPath>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(WXWIN)\include;$(WXWIN)\include\msvc</IncludePath>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;WIN32;__WXMSW__;_WINDOWS;NOPCH;_CRT_SECURE_NO_WARNINGS;SLANG_DEBUG;_ITERATOR_DEBUG_LEVEL=2;WXUSINGDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>wxmsw32ud_core.lib;wxbase32ud.lib;wxtiffd.lib;wxjpegd.lib;wxpngd.lib;wxzlibd.lib;wxregexud.lib;wxexpatd.lib;winmm.lib;comctl32.lib;rpcrt4.lib;wsock32.lib;wininet.lib;advapi32.lib;svlang.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <Manifest>
+      <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
+    </Manifest>
+    <PostBuildEvent>
+      <Command>xcopy /Y /D /I "$(SolutionDir)3rd\wxWidgets-3.2.9\lib\vc_x64_dll\*.dll" "$(OutDir)\"
+xcopy /Y /D /I "$(SolutionDir)external\slang-sdk\*.dll" "$(OutDir)\"</Command>
+    </PostBuildEvent>
+    <PreBuildEvent>
+      <Command>if exist "$(OutDir)res" rd /s /q "$(OutDir)res"
+mklink /J "$(OutDir)res" "$(ProjectDir)res"
+
+if exist "$(OutDir)canvas_elements.json" del /f /q "$(OutDir)canvas_elements.json"
+mklink /H "$(OutDir)canvas_elements.json" "$(ProjectDir)canvas_elements.json"</Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
