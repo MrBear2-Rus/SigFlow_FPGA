@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <wx/wx.h>
 #include <wx/treectrl.h>
 #include <map>
@@ -28,6 +28,7 @@ private:
     void OnToolSelected(wxTreeEvent& evt);
 
     std::map<wxString, wxString> m_displayToFile;  // 显示名称 -> 文件名（无扩展名）
+    std::map<wxString, int> m_toolIconIndex;
 
     wxTreeItemId m_def;
 

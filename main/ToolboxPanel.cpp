@@ -1,4 +1,4 @@
-﻿//﻿#include "ToolboxPanel.h"
+//﻿#include "ToolboxPanel.h"
 #include "ToolboxPanel.h"
 #include "ToolboxModel.h"
 #include <wx/artprov.h>
@@ -207,7 +207,7 @@ ToolboxPanel::ToolboxPanel(wxWindow* parent)
     m_displayToFile["Menu Tool"] = "menu";
     LoadToolIcon("Label Tool", "text.svg");           // 69: Tools-Label Tool
     m_displayToFile["Label Tool"] = "text";
-
+    LoadToolIcon("BlackBoxDefinition", "blockbox.svg");
     m_tree->AssignImageList(m_imgList);
 
     // 字体样式
@@ -217,7 +217,10 @@ ToolboxPanel::ToolboxPanel(wxWindow* parent)
 
     // 构建工具树
     Rebuild();
-
+    //测试函数，测试Definition
+    AddDefinition("TestModule1");
+    AddDefinition("TestModule2");
+    AddDefinition("MyBlackBox");
     // 绑定事件
     m_tree->Bind(wxEVT_TREE_SEL_CHANGED, &ToolboxPanel::OnToolSelected, this);
 }
@@ -279,9 +282,8 @@ void ToolboxPanel::LoadToolIcon(const wxString& toolName, const wxString& svgFil
     dc.SelectObject(wxNullBitmap);
 
     int iconIndex = m_imgList->Add(finalBmp);
-
-    /*MY_LOG("✅ SVG 加载成功（等比例居中）：" + toolName +
-        " → 图标索引：" + wxString::Format("%d", iconIndex));*/
+    m_toolIconIndex[toolName] = iconIndex;
+    
 }
 
 
@@ -489,93 +491,95 @@ void ToolboxPanel::Rebuild()
 // 工具名 → 图标索引映射
 int ToolboxPanel::GetToolIconIndex(const wxString& toolName)
 {
-    static std::map<wxString, int> toolToIconMap = {
-        // 1. Wiring 分类（索引1-13）
-        {"Wire", 1},
-        {"Splitter", 2},
-        {"Pin (Input)", 3},
-        {"Pin (Output)", 4},
-        {"Probe", 5},
-        {"Tunnel", 6},
-        {"Pull Resistor", 7},
-        {"Clock", 8},
-        {"Constant", 9},
-        {"Power", 10},
-        {"Ground", 11},
-        {"Transmission Gate", 12},
-        {"Bit Extender", 13},
+    //static std::map<wxString, int> toolToIconMap = {
+    //    // 1. Wiring 分类（索引1-13）
+    //    {"Wire", 1},
+    //    {"Splitter", 2},
+    //    {"Pin (Input)", 3},
+    //    {"Pin (Output)", 4},
+    //    {"Probe", 5},
+    //    {"Tunnel", 6},
+    //    {"Pull Resistor", 7},
+    //    {"Clock", 8},
+    //    {"Constant", 9},
+    //    {"Power", 10},
+    //    {"Ground", 11},
+    //    {"Transmission Gate", 12},
+    //    {"Bit Extender", 13},
 
-        // 2. Gates 分类（索引14-30）
-        {"Buffer Gate", 14},
-        {"AND Gate", 15},
-        {"AND Gate (Rect)", 16},
-        {"NAND Gate", 17},
-        {"NAND Gate (Rect)", 18},
-        {"OR Gate", 19},
-        {"OR Gate (Rect)", 20},
-        {"NOR Gate", 21},
-        {"NOR Gate (Rect)", 22},
-        {"XOR Gate", 23},
-        {"XOR Gate (Rect)", 24},
-        {"XNOR Gate", 25},
-        {"XNOR Gate (Rect)", 26},
-        {"Odd Parity Gate", 27},
-        {"Even Parity Gate", 28},
-        {"Controlled Buffer", 29},
-        {"Controlled Inverter", 30},
+    //    // 2. Gates 分类（索引14-30）
+    //    {"Buffer Gate", 14},
+    //    {"AND Gate", 15},
+    //    {"AND Gate (Rect)", 16},
+    //    {"NAND Gate", 17},
+    //    {"NAND Gate (Rect)", 18},
+    //    {"OR Gate", 19},
+    //    {"OR Gate (Rect)", 20},
+    //    {"NOR Gate", 21},
+    //    {"NOR Gate (Rect)", 22},
+    //    {"XOR Gate", 23},
+    //    {"XOR Gate (Rect)", 24},
+    //    {"XNOR Gate", 25},
+    //    {"XNOR Gate (Rect)", 26},
+    //    {"Odd Parity Gate", 27},
+    //    {"Even Parity Gate", 28},
+    //    {"Controlled Buffer", 29},
+    //    {"Controlled Inverter", 30},
 
-        // 3. Plexers 分类（索引31-35）
-        {"Multiplexer", 31},
-        {"Demultiplexer", 32},
-        {"Decoder", 33},
-        {"Priority Encoder", 34},
-        {"Bit Selector", 35},
+    //    // 3. Plexers 分类（索引31-35）
+    //    {"Multiplexer", 31},
+    //    {"Demultiplexer", 32},
+    //    {"Decoder", 33},
+    //    {"Priority Encoder", 34},
+    //    {"Bit Selector", 35},
 
-        // 4. Arithmetic 分类（索引36-44）
-        {"Adder", 36},
-        {"Subtractor", 37},
-        {"Multiplier", 38},
-        {"Divider", 39},
-        {"Negator", 40},
-        {"Comparator", 41},
-        {"Shifter", 42},
-        {"Bit Adder", 43},
-        {"Bit Finder", 44},
+    //    // 4. Arithmetic 分类（索引36-44）
+    //    {"Adder", 36},
+    //    {"Subtractor", 37},
+    //    {"Multiplier", 38},
+    //    {"Divider", 39},
+    //    {"Negator", 40},
+    //    {"Comparator", 41},
+    //    {"Shifter", 42},
+    //    {"Bit Adder", 43},
+    //    {"Bit Finder", 44},
 
-        // 5. Memory 分类（索引45-54）
-        {"D Flip-Flop", 45},
-        {"T Flip-Flop", 46},
-        {"JK Flip-Flop", 47},
-        {"SR Flip-Flop", 48},
-        {"Register", 49},
-        {"Counter", 50},
-        {"Shift Register", 51},
-        {"Random Generator", 52},
-        {"RAM", 53},
-        {"ROM", 54},
+    //    // 5. Memory 分类（索引45-54）
+    //    {"D Flip-Flop", 45},
+    //    {"T Flip-Flop", 46},
+    //    {"JK Flip-Flop", 47},
+    //    {"SR Flip-Flop", 48},
+    //    {"Register", 49},
+    //    {"Counter", 50},
+    //    {"Shift Register", 51},
+    //    {"Random Generator", 52},
+    //    {"RAM", 53},
+    //    {"ROM", 54},
 
-        // 6. Input/Output 分类（索引55-62）
-        {"Button", 55},
-        {"Joystick", 56},
-        {"Keyboard", 57},
-        {"LED", 58},
-        {"7-Segment Display", 59},
-        {"Hex Digit Display", 60},
-        {"LED Matrix", 61},
-        {"TTY", 62},
+    //    // 6. Input/Output 分类（索引55-62）
+    //    {"Button", 55},
+    //    {"Joystick", 56},
+    //    {"Keyboard", 57},
+    //    {"LED", 58},
+    //    {"7-Segment Display", 59},
+    //    {"Hex Digit Display", 60},
+    //    {"LED Matrix", 61},
+    //    {"TTY", 62},
 
-        // 7. Tools 分类（索引63-69）
-        {"Poke Tool", 63},
-        {"Edit Tool", 64},
-        {"Select Tool", 65},
-        {"Wiring Tool", 66},
-        {"Text Tool", 67},
-        {"Menu Tool", 68},
-        {"Label Tool", 69}
-    };
+    //    // 7. Tools 分类（索引63-69）
+    //    {"Poke Tool", 63},
+    //    {"Edit Tool", 64},
+    //    {"Select Tool", 65},
+    //    {"Wiring Tool", 66},
+    //    {"Text Tool", 67},
+    //    {"Menu Tool", 68},
+    //    {"Label Tool", 69}
+    //};
     // 找不到对应工具时，默认用Wire的图标（避免空白）
-    auto it = toolToIconMap.find(toolName);
-    return (it != toolToIconMap.end()) ? it->second : 1;
+    auto it = m_toolIconIndex.find(toolName);
+    if (it != m_toolIconIndex.end())
+        return it->second;
+    return -1; // 无图标（树中该项将不显示图标）
 }
 
 // 工具激活事件（双击）
@@ -625,14 +629,13 @@ void ToolboxPanel::OnToolSelected(wxTreeEvent& evt)
 void ToolboxPanel::AddDefinition(wxString defId) {
     if (!m_def.IsOk()) return;
 
+    int iconIdx = GetToolIconIndex("BlackBoxDefinition");
+    if (iconIdx == -1) iconIdx = 0;
     // 1. 添加子项
-    m_tree->AppendItem(m_def, defId, 0, 0, new wxStringTreeItemData(defId));
+    m_tree->AppendItem(m_def, defId, iconIdx, iconIdx, new wxStringTreeItemData(defId));
 
     // 2. 展开父节点 m_def
-    m_tree->Expand(m_def);
-
-    // 3. (可选) 确保新添加的项在视野内
-    // m_tree->EnsureVisible(id); 
+    m_tree->Expand(m_def); 
 }
 
 

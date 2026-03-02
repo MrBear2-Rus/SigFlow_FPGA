@@ -1,4 +1,4 @@
-﻿#include <wx/msgdlg.h>
+#include <wx/msgdlg.h>
 #include <wx/filename.h> 
 #include <wx/sstream.h>
 #include <wx/aui/aui.h>
@@ -47,7 +47,19 @@ enum {
 };
 
 MainFrame::MainFrame()
-    : wxFrame(nullptr, wxID_ANY, "SigFlow")
+    : wxFrame(nullptr, wxID_ANY, "SigFlow"),
+    snap_version(0),               // 初始化
+    m_isModified(false),
+    m_verilogEditor(nullptr),       // 先置空
+    m_analysisCenter(nullptr),
+    m_projectTreePanel(nullptr),
+    sigTree(nullptr),
+    m_toolbox(nullptr),
+    m_sigFlowTreePanel(nullptr),
+    m_sfnPropertyPanel(nullptr),
+    m_terminalCtrl(nullptr),
+    m_pluginMgr(nullptr),
+    m_refreshTimer(nullptr)
 {
     // 图标
     wxInitAllImageHandlers();
@@ -345,8 +357,11 @@ MainFrame::MainFrame()
 MainFrame::~MainFrame()
 {
     m_refreshTimer->Stop();
-    m_auiMgr.UnInit();   // �����ֶ�����ʼ��
-    
+    delete m_refreshTimer;
+    m_auiMgr.UnInit(); 
+
+    m_verilogEditor = nullptr;
+    m_auiMgr.UnInit();
 }
 
 void MainFrame::OnToolboxElement(wxCommandEvent& evt)
@@ -1346,6 +1361,8 @@ wxString MainFrame::GetWorkspaceCopyPath(const wxString& m_currentFilePath) {
 
 
 void MainFrame::OnRefreshTimer(wxTimerEvent& event) {
+    if (!m_verilogEditor)          // 如果编辑器已销毁，直接返回
+        return;
     if (m_verilogEditor->GetModify() && snap_version != m_verilogEditor->GetSnapVersion()) {
         snap_version = m_verilogEditor->GetSnapVersion();
         wxString fullPath = m_verilogEditor->GetCurrentPath();
