@@ -2,6 +2,10 @@
 #include "MainFrame.h"
 
 #include <wx/aui/auibar.h>
+//新增：绑定事件表
+wxBEGIN_EVENT_TABLE(CanvasNoteBook, wxAuiNotebook)
+EVT_COMMAND(wxID_ANY, wxEVT_CANVAS_MODIFIED, CanvasNoteBook::OnCanvasModified)
+wxEND_EVENT_TABLE()
 
 CanvasNoteBook::CanvasNoteBook(MainFrame* pa, SigFlowTree* sftree, wxWindowID id, size_t size_x, size_t size_y)
     : wxAuiNotebook(pa, id, wxDefaultPosition, wxDefaultSize, wxAUI_NB_DEFAULT_STYLE),
@@ -20,6 +24,17 @@ bool CanvasNoteBook::AddCanvasPage(CanvasPanel* panel, const wxString& caption, 
     return AddPage(panel, caption, select);
 }
 
+//新增： 实现 OnCanvasModified：接收子面板修改事件
+void CanvasNoteBook::OnCanvasModified(wxCommandEvent& evt) {
+    // 标记 NoteBook 为待保存
+    m_isModified = true;
+
+    // 可选：打印日志，确认收到哪个画布的修改事件
+    wxString canvasId = evt.GetString();
+    SetStatusText(wxString::Format("画布 %s 已修改", canvasId), 0);
+
+    evt.Skip();
+}
 bool CanvasNoteBook::RemoveCanvasPage(size_t page_idx) {
     if (page_idx >= cvses.size()) return false;
 
@@ -64,7 +79,7 @@ void CanvasNoteBook::AdjustScaleToFit() {
     }
 }
 
-
+//修改：保存后重置isModified
 void CanvasNoteBook::SaveOrNotWindow() {
     // 2. 弹出提示框询问用户
     if (!fn) return;
@@ -76,18 +91,21 @@ void CanvasNoteBook::SaveOrNotWindow() {
     int result = dial.ShowModal();
 
     if (result == wxID_YES) {
-        // 3. 用户选择保存
-        for (auto* c : cvses) {
-            c->Save();
-        }
         
+        for (auto* c : cvses) {
+            c->Save(); // CanvasPanel::Save() 会重置自身 isModified
+        }
+        // 新增：重置 NoteBook 的修改标记
+        m_isModified = false;
+        SetStatusText("已保存所有画布", 0);
     }
     else if (result == wxID_NO) {
-
+        // 不保存，直接重置标记（可选，根据你的需求）
+        m_isModified = false;
     }
     else if (result == wxID_CANCEL) {
-        // 5. 用户取消操作，函数应该告诉外部不应关闭窗口
-        // 这通常需要在这个函数返回一个 bool 值，或者在外部处理
+        // 取消操作，不修改标记
+        return;
     }
 
 }

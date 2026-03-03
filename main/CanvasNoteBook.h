@@ -7,6 +7,7 @@ class MainFrame;
 
 class CanvasNoteBook : public wxAuiNotebook {
 public:
+    bool m_isModified = false; // 新增：NoteBook 级修改标记
     MainFrame* mf;
     SigFlowTree* sftree;
     FileNode* fn;
@@ -40,5 +41,11 @@ public:
 
     void SigFlowNodeAdded(SigTreeNode* n);
     void SigFlowNodeDeleted(SigTreeNode* n);
+
+    // 新增：事件响应函数（接收 CanvasPanel 的修改事件）
+    void OnCanvasModified(wxCommandEvent& evt);
     void SigFlowNodeChanged(SigTreeNode* n);
+
+    wxDECLARE_EVENT_TABLE(); // 新增：事件表声明
+    
 };

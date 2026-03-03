@@ -16,7 +16,7 @@ class CanvasEventHandler;
 class MainFrame;
 class CanvasNoteBook;
 
-
+wxDECLARE_EVENT(EVT_SFTREE_NODE_ACTIVATED, wxCommandEvent);
 struct HoverInfo {
     wxPoint screenPos;
     wxPoint canvasPos;
@@ -55,16 +55,23 @@ struct HoverInfo {
     // 构造函数
     HoverInfo() : pinIndex(-1), isInputPin(false), cellIndex(-1), wireIndex(-1), elementIndex(-1), textIndex(-1), wireSectionIndex(-1){}
 };
+wxDECLARE_EVENT(wxEVT_CANVAS_MODIFIED, wxCommandEvent);
 
 class CanvasPanel : public wxPanel
 {
 public:
     CanvasPanel(CanvasNoteBook* parent, SigFlowTree* sftree, size_t size_x, size_t size_y);
-
+    // 获取修改状态
+    bool IsModified() const { return m_isModified; }
+    // 设置修改状态（内部调用，标记为修改并发送事件）
+    void SetModified(bool modified = true);
+    // 保存后重置修改状态（供外部调用，比如保存文件后）
+    void ResetModified() { m_isModified = false; }
     // ==================== 画布及画布子窗口的事件处理 ====================
 private:
     bool m_hasFocus;
-
+    bool m_isModified = false; // 标记画布是否被修改
+    wxString m_canvasId; // 画布标识（比如标签页名称/唯一ID，用于父窗口识别）
     // 鼠标事件
     void OnLeftDown(wxMouseEvent& evt);
     void OnLeftUp(wxMouseEvent& evt);
@@ -309,5 +316,8 @@ public:
     wxString GetNote();
 
     // ==================== 事件表 ====================
+    // 新增：事件处理函数声明
+    void OnSFNodeActivated(wxCommandEvent& evt);
     wxDECLARE_EVENT_TABLE();
 };
+

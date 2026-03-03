@@ -30,7 +30,10 @@ EVT_MOUSEWHEEL(CanvasPanel::OnMouseWheel)
 EVT_SET_FOCUS(CanvasPanel::OnFocus)
 EVT_KILL_FOCUS(CanvasPanel::OnKillFocus)
 EVT_SCROLL(CanvasPanel::OnScroll)
+EVT_COMMAND(wxID_ANY, EVT_SFTREE_NODE_ACTIVATED, CanvasPanel::OnSFNodeActivated) 
 wxEND_EVENT_TABLE()
+wxDEFINE_EVENT(wxEVT_CANVAS_MODIFIED, wxCommandEvent);
+
 
 CanvasPanel::CanvasPanel(CanvasNoteBook* parent, SigFlowTree* sftree, size_t size_x, size_t size_y)
     : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize,
@@ -41,7 +44,8 @@ CanvasPanel::CanvasPanel(CanvasNoteBook* parent, SigFlowTree* sftree, size_t siz
     m_grid(20),
     m_hoverInfo{}, m_hasFocus(false),
     m_hiddenTextCtrl(nullptr),
-    m_isUsingHiddenCtrl(false), m_currentEditingTextIndex(-1) {
+    m_isUsingHiddenCtrl(false), m_currentEditingTextIndex(-1) ,
+    m_isModified(false) {
     SetupHiddenTextCtrl();
 
     //滚动条
@@ -432,6 +436,8 @@ void CanvasPanel::DeleteSelected() {
 
 
     Refresh();
+    //触发改变
+    SetModified(1);
 }
 
 using json = nlohmann::json;
@@ -745,6 +751,8 @@ void CanvasPanel::CreateTextElement(const wxPoint& position, wxString text) {
     AttachHiddenTextCtrlToElement(static_cast<int>(m_textElements.size() - 1));
 
     Refresh();
+    //触发改变
+    SetModified(1);
 }
 
 void CanvasPanel::AddTextWithIns(CanvasTextElement text) {
@@ -896,6 +904,8 @@ void CanvasPanel::WirePtsSetPos(int wireIndex, int controlPointIndex, const wxPo
     m_wires[wireIndex].pts[controlPointIndex].pos = pos;
     m_wires[wireIndex].GenerateCells();
     Refresh();
+    //触发改变
+    SetModified(1);
 }
 
 
@@ -909,7 +919,9 @@ void CanvasPanel::UpdateSelection(std::vector<int> m_elemIdx, std::vector<int> m
 void CanvasPanel::AddWire(const Wire& wire) {
     m_wires.push_back(wire); 
     m_wires.back().GenerateCells(); 
-    Refresh(); 
+    Refresh();
+    //触发改变
+    SetModified(1);
 };
 
 void CanvasPanel::AddWireWithoutRecord(const Wire& wire) {
@@ -1080,7 +1092,7 @@ void CanvasPanel::CompleteAutoWiring() {
         if (!layerCurY.count(lev)) layerCurY[lev] = elemStartY;
         m_elems[i].SetPos(wxPoint(layerX[lev], layerCurY[lev]));
         layerCurY[lev] += m_elems[i].GetBounds().GetHeight() + 3 * G;
-    }
+}
 
     int maxBotY = elemStartY;
     for (auto& [_, y] : layerCurY) maxBotY = std::max(maxBotY, y);
@@ -1374,6 +1386,8 @@ void CanvasPanel::AddSecondElement(SecondNode* sn) {
     else  s.SetPos(wxPoint(0, 0));
     m_elems.push_back(s);
     RefreshRect(s.GetBounds());
+    //触发改变
+    SetModified(1);
 }
 
 void CanvasPanel::AddSecondNode(wxString type, wxPoint pos) {
@@ -1453,6 +1467,8 @@ void CanvasPanel::DelSecondElement(SecondNode* sn) {
 
     // 4. 最后删除 m_elems 中的元素
     m_elems.erase(m_elems.begin() + targetIdx);
+    //触发改变
+    SetModified(1);
 }
 
 void CanvasPanel::DelSecondElement(int id) {
@@ -1478,6 +1494,22 @@ void CanvasPanel::DelSecondElement(int id) {
     // 3. 删除 m_elems 中的元素
     m_elems.erase(m_elems.begin() + id);
 }
+void CanvasPanel::SetModified(bool modified) {
+    if (m_isModified == modified) return; // 避免重复触发
+    m_isModified = modified;
+
+    // 初始化画布标识（用 GetNote()，即 tn->identifier）
+    if (m_canvasId.IsEmpty()) {
+        m_canvasId = GetNote();
+    }
+
+    if (modified) { // 仅标记为修改时发事件
+        wxCommandEvent evt(wxEVT_CANVAS_MODIFIED);
+        evt.SetString(m_canvasId); // 附带画布标识（关键）
+        evt.SetEventObject(this);  // 附带当前画布对象
+        wxPostEvent(GetParent(), evt); // 发给父窗口 CanvasNoteBook
+    }
+}
 
 void CanvasPanel::RefreshElem(SecondNode* sn) {
     extern std::vector<SecondElement> g_elements;
@@ -1488,4 +1520,11 @@ void CanvasPanel::RefreshElem(SecondNode* sn) {
             elem = tmp;
         }
     }
+}
+void CanvasPanel::OnSFNodeActivated(wxCommandEvent& evt) {
+    // 透传事件到父窗口（CanvasNoteBook）
+    if (m_mainFrame != nullptr) { // m_mainFrame 是 CanvasPanel 中指向 CanvasNoteBook 的指针
+        wxPostEvent(m_mainFrame, evt);
+    }
+    evt.Skip(); // 允许事件继续传播
 }

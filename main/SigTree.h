@@ -212,7 +212,6 @@ public:
 class TopNode : public SigTreeNode {
 private:
 
-
 public:
 
     std::string identifier; // 标识符

@@ -375,6 +375,11 @@ void SFNPropertyPanel::AddPortRow(TopNode* tn, PortDirection pd) {
                 return;
             }
 
+            auto* dataPtr = static_cast<std::string*>(ctrl->GetClientData());
+
+            if (dataPtr) {
+                *dataPtr = ctrl->GetValue().ToStdString();
+            }
 
             m_tree->PortReName(tn, old_id, ctrl->GetValue());
 
@@ -455,6 +460,7 @@ void SFNPropertyPanel::AddPortContinuousAssign(ContinuousAssignNode* cn) {
         wxTextCtrl* editConn = new wxTextCtrl(this, wxID_ANY, p.conn, wxDefaultPosition, wxDefaultSize, wxTE_PROCESS_ENTER);
         editConn->SetHint("Connected Signal");
         editConn->SetBackgroundColour(wxColour(240, 248, 255));
+        editConn->SetClientData(&p.conn);
 
         wxString id = p.identifier;
         auto syncFunc = [this, cn, id](wxEvent& event) {
@@ -465,7 +471,12 @@ void SFNPropertyPanel::AddPortContinuousAssign(ContinuousAssignNode* cn) {
             }
 
             m_tree->PortConn(cn, id, ctrl->GetValue().ToStdString()) ;
-            
+
+            // 不在当前事件栈中触发 LoadNode 或 UI 重建
+            CallAfter([this]() {
+                wxCommandEvent evt;
+                wxPostEvent(this, evt);
+                });
 
             if (event.GetEventType() == wxEVT_TEXT_ENTER) {
                 this->GetParent()->SetFocus();
@@ -523,6 +534,11 @@ void SFNPropertyPanel::AddPortContinuousAssign(ContinuousAssignNode* cn) {
 
             m_tree->PortConn(cn, id, ctrl->GetValue().ToStdString());
 
+            // 不在当前事件栈中触发 LoadNode 或 UI 重建
+            CallAfter([this]() {
+                wxCommandEvent evt;
+                wxPostEvent(this, evt);
+                });
 
             if (event.GetEventType() == wxEVT_TEXT_ENTER) {
                 this->GetParent()->SetFocus();
@@ -620,6 +636,11 @@ void SFNPropertyPanel::AddPortRowWithConn(SecondNode* sn, const wxString& name, 
 
         m_tree->PortConn(sn, id, ctrl->GetValue().ToStdString());
 
+        // 不在当前事件栈中触发 LoadNode 或 UI 重建
+        CallAfter([this]() {
+            wxCommandEvent evt;
+            wxPostEvent(this, evt);
+            });
 
         if (event.GetEventType() == wxEVT_TEXT_ENTER) {
             this->GetParent()->SetFocus();
