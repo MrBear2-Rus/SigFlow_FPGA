@@ -1,4 +1,4 @@
-#include <wx/graphics.h> 
+﻿#include <wx/graphics.h> 
 #include <wx/dcbuffer.h>
 #include <wx/dcgraph.h>  
 #include <wx/filename.h>
@@ -441,7 +441,7 @@ void CanvasPanel::Save() {
     ProjectNode* pn = static_cast<ProjectNode*>(n);
     wxString cwd = pn->projectPath;
     wxFileName targetDir;
-    targetDir.AssignDir(cwd + "/.sigflow/workspace/canvas");
+    targetDir.AssignDir(cwd + "/.sigflow/canvas");
 
     if (!targetDir.DirExists()) {
         targetDir.Mkdir(wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
@@ -503,7 +503,7 @@ bool CanvasPanel::Read() {
     ProjectNode* pn = static_cast<ProjectNode*>(n);
     wxString cwd = pn->projectPath;
     wxString name = GetNote();
-    wxFileName filepath(cwd + "/.sigflow/workspace/canvas", name + ".json");
+    wxFileName filepath(cwd + "/.sigflow/canvas", name + ".json");
 
     if (!filepath.FileExists()) {
         return false;
