@@ -327,7 +327,7 @@ void CanvasEventHandler::HandleComponentTool() {
         m_hoverInfo.snappedPos.y);*/
 
     if (!m_currentComponent.IsEmpty()) {
-        m_canvas->AddSecond(m_currentComponent, m_hoverInfo.snappedPos);
+        m_canvas->AddSecondNode(m_currentComponent, m_hoverInfo.snappedPos);
         m_canvas->SetStatus(wxString::Format("Placed: %s, Snapped to (%d, %d)", m_currentComponent, m_hoverInfo.snappedPos.x, m_hoverInfo.snappedPos.y));
         SetCurrentTool(ToolType::SELECT_TOOL);
         m_currentComponent.Clear(); // 清空当前元件
@@ -758,6 +758,10 @@ void CanvasEventHandler::OnCanvasMouseMove(wxMouseEvent& evt) {
                 toolInfo = wxString::Format("Drawing Tool");
                 break;
             }
+            case ToolType::ERASER_TOOL: {
+                toolInfo = wxString::Format("Eraser Tool");
+                break;
+            }
         }
         m_canvas->SetStatus(toolInfo);
     }
@@ -1068,7 +1072,7 @@ void CanvasEventHandler::DeleteSelected() {
 
     for(auto& idx : m_compntIdx) {
         elements.push_back(m_canvas->GetSecond()[idx]);
-        //m_canvas->DeleteElement(idx);
+        m_canvas->DelSecondNode(idx);
     }
     for (auto& idx : m_wireIdx) {
         wires.push_back(m_canvas->GetWires()[idx]);
@@ -1105,7 +1109,7 @@ void CanvasEventHandler::HandleEraserTool() {
         m_toolStateMachine->SetEraserState(EraserToolState::CLICK_ERASER);
         if (m_hoverInfo.elementIndex != -1) {
             elements.push_back(m_canvas->GetSecond()[m_hoverInfo.elementIndex]);
-            //m_canvas->DeleteElement(m_hoverInfo.elementIndex);
+            m_canvas->DelSecondNode(m_hoverInfo.elementIndex);
         }
         if (m_hoverInfo.wireIndex != -1) {
             wires.push_back(m_canvas->GetWires()[m_hoverInfo.wireIndex]);
@@ -1154,7 +1158,7 @@ void CanvasEventHandler::FinishRectangleEraser() {
 
     for (auto& idx : m_compntDelIdx) {
         elements.push_back(m_canvas->GetSecond()[idx]);
-        //m_canvas->DeleteElement(idx);
+        m_canvas->DelSecondNode(idx);
     }
     for (auto& idx : m_wireDelIdx) {
         wires.push_back(m_canvas->GetWires()[idx]);

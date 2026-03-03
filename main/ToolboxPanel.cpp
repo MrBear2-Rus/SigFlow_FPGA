@@ -1,4 +1,4 @@
-//﻿#include "ToolboxPanel.h"
+﻿//﻿#include "ToolboxPanel.h"
 #include "ToolboxPanel.h"
 #include "ToolboxModel.h"
 #include <wx/artprov.h>
@@ -218,9 +218,9 @@ ToolboxPanel::ToolboxPanel(wxWindow* parent)
     // 构建工具树
     Rebuild();
     //测试函数，测试Definition
-    AddDefinition("TestModule1");
-    AddDefinition("TestModule2");
-    AddDefinition("MyBlackBox");
+    //AddDefinition("TestModule1");
+    //AddDefinition("TestModule2");
+    //AddDefinition("MyBlackBox");
     // 绑定事件
     m_tree->Bind(wxEVT_TREE_SEL_CHANGED, &ToolboxPanel::OnToolSelected, this);
 }

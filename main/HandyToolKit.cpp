@@ -32,27 +32,25 @@ void HandyToolKit::CreateTools(int size)
     m_tools.clear();
 
     // 定义辅助加载函数
-    auto LoadAndRescale = [&](const wxString& path) {
-        wxImage img(path, wxBITMAP_TYPE_PNG);
-        if (!img.IsOk()) return wxBitmap();
-        // 使用高质量缩放算法
-        return wxBitmap(img.Scale(size, size, wxIMAGE_QUALITY_HIGH));
+    auto GetIcon = [this](const wxString& path) {
+        wxBitmapBundle bundle = wxBitmapBundle::FromSVGFile(path, wxSize(24, 24));
+        return bundle.GetBitmap(wxSize(this->m_toolSize, this->m_toolSize));
         };
 
     // 重新定义工具矩形，x坐标基于缩放后的 size
-    m_tools.push_back({ "Choose", LoadAndRescale("res\\icons\\select.png"), wxRect(size, 0, size, size),
+    m_tools.push_back({ "Choose", GetIcon("res\\svg\\select.svg"), wxRect(size, 0, size, size),
         [this]() { m_CanvasEventHandler->SetCurrentTool(ToolType::SELECT_TOOL); } });
 
-    m_tools.push_back({ "Drag", LoadAndRescale("res\\icons\\poke.png"), wxRect(0, 0, size, size),
+    m_tools.push_back({ "Drag", GetIcon("res\\svg\\poke.svg"), wxRect(0, 0, size, size),
         [this]() { m_CanvasEventHandler->SetCurrentTool(ToolType::DRAG_TOOL); } });
 
-    m_tools.push_back({ "Eraser", LoadAndRescale("res\\icons\\eraser.png"), wxRect(size * 2, 0, size, size),
+    m_tools.push_back({ "Eraser", GetIcon("res\\svg\\eraser.svg"), wxRect(size * 2, 0, size, size),
         [this]() { m_CanvasEventHandler->SetCurrentTool(ToolType::ERASER_TOOL); } });
 
-    m_tools.push_back({ "Text", LoadAndRescale("res\\icons\\text.png"), wxRect(size * 3, 0, size, size),
+    m_tools.push_back({ "Text", GetIcon("res\\svg\\text2.svg"), wxRect(size * 3, 0, size, size),
         [this]() { m_CanvasEventHandler->SetCurrentTool(ToolType::TEXT_TOOL); } });
 
-    m_tools.push_back({ "Wire", LoadAndRescale("res\\icons\\wiring.png"), wxRect(size * 4, 0, size, size),
+    m_tools.push_back({ "Wire", GetIcon("res\\svg\\wiring.svg"), wxRect(size * 4, 0, size, size),
         [this]() { m_CanvasEventHandler->SetCurrentTool(ToolType::WIRE_TOOL); } });
 }
 

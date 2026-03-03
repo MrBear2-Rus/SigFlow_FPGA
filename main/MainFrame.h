@@ -149,6 +149,7 @@ public:
     void OnSFTreeChanged(wxCommandEvent& event);
     void OnSFNodeAdded(wxCommandEvent& event);
     void OnSFNodeDeleted(wxCommandEvent& event);
+    void OnSFNodeChanged(wxCommandEvent& event);
     void PropertyLoadNode(SigTreeNode* node);
 
 private:

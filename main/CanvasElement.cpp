@@ -61,14 +61,14 @@ SecondElement::SecondElement(SecondNode* sn, std::vector<SecondElement>& templat
             size_t inCount = std::min((size_t)sn->in_ports.size(), templateElement.m_inPins.size());
             for (size_t i = 0; i < inCount; i++) {
                 Pin newPin = templateElement.m_inPins[i];
-                newPin.self = &sn->in_ports[i];
+                newPin.SetSelf(&sn->in_ports[i]);
                 m_inPins.push_back(newPin);
             }
 
             size_t outCount = std::min((size_t)sn->out_ports.size(), templateElement.m_outPins.size());
             for (size_t i = 0; i < outCount; i++) {
                 Pin newPin = templateElement.m_outPins[i];
-                newPin.self = &sn->out_ports[i];
+                newPin.SetSelf(&sn->out_ports[i]);
                 m_outPins.push_back(newPin);
             }
         }
@@ -99,14 +99,14 @@ SecondElement::SecondElement(SecondNode* sn, std::vector<SecondElement>& templat
             size_t inCount = std::min((size_t)sn->in_ports.size(), templateElement.m_inPins.size());
             for (size_t i = 0; i < inCount; i++) {
                 Pin newPin = templateElement.m_inPins[i];
-                newPin.self = &sn->in_ports[i];
+                newPin.SetSelf(&sn->in_ports[i]);
                 m_inPins.push_back(newPin);
             }
 
             size_t outCount = std::min((size_t)sn->out_ports.size(), templateElement.m_outPins.size());
             for (size_t i = 0; i < outCount; i++) {
                 Pin newPin = templateElement.m_outPins[i];
-                newPin.self = &sn->out_ports[i];
+                newPin.SetSelf(&sn->out_ports[i]);
                 m_outPins.push_back(newPin);
             }
         }
@@ -564,8 +564,20 @@ void TopModuleBox::Draw(wxGraphicsContext* gc) const
     gc->SetTransform(origMatrix); // 这里不用 *，直接传对象
 }
 
+// 改进后的构造函数
+Pin::Pin(Point p, bool input, Port* s)
+    : pos(p), isInput(input), self(s) // 全部使用初始化列表
+{
+    if (s) this->identifier = (s->identifier);
+    else this->identifier = "none";
+}
+void Pin::SetSelf(Port* s) {
+    if (!s) return;
+    self = s;
+    identifier = s->identifier;
+}
 
-wxString Pin::GetIdentifier() { return (self != nullptr) ? wxString(self->identifier) : wxString("none"); };
+wxString Pin::GetIdentifier() { return identifier; };
 
 
 Point Snap(const Point& pos) { return Point((pos.x + 20 / 2) / 20 * 20, (pos.y + 20 / 2) / 20 * 20); };

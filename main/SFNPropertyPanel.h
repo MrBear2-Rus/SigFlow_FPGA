@@ -20,11 +20,14 @@ public:
 
     void AddSectionTitle(const wxString& title);
     void AddTextRow(const wxString& label, const wxString& value);
+    void AddIdentifier(TopNode* tn);
+    void AddIdentifier(SecondNode* sn);
+    void AddIdentifier(SignalNode* sn);
     void AddChangeTextRow(const wxString& label, std::string& value);
     //void AddComboRow(const wxString& label, const wxArrayString& choices, int selection);
-    void AddPortRow(std::vector<Port>& ps, PortDirection pd);
-    void AddPortContinuousAssign(std::vector<Port>& in_ps, std::vector<Port>& out_ps);
-    void AddPortRowWithConn(const wxString& name, PortDirection dir, std::string& conn);
+    void AddPortRow(TopNode* tn, PortDirection pd);
+    void AddPortContinuousAssign(ContinuousAssignNode* cn);
+    void AddPortRowWithConn(SecondNode* sn, const wxString& name, PortDirection dir, std::string& conn);
     void AddChoicesRow(const wxString& label,
         std::string& boundValue,
         const wxArrayString& choices);

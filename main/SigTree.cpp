@@ -149,10 +149,10 @@ ExpressionResult FormalizeExpression(TSNode node, const std::string& code, int &
 
         // 生成唯一的占位符名，例如 In1, In2...
         if (exp_id != -1) {
-            placeholder = "In" + std::to_string(exp_id) + "_" + std::to_string(in_counter++);
+            placeholder = "in" + std::to_string(exp_id) + "_" + std::to_string(in_counter++);
         }
         else {
-            placeholder = "In" + std::to_string(in_counter++);
+            placeholder = "in" + std::to_string(in_counter++);
         }
         
 
@@ -519,7 +519,7 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                     }
                     else if (strcmp(tag_name, "assign.lhs") == 0) {
                         TSNode nameNode = capture.node;
-                        Port p(std::format("Out{}", onput_count++), PortDirection::Out, code.substr(ts_node_start_byte(nameNode),
+                        Port p(std::format("out{}", onput_count++), PortDirection::Out, code.substr(ts_node_start_byte(nameNode),
                             ts_node_end_byte(nameNode) - ts_node_start_byte(nameNode)));
 
                         out.push_back(p);
@@ -1047,7 +1047,7 @@ void AlwaysNode::AddEmptyExpression() {
 
     // 创建一个对应的默认输出端口
     Port outP;
-    outP.identifier = "Out" + std::to_string(nb_or_b_expressions.size()+1);
+    outP.identifier = "out" + std::to_string(nb_or_b_expressions.size()+1);
     outP.direction = PortDirection::Out;
 
     // 使用你之前的逻辑：先加 Port，再记索引
@@ -1249,6 +1249,239 @@ SigTreeNode* SigFlowTree::CloneSubtreeToArena(SigTreeNode* node) {
         newNode->AddChild(newChild);
     }
     return newNode;
+}
+
+void SigFlowTree::AddInPort(SecondNode* sn) {
+    std::string name = "in" + std::to_string(sn->in_ports.size() + 1);
+    Port p(name, PortDirection::In);
+    sn->in_ports.push_back(p);
+    wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
+    evt.SetClientData(sn);
+    wxPostEvent(m_parent->GetEventHandler(), evt);
+}
+void SigFlowTree::AddOutPort(SecondNode* sn) {
+    std::string name = "out" + std::to_string(sn->out_ports.size() + 1);
+    Port p(name, PortDirection::Out);
+    wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
+    sn->out_ports.push_back(p);
+    evt.SetClientData(sn);
+    wxPostEvent(m_parent->GetEventHandler(), evt);
+
+}
+
+void SigFlowTree::AddInPort(TopNode* tn) {
+    std::string name = "in" + std::to_string(tn->in_ports.size() + 1);
+    Port p(name, PortDirection::In);
+    tn->in_ports.push_back(p);
+    wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
+    evt.SetClientData(tn);
+    wxPostEvent(m_parent->GetEventHandler(), evt);
+}
+
+void SigFlowTree::AddOutPort(TopNode* tn) {
+    std::string name = "out" + std::to_string(tn->out_ports.size() + 1);
+    Port p(name, PortDirection::Out);
+    wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
+    tn->out_ports.push_back(p);
+    evt.SetClientData(tn);
+    wxPostEvent(m_parent->GetEventHandler(), evt);
+}
+
+
+void SigFlowTree::AddInOutPort(SecondNode* sn) {
+    /*
+    if (p.direction == PortDirection::InOut)
+        sn->inout_ports.push_back(p);
+    wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
+    evt.SetClientData(sn);
+    wxPostEvent(m_parent->GetEventHandler(), evt);*/
+
+}
+
+void SigFlowTree::SecondDelLastInPort(SecondNode* sn) {
+    if (!sn->in_ports.empty())
+    sn->in_ports.pop_back();
+    wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
+    evt.SetClientData(sn);
+    wxPostEvent(m_parent->GetEventHandler(), evt);
+}
+
+void SigFlowTree::TopDelPort(TopNode* sn, Port p) {
+    if (p.direction == PortDirection::In) {
+        auto it = std::find_if(sn->GetInPorts().begin(), sn->GetInPorts().end(),
+            [&](const Port& item) {
+                return item.identifier == p.identifier;
+            });
+        if (it != sn->GetInPorts().end()) {
+            sn->GetInPorts().erase(it);
+            wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
+            evt.SetClientData(sn);
+            //wxPostEvent(m_parent->GetEventHandler(), evt);
+            m_parent->GetEventHandler()->ProcessEvent(evt);
+        }
+    }
+    else if(p.direction == PortDirection::Out) {
+        auto it = std::find_if(sn->GetOutPorts().begin(), sn->GetOutPorts().end(),
+            [&](const Port& item) {
+                return item.identifier == p.identifier;
+            });
+        if (it != sn->GetOutPorts().end()) {
+            sn->GetOutPorts().erase(it);
+            wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
+            evt.SetClientData(sn);
+            //wxPostEvent(m_parent->GetEventHandler(), evt);
+            m_parent->GetEventHandler()->ProcessEvent(evt);
+        }
+    }
+
+
+}
+
+
+void SigFlowTree::TopDelPort(TopNode* sn, wxString port_id) {
+    auto it = std::find_if(sn->GetInPorts().begin(), sn->GetInPorts().end(),
+        [&](const Port& item) {
+            return item.identifier == port_id;
+        });
+    if (it != sn->GetInPorts().end()) {
+        sn->GetInPorts().erase(it);
+        wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
+        evt.SetClientData(sn);
+        //wxPostEvent(m_parent->GetEventHandler(), evt);
+        m_parent->GetEventHandler()->ProcessEvent(evt);
+    }
+    
+
+    auto it2 = std::find_if(sn->GetOutPorts().begin(), sn->GetOutPorts().end(),
+        [&](const Port& item) {
+            return item.identifier == port_id;
+        });
+    if (it2 != sn->GetOutPorts().end()) {
+        sn->GetOutPorts().erase(it2);
+        wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
+        evt.SetClientData(sn);
+        //wxPostEvent(m_parent->GetEventHandler(), evt);
+        m_parent->GetEventHandler()->ProcessEvent(evt);
+    }
+    
+}
+
+
+void SigFlowTree::PortReName(TopNode* tn, wxString old_id, wxString new_id) {
+    // 1. 查找旧端口（先找输入，再找输出）
+    auto findAndRename = [&](std::vector<Port>& ports) -> bool {
+        auto it = std::find_if(ports.begin(), ports.end(),
+            [&](const Port& item) { return item.identifier == old_id; });
+
+        if (it != ports.end()) {
+            // 执行重命名核心逻辑
+            it->identifier = new_id;
+            return true;
+        }
+        return false;
+        };
+
+    bool changed = findAndRename(tn->GetInPorts());
+    if (!changed) {
+        changed = findAndRename(tn->GetOutPorts());
+    }
+
+    // 2. 如果发生了修改，通知 UI
+    if (changed) {
+        wxCommandEvent* evt = new wxCommandEvent(EVT_SIGFLOWNODE_CHANGED);
+        evt->SetClientData(tn);
+
+        // 核心：使用 QueueEvent 或 wxPostEvent 异步通知
+        // 避免在重命名瞬间（通常是输入框失去焦点时）立即销毁/重建 UI 导致崩溃
+        m_parent->GetEventHandler()->QueueEvent(evt);
+    }
+}
+
+
+void SigFlowTree::PortReName(SecondNode* sn, wxString old_id, wxString new_id) {
+    // 1. 查找旧端口（先找输入，再找输出）
+    auto findAndRename = [&](std::vector<Port>& ports) -> bool {
+        auto it = std::find_if(ports.begin(), ports.end(),
+            [&](const Port& item) { return item.identifier == old_id; });
+
+        if (it != ports.end()) {
+            // 执行重命名核心逻辑
+            it->identifier = new_id;
+            return true;
+        }
+        return false;
+        };
+
+    bool changed = findAndRename(sn->in_ports);
+    if (!changed) {
+        changed = findAndRename(sn->out_ports);
+    }
+
+    // 2. 如果发生了修改，通知 UI
+    if (changed) {
+        wxCommandEvent* evt = new wxCommandEvent(EVT_SIGFLOWNODE_CHANGED);
+        evt->SetClientData(sn);
+
+        // 核心：使用 QueueEvent 或 wxPostEvent 异步通知
+        // 避免在重命名瞬间（通常是输入框失去焦点时）立即销毁/重建 UI 导致崩溃
+        m_parent->GetEventHandler()->QueueEvent(evt);
+    }
+}
+
+void SigFlowTree::PortConn(SecondNode* sn, wxString id, wxString conn) {
+    if (!sn) return;
+
+    bool found = false;
+
+    // 1. 查找并修改 InPorts
+    for (auto& p : sn->in_ports) {
+        if (p.identifier == id) {
+            p.conn = conn; // 假设 Port 结构体有 conn 成员
+            found = true;
+            break;
+        }
+    }
+
+    // 2. 如果没找到，查找并修改 OutPorts
+    if (!found) {
+        for (auto& p : sn->out_ports) {
+            if (p.identifier == id) {
+                p.conn = conn;
+                found = true;
+                break;
+            }
+        }
+    }
+
+    // 3. 上报事件，通知 UI 更新 (使用异步事件保证安全)
+    if (found) {
+        wxCommandEvent* evt = new wxCommandEvent(EVT_SIGFLOWNODE_CHANGED);
+        evt->SetClientData(sn); // 携带节点信息
+        m_parent->GetEventHandler()->QueueEvent(evt);
+    }
+}
+
+void SigFlowTree::ReIdentifier(TopNode* tn, wxString id) {
+    tn->identifier = id;
+    wxCommandEvent* evt = new wxCommandEvent(EVT_SIGFLOWNODE_CHANGED);
+    evt->SetClientData(tn);
+    m_parent->GetEventHandler()->QueueEvent(evt);
+}
+
+void SigFlowTree::ReIdentifier(SecondNode* sn, wxString id) {
+    sn->identifier = id;
+    wxCommandEvent* evt = new wxCommandEvent(EVT_SIGFLOWNODE_CHANGED);
+    evt->SetClientData(sn);
+    m_parent->GetEventHandler()->QueueEvent(evt);
+
+}
+
+void SigFlowTree::ReIdentifier(SignalNode* sn, wxString id) {
+    sn->identifier = id;
+    wxCommandEvent* evt = new wxCommandEvent(EVT_SIGFLOWNODE_CHANGED);
+    evt->SetClientData(sn);
+    m_parent->GetEventHandler()->QueueEvent(evt);
+
 }
 
 void SigFlowTree::RegisterNodeRecursive(SigTreeNode* node) {

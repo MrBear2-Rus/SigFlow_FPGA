@@ -60,14 +60,15 @@ struct Text {
 struct Pin {
     Point pos;
     bool isInput;
-    Port* self;
+    wxString identifier;
 
     // 改进后的构造函数
-    Pin(Point p = Point(), bool input = true, Port* s = nullptr)
-        : pos(p), isInput(input), self(s) // 全部使用初始化列表
-    {
-    }
+    Pin(Point p = Point(), bool input = true, Port* s = nullptr);
+    void SetSelf(Port* s);
     wxString GetIdentifier();
+
+private:
+    Port* self;
 };
 
 struct ArcShape {

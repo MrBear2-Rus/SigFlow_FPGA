@@ -211,15 +211,17 @@ public:
 
 class TopNode : public SigTreeNode {
 private:
-    std::vector<Port> in_ports;
-    std::vector<Port> out_ports;
+
 
 public:
+
     std::string identifier; // 标识符
     TopNodeType topType;
 
     TopNode(std::string id, TopNodeType toptype):SigTreeNode(SigTreeNodeType::Top), topType(toptype), identifier(id) {};
 
+    std::vector<Port> in_ports;
+    std::vector<Port> out_ports;
 
     std::vector<Port>& GetInPorts() { return in_ports; };
     std::vector<Port>& GetOutPorts() { return out_ports; };
@@ -432,7 +434,20 @@ public:
     void RemoveChild(SigTreeNode* parent, SigTreeNode* child);
     SigTreeNode* AddChild(SigTreeNode* parent, SigTreeNode* externalNode);
     SigTreeNode* CloneSubtreeToArena(SigTreeNode* externalNode);
-
+    void AddInPort(SecondNode* sn);
+    void AddOutPort(SecondNode* sn);
+    void AddInOutPort(SecondNode* sn);
+    void SecondDelLastInPort(SecondNode* sn);
+    void AddInPort(TopNode* tn);
+    void AddOutPort(TopNode* tn);
+    void TopDelPort(TopNode* sn, Port p);
+    void TopDelPort(TopNode* sn, wxString port_id);
+    void PortReName(TopNode* tn, wxString old_id, wxString new_id);
+    void PortReName(SecondNode* sn, wxString old_id, wxString new_id);
+    void PortConn(SecondNode* sn, wxString id, wxString conn);
+    void ReIdentifier(TopNode* tn, wxString id);
+    void ReIdentifier(SecondNode* sn, wxString id);
+    void ReIdentifier(SignalNode* sn, wxString id);
 
     // 符号表管理
     void RegisterNodeRecursive(SigTreeNode* node);

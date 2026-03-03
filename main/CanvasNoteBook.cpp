@@ -49,12 +49,12 @@ void CanvasNoteBook::UpdateNoteBook() {
         sel = false;
     }
     AdjustScaleToFit();
-    DeleteAddButton();
+    //DeleteAddButton();
     AddCustomButton();
 }
 
 void CanvasNoteBook::SetStatusText(const wxString& text, int number) {
-    mf->SetStatusText(text, number);
+    if(mf) mf->SetStatusText(text, number);
 }
 
 void CanvasNoteBook::AdjustScaleToFit() {
@@ -127,7 +127,7 @@ void CanvasNoteBook::SigFlowNodeAdded(SigTreeNode* n) {
             auto* page = cvses[i];
             if (page->tn == sn->GetParent()) {
 
-                page->AddSecond(sn);
+                page->AddSecondElement(sn);
             }
         }
     }
@@ -148,7 +148,32 @@ void CanvasNoteBook::SigFlowNodeDeleted(SigTreeNode* n) {
         for (int i = 0; i < cvses.size(); i++) {
             auto* page = cvses[i];
             if (page->tn == sn->GetParent()) {
-                page->DelSecond(sn);
+                page->DelSecondElement(sn);
+            }
+        }
+        break;
+    }
+    }
+}
+
+void CanvasNoteBook::SigFlowNodeChanged(SigTreeNode* n) {
+    switch (n->type) {
+    case SigTreeNodeType::Top: {
+        for (int i = 0; i < cvses.size(); i++) {
+            auto* page = cvses[i];
+            if (page->tn == n) {
+                page->LoadLayout();
+                this->SetPageText(i, page->GetNote());
+            }
+        }
+        break;
+    }
+    case SigTreeNodeType::Second: {
+        SecondNode* sn = static_cast<SecondNode*>(n);
+        for (int i = 0; i < cvses.size(); i++) {
+            auto* page = cvses[i];
+            if (page->tn == sn->GetParent()) {
+                page->RefreshElem(sn);
             }
         }
         break;

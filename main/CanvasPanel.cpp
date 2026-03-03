@@ -502,7 +502,8 @@ bool CanvasPanel::Read() {
     auto* n = tn->GetParent()->GetParent();
     ProjectNode* pn = static_cast<ProjectNode*>(n);
     wxString cwd = pn->projectPath;
-    wxFileName filepath(cwd + "/.sigflow/workspace/canvas", GetNote() + ".json");
+    wxString name = GetNote();
+    wxFileName filepath(cwd + "/.sigflow/workspace/canvas", name + ".json");
 
     if (!filepath.FileExists()) {
         return false;
@@ -1067,23 +1068,23 @@ wxString CanvasPanel::GetNote() {
 }
 
 
-void CanvasPanel::AddGate(GateType type, wxPoint pos) {
+void CanvasPanel::AddGateNode(GateType type, wxPoint pos) {
     extern std::vector<SecondElement> g_elements;
 
-    GateInstNode* gn = new GateInstNode("new_"+SigFlowTree::ToString(type)+"_inst", type);
+    GateInstNode* gn = new GateInstNode("new_"+SigFlowTree::ToString(type), type);
     gn = static_cast<GateInstNode*>(sftree->AddChild(tn, gn));
     Refresh();
 }
 
-void CanvasPanel::AddModuleInst(wxString def, wxPoint pos) {
+void CanvasPanel::AddModuleInstNode(wxString def, wxPoint pos) {
     extern std::vector<SecondElement> g_elements;
-    ModuleInstNode* mn = new ModuleInstNode("new_"+ def.ToStdString() + "_inst", def.ToStdString());
+    ModuleInstNode* mn = new ModuleInstNode("new_"+ def.ToStdString(), def.ToStdString());
 
     mn = static_cast<ModuleInstNode*>(sftree->AddChild(tn, mn));
     Refresh();
 }
 
-void CanvasPanel::AddSecond(SecondNode* sn) {
+void CanvasPanel::AddSecondElement(SecondNode* sn) {
     extern std::vector<SecondElement> g_elements;
     SecondElement s = SecondElement(sn, g_elements);
     if (m_previewElement.GetIdentifier() == s.GetIdentifier()) {
@@ -1094,10 +1095,10 @@ void CanvasPanel::AddSecond(SecondNode* sn) {
     RefreshRect(s.GetBounds());
 }
 
-void CanvasPanel::AddSecond(wxString type, wxPoint pos) {
+void CanvasPanel::AddSecondNode(wxString type, wxPoint pos) {
     GateType gt = SigFlowTree::GateTypeFromString(type.ToStdString());
-    if (gt != GateType::Unknown) AddGate(gt, pos);
-    else AddModuleInst(type, pos);
+    if (gt != GateType::Unknown) AddGateNode(gt, pos);
+    else AddModuleInstNode(type, pos);
 }
 
 void CanvasPanel::SetPreview(wxString type) {
@@ -1105,7 +1106,7 @@ void CanvasPanel::SetPreview(wxString type) {
     if (gt != GateType::Unknown) {
         extern std::vector<SecondElement> g_elements;
 
-        GateInstNode* gn = new GateInstNode("new_" + SigFlowTree::ToString(gt) + "_inst", gt);
+        GateInstNode* gn = new GateInstNode("new_" + SigFlowTree::ToString(gt), gt);
 
         SecondElement se = SecondElement(gn, g_elements);
         se.SetPos(wxPoint(0, 0));
@@ -1114,7 +1115,7 @@ void CanvasPanel::SetPreview(wxString type) {
     }
     else {
         extern std::vector<SecondElement> g_elements;
-        ModuleInstNode* mn = new ModuleInstNode("new_" + type.ToStdString() + "_inst", type.ToStdString());
+        ModuleInstNode* mn = new ModuleInstNode("new_" + type.ToStdString(), type.ToStdString());
         sftree->LinkSingleInstWithDef(mn);
         if (mn->Definition) {
             wxCommandEvent evt;
@@ -1137,8 +1138,13 @@ void CanvasPanel::SetPreviewPos(wxPoint pos) {
     RefreshRect(m_previewElement.GetBounds());
 }
 
+void CanvasPanel::DelSecondNode(int id) {
+    SecondElement& sm = m_elems[id];
+    SecondNode* sn = sm.self;
+    sftree->RemoveChild(sn->GetParent(), sn);
+}
 
-void CanvasPanel::DelSecond(SecondNode* sn) {
+void CanvasPanel::DelSecondElement(SecondNode* sn) {
     // 1. 查找要删除元素的索引
     int targetIdx = -1;
     for (int i = 0; i < m_elems.size(); ++i) {
@@ -1168,7 +1174,7 @@ void CanvasPanel::DelSecond(SecondNode* sn) {
     m_elems.erase(m_elems.begin() + targetIdx);
 }
 
-void CanvasPanel::DelSecond(int id) {
+void CanvasPanel::DelSecondElement(int id) {
     // 1. 安全检查：确保索引在有效范围内
     if (id < 0 || id >= (int)m_elems.size()) {
         return;
@@ -1190,4 +1196,15 @@ void CanvasPanel::DelSecond(int id) {
 
     // 3. 删除 m_elems 中的元素
     m_elems.erase(m_elems.begin() + id);
+}
+
+void CanvasPanel::RefreshElem(SecondNode* sn) {
+    extern std::vector<SecondElement> g_elements;
+    for (auto& elem : m_elems) {
+        if (elem.self == sn) {
+            auto tmp = SecondElement(sn, g_elements);
+            tmp.SetPos(elem.GetPos());
+            elem = tmp;
+        }
+    }
 }

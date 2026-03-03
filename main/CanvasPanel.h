@@ -124,14 +124,17 @@ public:
     // 二级元件管理
     void SetPreview(wxString type);
     void SetPreviewPos(wxPoint pos);
-    void AddSecond(SecondNode* sn);
-    void AddSecond(wxString type, wxPoint pos);
-    void AddModuleInst(wxString def, wxPoint pos);
-    void AddGate(GateType type, wxPoint pos);
+    void AddSecondElement(SecondNode* sn);
+    void AddSecondNode(wxString type, wxPoint pos);
+    void AddModuleInstNode(wxString def, wxPoint pos);
+    void AddGateNode(GateType type, wxPoint pos);
     //void AddContinuousAssign(wxPoint pos);
-    void DelSecond(SecondNode* sn);
-    void DelSecond(int id);
+    //void DelSecondNode(SecondNode* sn);
+    void DelSecondNode(int id);
+    void DelSecondElement(SecondNode* sn);
+    void DelSecondElement(int id);
     void SecondSetPos(int i, wxPoint pos) { m_elems[i].SetPos(pos); RefreshRect(m_elems[i].GetBounds()); };
+    void RefreshElem(SecondNode* sn);
     const std::vector<SecondElement>& GetSecond() const { return m_elems; };
 
     // 导线管理

@@ -1,4 +1,4 @@
-#include <wx/msgdlg.h>
+﻿#include <wx/msgdlg.h>
 #include <wx/filename.h> 
 #include <wx/sstream.h>
 #include <wx/aui/aui.h>
@@ -21,6 +21,7 @@ extern std::vector<SecondElement> g_elements;
 wxDEFINE_EVENT(EVT_SFTREE_NODE_ACTIVATED, wxCommandEvent);
 wxDEFINE_EVENT(EVT_SIGFLOWNODE_ADD, wxCommandEvent);
 wxDEFINE_EVENT(EVT_SIGFLOWNODE_DEL, wxCommandEvent);
+wxDEFINE_EVENT(EVT_SIGFLOWNODE_CHANGED, wxCommandEvent);
 
 wxBEGIN_EVENT_TABLE(MainFrame, wxFrame)
 EVT_MENU(wxID_ABOUT, MainFrame::OnAbout)
@@ -88,6 +89,7 @@ MainFrame::MainFrame()
     sigTree = new SigFlowTree(this);
     this->Bind(EVT_SIGFLOWNODE_ADD, &MainFrame::OnSFNodeAdded, this);
     this->Bind(EVT_SIGFLOWNODE_DEL, &MainFrame::OnSFNodeDeleted, this);
+    this->Bind(EVT_SIGFLOWNODE_CHANGED, &MainFrame::OnSFNodeChanged, this);
 
     /* 面板加载 */
     m_auiMgr.SetManagedWindow(this);
@@ -1440,6 +1442,13 @@ void MainFrame::OnSFNodeDeleted(wxCommandEvent& event) {
     OnSFTreeChanged(event);
     m_canvas->SigFlowNodeDeleted(static_cast<SigTreeNode*>(event.GetClientData()));
 }
+
+void MainFrame::OnSFNodeChanged(wxCommandEvent& event) {
+    OnSFTreeChanged(event);
+    m_canvas->SigFlowNodeChanged(static_cast<SigTreeNode*>(event.GetClientData()));
+}
+
+
 
 void MainFrame::PropertyLoadNode(SigTreeNode* node) {
     m_sfnPropertyPanel->LoadNode(node);

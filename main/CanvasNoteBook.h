@@ -40,4 +40,5 @@ public:
 
     void SigFlowNodeAdded(SigTreeNode* n);
     void SigFlowNodeDeleted(SigTreeNode* n);
+    void SigFlowNodeChanged(SigTreeNode* n);
 };
