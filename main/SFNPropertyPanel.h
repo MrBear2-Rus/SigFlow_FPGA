@@ -20,18 +20,21 @@ public:
 
     void AddSectionTitle(const wxString& title);
     void AddTextRow(const wxString& label, const wxString& value);
+    void AddIdentifier(TopNode* tn);
+    void AddIdentifier(SecondNode* sn);
+    void AddIdentifier(SignalNode* sn);
     void AddChangeTextRow(const wxString& label, std::string& value);
     //void AddComboRow(const wxString& label, const wxArrayString& choices, int selection);
-    void AddPortRow(std::vector<Port>& ps);
-    void AddPortContinuousAssign(std::vector<Port>& ps);
-    void AddPortRowWithConn(const wxString& name, PortDirection dir, std::string& conn);
+    void AddPortRow(TopNode* tn, PortDirection pd);
+    void AddPortContinuousAssign(ContinuousAssignNode* cn);
+    void AddPortRowWithConn(SecondNode* sn, const wxString& name, PortDirection dir, std::string& conn);
     void AddChoicesRow(const wxString& label,
         std::string& boundValue,
         const wxArrayString& choices);
 
-    void Add_BN_OR_B_Expressions(SecondNode* sn);
+    void Add_BN_OR_B_Expressions(AlwaysNode* an);
     void Add_BN_OR_B_Expression(wxSizer* groupSizer, std::vector<Port>& ports, NB_OR_B_Expression& exp);
-    void Add_BN_OR_B_Ports(wxSizer* groupSizer, SecondNode* sn, std::vector<Port>& ports, int exp_id);
+    void Add_BN_OR_B_Ports(wxSizer* groupSizer, AlwaysNode* an, std::vector<Port>& in_ports, std::vector<Port>& out_ports, int exp_id);
     void Add_BN_OR_B_Port(wxSizer* groupSizer, Port& p);
 
     void ShowChangePortsList(std::vector<Port>& ports);

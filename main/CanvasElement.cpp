@@ -3,7 +3,6 @@
 #endif
 
 #include "CanvasElement.h"
-#include "GatePainter.h"
 #include <variant>
 #include <cmath>
 #include <algorithm>
@@ -11,8 +10,9 @@
 #include <wx/dcgraph.h>
 #include <wx/graphics.h>
 #include <sstream>
+#include "SigTree.h"
 
-std::vector<wxPoint> CanvasElement::CalculateBezier(const Point& p0, const Point& p1, const Point& p2, int segments) const
+std::vector<wxPoint> SecondElement::CalculateBezier(const Point& p0, const Point& p1, const Point& p2, int segments) const
 {
     std::vector<wxPoint> pts;
     for (int i = 0; i <= segments; ++i) {
@@ -25,7 +25,7 @@ std::vector<wxPoint> CanvasElement::CalculateBezier(const Point& p0, const Point
 }
 
 // 三次贝塞尔曲线计算（4个控制点）
-std::vector<wxPoint> CanvasElement::CalculateCubicBezier(const Point& p0, const Point& p1, const Point& p2, const Point& p3, int segments) const
+std::vector<wxPoint> SecondElement::CalculateCubicBezier(const Point& p0, const Point& p1, const Point& p2, const Point& p3, int segments) const
 {
     std::vector<wxPoint> pts;
     for (int i = 0; i <= segments; ++i) {
@@ -38,23 +38,179 @@ std::vector<wxPoint> CanvasElement::CalculateCubicBezier(const Point& p0, const 
     return pts;
 }
 
-CanvasElement::CanvasElement(const wxString& name, const wxPoint& pos)
-    : m_name(name), m_pos(pos)
-{
-    // 判断锚点是否为空（用wxPoint的默认值判断）
-    if (m_anchorPoint == wxDefaultPosition) {
-        m_anchorPoint = pos; // 没设置的话，用元件初始位置当锚点
+SecondElement::SecondElement(SecondNode* sn, std::vector<SecondElement>& templates):self(sn) {
+    switch (sn->secondType) {
+    case SecondNodeType::GateInstance: {
+        // 1. 在指针容器中查找
+        GateInstNode* gn = static_cast<GateInstNode*>(sn);
+
+        auto it = std::find_if(templates.begin(), templates.end(),
+            [&](const SecondElement& e) {
+                return e.type == SigFlowTree::ToString(gn->gatetype);
+            });
+
+        if (it != templates.end()) {
+            // 2. 使用虚函数 Clone，确保获取的是真实的子类类型
+            const SecondElement& templateElement = *it;
+
+            this->type = templateElement.type;
+            this->m_bound = templateElement.m_bound;
+            this->m_shapes = templateElement.m_shapes;
+
+            // 3. 深拷贝引脚，并修正引脚内部的指针指向当前 Node 的端口
+            size_t inCount = std::min((size_t)sn->in_ports.size(), templateElement.m_inPins.size());
+            for (size_t i = 0; i < inCount; i++) {
+                Pin newPin = templateElement.m_inPins[i];
+                newPin.SetSelf(&sn->in_ports[i]);
+                m_inPins.push_back(newPin);
+            }
+
+            size_t outCount = std::min((size_t)sn->out_ports.size(), templateElement.m_outPins.size());
+            for (size_t i = 0; i < outCount; i++) {
+                Pin newPin = templateElement.m_outPins[i];
+                newPin.SetSelf(&sn->out_ports[i]);
+                m_outPins.push_back(newPin);
+            }
+        }
+        else {
+            this->type = "inst";
+            MakeBlackBox();
+        }
+        break;
+    }
+    case SecondNodeType::ModuleInstance:{
+        // 1. 在指针容器中查找
+        ModuleInstNode* mn = static_cast<ModuleInstNode*>(sn);
+
+        auto it = std::find_if(templates.begin(), templates.end(),
+            [&](const SecondElement& e) {
+                return e.type == mn->defIdentifier;
+            });
+
+        if (it != templates.end()) {
+            // 2. 使用虚函数 Clone，确保获取的是真实的子类类型
+            const SecondElement& templateElement = *it;
+
+            this->type = templateElement.type;
+            this->m_bound = templateElement.m_bound;
+            this->m_shapes = templateElement.m_shapes;
+
+            // 3. 深拷贝引脚，并修正引脚内部的指针指向当前 Node 的端口
+            size_t inCount = std::min((size_t)sn->in_ports.size(), templateElement.m_inPins.size());
+            for (size_t i = 0; i < inCount; i++) {
+                Pin newPin = templateElement.m_inPins[i];
+                newPin.SetSelf(&sn->in_ports[i]);
+                m_inPins.push_back(newPin);
+            }
+
+            size_t outCount = std::min((size_t)sn->out_ports.size(), templateElement.m_outPins.size());
+            for (size_t i = 0; i < outCount; i++) {
+                Pin newPin = templateElement.m_outPins[i];
+                newPin.SetSelf(&sn->out_ports[i]);
+                m_outPins.push_back(newPin);
+            }
+        }
+        else {
+            this->type = "inst";
+            MakeBlackBox();
+        }
+        break;
+    }
+    case SecondNodeType::ContinuousAssign:
+    {
+        this->type = "assign";
+        MakeBlackBox();
+        break;
+    }
+    case SecondNodeType::Always:
+        
+        {
+        this->type = "always";
+        MakeBlackBox();
+        break;
+    }
+
+
     }
 }
 
-void CanvasElement::Draw(wxGraphicsContext* gc) const
-{
 
-    DrawVector(gc);
+void SecondElement::MakeBlackBox() {
+    int in = self->in_ports.size();
+    int out = self->out_ports.size();
 
+    const int GRID = 20;
+    const int BODY_WIDTH = 120;
+
+    // 1. 计算引脚需要的最小垂直跨度
+    auto getNeededHeight = [&](int count) {
+        return (count <= 0) ? 0 : (count - 1) * GRID;
+        };
+
+    int heightIn = getNeededHeight(in);
+    int heightOut = getNeededHeight(out);
+
+    // 2. 确定主体高度（必须是 GRID 的倍数）
+    int bodyHeight = std::max(heightIn, heightOut) + 2 * GRID;
+
+    // 3. 计算 Pin 的起始 Y 坐标（相对于主体顶部 0 的偏移）
+    // 为了垂直居中：(总高度 - 引脚占用高度) / 2
+    auto getRelativeStartY = [&](int count) {
+        if (count <= 0) return 0;
+        int theoryTop = (bodyHeight - (count - 1) * GRID) / 2;
+        return (theoryTop / GRID) * GRID; // 强制对齐网格
+        };
+
+    int inStartY = getRelativeStartY(in);
+    int outStartY = getRelativeStartY(out);
+
+
+    // 4. 绘制主体矩形：直接从 (0,0) 到 (BODY_WIDTH, bodyHeight)
+    std::vector<Point> rect = {
+        {0, 0}, {BODY_WIDTH, 0},
+        {BODY_WIDTH, bodyHeight}, {0, bodyHeight}
+    };
+    m_shapes.push_back(PolyShape{ rect, wxColour(0,0,0) });
+
+    // 5. 放置 Input Pins (位于左边线上 x = 0)
+    for (int i = 0; i < in; ++i) {
+        int y = inStartY + i * GRID;
+        AddInputPin({ 0, y }, &self->in_ports[i]);
+    }
+
+    // 6. 放置 Output Pins (位于右边线上 x = BODY_WIDTH)
+    for (int i = 0; i < out; ++i) {
+        int y = outStartY + i * GRID;
+        AddOutputPin({ BODY_WIDTH, y }, &self->out_ports[i]);
+    }
+
+    if (self->secondType == SecondNodeType::ModuleInstance) {
+        ModuleInstNode* mn = static_cast<ModuleInstNode*>(self);
+        for (int i = 0; i < mn->inout_ports.size(); ++i) {
+            AddInOutputPin({ i * GRID,  bodyHeight }, &mn->inout_ports[i]);
+        }
+    }
+
+
+    // 7. 设置边界：现在左上角是 (0,0)，宽高显而易见
+    m_bound = wxRect(0, 0, BODY_WIDTH, bodyHeight);
 }
 
-void CanvasElement::DrawVector(wxGraphicsContext* gc) const
+wxString SecondElement::GetIdentifier() const { return self == nullptr ? wxString("none") : wxString(self->identifier); }
+
+wxRect SecondElement::GetBounds() const {
+    wxRect rect = m_bound;
+    rect.SetPosition(m_pos);
+    return rect;
+}
+
+wxRect TopModuleBox::GetBounds() const {
+    wxRect rect = m_bound;
+    rect.SetPosition(m_pos);
+    return rect;
+}
+
+void SecondElement::Draw(wxGraphicsContext* gc) const
 {
     if (!gc) return;
 
@@ -73,112 +229,6 @@ void CanvasElement::DrawVector(wxGraphicsContext* gc) const
         std::visit([&](auto&& s) {
             using T = std::decay_t<decltype(s)>;
 
-            // 对于Pin_Input元件，根据状态修改绘制
-            if (m_id == "Pin_Input") {
-                if constexpr (std::is_same_v<T, Circle>) {
-                    // 根据状态选择颜色
-                    wxColour circleColor = m_state ? wxColour(0, 255, 0) : wxColour(0, 128, 0); // 深绿色 : 绿色
-                    wxColour fillColor = m_state ? wxColour(0, 255, 0) : wxColour(0, 128, 0);
-
-                    gc->SetPen(wxPen(circleColor, 3.0));
-                    gc->SetBrush(wxBrush(fillColor));
-                    gc->DrawEllipse(s.center.x - s.radius, s.center.y - s.radius,
-                        s.radius * 2, s.radius * 2);
-                    return; // 跳过原始绘制
-                }
-                else if constexpr (std::is_same_v<T, Text>) {
-                    // 根据状态显示不同的文本
-                    wxString displayText = m_state ? "1" : "0";
-                    wxFont font(s.fontSize, wxFONTFAMILY_DEFAULT,
-                        wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
-                    gc->SetFont(font, *wxWHITE); // 保持白色文本
-                    gc->DrawText(displayText, s.pos.x, s.pos.y);
-                    return; // 跳过原始绘制
-                }
-            }
-            // 绘制Pin_Output元件，根据状态显示不同内容
-            // 在CanvasElement.cpp的DrawVector方法中，在Pin_Input的绘制逻辑后添加Pin_Output的处理：
-
-            if (m_id == "Pin_Output") {
-                if constexpr (std::is_same_v<T, Circle>) {
-                    // 根据半径区分外圈和内圈
-                    if (s.radius == 23) {
-                        // 外圈：保持原始绘制（不填充）
-                        gc->SetPen(wxPen(s.color, 3.0));
-                        gc->SetBrush(*wxTRANSPARENT_BRUSH);
-                        gc->DrawEllipse(s.center.x - s.radius, s.center.y - s.radius,
-                            s.radius * 2, s.radius * 2);
-                        // 不返回，继续处理内圈
-                    }
-                    else if (s.radius == 13) {
-                        // 内圈：根据状态绘制
-                        wxColour circleColor, fillColor;
-                        wxString displayText;
-
-                        switch (m_outputState) {
-                        case LogicSignal::ZERO: // 状态0
-                            circleColor = wxColour(0, 128, 0); // 绿色
-                            fillColor = wxColour(0, 128, 0);
-                            displayText = "0";
-                            break;
-                        case LogicSignal::ONE: // 状态1
-                            circleColor = wxColour(0, 255, 0); // 深绿色
-                            fillColor = wxColour(0, 255, 0);
-                            displayText = "1";
-                            break;
-                        case LogicSignal::E: // 状态X（默认）
-                            circleColor = wxColour(0xCC, 0xE0, 0x99); // #CCE099
-                            fillColor = wxColour(0xCC, 0xE0, 0x99);
-                            displayText = "E";
-                            break;
-                        case LogicSignal::X:
-                            circleColor = wxColour(0xCC, 0xE0, 0x99); // #CCE099
-                            fillColor = wxColour(0xCC, 0xE0, 0x99);
-                            displayText = "X";
-                            break;
-                        case LogicSignal::Z:
-                            circleColor = wxColour(0xCC, 0xE0, 0x99); // #CCE099
-                            fillColor = wxColour(0xCC, 0xE0, 0x99);
-                            displayText = "Z";
-                            break;
-                        }
-
-                        gc->SetPen(wxPen(circleColor, 3.0));
-                        gc->SetBrush(wxBrush(fillColor));
-                        gc->DrawEllipse(s.center.x - s.radius, s.center.y - s.radius,
-                            s.radius * 2, s.radius * 2);
-                        return; // 内圈绘制后返回
-                    }
-                }
-                else if constexpr (std::is_same_v<T, Text>) {
-                    wxString displayText;
-
-                    switch (m_outputState) {
-                    case LogicSignal::ZERO: // 状态0
-                        displayText = "0";
-                        break;
-                    case LogicSignal::ONE: // 状态1
-                        displayText = "1";
-                        break;
-                    case LogicSignal::E: // 状态X（默认）
-                        displayText = "E";
-                        break;
-                    case LogicSignal::X:
-                        displayText = "X";
-                        break;
-                    case LogicSignal::Z:
-                        displayText = "Z";
-                        break;
-                    }
-
-
-                    wxFont font(s.fontSize, wxFONTFAMILY_DEFAULT,
-                        wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
-                    gc->SetFont(font, *wxWHITE);
-                    gc->DrawText(displayText, s.pos.x, s.pos.y);
-                    return; // 跳过原始绘制
-                }
-            }
             // 分支1：Line
             if constexpr (std::is_same_v<T, Line>) {
                 gc->SetPen(wxPen(s.color, 3.0));
@@ -262,6 +312,102 @@ void CanvasElement::DrawVector(wxGraphicsContext* gc) const
     }
 
     // 绘制输入引脚（蓝色圆点）
+    for (const auto& pin : m_inPins) {
+        gc->SetPen(wxPen(wxColour(0, 0, 255), 1.0)); // 蓝色边框
+        gc->SetBrush(wxBrush(wxColour(0, 0, 255)));  // 蓝色填充
+        gc->DrawEllipse(pin.pos.x - 3, pin.pos.y - 3, 6, 6); // 半径为3的圆点
+    }
+
+    // 绘制输出引脚（红色圆点）
+    for (const auto& pin : m_outPins) {
+        gc->SetPen(wxPen(wxColour(255, 0, 0), 1.0)); // 红色边框
+        gc->SetBrush(wxBrush(wxColour(255, 0, 0)));  // 红色填充
+        gc->DrawEllipse(pin.pos.x - 3, pin.pos.y - 3, 6, 6); // 半径为3的圆点
+    }
+
+    for (const auto& pin : m_inoutPins) {
+        gc->SetPen(wxPen(wxColour(255, 255, 0), 1.0)); // 纯黄边框
+        gc->SetBrush(wxBrush(wxColour(255, 255, 0)));  // 纯黄填充
+        gc->DrawEllipse(pin.pos.x - 3, pin.pos.y - 3, 6, 6); // 半径为3的圆点
+    }
+
+    // 绘制元件标识符
+    wxFont font(wxFontInfo(6).Family(wxFONTFAMILY_SWISS).Bold());
+    gc->SetFont(font, wxColour("#333333"));
+    wxString text = self->identifier;
+    double width, height, descent, externalLeading;
+    gc->GetTextExtent(text, &width, &height, &descent, &externalLeading);
+    double x = (m_bound.width - width) / 2.0;
+    double y = (m_bound.height - height) / 2.0;
+
+    gc->DrawText(text, x, y);
+
+    // 绘制引脚标识符
+    for (auto p : GetInputPins()) {
+        gc->GetTextExtent(p.GetIdentifier(), &width, &height, &descent, &externalLeading);
+        gc->DrawText(p.GetIdentifier(), p.pos.x- 5-width, p.pos.y);
+    }
+
+    for (auto p : GetOutputPins()) {
+        gc->DrawText(p.GetIdentifier(), p.pos.x+5, p.pos.y);
+    }
+
+    for (auto p : GetInOutputPins()) {
+        gc->DrawText(p.GetIdentifier(), p.pos.x, p.pos.y+5);
+    }
+
+    // -------------------------- 4. 恢复原始上下文变换 --------------------------
+    gc->SetTransform(origMatrix); // 这里不用 *，直接传对象
+}
+
+
+/*
+void InputElement::Draw(wxGraphicsContext * gc) const
+{
+    if (!gc) return;
+
+    wxGraphicsMatrix origMatrix = gc->GetTransform();
+
+    // 2. 提取平移和缩放（和之前一样，只是用对象调用 Get()）
+    double a = 0.0, b = 0.0, c = 0.0, d = 0.0;
+    double origTx = 0.0, origTy = 0.0;
+    origMatrix.Get(&a, &b, &c, &d, &origTx, &origTy); // 对象调用 Get()
+    double origSx = a;
+    double origSy = d;
+    gc->Translate(m_pos.x, m_pos.y);
+
+    // -------------------------- 3. 绘制所有形状（逻辑不变，补充 Path 分支避免 visit 遗漏） --------------------------
+    for (const auto& shape : m_shapes) {
+        std::visit([&](auto&& s) {
+            using T = std::decay_t<decltype(s)>;
+
+            // 对于Pin_Input元件，根据状态修改绘制
+            if (m_id == "Pin_Input") {
+                if constexpr (std::is_same_v<T, Circle>) {
+                    // 根据状态选择颜色
+                    wxColour circleColor = m_state ? wxColour(0, 255, 0) : wxColour(0, 128, 0); // 深绿色 : 绿色
+                    wxColour fillColor = m_state ? wxColour(0, 255, 0) : wxColour(0, 128, 0);
+
+                    gc->SetPen(wxPen(circleColor, 3.0));
+                    gc->SetBrush(wxBrush(fillColor));
+                    gc->DrawEllipse(s.center.x - s.radius, s.center.y - s.radius,
+                        s.radius * 2, s.radius * 2);
+                    return; // 跳过原始绘制
+                }
+                else if constexpr (std::is_same_v<T, Text>) {
+                    // 根据状态显示不同的文本
+                    wxString displayText = m_state ? "1" : "0";
+                    wxFont font(s.fontSize, wxFONTFAMILY_DEFAULT,
+                        wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
+                    gc->SetFont(font, *wxWHITE); // 保持白色文本
+                    gc->DrawText(displayText, s.pos.x, s.pos.y);
+                    return; // 跳过原始绘制
+                }
+            }
+            }, shape);  // 确保 std::visit 的 lambda 正确闭合
+    }
+
+    // 绘制输入引脚（蓝色圆点）
     for (const auto& pin : m_inputPins) {
         gc->SetPen(wxPen(wxColour(0, 0, 255), 1.0)); // 蓝色边框
         gc->SetBrush(wxBrush(wxColour(0, 0, 255)));  // 蓝色填充
@@ -277,670 +423,229 @@ void CanvasElement::DrawVector(wxGraphicsContext* gc) const
 
     // -------------------------- 4. 恢复原始上下文变换 --------------------------
     gc->SetTransform(origMatrix); // 这里不用 *，直接传对象
-}
+}*/
 
-// 回退绘制方法（当无法使用 GraphicsContext 时）
-void CanvasElement::DrawFallback(wxDC& dc) const
+void TopModuleBox::Draw(wxGraphicsContext* gc) const
 {
-    auto off = [&](const Point& p) {
-        return wxPoint(m_pos.x + p.x, m_pos.y + p.y);
-        };
+    if (!gc) return;
 
-    for (const auto& shape : m_shapes)
-    {
-        auto visitor = [&](const auto& arg) {
-            using T = std::decay_t<decltype(arg)>;
+    wxGraphicsMatrix origMatrix = gc->GetTransform();
 
-            // 对于Pin_Input元件，根据状态修改绘制
-            if (m_id == "Pin_Input") {
-                if constexpr (std::is_same_v<T, Circle>) {
-                    wxColour circleColor = m_state ? wxColour(0, 128, 0) : wxColour(0, 255, 0);
-                    wxColour fillColor = m_state ? wxColour(0, 128, 0) : wxColour(0, 255, 0);
+    // 2. 提取平移和缩放（和之前一样，只是用对象调用 Get()）
+    double a = 0.0, b = 0.0, c = 0.0, d = 0.0;
+    double origTx = 0.0, origTy = 0.0;
+    origMatrix.Get(&a, &b, &c, &d, &origTx, &origTy); // 对象调用 Get()
+    double origSx = a;
+    double origSy = d;
+    gc->Translate(m_pos.x, m_pos.y);
 
-                    if (arg.fill) {
-                        dc.SetBrush(wxBrush(fillColor));
-                    }
-                    else {
-                        dc.SetBrush(*wxTRANSPARENT_BRUSH);
-                    }
-                    dc.SetPen(wxPen(circleColor, 1));
-                    dc.DrawCircle(off(arg.center), arg.radius);
-                    return;
-                }
-                else if constexpr (std::is_same_v<T, Text>) {
-                    wxString displayText = m_state ? "1" : "0";
-                    dc.SetTextForeground(*wxWHITE);
-                    dc.SetFont(wxFont(arg.fontSize, wxFONTFAMILY_DEFAULT,
-                        wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL));
-                    dc.DrawText(displayText, off(arg.pos));
-                    return;
-                }
+    // -------------------------- 3. 绘制所有形状（逻辑不变，补充 Path 分支避免 visit 遗漏） --------------------------
+    for (const auto& shape : m_shapes) {
+        std::visit([&](auto&& s) {
+            using T = std::decay_t<decltype(s)>;
+
+            // 分支1：Line
+            if constexpr (std::is_same_v<T, Line>) {
+                gc->SetPen(wxPen(s.color, 3.0));
+                gc->StrokeLine(s.start.x, s.start.y, s.end.x, s.end.y);
             }
-
-            if (m_id == "Pin_Output") {
-                if constexpr (std::is_same_v<T, Circle>) {
-                    // 根据半径区分外圈和内圈
-                    if (arg.radius == 23) {
-                        // 外圈：保持原始绘制
-                        dc.SetBrush(*wxTRANSPARENT_BRUSH);
-                        dc.SetPen(wxPen(arg.color, 1));
-                        dc.DrawCircle(off(arg.center), arg.radius);
-                        return;
-                    }
-                    else if (arg.radius == 13) {
-                        // 内圈：根据状态绘制
-                        wxColour circleColor, fillColor;
-                        wxString displayText;
-
-                        switch (m_outputState) {
-                        case LogicSignal::ZERO: // 状态0
-                            circleColor = wxColour(0, 128, 0); // 绿色
-                            fillColor = wxColour(0, 128, 0);
-                            displayText = "0";
-                            break;
-                        case LogicSignal::ONE: // 状态1
-                            circleColor = wxColour(0, 255, 0); // 深绿色
-                            fillColor = wxColour(0, 255, 0);
-                            displayText = "1";
-                            break;
-                        case LogicSignal::E: // 状态X（默认）
-                            circleColor = wxColour(0xCC, 0xE0, 0x99); // #CCE099
-                            fillColor = wxColour(0xCC, 0xE0, 0x99);
-                            displayText = "E";
-                            break;
-                        case LogicSignal::X:
-                            circleColor = wxColour(0xCC, 0xE0, 0x99); // #CCE099
-                            fillColor = wxColour(0xCC, 0xE0, 0x99);
-                            displayText = "X";
-                            break;
-                        case LogicSignal::Z:
-                            circleColor = wxColour(0xCC, 0xE0, 0x99); // #CCE099
-                            fillColor = wxColour(0xCC, 0xE0, 0x99);
-                            displayText = "Z";
-                            break;
-                        }
-
-                        if (arg.fill) {
-                            dc.SetBrush(wxBrush(fillColor));
-                        }
-                        else {
-                            dc.SetBrush(*wxTRANSPARENT_BRUSH);
-                        }
-                        dc.SetPen(wxPen(circleColor, 1));
-                        dc.DrawCircle(off(arg.center), arg.radius);
-                        return;
-                    }
-                }
-                else if constexpr (std::is_same_v<T, Text>) {
-                    wxString displayText;
-                    switch (m_outputState) {
-                    case LogicSignal::ZERO: // 状态0
-                        displayText = "0";
-                        break;
-                    case LogicSignal::ONE: // 状态1
-                        displayText = "1";
-                        break;
-                    case LogicSignal::E: // 状态X（默认）
-                        displayText = "E";
-                        break;
-                    case LogicSignal::X:
-                        displayText = "X";
-                        break;
-                    case LogicSignal::Z:
-                        displayText = "Z";
-                        break;
-                    }
-
-
-                    dc.SetTextForeground(*wxWHITE);
-                    dc.SetFont(wxFont(arg.fontSize, wxFONTFAMILY_DEFAULT,
-                        wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL));
-                    dc.DrawText(displayText, off(arg.pos));
-                    return;
-                }
-            }
-
-            if constexpr (std::is_same_v<T, PolyShape>) {
-                std::vector<wxPoint> pts;
-                for (const auto& p : arg.pts) {
-                    pts.push_back(off(p));
-                }
-                dc.SetBrush(*wxTRANSPARENT_BRUSH);
-                dc.SetPen(wxPen(arg.color, 1));
-                if (!pts.empty()) {
-                    dc.DrawPolygon(static_cast<int>(pts.size()), pts.data());
-                }
-            }
-            else if constexpr (std::is_same_v<T, Line>) {
-                dc.SetPen(wxPen(arg.color, 1));
-                dc.DrawLine(off(arg.start), off(arg.end));
-            }
-            else if constexpr (std::is_same_v<T, Circle>) {
-                if (arg.fill) {
-                    dc.SetBrush(wxBrush(arg.fillColor));
-                }
-                else {
-                    dc.SetBrush(*wxTRANSPARENT_BRUSH);
-                }
-                dc.SetPen(wxPen(arg.color, 1));
-                dc.DrawCircle(off(arg.center), arg.radius);
-            }
-            else if constexpr (std::is_same_v<T, Text>) {
-                dc.SetTextForeground(arg.color);
-                dc.SetFont(wxFont(arg.fontSize, wxFONTFAMILY_DEFAULT,
-                    wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL));
-                dc.DrawText(arg.text, off(arg.pos));
-            }
+            // 分支2：ArcShape
             else if constexpr (std::is_same_v<T, ArcShape>) {
-                dc.SetBrush(*wxTRANSPARENT_BRUSH);
-                dc.SetPen(wxPen(arg.color, 1));
-
-                double startRad = arg.startAngle * M_PI / 180.0;
-                double endRad = arg.endAngle * M_PI / 180.0;
-
-                std::vector<wxPoint> arcPoints;
-                int segments = 32; // 增加分段数提高质量
-                for (int i = 0; i <= segments; ++i) {
-                    double t = double(i) / segments;
-                    double angle = startRad + t * (endRad - startRad);
-                    int x = arg.center.x + static_cast<int>(arg.radius * cos(angle));
-                    int y = arg.center.y + static_cast<int>(arg.radius * sin(angle));
-                    arcPoints.push_back(off(Point(x, y)));
-                }
-
-                if (arcPoints.size() >= 2) {
-                    dc.DrawLines(static_cast<int>(arcPoints.size()), arcPoints.data());
-                }
+                gc->SetPen(wxPen(s.color, 3.0));
+                wxGraphicsPath path = gc->CreatePath();
+                path.AddArc(s.center.x, s.center.y, s.radius,
+                    s.startAngle * M_PI / 180, s.endAngle * M_PI / 180, true);
+                gc->StrokePath(path);
             }
+            // 分支3：Text
+            else if constexpr (std::is_same_v<T, Text>) {
+                wxFont font(s.fontSize, wxFONTFAMILY_DEFAULT,
+                    wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
+                gc->SetFont(font, s.color);
+                gc->DrawText(s.text, s.pos.x, s.pos.y);
+            }
+            // 分支4：Circle
+            else if constexpr (std::is_same_v<T, Circle>) {
+                gc->SetPen(wxPen(s.color, 3.0));
+                gc->SetBrush(s.fill ? wxBrush(s.fillColor) : *wxTRANSPARENT_BRUSH);
+                gc->DrawEllipse(s.center.x - s.radius, s.center.y - s.radius,
+                    s.radius * 2, s.radius * 2);
+            }
+            // 分支5：PolyShape
+            else if constexpr (std::is_same_v<T, PolyShape>) {
+                wxGraphicsPath path = gc->CreatePath();
+                if (!s.pts.empty()) {
+                    path.MoveToPoint(s.pts[0].x, s.pts[0].y);
+                    for (size_t i = 1; i < s.pts.size(); ++i) {
+                        path.AddLineToPoint(s.pts[i].x, s.pts[i].y);
+                    }
+                    path.CloseSubpath();
+                }
+                gc->SetPen(wxPen(s.color, 3.0));
+                gc->SetBrush(*wxTRANSPARENT_BRUSH);
+                gc->StrokePath(path);
+            }
+            // 分支6：BezierShape
             else if constexpr (std::is_same_v<T, BezierShape>) {
-                dc.SetPen(wxPen(arg.color, 1));
-                auto bezierPoints = CalculateBezier(arg.p0, arg.p1, arg.p2, 32); // 增加分段数
-
-                std::vector<wxPoint> screenPoints;
-                for (const auto& wp : bezierPoints) {
-                    Point p{ wp.x, wp.y };
-                    screenPoints.push_back(off(p));
-                }
-
-                if (!screenPoints.empty()) {
-                    dc.DrawLines(static_cast<int>(screenPoints.size()), screenPoints.data());
-                }
+                gc->SetPen(wxPen(s.color, 3.0));
+                wxGraphicsPath path = gc->CreatePath();
+                path.MoveToPoint(s.p0.x, s.p0.y);
+                path.AddCurveToPoint(s.p1.x, s.p1.y, s.p1.x, s.p1.y, s.p2.x, s.p2.y);
+                gc->StrokePath(path);
             }
+            // 分支7：CubicBezierShape（三次贝塞尔曲线）
             else if constexpr (std::is_same_v<T, CubicBezierShape>) {
-                dc.SetPen(wxPen(arg.color, 1));
-                auto bezierPoints = CalculateCubicBezier(arg.p0, arg.p1, arg.p2, arg.p3, 32);
-
-                std::vector<wxPoint> screenPoints;
-                for (const auto& wp : bezierPoints) {
-                    Point p{ wp.x, wp.y };
-                    screenPoints.push_back(off(p));
-                }
-
-                if (!screenPoints.empty()) {
-                    dc.DrawLines(static_cast<int>(screenPoints.size()), screenPoints.data());
-                }
+                gc->SetPen(wxPen(s.color, 3.0));
+                wxGraphicsPath path = gc->CreatePath();
+                path.MoveToPoint(s.p0.x, s.p0.y);
+                path.AddCurveToPoint(s.p1.x, s.p1.y, s.p2.x, s.p2.y, s.p3.x, s.p3.y);
+                gc->StrokePath(path);
             }
+            // 分支8：Path（补充完整，避免覆盖不全）
             else if constexpr (std::is_same_v<T, Path>) {
-                // 路径回退绘制
-                DrawPathFallback(dc, arg, off);
-            }
-            };
+                gc->SetPen(wxPen(s.stroke, s.strokeWidth));
+                gc->SetBrush(s.fill ? wxBrush(s.stroke) : *wxTRANSPARENT_BRUSH);
 
-        std::visit(visitor, shape);
+                wxGraphicsPath gPath = gc->CreatePath();
+
+                // 如果你的 d 字符串符合 SVG 标准，且你不想引入复杂的解析器
+                // 这里演示如何从字符串构建路径（假设格式为简单指令）
+                // 如果你有现成的解析函数，请替换此处逻辑
+                std::stringstream ss(s.d);
+                char cmd;
+                double x, y;
+                while (ss >> cmd >> x >> y) {
+                    if (cmd == 'M' || cmd == 'm') gPath.MoveToPoint(x, y);
+                    else if (cmd == 'L' || cmd == 'l') gPath.AddLineToPoint(x, y);
+                }
+
+                if (s.fill) gPath.CloseSubpath();
+                gc->DrawPath(gPath);
+            }
+
+            }, shape);  // 确保 std::visit 的 lambda 正确闭合
     }
 
     // 绘制输入引脚（蓝色圆点）
-    for (const auto& pin : m_inputPins) {
-        wxPoint p = off(pin.pos);
-        dc.SetPen(wxPen(wxColour(0, 0, 255), 1)); // 蓝色边框
-        dc.SetBrush(wxBrush(wxColour(0, 0, 255))); // 蓝色填充
-        dc.DrawCircle(p, 3); // 半径为3的圆点
+    for (const auto& pin : m_inPins) {
+        gc->SetPen(wxPen(wxColour(0, 0, 255), 1.0)); // 蓝色边框
+        gc->SetBrush(wxBrush(wxColour(0, 0, 255)));  // 蓝色填充
+        gc->DrawEllipse(pin.pos.x - 3, pin.pos.y - 3, 6, 6); // 半径为3的圆点
     }
 
     // 绘制输出引脚（红色圆点）
-    for (const auto& pin : m_outputPins) {
-        wxPoint p = off(pin.pos);
-        dc.SetPen(wxPen(wxColour(255, 0, 0), 1)); // 红色边框
-        dc.SetBrush(wxBrush(wxColour(255, 0, 0))); // 红色填充
-        dc.DrawCircle(p, 3); // 半径为3的圆点
+    for (const auto& pin : m_outPins) {
+        gc->SetPen(wxPen(wxColour(255, 0, 0), 1.0)); // 红色边框
+        gc->SetBrush(wxBrush(wxColour(255, 0, 0)));  // 红色填充
+        gc->DrawEllipse(pin.pos.x - 3, pin.pos.y - 3, 6, 6); // 半径为3的圆点
     }
+
+    // 绘制元件标识符
+    wxFont font(wxFontInfo(6).Family(wxFONTFAMILY_SWISS).Bold());
+    gc->SetFont(font, wxColour("#333333"));
+    wxString text = self->identifier;
+    double width, height, descent, externalLeading;
+    gc->GetTextExtent(text, &width, &height, &descent, &externalLeading);
+
+    gc->DrawText(text, m_bound.width/2 - width/2, -height);
+
+    // 绘制引脚标识符
+    for (auto p : GetInputPins()) {
+        gc->GetTextExtent(p.GetIdentifier(), &width, &height, &descent, &externalLeading);
+        gc->DrawText(p.GetIdentifier(), p.pos.x - 5 - width, p.pos.y);
+    }
+
+    for (auto p : GetOutputPins()) {
+        gc->DrawText(p.GetIdentifier(), p.pos.x + 5, p.pos.y);
+    }
+
+
+    // -------------------------- 4. 恢复原始上下文变换 --------------------------
+    gc->SetTransform(origMatrix); // 这里不用 *，直接传对象
 }
 
-// 路径回退绘制
-void CanvasElement::DrawPathFallback(wxGCDC& gcdc, const Path& arg, std::function<wxPoint(const Point&)> off) const
+// 改进后的构造函数
+Pin::Pin(Point p, bool input, Port* s)
+    : pos(p), isInput(input), self(s) // 全部使用初始化列表
 {
-    wxGraphicsContext* gc = gcdc.GetGraphicsContext();
-    if (!gc) return;
-
-    std::string d = arg.d;
-    if (d.find("A 16 28") != std::string::npos) {
-        int verticalLineLength = 40;
-        int radius = verticalLineLength / 2;
-        // 用矢量绘制路径（替代 DC 折线）
-        gc->SetPen(wxPen(arg.stroke, arg.strokeWidth));
-        gc->StrokeLine(off(Point(10, 12)).x, off(Point(10, 12)).y, off(Point(10, 52)).x, off(Point(10, 52)).y);
-        gc->StrokeLine(off(Point(10, 12)).x, off(Point(10, 12)).y, off(Point(10 + radius, 12)).x, off(Point(10 + radius, 12)).y);
-        gc->StrokeLine(off(Point(10, 52)).x, off(Point(10, 52)).y, off(Point(10 + radius, 52)).x, off(Point(10 + radius, 52)).y);
-
-        // 矢量绘制弧线
-        wxGraphicsPath path = gc->CreatePath();
-        path.AddArc(off(Point(30, 32)).x, off(Point(30, 32)).y, radius,
-            -90 * M_PI / 180, 90 * M_PI / 180, true);
-        gc->StrokePath(path);
-    }
+    if (s) this->identifier = (s->identifier);
+    else this->identifier = "none";
+}
+void Pin::SetSelf(Port* s) {
+    if (!s) return;
+    self = s;
+    identifier = s->identifier;
 }
 
-void CanvasElement::DrawPathFallback(wxDC& dc, const Path& arg, std::function<wxPoint(const Point&)> off) const
+wxString Pin::GetIdentifier() { return identifier; };
+
+
+Point Snap(const Point& pos) { return Point((pos.x + 20 / 2) / 20 * 20, (pos.y + 20 / 2) / 20 * 20); };
+TopModuleBox::TopModuleBox(wxPoint start, wxPoint end, TopNode* self) :
+    m_pos(start), self(self)
 {
-    std::string d = arg.d;
-    if (d.find("A 16 28") != std::string::npos) {
-        int verticalLineLength = 40;
-        int radius = verticalLineLength / 2;
-        // 用 DC 绘制路径（和你之前 DrawFallback 里的逻辑一致）
-        dc.SetPen(wxPen(arg.stroke, arg.strokeWidth));
-        dc.DrawLine(off(Point(10, 12)), off(Point(10, 52)));
-        dc.DrawLine(off(Point(10, 12)), off(Point(10 + radius, 12)));
-        dc.DrawLine(off(Point(10, 52)), off(Point(10 + radius, 52)));
-        // 绘制弧线（用折线模拟）
-        std::vector<wxPoint> arcPoints;
-        for (int angle = -90; angle <= 90; angle += 3) {
-            double rad = angle * M_PI / 180.0;
-            int x = 30 + static_cast<int>(radius * cos(rad));
-            int y = 32 + static_cast<int>(radius * sin(rad));
-            arcPoints.push_back(off(Point(x, y)));
-        }
-        if (arcPoints.size() >= 2) {
-            dc.DrawLines(static_cast<int>(arcPoints.size()), arcPoints.data());
-        }
-    }
-}
+    int width = end.x - start.x;
+    int height = end.y - start.y;
 
-wxRect CanvasElement::GetBounds() const
-{
-    // GetBounds 方法保持不变
-    if (m_shapes.empty()) return wxRect(m_pos, wxSize(1, 1));
+    // 1. 绘制矩形边框 (相对坐标)
+    m_shapes.push_back(Line(Point(0, 0), Point(0, height)));
+    m_shapes.push_back(Line(Point(0, 0), Point(width, 0)));
+    m_shapes.push_back(Line(Point(width, 0), Point(width, height)));
+    m_shapes.push_back(Line(Point(0, height), Point(width, height)));
 
-    int minX = std::numeric_limits<int>::max();
-    int minY = std::numeric_limits<int>::max();
-    int maxX = std::numeric_limits<int>::min();
-    int maxY = std::numeric_limits<int>::min();
-
-    auto update = [&](const Point& p) {
-        int x = m_pos.x + p.x;
-        int y = m_pos.y + p.y;
-        minX = std::min(minX, x);
-        minY = std::min(minY, y);
-        maxX = std::max(maxX, x);
-        maxY = std::max(maxY, y);
-        };
-
-    for (const auto& shape : m_shapes) {
-        auto visitor = [&](const auto& arg) {
-            using T = std::decay_t<decltype(arg)>;
-
-            if constexpr (std::is_same_v<T, PolyShape>) {
-                for (const auto& pt : arg.pts) update(pt);
-            }
-            else if constexpr (std::is_same_v<T, Line>) {
-                update(arg.start);
-                update(arg.end);
-            }
-            else if constexpr (std::is_same_v<T, Circle>) {
-                update(Point(arg.center.x - arg.radius, arg.center.y - arg.radius));
-                update(Point(arg.center.x + arg.radius, arg.center.y + arg.radius));
-            }
-            else if constexpr (std::is_same_v<T, Text>) {
-                update(arg.pos);
-                update(Point(arg.pos.x + 20, arg.pos.y + 10));
-            }
-            else if constexpr (std::is_same_v<T, ArcShape>) {
-                update(Point(arg.center.x - arg.radius, arg.center.y - arg.radius));
-                update(Point(arg.center.x + arg.radius, arg.center.y + arg.radius));
-            }
-            else if constexpr (std::is_same_v<T, BezierShape>) {
-                auto pts = CalculateBezier(arg.p0, arg.p1, arg.p2, 32);
-                for (const auto& wp : pts) {
-                    Point p{ wp.x, wp.y };
-                    update(p);
-                }
-            }
-            else if constexpr (std::is_same_v<T, CubicBezierShape>) {
-                auto pts = CalculateCubicBezier(arg.p0, arg.p1, arg.p2, arg.p3, 32);
-                for (const auto& wp : pts) {
-                    Point p{ wp.x, wp.y };
-                    update(p);
-                }
-            }
-            else if constexpr (std::is_same_v<T, Path>) {
-                if (arg.d.find("A 16 28") != std::string::npos) {
-                    update(Point(10, 12));
-                    update(Point(50, 52));
-                }
-            }
-            };
-
-        std::visit(visitor, shape);
-    }
-
-    for (const auto& pin : m_inputPins) {
-        update(pin.pos);
-        update(Point(pin.pos.x - 3, pin.pos.y - 3)); // 更新为圆点的边界
-        update(Point(pin.pos.x + 3, pin.pos.y + 3));
-    }
-
-    for (const auto& pin : m_outputPins) {
-        update(pin.pos);
-        update(Point(pin.pos.x - 3, pin.pos.y - 3)); // 更新为圆点的边界
-        update(Point(pin.pos.x + 3, pin.pos.y + 3));
-    }
-
-    return wxRect(minX, minY, maxX - minX + 1, maxY - minY + 1);
-}
-
-void CanvasElement::SetOutputState(LogicSignal state)
-{
-    if (state >= 0 && state <= 2) {
-        m_outputState = state;
-    }
-}
-
-// 设置Pin_Output状态的示例代码：
-void SetPinOutputState(CanvasElement& pinOutput, LogicSignal state) {
-    pinOutput.SetOutputState(state);
-}
-
-// 获取Pin_Output状态的示例代码：
-int GetPinOutputState(const CanvasElement& pinOutput) {
-    return pinOutput.GetOutputState();
-}
-
-
-// 根据门属性重新生成形状 - 只对 AND 门生效
-void CanvasElement::RegenerateShapes()
-{
-    // 只处理 AND 门
-    if (!IsAndGate()) return;
-    
-    // 验证属性
-    m_gateProps.Validate();
-    
-    // 清除现有形状和引脚
-    ClearShapes();
-    ClearPins();
-    
-    // 创建 AND 门绘制器
-    auto painter = GatePainterFactory::CreatePainter(m_id);
-    if (!painter) return;
-    
-    // 生成形状
-    std::vector<Shape> shapes = painter->GenerateShapes(m_gateProps);
-    for (const auto& shape : shapes) {
-        AddShape(shape);
-    }
-    
-    // 生成引脚
-    std::vector<Pin> inputPins = painter->GenerateInputPins(m_gateProps);
-    for (const auto& pin : inputPins) {
-        AddInputPin(pin.pos, pin.name);
-    }
-    
-    std::vector<Pin> outputPins = painter->GenerateOutputPins(m_gateProps);
-    for (const auto& pin : outputPins) {
-        AddOutputPin(pin.pos, pin.name);
-    }
-}
-
-
-// 序列化门属性为JSON字符串
-wxString CanvasElement::SerializeGatePropsToJson() const
-{
-    if (!IsLogicGate()) return "{}";
-    
-    const GateProperties& props = m_gateProps;
-    
-    wxString json = "{\n";
-    json += wxString::Format("  \"facing\": \"%s\",\n", props.facing);
-    json += wxString::Format("  \"dataBits\": %d,\n", props.dataBits);
-    json += wxString::Format("  \"gateSize\": \"%s\",\n", props.gateSize);
-    json += wxString::Format("  \"numberOfInputs\": %d,\n", props.numberOfInputs);
-    
-    // 转义标签中的特殊字符
-    wxString escapedLabel = props.label;
-    escapedLabel.Replace("\\", "\\\\");
-    escapedLabel.Replace("\"", "\\\"");
-    escapedLabel.Replace("\n", "\\n");
-    json += wxString::Format("  \"label\": \"%s\",\n", escapedLabel);
-    
-    json += wxString::Format("  \"labelFont\": \"%s\",\n", props.labelFont);
-    
-    // 序列化negateInputs数组
-    json += "  \"negateInputs\": [";
-    for (int i = 0; i < props.numberOfInputs && i < (int)props.negateInputs.size(); i++) {
-        if (i > 0) json += ", ";
-        json += props.negateInputs[i] ? "true" : "false";
-    }
-    json += "]\n";
-    
-    json += "}";
-    
-    return json;
-}
-
-// 从JSON字符串反序列化门属性
-void CanvasElement::DeserializeGatePropsFromJson(const wxString& json)
-{
-    if (!IsLogicGate() || json.IsEmpty()) return;
-    
-    GateProperties& props = m_gateProps;
-    
-    // 简单的JSON解析
-    auto extractString = [&json](const wxString& key) -> wxString {
-        wxString searchKey = "\"" + key + "\": \"";
-        int start = json.Find(searchKey);
-        if (start == wxNOT_FOUND) return "";
-        start += searchKey.Length();
-        int end = json.find("\"", start);
-        if (end == wxNOT_FOUND) return "";
-        return json.Mid(start, end - start);
-    };
-    
-    auto extractInt = [&json](const wxString& key) -> int {
-        wxString searchKey = "\"" + key + "\": ";
-        int start = json.Find(searchKey);
-        if (start == wxNOT_FOUND) return 0;
-        start += searchKey.Length();
-        wxString numStr;
-        for (size_t i = start; i < json.Length(); i++) {
-            wxChar c = json[i];
-            if (c >= '0' && c <= '9') {
-                numStr += c;
-            } else {
-                break;
-            }
-        }
-        long val = 0;
-        numStr.ToLong(&val);
-        return (int)val;
-    };
-    
-    // 解析各字段
-    wxString facing = extractString("facing");
-    if (!facing.IsEmpty()) props.facing = facing;
-    
-    int dataBits = extractInt("dataBits");
-    if (dataBits > 0) props.dataBits = dataBits;
-    
-    wxString gateSize = extractString("gateSize");
-    if (!gateSize.IsEmpty()) props.gateSize = gateSize;
-    
-    int numberOfInputs = extractInt("numberOfInputs");
-    if (numberOfInputs >= 2) props.numberOfInputs = numberOfInputs;
-    
-    wxString label = extractString("label");
-    label.Replace("\\n", "\n");
-    label.Replace("\\\"", "\"");
-    label.Replace("\\\\", "\\");
-    props.label = label;
-    
-    wxString labelFont = extractString("labelFont");
-    if (!labelFont.IsEmpty()) props.labelFont = labelFont;
-    
-    // 解析negateInputs数组
-    int arrayStart = json.Find("\"negateInputs\": [");
-    if (arrayStart != wxNOT_FOUND) {
-        arrayStart = json.find("[", arrayStart);
-        int arrayEnd = json.find("]", arrayStart);
-        if (arrayStart != wxNOT_FOUND && arrayEnd != wxNOT_FOUND) {
-            wxString arrayStr = json.Mid(arrayStart + 1, arrayEnd - arrayStart - 1);
-            props.negateInputs.clear();
-            props.negateInputs.resize(32, false);
-            
-            int idx = 0;
-            int pos = 0;
-            while (pos < (int)arrayStr.Length() && idx < 32) {
-                if (arrayStr.Mid(pos, 4) == "true") {
-                    props.negateInputs[idx] = true;
-                    pos += 4;
-                    idx++;
-                } else if (arrayStr.Mid(pos, 5) == "false") {
-                    props.negateInputs[idx] = false;
-                    pos += 5;
-                    idx++;
-                } else {
-                    pos++;
-                }
-            }
+    // 2. 添加左侧输入引脚 (均分算法)
+    if (self->GetInPorts().size() > 0) {
+        // 如果只有一个引脚，放中间；多个引脚则平分 height
+        float segment = static_cast<float>(height) / (self->GetInPorts().size() + 1);
+        for (int i = 0; i < self->GetInPorts().size(); ++i) {
+            // 第 i 个引脚的位置在第 i+1 个等分点上
+            int py = static_cast<int>((i + 1) * segment);
+            m_inPins.push_back(Pin(Snap(Point(0, py)), true, &self->GetInPorts()[i]));
         }
     }
-    
-    props.Validate();
-}
 
-// 为AND门应用方向变换 - 只对 AND_Gate 生效
-void CanvasElement::ApplyFacingTransform(const wxString& oldFacing, const wxString& newFacing)
-{
-    // 只对 AND_Gate 使用此方法
-    if (m_id != "AND_Gate") {
-        return;
-    }
-    
-    if (oldFacing == newFacing) return;
-    
-    auto facingToAngle = [](const wxString& f) -> int {
-        if (f == "East") return 0;
-        if (f == "South") return 90;
-        if (f == "West") return 180;
-        if (f == "North") return 270;
-        return 0;
-    };
-    
-    int oldAngle = facingToAngle(oldFacing);
-    int newAngle = facingToAngle(newFacing);
-    int deltaAngle = (newAngle - oldAngle + 360) % 360;
-    
-    if (deltaAngle == 0) return;
-    
-    Point center(80, 60);
-    
-    auto transformPoint = [&](Point& p) {
-        int rx = p.x - center.x;
-        int ry = p.y - center.y;
-        int newX, newY;
-        
-        if (deltaAngle == 90) {
-            newX = -ry;
-            newY = rx;
-        } else if (deltaAngle == 180) {
-            newX = -rx;
-            newY = -ry;
-        } else if (deltaAngle == 270) {
-            newX = ry;
-            newY = -rx;
-        } else {
-            newX = rx;
-            newY = ry;
+    // 3. 添加右侧输出引脚 (均分算法)
+    if (self->GetOutPorts().size() > 0) {
+        float segment = static_cast<float>(height) / (self->GetOutPorts().size() + 1);
+        for (int j = 0; j < self->GetOutPorts().size(); ++j) {
+            int py = static_cast<int>((j + 1) * segment);
+            m_outPins.push_back(Pin(Snap(Point(width, py)), false, &self->GetOutPorts()[j]));
         }
-        
-        p.x = center.x + newX;
-        p.y = center.y + newY;
-    };
-    
-    for (auto& shape : m_shapes) {
-        std::visit([&](auto& s) {
-            using T = std::decay_t<decltype(s)>;
-            
-            if constexpr (std::is_same_v<T, Line>) {
-                transformPoint(s.start);
-                transformPoint(s.end);
-            }
-            else if constexpr (std::is_same_v<T, Circle>) {
-                transformPoint(s.center);
-            }
-            else if constexpr (std::is_same_v<T, ArcShape>) {
-                transformPoint(s.center);
-                s.startAngle += deltaAngle;
-                s.endAngle += deltaAngle;
-            }
-            else if constexpr (std::is_same_v<T, Text>) {
-                transformPoint(s.pos);
-            }
-            else if constexpr (std::is_same_v<T, PolyShape>) {
-                for (auto& pt : s.pts) {
-                    transformPoint(pt);
-                }
-            }
-            else if constexpr (std::is_same_v<T, BezierShape>) {
-                transformPoint(s.p0);
-                transformPoint(s.p1);
-                transformPoint(s.p2);
-            }
-            else if constexpr (std::is_same_v<T, CubicBezierShape>) {
-                transformPoint(s.p0);
-                transformPoint(s.p1);
-                transformPoint(s.p2);
-                transformPoint(s.p3);
-            }
-        }, shape);
     }
-    
-    for (auto& pin : m_inputPins) {
-        transformPoint(pin.pos);
-    }
-    
-    for (auto& pin : m_outputPins) {
-        transformPoint(pin.pos);
-    }
-    
-    m_gateProps.facing = newFacing;
-    m_andGateProps.facing = newFacing;
+
+    m_bound = wxRect(0, 0, width, height); // 注意：m_bound 建议也用相对坐标，或根据 SetPos 统一
+    SetPos(start);
 }
 
-void CanvasElement::ReSetPinStatus() {
-    for (auto& pin : m_inputPins) {
-        pin.s = LogicSignal::E;
-    }
-    for (auto& pin : m_outputPins) {
-        pin.s = LogicSignal::E;
-    }
-}
+void TopModuleBox::SetEnd(wxPoint end) {
+    int width = end.x - m_pos.x;
+    int height = end.y - m_pos.y;
 
-void CanvasElement::initTruthTable() {
-    if (m_id == "AND_Gate") {
-        TruthTable = { LogicSignal::ZERO, LogicSignal::ZERO, LogicSignal::ZERO, LogicSignal::ONE };
-    }
-    else if (m_id == "OR_Gate") {
-        TruthTable = { LogicSignal::ZERO, LogicSignal::ONE, LogicSignal::ONE, LogicSignal::ONE };
-    }
-    else if (m_id == "NOT_Gate") {
-        TruthTable = { LogicSignal::ZERO, LogicSignal::ONE };
-    }
-    else if (m_id == "XOR_Gate") {
-        TruthTable = { LogicSignal::ZERO, LogicSignal::ONE, LogicSignal::ONE, LogicSignal::ZERO };
-    }
-}
+    // 1. 绘制矩形边框 (相对坐标)
+    m_shapes.push_back(Line(Point(0, 0), Point(0, height)));
+    m_shapes.push_back(Line(Point(0, 0), Point(width, 0)));
+    m_shapes.push_back(Line(Point(width, 0), Point(width, height)));
+    m_shapes.push_back(Line(Point(0, height), Point(width, height)));
 
-LogicSignal CanvasElement::express(int input) {
-    if (m_id == "Pin_Input") return m_state ? LogicSignal::ONE : LogicSignal::ZERO;
-    if (m_id == "Pin_Output") return LogicSignal(input);
-    return TruthTable[input];
+    // 2. 添加左侧输入引脚 (均分算法)
+    if (self->GetInPorts().size() > 0) {
+        // 如果只有一个引脚，放中间；多个引脚则平分 height
+        float segment = static_cast<float>(height) / (self->GetInPorts().size() + 1);
+        for (int i = 0; i < self->GetInPorts().size(); ++i) {
+            // 第 i 个引脚的位置在第 i+1 个等分点上
+            int py = static_cast<int>((i + 1) * segment);
+            m_inPins.push_back(Pin(Snap(Point(0, py)), true, &self->GetInPorts()[i]));
+        }
+    }
+
+    // 3. 添加右侧输出引脚 (均分算法)
+    if (self->GetOutPorts().size() > 0) {
+        float segment = static_cast<float>(height) / (self->GetOutPorts().size() + 1);
+        for (int j = 0; j < self->GetOutPorts().size(); ++j) {
+            int py = static_cast<int>((j + 1) * segment);
+            m_outPins.push_back(Pin(Snap(Point(width, py)), false, &self->GetOutPorts()[j]));
+        }
+    }
+
+    m_bound = wxRect(0, 0, width, height); // 注意：m_bound 建议也用相对坐标，或根据 SetPos 统一
 }

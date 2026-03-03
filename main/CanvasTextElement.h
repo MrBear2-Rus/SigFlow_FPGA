@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #ifndef CANVASTEXTELEMENT_H
 #define CANVASTEXTELEMENT_H
 
@@ -11,6 +11,16 @@ public:
     CanvasTextElement() = default;
     CanvasTextElement(CanvasPanel* parent, const wxString& text = "", const wxPoint& pos = wxPoint(0, 0));
     ~CanvasTextElement();
+
+    // 允许移动
+
+    CanvasTextElement(CanvasTextElement&& other) noexcept;
+    CanvasTextElement& operator=(CanvasTextElement&& other) noexcept;
+
+    CanvasTextElement(const CanvasTextElement&) = default;
+    CanvasTextElement& operator=(const CanvasTextElement&) = default;
+
+
 
     // 绘制方法
     void Draw(wxGraphicsContext* gc);
@@ -61,3 +71,5 @@ private:
 };
 
 #endif // CANVASTEXTELEMENT_H
+
+

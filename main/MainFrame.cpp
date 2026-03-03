@@ -1,40 +1,27 @@
-#include <wx/msgdlg.h>
+﻿#include <wx/msgdlg.h>
 #include <wx/filename.h> 
 #include <wx/sstream.h>
 #include <wx/aui/aui.h>
 #include <wx/progdlg.h>
-#include <wx/textdlg.h>
-
-#include "../3rd/json/json.h"
-
-#include "MainFrame.h"
-#include "MainMenuBar.h"
-#include "CanvasPanel.h"
-#include "PropertyPanel.h"
-#include "ToolboxPanel.h"   // ��Ĳ����
-#include "CanvasModel.h"
-#include "my_log.h"
-#include "UndoStack.h"
-#include "UndoNotifier.h"
-#include "HandyToolKit.h"
 #include <wx/stc/stc.h>
 #include <wx/stdpaths.h>
 #include <wx/aui/tabart.h>
 #include <wx/simplebook.h>
 #include <wx/splitter.h>
-#include <wx/dirdlg.h>
-#include <wx/filefn.h>
-#include <wx/filename.h>
-#include <wx/textdlg.h>
-#include <wx/wfstream.h>
-#include <wx/txtstrm.h>
-#include <wx/msgdlg.h>
-#include <wx/filepicker.h>
 
-extern std::vector<CanvasElement> g_elements;
+#include "MainFrame.h"
+#include "MainMenuBar.h"
+#include "ToolboxPanel.h"  
+#include "CanvasModel.h"
+#include "my_log.h"
+#include "CanvasNoteBook.h"
+
+extern std::vector<SecondElement> g_elements;
 
 wxDEFINE_EVENT(EVT_SFTREE_NODE_ACTIVATED, wxCommandEvent);
-wxDEFINE_EVENT(EVT_SFTREE_CHANGED, wxCommandEvent);
+wxDEFINE_EVENT(EVT_SIGFLOWNODE_ADD, wxCommandEvent);
+wxDEFINE_EVENT(EVT_SIGFLOWNODE_DEL, wxCommandEvent);
+wxDEFINE_EVENT(EVT_SIGFLOWNODE_CHANGED, wxCommandEvent);
 
 wxBEGIN_EVENT_TABLE(MainFrame, wxFrame)
 EVT_MENU(wxID_ABOUT, MainFrame::OnAbout)
@@ -61,12 +48,20 @@ enum {
 };
 
 MainFrame::MainFrame()
-    : wxFrame(nullptr, wxID_ANY, "SigFlow")
+    : wxFrame(nullptr, wxID_ANY, "SigFlow"),
+    snap_version(0),               // 初始化
+    m_isModified(false),
+    m_verilogEditor(nullptr),       // 先置空
+    m_analysisCenter(nullptr),
+    m_projectTreePanel(nullptr),
+    sigTree(nullptr),
+    m_toolbox(nullptr),
+    m_sigFlowTreePanel(nullptr),
+    m_sfnPropertyPanel(nullptr),
+    m_terminalCtrl(nullptr),
+    m_pluginMgr(nullptr),
+    m_refreshTimer(nullptr)
 {
-
-    // 终端
-    m_terminalCtrl = new TerminalCtrl(this);
-
     // 图标
     wxInitAllImageHandlers();
     wxBitmapBundle svgIcon = wxBitmapBundle::FromSVGFile("res\\svg_icons\\icon.svg", wxSize(24, 24));
@@ -80,8 +75,9 @@ MainFrame::MainFrame()
     // 元件模型库
     wxString jsonPath = wxFileName(wxGetCwd(), "canvas_elements.json").GetFullPath();
     MyLog("MainFrame: JSON full path = [%s]\n", jsonPath.ToUTF8().data());
-    g_elements = LoadCanvasElements(jsonPath);
-    m_terminalCtrl->PrintOutput("ToolBox Loaded.");
+    g_elements = LoadSecondElements(jsonPath);
+
+
     Bind(wxEVT_CLOSE_WINDOW, &MainFrame::OnClose, this);
     
     // 计时器
@@ -90,8 +86,10 @@ MainFrame::MainFrame()
     m_refreshTimer->Start(1000);
 
     // 构造SigTree
-    sigTree = new SigFlowTree();
-
+    sigTree = new SigFlowTree(this);
+    this->Bind(EVT_SIGFLOWNODE_ADD, &MainFrame::OnSFNodeAdded, this);
+    this->Bind(EVT_SIGFLOWNODE_DEL, &MainFrame::OnSFNodeDeleted, this);
+    this->Bind(EVT_SIGFLOWNODE_CHANGED, &MainFrame::OnSFNodeChanged, this);
 
     /* 面板加载 */
     m_auiMgr.SetManagedWindow(this);
@@ -99,35 +97,26 @@ MainFrame::MainFrame()
     /* 菜单栏*/
     SetMenuBar(new MainMenuBar(this));
     CreateStatusBar(1);
-    int widths[] = { -4, -2, -2, FromDIP(100) };
-    int style[] = { wxSB_NORMAL, wxSB_NORMAL, wxSB_FLAT, wxSB_FLAT };
+    int widths[] = { -4, -2, FromDIP(100), FromDIP(100) };
+    int style[] = { wxSB_NORMAL, wxSB_NORMAL, wxSB_NORMAL, wxSB_NORMAL };
     GetStatusBar()->SetFieldsCount(4, widths);
     GetStatusBar()->SetStatusStyles(4, style);
 
     // 画布
-    m_canvas = new CanvasPanel(this, FromDIP(2560), FromDIP(1960));
-    m_canvas->SetBackgroundColour(*wxWHITE);
-    m_canvas->SetFocus();
-    m_terminalCtrl->PrintOutput("Canvas Loaded.");
+    m_canvas = new CanvasNoteBook(this, sigTree, wxID_ANY, FromDIP(1123), FromDIP(794));
+
     // 元件库
-    ToolboxPanel* toolbox = new ToolboxPanel(this);
-    m_terminalCtrl->PrintOutput("Toolbox Panel Loaded.");
+    m_toolbox = new ToolboxPanel(this);
     // 构造树面板
     m_sigFlowTreePanel = new SigFlowTreePanel(this, sigTree);
-    m_terminalCtrl->PrintOutput("SigFlow Tree Panel Loaded.");
-    // 画布元素属性栏
-    m_propPanel = new PropertyPanel(this);
-    m_propPanel->ShowElement("Select Tool");
-    m_terminalCtrl->PrintOutput("Property Panel Loaded.");
 
     // SigTreeNode属性栏
     m_sfnPropertyPanel = new SFNPropertyPanel(this, sigTree);
     this->Bind(EVT_SFTREE_NODE_ACTIVATED, &MainFrame::OnSFNodeActivated, this);
-    this->Bind(EVT_SFTREE_CHANGED, &MainFrame::OnSFTreeChanged, this);
 
     // 文本编辑面板
     m_verilogEditor = new SigTextEditor(this);
-    m_terminalCtrl->PrintOutput("Text Editor Loaded.");
+
     // 异步IDE分析
     m_analysisCenter = new AsyncAnalysisCenter(this);
     this->Bind(EVT_ANALYSIS_COMPLETE, &MainFrame::OnAnalysisComplete, this);
@@ -147,6 +136,9 @@ MainFrame::MainFrame()
     wxAuiToolBar* sideBar = new wxAuiToolBar(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
         wxAUI_TB_VERTICAL | wxAUI_TB_NO_TOOLTIPS);
     sideBar->SetBackgroundColour(wxColour(225, 230, 235));
+ 
+    // 终端
+    m_terminalCtrl = new TerminalCtrl(this);
 
     auto GetIcon = [&](const wxString& path) {
         wxBitmapBundle bundle = wxBitmapBundle::FromSVGFile(path, wxSize(24, 24));
@@ -183,7 +175,7 @@ MainFrame::MainFrame()
     // 获取所有插件列表，准备在菜单或工具栏显示
     const auto& plugins = m_pluginMgr->GetAllPlugins();
     for (auto* p : plugins) {
-        m_terminalCtrl->PrintOutput(p->GetName() + " Loaded");
+        m_terminalCtrl->PrintOutput(p->GetName() + " Loaded\n");
     }
 
     ISigPlugin* pDeepSeek = m_pluginMgr->GetPlugin("DeepSeek_Assistant");
@@ -204,10 +196,10 @@ MainFrame::MainFrame()
 
     m_projectTreePanel->Reparent(leftSideNotebook);
     m_sigFlowTreePanel->Reparent(leftSideNotebook);
-    toolbox->Reparent(leftSideNotebook);
+    m_toolbox->Reparent(leftSideNotebook);
     leftSideNotebook->AddPage(m_projectTreePanel, "Project Manager");
     leftSideNotebook->AddPage(m_sigFlowTreePanel, "SigFlow Tree");
-    leftSideNotebook->AddPage(toolbox, "Component Library");
+    leftSideNotebook->AddPage(m_toolbox, "Component Library");
 
     Bind(wxEVT_TOOL, [=](wxCommandEvent& e) {
         int clickedId = e.GetId();
@@ -245,13 +237,7 @@ MainFrame::MainFrame()
 
     // --- 左侧：项目与控制组 ---
     topBar->AddTool(ID_TB_NEW, "New", GetIcon("res\\svg_icons\\new_project.svg"), "New Project");
-    topBar->Bind(wxEVT_MENU, [this](wxCommandEvent&) {
-        this->DoFileNewProject(); // 这里调用的是原有的无参函数
-        }, ID_TB_NEW);
     topBar->AddTool(ID_TB_OPEN, "Open", GetIcon("res\\svg_icons\\open_project.svg"), "Open Project");
-    topBar->Bind(wxEVT_MENU, [this](wxCommandEvent&) {
-        this->DoFileOpenProject(); // 这里调用的是原有的无参函数
-        }, ID_TB_OPEN);
     topBar->AddTool(ID_TB_SAVE, "Save", GetIcon("res\\svg_icons\\save_project.svg"), "Save All");
     topBar->AddSeparator();
 
@@ -268,15 +254,11 @@ MainFrame::MainFrame()
         wxAUI_NB_TOP | wxAUI_NB_TAB_MOVE | wxAUI_NB_TAB_EXTERNAL_MOVE | wxAUI_NB_TAB_SPLIT);
 
     m_sfnPropertyPanel->Reparent(rightNotebook);
-    m_propPanel->Reparent(rightNotebook);
-    rightNotebook->AddPage(m_sfnPropertyPanel, "SigFlow Node");
-    rightNotebook->AddPage(m_propPanel, "Canvas Elements");
+    rightNotebook->AddPage(m_sfnPropertyPanel, "Property");
     if (pDeepSeek) {
         wxPanel* aiPanel = pDeepSeek->CreatePanel(rightNotebook);
         rightNotebook->AddPage(aiPanel, "DeepSeek Assistant");
     }
-    
-
 
     wxSplitterWindow* mainSplitter = new wxSplitterWindow(this, wxID_ANY,
         wxDefaultPosition, wxDefaultSize,
@@ -371,6 +353,11 @@ MainFrame::MainFrame()
 
     // 如果 Update 后还是没变，这是因为 AUI 的内部状态已经锁定。
     // 我们尝试手动修改 PaneInfo 里的 dock_size 并再次强制 Update。
+    this->CallAfter([this]() {
+        if (m_canvas) {
+            m_canvas->AdjustScaleToFit(); // 你自定义的强制适配函数
+        }
+        });
     m_auiMgr.GetPane("left_sidebar").BestSize(leftW, -1);
     m_auiMgr.GetPane("right_sidebar").BestSize(rightW, -1);
     m_auiMgr.GetPane("bottom_tabs").BestSize(-1, bottomH);
@@ -396,32 +383,23 @@ MainFrame::MainFrame()
 
     m_auiMgr.Update();
 
-    // ���ĳ���֪ͨ
-    UndoNotifier::Subscribe([this](const wxString& name, bool canUndo) {
-        this->OnUndoStackChanged();
-        });
-
 
 }
 
 MainFrame::~MainFrame()
 {
     m_refreshTimer->Stop();
-    m_auiMgr.UnInit();   // �����ֶ�����ʼ��
-    
+    delete m_refreshTimer;
+    m_auiMgr.UnInit(); 
+
+    m_verilogEditor = nullptr;
+    m_auiMgr.UnInit();
 }
 
 void MainFrame::OnToolboxElement(wxCommandEvent& evt)
 {
-    MyLog("MainFrame: received <%s>\n", evt.GetString().ToUTF8().data());
 
     wxString name = evt.GetString();
-    auto it = std::find_if(g_elements.begin(), g_elements.end(),
-        [&](const CanvasElement& e) { return e.GetName() == name; });
-    if (it == g_elements.end()) return;
-
-    CanvasElement clone = *it;
-    clone.SetPos(wxPoint(100, 100));   
     //m_canvas->AddElement(clone);     
     m_canvas->SetCurrentComponent(name);  
 }
@@ -593,6 +571,9 @@ void MainFrame::DoFileOpenProject() {
                 sigTree->PrintTree();
             }
         }
+        for (auto defId : sigTree->GetDefinitions()) {
+            m_toolbox->AddDefinition(defId);
+        }
 
         progress.Update(progress.GetRange() - 1, "Creating Workspace Mirror...");
 
@@ -615,125 +596,11 @@ void MainFrame::DoFileOpenProject() {
         }
 
         progress.Update(progress.GetRange(), "Load Complete!");
-        wxCommandEvent evt(EVT_SFTREE_CHANGED);
+        wxCommandEvent evt;
         OnSFTreeChanged(evt);
     }
 }
 
-void MainFrame::DoFileNewProject() {
-    // 1. 创建一个基础对话框
-    wxDialog dlg(this, wxID_ANY, "Create New Project", wxDefaultPosition, wxDefaultSize);
-    dlg.SetMinSize(wxSize(1000, -1));
-    // 2. 创建主布局管理器
-    wxBoxSizer* mainSizer = new wxBoxSizer(wxVERTICAL);
-
-    // --- 第一行：项目名称 ---
-    mainSizer->Add(new wxStaticText(&dlg, wxID_ANY, "Project Name:"), 0, wxALL, 10);
-
-    wxTextCtrl* nameInput = new wxTextCtrl(&dlg, wxID_ANY, "NewProject");
-    mainSizer->Add(nameInput, 0, wxEXPAND | wxLEFT | wxRIGHT, 10);
-
-    // --- 第二行：项目位置 ---
-    mainSizer->Add(new wxStaticText(&dlg, wxID_ANY, "Location:"), 0, wxALL, 10);
-    // wxDirPickerCtrl 完美符合你的需求：左侧路径文本，右侧 "..." 按钮
-    wxDirPickerCtrl* pathPicker = new wxDirPickerCtrl(&dlg, wxID_ANY, wxEmptyString, "Select Folder");
-    mainSizer->Add(pathPicker, 0, wxEXPAND | wxLEFT | wxRIGHT, 10);
-
-    // --- 第三行：标准按钮 (OK/Cancel) ---
-    // CreateStdDialogButtonSizer 会根据操作系统习惯自动排列按钮顺序
-    mainSizer->AddStretchSpacer();
-    wxSizer* buttonSizer = dlg.CreateStdDialogButtonSizer(wxOK | wxCANCEL);
-    mainSizer->Add(buttonSizer, 0, wxALIGN_RIGHT | wxALL, 10);
-
-    dlg.SetSizer(mainSizer);
-    dlg.Fit();
-    dlg.CenterOnParent();
-    // 3. 显示并获取结果
-    if (dlg.ShowModal() == wxID_OK) {
-        wxString projectName = nameInput->GetValue();
-        wxString parentPath = pathPicker->GetPath();
-
-        if (projectName.IsEmpty() || parentPath.IsEmpty()) {
-            wxMessageBox("Project name or path cannot be empty.", "Error", wxICON_ERROR);
-            return;
-        }
-
-        // 3. 构建完整的项目根目录路径
-        wxFileName projectDir(parentPath, "");
-        projectDir.AppendDir(projectName);
-        wxString rootPath = projectDir.GetPath();
-
-        // 检查目录是否已存在
-        if (wxDirExists(rootPath)) {
-            wxMessageBox("The directory already exists. Please change the project name or location.", "Failed to create", wxICON_ERROR);
-            return;
-        }
-
-        // 4. 开始创建目录结构
-        if (!wxMkdir(rootPath)) {
-            wxMessageBox("  The project root directory cannot be created.", "error", wxICON_ERROR);
-            return;
-        }
-
-        // 定义子目录列表
-        wxArrayString subDirs;
-        subDirs.Add("src");
-        subDirs.Add("lib");
-        subDirs.Add(".cache");
-        subDirs.Add(".sigflow");
-
-        for (const auto& sub : subDirs) {
-            wxFileName subPath(rootPath, "");
-            subPath.AppendDir(sub);
-            if (!wxMkdir(subPath.GetPath())) {
-                wxMessageBox("Directory cannot be created: " + sub, "warning", wxICON_WARNING);
-            }
-        }
-
-        // 5. 创建 sigflow.project 配置文件
-        wxFileName configFilePath(rootPath, "sigflow.project");
-        wxFileOutputStream output(configFilePath.GetFullPath());
-        if (!output.IsOk()) {
-            wxMessageBox("The project configuration file cannot be created.", "error", wxICON_ERROR);
-            return;
-        }
-
-        wxTextOutputStream txt(output);
-
-        // 写入 JSON 内容（这里保持原样，仅替换项目名）
-        wxString jsonContent = wxString::Format(R"({
-  "project_name": "%s",
-  "version": "1.0",
-  "build": {
-    "top_module": [],
-    "target_dir": ".sigflow/bin",
-    "standard": "1364-2005"
-  },
-  "paths": {
-    "include_dirs": [
-      "src",
-      "lib"
-    ],
-    "source_files": [],
-    "library_files": []
-  },
-  "defines": {
-    "DEBUG_ENABLE": 1,
-    "SIMULATION": true,
-    "CLOCK_PERIOD": 10
-  },
-  "tool_specific": {
-    "verilator": ["--trace", "--Wno-fatal"],
-    "iverilog": ["-g2012"],
-    "slang": ["-W all"]
-  }
-})", projectName);
-
-        txt << jsonContent;
-
-        wxLogStatus("Project '%s' has been successfully created to: %s", projectName, rootPath);
-    }
-}
 
 void MainFrame::DoFileNew() {
     // ֱ�Ӵ���һ���µĿհ�MainFrame����
@@ -795,6 +662,7 @@ bool MainFrame::SaveToFile(const wxString& filePath) {
 
 wxString MainFrame::GenerateFileContent()
 {
+    /*
     // 1. ����XML�ĵ�
     wxXmlDocument doc;
 
@@ -854,11 +722,13 @@ wxString MainFrame::GenerateFileContent()
     // 8. ���XML����
     wxStringOutputStream strStream;
     doc.Save(strStream, wxXML_DOCUMENT_TYPE_NODE);
-    return strStream.GetString();
+    return strStream.GetString();*/
+    return "";
 }
 
 void MainFrame::DoFileOpen(const wxString& path)
 {
+    /*
     wxString filePath = path;
 
     // 如果用户没有提供路径，显示文件选择对话框
@@ -905,7 +775,7 @@ void MainFrame::DoFileOpen(const wxString& path)
     }
 
     // ��յ�ǰ����
-    m_canvas->ClearAll();
+    //m_canvas->ClearAll();
 
     // �������ڵ�
     wxXmlNode* root = doc.GetRoot();
@@ -939,7 +809,7 @@ void MainFrame::DoFileOpen(const wxString& path)
             // �Ƴ��������й���rotation�Ķ�ȡ
             // int rotation = wxAtoi(child->GetAttribute("rotation", "0"));
 
-            m_canvas->AddElement(name, wxPoint(x, y));
+            //m_canvas->AddElement(name, wxPoint(x, y));
             // 同时移除设置旋转角度的逻辑（如果有的话）
         }
 
@@ -988,48 +858,14 @@ void MainFrame::DoFileOpen(const wxString& path)
     m_isModified = false;
     SetTitle(wxFileName(filePath).GetFullName());
     static_cast<MainMenuBar*>(GetMenuBar())->AddFileToHistory(filePath);
-    SetStatusText(wxT("已打开: ") + filePath);
+    SetStatusText("�Ѵ�: " + filePath);*/
 }
 
 
 void MainFrame::OnToolSelected(wxCommandEvent& evt) {
   wxString toolName = evt.GetString();
     std::map<wxString, wxVariant> currentProps;
-    
-    // 1. 获取当前选中的元件索引
-    // 我们需要检查是否有选中的元件，这里假设CanvasPanel有获取选中索引的方法
-    // 如果还没有，我们可以先简化处理
-    
-    // 简化版本：暂时不处理选中状态，直接显示工具属性
-    // 你可以在CanvasPanel中添加以下方法来获取选中索引：
-    // std::vector<int> GetSelectedElementIndexes() const { return m_selElemIdx; }
-    // std::vector<int> GetSelectedWireIndexes() const { return m_selWireIdx; }
-    // std::vector<int> GetSelectedTextIndexes() const { return m_selTxtIdx; }
-    
-    // 临时修复：直接显示属性
-    // 3. 显示属性面板
-    if (m_propPanel) {
-        m_propPanel->ShowElement(toolName, currentProps);
-    }
-}
-
-// 更新属性面板显示选中的元件
-void MainFrame::UpdatePropertyPanel(int elementIndex)
-{
-    if (!m_propPanel) return;
-    
-    if (elementIndex < 0 || elementIndex >= (int)m_canvas->GetElements().size()) {
-        // 没有选中元件，显示默认
-        m_propPanel->ShowElement("Select Tool");
-        return;
-    }
-    
-    // 获取选中的元件
-    const auto& elements = m_canvas->GetElements();
-    if (elementIndex < (int)elements.size()) {
-        CanvasElement* elem = const_cast<CanvasElement*>(&elements[elementIndex]);
-        m_propPanel->ShowCanvasElement(elem);
-    }
+   
 }
 
 
@@ -1054,6 +890,7 @@ void MainFrame::UpdatePropertyPanel(int elementIndex)
 // 1. ����ΪBookShelf�淶��.node�ļ�
 bool MainFrame::SaveAsNodeFile(const wxString& filePath)
 {
+    /*
     wxFile file;
     // ���Դ��ļ�����ʧ�ܷ���false
     if (!file.Exists(filePath)) {
@@ -1106,12 +943,13 @@ bool MainFrame::SaveAsNodeFile(const wxString& filePath)
 
     // д���ļ����ر�
     file.Write(content);
-    file.Close();
+    file.Close();*/
     return true;
 }
 
 bool MainFrame::SaveAsNetFile(const wxString& filePath)
 {
+    /*
     // ���Դ��������ļ�
     wxFile file;
     if (!file.Exists(filePath))
@@ -1247,7 +1085,7 @@ bool MainFrame::SaveAsNetFile(const wxString& filePath)
 
     // д���ļ����ر�
     file.Write(content);
-    file.Close();
+    file.Close();*/
     return true;
 }
 
@@ -1376,15 +1214,12 @@ void MainFrame::OnAbout(wxCommandEvent&)
 
 void MainFrame::DoEditUndo()
 {
-    m_canvas->UndoStackUndo();
-    OnUndoStackChanged();   // 刷新菜单
 }
 
 void MainFrame::DoEditCut() { wxMessageBox("Edit->Cut"); }
 void MainFrame::DoEditCopy() { wxMessageBox("Edit->Copy"); }
 void MainFrame::DoEditPaste() { wxMessageBox("Edit->Paste"); }
 void MainFrame::DoEditDelete() { 
-    m_canvas->GetCanvasEventHandler()->DeleteSelected();
 }
 void MainFrame::DoEditDuplicate() { wxMessageBox("Edit->Duplicate"); }
 void MainFrame::DoEditSelectAll() { wxMessageBox("Edit->SelectAll"); }
@@ -1467,6 +1302,12 @@ void MainFrame::OnOpenFileFromTree(wxCommandEvent& evt) {
     wxString path = evt.GetString();
     m_verilogEditor->OpenFile(path);   // 你已有的打开文件逻辑
     m_currentFilePath = path;
+    FileNode* fn = sigTree->GetFileNode(path.ToStdString());
+    m_sigFlowTreePanel->SetFileNode(fn);
+
+    m_canvas->SaveOrNotWindow();
+    m_canvas->SetFileNode(fn);
+    
     RefreshTitle();
 }
 
@@ -1482,12 +1323,7 @@ void MainFrame::OnUndoStackChanged()
     wxMenuItem* undoItem = editMenu->FindItem(wxID_UNDO);
     if (undoItem)
     {
-        wxString base = m_canvas->UndoStackGetUndoName(); // "Add AND Gate"
-        wxString text = m_canvas->UndoStackCanUndo()
-            ? wxString("Undo ") + base + wxString("\tCtrl+Z")
-            : wxString("Can't Undo");
-        undoItem->SetItemLabel(text);
-        undoItem->Enable(m_canvas->UndoStackCanUndo());
+
     }
 
 }
@@ -1549,6 +1385,8 @@ wxString MainFrame::GetWorkspaceCopyPath(const wxString& m_currentFilePath) {
 
 
 void MainFrame::OnRefreshTimer(wxTimerEvent& event) {
+    if (!m_verilogEditor)          // 如果编辑器已销毁，直接返回
+        return;
     if (m_verilogEditor->GetModify() && snap_version != m_verilogEditor->GetSnapVersion()) {
         snap_version = m_verilogEditor->GetSnapVersion();
         wxString fullPath = m_verilogEditor->GetCurrentPath();
@@ -1614,7 +1452,26 @@ void MainFrame::OnSFNodeActivated(wxCommandEvent& event) {
 void MainFrame:: OnSFTreeChanged(wxCommandEvent& event) {
     m_sigFlowTreePanel->Fresh();
     m_sfnPropertyPanel->Fresh();
+    m_canvas->Refresh();
 }
+
+void MainFrame::OnSFNodeAdded(wxCommandEvent& event) {
+    OnSFTreeChanged(event);
+    m_canvas->SigFlowNodeAdded(static_cast<SigTreeNode*>(event.GetClientData()));
+}
+
+void MainFrame::OnSFNodeDeleted(wxCommandEvent& event) {
+    OnSFTreeChanged(event);
+    m_canvas->SigFlowNodeDeleted(static_cast<SigTreeNode*>(event.GetClientData()));
+}
+
+void MainFrame::OnSFNodeChanged(wxCommandEvent& event) {
+    OnSFTreeChanged(event);
+    m_canvas->SigFlowNodeChanged(static_cast<SigTreeNode*>(event.GetClientData()));
+}
+
+
+
 void MainFrame::PropertyLoadNode(SigTreeNode* node) {
     m_sfnPropertyPanel->LoadNode(node);
 }

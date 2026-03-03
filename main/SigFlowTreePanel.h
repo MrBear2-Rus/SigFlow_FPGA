@@ -6,7 +6,6 @@
 #include "SigTree.h"
 
 wxDECLARE_EVENT(EVT_SFTREE_NODE_ACTIVATED, wxCommandEvent);
-wxDECLARE_EVENT(EVT_SFTREE_CHANGED, wxCommandEvent);
 
 class SigTreeItemData : public wxTreeItemData {
 public:
@@ -20,6 +19,7 @@ public:
 class SigFlowTreePanel : public wxPanel {
 public:
     SigFlowTree* sfTree;
+    FileNode* fn = nullptr;
     wxTreeCtrl* tree;
 
     wxButton* addBtn;
@@ -41,6 +41,8 @@ public:
     SecondNode* CreateGateInstDialog(SigTreeNode* parent);
     SecondNode* CreateContiniousAssignDialog(SigTreeNode* parent);
 
+    void SetFileNode(FileNode* fn) { this->fn = fn; Fresh(); };
+    void OverView() { this->fn = nullptr; };
     void Fresh();
 };
 

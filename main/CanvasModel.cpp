@@ -1,4 +1,4 @@
-#include "CanvasModel.h"
+﻿#include "CanvasModel.h"
 #include "CanvasElement.h"
 #include <wx/filename.h>
 #include <wx/stdpaths.h>
@@ -6,9 +6,9 @@
 #include <json/json.h>
 #include "my_log.h"
 
-std::vector<CanvasElement> g_elements;
+std::vector<SecondElement> g_elements;
 
-std::vector<CanvasElement> LoadCanvasElements(const wxString& jsonPath)
+std::vector<SecondElement> LoadSecondElements(const wxString& jsonPath)
 {
     /*std::ifstream f(jsonPath.ToStdString(), std::ios::binary);
     if (!f) return {};*/
@@ -39,23 +39,20 @@ std::vector<CanvasElement> LoadCanvasElements(const wxString& jsonPath)
     std::string errs;
     if (!Json::parseFromStream(builder, f, &root, &errs)) return {};
 
-    std::vector<CanvasElement> out;
+    std::vector<SecondElement> out;
     for (const auto& elem : root) {
-        wxString id = wxString::FromUTF8(elem["id"].asString());
-        wxString name = wxString::FromUTF8(elem["name"].asString());
-        wxPoint  pos(elem["anchorPoint"][0].asInt(), elem["anchorPoint"][1].asInt());
-        CanvasElement ce(name, pos);
 
-        // 设置元件ID
-        ce.SetId(id);
+        SecondElement ce;
+        ce.type = wxString::FromUTF8(elem["type"].asString());
+        ce.m_bound = wxRect(0, 0, elem["bounds"][0].asInt(), elem["bounds"][1].asInt());
 
-        // ������
+
         for (const auto& pin : elem["inputPins"])
-            ce.AddInputPin({ pin["x"].asInt(), pin["y"].asInt() }, wxString::FromUTF8(pin["name"].asString()));
+            ce.AddInputPin({ pin["x"].asInt(), pin["y"].asInt() });
         for (const auto& pin : elem["outputPins"])
-            ce.AddOutputPin({ pin["x"].asInt(), pin["y"].asInt() }, wxString::FromUTF8(pin["name"].asString()));
+            ce.AddOutputPin({ pin["x"].asInt(), pin["y"].asInt() });
 
-        // ��ͼ��
+        std::vector<Shape> shapes;
         for (const auto& shape : elem["shapes"]) {
             wxColour color(shape["color"].asString());
             wxString type = shape["type"].asString();
@@ -64,7 +61,7 @@ std::vector<CanvasElement> LoadCanvasElements(const wxString& jsonPath)
                 std::vector<Point> pts;
                 for (const auto& pt : shape["points"])
                     pts.push_back({ pt[0].asInt(), pt[1].asInt() });
-                ce.AddShape(PolyShape{ pts, color });
+                shapes.push_back(PolyShape{ pts, color });
             }
             else if (type == "line") {
                 int startX = shape["start"]["x"].asInt();
@@ -74,7 +71,7 @@ std::vector<CanvasElement> LoadCanvasElements(const wxString& jsonPath)
                 // �����־��ȷ��ˮƽֱ�ߣ�y������ͬ��������
                 /*MyLog("Loaded Line: start(%d,%d) �� end(%d,%d) [type: %s]\n",
                     startX, startY, endX, endY, type.ToUTF8().data());*/
-                ce.AddShape(Line{
+                shapes.push_back(Line{
                     {startX, startY},
                     {endX, endY},
                     color
@@ -85,7 +82,7 @@ std::vector<CanvasElement> LoadCanvasElements(const wxString& jsonPath)
                 bool fill = shape.get("fill", false).asBool();
                 wxColour fillColor = fill ? wxColour(shape.get("fillColor", "#808080").asString()) : wxColour(0, 0, 0);
 
-                ce.AddShape(Circle{
+                shapes.push_back(Circle{
                     {shape["x"].asInt(), shape["y"].asInt()},
                     shape["r"].asInt(),
                     color,
@@ -96,7 +93,7 @@ std::vector<CanvasElement> LoadCanvasElements(const wxString& jsonPath)
             else if (type == "text") {
                 wxString text = wxString::FromUTF8(shape["text"].asString());
                 //text.Replace("&", "&&");
-                ce.AddShape(Text{
+                shapes.push_back(Text{
                     {shape["x"].asInt(), shape["y"].asInt()},
                     text,
 
@@ -105,7 +102,7 @@ std::vector<CanvasElement> LoadCanvasElements(const wxString& jsonPath)
                     });
             }
             else if (type == "path") {
-                ce.AddShape(Path{
+                shapes.push_back(Path{
                     shape["d"].asString(),
                     wxColour(shape["stroke"].asString()),
                     shape["strokeWidth"].asInt(),
@@ -113,7 +110,7 @@ std::vector<CanvasElement> LoadCanvasElements(const wxString& jsonPath)
                     });
             }
             else if (type == "ArcShape") {
-                ce.AddShape(ArcShape{
+                shapes.push_back(ArcShape{
                     {shape["center"]["x"].asInt(), shape["center"]["y"].asInt()},
                     shape["radius"].asInt(),
                     shape["startAngle"].asDouble(),
@@ -128,7 +125,7 @@ std::vector<CanvasElement> LoadCanvasElements(const wxString& jsonPath)
                 Point p1 = { shape["p1"]["x"].asInt(), shape["p1"]["y"].asInt() };
                 Point p2 = { shape["p2"]["x"].asInt(), shape["p2"]["y"].asInt() };
 
-                ce.AddShape(BezierShape{
+                shapes.push_back(BezierShape{
                     p0, p1, p2,
                     color
                     });
@@ -140,14 +137,14 @@ std::vector<CanvasElement> LoadCanvasElements(const wxString& jsonPath)
                 Point p2 = { shape["p2"]["x"].asInt(), shape["p2"]["y"].asInt() };
                 Point p3 = { shape["p3"]["x"].asInt(), shape["p3"]["y"].asInt() };
 
-                ce.AddShape(CubicBezierShape{
+                shapes.push_back(CubicBezierShape{
                     p0, p1, p2, p3,
                     color
                     });
             }
 
         }
-        ce.initTruthTable();
+        ce.UpdateShapes(ce.m_bound, shapes);
         out.push_back(ce);
     }
     return out;

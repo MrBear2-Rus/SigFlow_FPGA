@@ -13,6 +13,9 @@ public:
     // 添加公共访问方法
     wxTreeCtrl* GetTree() const { return m_tree; }
 
+    void AddDefinition(wxString defId);
+    void DelDefinition(wxString defId);
+
 private:
     wxTreeCtrl* m_tree;
     wxImageList* m_imgList;
@@ -23,6 +26,11 @@ private:
     void OnItemActivated(wxTreeEvent& evt);
     void OnBeginDrag(wxTreeEvent& evt);
     void OnToolSelected(wxTreeEvent& evt);
+
+    std::map<wxString, wxString> m_displayToFile;  // 显示名称 -> 文件名（无扩展名）
+    std::map<wxString, int> m_toolIconIndex;
+
+    wxTreeItemId m_def;
 
     wxDECLARE_EVENT_TABLE();
 };

@@ -25,28 +25,26 @@
     <ClCompile Include="AsyncAnalysisCenter.cpp" />
     <ClCompile Include="CanvasElement.cpp" />
     <ClCompile Include="CanvasModel.cpp" />
+    <ClCompile Include="CanvasNoteBook.cpp" />
     <ClCompile Include="CanvasPanel.cpp" />
     <ClCompile Include="CanvasTextElement.cpp" />
     <ClCompile Include="cMain.cpp" />
-    <ClCompile Include="GatePainter.cpp" />
     <ClCompile Include="MainFrame.cpp" />
     <ClCompile Include="MainMenuBar.cpp" />
     <ClCompile Include="PluginManager.cpp" />
     <ClCompile Include="PluginStore.cpp" />
     <ClCompile Include="ProjectTreePanel.cpp" />
-    <ClCompile Include="PropertyPanel.cpp" />
     <ClCompile Include="HandyToolKit.cpp" />
     <ClCompile Include="SFNPropertyPanel.cpp" />
     <ClCompile Include="SigFlowTreePanel.cpp" />
     <ClCompile Include="SigTextEditor.cpp" />
     <ClCompile Include="SigTree.cpp" />
+    <ClCompile Include="SVGParser.cpp" />
     <ClCompile Include="TerminalController.cpp" />
     <ClCompile Include="TerminalCtrl.cpp" />
     <ClCompile Include="ToolboxModel.cpp" />
     <ClCompile Include="ToolboxPanel.cpp" />
     <ClCompile Include="TreeSitterLinter.cpp" />
-    <ClCompile Include="UndoNotifier.cpp" />
-    <ClCompile Include="UndoStack.cpp" />
     <ClCompile Include="CanvasEventHandler.cpp" />
     <ClCompile Include="ToolStateMachine.cpp" />
     <ClCompile Include="VerilogStructuring.cpp" />
@@ -56,12 +54,13 @@
     <ClCompile Include="Simulation\ProcessRunner.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\3rd\nanosvg\nanosvg.h" />
     <ClInclude Include="AsyncAnalysisCenter.h" />
     <ClInclude Include="CanvasElement.h" />
     <ClInclude Include="CanvasModel.h" />
+    <ClInclude Include="CanvasNoteBook.h" />
     <ClInclude Include="CanvasPanel.h" />
     <ClInclude Include="CanvasTextElement.h" />
-    <ClInclude Include="GatePainter.h" />
     <ClInclude Include="MainFrame.h" />
     <ClInclude Include="MainMenuBar.h" />
     <ClInclude Include="my_log.h" />
@@ -69,7 +68,6 @@
     <ClInclude Include="PluginManager.h" />
     <ClInclude Include="PluginStore.h" />
     <ClInclude Include="ProjectTreePanel.h" />
-    <ClInclude Include="PropertyPanel.h" />
     <ClInclude Include="SFNPropertyPanel.h" />
     <ClInclude Include="SigFlowTreePanel.h" />
     <ClInclude Include="SigTextEditor.h" />
@@ -81,8 +79,6 @@
     <ClInclude Include="CanvasEventHandler.h" />
     <ClInclude Include="ToolStateMachine.h" />
     <ClInclude Include="TreeSitterLinter.h" />
-    <ClInclude Include="UndoNotifier.h" />
-    <ClInclude Include="UndoStack.h" />
     <ClInclude Include="VerilogStructuring.h" />
     <ClInclude Include="Wire.h" />
     <ClInclude Include="Simulation\SimulationEngine.h" />
@@ -101,26 +97,26 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v145</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v145</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -147,7 +143,8 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <LibraryPath>$(ProjectDir)external\slang-sdk\lib;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(ProjectDir)external\slang-sdk\lib</LibraryPath>
+    <LibraryPath>$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(ProjectDir)external\slang-sdk\lib;$(WXWIN)\lib\vc_dll;</LibraryPath>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(WXWIN)\include;$(WXWIN)\include\msvc</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LibraryPath>$(ProjectDir)external\slang-sdk\lib;$(VC_LibraryPath_x86);$(WindowsSDK_LibraryPath_x86)</LibraryPath>
@@ -208,12 +205,16 @@
       <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
     </Manifest>
     <PostBuildEvent>
-      <Command>if not exist "$(OutDir)res" mkdir "$(OutDir)res"
-xcopy "$(ProjectDir)res\*.*" "$(OutDir)res\" /Y /E /D /I
-
-xcopy "$(ProjectDir)canvas_elements.json" "$(OutDir)" /Y /D
+      <Command>xcopy /Y /D /I "$(SolutionDir)3rd\wxWidgets-3.2.9\lib\vc_x64_dll\*.dll" "$(OutDir)\"
 xcopy /Y /D /I "$(SolutionDir)external\slang-sdk\*.dll" "$(OutDir)\"</Command>
     </PostBuildEvent>
+    <PreBuildEvent>
+      <Command>if exist "$(OutDir)res" rd /s /q "$(OutDir)res"
+mklink /J "$(OutDir)res" "$(ProjectDir)res"
+
+if exist "$(OutDir)canvas_elements.json" del /f /q "$(OutDir)canvas_elements.json"
+mklink /H "$(OutDir)canvas_elements.json" "$(ProjectDir)canvas_elements.json"</Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>

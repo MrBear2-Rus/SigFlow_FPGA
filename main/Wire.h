@@ -1,10 +1,17 @@
-﻿#pragma once
+#pragma once
 #include <wx/wx.h>
 #include <vector>
 #include <tuple>
 
 class CanvasPanel;
 
+struct WireAnchor {
+    size_t wireIdx;   
+    size_t ptIdx;     
+    bool   isInput;   
+    size_t pinIdx;    
+    wxPoint oldPos;   
+};
 enum class CPType { Pin, Bend, Free, Branch };
 enum class CellType { Mid, Norm };
 enum LogicSignal {
@@ -43,6 +50,13 @@ public:
 
     Wire() = default;
     explicit Wire(std::vector<ControlPoint> v) : pts(std::move(v)) {}
+
+
+    //显式声明拷贝/移动构造函数和赋值运算符
+    Wire(const Wire&) = default;
+    Wire(Wire&&) = default;
+    Wire& operator=(const Wire&) = default;
+    Wire& operator=(Wire&&) = default;
 
     // 核心接口
     void Draw(wxGraphicsContext* gc) const;                          // 画线

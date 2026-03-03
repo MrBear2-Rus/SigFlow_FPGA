@@ -32,9 +32,9 @@ void HandyToolKit::CreateTools(int size)
     m_tools.clear();
 
     // 定义辅助加载函数
-    auto GetIcon = [&](const wxString& path) {
+    auto GetIcon = [this](const wxString& path) {
         wxBitmapBundle bundle = wxBitmapBundle::FromSVGFile(path, wxSize(24, 24));
-        return bundle.GetBitmap(FromDIP(wxSize(24, 24)));
+        return bundle.GetBitmap(wxSize(this->m_toolSize, this->m_toolSize));
         };
 
     // 重新定义工具矩形，x坐标基于缩放后的 size
@@ -47,7 +47,7 @@ void HandyToolKit::CreateTools(int size)
     m_tools.push_back({ "Eraser", GetIcon("res\\svg\\eraser.svg"), wxRect(size * 2, 0, size, size),
         [this]() { m_CanvasEventHandler->SetCurrentTool(ToolType::ERASER_TOOL); } });
 
-    m_tools.push_back({ "Text", GetIcon("res\\svg\\text.svg"), wxRect(size * 3, 0, size, size),
+    m_tools.push_back({ "Text", GetIcon("res\\svg\\text2.svg"), wxRect(size * 3, 0, size, size),
         [this]() { m_CanvasEventHandler->SetCurrentTool(ToolType::TEXT_TOOL); } });
 
     m_tools.push_back({ "Wire", GetIcon("res\\svg\\wiring.svg"), wxRect(size * 4, 0, size, size),

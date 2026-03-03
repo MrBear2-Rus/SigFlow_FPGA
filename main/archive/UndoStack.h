@@ -88,67 +88,37 @@ public:
 };
 
 struct Element_Re {
-    CanvasElement elem;
+    std::unique_ptr<CanvasElement> elem;
     int idx;
 };
 
 struct Wire_Re {
-    Wire wire;
+    std::unique_ptr<Wire> wire;
     int idx;
 };
 
 struct Text_Re {
-    CanvasTextElement txt;
+    std::unique_ptr<CanvasTextElement> txt;
     int idx;
 };
 
-// 删除选中的元素
-class CmdDeleteSelected : public Command{
 
+
+// 删除选中的元素
+class CmdDeleteSelected : public Command {
     std::vector<Element_Re> Elements;
     std::vector<Wire_Re> Wires;
     std::vector<Text_Re> Texts;
 
 public:
-    CmdDeleteSelected(std::vector<CanvasElement> elements, std::vector<int> elementIdx, std::vector<Wire> wires, std::vector<int> wireIdx, std::vector<CanvasTextElement> txtBoxes, std::vector<int> txtBoxIdx) {
-        for (int i = 0; i < elements.size(); i++) {
-            Element_Re e;
-            e.elem = elements[i];
-            e.idx = elementIdx[i];
-            Elements.push_back(e);
-        }
-        if (elements.size() > 0) {
-            std::sort(Elements.begin(), Elements.end(),
-                [](const auto& a, const auto& b) {
-                    return a.idx < b.idx;
-                });
-        }
+    // 只保留声明，实现移到 .cpp 文件
+    CmdDeleteSelected(std::vector<CanvasElement> elements,
+        std::vector<int> elementIdx,
+        std::vector<Wire> wires,
+        std::vector<int> wireIdx,
+        std::vector<CanvasTextElement> txtBoxes,
+        std::vector<int> txtBoxIdx);
 
-
-        for (int i = 0; i < wires.size(); i++) {
-            Wire_Re w;
-            w.wire = wires[i];
-            w.idx = wireIdx[i];
-            Wires.push_back(w);
-        }
-
-        if (wires.size() > 0) {
-            std::sort(Wires.begin(), Wires.end(),
-                [](const auto& a, const auto& b) {
-                    return a.idx < b.idx;
-                });
-        }
-
-        for (int i = 0; i < txtBoxes.size(); i++) {
-            Texts.push_back({ txtBoxes[i], txtBoxIdx[i] });
-        }
-        if (txtBoxes.size() > 0) {
-            std::sort(Texts.begin(), Texts.end(),
-                [](const auto& a, const auto& b) {
-                    return a.idx < b.idx;
-                });
-        }
-    }
     void undo(CanvasPanel* canvas) override;
     wxString GetName() const override { return "Delete Selected"; }
 };

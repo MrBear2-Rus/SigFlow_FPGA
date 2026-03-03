@@ -7,7 +7,6 @@
 #include <wx/mstream.h>
 
 #include <json/json.h>
-#include "PropertyPanel.h"
 #include <wx/stc/stc.h>
 #include "AsyncAnalysisCenter.h"
 #include "SigTextEditor.h"
@@ -22,11 +21,12 @@
 #include "PluginManager.h"
 
 class ToolBars;
-class CanvasPanel;
+class CanvasNoteBook;
 class HandyToolKit;
+class ToolboxPanel;
 
 wxDECLARE_EVENT(EVT_SFTREE_NODE_ACTIVATED, wxCommandEvent);
-wxDECLARE_EVENT(EVT_SFTREE_CHANGED, wxCommandEvent);
+
 
 class MainFrame : public wxFrame
 {
@@ -42,6 +42,7 @@ private:
     AsyncAnalysisCenter* m_analysisCenter; // 异步中心指针
     ProjectTreePanel* m_projectTreePanel;
     SigFlowTree* sigTree;
+    ToolboxPanel* m_toolbox;
     SigFlowTreePanel* m_sigFlowTreePanel;
     SFNPropertyPanel* m_sfnPropertyPanel;
     TerminalCtrl* m_terminalCtrl;
@@ -76,7 +77,6 @@ public:
 
     /* File 菜单业务接口 */
     void DoFileOpenProject();
-    void DoFileNewProject();
     void DoFileNew();
     void DoFileOpen(const wxString& path = {});
     void DoFileSave();
@@ -150,13 +150,16 @@ public:
 
     void OnSFNodeActivated(wxCommandEvent& event);
     void OnSFTreeChanged(wxCommandEvent& event);
+    void OnSFNodeAdded(wxCommandEvent& event);
+    void OnSFNodeDeleted(wxCommandEvent& event);
+    void OnSFNodeChanged(wxCommandEvent& event);
     void PropertyLoadNode(SigTreeNode* node);
 
 private:
     wxAuiManager m_auiMgr;
-    PropertyPanel* m_propPanel = nullptr;
 public:
-    CanvasPanel* m_canvas;
+    //std::vector<CanvasPanel*> m_canvas;
+    CanvasNoteBook* m_canvas;
 
     void UpdateCursor();        // 根据 m_pendingTool 更新十字/箭头
 
@@ -166,9 +169,6 @@ public:
     void OnToolboxElement(wxCommandEvent& evt);
     
 public:
-    // 更新属性面板显示选中元件
-    void UpdatePropertyPanel(int elementIndex);
-    PropertyPanel* GetPropertyPanel() const { return m_propPanel; }
 
     // 事件表声明
     wxDECLARE_EVENT_TABLE();

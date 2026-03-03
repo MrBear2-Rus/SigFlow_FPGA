@@ -1,14 +1,21 @@
 ﻿#include <wx/graphics.h> 
 #include <wx/dcbuffer.h>
 #include <wx/dcgraph.h>  
+#include <wx/filename.h>
+#include <wx/file.h>
+#include <wx/stdpaths.h>
+#include <fstream>
+
+
 
 #include "CanvasPanel.h"
 #include "my_log.h"
+#include "json.hpp"
 
-#include "MainFrame.h"
 #include "ToolStateMachine.h"
 #include "HandyToolKit.h"
 #include "CanvasEventHandler.h"
+#include "CanvasNoteBook.h"
 
 wxBEGIN_EVENT_TABLE(CanvasPanel, wxPanel)
 EVT_PAINT(CanvasPanel::OnPaint)
@@ -23,17 +30,22 @@ EVT_MOUSEWHEEL(CanvasPanel::OnMouseWheel)
 EVT_SET_FOCUS(CanvasPanel::OnFocus)
 EVT_KILL_FOCUS(CanvasPanel::OnKillFocus)
 EVT_SCROLL(CanvasPanel::OnScroll)
+EVT_COMMAND(wxID_ANY, EVT_SFTREE_NODE_ACTIVATED, CanvasPanel::OnSFNodeActivated) 
 wxEND_EVENT_TABLE()
+wxDEFINE_EVENT(wxEVT_CANVAS_MODIFIED, wxCommandEvent);
 
-CanvasPanel::CanvasPanel(MainFrame* parent, size_t size_x, size_t size_y)
+
+CanvasPanel::CanvasPanel(CanvasNoteBook* parent, SigFlowTree* sftree, size_t size_x, size_t size_y)
     : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize,
         wxFULL_REPAINT_ON_RESIZE | wxBORDER_NONE),
     m_mainFrame(parent),
+    sftree(sftree),
     m_size{wxSize(size_x,size_y)},
-    m_offset(0, 0), m_scale(1.0f), m_grid(FromDIP(20)),
+    m_grid(20),
     m_hoverInfo{}, m_hasFocus(false),
     m_hiddenTextCtrl(nullptr),
-    m_isUsingHiddenCtrl(false), m_currentEditingTextIndex(-1) {
+    m_isUsingHiddenCtrl(false), m_currentEditingTextIndex(-1) ,
+    m_isModified(false) {
     SetupHiddenTextCtrl();
 
     //滚动条
@@ -55,84 +67,42 @@ CanvasPanel::CanvasPanel(MainFrame* parent, size_t size_x, size_t size_y)
     SetBackgroundStyle(wxBG_STYLE_PAINT);
     SetBackgroundColour(*wxWHITE);
 
+
+    SetScale(1.0);
+    SetoffSet(wxPoint(0, 0));
     SetFocus();
-    MyLog("CanvasPanel: constructed\n");
 }
 
 void CanvasPanel::OnLeftDown(wxMouseEvent& evt){
     EnsureFocus();
     m_HandyToolKit->Hide();
 
-    m_CanvasEventHandler->ResetEventHandled();
-    // 交给工具管理器处理
-    if (m_CanvasEventHandler) {
-        m_CanvasEventHandler->OnCanvasLeftDown(evt);
-        if (m_CanvasEventHandler->IsEventHandled()) {
-            return;
-        }
-    }
-
-    evt.Skip();
+    m_CanvasEventHandler->OnCanvasLeftDown(evt);
 }
 
 void CanvasPanel::OnMouseMove(wxMouseEvent& evt) {
     UpdateHoverInfo(evt.GetPosition());
 
-    m_CanvasEventHandler->ResetEventHandled();
-    if (m_CanvasEventHandler) {
-        m_CanvasEventHandler->OnCanvasMouseMove(evt);
-        if (m_CanvasEventHandler->IsEventHandled()) {
-            return; 
-        }
-    }
-    evt.Skip();
+    m_CanvasEventHandler->OnCanvasMouseMove(evt);
 }
 
 void CanvasPanel::OnLeftUp(wxMouseEvent& evt){
+    m_CanvasEventHandler->OnCanvasLeftUp(evt);
 
-    m_CanvasEventHandler->ResetEventHandled();
-    if (m_CanvasEventHandler) {
-        m_CanvasEventHandler->OnCanvasLeftUp(evt);
-        if (m_CanvasEventHandler->IsEventHandled()) {
-            return; 
-        }
-    }
-    evt.Skip();
 }
 
 void CanvasPanel::OnLeftDoubleClick(wxMouseEvent& evt) {
-
-    m_CanvasEventHandler->ResetEventHandled();
-    if (m_CanvasEventHandler) {
-        m_CanvasEventHandler->OnCanvasLeftDoubleClick(evt);
-        if (m_CanvasEventHandler->IsEventHandled()) {
-            return;
-        }
-    }
-    evt.Skip();
+    m_CanvasEventHandler->OnCanvasLeftDoubleClick(evt);
 }
 
 void CanvasPanel::OnKeyDown(wxKeyEvent& evt) {
+    m_CanvasEventHandler->OnCanvasKeyDown(evt);
 
-    m_CanvasEventHandler->ResetEventHandled();
-    if (m_CanvasEventHandler) {
-        m_CanvasEventHandler->OnCanvasKeyDown(evt);
-        if (m_CanvasEventHandler->IsEventHandled()) {
-            return; 
-        }
-    }
-    evt.Skip();
 }
 
 void CanvasPanel::OnMouseWheel(wxMouseEvent& evt) {
-    m_CanvasEventHandler->ResetEventHandled();
-    if (m_CanvasEventHandler){
-        m_CanvasEventHandler->OnCanvasMouseWheel(evt);
-        if (m_CanvasEventHandler->IsEventHandled()) {
-            return; 
-        }
-    }
-    evt.Skip();
+    m_CanvasEventHandler->OnCanvasMouseWheel(evt);
+
 }
 
 void CanvasPanel::SetScale(float scale) {
@@ -144,14 +114,14 @@ void CanvasPanel::SetScale(float scale) {
     Refresh(); 
 }
 
-wxPoint CanvasPanel::ScreenToCanvas(const wxPoint& screenPos) const{
+wxPoint CanvasPanel::ClientToCanvas(const wxPoint& screenPos) const{
     return wxPoint(
         static_cast<int>((screenPos.x - m_offset.x) / m_scale),
         static_cast<int>((screenPos.y - m_offset.y) / m_scale)
     );
 }
 
-wxPoint CanvasPanel::CanvasToScreen(const wxPoint& canvasPos) const
+wxPoint CanvasPanel::CanvasToClient(const wxPoint& canvasPos) const
 {
     return wxPoint(
         static_cast<int>(canvasPos.x * m_scale + m_offset.x),
@@ -159,78 +129,7 @@ wxPoint CanvasPanel::CanvasToScreen(const wxPoint& canvasPos) const
     );
 }
 
-void CanvasPanel::AddElement(const wxString& name, const wxPoint& pos){
-    extern std::vector<CanvasElement> g_elements;
-    auto it = std::find_if(g_elements.begin(), g_elements.end(),
-        [&](const CanvasElement& e) { return e.GetName() == name; });
-    if (it == g_elements.end()) return;
-    CanvasElement clone = *it;
-
-    wxPoint standardpos = pos;
-    const auto& outputPins = clone.GetOutputPins();
-    const auto& inputPins = clone.GetInputPins();
-
-    if (!outputPins.empty()) {
-        // 优先使用输出引脚
-        Pin standardPin = outputPins[0];
-        standardpos = pos - wxPoint(standardPin.pos.x + m_grid, standardPin.pos.y - m_grid);
-    }
-    else if (!inputPins.empty()) {
-        // 如果没有输出引脚，使用输入引脚
-        Pin standardPin = inputPins[0];
-        standardpos = pos - wxPoint(standardPin.pos.x + m_grid, standardPin.pos.y - m_grid);
-    }
-    // 如果都没有引脚，直接使用原位置
-    clone.SetPos(standardpos);
-
-    m_elements.push_back(clone);
-    Refresh();
-    UndoStackPush(std::make_unique<CmdAddElement>(clone.GetName(), m_elements.size() - 1));
-}
-
-void CanvasPanel::AddElementWithIns(CanvasElement element) {
-    m_elements.push_back(element);
-    Refresh();
-
-}
-
-void CanvasPanel::AddElementWithoutRecord(const wxString& name, const wxPoint& pos) {
-    extern std::vector<CanvasElement> g_elements;
-    auto it = std::find_if(g_elements.begin(), g_elements.end(),
-        [&](const CanvasElement& e) { return e.GetName() == name; });
-    if (it == g_elements.end()) return;
-    CanvasElement clone = *it;
-
-    wxPoint standardpos = pos;
-    const auto& outputPins = clone.GetOutputPins();
-    const auto& inputPins = clone.GetInputPins();
-
-    if (!outputPins.empty()) {
-        // 优先使用输出引脚
-        Pin standardPin = outputPins[0];
-        standardpos = pos - wxPoint(standardPin.pos.x + m_grid, standardPin.pos.y - m_grid);
-    }
-    else if (!inputPins.empty()) {
-        // 如果没有输出引脚，使用输入引脚
-        Pin standardPin = inputPins[0];
-        standardpos = pos - wxPoint(standardPin.pos.x + m_grid, standardPin.pos.y - m_grid);
-    }
-    // 如果都没有引脚，直接使用原位置
-    clone.SetPos(standardpos);
-
-    m_elements.push_back(clone);
-    Refresh();
-}
-
-
-void CanvasPanel::ReclaimElement(CanvasElement element, int index) {
-    m_elements.insert(m_elements.begin() + index, element);
-    Refresh();
-}
-
 void CanvasPanel::OnPaint(wxPaintEvent&) {
-    //return;
-    if (isSim) Simulate();
     LayoutScrollbars();
     wxAutoBufferedPaintDC dc(this);
     dc.Clear();
@@ -241,16 +140,10 @@ void CanvasPanel::OnPaint(wxPaintEvent&) {
 
 
     if (gc) {
-        // 启用高质量抗锯齿
-        //gc->SetAntialiasMode(wxANTIALIAS_DEFAULT);
 
         // 应用缩放和偏移（逻辑坐标 -> 设备坐标）
         gc->Scale(m_scale, m_scale);
         gc->Translate(m_offset.x / m_scale, m_offset.y / m_scale);
-
-        // 高DPI适配：获取设备缩放因子
-        //double dpiScale = GetContentScaleFactor();
-        //gc->Scale(dpiScale, dpiScale);
 
         // 绘制网格（逻辑坐标，线宽随缩放自适应）
         const wxColour gridColor(240, 240, 240);
@@ -258,32 +151,14 @@ void CanvasPanel::OnPaint(wxPaintEvent&) {
         gc->SetPen(wxPen(gridColor, 1.0 / m_scale)); // 笔宽在逻辑坐标下调整
 
         wxSize sz = wxSize(m_size.x + 1, m_size.y + 1);
-        wxSize clientSize = GetClientSize();
+        int maxX = static_cast<int>(sz.x);
+        int maxY = static_cast<int>(sz.y);
 
-        // 2. 计算视口在“逻辑坐标系”下的左上角和右下角
-        // 左上角就是屏幕的 (0,0)   
-        double logicLeft = -m_offset.x / m_scale;
-        double logicTop = -m_offset.y / m_scale;
-        // 右下角就是屏幕的 (width, height)
-        double logicRight = (clientSize.x - m_offset.x) / m_scale;
-        double logicBottom = (clientSize.y - m_offset.y) / m_scale;
-
-        // 3. 对齐网格：找到视口左侧和上方第一个需要绘制的网格点
-        // 这样即使你拖动了 5.5 个像素，网格也会在正确的位置连续出现
-        double startX = std::floor(logicLeft / m_grid) * m_grid;
-        double startY = std::floor(logicTop / m_grid) * m_grid;
-
-        // 4. 只绘制视野内的网格线
-        gc->SetPen(wxPen(wxColour(230, 230, 230), 1.0 / m_scale)); // 笔宽随缩放变细，保持视觉 1px
-
-        // 垂直线：从左往右画
-        for (double x = startX; x <= logicRight; x += m_grid) {
-            gc->StrokeLine(x, logicTop, x, logicBottom);
+        for (int x = 0; x < maxX; x += m_grid) {
+            gc->StrokeLine(x, 0, x, maxY);
         }
-
-        // 水平线：从上往下画
-        for (double y = startY; y <= logicBottom; y += m_grid) {
-            gc->StrokeLine(logicLeft, y, logicRight, y);
+        for (int y = 0; y < maxY; y += m_grid) {
+            gc->StrokeLine(0, y, maxX, y);
         }
 
         // 绘制导线（矢量线段）
@@ -296,10 +171,30 @@ void CanvasPanel::OnPaint(wxPaintEvent&) {
             m_previewElement.Draw(gc.get());
         }
 
+        if(!m_tbox.m_shapes.empty()) m_tbox.Draw(gc.get());
+
         // 绘制元素（使用矢量绘制）
-        for (size_t i = 0; i < m_elements.size(); ++i) {
-            m_elements[i].Draw(gc.get()); // 确保元素内部使用gc绘制
+        for (size_t i = 0; i < m_elems.size(); ++i) {
+            m_elems[i].Draw(gc.get()); // 确保元素内部使用gc绘制
         }
+
+        /* 元件形状调试
+        CanvasElement ele = CloneElement("XNOR_Gate").value();
+        wxPoint pos = wxPoint(100, 100);
+        ele.SetPos(pos);
+        ele.Draw(gc.get());
+        wxRect r = ele.GetBounds();
+
+        double radius = 3.0; // 点的半径
+
+        gc->SetBrush(*wxRED_BRUSH); // 填充颜色
+        gc->SetPen(*wxTRANSPARENT_PEN); // 无边框
+        // 绘制一个以 pt 为中心的圆
+        gc->DrawEllipse(pos.x - radius, pos.y - radius, radius * 2, radius * 2);
+
+        gc->SetBrush(wxBrush(wxColour(200, 200, 200, 128))); // 半透明灰色
+        gc->SetPen(wxPen(*wxBLACK, 2)); // 2像素宽的黑边
+        gc->DrawRectangle(r.x, r.y, r.width, r.height);*/
 
         // 悬停引脚高亮（绿色空心圆）
         if (m_hoverInfo.IsOverPin()) {
@@ -338,7 +233,7 @@ void CanvasPanel::OnPaint(wxPaintEvent&) {
         // 绘制选中边框
         if (m_toolStateMachine->GetCurrentTool() == ToolType::SELECT_TOOL) {
             for (size_t i = 0; i < m_selElemIdx.size(); i++) {
-                wxRect b = m_elements[m_selElemIdx[i]].GetBounds();
+                wxRect b = m_elems[m_selElemIdx[i]].GetBounds();
                 gc->SetPen(wxPen(wxColor(44, 145, 224), 2.0));
                 gc->SetBrush(*wxTRANSPARENT_BRUSH);
                 gc->DrawRectangle(b.x - 2, b.y - 3, b.width + 5, b.height + 5);
@@ -347,7 +242,7 @@ void CanvasPanel::OnPaint(wxPaintEvent&) {
                 gc->SetBrush(*wxTRANSPARENT_BRUSH);
                 gc->DrawRectangle(b.x - 4, b.y - 5, b.width + 9, b.height + 9);
 
-                gc->SetPen(wxPen(wxColor(44, 145, 224, 32), 4.0));
+               gc->SetPen(wxPen(wxColor(44, 145, 224, 32), 4.0));
                 gc->SetBrush(*wxTRANSPARENT_BRUSH);
                 gc->DrawRectangle(b.x - 6, b.y - 7, b.width + 13, b.height + 13);
             }
@@ -391,9 +286,9 @@ void CanvasPanel::OnPaint(wxPaintEvent&) {
 
 int CanvasPanel::HitElementTest(const wxPoint& canvasPos)
 {
-    for (size_t i = 0; i < m_elements.size(); ++i) {
+    for (size_t i = 0; i < m_elems.size(); ++i) {
         // 元素的边界是画布坐标，直接比较
-        if (m_elements[i].GetBounds().Contains(canvasPos)) {
+        if (m_elems[i].GetBounds().Contains(canvasPos)) {
             return i;
         }
     }
@@ -401,8 +296,9 @@ int CanvasPanel::HitElementTest(const wxPoint& canvasPos)
 }
 
 int CanvasPanel::HitHoverPin(const wxPoint& canvasPos, bool* isInput, wxPoint* worldPos){
-    for (size_t i = 0; i < m_elements.size(); ++i) {
-        const auto& elem = m_elements[i];
+    
+    for (size_t i = 0; i < m_elems.size(); ++i) {
+        const auto& elem = m_elems[i];
         // 输入引脚尖端（突出 1 px）
         for (size_t p = 0; p < elem.GetInputPins().size(); ++p) {
             wxPoint tip = elem.GetPos() + wxPoint(elem.GetInputPins()[p].pos.x - 1,
@@ -422,6 +318,39 @@ int CanvasPanel::HitHoverPin(const wxPoint& canvasPos, bool* isInput, wxPoint* w
                 *worldPos = tip;
                 return p;
             }
+        }
+
+        // 输出引脚尖端（突出 1 px）
+        for (size_t p = 0; p < elem.GetInOutputPins().size(); ++p) {
+            wxPoint tip = elem.GetPos() + wxPoint(elem.GetInOutputPins()[p].pos.x + 1,
+                elem.GetInOutputPins()[p].pos.y);
+            if (abs(canvasPos.x - tip.x) <= 4 && abs(canvasPos.y - tip.y) <= 4) {
+                *isInput = false;
+                *worldPos = tip;
+                return p;
+            }
+        }
+    }
+
+    const auto& elem = m_tbox;
+    // 输入引脚尖端（突出 1 px）
+    for (size_t p = 0; p < elem.GetInputPins().size(); ++p) {
+        wxPoint tip = elem.GetPos() + wxPoint(elem.GetInputPins()[p].pos.x - 1,
+            elem.GetInputPins()[p].pos.y);
+        if (abs(canvasPos.x - tip.x) <= 4 && abs(canvasPos.y - tip.y) <= 4) {
+            *isInput = true;
+            *worldPos = tip;
+            return p;
+        }
+    }
+    // 输出引脚尖端（突出 1 px）
+    for (size_t p = 0; p < elem.GetOutputPins().size(); ++p) {
+        wxPoint tip = elem.GetPos() + wxPoint(elem.GetOutputPins()[p].pos.x + 1,
+            elem.GetOutputPins()[p].pos.y);
+        if (abs(canvasPos.x - tip.x) <= 4 && abs(canvasPos.y - tip.y) <= 4) {
+            *isInput = false;
+            *worldPos = tip;
+            return p;
         }
     }
     return -1;
@@ -507,7 +436,140 @@ void CanvasPanel::DeleteSelected() {
 
 
     Refresh();
+    //触发改变
+    SetModified(1);
 }
+
+using json = nlohmann::json;
+
+void CanvasPanel::Save() {
+    auto* n = tn->GetParent()->GetParent();
+    ProjectNode* pn = static_cast<ProjectNode*>(n);
+    wxString cwd = pn->projectPath;
+    wxFileName targetDir;
+    targetDir.AssignDir(cwd + "/.sigflow/canvas");
+
+    if (!targetDir.DirExists()) {
+        targetDir.Mkdir(wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
+    }
+
+    // 1. 修正文件名：加上 .json 后缀
+    wxString filename = GetNote();
+    if (!filename.EndsWith(".json")) {
+        filename += ".json";
+    }
+
+    wxFileName filepath(targetDir.GetPath(), filename);
+
+    // 2. 构建 JSON 数据结构
+    json root;
+    root["canvas_name"] = GetNote().ToStdString();
+    root["elements"] = json::array(); // 初始化元素数组
+    
+
+    // 3. 遍历 m_elems 并填充数据
+    for (const auto& elem : m_elems) {
+        json element;
+        element["type"] = elem.type.ToStdString();
+        element["id"] = elem.GetIdentifier().ToStdString();
+        // 假设 GetPos() 返回 wxPoint
+        wxPoint pos = elem.GetPos();
+
+        element["x"] = pos.x;
+        element["y"] = pos.y;
+
+        // 如果需要保存更多信息（例如大小、标识符），在这里继续添加
+        // element["width"] = elem.m_bound.GetWidth();
+        // element["identifier"] = elem.identifier.ToStdString();
+
+        root["elements"].push_back(element);
+    }
+    json start, end;
+    start["x"] = m_tbox.GetPos().x;
+    start["y"] = m_tbox.GetPos().y;
+    end["x"] = m_tbox.GetPos().x + m_tbox.GetBounds().width;
+    end["y"] = m_tbox.GetPos().y + m_tbox.GetBounds().height;
+
+    root["topbox"]["start"] = start;
+    root["topbox"]["end"] = end;
+
+    // 4. 将 JSON 写入文件
+    std::ofstream file(filepath.GetFullPath().ToStdString());
+    if (file.is_open()) {
+        // 设置缩进为 4 个空格，使 JSON 可读
+        file << root.dump(4);
+        file.close();
+    }
+}
+
+
+
+bool CanvasPanel::Read() {
+    auto* n = tn->GetParent()->GetParent();
+    ProjectNode* pn = static_cast<ProjectNode*>(n);
+    wxString cwd = pn->projectPath;
+    wxString name = GetNote();
+    wxFileName filepath(cwd + "/.sigflow/canvas", name + ".json");
+
+    if (!filepath.FileExists()) {
+        return false;
+    }
+
+    std::ifstream file(filepath.GetFullPath().ToStdString());
+    if (!file.is_open()) return false;
+
+    json root;
+    try {
+        file >> root;
+    }
+    catch (...) {
+        return false;
+    }
+    file.close();
+
+    bool allElementsMatched = true;
+
+    if (root.contains("elements") && root["elements"].is_array()) {
+        // 1. 优化策略：创建一个 Identifier -> SecondElement* 的映射表
+        // 这样查找时间复杂度是 O(N)，而不是 O(N^2)
+        std::unordered_map<std::string, SecondElement*> idMap;
+        for (auto& elem : m_elems) {
+            idMap[elem.GetIdentifier().ToStdString()] = &elem;
+        }
+
+        // 2. 遍历 JSON 数据进行匹配更新
+        for (const auto& jElem : root["elements"]) {
+            if (jElem.contains("id") && jElem.contains("x") && jElem.contains("y")) {
+                std::string id = jElem["id"].get<std::string>();
+
+                // 3. 在映射表中查找对应元件
+                if (idMap.find(id) != idMap.end()) {
+                    int x = jElem["x"].get<int>();
+                    int y = jElem["y"].get<int>();
+
+                    // 4. 更新位置
+                    idMap[id]->SetPos(wxPoint(x, y));
+                }
+                else allElementsMatched = false;
+            }
+        }
+    }
+
+    if (root.contains("topbox")) {
+        wxPoint start(root["topbox"]["start"]["x"].get<int>(),
+            root["topbox"]["start"]["y"].get<int>());
+
+        wxPoint end(root["topbox"]["end"]["x"].get<int>(),
+            root["topbox"]["end"]["y"].get<int>());
+        m_tbox = TopModuleBox(start, end, tn);
+    }
+
+    Refresh(); // 重新绘制
+    return allElementsMatched;
+}
+
+
+
 
 void CanvasPanel::OnRightDown(wxMouseEvent& evt) {
     m_HandyToolKit->SetPosition(ClientToScreen(evt.GetPosition()) + FromDIP(wxPoint(24, 0)));
@@ -532,11 +594,12 @@ void CanvasPanel::SetCurrentComponent(const wxString& componentName) {
     m_toolStateMachine->SetCurrentTool(ToolType::COMPONENT_TOOL);
     m_toolStateMachine->SetComponentState(ComponentToolState::COMPONENT_PREVIEW);
     m_CanvasEventHandler->SetCurrentComponent(componentName);
+    SetPreview(componentName);
 }
 
 void CanvasPanel::UpdateHoverInfo(const wxPoint& screenPos) {
     m_hoverInfo.screenPos = screenPos;
-    m_hoverInfo.canvasPos = ScreenToCanvas(screenPos);
+    m_hoverInfo.canvasPos = ClientToCanvas(screenPos);
     m_hoverInfo.snappedPos = Snap(m_hoverInfo.canvasPos);
 
     // 悬停引脚信息检测
@@ -576,46 +639,49 @@ void CanvasPanel::UpdateHoverInfo(const wxPoint& screenPos) {
     m_hoverInfo.cellPos = cellWorldPos;
 
     m_hoverInfo.elementIndex = elementIndex;
-    if (elementIndex != -1) m_hoverInfo.elementName = m_elements[elementIndex].GetName();
+    if (elementIndex != -1) m_hoverInfo.elementName = m_elems[elementIndex].GetIdentifier();
     else m_hoverInfo.elementName = "";
 
     m_hoverInfo.textIndex = textIndex;
     // Refresh(); // 触发重绘以显示悬停效果
     wxString hover = "";
     if (m_hoverInfo.IsOverPin()) {
-        hover = (wxString::Format("Hover on: %sPin[%d]",
+        hover = (wxString::Format("%sPin[%d]",
             m_hoverInfo.isInputPin ? "Input" : "Output", m_hoverInfo.pinIndex));
     }
     else if (m_hoverInfo.IsOverCell()) {
         if (m_hoverInfo.isCellMiddle) {
-            hover = (wxString::Format("Hover on: Wire[%d] Section[%d] 控制点",
+            hover = (wxString::Format("Wire[%d] Section[%d] ControlPoint",
                 m_hoverInfo.wireIndex, m_hoverInfo.wireSectionIndex));
         }
         else {
-            hover = (wxString::Format("Hover on: Wire[%d] Cell[%d]",
+            hover = (wxString::Format("Wire[%d] Cell[%d]",
                 m_hoverInfo.wireIndex, m_hoverInfo.cellIndex));
         }
     }
     else if (m_hoverInfo.IsOverElement()) {
-        hover = (wxString::Format("Hover on: Component[%s]",
+        hover = (wxString::Format("Component[%s]",
             m_hoverInfo.elementName));
     }
     else if (m_hoverInfo.IsOverText()) {
-        hover = (wxString::Format("Hover on: TextBox[%d]",
+        hover = (wxString::Format("TextBox[%d]",
             m_hoverInfo.textIndex));
     }
     else {
-        hover = "Hover on: None";
+        hover = "Blank Space";
     }
 
-    wxString cursor = wxString::Format("Pointer at: (%d, %d)", m_hoverInfo.canvasPos.x, m_hoverInfo.canvasPos.y);
+    wxString cursor = wxString::Format("(%d, %d)", m_hoverInfo.canvasPos.x, m_hoverInfo.canvasPos.y);
 
     // 修复后：
-    wxString zoom = wxString::Format("Zoom: %d%%", int(m_scale * 100));
+    wxString zoom = wxString::Format("%d%%", int(m_scale * 100));
 
-    m_mainFrame->SetStatusText(cursor, 1);
-    m_mainFrame->SetStatusText(hover, 2);
-    m_mainFrame->SetStatusText(zoom, 3);
+    if (m_mainFrame) { // 检查是否正在退出
+        m_mainFrame->SetStatusText(hover, 1);
+        m_mainFrame->SetStatusText(cursor, 2);
+        m_mainFrame->SetStatusText(zoom, 3);
+    }
+
     m_CanvasEventHandler->UpdateHoverInfo(m_hoverInfo);
 }
 
@@ -685,7 +751,8 @@ void CanvasPanel::CreateTextElement(const wxPoint& position, wxString text) {
     AttachHiddenTextCtrlToElement(static_cast<int>(m_textElements.size() - 1));
 
     Refresh();
-    UndoStackPush(std::make_unique<CmdAddText>( m_textElements.size() - 1));
+    //触发改变
+    SetModified(1);
 }
 
 void CanvasPanel::AddTextWithIns(CanvasTextElement text) {
@@ -789,14 +856,19 @@ std::pair<wxPoint, wxPoint> CanvasPanel::ValidSetOffRange() {
 
 std::pair<float, float> CanvasPanel::ValidScaleRange() {
     // 对于最右侧最下侧的逻辑坐标 (m_size.x, m_size.y) 对应的设备坐标恰好为 (GetClientSize().x- m_hScroll->GetSize().y - 1, GetClientSize().y- m_hScroll->GetSize().y - 1) 时，计算出最小缩放比例
-    float minScaleX = static_cast<float>((GetClientSize().x - m_hScroll->GetSize().y - 1) - m_offset.x) / static_cast<float>(m_size.x);
-    float minScaleY = static_cast<float>((GetClientSize().y - m_hScroll->GetSize().y - 1) - m_offset.y) / static_cast<float>(m_size.y);
+    wxSize s = GetClientSize();
+    float h = m_hScroll->GetSize().y;
+    float x = (s.x - h - 1) - m_offset.x;
+    float y = (s.y - h - 1) - m_offset.y;
+    float minScaleX = static_cast<float>(x) / static_cast<float>(m_size.x);
+    float minScaleY = static_cast<float>(y) / static_cast<float>(m_size.y);
     float minScale = std::max(minScaleX, minScaleY);
     float maxScale = 5.0f; // 最大缩放比例
     return std::make_pair(minScale, maxScale);
 }
 
 void CanvasPanel::SetPreviewElement(const wxString& name, wxPoint pos) {
+    /*
     extern std::vector<CanvasElement> g_elements;
     auto it = std::find_if(g_elements.begin(), g_elements.end(),
         [&](const CanvasElement& e) { return e.GetName() == name; });
@@ -817,16 +889,8 @@ void CanvasPanel::SetPreviewElement(const wxString& name, wxPoint pos) {
         standardpos = pos - wxPoint(standardPin.pos.x + m_grid, standardPin.pos.y - m_grid);
     }
     clone.SetPos(standardpos);
-    m_previewElement = clone;
+    m_previewElement = clone;*/
     Refresh();
-}
-
-void CanvasPanel::UndoStackPush(std::unique_ptr<Command> command) {
-    m_undoStack.Push(std::move(command));
-    MainFrame* mainFrame = wxDynamicCast(GetParent(), MainFrame);
-    if (mainFrame) {
-        mainFrame->OnUndoStackChanged();
-    }
 }
 
 void CanvasPanel::WireSetWholeOffSet(int index, const wxPoint& offset) {
@@ -840,34 +904,10 @@ void CanvasPanel::WirePtsSetPos(int wireIndex, int controlPointIndex, const wxPo
     m_wires[wireIndex].pts[controlPointIndex].pos = pos;
     m_wires[wireIndex].GenerateCells();
     Refresh();
+    //触发改变
+    SetModified(1);
 }
 
-void CanvasPanel::ElementStatusChange(int index) {
-    CanvasElement& elem = m_elements[index];
-    wxString elementId = elem.GetId();
-
-    if (elementId == "Pin_Input" || elementId.StartsWith("Pin"))
-    {
-        // 切换 Pin 状态
-        if (elementId == "Pin_Input") {
-            elem.ToggleState();  // 0↔1
-        }
-        else {
-            //int currentState = elem.GetOutputState();
-            //int newState = (currentState >= 2) ? 0 : currentState + 1; // 0→1→X→0
-            //elem.SetOutputState(LogicSignal(newState));
-        }
-
-        Refresh();
-    }
-}
-
-void CanvasPanel::ClearAll() {
-    m_elements.clear();
-    m_textElements.clear();
-    m_wires.clear();
-    Refresh();
-}
 
 void CanvasPanel::UpdateSelection(std::vector<int> m_elemIdx, std::vector<int> m_textIdx, std::vector<int> m_wireIdx ) {
     m_selTxtIdx = m_textIdx;
@@ -879,8 +919,9 @@ void CanvasPanel::UpdateSelection(std::vector<int> m_elemIdx, std::vector<int> m
 void CanvasPanel::AddWire(const Wire& wire) {
     m_wires.push_back(wire); 
     m_wires.back().GenerateCells(); 
-    Refresh(); 
-    UndoStackPush(std::make_unique<CmdAddWire>(m_wires.size() - 1));
+    Refresh();
+    //触发改变
+    SetModified(1);
 };
 
 void CanvasPanel::AddWireWithoutRecord(const Wire& wire) {
@@ -895,216 +936,595 @@ void CanvasPanel::ReclaimWire(Wire wire, int index) {
     Refresh();
 };
 
-void CanvasPanel::ElementSetPos(int index, const wxPoint& pos) {
-    wxPoint oldPos = m_elements[index].GetPos();
-    m_elements[index].SetPos(pos); 
-    Refresh(); 
-};
-
-void CanvasPanel::Simulate() {
-    for (auto& elem : m_elements) {
-        for (auto& pin : elem.m_inputPins) {
-            pin.connectionWireId = -1;
-            pin.s = LogicSignal::E;
-        }
-        for (auto& pin : elem.m_outputPins) {
-            pin.connectionWireId = -1;
-            pin.s = LogicSignal::E;
-        }
-    }
-    for (auto& wire : m_wires) {
-        wire.Right.elemIdx = -1;
-        wire.Right.PinIdx = -1;
-        wire.Left.elemIdx = -1;
-        wire.Left.PinIdx = -1;
-        wire.status = LogicSignal::E;
-    }
-
-    CollectConnections();
-
-    // 递归仿真
-    for (auto& elem : m_elements) {
-        ElemSimulate(elem);
-        Refresh();
-    }
-
-
-}
-
-LogicSignal CanvasPanel::ElemSimulate(CanvasElement& elem) {
-    //漏洞：目前只能适用于只有一个outpin的元件
-
-    //检查是否已经计算过输出，如果已经计算过，直接返回
-    if (elem.GetId() == "Pin_Input") {
-        return LogicSignal(elem.GetState());
-    }
-    else if (!elem.m_outputPins.empty() &&
-        elem.m_outputPins[0].s != LogicSignal::E) {
-        return elem.m_outputPins[0].s;
-    }
-
-    //如果没有计算过，先获取所有输入引脚的状态
-    std::vector<LogicSignal> inputSig;
-    for (auto& pin : elem.m_inputPins) {
-        if (pin.connectionWireId < 0) {
-            pin.s = LogicSignal::E;
-            inputSig.push_back(LogicSignal::E);
-            continue;
-        }
-        else {
-            LogicSignal s = LogicSignal::E;
-            auto& wire = m_wires[pin.connectionWireId];
-            if (pin.isLeft) {
-                //if (wire.Right.elemIdx >= 0) 
-                //    if (wire.pts.front().type == CPType::Branch) {
-                //        auto& wire_2 = m_wires[wire.Left.wireIdx];
-                //        s = ElemSimulate(m_elements[wire_2.Left.elemIdx]);
-                //        wire_2.status = s;
-                //    }
-                //    else s = ElemSimulate(m_elements[wire.Right.elemIdx]);
-
-            }
-               
-            else {
-                if (wire.Left.elemIdx >= 0) {
-                    s = ElemSimulate(m_elements[wire.Left.elemIdx]);
-                }
-                else if(wire.Left.wireIdx >= 0) {
-                    auto& wire_2 = m_wires[wire.Left.wireIdx];
-                    s = ElemSimulate(m_elements[wire_2.Left.elemIdx]);
-                    wire_2.status = s;
-                }
-                    
-            }
-            wire.status = s;
-            pin.s = s;
-            inputSig.push_back(s);
-        }
-    }
-
-    int input = EncodeInputs(inputSig);
-    LogicSignal s;
-    if (input < 0) s= LogicSignal::E;
-    else s= elem.express(input);
-
-    if (elem.GetId() == "Pin_Output") elem.m_outputState = s;
-    else elem.m_outputPins[0].s = s;
-    return s;
-}
-
-
-int  CanvasPanel::EncodeInputs(const std::vector<LogicSignal>& inputSig) {
-    int value = 0;
-
-    for (auto s : inputSig) {
-        value <<= 1;
-
-        if (s == LogicSignal::ONE) {
-            value |= 1;
-        }
-        else if (s == LogicSignal::ZERO) {
-            // do nothing
-        }
-        else {
-            // X / Z / E
-            return -1;  // 非法编码
-        }
-    }
-
-    return value;
-}
-
-
-void CanvasPanel::CollectConnections() {
-
-    // 遍历每一根导线
-    for (int wIdx = 0; wIdx < (int)m_wires.size(); ++wIdx) {
-        Wire& wire = m_wires[wIdx];
-
-        // ===== 处理左端点 =====
-        {
-            ControlPoint& cp = wire.pts.front();
-
-            for (int eIdx = 0; eIdx < (int)m_elements.size(); ++eIdx) {
-                auto& elem = m_elements[eIdx];
-
-                // 输入引脚
-                for (int pIdx = 0; pIdx < (int)elem.m_inputPins.size(); ++pIdx) {
-                    auto& pin = elem.m_inputPins[pIdx];
-
-                    if (IsNear(cp.pos, elem.GetPos()+wxPoint(pin.pos.x, pin.pos.y))) {
-                        cp.type = CPType::Pin;
-                        wire.Left.elemIdx = eIdx;
-                        wire.Left.isInput = true;
-                        wire.Left.PinIdx = pIdx;
-                        pin.connectionWireId = wIdx;
-                        pin.isLeft = true;
-                        goto RightEnd;   // 左端点已匹配，跳去处理右端点
-                    }
-                }
-
-                // 输出引脚
-                for (int pIdx = 0; pIdx < (int)elem.m_outputPins.size(); ++pIdx) {
-                    auto& pin = elem.m_outputPins[pIdx];
-
-                    if (IsNear(cp.pos, elem.GetPos()+wxPoint(pin.pos.x, pin.pos.y))) {
-                        cp.type = CPType::Pin;
-                        wire.Left.elemIdx = eIdx;
-                        wire.Left.isInput = false;
-                        wire.Left.PinIdx = pIdx;
-                        pin.connectionWireId = wIdx;
-                        pin.isLeft = true;
-                        goto RightEnd;
-                    }
-                }
-            }
-        }
-
-    RightEnd:
-        // ===== 处理右端点 =====
-        {
-            ControlPoint& cp = wire.pts.back();
-
-            for (int eIdx = 0; eIdx < (int)m_elements.size(); ++eIdx) {
-                auto& elem = m_elements[eIdx];
-
-                // 输入引脚
-                for (int pIdx = 0; pIdx < (int)elem.m_inputPins.size(); ++pIdx) {
-                    auto& pin = elem.m_inputPins[pIdx];
-
-                    if (IsNear(cp.pos, elem.GetPos()+wxPoint(pin.pos.x, pin.pos.y))) {
-                        cp.type = CPType::Pin;
-                        wire.Right.elemIdx = eIdx;
-                        wire.Right.isInput = true;
-                        wire.Right.PinIdx = pIdx;
-                        pin.connectionWireId = wIdx;
-                        pin.isLeft = false;
-                        goto NextWire;
-                    }
-                }
-
-                // 输出引脚
-                for (int pIdx = 0; pIdx < (int)elem.m_outputPins.size(); ++pIdx) {
-                    auto& pin = elem.m_outputPins[pIdx];
-
-                    if (IsNear(cp.pos, elem.GetPos()+wxPoint(pin.pos.x, pin.pos.y))) {
-                        cp.type = CPType::Pin;
-                        wire.Right.elemIdx = eIdx;
-                        wire.Right.isInput = false;
-                        wire.Right.PinIdx = pIdx;
-                        pin.connectionWireId = wIdx;
-                        pin.isLeft = false;
-                        goto NextWire;
-                    }
-                }
-            }
-        }
-
-    NextWire:
-        continue;
-    }
-}
-
 bool CanvasPanel::IsNear(const wxPoint& a, const wxPoint& b, int tol) {
     return std::abs(a.x - b.x) <= tol && std::abs(a.y - b.y) <= tol;
+}
+
+void CanvasPanel::SetTopNode(TopNode* node) {
+    tn = node;
+    UpdateCanvasElements();
+    LoadLayout();
+    CompleteAutoWiring();
+    Refresh();
+}
+
+void CanvasPanel::LoadLayout() {
+    if (Read()) return;
+    CompleteAutoLayout();
+}
+
+void CanvasPanel::CompleteAutoWiring() {
+    if (!tn || m_elems.empty()) return;
+    m_wires.clear();
+
+    const int G = m_grid;                          // 网格尺寸 (20)
+    const int numElems = static_cast<int>(m_elems.size());
+
+    // ═══════════════════════════════════════════════
+    //  STEP 1  拓扑分层
+    // ═══════════════════════════════════════════════
+    std::vector<int> topoLevels = SigFlowTree::SecondNodeTopoLevel(tn);
+    if (static_cast<int>(topoLevels.size()) != numElems) return;
+
+    int maxLevel = 0;
+    for (int l : topoLevels) maxLevel = std::max(maxLevel, l);
+
+    // ═══════════════════════════════════════════════
+    //  STEP 2  构建信号网表
+    // ═══════════════════════════════════════════════
+    struct Dest { int elemIdx; int pinIdx; int layer; };
+    struct Net  {
+        std::string name;
+        int srcElem  = -2;       // -2 未设定, -1 顶层输入端口, ≥0 元件
+        int srcPin   = 0;
+        int srcLayer = -1;       // -1 表示顶层输入
+        std::vector<Dest> dests;
+    };
+    std::map<std::string, Net> nets;
+
+    // 2a  元件输出引脚 → 信号驱动源
+    for (int i = 0; i < numElems; i++) {
+        auto* sn = m_elems[i].self; if (!sn) continue;
+        for (int p = 0; p < static_cast<int>(sn->out_ports.size()); p++) {
+            const auto& sig = sn->out_ports[p].conn;
+            if (sig.empty()) continue;
+            auto& net    = nets[sig];
+            net.name     = sig;
+            net.srcElem  = i;
+            net.srcPin   = p;
+            net.srcLayer = topoLevels[i];
+        }
+    }
+    // 2b  顶层模块输入端口 → 信号驱动源
+    auto& inPorts = tn->GetInPorts();
+    for (int p = 0; p < static_cast<int>(inPorts.size()); p++) {
+        const auto& sig = inPorts[p].identifier;
+        auto& net    = nets[sig];
+        net.name     = sig;
+        net.srcElem  = -1;
+        net.srcPin   = p;
+        net.srcLayer = -1;
+    }
+    // 2c  元件输入引脚 → 信号消费者
+    for (int i = 0; i < numElems; i++) {
+        auto* sn = m_elems[i].self; if (!sn) continue;
+        for (int p = 0; p < static_cast<int>(sn->in_ports.size()); p++) {
+            const auto& sig = sn->in_ports[p].conn;
+            if (sig.empty() || !nets.count(sig)) continue;
+            nets[sig].dests.push_back({i, p, topoLevels[i]});
+        }
+    }
+    // 2d  顶层模块输出端口 → 信号消费者
+    auto& outPorts = tn->GetOutPorts();
+    for (int p = 0; p < static_cast<int>(outPorts.size()); p++) {
+        const auto& sig = outPorts[p].identifier;
+        if (!nets.count(sig)) continue;
+        nets[sig].dests.push_back({-1, p, maxLevel + 1});
+    }
+    // 2e  清除无驱动源或无消费者的网络
+    for (auto it = nets.begin(); it != nets.end(); )
+        (it->second.srcElem == -2 || it->second.dests.empty())
+            ? it = nets.erase(it) : ++it;
+    if (nets.empty()) return;
+
+    // ═══════════════════════════════════════════════
+    //  STEP 3  计算布线通道需求
+    // ═══════════════════════════════════════════════
+    // Gap[g] 位于 layer[g-1] 与 layer[g] 之间的垂直通道区
+    //   Gap[0]            : 顶层输入侧 ↔ layer[0]
+    //   Gap[maxLevel+1]   : layer[maxLevel] ↔ 顶层输出侧
+    const int numGaps = maxLevel + 2;
+    std::vector<std::vector<std::string>> gapSigs(numGaps);
+    std::vector<std::string> hChanSigs;        // 需要水平通道的信号
+
+    for (auto& [sig, net] : nets) {
+        int farthest = -1;
+        for (auto& d : net.dests) farthest = std::max(farthest, d.layer);
+        int gStart = std::max(0, net.srcLayer + 1);
+        int gEnd   = std::min(numGaps - 1, farthest);
+        for (int g = gStart; g <= gEnd; g++)
+            gapSigs[g].push_back(sig);
+        if (farthest - net.srcLayer > 1)
+            hChanSigs.push_back(sig);
+    }
+    int numHChans = static_cast<int>(hChanSigs.size());
+
+    // ═══════════════════════════════════════════════
+    //  STEP 4  带通道预留的自动布局
+    // ═══════════════════════════════════════════════
+    // 4a  每层最大元件宽度
+    std::map<int, int> layerMaxW;
+    for (int i = 0; i < numElems; i++)
+        layerMaxW[topoLevels[i]] = std::max(
+            layerMaxW[topoLevels[i]],
+            m_elems[i].GetBounds().GetWidth());
+
+    // 4b  水平坐标: [tbLeft] [gap0] [layer0] [gap1] [layer1] … [gapN+1] [tbRight]
+    const int tbLeft = 3 * G;
+    const int tbTop  = 3 * G;
+    int curX = tbLeft + 2 * G;
+
+    std::vector<int> gapX(numGaps, 0);
+    std::vector<int> gapW(numGaps, 0);
+    std::vector<int> layerX(maxLevel + 1, 0);
+
+    for (int lev = 0; lev <= maxLevel; lev++) {
+        gapX[lev] = curX;
+        gapW[lev] = std::max(1, static_cast<int>(gapSigs[lev].size())) * G;
+        curX += gapW[lev] + G;
+        layerX[lev] = curX;
+        curX += layerMaxW[lev] + G;
+    }
+    int lastG = numGaps - 1;
+    gapX[lastG] = curX;
+    gapW[lastG] = std::max(1, static_cast<int>(gapSigs[lastG].size())) * G;
+    curX += gapW[lastG] + 2 * G;
+    const int tbRight = curX;
+
+    // 4c  垂直坐标: 水平通道在上方, 元件在下方
+    const int hChanStartY = tbTop + 2 * G;
+    const int hChanH      = numHChans * G;
+    const int elemStartY  = hChanStartY + hChanH + (numHChans > 0 ? G : 0);
+
+    std::map<int, int> layerCurY;
+    for (int i = 0; i < numElems; i++) {
+        int lev = topoLevels[i];
+        if (!layerCurY.count(lev)) layerCurY[lev] = elemStartY;
+        m_elems[i].SetPos(wxPoint(layerX[lev], layerCurY[lev]));
+        layerCurY[lev] += m_elems[i].GetBounds().GetHeight() + 3 * G;
+}
+
+    int maxBotY = elemStartY;
+    for (auto& [_, y] : layerCurY) maxBotY = std::max(maxBotY, y);
+    const int tbBottom = maxBotY + 2 * G;
+
+    // 4d  重建 TopModuleBox
+    m_tbox = TopModuleBox(wxPoint(tbLeft, tbTop),
+                          wxPoint(tbRight, tbBottom), tn);
+
+    // ═══════════════════════════════════════════════
+    //  STEP 5  分配通道坐标
+    // ═══════════════════════════════════════════════
+    // 5a  垂直通道：按 (源层降序, 源Y升序) 分配
+    //     邻层信号靠近目标侧 → 减少交叉
+    std::map<std::string, std::map<int, int>> vChanX;
+
+    for (int g = 0; g < numGaps; g++) {
+        auto& sigs = gapSigs[g];
+        std::sort(sigs.begin(), sigs.end(),
+            [&](const std::string& a, const std::string& b) {
+                auto& nA = nets[a]; auto& nB = nets[b];
+                if (nA.srcLayer != nB.srcLayer)
+                    return nA.srcLayer > nB.srcLayer;
+                auto srcY = [&](const Net& n) -> int {
+                    if (n.srcElem >= 0) {
+                        auto& e = m_elems[n.srcElem];
+                        auto& pins = e.GetOutputPins();
+                        return (n.srcPin < (int)pins.size())
+                            ? e.GetPos().y + pins[n.srcPin].pos.y : 0;
+                    }
+                    auto& pins = m_tbox.GetInputPins();
+                    return (n.srcPin < (int)pins.size())
+                        ? m_tbox.GetPos().y + pins[n.srcPin].pos.y : 0;
+                };
+                return srcY(nA) < srcY(nB);
+            });
+        for (int ch = 0; ch < static_cast<int>(sigs.size()); ch++)
+            vChanX[sigs[ch]][g] = gapX[g] + ch * G;
+    }
+
+    // 5b  水平通道：从上到下依次分配
+    std::map<std::string, int> hChanY;
+    for (int ch = 0; ch < numHChans; ch++)
+        hChanY[hChanSigs[ch]] = hChanStartY + ch * G;
+
+    // ═══════════════════════════════════════════════
+    //  STEP 6  生成导线
+    // ═══════════════════════════════════════════════
+    auto srcPinPos = [&](const Net& n) -> wxPoint {
+        if (n.srcElem == -1) {
+            auto& pins = m_tbox.GetInputPins();
+            return (n.srcPin < (int)pins.size())
+                ? m_tbox.GetPos() + wxPoint(pins[n.srcPin].pos.x, pins[n.srcPin].pos.y)
+                : wxPoint(0, 0);
+        }
+        auto& e = m_elems[n.srcElem];
+        auto& pins = e.GetOutputPins();
+        return (n.srcPin < (int)pins.size())
+            ? e.GetPos() + wxPoint(pins[n.srcPin].pos.x, pins[n.srcPin].pos.y)
+            : wxPoint(0, 0);
+    };
+
+    auto dstPinPos = [&](const Dest& d) -> wxPoint {
+        if (d.elemIdx == -1) {
+            auto& pins = m_tbox.GetOutputPins();
+            return (d.pinIdx < (int)pins.size())
+                ? m_tbox.GetPos() + wxPoint(pins[d.pinIdx].pos.x, pins[d.pinIdx].pos.y)
+                : wxPoint(0, 0);
+        }
+        auto& e = m_elems[d.elemIdx];
+        auto& pins = e.GetInputPins();
+        return (d.pinIdx < (int)pins.size())
+            ? e.GetPos() + wxPoint(pins[d.pinIdx].pos.x, pins[d.pinIdx].pos.y)
+            : wxPoint(0, 0);
+    };
+
+    auto getChanX = [&](const std::string& sig, int g) -> int {
+        auto it1 = vChanX.find(sig);
+        if (it1 != vChanX.end()) {
+            auto it2 = it1->second.find(g);
+            if (it2 != it1->second.end()) return it2->second;
+        }
+        return gapX[g];
+    };
+
+    for (auto& [sig, net] : nets) {
+        wxPoint sp = srcPinPos(net);
+
+        for (auto& dest : net.dests) {
+            wxPoint dp = dstPinPos(dest);
+            std::vector<ControlPoint> pts;
+
+            int dL = dest.layer;
+            bool isSkip = (dL - net.srcLayer) > 1;
+
+            if (dL <= net.srcLayer) {
+                // 反向或同层: 直连 (DAG 中不应出现)
+                pts.push_back({sp, CPType::Pin});
+                pts.push_back({dp, CPType::Pin});
+            }
+            else if (!isSkip) {
+                // ─── 相邻层: Z 形布线 ───
+                int cx = getChanX(sig, dL);
+                pts.push_back({sp, CPType::Pin});
+                if (sp.y != dp.y) {
+                    pts.push_back({{cx, sp.y}, CPType::Bend});
+                    pts.push_back({{cx, dp.y}, CPType::Bend});
+                } else {
+                    pts.push_back({{cx, sp.y}, CPType::Bend});
+                }
+                pts.push_back({dp, CPType::Pin});
+            }
+            else {
+                // ─── 跨层: 经水平通道 ───
+                int firstG = std::max(0, net.srcLayer + 1);
+                int cx1 = getChanX(sig, firstG);
+                int cx2 = getChanX(sig, dL);
+                int hy  = hChanY.count(sig) ? hChanY[sig] : hChanStartY;
+
+                pts.push_back({sp, CPType::Pin});
+                pts.push_back({{cx1, sp.y}, CPType::Bend});
+                pts.push_back({{cx1, hy},   CPType::Bend});
+                pts.push_back({{cx2, hy},   CPType::Bend});
+                pts.push_back({{cx2, dp.y}, CPType::Bend});
+                pts.push_back({dp, CPType::Pin});
+            }
+
+            // 移除零长线段
+            std::vector<ControlPoint> clean;
+            for (auto& p : pts)
+                if (clean.empty() || clean.back().pos != p.pos)
+                    clean.push_back(p);
+
+            if (static_cast<int>(clean.size()) >= 2) {
+                Wire w(std::move(clean));
+                w.m_canvas = this;
+                m_wires.push_back(std::move(w));
+            }
+        }
+    }
+
+    for (auto& w : m_wires) w.GenerateCells();
+    Refresh();
+}
+
+void CanvasPanel::CompleteAutoLayout() {
+    if (m_elems.empty()) {
+        m_tbox = TopModuleBox(wxPoint(60, 40), wxPoint(700, 440), tn);
+    }
+    else {
+        std::vector<SecondElement>& elems = m_elems;
+        std::vector<int> topoLevels = SigFlowTree::SecondNodeTopoLevel(tn);
+        std::unordered_map<int, int> levelBounds = GetLevelBounds(topoLevels, &elems);
+
+        std::unordered_map<int, int> levelCurrentY;
+        std::unordered_map<int, int> levelStartX;
+
+        wxPoint start = wxPoint(60, 40);
+
+        int currentX = start.x + 100; // 画布初始左边距
+        int totalLevels = 0;
+        for (auto const& [lev, width] : levelBounds) {
+            totalLevels = std::max(totalLevels, lev);
+        }
+
+        for (int l = 0; l <= totalLevels; ++l) {
+            if (levelBounds.count(l)) {
+                levelStartX[l] = currentX;
+                currentX += levelBounds[l] + 100;
+            }
+        }
+
+        for (size_t i = 0; i < topoLevels.size(); ++i) {
+            int lev = topoLevels[i];
+            SecondElement& ce = elems[i];
+
+            // 初始化该层的 Y 坐标起始值
+            if (levelCurrentY.find(lev) == levelCurrentY.end()) {
+                levelCurrentY[lev] = start.y + 40; // 画布初始上边距
+            }
+
+            // 获取当前元件的尺寸（从 GetBounds 中获取）
+            wxRect rect = ce.GetBounds();
+
+            // 计算位置：
+            // X 使用预存的该层起始 X
+            // Y 使用该层当前的累计 Y
+            wxPoint targetPos(levelStartX[lev], levelCurrentY[lev]);
+            ce.SetPos(targetPos);
+
+            // 更新该层下一元件的 Y 坐标：当前高度 + 元件自身高度 + 间隔20
+            levelCurrentY[lev] += rect.GetHeight() + 60;
+        }
+        int maxY = 0;
+        if (!levelCurrentY.empty()) {
+            auto it = std::max_element(levelCurrentY.begin(), levelCurrentY.end(),
+                [](const std::pair<int, int>& a, const std::pair<int, int>& b) {
+                    return a.second < b.second; // 比较 value
+                });
+
+            maxY = it->second;
+            // 如果需要对应的层级(Key): int maxKey = it->first;
+        }
+        wxPoint end = wxPoint(levelStartX[totalLevels] + levelBounds[totalLevels] + 100, maxY + 80);
+        m_tbox = TopModuleBox(start, end, tn);
+    }
+    
+}
+
+void CanvasPanel::UpdateCanvasElements(){
+    m_elems = GetSecondElements(tn);
+}
+
+std::vector<SecondElement> CanvasPanel::GetSecondElements(TopNode* n) {
+    extern std::vector<SecondElement> g_elements;
+    std::vector<SecondElement> elems;
+
+    for (auto* child : n->GetChildren())
+    {
+        if (child->type == SigTreeNodeType::Signal) continue;
+        SecondNode* sn = static_cast<SecondNode*>(child);
+        elems.push_back(SecondElement(sn, g_elements));
+    }
+    return elems;
+}
+
+std::unordered_map<int, int> CanvasPanel::GetLevelBounds(std::vector<int> topoLevels, std::vector<SecondElement>* p_elems) {
+    if (!p_elems || topoLevels.size() != p_elems->size()) {
+        return {};
+    }
+
+    // Key: level ID
+    // Value: 存储该层所有元件的最左端和最右端坐标
+    struct Limit { int minX = INT_MAX; int maxX = INT_MIN; };
+    std::unordered_map<int, Limit> levelLimits;
+
+    for (size_t i = 0; i < topoLevels.size(); ++i) {
+        int level = topoLevels[i];
+        const SecondElement& ce = (*p_elems)[i];
+
+        // 使用你提到的 GetBounds() 获取元件在画布上的实际矩形区域
+        wxRect bounds = ce.GetBounds();
+
+        // 更新该层级的水平极值
+        if (bounds.GetLeft() < levelLimits[level].minX)
+            levelLimits[level].minX = bounds.GetLeft();
+
+        if (bounds.GetRight() > levelLimits[level].maxX)
+            levelLimits[level].maxX = bounds.GetRight();
+    }
+
+    // 转换为最终的宽度结果
+    std::unordered_map<int, int> resultWidths;
+    for (auto const& [level, limit] : levelLimits) {
+        // 宽度 = 最大 X - 最小 X
+        // 注意：如果该层只有一个元件，宽度就是该元件自身的宽度
+        resultWidths[level] = limit.maxX - limit.minX;
+    }
+
+    return resultWidths;
+}
+
+wxString CanvasPanel::GetNote() {
+    if (tn) return tn->identifier;
+    else return wxString("untitled");
+}
+
+
+void CanvasPanel::AddGateNode(GateType type, wxPoint pos) {
+    extern std::vector<SecondElement> g_elements;
+
+    GateInstNode* gn = new GateInstNode("new_"+SigFlowTree::ToString(type), type);
+    gn = static_cast<GateInstNode*>(sftree->AddChild(tn, gn));
+    Refresh();
+}
+
+void CanvasPanel::AddModuleInstNode(wxString def, wxPoint pos) {
+    extern std::vector<SecondElement> g_elements;
+    ModuleInstNode* mn = new ModuleInstNode("new_"+ def.ToStdString(), def.ToStdString());
+
+    mn = static_cast<ModuleInstNode*>(sftree->AddChild(tn, mn));
+    Refresh();
+}
+
+void CanvasPanel::AddSecondElement(SecondNode* sn) {
+    extern std::vector<SecondElement> g_elements;
+    SecondElement s = SecondElement(sn, g_elements);
+    if (m_previewElement.GetIdentifier() == s.GetIdentifier()) {
+        s.SetPos(m_previewElement.GetPos());
+    }
+    else  s.SetPos(wxPoint(0, 0));
+    m_elems.push_back(s);
+    RefreshRect(s.GetBounds());
+    //触发改变
+    SetModified(1);
+}
+
+void CanvasPanel::AddSecondNode(wxString type, wxPoint pos) {
+    GateType gt = SigFlowTree::GateTypeFromString(type.ToStdString());
+    if (gt != GateType::Unknown) AddGateNode(gt, pos);
+    else AddModuleInstNode(type, pos);
+}
+
+void CanvasPanel::SetPreview(wxString type) {
+    GateType gt = SigFlowTree::GateTypeFromString(type.ToStdString());
+    if (gt != GateType::Unknown) {
+        extern std::vector<SecondElement> g_elements;
+
+        GateInstNode* gn = new GateInstNode("new_" + SigFlowTree::ToString(gt), gt);
+
+        SecondElement se = SecondElement(gn, g_elements);
+        se.SetPos(wxPoint(0, 0));
+        m_previewElement = se;
+        RefreshRect(se.GetBounds());
+    }
+    else {
+        extern std::vector<SecondElement> g_elements;
+        ModuleInstNode* mn = new ModuleInstNode("new_" + type.ToStdString(), type.ToStdString());
+        sftree->LinkSingleInstWithDef(mn);
+        if (mn->Definition) {
+            wxCommandEvent evt;
+            ProcessWindowEvent(evt);
+
+            SecondElement se = SecondElement(mn, g_elements);
+            se.SetPos(wxPoint(0, 0));
+            m_previewElement = se;
+            Refresh();
+        }
+        else {
+
+        }
+    };
+}
+
+
+void CanvasPanel::SetPreviewPos(wxPoint pos) {
+    m_previewElement.SetPos(pos);
+    RefreshRect(m_previewElement.GetBounds());
+}
+
+void CanvasPanel::DelSecondNode(int id) {
+    SecondElement& sm = m_elems[id];
+    SecondNode* sn = sm.self;
+    sftree->RemoveChild(sn->GetParent(), sn);
+}
+
+void CanvasPanel::DelSecondElement(SecondNode* sn) {
+    // 1. 查找要删除元素的索引
+    int targetIdx = -1;
+    for (int i = 0; i < m_elems.size(); ++i) {
+        if (m_elems[i].self == sn) {
+            targetIdx = i;
+            break;
+        }
+    }
+
+    if (targetIdx == -1) return; // 没找到，直接返回
+
+    // 2. 清理选中索引 vector (m_selElemIdx)
+    // 移除等于 targetIdx 的索引
+    m_selElemIdx.erase(
+        std::remove(m_selElemIdx.begin(), m_selElemIdx.end(), targetIdx),
+        m_selElemIdx.end()
+    );
+
+    // 3. 将所有大于 targetIdx 的索引减 1 (因为元素被删了，后面的元素索引前移)
+    for (int& idx : m_selElemIdx) {
+        if (idx > targetIdx) {
+            idx--;
+        }
+    }
+
+    // 4. 最后删除 m_elems 中的元素
+    m_elems.erase(m_elems.begin() + targetIdx);
+    //触发改变
+    SetModified(1);
+}
+
+void CanvasPanel::DelSecondElement(int id) {
+    // 1. 安全检查：确保索引在有效范围内
+    if (id < 0 || id >= (int)m_elems.size()) {
+        return;
+    }
+
+    // 2. 清理选中索引数组 (m_selElemIdx)
+    // 2a. 移除等于该 id 的索引 (如果该元素当前被选中)
+    m_selElemIdx.erase(
+        std::remove(m_selElemIdx.begin(), m_selElemIdx.end(), id),
+        m_selElemIdx.end()
+    );
+
+    // 2b. 将所有大于该 id 的索引减 1
+    for (int& selIdx : m_selElemIdx) {
+        if (selIdx > id) {
+            selIdx--;
+        }
+    }
+
+    // 3. 删除 m_elems 中的元素
+    m_elems.erase(m_elems.begin() + id);
+}
+void CanvasPanel::SetModified(bool modified) {
+    if (m_isModified == modified) return; // 避免重复触发
+    m_isModified = modified;
+
+    // 初始化画布标识（用 GetNote()，即 tn->identifier）
+    if (m_canvasId.IsEmpty()) {
+        m_canvasId = GetNote();
+    }
+
+    if (modified) { // 仅标记为修改时发事件
+        wxCommandEvent evt(wxEVT_CANVAS_MODIFIED);
+        evt.SetString(m_canvasId); // 附带画布标识（关键）
+        evt.SetEventObject(this);  // 附带当前画布对象
+        wxPostEvent(GetParent(), evt); // 发给父窗口 CanvasNoteBook
+    }
+}
+
+void CanvasPanel::RefreshElem(SecondNode* sn) {
+    extern std::vector<SecondElement> g_elements;
+    for (auto& elem : m_elems) {
+        if (elem.self == sn) {
+            auto tmp = SecondElement(sn, g_elements);
+            tmp.SetPos(elem.GetPos());
+            elem = tmp;
+        }
+    }
+}
+void CanvasPanel::OnSFNodeActivated(wxCommandEvent& evt) {
+    // 透传事件到父窗口（CanvasNoteBook）
+    if (m_mainFrame != nullptr) { // m_mainFrame 是 CanvasPanel 中指向 CanvasNoteBook 的指针
+        wxPostEvent(m_mainFrame, evt);
+    }
+    evt.Skip(); // 允许事件继续传播
 }

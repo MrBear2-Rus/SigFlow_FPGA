@@ -46,7 +46,7 @@ void SFNPropertyPanel::Fresh_Self() {
     LoadNode(m_node);
     Thaw();
 
-    wxCommandEvent evt(EVT_SFTREE_CHANGED);
+    wxCommandEvent evt;
     wxPostEvent(this, evt);
 
     m_reloading = false;
@@ -82,10 +82,10 @@ void SFNPropertyPanel::LoadNode(SigTreeNode* node) {
     {
         auto t = static_cast<TopNode*>(node);
         AddTextRow("Type:", SigFlowTree::ToString(t->topType));
-        AddChangeTextRow("Identifier:", static_cast<TopNode*>(node)->identifier);
+        AddIdentifier(static_cast<TopNode*>(node));
 
-        AddPortRow(t->ports);
-
+        AddPortRow(t, PortDirection::In);
+        AddPortRow(t, PortDirection::Out);
         
 
     }
@@ -95,7 +95,7 @@ void SFNPropertyPanel::LoadNode(SigTreeNode* node) {
     {
         auto sig = static_cast<SignalNode*>(node);
         AddTextRow("Type:", SigFlowTree::ToString(sig->signalType));
-        AddChangeTextRow("Identifier:", sig->identifier);
+        AddIdentifier(sig);
     }
     break;
 
@@ -107,30 +107,37 @@ void SFNPropertyPanel::LoadNode(SigTreeNode* node) {
 
 
         if (s->secondType == SecondNodeType::ModuleInstance) {
-            AddTextRow("Definition: ", s->defIdentifier);
-            AddChangeTextRow("Identifier:", s->identifier);
-            for (auto& p : s->ports) {
-                AddPortRowWithConn(p.identifier, p.direction, p.conn);
+        
+            AddTextRow("Definition: ", static_cast<ModuleInstNode*>(s)->defIdentifier);
+            AddIdentifier(s);
+            for (auto& p : s->in_ports) {
+                AddPortRowWithConn(s, p.identifier, p.direction, p.conn);
+            }
+            for (auto& p : s->out_ports) {
+                AddPortRowWithConn(s, p.identifier, p.direction, p.conn);
             }
         }
         if (s->secondType == SecondNodeType::GateInstance) {
-            AddTextRow("Gate Type: ", s->gatetype);
-            AddChangeTextRow("Identifier:", s->identifier);
-            for (auto& p : s->ports) {
-                AddPortRowWithConn(p.identifier, p.direction, p.conn);
+            AddTextRow("Gate Type: ", SigFlowTree::ToString(static_cast<GateInstNode*>(s)->gatetype));
+            AddIdentifier(s);
+            for (auto& p : s->in_ports) {
+                AddPortRowWithConn(s, p.identifier, p.direction, p.conn);
+            }
+            for (auto& p : s->out_ports) {
+                AddPortRowWithConn(s, p.identifier, p.direction, p.conn);
             }
         }
 
         
         if (s->secondType == SecondNodeType::ContinuousAssign) {
-           AddChangeTextRow("Expression:", s->assign_expression);
-           AddPortContinuousAssign(s->ports);
+           AddChangeTextRow("Expression:", static_cast<ContinuousAssignNode*>(s)->template_exp);
+           AddPortContinuousAssign(static_cast<ContinuousAssignNode*>(s));
         }
             
 
 
         if (s->secondType == SecondNodeType::Always) {
-            Add_BN_OR_B_Expressions(s);
+            Add_BN_OR_B_Expressions(static_cast<AlwaysNode*>(s));
         }
     }
     break;
@@ -165,6 +172,93 @@ void SFNPropertyPanel::AddTextRow(const wxString& label, const wxString& value) 
     m_formSizer->Add(txt, 1, wxEXPAND);
 }
 
+void SFNPropertyPanel::AddIdentifier(TopNode* tn) {
+    m_formSizer->Add(new wxStaticText(this, wxID_ANY, "Identifier: "), 0, wxALIGN_CENTER_VERTICAL);
+    wxTextCtrl* txt = new wxTextCtrl(this, wxID_ANY, wxString::FromUTF8(tn->identifier), wxDefaultPosition, wxDefaultSize,
+        wxTE_PROCESS_ENTER);
+    txt->SetEditable(true);
+
+    auto syncFunc = [this, tn](wxEvent& event) {
+        wxTextCtrl* ctrl = wxDynamicCast(event.GetEventObject(), wxTextCtrl);
+        if (!ctrl) {
+            event.Skip();
+            return;
+        }
+
+        m_tree->ReIdentifier(tn, ctrl->GetValue().ToStdString());
+        
+        if (event.GetEventType() == wxEVT_TEXT_ENTER) {
+            this->GetParent()->SetFocus();
+        }
+
+        event.Skip();
+        };
+
+    txt->Bind(wxEVT_TEXT_ENTER, syncFunc);
+
+    txt->Bind(wxEVT_KILL_FOCUS, syncFunc);
+
+    m_formSizer->Add(txt, 1, wxEXPAND);
+}
+
+void SFNPropertyPanel::AddIdentifier(SecondNode* sn) {
+    m_formSizer->Add(new wxStaticText(this, wxID_ANY, "Identifier: "), 0, wxALIGN_CENTER_VERTICAL);
+    wxTextCtrl* txt = new wxTextCtrl(this, wxID_ANY, wxString::FromUTF8(sn->identifier), wxDefaultPosition, wxDefaultSize,
+        wxTE_PROCESS_ENTER);
+    txt->SetEditable(true);
+
+    auto syncFunc = [this, sn](wxEvent& event) {
+        wxTextCtrl* ctrl = wxDynamicCast(event.GetEventObject(), wxTextCtrl);
+        if (!ctrl) {
+            event.Skip();
+            return;
+        }
+
+        m_tree->ReIdentifier(sn, ctrl->GetValue().ToStdString());
+
+        if (event.GetEventType() == wxEVT_TEXT_ENTER) {
+            this->GetParent()->SetFocus();
+        }
+
+        event.Skip();
+        };
+
+    txt->Bind(wxEVT_TEXT_ENTER, syncFunc);
+
+    txt->Bind(wxEVT_KILL_FOCUS, syncFunc);
+
+    m_formSizer->Add(txt, 1, wxEXPAND);
+}
+
+void SFNPropertyPanel::AddIdentifier(SignalNode* sn) {
+    m_formSizer->Add(new wxStaticText(this, wxID_ANY, "Identifier: "), 0, wxALIGN_CENTER_VERTICAL);
+    wxTextCtrl* txt = new wxTextCtrl(this, wxID_ANY, wxString::FromUTF8(sn->identifier), wxDefaultPosition, wxDefaultSize,
+        wxTE_PROCESS_ENTER);
+    txt->SetEditable(true);
+
+    auto syncFunc = [this, sn](wxEvent& event) {
+        wxTextCtrl* ctrl = wxDynamicCast(event.GetEventObject(), wxTextCtrl);
+        if (!ctrl) {
+            event.Skip();
+            return;
+        }
+
+        m_tree->ReIdentifier(sn, ctrl->GetValue().ToStdString());
+
+        if (event.GetEventType() == wxEVT_TEXT_ENTER) {
+            this->GetParent()->SetFocus();
+        }
+
+        event.Skip();
+        };
+
+    txt->Bind(wxEVT_TEXT_ENTER, syncFunc);
+
+    txt->Bind(wxEVT_KILL_FOCUS, syncFunc);
+
+    m_formSizer->Add(txt, 1, wxEXPAND);
+}
+
 void SFNPropertyPanel::AddChangeTextRow(const wxString& label, std::string& value) {
     m_formSizer->Add(new wxStaticText(this, wxID_ANY, label), 0, wxALIGN_CENTER_VERTICAL);
     wxTextCtrl* txt = new wxTextCtrl(this, wxID_ANY, wxString::FromUTF8(value), wxDefaultPosition, wxDefaultSize,
@@ -187,7 +281,7 @@ void SFNPropertyPanel::AddChangeTextRow(const wxString& label, std::string& valu
 
         // 不在当前事件栈中触发 LoadNode 或 UI 重建
         CallAfter([this]() {
-            wxCommandEvent evt(EVT_SFTREE_CHANGED);
+            wxCommandEvent evt;
             wxPostEvent(this, evt);
             });
 
@@ -240,8 +334,17 @@ void SFNPropertyPanel::AddSectionTitle(const wxString& title) {
 
 
 
-void SFNPropertyPanel::AddPortRow(std::vector<Port>& ps) {
-    for (Port& p : ps) {
+void SFNPropertyPanel::AddPortRow(TopNode* tn, PortDirection pd) {
+    std::vector<Port>* ps = nullptr;
+    if (pd == PortDirection::In) {
+        ps = &(tn->GetInPorts());
+    }
+    else {
+        ps = &(tn->GetOutPorts());
+    }
+
+    if (!ps) return;
+    for (Port& p : *ps) {
         wxString name = p.identifier;
         PortDirection dir = p.direction;
 
@@ -254,32 +357,9 @@ void SFNPropertyPanel::AddPortRow(std::vector<Port>& ps) {
 
 
         // --- 方向选择 ---
-        wxArrayString dirChoices;
-        dirChoices.Add("input"); dirChoices.Add("output"); dirChoices.Add("inout"); dirChoices.Add("ref");
-        wxChoice* choice = new wxChoice(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, dirChoices);
-        choice->SetSelection((int)dir);
-        choice->SetClientData(&p.direction);
-
-        choice->Bind(wxEVT_CHOICE, [this](wxCommandEvent& event) {
-            wxChoice* ctrl = wxDynamicCast(event.GetEventObject(), wxChoice);
-            if (!ctrl) {
-                event.Skip();
-                return;
-            }
-
-            auto* dirPtr = static_cast<PortDirection*>(ctrl->GetClientData());
-            if (dirPtr) {
-                *dirPtr = static_cast<PortDirection>(ctrl->GetSelection());
-            }
-
-            CallAfter([this]() {
-                wxCommandEvent evt(EVT_SFTREE_CHANGED, this->GetId());
-                wxPostEvent(this, evt);
-                });
-
-            event.Skip();
-            });
-
+        wxTextCtrl* dirCtrl = new wxTextCtrl(this, wxID_ANY, SigFlowTree::ToString(pd),
+            wxDefaultPosition, wxDefaultSize);
+        dirCtrl->SetEditable(false);
 
 
         // --- 引脚名 (Port Name) ---
@@ -287,9 +367,8 @@ void SFNPropertyPanel::AddPortRow(std::vector<Port>& ps) {
             wxDefaultPosition, wxDefaultSize,
             wxTE_PROCESS_ENTER);
         editName->SetHint("Port Name"); // 设置提示文字
-        editName->SetClientData(&p.identifier);
-
-        auto syncFunc = [this](wxEvent& event) {
+        wxString old_id = p.identifier;
+        auto syncFunc = [this, tn, old_id](wxEvent& event) {
             wxTextCtrl* ctrl = wxDynamicCast(event.GetEventObject(), wxTextCtrl);
             if (!ctrl) {
                 event.Skip();
@@ -302,11 +381,7 @@ void SFNPropertyPanel::AddPortRow(std::vector<Port>& ps) {
                 *dataPtr = ctrl->GetValue().ToStdString();
             }
 
-            // 不在当前事件栈中触发 LoadNode 或 UI 重建
-            CallAfter([this]() {
-                wxCommandEvent evt(EVT_SFTREE_CHANGED);
-                wxPostEvent(this, evt);
-                });
+            m_tree->PortReName(tn, old_id, ctrl->GetValue());
 
             if (event.GetEventType() == wxEVT_TEXT_ENTER) {
                 this->GetParent()->SetFocus();
@@ -323,28 +398,15 @@ void SFNPropertyPanel::AddPortRow(std::vector<Port>& ps) {
         // 3. 组合行布局 (比例分配：Name 占 1, Conn 占 1)
         wxButton* delBtn = new wxButton(this, wxID_ANY, "x", wxDefaultPosition, wxSize(25, 25));
         delBtn->SetToolTip("Delete this port");
-
-        wxString targetName = p.identifier;
+        wxString id = p.identifier;
         delBtn->Bind(wxEVT_BUTTON,
-            [this, psPtr = &ps, targetName](wxCommandEvent& event) {
-
-                auto it = std::find_if(psPtr->begin(), psPtr->end(),
-                    [&](const Port& item) {
-                        return item.identifier == targetName;
-                    });
-
-                if (it != psPtr->end()) {
-                    psPtr->erase(it);
-                }
-
-                Fresh_Self();
-
-                event.Skip();
+            [this, tn, id](wxCommandEvent& event) {
+                m_tree->TopDelPort(tn, id);
             }
         );
 
 
-        cSizer->Add(choice, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 10);
+        cSizer->Add(dirCtrl, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 10);
         cSizer->Add(editName, 1, wxEXPAND | wxLEFT, 10);
         cSizer->Add(delBtn, 0, wxALIGN_CENTER_VERTICAL | wxLEFT | wxRIGHT, 10);
         rowSizer->Add(cSizer);
@@ -363,23 +425,19 @@ void SFNPropertyPanel::AddPortRow(std::vector<Port>& ps) {
     m_mainSizer->Add(btnSizer, 0, wxALIGN_CENTER); // 居中显示
 
     // 4. 绑定点击事件
-    addBtn->Bind(wxEVT_BUTTON, [this, &ps](wxCommandEvent&) {
-        // A. 准备默认数据
-        Port newPort;
-        newPort.identifier = "new_port_" + std::to_string(ps.size());
-        newPort.direction = PortDirection::In;
-
-        // B. 更新数据模型
-        ps.push_back(newPort);
-
+    addBtn->Bind(wxEVT_BUTTON, [this, tn, pd](wxCommandEvent&) {
+        if (pd == PortDirection::In) m_tree->AddInPort(tn);
+        else if (pd == PortDirection::Out) m_tree->AddOutPort(tn);
         this->LoadNode(m_node);
         });
 
 
 }
 
-void SFNPropertyPanel::AddPortContinuousAssign(std::vector<Port>& ps) {
-    for (Port& p : ps) {
+void SFNPropertyPanel::AddPortContinuousAssign(ContinuousAssignNode* cn) {
+    std::vector<Port>& in_ps = cn->in_ports;
+    std::vector<Port>& out_ps = cn->out_ports;
+    for (Port& p : out_ps) {
         // --- 1. 每一项最外层的垂直包装 (放内容行 + 下方的线) ---
         wxBoxSizer* itemWrapper = new wxBoxSizer(wxVERTICAL);
 
@@ -404,22 +462,81 @@ void SFNPropertyPanel::AddPortContinuousAssign(std::vector<Port>& ps) {
         editConn->SetBackgroundColour(wxColour(240, 248, 255));
         editConn->SetClientData(&p.conn);
 
-        auto syncFunc = [this](wxEvent& event) {
+        wxString id = p.identifier;
+        auto syncFunc = [this, cn, id](wxEvent& event) {
             wxTextCtrl* ctrl = wxDynamicCast(event.GetEventObject(), wxTextCtrl);
             if (!ctrl) {
                 event.Skip();
                 return;
             }
 
-            auto* dataPtr = static_cast<std::string*>(ctrl->GetClientData());
-
-            if (dataPtr) {
-                *dataPtr = ctrl->GetValue().ToStdString();
-            }
+            m_tree->PortConn(cn, id, ctrl->GetValue().ToStdString()) ;
 
             // 不在当前事件栈中触发 LoadNode 或 UI 重建
             CallAfter([this]() {
-                wxCommandEvent evt(EVT_SFTREE_CHANGED);
+                wxCommandEvent evt;
+                wxPostEvent(this, evt);
+                });
+
+            if (event.GetEventType() == wxEVT_TEXT_ENTER) {
+                this->GetParent()->SetFocus();
+            }
+
+            event.Skip();
+            };
+
+        editConn->Bind(wxEVT_TEXT_ENTER, syncFunc);
+        editConn->Bind(wxEVT_KILL_FOCUS, syncFunc);
+
+        // --- 3. 核心布局修正：水平行里使用垂直居中是合法的 ---
+        contentRow->Add(dirC, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 10);
+        contentRow->Add(editName, 1, wxALIGN_CENTER_VERTICAL | wxLEFT, 5);
+        contentRow->Add(colon, 0, wxALIGN_CENTER_VERTICAL | wxLEFT | wxRIGHT, 5);
+        contentRow->Add(editConn, 1, wxALIGN_CENTER_VERTICAL | wxRIGHT, 10);
+
+        // --- 4. 组装：把水平行和线加进包装器 ---
+        itemWrapper->Add(contentRow, 0, wxEXPAND | wxTOP | wxBOTTOM, 5);
+        itemWrapper->Add(new wxStaticLine(this, wxID_ANY), 0, wxEXPAND | wxLEFT | wxRIGHT, 5);
+
+        // --- 5. 把包装器加进主面板 ---
+        m_mainSizer->Add(itemWrapper, 0, wxEXPAND);
+    }
+    for (Port& p : in_ps) {
+        // --- 1. 每一项最外层的垂直包装 (放内容行 + 下方的线) ---
+        wxBoxSizer* itemWrapper = new wxBoxSizer(wxVERTICAL);
+
+        // --- 2. 核心：创建水平行 (让所有控件排成一排) ---
+        wxBoxSizer* contentRow = new wxBoxSizer(wxHORIZONTAL);
+
+        // --- 方向 & 名称容器 ---
+        wxTextCtrl* dirC = new wxTextCtrl(this, wxID_ANY, SigFlowTree::ToString(p.direction));
+        dirC->SetEditable(false);
+        dirC->SetBackgroundColour(this->GetBackgroundColour());
+
+        wxTextCtrl* editName = new wxTextCtrl(this, wxID_ANY, p.identifier);
+        editName->SetEditable(false);
+        editName->SetBackgroundColour(this->GetBackgroundColour());
+
+        // --- 标签 & 输入框 ---
+        wxStaticText* colon = new wxStaticText(this, wxID_ANY, "connected by");
+        colon->SetForegroundColour(wxColour(120, 120, 120));
+
+        wxTextCtrl* editConn = new wxTextCtrl(this, wxID_ANY, p.conn, wxDefaultPosition, wxDefaultSize, wxTE_PROCESS_ENTER);
+        editConn->SetHint("Connected Signal");
+        editConn->SetBackgroundColour(wxColour(240, 248, 255));
+        wxString id = p.identifier;
+        auto syncFunc = [this, cn, id](wxEvent& event) {
+            wxTextCtrl* ctrl = wxDynamicCast(event.GetEventObject(), wxTextCtrl);
+            if (!ctrl) {
+                event.Skip();
+                return;
+            }
+
+            m_tree->PortConn(cn, id, ctrl->GetValue().ToStdString());
+
+            // 不在当前事件栈中触发 LoadNode 或 UI 重建
+            CallAfter([this]() {
+                wxCommandEvent evt;
                 wxPostEvent(this, evt);
                 });
 
@@ -452,15 +569,8 @@ void SFNPropertyPanel::AddPortContinuousAssign(std::vector<Port>& ps) {
     wxButton* addBtn = new wxButton(this, wxID_ANY, "+ Add Port", wxDefaultPosition, wxDefaultSize);
     addBtn->SetForegroundColour(wxColour(0, 120, 215)); // 可选：设置为蓝色，增加视觉识别度
 
-    addBtn->Bind(wxEVT_BUTTON, [this, &ps](wxCommandEvent&) {
-        // A. 准备默认数据
-        Port newPort;
-        newPort.identifier = "In" + std::to_string(ps.size());
-        newPort.direction = PortDirection::In;
-
-        // B. 更新数据模型
-        ps.push_back(newPort);
-
+    addBtn->Bind(wxEVT_BUTTON, [this, cn, &in_ps](wxCommandEvent&) {
+        this->m_tree->AddInPort(cn);
         this->LoadNode(m_node);
         });
 
@@ -468,11 +578,11 @@ void SFNPropertyPanel::AddPortContinuousAssign(std::vector<Port>& ps) {
     delBtn->SetForegroundColour(wxColour(200, 0, 0)); // 可选：设置为蓝色，增加视觉识别度
 
     // 4. 绑定点击事件
-    delBtn->Bind(wxEVT_BUTTON, [this, &ps](wxCommandEvent&) {
+    delBtn->Bind(wxEVT_BUTTON, [this, cn, &in_ps](wxCommandEvent&) {
 
 
-        if (ps.size() > 1) {
-            ps.pop_back();
+        if (in_ps.size() > 0) {
+            m_tree->SecondDelLastInPort(cn);
         }
         else {
             wxLogWarning("Must keep at least output port.");
@@ -489,7 +599,7 @@ void SFNPropertyPanel::AddPortContinuousAssign(std::vector<Port>& ps) {
 
     this->Layout();
 }
-void SFNPropertyPanel::AddPortRowWithConn(const wxString& name, PortDirection dir, std::string& conn) {
+void SFNPropertyPanel::AddPortRowWithConn(SecondNode* sn, const wxString& name, PortDirection dir, std::string& conn) {
     // 1. 创建分割线
     wxStaticLine* line = new wxStaticLine(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLI_HORIZONTAL);
     m_mainSizer->Add(line, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 5);
@@ -516,24 +626,19 @@ void SFNPropertyPanel::AddPortRowWithConn(const wxString& name, PortDirection di
     editConn->SetHint("Connected Signal");
     // 设置一个淡蓝色背景或边框，视觉上区分“内部引脚”和“外部连线”
     editConn->SetBackgroundColour(wxColour(240, 248, 255));
-    editConn->SetClientData(&conn);
-
-    auto syncFunc = [this](wxEvent& event) {
+    wxString id = name;
+    auto syncFunc = [this, sn, id](wxEvent& event) {
         wxTextCtrl* ctrl = wxDynamicCast(event.GetEventObject(), wxTextCtrl);
         if (!ctrl) {
             event.Skip();
             return;
         }
 
-        auto* dataPtr = static_cast<std::string*>(ctrl->GetClientData());
-
-        if (dataPtr) {
-            *dataPtr = ctrl->GetValue().ToStdString();
-        }
+        m_tree->PortConn(sn, id, ctrl->GetValue().ToStdString());
 
         // 不在当前事件栈中触发 LoadNode 或 UI 重建
         CallAfter([this]() {
-            wxCommandEvent evt(EVT_SFTREE_CHANGED);
+            wxCommandEvent evt;
             wxPostEvent(this, evt);
             });
 
@@ -592,13 +697,13 @@ void SFNPropertyPanel::AddChoicesRow(const wxString& label,
         boundValue = choice->GetStringSelection().ToStdString();
 
         CallAfter([this]() {
-            wxCommandEvent evt(EVT_SFTREE_CHANGED, this->GetId());
+            wxCommandEvent evt(this->GetId());
             wxPostEvent(this, evt);
             });
         });
 }
 
-void SFNPropertyPanel::Add_BN_OR_B_Expression(wxSizer* groupSizer, std::vector<Port>& ports, NB_OR_B_Expression& exp) {
+void SFNPropertyPanel::Add_BN_OR_B_Expression(wxSizer* groupSizer, std::vector<Port>& out_ports, NB_OR_B_Expression& exp) {
     // 1. 左侧 Label
     wxBoxSizer* row = new wxBoxSizer(wxHORIZONTAL);
     row->Add(new wxStaticText(this, wxID_ANY, "Expression:"), 0, wxALIGN_CENTER_VERTICAL | wxALL, 5);
@@ -619,7 +724,7 @@ void SFNPropertyPanel::Add_BN_OR_B_Expression(wxSizer* groupSizer, std::vector<P
     // 通过索引从 ports 获取名称
     wxString outName = "??";
 
-    outName = wxString::FromUTF8(ports[exp.out_port_id].identifier);
+    outName = wxString::FromUTF8(out_ports[exp.out_port_id].identifier);
 
     wxTextCtrl* outCtrl = new wxTextCtrl(this, wxID_ANY, outName, wxDefaultPosition, wxSize(60, -1));
     outCtrl->SetEditable(false);
@@ -655,7 +760,7 @@ void SFNPropertyPanel::Add_BN_OR_B_Expression(wxSizer* groupSizer, std::vector<P
                 exp.delay = (float)val;
                 // 触发树变更事件，通知其他组件更新
                 this->CallAfter([this]() {
-                    wxPostEvent(this, wxCommandEvent(EVT_SFTREE_CHANGED));
+                    wxPostEvent(this, wxCommandEvent());
                     });
             }
         }
@@ -670,7 +775,7 @@ void SFNPropertyPanel::Add_BN_OR_B_Expression(wxSizer* groupSizer, std::vector<P
     opChoice->Bind(wxEVT_CHOICE, [this, &exp](wxCommandEvent& e) {
         exp.is_blocking = (e.GetSelection() == 0); // 0是 "=", 1是 "<="
         this->CallAfter([this]() {
-            wxPostEvent(this, wxCommandEvent(EVT_SFTREE_CHANGED));
+            wxPostEvent(this, wxCommandEvent());
             });
         });
 
@@ -684,7 +789,7 @@ void SFNPropertyPanel::Add_BN_OR_B_Expression(wxSizer* groupSizer, std::vector<P
             *dataPtr = ctrl->GetValue().ToStdString();
 
             this->CallAfter([this]() {
-                wxPostEvent(this, wxCommandEvent(EVT_SFTREE_CHANGED));
+                wxPostEvent(this, wxCommandEvent());
                 });
         }
         event.Skip();
@@ -697,19 +802,19 @@ void SFNPropertyPanel::Add_BN_OR_B_Expression(wxSizer* groupSizer, std::vector<P
     groupSizer->Add(row, 0, wxEXPAND | wxBOTTOM, 8);
 }
 
-void SFNPropertyPanel::Add_BN_OR_B_Ports(wxSizer* groupSizer, SecondNode* sn, std::vector<Port>& ports, int exp_id) {
-    NB_OR_B_Expression& exp = sn->nb_or_b_expressions[exp_id];
-    Add_BN_OR_B_Port(groupSizer, ports[exp.out_port_id]);
+void SFNPropertyPanel::Add_BN_OR_B_Ports(wxSizer* groupSizer, AlwaysNode* an, std::vector<Port>& in_ports, std::vector<Port>& out_ports, int exp_id) {
+    NB_OR_B_Expression& exp = an->nb_or_b_expressions[exp_id];
+    Add_BN_OR_B_Port(groupSizer, out_ports[exp.out_port_id]);
     for (int id : exp.in_port_ids) {
-        Add_BN_OR_B_Port(groupSizer, ports[id]);
+        Add_BN_OR_B_Port(groupSizer, in_ports[id]);
     }
     // --- 底部按钮组 ---
     wxBoxSizer* btnSizer = new wxBoxSizer(wxHORIZONTAL);
     wxButton* addBtn = new wxButton(this, wxID_ANY, "+ Add Port", wxDefaultPosition, wxDefaultSize);
     addBtn->SetForegroundColour(wxColour(0, 120, 215)); // 可选：设置为蓝色，增加视觉识别度
 
-    addBtn->Bind(wxEVT_BUTTON, [this, sn,&ports, exp_id](wxCommandEvent&) {
-        sn->AddExpressionsPort(exp_id);
+    addBtn->Bind(wxEVT_BUTTON, [this, an, exp_id](wxCommandEvent&) {
+        an->AddExpressionsPort(exp_id);
 
         this->LoadNode(m_node);
         });
@@ -718,13 +823,13 @@ void SFNPropertyPanel::Add_BN_OR_B_Ports(wxSizer* groupSizer, SecondNode* sn, st
     delBtn->SetForegroundColour(wxColour(200, 0, 0)); // 可选：设置为蓝色，增加视觉识别度
 
     // 4. 绑定点击事件
-    delBtn->Bind(wxEVT_BUTTON, [this, sn, &ports, &exp](wxCommandEvent&) {
+    delBtn->Bind(wxEVT_BUTTON, [this, an, &exp](wxCommandEvent&) {
 
 
         if (!exp.in_port_ids.empty()) {
             int pop_id = exp.in_port_ids.back();
             exp.in_port_ids.pop_back();
-            sn->DelExpressionsPort(pop_id);
+            an->DelExpressionsPort(pop_id);
             
         }
         else {
@@ -780,7 +885,7 @@ void SFNPropertyPanel::Add_BN_OR_B_Port(wxSizer* groupSizer, Port& p) {
 
         // 不在当前事件栈中触发 LoadNode 或 UI 重建
         CallAfter([this]() {
-            wxCommandEvent evt(EVT_SFTREE_CHANGED);
+            wxCommandEvent evt;
             wxPostEvent(this, evt);
             });
 
@@ -809,17 +914,17 @@ void SFNPropertyPanel::Add_BN_OR_B_Port(wxSizer* groupSizer, Port& p) {
 
 }
 
-void SFNPropertyPanel::Add_BN_OR_B_Expressions(SecondNode* sn) {
+void SFNPropertyPanel::Add_BN_OR_B_Expressions(AlwaysNode* an) {
     // --- 1. 遍历并绘制现有的表达式组 ---
-    for (int i = 0; i < (int)sn->nb_or_b_expressions.size(); i++) {
+    for (int i = 0; i < (int)an->nb_or_b_expressions.size(); i++) {
         wxBoxSizer* groupWrapper = new wxBoxSizer(wxVERTICAL);
-        NB_OR_B_Expression& exp = sn->nb_or_b_expressions[i];
+        NB_OR_B_Expression& exp = an->nb_or_b_expressions[i];
 
-        Add_BN_OR_B_Expression(groupWrapper, sn->ports, exp);
-        Add_BN_OR_B_Ports(groupWrapper, sn, sn->ports, i);
+        Add_BN_OR_B_Expression(groupWrapper, an->out_ports, exp);
+        Add_BN_OR_B_Ports(groupWrapper, an, an->in_ports, an->out_ports, i);
 
         // 组内分割线
-        if (i < (int)sn->nb_or_b_expressions.size() - 1) {
+        if (i < (int)an->nb_or_b_expressions.size() - 1) {
             groupWrapper->Add(new wxStaticLine(this, wxID_ANY), 0, wxEXPAND | wxTOP | wxBOTTOM, 10);
         }
 
@@ -844,14 +949,14 @@ void SFNPropertyPanel::Add_BN_OR_B_Expressions(SecondNode* sn) {
     m_mainSizer->Add(globalBtnSizer, 0, wxEXPAND | wxLEFT | wxRIGHT, 10);
 
     // --- 3. 绑定事件 ---
-    addExpBtn->Bind(wxEVT_BUTTON, [this, sn](wxCommandEvent&) {
-        sn->AddEmptyExpression();
+    addExpBtn->Bind(wxEVT_BUTTON, [this, an](wxCommandEvent&) {
+        an->AddEmptyExpression();
         this->LoadNode(m_node); // 重新触发全量绘制
         });
 
-    delExpBtn->Bind(wxEVT_BUTTON, [this, sn](wxCommandEvent&) {
-        if (!sn->nb_or_b_expressions.empty()) {
-            sn->DelLastExpression();
+    delExpBtn->Bind(wxEVT_BUTTON, [this, an](wxCommandEvent&) {
+        if (!an->nb_or_b_expressions.empty()) {
+            an->DelLastExpression();
             this->LoadNode(m_node);
         }
         });

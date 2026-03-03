@@ -19,7 +19,7 @@ void Wire::Draw(wxGraphicsContext* gc) const {
     // 3. 绘制节点（打点）
     for (const auto& pt : pts) {
         if (pt.type == CPType::Pin) continue;
-
+        if (pt.type == CPType::Bend) continue;
         // 设置节点的颜色逻辑
         wxColour dotColor = (pt.type == CPType::Branch) ? colors[2] : strokeColor;
         gc->SetPen(wxPen(dotColor, 1));

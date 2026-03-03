@@ -3,17 +3,20 @@
 #include <vector>
 #include <chrono>
 #include <wx/graphics.h>
+#include <wx/event.h>
 
 #include "CanvasElement.h"
 #include "Wire.h"
-#include "UndoStack.h"
 #include "CanvasTextElement.h"
 #include "ToolStateMachine.h"
+#include "SigTree.h"
 
 class HandyToolKit;
 class CanvasEventHandler;
 class MainFrame;
+class CanvasNoteBook;
 
+wxDECLARE_EVENT(EVT_SFTREE_NODE_ACTIVATED, wxCommandEvent);
 struct HoverInfo {
     wxPoint screenPos;
     wxPoint canvasPos;
@@ -52,16 +55,23 @@ struct HoverInfo {
     // 构造函数
     HoverInfo() : pinIndex(-1), isInputPin(false), cellIndex(-1), wireIndex(-1), elementIndex(-1), textIndex(-1), wireSectionIndex(-1){}
 };
+wxDECLARE_EVENT(wxEVT_CANVAS_MODIFIED, wxCommandEvent);
 
 class CanvasPanel : public wxPanel
 {
 public:
-    CanvasPanel(MainFrame* parent, size_t size_x, size_t size_y);
-
+    CanvasPanel(CanvasNoteBook* parent, SigFlowTree* sftree, size_t size_x, size_t size_y);
+    // 获取修改状态
+    bool IsModified() const { return m_isModified; }
+    // 设置修改状态（内部调用，标记为修改并发送事件）
+    void SetModified(bool modified = true);
+    // 保存后重置修改状态（供外部调用，比如保存文件后）
+    void ResetModified() { m_isModified = false; }
     // ==================== 画布及画布子窗口的事件处理 ====================
 private:
     bool m_hasFocus;
-
+    bool m_isModified = false; // 标记画布是否被修改
+    wxString m_canvasId; // 画布标识（比如标签页名称/唯一ID，用于父窗口识别）
     // 鼠标事件
     void OnLeftDown(wxMouseEvent& evt);
     void OnLeftUp(wxMouseEvent& evt);
@@ -86,7 +96,8 @@ private:
     // ==================== 画布中元素管理 ====================
 private:
     // 元件和连线数据
-    std::vector<CanvasElement> m_elements;
+    TopModuleBox m_tbox;
+    std::vector<SecondElement> m_elems;
     std::vector<CanvasTextElement> m_textElements;
     std::vector<Wire> m_wires;
 
@@ -100,7 +111,7 @@ private:
     wxRect m_eraserRect;
 
     // 预览元素
-    CanvasElement m_previewElement;
+    SecondElement m_previewElement;
     Wire m_previewWire;
 
     // 文本编辑
@@ -110,18 +121,28 @@ private:
     bool m_isUsingHiddenCtrl;
 
 public:
-    void ClearAll();
+    //void ClearAll();
     void DeleteSelected();
 
-    // 元件管理
-    const std::vector<CanvasElement>& GetElements() const { return m_elements; }
-    void AddElement(const wxString& name, const wxPoint& pos);
-    void AddElementWithIns(CanvasElement element);
-    void AddElementWithoutRecord(const wxString& name, const wxPoint& pos);
-    void ReclaimElement(CanvasElement element, int index);
-    void DeleteElement(int index) { m_elements.erase(m_elements.begin() + index);  m_selElemIdx.erase(std::remove(m_selElemIdx.begin(), m_selElemIdx.end(), index), m_selElemIdx.end()); Refresh(); };
-    void ElementSetPos(int index, const wxPoint& pos);
-    void ElementStatusChange(int index);
+    void Save();
+    bool Read();
+
+
+    // 二级元件管理
+    void SetPreview(wxString type);
+    void SetPreviewPos(wxPoint pos);
+    void AddSecondElement(SecondNode* sn);
+    void AddSecondNode(wxString type, wxPoint pos);
+    void AddModuleInstNode(wxString def, wxPoint pos);
+    void AddGateNode(GateType type, wxPoint pos);
+    //void AddContinuousAssign(wxPoint pos);
+    //void DelSecondNode(SecondNode* sn);
+    void DelSecondNode(int id);
+    void DelSecondElement(SecondNode* sn);
+    void DelSecondElement(int id);
+    void SecondSetPos(int i, wxPoint pos) { m_elems[i].SetPos(pos); RefreshRect(m_elems[i].GetBounds()); };
+    void RefreshElem(SecondNode* sn);
+    const std::vector<SecondElement>& GetSecond() const { return m_elems; };
 
     // 导线管理
     const std::vector<Wire>& GetWires() const { return m_wires; }
@@ -193,8 +214,8 @@ public:
     void SetGrid(int grid) { m_grid = grid; };
 
     // 坐标转换
-    wxPoint ScreenToCanvas(const wxPoint& screenPos) const;
-    wxPoint CanvasToScreen(const wxPoint& canvasPos) const;
+    wxPoint ClientToCanvas(const wxPoint& screenPos) const;
+    wxPoint CanvasToClient(const wxPoint& canvasPos) const;
     wxPoint LogicToDevice(const wxPoint& logicPoint) const;
     wxPoint DeviceToLogic(const wxPoint& devicePoint) const;
 
@@ -238,8 +259,6 @@ public:
 
     // ==================== 画布的子系统 ====================
 private:
-    // 撤销栈
-    UndoStack m_undoStack;
 
     // 工具系统
     ToolStateMachine* m_toolStateMachine;
@@ -256,32 +275,21 @@ public:
     // 工具相关获取方法
     ToolStateMachine* GetToolStateMachine() const { return m_toolStateMachine; }
     CanvasEventHandler* GetCanvasEventHandler() const { return m_CanvasEventHandler; }
-
-    // 撤销栈相关
-    void UndoStackPush(std::unique_ptr<Command> command);
-    void UndoStackUndo() { m_undoStack.Undo(this); };
-    const wxString UndoStackGetUndoName() const { return m_undoStack.GetUndoName(); };
-    bool UndoStackCanUndo() const { return m_undoStack.CanUndo(); };
     
 
     // ==================== 父窗口 ====================
 private:
-    MainFrame* m_mainFrame;
+    CanvasNoteBook* m_mainFrame;
 
 public:
     // 状态栏更新
     void SetStatus(wxString status);
 
 
-    void Simulate();
-    void CollectConnections();
-    LogicSignal ElemSimulate(CanvasElement& elem);
-    int EncodeInputs(const std::vector<LogicSignal>& inputSig);
     bool IsNear(const wxPoint& a, const wxPoint& b, int tol = 2);
-    bool isSim = false;
     
     // 获取主窗口
-    MainFrame* GetMainFrame() const { return m_mainFrame; }
+    CanvasNoteBook* GetMainFrame() const { return m_mainFrame; }
 
     // 添加获取选中索引的方法
     std::vector<int> GetSelectedElementIndexes() const { return m_selElemIdx; }
@@ -294,30 +302,22 @@ public:
         // 这里可以合并所有选中的索引，或者根据你的需求实现
         return allSelected;
     }
-    
+
+    SigFlowTree* sftree;
+    TopNode* tn;
+    void SetTopNode(TopNode* node);
+    void UpdateCanvasElements();
+    void LoadLayout();
+    void CompleteAutoLayout();
+    void CompleteAutoWiring();
+    std::vector<SecondElement> GetSecondElements(TopNode* n);
+    std::unordered_map<int, int> GetLevelBounds(std::vector<int> topoLevels, std::vector<SecondElement>* p_elems);
+
+    wxString GetNote();
+
     // ==================== 事件表 ====================
+    // 新增：事件处理函数声明
+    void OnSFNodeActivated(wxCommandEvent& evt);
     wxDECLARE_EVENT_TABLE();
 };
 
-//class CopyBuffer {
-//private:
-//    CanvasPanel* m_canvas;
-//    std::vector<CanvasElement>& m_elements;
-//    std::vector<Wire>& m_wires;
-//    std::vector<CanvasTextElement>& m_txtBoxes;
-//
-//public:
-//    CopyBuffer(CanvasPanel* canvas) m_canvas(canvas), m_elements(), m_wires(), m_txtBoxes() { ; };
-//    void Clear() { m_elements.clear(); m_wires.clear(); m_txtBoxes.clear(); }
-//    void SetCopyBuffer(const std::vector<CanvasElement>& elements, const std::vector<Wire>& wires, const std::vector<CanvasTextElement>& txtBoxes) {
-//        m_elements = elements;
-//        m_wires = wires;
-//        m_txtBoxes = txtBoxes;
-//    }
-//    void Copy() {
-//        for (auto& element : m_elements) m_canvas->AddElementWithIns(element);
-//        for (auto& text : m_txtBoxes) m_canvas->AddTextWithIns(text);
-//        for (auto& wire : m_wires) m_canvas->AddWireWithoutRecord(wire);
-//        m_canvas->UndoStackPush();
-//    }
-//};

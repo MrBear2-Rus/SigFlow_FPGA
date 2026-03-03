@@ -3,6 +3,15 @@
 #include <vector>
 #include <tree_sitter/api.h>
 #include <slang/ast/Compilation.h>
+#include <wx/event.h>
+
+#include "CanvasElement.h"
+
+wxDECLARE_EVENT(EVT_SIGFLOWNODE_ADD, wxCommandEvent);
+wxDECLARE_EVENT(EVT_SIGFLOWNODE_DEL, wxCommandEvent);
+wxDECLARE_EVENT(EVT_SIGFLOWNODE_CHANGED, wxCommandEvent);
+
+class MainFrame;
 
 class Arena {
     std::vector<std::unique_ptr<char[]>> blocks;
@@ -101,98 +110,252 @@ struct Port {
             return "unknown";
         }
     };
+    Port() = default;
+    Port(std::string id, PortDirection dir) :identifier(id), direction(dir) {};
+    Port(std::string id, PortDirection dir, std::string conn) :identifier(id), direction(dir), conn(conn) {};
 };
 
-enum class GateType {And, Nand, Or, Nor, Xor, Xnor, Buf, Not};
+enum class GateType {And, Nand, Or, Nor, Xor, Xnor, Buf, Not,Unknown};
 enum class SignalType {Wire, Reg, Logic};
 enum class EdgeType { Posedge, Negedge};
 
-struct VerilogInfo {
-
-
-    std::string filePath = "";
-    std::string Code = ""; // 原始代码
-    int startLine = -1, startCol = -1, endLine = -1, endCol = -1;
-
-
-};
-
-
-struct SchematicInfo {
-    std::complex<double> pos;
-    std::complex<double> size;
-};
-
-
-
-
-
-
-
 
 class SigTreeNode {
-public:
-    SigTreeNodeType type;
-    VerilogInfo verilogInfo;
-    SchematicInfo schematicInfo;
-
+private:
     // Tree 连接
     SigTreeNode* parent = nullptr;
     std::vector<SigTreeNode*> children;
 
+
+
+    // 父子连接
+
+
+public:
+    SigTreeNodeType type;
+
+    SigTreeNode() = default;
+    SigTreeNode(SigTreeNodeType t) : type(t) {};
     virtual ~SigTreeNode() {};
+
     virtual std::string ToVerilog();
-    virtual std::string GetDisplayName() { return "Node"; }
-    void PrintSigTreeNode();
+    virtual std::string GetName() { return "Node"; }
+    void Print();
+
     void ClearNode();
+
+    // 父子连接
+    virtual bool CanBeChild(SigTreeNodeType childType) const { return true; };
+    virtual bool CanBeParent(SigTreeNodeType parentType) const { return true; };
+    void RemoveChildren();
     void RemoveChild(SigTreeNode* child);
-    void AddChild(SigTreeNode* child);
+    bool AddChild(SigTreeNode* child);
+    virtual const std::vector<SigTreeNode*>& GetChildren() const {
+        return children;
+    }
+    virtual SigTreeNode* GetParent() {
+        return parent;
+    }
+    void DetachFromParent() { if(parent) parent->RemoveChild(this); };
+
+    // 深克隆到Arena，删除父子关系
     virtual SigTreeNode* Clone(Arena& arena) const = 0;
 };
 
 class ProjectNode : public SigTreeNode {
+private:
+
+
 public:
     std::string projectPath; // 来源文件的路径
-    ProjectNode(std::string projectPath) { this->projectPath = projectPath; type = SigTreeNodeType::Project; };
-    void PrintProjectNode();
+    ProjectNode(std::string projectPath) : SigTreeNode(SigTreeNodeType::Project), projectPath(projectPath){ };
+
+
+    void Print();
     std::string ToVerilog() override;
-    std::string GetDisplayName() override;
+    std::string GetName() override;
+
     virtual SigTreeNode* Clone(Arena& arena) const override {
         auto* copy = arena.make<ProjectNode>(*this);
-        copy->parent = nullptr;
-        copy->children.clear(); // 物理连接必须由 Tree 逻辑重新建立
+        copy->DetachFromParent();
+        copy->RemoveChildren(); // 物理连接必须由 Tree 逻辑重新建立
         return copy;
     }
+
+    virtual bool CanBeChild(SigTreeNodeType childType) const override { return childType == SigTreeNodeType::File ? true : false; };
+    virtual bool CanBeParent(SigTreeNodeType parentType) const  override { return false; };
 };
 
 class FileNode : public SigTreeNode {
+private:
+
+
 public:
     std::string filePath; // 来源文件的路径
-    FileNode(std::string filePath) { this->filePath = filePath; type = SigTreeNodeType::File; };
-    void PrintFileNode();
+    FileNode(std::string filePath):SigTreeNode(SigTreeNodeType::File), filePath(filePath) {};
+
+    void Print();
     std::string ToVerilog() override;
-    std::string GetDisplayName() override;
+    std::string GetName() override;
+
     virtual SigTreeNode* Clone(Arena& arena) const override {
         auto* copy = arena.make<FileNode>(*this);
-        copy->parent = nullptr;
-        copy->children.clear();
+        copy->DetachFromParent();
+        copy->RemoveChildren(); // 物理连接必须由 Tree 逻辑重新建立
+        return copy;
+    }
+
+    virtual bool CanBeChild(SigTreeNodeType childType) const override { return childType == SigTreeNodeType::Top ? true : false; };
+    virtual bool CanBeParent(SigTreeNodeType parentType) const override { return parentType == SigTreeNodeType::Project ? true : false; };
+};
+
+class TopNode : public SigTreeNode {
+private:
+
+public:
+
+    std::string identifier; // 标识符
+    TopNodeType topType;
+
+    TopNode(std::string id, TopNodeType toptype):SigTreeNode(SigTreeNodeType::Top), topType(toptype), identifier(id) {};
+
+    std::vector<Port> in_ports;
+    std::vector<Port> out_ports;
+
+    std::vector<Port>& GetInPorts() { return in_ports; };
+    std::vector<Port>& GetOutPorts() { return out_ports; };
+    void UpdateInPorts(std::vector<Port> ps) { in_ports = ps; };
+    void UpdateOutPorts(std::vector<Port> ps) { out_ports = ps; };
+
+    void Print();
+    std::string ToVerilog() override;
+    std::string GetName() override;
+
+    virtual SigTreeNode* Clone(Arena& arena) const override {
+        auto* copy = arena.make<TopNode>(*this); // 自动深拷贝 vector<Port>
+        copy->DetachFromParent();
+        copy->RemoveChildren(); // 物理连接必须由 Tree 逻辑重新建立
+        return copy;
+    }
+
+    virtual bool CanBeChild(SigTreeNodeType childType) const override { return childType == SigTreeNodeType::Second || childType == SigTreeNodeType::Signal ? true : false; };
+    virtual bool CanBeParent(SigTreeNodeType parentType) const override { return parentType == SigTreeNodeType::File ? true : false; };
+};
+
+
+class SignalNode : public SigTreeNode {
+private:
+
+
+public:
+    std::string identifier; // 标识符
+    SignalType signalType;
+    //SignalNode() = default;
+    SignalNode(std::string id, SignalType signalType): SigTreeNode(SigTreeNodeType::Signal), identifier(id), signalType(signalType) { };
+
+    void Print();
+    std::string ToVerilog() override;
+    std::string GetName() override;
+    virtual SigTreeNode* Clone(Arena& arena) const override {
+        auto* copy = arena.make<SignalNode>(*this);
+        copy->DetachFromParent();
+        copy->RemoveChildren(); // 物理连接必须由 Tree 逻辑重新建立
+        return copy;
+    }
+
+    virtual bool CanBeChild(SigTreeNodeType childType) const override { return false; };
+    virtual bool CanBeParent(SigTreeNodeType parentType) const override { return parentType == SigTreeNodeType::Top ? true : false; };
+};
+
+
+
+
+class SecondNode : public SigTreeNode {
+private:
+
+
+public:
+    std::string identifier; // 标识符
+    SecondNodeType secondType;
+
+    SecondNode() : SigTreeNode(SigTreeNodeType::Second) {};
+    SecondNode(SecondNodeType second) : SigTreeNode(SigTreeNodeType::Second), secondType(second) {};
+    SecondNode(std::string id, SecondNodeType second): SigTreeNode(SigTreeNodeType::Second), identifier(id), secondType(second){ };
+
+    std::vector<Port> in_ports;
+    std::vector<Port> out_ports;
+
+    virtual std::string ToVerilog() override = 0;
+    virtual std::string GetName() override = 0;
+    void Print();
+
+
+    virtual bool CanBeChild(SigTreeNodeType childType) const override { return false; };
+    virtual bool CanBeParent(SigTreeNodeType parentType) const override { return parentType == SigTreeNodeType::Top ? true : false; };
+};
+
+class GateInstNode : public SecondNode {
+public:
+    GateType gatetype;
+
+    GateInstNode(std::string id, GateType gt);
+
+    std::string ToVerilog() override;
+    std::string GetName() override;
+    void Print();
+
+    virtual SigTreeNode* Clone(Arena& arena) const override {
+        auto* copy = arena.make<GateInstNode>(*this);
+        copy->DetachFromParent();
+        copy->RemoveChildren(); // 物理连接必须由 Tree 逻辑重新建立
+        // 注意：Definition 指针被拷贝了，这在 Register 阶段会重新校准
         return copy;
     }
 };
 
-class TopNode : public SigTreeNode {
+class ModuleInstNode : public SecondNode {
 public:
-    std::string identifier; // 标识符
-    TopNode() { type = SigTreeNodeType::Top; };
-    TopNodeType topType;
-    void PrintTopNode();
-    std::vector<Port> ports;
+    std::string defIdentifier;
+    TopNode* Definition;
+
+    ModuleInstNode() : SecondNode(SecondNodeType::ModuleInstance) {};
+    ModuleInstNode(std::string id, std::string def) :SecondNode(id, SecondNodeType::ModuleInstance), defIdentifier(def) {};
+    ModuleInstNode(std::string id, TopNode* Definition);
+
+    std::vector<Port> inout_ports;
+
+    void SetDefinition(std::string defIdentifier);
+    void SetDefinition(TopNode* Definition);
+
     std::string ToVerilog() override;
-    std::string GetDisplayName() override;
+    std::string GetName() override;
+    void Print();
+
     virtual SigTreeNode* Clone(Arena& arena) const override {
-        auto* copy = arena.make<TopNode>(*this); // 自动深拷贝 vector<Port>
-        copy->parent = nullptr;
-        copy->children.clear();
+        auto* copy = arena.make<ModuleInstNode>(*this);
+        copy->DetachFromParent();
+        copy->RemoveChildren(); // 物理连接必须由 Tree 逻辑重新建立
+        // 注意：Definition 指针被拷贝了，这在 Register 阶段会重新校准
+        return copy;
+    }
+};
+
+class ContinuousAssignNode : public SecondNode {
+public:
+    std::string template_exp;
+
+    ContinuousAssignNode(std::string id, std::string raw_assign);
+
+
+    std::string ToVerilog() override;
+    std::string GetName() override;
+    void Print();
+
+    virtual SigTreeNode* Clone(Arena& arena) const override {
+        auto* copy = arena.make<ContinuousAssignNode>(*this);
+        copy->DetachFromParent();
+        copy->RemoveChildren(); // 物理连接必须由 Tree 逻辑重新建立
+        // 注意：Definition 指针被拷贝了，这在 Register 阶段会重新校准
         return copy;
     }
 };
@@ -203,62 +366,35 @@ struct NB_OR_B_Expression {
     float delay;
     int out_port_id;
     std::vector<int> in_port_ids;
+
 };
 
-class SecondNode : public SigTreeNode {
+class AlwaysNode : public SecondNode {
 public:
-    std::string identifier; // 标识符
-    SecondNode() { type = SigTreeNodeType::Second; };
-    SecondNodeType secondType;
-    std::string gatetype;
-    void PrintSecondNode();
-    std::vector<Port> ports;
-
-    std::string defIdentifier;
-    TopNode* Definition;
-
-    std::string assign_expression;
-    
     EdgeType edgeType;
     std::vector<NB_OR_B_Expression> nb_or_b_expressions;
 
-    std::string ToVerilog() override;
-    std::string GetDisplayName() override ;
-    //TopNode* definition;
+    AlwaysNode(std::string id, EdgeType edgeType) :SecondNode(id, SecondNodeType::Always), edgeType(edgeType) {};
 
-    std::string ModuleInstanceToVerilog();
-    std::string ContinuousAssignToVerilog();
-    std::string GateInstanceToVerilog();
+
+    std::string ToVerilog() override;
+    std::string GetName() override;
+    void Print();
+
     virtual SigTreeNode* Clone(Arena& arena) const override {
-        auto* copy = arena.make<SecondNode>(*this);
-        copy->parent = nullptr;
-        copy->children.clear();
+        auto* copy = arena.make<AlwaysNode>(*this);
+        copy->DetachFromParent();
+        copy->RemoveChildren(); // 物理连接必须由 Tree 逻辑重新建立
         // 注意：Definition 指针被拷贝了，这在 Register 阶段会重新校准
         return copy;
     }
 
+    void DelExpressionsPort(int idx, int del);
     void DelExpressionsPort(int del);
     void AddExpressionsPort(int exp_id);
     void AddEmptyExpression();
     void DelLastExpression();
 };
-
-class SignalNode : public SigTreeNode {
-public:
-    std::string identifier; // 标识符
-    SignalNode() { type = SigTreeNodeType::Signal; };
-    SignalType signalType;
-    void PrintSignalNode();
-    std::string ToVerilog() override;
-    std::string GetDisplayName() override ;
-    virtual SigTreeNode* Clone(Arena& arena) const override {
-        auto* copy = arena.make<SignalNode>(*this);
-        copy->parent = nullptr;
-        copy->children.clear();
-        return copy;
-    }
-};
-
 
 
 
@@ -266,6 +402,8 @@ public:
 
 class SigFlowTree {
 public:
+    MainFrame* m_parent;
+
     Arena arena;
     ProjectNode* root;
 
@@ -282,10 +420,10 @@ public:
     TSQueryError net_error_type;
 
     std::map<std::string, TopNode*> DefinitionTable;
-    std::map<std::string, SecondNode*> InstanceTable;
+    std::map<std::string, ModuleInstNode*> InstanceTable;
     std::map<std::string, SignalNode*> SignalTable;
 
-    SigFlowTree();
+    SigFlowTree(MainFrame* parent);
     void LoadProject(std::string projectPath);
     void UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot, std::string& filePath, std::string& code);
     void UpdateTreeFromSlang(slang::ast::Compilation* compilation);
@@ -295,18 +433,35 @@ public:
     void RemoveChild(SigTreeNode* parent, SigTreeNode* child);
     SigTreeNode* AddChild(SigTreeNode* parent, SigTreeNode* externalNode);
     SigTreeNode* CloneSubtreeToArena(SigTreeNode* externalNode);
-
+    void AddInPort(SecondNode* sn);
+    void AddOutPort(SecondNode* sn);
+    void AddInOutPort(SecondNode* sn);
+    void SecondDelLastInPort(SecondNode* sn);
+    void AddInPort(TopNode* tn);
+    void AddOutPort(TopNode* tn);
+    void TopDelPort(TopNode* sn, Port p);
+    void TopDelPort(TopNode* sn, wxString port_id);
+    void PortReName(TopNode* tn, wxString old_id, wxString new_id);
+    void PortReName(SecondNode* sn, wxString old_id, wxString new_id);
+    void PortConn(SecondNode* sn, wxString id, wxString conn);
+    void ReIdentifier(TopNode* tn, wxString id);
+    void ReIdentifier(SecondNode* sn, wxString id);
+    void ReIdentifier(SignalNode* sn, wxString id);
 
     // 符号表管理
     void RegisterNodeRecursive(SigTreeNode* node);
     void UnregisterNodeRecursive(SigTreeNode* node);
-    void LinkSingleInstWithDef(SecondNode* inst);
+    void LinkSingleInstWithDef(ModuleInstNode* inst);
     void LinkInstsWithDefs();
-    void HangInst(SecondNode* inst);
+    void HangInst(ModuleInstNode* inst);
     void ConstructDefinitionTable();
     void ConstructInstanceTable();
-    
+    std::vector<std::string> GetDefinitions();
 
+
+    // 节点查询
+    FileNode* GetFileNode(std::string filePath);
+    static std::vector<int> SecondNodeTopoLevel(TopNode* tn);
 
     void PrintTree();
 
@@ -343,15 +498,6 @@ public:
         default:                   return "unknown";
         }
     }
-    static std::string ToString(GateType type) {
-        switch (type) {
-        case GateType::And:  return "and";  case GateType::Nand: return "nand";
-        case GateType::Or:   return "or";   case GateType::Nor:  return "nor";
-        case GateType::Xor:  return "xor";  case GateType::Xnor: return "xnor";
-        case GateType::Buf:  return "buf";  case GateType::Not:  return "not";
-        default: return "unknown";
-        }
-    }
     static std::string ToString(SignalType type) {
         switch (type) {
         case SignalType::Wire:  return "wire";
@@ -359,6 +505,40 @@ public:
         case SignalType::Logic: return "logic";
         default: return "wire";
         }
+    }
+    static std::string ToString(GateType type) {
+        switch (type) {
+        case GateType::And:  return "and";
+        case GateType::Nand: return "nand";
+        case GateType::Or:   return "or";
+        case GateType::Nor:  return "nor";
+        case GateType::Xor:  return "xor";
+        case GateType::Xnor: return "xnor";
+        case GateType::Buf:  return "buf";
+        case GateType::Not:  return "not";
+        case GateType::Unknown:
+        default:             return "unknown";
+        }
+    }
+    static GateType GateTypeFromString(const std::string& s) {
+        // 使用 static 的哈希表，只在第一次调用时初始化，效率最高
+        static const std::unordered_map<std::string, GateType> gateMap = {
+            {"and",  GateType::And},
+            {"nand", GateType::Nand},
+            {"or",   GateType::Or},
+            {"nor",  GateType::Nor},
+            {"xor",  GateType::Xor},
+            {"xnor", GateType::Xnor},
+            {"buf",  GateType::Buf},
+            {"not",  GateType::Not}
+        };
+
+        auto it = gateMap.find(s);
+        if (it != gateMap.end()) {
+            return it->second;
+        }
+
+        return GateType::Unknown; // 建议在 enum 中加入 Unknown 类型
     }
 };
 
