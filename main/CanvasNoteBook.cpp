@@ -31,7 +31,7 @@ void CanvasNoteBook::OnCanvasModified(wxCommandEvent& evt) {
 
     // 可选：打印日志，确认收到哪个画布的修改事件
     wxString canvasId = evt.GetString();
-    SetStatusText(wxString::Format("画布 %s 已修改", canvasId), 0);
+    //SetStatusText(wxString::Format("画布 %s 已修改", canvasId), 0);
 
     evt.Skip();
 }

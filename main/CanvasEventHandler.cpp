@@ -350,6 +350,30 @@ void CanvasEventHandler::OnCanvasLeftUp(wxMouseEvent& evt) {
     // 选中拖动
     else if (m_toolStateMachine->GetSelectState() == SelectToolState::DRAG_SELECT) {
         m_canvas->SetStatus(wxString::Format("Select Tool: End Dragging"));
+        if (m_compntIdx.size() == 1) {
+            int elemIdx = m_compntIdx[0]; // 获取唯一选中的元件索引
+
+            // 边界检查：防止索引越界崩溃
+            if (elemIdx < 0 || elemIdx >= (int)m_canvas->GetSecond().size()) {
+                return;
+            }
+
+            // 获取该元件的 SigTreeNode* 指针（self 是 SecondElement 的成员）
+            const SecondElement& selectedElem = m_canvas->GetSecond()[elemIdx];
+            SigTreeNode* node = selectedElem.self;
+
+            // 空指针检查：防止传递无效指针
+            if (node == nullptr) {
+                wxLogMessage("Warning: Selected element has no SigTreeNode!");
+                return;
+            }
+
+            // 构造事件并发送给 CanvasPanel（父窗口）
+            wxCommandEvent evt(EVT_SFTREE_NODE_ACTIVATED); // 事件已能识别
+            evt.SetClientData(node); // 携带元件的 SigTreeNode* 指针
+            wxPostEvent(m_canvas, evt); // 发送事件到 CanvasPanel
+
+        }
         m_toolStateMachine->SetSelectState(SelectToolState::IDLE);
         m_eventHandled = true;
         return;
@@ -1082,8 +1106,9 @@ void CanvasEventHandler::FinishClickSelect(wxMouseEvent& evt) {
 
         // 调试日志（确认事件触发）
         //wxLogMessage("EVT_SFTREE_NODE_ACTIVATED triggered for element");
-    m_toolStateMachine->SetSelectState(SelectToolState::IDLE);
+    
     }
+    m_toolStateMachine->SetSelectState(SelectToolState::IDLE);
     evt.Skip();
 }
 
