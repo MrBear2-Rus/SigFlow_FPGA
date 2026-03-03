@@ -1,4 +1,4 @@
-﻿#include <wx/graphics.h> 
+#include <wx/graphics.h> 
 #include <wx/dcbuffer.h>
 #include <wx/dcgraph.h>  
 #include <wx/filename.h>
@@ -942,7 +942,288 @@ void CanvasPanel::LoadLayout() {
 }
 
 void CanvasPanel::CompleteAutoWiring() {
+    if (!tn || m_elems.empty()) return;
+    m_wires.clear();
 
+    const int G = m_grid;                          // 网格尺寸 (20)
+    const int numElems = static_cast<int>(m_elems.size());
+
+    // ═══════════════════════════════════════════════
+    //  STEP 1  拓扑分层
+    // ═══════════════════════════════════════════════
+    std::vector<int> topoLevels = SigFlowTree::SecondNodeTopoLevel(tn);
+    if (static_cast<int>(topoLevels.size()) != numElems) return;
+
+    int maxLevel = 0;
+    for (int l : topoLevels) maxLevel = std::max(maxLevel, l);
+
+    // ═══════════════════════════════════════════════
+    //  STEP 2  构建信号网表
+    // ═══════════════════════════════════════════════
+    struct Dest { int elemIdx; int pinIdx; int layer; };
+    struct Net  {
+        std::string name;
+        int srcElem  = -2;       // -2 未设定, -1 顶层输入端口, ≥0 元件
+        int srcPin   = 0;
+        int srcLayer = -1;       // -1 表示顶层输入
+        std::vector<Dest> dests;
+    };
+    std::map<std::string, Net> nets;
+
+    // 2a  元件输出引脚 → 信号驱动源
+    for (int i = 0; i < numElems; i++) {
+        auto* sn = m_elems[i].self; if (!sn) continue;
+        for (int p = 0; p < static_cast<int>(sn->out_ports.size()); p++) {
+            const auto& sig = sn->out_ports[p].conn;
+            if (sig.empty()) continue;
+            auto& net    = nets[sig];
+            net.name     = sig;
+            net.srcElem  = i;
+            net.srcPin   = p;
+            net.srcLayer = topoLevels[i];
+        }
+    }
+    // 2b  顶层模块输入端口 → 信号驱动源
+    auto& inPorts = tn->GetInPorts();
+    for (int p = 0; p < static_cast<int>(inPorts.size()); p++) {
+        const auto& sig = inPorts[p].identifier;
+        auto& net    = nets[sig];
+        net.name     = sig;
+        net.srcElem  = -1;
+        net.srcPin   = p;
+        net.srcLayer = -1;
+    }
+    // 2c  元件输入引脚 → 信号消费者
+    for (int i = 0; i < numElems; i++) {
+        auto* sn = m_elems[i].self; if (!sn) continue;
+        for (int p = 0; p < static_cast<int>(sn->in_ports.size()); p++) {
+            const auto& sig = sn->in_ports[p].conn;
+            if (sig.empty() || !nets.count(sig)) continue;
+            nets[sig].dests.push_back({i, p, topoLevels[i]});
+        }
+    }
+    // 2d  顶层模块输出端口 → 信号消费者
+    auto& outPorts = tn->GetOutPorts();
+    for (int p = 0; p < static_cast<int>(outPorts.size()); p++) {
+        const auto& sig = outPorts[p].identifier;
+        if (!nets.count(sig)) continue;
+        nets[sig].dests.push_back({-1, p, maxLevel + 1});
+    }
+    // 2e  清除无驱动源或无消费者的网络
+    for (auto it = nets.begin(); it != nets.end(); )
+        (it->second.srcElem == -2 || it->second.dests.empty())
+            ? it = nets.erase(it) : ++it;
+    if (nets.empty()) return;
+
+    // ═══════════════════════════════════════════════
+    //  STEP 3  计算布线通道需求
+    // ═══════════════════════════════════════════════
+    // Gap[g] 位于 layer[g-1] 与 layer[g] 之间的垂直通道区
+    //   Gap[0]            : 顶层输入侧 ↔ layer[0]
+    //   Gap[maxLevel+1]   : layer[maxLevel] ↔ 顶层输出侧
+    const int numGaps = maxLevel + 2;
+    std::vector<std::vector<std::string>> gapSigs(numGaps);
+    std::vector<std::string> hChanSigs;        // 需要水平通道的信号
+
+    for (auto& [sig, net] : nets) {
+        int farthest = -1;
+        for (auto& d : net.dests) farthest = std::max(farthest, d.layer);
+        int gStart = std::max(0, net.srcLayer + 1);
+        int gEnd   = std::min(numGaps - 1, farthest);
+        for (int g = gStart; g <= gEnd; g++)
+            gapSigs[g].push_back(sig);
+        if (farthest - net.srcLayer > 1)
+            hChanSigs.push_back(sig);
+    }
+    int numHChans = static_cast<int>(hChanSigs.size());
+
+    // ═══════════════════════════════════════════════
+    //  STEP 4  带通道预留的自动布局
+    // ═══════════════════════════════════════════════
+    // 4a  每层最大元件宽度
+    std::map<int, int> layerMaxW;
+    for (int i = 0; i < numElems; i++)
+        layerMaxW[topoLevels[i]] = std::max(
+            layerMaxW[topoLevels[i]],
+            m_elems[i].GetBounds().GetWidth());
+
+    // 4b  水平坐标: [tbLeft] [gap0] [layer0] [gap1] [layer1] … [gapN+1] [tbRight]
+    const int tbLeft = 3 * G;
+    const int tbTop  = 3 * G;
+    int curX = tbLeft + 2 * G;
+
+    std::vector<int> gapX(numGaps, 0);
+    std::vector<int> gapW(numGaps, 0);
+    std::vector<int> layerX(maxLevel + 1, 0);
+
+    for (int lev = 0; lev <= maxLevel; lev++) {
+        gapX[lev] = curX;
+        gapW[lev] = std::max(1, static_cast<int>(gapSigs[lev].size())) * G;
+        curX += gapW[lev] + G;
+        layerX[lev] = curX;
+        curX += layerMaxW[lev] + G;
+    }
+    int lastG = numGaps - 1;
+    gapX[lastG] = curX;
+    gapW[lastG] = std::max(1, static_cast<int>(gapSigs[lastG].size())) * G;
+    curX += gapW[lastG] + 2 * G;
+    const int tbRight = curX;
+
+    // 4c  垂直坐标: 水平通道在上方, 元件在下方
+    const int hChanStartY = tbTop + 2 * G;
+    const int hChanH      = numHChans * G;
+    const int elemStartY  = hChanStartY + hChanH + (numHChans > 0 ? G : 0);
+
+    std::map<int, int> layerCurY;
+    for (int i = 0; i < numElems; i++) {
+        int lev = topoLevels[i];
+        if (!layerCurY.count(lev)) layerCurY[lev] = elemStartY;
+        m_elems[i].SetPos(wxPoint(layerX[lev], layerCurY[lev]));
+        layerCurY[lev] += m_elems[i].GetBounds().GetHeight() + 3 * G;
+    }
+
+    int maxBotY = elemStartY;
+    for (auto& [_, y] : layerCurY) maxBotY = std::max(maxBotY, y);
+    const int tbBottom = maxBotY + 2 * G;
+
+    // 4d  重建 TopModuleBox
+    m_tbox = TopModuleBox(wxPoint(tbLeft, tbTop),
+                          wxPoint(tbRight, tbBottom), tn);
+
+    // ═══════════════════════════════════════════════
+    //  STEP 5  分配通道坐标
+    // ═══════════════════════════════════════════════
+    // 5a  垂直通道：按 (源层降序, 源Y升序) 分配
+    //     邻层信号靠近目标侧 → 减少交叉
+    std::map<std::string, std::map<int, int>> vChanX;
+
+    for (int g = 0; g < numGaps; g++) {
+        auto& sigs = gapSigs[g];
+        std::sort(sigs.begin(), sigs.end(),
+            [&](const std::string& a, const std::string& b) {
+                auto& nA = nets[a]; auto& nB = nets[b];
+                if (nA.srcLayer != nB.srcLayer)
+                    return nA.srcLayer > nB.srcLayer;
+                auto srcY = [&](const Net& n) -> int {
+                    if (n.srcElem >= 0) {
+                        auto& e = m_elems[n.srcElem];
+                        auto& pins = e.GetOutputPins();
+                        return (n.srcPin < (int)pins.size())
+                            ? e.GetPos().y + pins[n.srcPin].pos.y : 0;
+                    }
+                    auto& pins = m_tbox.GetInputPins();
+                    return (n.srcPin < (int)pins.size())
+                        ? m_tbox.GetPos().y + pins[n.srcPin].pos.y : 0;
+                };
+                return srcY(nA) < srcY(nB);
+            });
+        for (int ch = 0; ch < static_cast<int>(sigs.size()); ch++)
+            vChanX[sigs[ch]][g] = gapX[g] + ch * G;
+    }
+
+    // 5b  水平通道：从上到下依次分配
+    std::map<std::string, int> hChanY;
+    for (int ch = 0; ch < numHChans; ch++)
+        hChanY[hChanSigs[ch]] = hChanStartY + ch * G;
+
+    // ═══════════════════════════════════════════════
+    //  STEP 6  生成导线
+    // ═══════════════════════════════════════════════
+    auto srcPinPos = [&](const Net& n) -> wxPoint {
+        if (n.srcElem == -1) {
+            auto& pins = m_tbox.GetInputPins();
+            return (n.srcPin < (int)pins.size())
+                ? m_tbox.GetPos() + wxPoint(pins[n.srcPin].pos.x, pins[n.srcPin].pos.y)
+                : wxPoint(0, 0);
+        }
+        auto& e = m_elems[n.srcElem];
+        auto& pins = e.GetOutputPins();
+        return (n.srcPin < (int)pins.size())
+            ? e.GetPos() + wxPoint(pins[n.srcPin].pos.x, pins[n.srcPin].pos.y)
+            : wxPoint(0, 0);
+    };
+
+    auto dstPinPos = [&](const Dest& d) -> wxPoint {
+        if (d.elemIdx == -1) {
+            auto& pins = m_tbox.GetOutputPins();
+            return (d.pinIdx < (int)pins.size())
+                ? m_tbox.GetPos() + wxPoint(pins[d.pinIdx].pos.x, pins[d.pinIdx].pos.y)
+                : wxPoint(0, 0);
+        }
+        auto& e = m_elems[d.elemIdx];
+        auto& pins = e.GetInputPins();
+        return (d.pinIdx < (int)pins.size())
+            ? e.GetPos() + wxPoint(pins[d.pinIdx].pos.x, pins[d.pinIdx].pos.y)
+            : wxPoint(0, 0);
+    };
+
+    auto getChanX = [&](const std::string& sig, int g) -> int {
+        auto it1 = vChanX.find(sig);
+        if (it1 != vChanX.end()) {
+            auto it2 = it1->second.find(g);
+            if (it2 != it1->second.end()) return it2->second;
+        }
+        return gapX[g];
+    };
+
+    for (auto& [sig, net] : nets) {
+        wxPoint sp = srcPinPos(net);
+
+        for (auto& dest : net.dests) {
+            wxPoint dp = dstPinPos(dest);
+            std::vector<ControlPoint> pts;
+
+            int dL = dest.layer;
+            bool isSkip = (dL - net.srcLayer) > 1;
+
+            if (dL <= net.srcLayer) {
+                // 反向或同层: 直连 (DAG 中不应出现)
+                pts.push_back({sp, CPType::Pin});
+                pts.push_back({dp, CPType::Pin});
+            }
+            else if (!isSkip) {
+                // ─── 相邻层: Z 形布线 ───
+                int cx = getChanX(sig, dL);
+                pts.push_back({sp, CPType::Pin});
+                if (sp.y != dp.y) {
+                    pts.push_back({{cx, sp.y}, CPType::Bend});
+                    pts.push_back({{cx, dp.y}, CPType::Bend});
+                } else {
+                    pts.push_back({{cx, sp.y}, CPType::Bend});
+                }
+                pts.push_back({dp, CPType::Pin});
+            }
+            else {
+                // ─── 跨层: 经水平通道 ───
+                int firstG = std::max(0, net.srcLayer + 1);
+                int cx1 = getChanX(sig, firstG);
+                int cx2 = getChanX(sig, dL);
+                int hy  = hChanY.count(sig) ? hChanY[sig] : hChanStartY;
+
+                pts.push_back({sp, CPType::Pin});
+                pts.push_back({{cx1, sp.y}, CPType::Bend});
+                pts.push_back({{cx1, hy},   CPType::Bend});
+                pts.push_back({{cx2, hy},   CPType::Bend});
+                pts.push_back({{cx2, dp.y}, CPType::Bend});
+                pts.push_back({dp, CPType::Pin});
+            }
+
+            // 移除零长线段
+            std::vector<ControlPoint> clean;
+            for (auto& p : pts)
+                if (clean.empty() || clean.back().pos != p.pos)
+                    clean.push_back(p);
+
+            if (static_cast<int>(clean.size()) >= 2) {
+                Wire w(std::move(clean));
+                w.m_canvas = this;
+                m_wires.push_back(std::move(w));
+            }
+        }
+    }
+
+    for (auto& w : m_wires) w.GenerateCells();
+    Refresh();
 }
 
 void CanvasPanel::CompleteAutoLayout() {

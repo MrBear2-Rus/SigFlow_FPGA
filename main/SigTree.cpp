@@ -1,4 +1,4 @@
-﻿#include "SigTree.h"
+#include "SigTree.h"
 #include "MainFrame.h"
 
 #include <json/json.h>
@@ -294,70 +294,59 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
         SecondNodeType second_type = isTSNodeSecond(node_type);
         // 找Net
         if (node_type == "net_declaration") {
-            
-
             TSQueryCursor* cursor = ts_query_cursor_new();
             ts_query_cursor_exec(cursor, net, currentNode);
 
             TSQueryMatch match;
             std::string id;
-            SignalType st;
+            SignalType st = SignalType::Wire;
+            SigTreeNode* netParent = newParent;
             while (ts_query_cursor_next_match(cursor, &match)) {
-                
                 for (uint16_t i = 0; i < match.capture_count; i++) {
                     TSQueryCapture capture = match.captures[i];
-
-                    // 3. 识别零件的标签名（通过 ID 换取字符串）
                     uint32_t name_len;
                     const char* tag_name = ts_query_capture_name_for_id(net, capture.index, &name_len);
-
-                    // 4. 根据标签名分发逻辑
                     if (strcmp(tag_name, "net.name") == 0) {
                         TSNode nameNode = capture.node;
                         id = code.substr(ts_node_start_byte(nameNode),
                             ts_node_end_byte(nameNode) - ts_node_start_byte(nameNode));
-                        //CollectSigTreeNodeInfoTS(nn, currentNode, filePath, code);
                         st = SignalType::Wire;
-                        
                     }
-
                 }
-                //SignalNode* nn = arena.make<SignalNode>(id, st);
-                SignalNode* nn = new SignalNode(id, st);
-                nn = static_cast<SignalNode*>(this->AddChild(newParent, nn));
-                SignalTable.emplace(nn->identifier, nn);
-                newParent = nn;
+                SignalNode tmpNode(id, st);
+                SignalNode* nn = static_cast<SignalNode*>(this->AddChild(netParent, &tmpNode));
+                if (nn) {
+                    SignalTable.emplace(nn->identifier, nn);
+                    newParent = nn;
+                }
             }
-            
+            ts_query_cursor_delete(cursor);
         }
         else if (node_type == "data_declaration") {
             TSQueryCursor* cursor = ts_query_cursor_new();
             ts_query_cursor_exec(cursor, net, currentNode);
             std::string id;
             TSQueryMatch match;
+            SigTreeNode* dataParent = newParent;
             while (ts_query_cursor_next_match(cursor, &match)) {
-                //SignalNode* nn = arena.make<SignalNode>();
                 for (uint16_t i = 0; i < match.capture_count; i++) {
                     TSQueryCapture capture = match.captures[i];
-
-                    // 3. 识别零件的标签名（通过 ID 换取字符串）
                     uint32_t name_len;
                     const char* tag_name = ts_query_capture_name_for_id(net, capture.index, &name_len);
-
-                    // 4. 根据标签名分发逻辑
                     if (strcmp(tag_name, "net.name") == 0) {
                         TSNode nameNode = capture.node;
-                        //CollectSigTreeNodeInfoTS(nn, currentNode, filePath, code);
                         id = code.substr(ts_node_start_byte(nameNode),
                             ts_node_end_byte(nameNode) - ts_node_start_byte(nameNode));
                     }
-
                 }
-                SignalNode* nn = arena.make<SignalNode>(id, SignalType::Reg);
-                nn = static_cast<SignalNode*>(AddChild(newParent, nn));
-                SignalTable.emplace(nn->identifier, nn);
-                newParent = nn;
+                SignalNode tmpNode(id, SignalType::Reg);
+                SignalNode* nn = static_cast<SignalNode*>(AddChild(dataParent, &tmpNode));
+                if (nn) {
+                    SignalTable.emplace(nn->identifier, nn);
+                    newParent = nn;
+                }
             }
+            ts_query_cursor_delete(cursor);
         }
         // 找Second
         else if (second_type != SecondNodeType::Null) {
