@@ -1,4 +1,4 @@
-#include "TerminalCtrl.h"//引用头文件
+﻿#include "TerminalCtrl.h"//引用头文件
 #include "TerminalController.h" 
 //事件表
 wxBEGIN_EVENT_TABLE(TerminalCtrl, wxStyledTextCtrl)
@@ -100,7 +100,7 @@ void TerminalCtrl::PrintOutput(const wxString& text)
 {
     AppendText(text);
     if (!text.EndsWith("\n"))
-        AppendText("\n");
+        AppendText("\n> ");
 }
 
 void TerminalCtrl::PrintError(const wxString& text)
