@@ -1,4 +1,4 @@
-﻿#include "CanvasNoteBook.h"
+#include "CanvasNoteBook.h"
 #include "MainFrame.h"
 
 #include <wx/aui/auibar.h>
@@ -14,6 +14,13 @@ CanvasNoteBook::CanvasNoteBook(MainFrame* pa, SigFlowTree* sftree, wxWindowID id
     //AddCanvasPage(new CanvasPanel(this, sftree, size_x, size_y), "untitled", true);
     //AddCustomButton();
     Bind(wxEVT_AUINOTEBOOK_PAGE_CLOSE, &CanvasNoteBook::OnPageClose, this);
+    Bind(wxEVT_AUINOTEBOOK_PAGE_CHANGED, [this](wxAuiNotebookEvent& evt) {
+        evt.Skip();
+
+        if (!m_btnCreated) {
+            CallAfter(&CanvasNoteBook::AddCustomButton);
+        }
+        });
 }
 
 bool CanvasNoteBook::AddCanvasPage(CanvasPanel* panel, const wxString& caption, bool select) {
@@ -47,8 +54,8 @@ bool CanvasNoteBook::RemoveCanvasPage(size_t page_idx) {
 }
 
 void CanvasNoteBook::DeleteAll() {
-    for (int i = 0; i < cvses.size(); i++) {
-        RemoveCanvasPage(i);
+    while (!cvses.empty()) {
+        RemoveCanvasPage(0);
     }
 }
 
@@ -64,8 +71,10 @@ void CanvasNoteBook::UpdateNoteBook() {
         sel = false;
     }
     AdjustScaleToFit();
-    //DeleteAddButton();
-    AddCustomButton();
+
+    DeleteAddButton();
+
+    CallAfter(&CanvasNoteBook::AddCustomButton);
 }
 
 void CanvasNoteBook::SetStatusText(const wxString& text, int number) {
@@ -202,6 +211,8 @@ void CanvasNoteBook::SigFlowNodeChanged(SigTreeNode* n) {
 
 void CanvasNoteBook::AddCustomButton() {
     // 1. 创建按钮，父窗口设为 CanvasNoteBook 自身 (this)
+    if (m_btnCreated) return;
+
     wxWindowList& children = GetChildren();
     wxWindow* tabCtrl = nullptr;
     for (wxWindow* child : children) {
@@ -212,18 +223,15 @@ void CanvasNoteBook::AddCustomButton() {
     }
 
     if (!tabCtrl) return;
-
-    wxButton* m_addBtn = new wxButton(tabCtrl, wxID_ANY, "+",
+    m_btnCreated = true;
+    m_addBtn = new wxButton(this, wxID_ANY, "+",
         wxDefaultPosition, wxSize(24, 24), // 略微放大
         wxBORDER_SIMPLE); // 使用简单的边框
 
     m_addBtn->SetFont(wxFont(12, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD));
     m_addBtn->SetForegroundColour(*wxBLACK);
 
-    tabCtrl->Bind(wxEVT_PAINT, [m_addBtn](wxPaintEvent& evt) {
-        evt.Skip(); // 让系统先画标签栏
-        m_addBtn->Refresh(); // 强迫按钮在标签栏画完后跟着重画，防止被覆盖
-        });
+   
 
     // 2. 绑定点击
     m_addBtn->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
@@ -235,7 +243,7 @@ void CanvasNoteBook::AddCustomButton() {
     wxSize sz = this->GetClientSize();
     m_addBtn->SetPosition(wxPoint(sz.x-30, 3));
     // 4. 监听 Notebook 的大小变化，而不是 TabCtrl
-    this->Bind(wxEVT_SIZE, [this, m_addBtn](wxSizeEvent& evt) {
+    this->Bind(wxEVT_SIZE, [this](wxSizeEvent& evt) {
         wxSize sz = this->GetClientSize();
 
         // --- 核心定位逻辑 ---
@@ -252,10 +260,11 @@ void CanvasNoteBook::AddCustomButton() {
 
 void CanvasNoteBook::DeleteAddButton() {
     if (m_addBtn) {
-        // wxWidgets 规定：销毁窗口必须用 Destroy() 以确保事件队列安全
         m_addBtn->Destroy();
-        m_addBtn = nullptr; // 避免野指针
+        m_addBtn = nullptr;
     }
+
+    m_btnCreated = false;
 }
 
 void CanvasNoteBook::OnAddNewPageRequested() {
