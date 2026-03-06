@@ -168,6 +168,9 @@
     <ClCompile Include="CanvasNoteBook.cpp">
       <Filter>源文件\gui\canvas</Filter>
     </ClCompile>
+    <ClCompile Include="PropertyPanelBuilder.cpp">
+      <Filter>源文件\gui\propertyPanel</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="my_log.h">
@@ -268,6 +271,9 @@
     </ClInclude>
     <ClInclude Include="CanvasNoteBook.h">
       <Filter>头文件\gui\canvas</Filter>
+    </ClInclude>
+    <ClInclude Include="PropertyPanelBuilder.h">
+      <Filter>头文件\gui\propertyPanel</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

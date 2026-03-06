@@ -35,6 +35,7 @@
     <ClCompile Include="PluginStore.cpp" />
     <ClCompile Include="ProjectTreePanel.cpp" />
     <ClCompile Include="HandyToolKit.cpp" />
+    <ClCompile Include="PropertyPanelBuilder.cpp" />
     <ClCompile Include="SFNPropertyPanel.cpp" />
     <ClCompile Include="SigFlowTreePanel.cpp" />
     <ClCompile Include="SigTextEditor.cpp" />
@@ -68,6 +69,7 @@
     <ClInclude Include="PluginManager.h" />
     <ClInclude Include="PluginStore.h" />
     <ClInclude Include="ProjectTreePanel.h" />
+    <ClInclude Include="PropertyPanelBuilder.h" />
     <ClInclude Include="SFNPropertyPanel.h" />
     <ClInclude Include="SigFlowTreePanel.h" />
     <ClInclude Include="SigTextEditor.h" />

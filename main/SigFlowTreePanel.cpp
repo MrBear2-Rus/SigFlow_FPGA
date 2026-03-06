@@ -1,4 +1,5 @@
-﻿#include "SigFlowTreePanel.h"
+#include "SigFlowTreePanel.h"
+#include "PropertyPanelBuilder.h"
 #include <wx/statline.h>
 
 SigFlowTreePanel::SigFlowTreePanel(wxWindow* parent,SigFlowTree* sfTree)
@@ -25,8 +26,6 @@ SigFlowTreePanel::SigFlowTreePanel(wxWindow* parent,SigFlowTree* sfTree)
     tree->Bind(wxEVT_TREE_ITEM_ACTIVATED, &SigFlowTreePanel::OnItemActivated, this);
     addBtn->Bind(wxEVT_BUTTON, &SigFlowTreePanel::OnAdd, this);
     delBtn->Bind(wxEVT_BUTTON, &SigFlowTreePanel::OnDelete, this);
-
-
 
     Fresh();
 }
@@ -218,122 +217,109 @@ TopNode* SigFlowTreePanel::ShowCreateTopDialog(TopNodeType type, SigTreeNode* pa
     wxDialog dlg(this, wxID_ANY, "Create Module", wxDefaultPosition, wxDefaultSize,
         wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
 
-    auto* idCtrl = new wxTextCtrl(&dlg, wxID_ANY);
+    // 临时数据
+    std::vector<Port> in_ports, out_ports;
 
-    std::vector<Port> in_ports;
-    std::vector<Port> out_ports;
+    // 标识符行
+    wxTextCtrl* idCtrl = nullptr;
+    auto* topSizer = new wxBoxSizer(wxVERTICAL);
+    topSizer->Add(PropertyPanelBuilder::CreateIdentifierRow(&dlg, "Identifier:", "module_name", &idCtrl),
+        0, wxEXPAND | wxALL, 10);
 
+    // 滚动窗口用于端口列表
+    auto* scrolled = new wxScrolledWindow(&dlg, wxID_ANY, wxDefaultPosition, wxSize(400, 250));
     auto* portsSizer = new wxBoxSizer(wxVERTICAL);
+    scrolled->SetSizer(portsSizer);
+    scrolled->SetScrollRate(0, 10);
+    topSizer->Add(scrolled, 1, wxEXPAND | wxLEFT | wxRIGHT, 10);
 
-    // ---- rebuild function (no capture of dlg) ----
-    std::function<void()> rebuild;
-    rebuild = [&]() {
+    // 添加端口按钮
+    auto* btnSizer = new wxBoxSizer(wxHORIZONTAL);
+    auto* addInBtn = PropertyPanelBuilder::CreateButton(&dlg, "+ Add In", wxColour(0, 120, 215));
+    auto* addOutBtn = PropertyPanelBuilder::CreateButton(&dlg, "+ Add Out", wxColour(0, 120, 215));
+    btnSizer->Add(addInBtn, 0, wxRIGHT, 10);
+    btnSizer->Add(addOutBtn, 0);
+    topSizer->Add(btnSizer, 0, wxALIGN_CENTER_HORIZONTAL | wxTOP | wxBOTTOM, 10);
+
+    // 标准按钮
+    topSizer->Add(dlg.CreateSeparatedButtonSizer(wxOK | wxCANCEL), 0, wxEXPAND | wxALL, 10);
+    dlg.SetSizerAndFit(topSizer);
+
+    // 重建函数
+    std::function<void()> rebuild = [&]() {
         portsSizer->Clear(true);
-
+        // 输入端口
         for (size_t i = 0; i < in_ports.size(); ++i) {
-            Port& p = in_ports[i];
-
-            auto* row = new wxBoxSizer(wxHORIZONTAL);
-
-            auto* dir = new wxTextCtrl(&dlg, wxID_ANY, "input");
-            dir->SetEditable(false);
-
-            auto* name = new wxTextCtrl(&dlg, wxID_ANY, p.identifier);
-
-            auto* del = new wxButton(&dlg, wxID_ANY, "x", wxDefaultPosition, wxSize(25, 25));
-
-            name->Bind(wxEVT_TEXT, [&, i](wxCommandEvent& e) {
-                in_ports[i].identifier = e.GetString().ToStdString();
-                });
-
-            del->Bind(wxEVT_BUTTON, [&, i](wxCommandEvent&) {
-                in_ports.erase(in_ports.begin() + i);
-                rebuild();
-                });
-
-            row->Add(dir, 0, wxRIGHT, 6);
-            row->Add(name, 1, wxEXPAND | wxRIGHT, 6);
-            row->Add(del, 0);
-
-            portsSizer->Add(row, 0, wxEXPAND | wxBOTTOM, 4);
+            wxTextCtrl* nameCtrl = nullptr;
+            wxButton* delBtn = nullptr;
+            auto* rowWrapper = PropertyPanelBuilder::CreateTopPortRow(scrolled, "input",
+                wxString::FromUTF8(in_ports[i].identifier), &nameCtrl, &delBtn);
+            if (nameCtrl) {
+                nameCtrl->Bind(wxEVT_TEXT, [&, i](wxCommandEvent&) {
+                    in_ports[i].identifier = nameCtrl->GetValue().ToStdString();
+                    });
+            }
+            if (delBtn) {
+                delBtn->Bind(wxEVT_BUTTON, [&, i](wxCommandEvent&) {
+                    in_ports.erase(in_ports.begin() + i);
+                    rebuild();
+                    });
+            }
+            portsSizer->Add(rowWrapper, 0, wxEXPAND);
         }
-
+        // 输出端口
         for (size_t i = 0; i < out_ports.size(); ++i) {
-            Port& p = out_ports[i];
-
-            auto* row = new wxBoxSizer(wxHORIZONTAL);
-
-            auto* dir = new wxTextCtrl(&dlg, wxID_ANY, "output");
-            dir->SetEditable(false);
-
-            auto* name = new wxTextCtrl(&dlg, wxID_ANY, p.identifier);
-
-            auto* del = new wxButton(&dlg, wxID_ANY, "x", wxDefaultPosition, wxSize(25, 25));
-
-            name->Bind(wxEVT_TEXT, [&, i](wxCommandEvent& e) {
-                in_ports[i].identifier = e.GetString().ToStdString();
-                });
-
-            del->Bind(wxEVT_BUTTON, [&, i](wxCommandEvent&) {
-                in_ports.erase(in_ports.begin() + i);
-                rebuild();
-                });
-
-            row->Add(dir, 0, wxRIGHT, 6);
-            row->Add(name, 1, wxEXPAND | wxRIGHT, 6);
-            row->Add(del, 0);
-
-            portsSizer->Add(row, 0, wxEXPAND | wxBOTTOM, 4);
+            wxTextCtrl* nameCtrl = nullptr;
+            wxButton* delBtn = nullptr;
+            auto* rowWrapper = PropertyPanelBuilder::CreateTopPortRow(scrolled, "output",
+                wxString::FromUTF8(out_ports[i].identifier), &nameCtrl, &delBtn);
+            if (nameCtrl) {
+                nameCtrl->Bind(wxEVT_TEXT, [&, i](wxCommandEvent&) {
+                    out_ports[i].identifier = nameCtrl->GetValue().ToStdString();
+                    });
+            }
+            if (delBtn) {
+                delBtn->Bind(wxEVT_BUTTON, [&, i](wxCommandEvent&) {
+                    out_ports.erase(out_ports.begin() + i);
+                    rebuild();
+                    });
+            }
+            portsSizer->Add(rowWrapper, 0, wxEXPAND);
         }
-
-        auto* addInBtn = new wxButton(&dlg, wxID_ANY, "+ Add In");
-        addInBtn->Bind(wxEVT_BUTTON, [&](wxCommandEvent&) {
-            Port p;
-            p.identifier = "port" + std::to_string(in_ports.size());
-            p.direction = PortDirection::In;
-            in_ports.push_back(p);
-            rebuild();
-            });
-
-        auto* addOutBtn = new wxButton(&dlg, wxID_ANY, "+ Add Out");
-        addOutBtn->Bind(wxEVT_BUTTON, [&](wxCommandEvent&) {
-            Port p;
-            p.identifier = "port" + std::to_string(in_ports.size());
-            p.direction = PortDirection::Out;
-            out_ports.push_back(p);
-            rebuild();
-            });
-
-        portsSizer->Add(addInBtn, 0, wxTOP, 6);
-        portsSizer->Add(addOutBtn, 0, wxTOP, 6);
-
-        dlg.Layout();
-        dlg.Fit();
+        scrolled->Layout();
+        scrolled->FitInside();
         };
 
-    rebuild();
+    // 添加端口按钮事件
+    addInBtn->Bind(wxEVT_BUTTON, [&](wxCommandEvent&) {
+        Port p;
+        p.identifier = "in" + std::to_string(in_ports.size() + 1);
+        p.direction = PortDirection::In;
+        in_ports.push_back(p);
+        rebuild();
+        });
+    addOutBtn->Bind(wxEVT_BUTTON, [&](wxCommandEvent&) {
+        Port p;
+        p.identifier = "out" + std::to_string(out_ports.size() + 1);
+        p.direction = PortDirection::Out;
+        out_ports.push_back(p);
+        rebuild();
+        });
 
-    // ---- Layout ----
-    auto* form = new wxFlexGridSizer(2, 8, 8);
-    form->Add(new wxStaticText(&dlg, wxID_ANY, "Identifier:"), 0, wxALIGN_CENTER_VERTICAL);
-    form->Add(idCtrl, 1, wxEXPAND);
-    form->AddGrowableCol(1);
+    // 初始添加一个示例端口（可选）
+    if (in_ports.empty() && out_ports.empty()) {
+        in_ports.push_back({ "in1", PortDirection::In });
+        out_ports.push_back({ "out1", PortDirection::Out });
+        rebuild();
+    }
+    else {
+        rebuild();
+    }
 
-    auto* root = new wxBoxSizer(wxVERTICAL);
-    root->Add(form, 0, wxEXPAND | wxALL, 10);
-    root->Add(new wxStaticText(&dlg, wxID_ANY, "Ports:"), 0, wxLEFT | wxRIGHT | wxTOP, 10);
-    root->Add(portsSizer, 1, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 10);
-    root->Add(dlg.CreateSeparatedButtonSizer(wxOK | wxCANCEL),
-        0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 10);
-
-    dlg.SetSizerAndFit(root);
-
-    if (dlg.ShowModal() != wxID_OK)
-        return nullptr;
+    if (dlg.ShowModal() != wxID_OK) return nullptr;
 
     wxString id = idCtrl->GetValue();
-    if (id.empty())
-        return nullptr;
+    if (id.empty()) return nullptr;
 
     auto* node = new TopNode(id.ToStdString(), type);
     node->UpdateInPorts(in_ports);
@@ -343,30 +329,17 @@ TopNode* SigFlowTreePanel::ShowCreateTopDialog(TopNodeType type, SigTreeNode* pa
 
 SignalNode* SigFlowTreePanel::ShowCreateSignalDialog(SignalType type, SigTreeNode* parent) {
     wxDialog dlg(this, wxID_ANY, "Create Signal");
+    wxTextCtrl* idCtrl = nullptr;
+    auto* sizer = new wxBoxSizer(wxVERTICAL);
+    sizer->Add(PropertyPanelBuilder::CreateIdentifierRow(&dlg, "Identifier:", "", &idCtrl),
+        0, wxEXPAND | wxALL, 10);
+    sizer->Add(dlg.CreateSeparatedButtonSizer(wxOK | wxCANCEL), 0, wxEXPAND | wxALL, 10);
+    dlg.SetSizerAndFit(sizer);
 
-    wxTextCtrl* idCtrl = new wxTextCtrl(&dlg, wxID_ANY);
-
-    auto* form = new wxFlexGridSizer(2, 6, 6);
-    form->Add(new wxStaticText(&dlg, wxID_ANY, "Identifier:"));
-    form->Add(idCtrl, 1, wxEXPAND);
-    form->AddGrowableCol(1);
-
-    auto* btns = dlg.CreateSeparatedButtonSizer(wxOK | wxCANCEL);
-
-    auto* root = new wxBoxSizer(wxVERTICAL);
-    root->Add(form, 1, wxEXPAND | wxALL, 10);
-    root->Add(btns, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 10);
-    dlg.SetSizerAndFit(root);
-
-    if (dlg.ShowModal() != wxID_OK)
-        return nullptr;
-
+    if (dlg.ShowModal() != wxID_OK) return nullptr;
     wxString id = idCtrl->GetValue();
-    if (id.empty())
-        return nullptr;
-
-    auto* node = new SignalNode(id.ToStdString(), type);
-    return node;
+    if (id.empty()) return nullptr;
+    return new SignalNode(id.ToStdString(), type);
 }
 
 SecondNode* SigFlowTreePanel::ShowCreateSecondDialog(SecondNodeType type, SigTreeNode* parent) {
@@ -387,167 +360,112 @@ SecondNode* SigFlowTreePanel::CreateModuleInstDialog(SigTreeNode* parent) {
     wxDialog dlg(this, wxID_ANY, "Instantiate Module", wxDefaultPosition, wxDefaultSize,
         wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
 
-    // 1. 数据准备
+    // 获取所有可实例化的模块定义（排除当前模块自身）
     wxArrayString defNames;
     std::vector<TopNode*> defPointers;
     for (auto const& [name, defPtr] : sfTree->DefinitionTable) {
         if (defPtr->topType == TopNodeType::Module) {
-            TopNode* tn = static_cast<TopNode*>(parent);
-            if (name != tn->identifier) {
+            // 如果是当前模块内部，通常不能实例化自身，但可根据需求调整
+            TopNode* tn = dynamic_cast<TopNode*>(parent);
+            if (!tn || name != tn->identifier) {
                 defNames.Add(name);
                 defPointers.push_back(defPtr);
             }
-
         }
     }
-
     if (defNames.IsEmpty()) {
         wxMessageBox("No Module Definitions found!", "Error", wxOK | wxICON_ERROR);
         return nullptr;
     }
 
-    auto* rootSizer = new wxBoxSizer(wxVERTICAL);
+    // 临时数据
+    std::vector<Port> in_ports, out_ports;
 
-    // --- 顶部基础信息区 (使用 FlexGrid 模拟 PropertyPanel 的两列布局) ---
-    auto* formGrid = new wxFlexGridSizer(2, 8, 8);
-    formGrid->AddGrowableCol(1);
+    // 顶部标识符和定义选择
+    wxTextCtrl* idCtrl = nullptr;
+    wxChoice* defChoice = nullptr;
+    auto* topSizer = new wxBoxSizer(wxVERTICAL);
+    auto* gridSizer = new wxFlexGridSizer(2, 8, 8);
+    gridSizer->AddGrowableCol(1);
+    gridSizer->Add(new wxStaticText(&dlg, wxID_ANY, "Identifier:"), 0, wxALIGN_CENTER_VERTICAL);
+    gridSizer->Add(PropertyPanelBuilder::CreateIdentifierRow(&dlg, "", "u_inst_0", &idCtrl), 1, wxEXPAND);
+    gridSizer->Add(new wxStaticText(&dlg, wxID_ANY, "Definition:"), 0, wxALIGN_CENTER_VERTICAL);
+    gridSizer->Add(PropertyPanelBuilder::CreateChoiceRow(&dlg, "", defNames, 0, &defChoice), 1, wxEXPAND);
+    topSizer->Add(gridSizer, 0, wxEXPAND | wxALL, 10);
 
-    formGrid->Add(new wxStaticText(&dlg, wxID_ANY, "Identifier:"), 0, wxALIGN_CENTER_VERTICAL);
-    auto* idCtrl = new wxTextCtrl(&dlg, wxID_ANY, "u_inst_0");
-    formGrid->Add(idCtrl, 1, wxEXPAND);
-
-    formGrid->Add(new wxStaticText(&dlg, wxID_ANY, "Definition:"), 0, wxALIGN_CENTER_VERTICAL);
-    auto* defChoice = new wxChoice(&dlg, wxID_ANY, wxDefaultPosition, wxDefaultSize, defNames);
-    defChoice->SetSelection(0);
-    formGrid->Add(defChoice, 1, wxEXPAND);
-
-    rootSizer->Add(formGrid, 0, wxEXPAND | wxALL, 10);
-
-    // --- Ports Area (Scrolled Window) ---
+    // 滚动窗口用于端口列表
     auto* scrolled = new wxScrolledWindow(&dlg, wxID_ANY, wxDefaultPosition, wxSize(500, 300));
-    auto* portsMainSizer = new wxBoxSizer(wxVERTICAL);
+    auto* portsSizer = new wxBoxSizer(wxVERTICAL);
+    scrolled->SetSizer(portsSizer);
+    scrolled->SetScrollRate(0, 10);
+    topSizer->Add(scrolled, 1, wxEXPAND | wxLEFT | wxRIGHT, 10);
+    topSizer->Add(dlg.CreateSeparatedButtonSizer(wxOK | wxCANCEL), 0, wxEXPAND | wxALL, 10);
+    dlg.SetSizerAndFit(topSizer);
 
-    struct PortUI { std::string id; wxTextCtrl* connCtrl; };
-    std::vector<PortUI> in_portUIList;
-    std::vector<PortUI> out_portUIList;
+    // 重建函数
+    std::function<void(int)> rebuild = [&](int sel) {
+        portsSizer->Clear(true);
+        in_ports.clear();
+        out_ports.clear();
+        TopNode* def = defPointers[sel];
 
-    // 重构 rebuildPorts 以匹配 AddPortRowWithConn 的样式
-    auto rebuildPorts = [&](int selection) {
-        portsMainSizer->Clear(true);
-        in_portUIList.clear();
-        out_portUIList.clear();
-        TopNode* def = defPointers[selection];
-
+        // 从定义复制端口，conn 初始为空
         for (const auto& p : def->GetInPorts()) {
-            // 1. 分割线 (匹配 AddPortRowWithConn)
-            wxStaticLine* line = new wxStaticLine(scrolled, wxID_ANY);
-            portsMainSizer->Add(line, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 5);
-
-            // 2. 水平布局行
-            wxBoxSizer* rowSizer = new wxBoxSizer(wxHORIZONTAL);
-
-            // --- 方向 (只读 TextCtrl) ---
-            wxTextCtrl* dirCtrl = new wxTextCtrl(scrolled, wxID_ANY, SigFlowTree::ToString(p.direction));
-            dirCtrl->SetEditable(false);
-            dirCtrl->SetBackgroundColour(scrolled->GetBackgroundColour()); // 与底色融为一体
-
-            // --- 引脚名 (只读 TextCtrl) ---
-            wxTextCtrl* editName = new wxTextCtrl(scrolled, wxID_ANY, p.identifier);
-            editName->SetEditable(false);
-            editName->SetBackgroundColour(scrolled->GetBackgroundColour());
-
-            // --- 链接符文本 ---
-            wxStaticText* colon = new wxStaticText(scrolled, wxID_ANY, "connected by");
-            colon->SetForegroundColour(wxColour(120, 120, 120));
-
-            // --- 连接的信号 (淡蓝色可编辑) ---
-            wxTextCtrl* editConn = new wxTextCtrl(scrolled, wxID_ANY, "");
-            editConn->SetHint("Connected Signal");
-            editConn->SetBackgroundColour(wxColour(240, 248, 255)); // 统一淡蓝色
-
-            // 3. 组合行布局 (比例分配：Dir 0, Name 1, Label 0, Conn 1)
-            rowSizer->Add(dirCtrl, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 10);
-            rowSizer->Add(editName, 1, wxEXPAND | wxLEFT, 5);
-            rowSizer->Add(colon, 0, wxALIGN_CENTER_VERTICAL | wxLEFT | wxRIGHT, 5);
-            rowSizer->Add(editConn, 1, wxEXPAND | wxRIGHT, 10);
-
-            portsMainSizer->Add(rowSizer, 0, wxEXPAND | wxTOP | wxBOTTOM, 2);
-            in_portUIList.push_back({ p.identifier, editConn });
+            in_ports.push_back({ p.identifier, p.direction, "" });
         }
-
         for (const auto& p : def->GetOutPorts()) {
-            // 1. 分割线 (匹配 AddPortRowWithConn)
-            wxStaticLine* line = new wxStaticLine(scrolled, wxID_ANY);
-            portsMainSizer->Add(line, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 5);
-
-            // 2. 水平布局行
-            wxBoxSizer* rowSizer = new wxBoxSizer(wxHORIZONTAL);
-
-            // --- 方向 (只读 TextCtrl) ---
-            wxTextCtrl* dirCtrl = new wxTextCtrl(scrolled, wxID_ANY, SigFlowTree::ToString(p.direction));
-            dirCtrl->SetEditable(false);
-            dirCtrl->SetBackgroundColour(scrolled->GetBackgroundColour()); // 与底色融为一体
-
-            // --- 引脚名 (只读 TextCtrl) ---
-            wxTextCtrl* editName = new wxTextCtrl(scrolled, wxID_ANY, p.identifier);
-            editName->SetEditable(false);
-            editName->SetBackgroundColour(scrolled->GetBackgroundColour());
-
-            // --- 链接符文本 ---
-            wxStaticText* colon = new wxStaticText(scrolled, wxID_ANY, "connected by");
-            colon->SetForegroundColour(wxColour(120, 120, 120));
-
-            // --- 连接的信号 (淡蓝色可编辑) ---
-            wxTextCtrl* editConn = new wxTextCtrl(scrolled, wxID_ANY, "");
-            editConn->SetHint("Connected Signal");
-            editConn->SetBackgroundColour(wxColour(240, 248, 255)); // 统一淡蓝色
-
-            // 3. 组合行布局 (比例分配：Dir 0, Name 1, Label 0, Conn 1)
-            rowSizer->Add(dirCtrl, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 10);
-            rowSizer->Add(editName, 1, wxEXPAND | wxLEFT, 5);
-            rowSizer->Add(colon, 0, wxALIGN_CENTER_VERTICAL | wxLEFT | wxRIGHT, 5);
-            rowSizer->Add(editConn, 1, wxEXPAND | wxRIGHT, 10);
-
-            portsMainSizer->Add(rowSizer, 0, wxEXPAND | wxTOP | wxBOTTOM, 2);
-            out_portUIList.push_back({ p.identifier, editConn });
+            out_ports.push_back({ p.identifier, p.direction, "" });
         }
 
-        scrolled->SetSizer(portsMainSizer);
+        // 创建输入端口行
+        for (size_t i = 0; i < in_ports.size(); ++i) {
+            wxTextCtrl* connCtrl = nullptr;
+            auto* wrapper = PropertyPanelBuilder::CreateSecondPortRow(scrolled,
+                SigFlowTree::ToString(in_ports[i].direction),
+                wxString::FromUTF8(in_ports[i].identifier),
+                wxString::FromUTF8(in_ports[i].conn),
+                &connCtrl);
+            if (connCtrl) {
+                connCtrl->Bind(wxEVT_TEXT, [&, i](wxCommandEvent& e) {
+                    in_ports[i].conn = e.GetString().ToStdString();
+                    });
+            }
+            portsSizer->Add(wrapper, 0, wxEXPAND);
+        }
+        // 创建输出端口行
+        for (size_t i = 0; i < out_ports.size(); ++i) {
+            wxTextCtrl* connCtrl = nullptr;
+            auto* wrapper = PropertyPanelBuilder::CreateSecondPortRow(scrolled,
+                SigFlowTree::ToString(out_ports[i].direction),
+                wxString::FromUTF8(out_ports[i].identifier),
+                wxString::FromUTF8(out_ports[i].conn),
+                &connCtrl);
+            if (connCtrl) {
+                connCtrl->Bind(wxEVT_TEXT, [&, i](wxCommandEvent& e) {
+                    out_ports[i].conn = e.GetString().ToStdString();
+                    });
+            }
+            portsSizer->Add(wrapper, 0, wxEXPAND);
+        }
+        scrolled->Layout();
         scrolled->FitInside();
-        scrolled->SetScrollRate(0, 10);
-        dlg.Layout();
         };
 
-    defChoice->Bind(wxEVT_CHOICE, [&](wxCommandEvent&) { rebuildPorts(defChoice->GetSelection()); });
-    rebuildPorts(0);
-
-    rootSizer->Add(scrolled, 1, wxEXPAND | wxALL, 10);
-    rootSizer->Add(dlg.CreateSeparatedButtonSizer(wxOK | wxCANCEL), 0, wxEXPAND | wxALL, 10);
-
-    dlg.SetSizerAndFit(rootSizer);
-    dlg.SetMinSize(wxSize(550, 450));
+    defChoice->Bind(wxEVT_CHOICE, [&](wxCommandEvent&) {
+        rebuild(defChoice->GetSelection());
+        });
+    rebuild(0);
 
     if (dlg.ShowModal() != wxID_OK) return nullptr;
 
-    // --- 构造返回节点 ---
-    auto* node = new ModuleInstNode(idCtrl->GetValue().ToStdString(), defChoice->GetStringSelection().ToStdString());
-    node->Definition = defPointers[defChoice->GetSelection()];
+    wxString id = idCtrl->GetValue();
+    if (id.empty()) return nullptr;
+    wxString defName = defChoice->GetStringSelection();
 
-    for (size_t i = 0; i < in_portUIList.size(); ++i) {
-        Port p;
-        p.identifier = in_portUIList[i].id;
-        p.direction = node->Definition->GetInPorts()[i].direction;
-        p.conn = in_portUIList[i].connCtrl->GetValue().ToStdString();
-        node->in_ports.push_back(p);
-    }
-    for (size_t i = 0; i < out_portUIList.size(); ++i) {
-        Port p;
-        p.identifier = out_portUIList[i].id;
-        p.direction = node->Definition->GetOutPorts()[i].direction;
-        p.conn = out_portUIList[i].connCtrl->GetValue().ToStdString();
-        node->out_ports.push_back(p);
-    }
-
+    auto* node = new ModuleInstNode(id.ToStdString(), defName.ToStdString());
+    node->in_ports = in_ports;
+    node->out_ports = out_ports;
+    // 后续在 AddChild 时会自动链接定义
     return node;
 }
 
@@ -555,113 +473,86 @@ SecondNode* SigFlowTreePanel::CreateGateInstDialog(SigTreeNode* parent) {
     wxDialog dlg(this, wxID_ANY, "Create Gate Instance", wxDefaultPosition, wxDefaultSize,
         wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
 
-    auto* rootSizer = new wxBoxSizer(wxVERTICAL);
+    // 临时端口数据
+    std::vector<Port> ports;  // 包含所有端口，方向由定义决定
 
-    // --- 顶部基础信息 (Identifier & Gate Type) ---
-    auto* formGrid = new wxFlexGridSizer(2, 8, 8);
-    formGrid->AddGrowableCol(1);
-
-    formGrid->Add(new wxStaticText(&dlg, wxID_ANY, "Identifier:"), 0, wxALIGN_CENTER_VERTICAL);
-    auto* idCtrl = new wxTextCtrl(&dlg, wxID_ANY, "g0");
-    formGrid->Add(idCtrl, 1, wxEXPAND);
-
-    formGrid->Add(new wxStaticText(&dlg, wxID_ANY, "Gate Type:"), 0, wxALIGN_CENTER_VERTICAL);
+    // 顶部标识符和门类型
+    wxTextCtrl* idCtrl = nullptr;
+    wxChoice* gateChoice = nullptr;
+    auto* topSizer = new wxBoxSizer(wxVERTICAL);
+    auto* gridSizer = new wxFlexGridSizer(2, 8, 8);
+    gridSizer->AddGrowableCol(1);
+    gridSizer->Add(new wxStaticText(&dlg, wxID_ANY, "Identifier:"), 0, wxALIGN_CENTER_VERTICAL);
+    gridSizer->Add(PropertyPanelBuilder::CreateIdentifierRow(&dlg, "", "g0", &idCtrl), 1, wxEXPAND);
+    gridSizer->Add(new wxStaticText(&dlg, wxID_ANY, "Gate Type:"), 0, wxALIGN_CENTER_VERTICAL);
     wxArrayString gateTypes;
-    gateTypes.Add("and"); gateTypes.Add("nand"); gateTypes.Add("or");
-    gateTypes.Add("nor"); gateTypes.Add("xor"); gateTypes.Add("xnor");
-    gateTypes.Add("buf"); gateTypes.Add("not");
-    auto* gateChoice = new wxChoice(&dlg, wxID_ANY, wxDefaultPosition, wxDefaultSize, gateTypes);
-    gateChoice->SetSelection(0);
-    formGrid->Add(gateChoice, 1, wxEXPAND);
+    gateTypes.Add("and"); gateTypes.Add("nand"); gateTypes.Add("or"); gateTypes.Add("nor");
+    gateTypes.Add("xor"); gateTypes.Add("xnor"); gateTypes.Add("buf"); gateTypes.Add("not");
+    gridSizer->Add(PropertyPanelBuilder::CreateChoiceRow(&dlg, "", gateTypes, 0, &gateChoice), 1, wxEXPAND);
+    topSizer->Add(gridSizer, 0, wxEXPAND | wxALL, 10);
 
-    rootSizer->Add(formGrid, 0, wxEXPAND | wxALL, 15);
-
-    // --- Ports Area ---
+    // 滚动窗口
     auto* scrolled = new wxScrolledWindow(&dlg, wxID_ANY, wxDefaultPosition, wxSize(500, 250));
-    auto* portsMainSizer = new wxBoxSizer(wxVERTICAL);
+    auto* portsSizer = new wxBoxSizer(wxVERTICAL);
+    scrolled->SetSizer(portsSizer);
+    scrolled->SetScrollRate(0, 10);
+    topSizer->Add(scrolled, 1, wxEXPAND | wxLEFT | wxRIGHT, 10);
+    topSizer->Add(dlg.CreateSeparatedButtonSizer(wxOK | wxCANCEL), 0, wxEXPAND | wxALL, 10);
+    dlg.SetSizerAndFit(topSizer);
 
-    struct PortUI { std::string id; PortDirection dir; wxTextCtrl* connCtrl; };
-    std::vector<PortUI> portUIList;
-
-    auto rebuildGatePorts = [&]() {
-        portsMainSizer->Clear(true);
-        portUIList.clear();
-        wxString type = gateChoice->GetStringSelection();
-
-        struct GatePortDef { std::string id; PortDirection dir; };
-        std::vector<GatePortDef> defs;
-
+    // 根据门类型生成端口定义
+    auto getPortDefs = [](const wxString& type) -> std::vector<Port> {
+        std::vector<Port> defs;
         if (type == "buf" || type == "not") {
-            // 1-in -> 2-out
-            defs = { {"Out1", PortDirection::Out}, {"Out2", PortDirection::Out}, {"In1", PortDirection::In} };
+            defs.push_back({ "Out1", PortDirection::Out, "" });
+            defs.push_back({ "Out2", PortDirection::Out, "" });
+            defs.push_back({ "In1", PortDirection::In, "" });
         }
         else {
-            // 2-in -> 1-out
-            defs = { {"Out1", PortDirection::Out}, {"In1", PortDirection::In}, {"In2", PortDirection::In} };
+            defs.push_back({ "Out1", PortDirection::Out, "" });
+            defs.push_back({ "In1", PortDirection::In, "" });
+            defs.push_back({ "In2", PortDirection::In, "" });
         }
-
-        for (const auto& d : defs) {
-            // 1. 分割线 (完全同步前者)
-            wxStaticLine* line = new wxStaticLine(scrolled, wxID_ANY);
-            portsMainSizer->Add(line, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 5);
-
-            // 2. 水平布局行
-            wxBoxSizer* rowSizer = new wxBoxSizer(wxHORIZONTAL);
-
-            // --- 方向 (只读 TextCtrl) ---
-            wxTextCtrl* dirCtrl = new wxTextCtrl(scrolled, wxID_ANY, SigFlowTree::ToString(d.dir));
-            dirCtrl->SetEditable(false);
-            dirCtrl->SetBackgroundColour(scrolled->GetBackgroundColour());
-
-            // --- 端口名 (只读 TextCtrl) ---
-            wxTextCtrl* editName = new wxTextCtrl(scrolled, wxID_ANY, d.id);
-            editName->SetEditable(false);
-            editName->SetBackgroundColour(scrolled->GetBackgroundColour());
-
-            // --- 链接符文本 ---
-            wxStaticText* colon = new wxStaticText(scrolled, wxID_ANY, "connected by");
-            colon->SetForegroundColour(wxColour(120, 120, 120));
-
-            // --- 连接的信号 (淡蓝色可编辑) ---
-            wxTextCtrl* editConn = new wxTextCtrl(scrolled, wxID_ANY, "");
-            editConn->SetHint("Connected Signal");
-            editConn->SetBackgroundColour(wxColour(240, 248, 255)); // 统一淡蓝色
-
-            // 3. 组合行布局 (比例分配严格一致)
-            rowSizer->Add(dirCtrl, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 10);
-            rowSizer->Add(editName, 1, wxEXPAND | wxLEFT, 5);
-            rowSizer->Add(colon, 0, wxALIGN_CENTER_VERTICAL | wxLEFT | wxRIGHT, 5);
-            rowSizer->Add(editConn, 1, wxEXPAND | wxRIGHT, 10);
-
-            portsMainSizer->Add(rowSizer, 0, wxEXPAND | wxTOP | wxBOTTOM, 2);
-            portUIList.push_back({ d.id, d.dir, editConn });
-        }
-
-        scrolled->SetSizer(portsMainSizer);
-        scrolled->FitInside();
-        scrolled->SetScrollRate(0, 10);
-        dlg.Layout();
+        return defs;
         };
 
-    gateChoice->Bind(wxEVT_CHOICE, [&](wxCommandEvent&) { rebuildGatePorts(); });
-    rebuildGatePorts();
+    // 重建函数
+    std::function<void()> rebuild = [&]() {
+        portsSizer->Clear(true);
+        ports = getPortDefs(gateChoice->GetStringSelection());
+        for (size_t i = 0; i < ports.size(); ++i) {
+            wxTextCtrl* connCtrl = nullptr;
+            auto* wrapper = PropertyPanelBuilder::CreateSecondPortRow(scrolled,
+                SigFlowTree::ToString(ports[i].direction),
+                wxString::FromUTF8(ports[i].identifier),
+                wxString::FromUTF8(ports[i].conn),
+                &connCtrl);
+            if (connCtrl) {
+                connCtrl->Bind(wxEVT_TEXT, [&, i](wxCommandEvent& e) {
+                    ports[i].conn = e.GetString().ToStdString();
+                    });
+            }
+            portsSizer->Add(wrapper, 0, wxEXPAND);
+        }
+        scrolled->Layout();
+        scrolled->FitInside();
+        };
 
-    rootSizer->Add(scrolled, 1, wxEXPAND | wxALL, 10);
-    rootSizer->Add(dlg.CreateSeparatedButtonSizer(wxOK | wxCANCEL), 0, wxEXPAND | wxALL, 10);
+    gateChoice->Bind(wxEVT_CHOICE, [&](wxCommandEvent&) { rebuild(); });
+    rebuild();
 
-    dlg.SetSizerAndFit(rootSizer);
     if (dlg.ShowModal() != wxID_OK) return nullptr;
 
-    // --- 数据封装 ---
-    auto* node = new GateInstNode(idCtrl->GetValue().ToStdString(), SigFlowTree::GateTypeFromString(gateChoice->GetStringSelection().ToStdString()));
-
-    for (auto& ui : portUIList) {
-        Port p;
-        p.identifier = ui.id;
-        p.direction = ui.dir;
-        p.conn = ui.connCtrl->GetValue().ToStdString();
-        if(ui.dir == PortDirection::In) node->in_ports.push_back(p);
-        else if (ui.dir == PortDirection::Out) node->out_ports.push_back(p);
+    wxString id = idCtrl->GetValue();
+    if (id.empty()) return nullptr;
+    GateType gt = SigFlowTree::GateTypeFromString(gateChoice->GetStringSelection().ToStdString());
+    auto* node = new GateInstNode(id.ToStdString(), gt);
+    // 根据方向分配 in/out ports
+    for (const auto& p : ports) {
+        if (p.direction == PortDirection::In)
+            node->in_ports.push_back(p);
+        else
+            node->out_ports.push_back(p);
     }
     return node;
 }
@@ -670,153 +561,97 @@ SecondNode* SigFlowTreePanel::CreateContiniousAssignDialog(SigTreeNode* parent) 
     wxDialog dlg(this, wxID_ANY, "Create Continuous Assignment", wxDefaultPosition, wxSize(500, 600),
         wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
 
-    auto* rootSizer = new wxBoxSizer(wxVERTICAL);
+    // 临时数据
+    std::string expr;
+    std::vector<Port> in_ports;
+    std::vector<Port> out_ports = { {"Out1", PortDirection::Out, ""} }; // 默认一个输出
 
-    // --- 临时数据模型 ---
-    std::string idVal = "assign0";
-    std::string exprVal = "";
-    std::vector<Port> in_tempPorts;
-    std::vector<Port> out_tempPorts;
-    // 默认添加一个输出端口
-    out_tempPorts.push_back({ "Out1", PortDirection::Out, "" });
+    auto* topSizer = new wxBoxSizer(wxVERTICAL);
 
-    // --- 1. 表单区域 (Identifier & Expression) ---
-    auto* formPanel = new wxPanel(&dlg);
-    auto* formSizer = new wxFlexGridSizer(2, 10, 10);
-    formSizer->AddGrowableCol(1);
+    // 表达式行
+    wxTextCtrl* exprCtrl = nullptr;
+    topSizer->Add(PropertyPanelBuilder::CreateEditableTextRow(&dlg, "Expression:", expr, &exprCtrl),
+        0, wxEXPAND | wxALL, 10);
+    if (exprCtrl) {
+        exprCtrl->Bind(wxEVT_TEXT, [&](wxCommandEvent& e) { expr = e.GetString().ToStdString(); });
+    }
 
-    // Expression
-    formSizer->Add(new wxStaticText(formPanel, wxID_ANY, "Expression:"), 0, wxALIGN_CENTER_VERTICAL);
-    auto* exprCtrl = new wxTextCtrl(formPanel, wxID_ANY, exprVal, wxDefaultPosition, wxDefaultSize, wxTE_PROCESS_ENTER);
-    exprCtrl->SetHint("e.g. In1 & In2");
-    formSizer->Add(exprCtrl, 1, wxEXPAND);
+    // 滚动窗口用于端口
+    auto* scrolled = new wxScrolledWindow(&dlg, wxID_ANY, wxDefaultPosition, wxSize(-1, 300));
+    auto* portsSizer = new wxBoxSizer(wxVERTICAL);
+    scrolled->SetSizer(portsSizer);
+    scrolled->SetScrollRate(0, 10);
+    topSizer->Add(scrolled, 1, wxEXPAND | wxLEFT | wxRIGHT, 10);
 
-    formPanel->SetSizer(formSizer);
-    rootSizer->Add(formPanel, 0, wxEXPAND | wxALL, 15);
+    // 添加/删除端口按钮
+    auto* btnSizer = new wxBoxSizer(wxHORIZONTAL);
+    auto* addBtn = PropertyPanelBuilder::CreateButton(&dlg, "+ Add Port", wxColour(0, 120, 215));
+    auto* delBtn = PropertyPanelBuilder::CreateButton(&dlg, "- Delete Port", wxColour(200, 0, 0));
+    btnSizer->Add(addBtn, 0, wxRIGHT, 10);
+    btnSizer->Add(delBtn, 0);
+    topSizer->Add(btnSizer, 0, wxALIGN_CENTER_HORIZONTAL | wxTOP | wxBOTTOM, 10);
+    topSizer->Add(dlg.CreateSeparatedButtonSizer(wxOK | wxCANCEL), 0, wxEXPAND | wxALL, 10);
+    dlg.SetSizerAndFit(topSizer);
 
-
-    auto* scrolled = new wxScrolledWindow(&dlg, wxID_ANY, wxDefaultPosition, wxSize(-1, 300), wxVSCROLL);
-    auto* portsMainSizer = new wxBoxSizer(wxVERTICAL);
-    scrolled->SetSizer(portsMainSizer);
-    scrolled->SetScrollRate(0, 20);
-    rootSizer->Add(scrolled, 1, wxEXPAND | wxALL, 10);
-
-    // --- 3. 动态刷新 Ports 的 Lambda (参考 AddPortContinuousAssign 逻辑) ---
-    auto rebuildPortsUI = [&]() {
-        portsMainSizer->Clear(true);
-        for (auto& p : out_tempPorts) {
-            auto* itemWrapper = new wxBoxSizer(wxVERTICAL);
-            auto* contentRow = new wxBoxSizer(wxHORIZONTAL);
-
-            auto* dirC = new wxTextCtrl(scrolled, wxID_ANY, SigFlowTree::ToString(p.direction));
-            dirC->SetEditable(false);
-            dirC->SetBackgroundColour(scrolled->GetBackgroundColour());
-
-            auto* editName = new wxTextCtrl(scrolled, wxID_ANY, p.identifier);
-            editName->SetEditable(false);
-            editName->SetBackgroundColour(scrolled->GetBackgroundColour());
-
-            auto* colon = new wxStaticText(scrolled, wxID_ANY, "connected by");
-            colon->SetForegroundColour(wxColour(120, 120, 120));
-
-            // 注意：对话框内实时更新 tempPorts 数据
-            auto* editConn = new wxTextCtrl(scrolled, wxID_ANY, p.conn);
-            editConn->SetHint("Connected Signal");
-            editConn->SetBackgroundColour(wxColour(240, 248, 255));
-
-            // 绑定实时更新到 tempPorts
-            editConn->Bind(wxEVT_TEXT, [&](wxCommandEvent& e) {
-                // 通过指针查找对应的 p 可能不安全（vector 扩容），这里用 item index 绑定更稳
-                // 但简便起见，对话框内可以用这种方式更新
-                p.conn = e.GetString().ToStdString();
-                });
-
-            contentRow->Add(dirC, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 10);
-            contentRow->Add(editName, 1, wxALIGN_CENTER_VERTICAL | wxLEFT, 5);
-            contentRow->Add(colon, 0, wxALIGN_CENTER_VERTICAL | wxLEFT | wxRIGHT, 5);
-            contentRow->Add(editConn, 1, wxALIGN_CENTER_VERTICAL | wxRIGHT, 10);
-
-            itemWrapper->Add(contentRow, 0, wxEXPAND | wxTOP | wxBOTTOM, 5);
-            itemWrapper->Add(new wxStaticLine(scrolled, wxID_ANY), 0, wxEXPAND | wxLEFT | wxRIGHT, 5);
-            portsMainSizer->Add(itemWrapper, 0, wxEXPAND);
+    // 重建函数
+    std::function<void()> rebuild = [&]() {
+        portsSizer->Clear(true);
+        // 输出端口
+        for (size_t i = 0; i < out_ports.size(); ++i) {
+            wxTextCtrl* connCtrl = nullptr;
+            auto* wrapper = PropertyPanelBuilder::CreateSecondPortRow(scrolled,
+                SigFlowTree::ToString(out_ports[i].direction),
+                wxString::FromUTF8(out_ports[i].identifier),
+                wxString::FromUTF8(out_ports[i].conn),
+                &connCtrl);
+            if (connCtrl) {
+                connCtrl->Bind(wxEVT_TEXT, [&, i](wxCommandEvent& e) {
+                    out_ports[i].conn = e.GetString().ToStdString();
+                    });
+            }
+            portsSizer->Add(wrapper, 0, wxEXPAND);
         }
-        for (auto& p : in_tempPorts) {
-            auto* itemWrapper = new wxBoxSizer(wxVERTICAL);
-            auto* contentRow = new wxBoxSizer(wxHORIZONTAL);
-
-            auto* dirC = new wxTextCtrl(scrolled, wxID_ANY, SigFlowTree::ToString(p.direction));
-            dirC->SetEditable(false);
-            dirC->SetBackgroundColour(scrolled->GetBackgroundColour());
-
-            auto* editName = new wxTextCtrl(scrolled, wxID_ANY, p.identifier);
-            editName->SetEditable(false);
-            editName->SetBackgroundColour(scrolled->GetBackgroundColour());
-
-            auto* colon = new wxStaticText(scrolled, wxID_ANY, "connected by");
-            colon->SetForegroundColour(wxColour(120, 120, 120));
-
-            // 注意：对话框内实时更新 tempPorts 数据
-            auto* editConn = new wxTextCtrl(scrolled, wxID_ANY, p.conn);
-            editConn->SetHint("Connected Signal");
-            editConn->SetBackgroundColour(wxColour(240, 248, 255));
-
-            // 绑定实时更新到 tempPorts
-            editConn->Bind(wxEVT_TEXT, [&](wxCommandEvent& e) {
-                // 通过指针查找对应的 p 可能不安全（vector 扩容），这里用 item index 绑定更稳
-                // 但简便起见，对话框内可以用这种方式更新
-                p.conn = e.GetString().ToStdString();
-                });
-
-            contentRow->Add(dirC, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 10);
-            contentRow->Add(editName, 1, wxALIGN_CENTER_VERTICAL | wxLEFT, 5);
-            contentRow->Add(colon, 0, wxALIGN_CENTER_VERTICAL | wxLEFT | wxRIGHT, 5);
-            contentRow->Add(editConn, 1, wxALIGN_CENTER_VERTICAL | wxRIGHT, 10);
-
-            itemWrapper->Add(contentRow, 0, wxEXPAND | wxTOP | wxBOTTOM, 5);
-            itemWrapper->Add(new wxStaticLine(scrolled, wxID_ANY), 0, wxEXPAND | wxLEFT | wxRIGHT, 5);
-            portsMainSizer->Add(itemWrapper, 0, wxEXPAND);
+        // 输入端口
+        for (size_t i = 0; i < in_ports.size(); ++i) {
+            wxTextCtrl* connCtrl = nullptr;
+            auto* wrapper = PropertyPanelBuilder::CreateSecondPortRow(scrolled,
+                SigFlowTree::ToString(in_ports[i].direction),
+                wxString::FromUTF8(in_ports[i].identifier),
+                wxString::FromUTF8(in_ports[i].conn),
+                &connCtrl);
+            if (connCtrl) {
+                connCtrl->Bind(wxEVT_TEXT, [&, i](wxCommandEvent& e) {
+                    in_ports[i].conn = e.GetString().ToStdString();
+                    });
+            }
+            portsSizer->Add(wrapper, 0, wxEXPAND);
         }
         scrolled->Layout();
         scrolled->FitInside();
         };
 
-    rebuildPortsUI();
-
-    // --- 4. 增删按钮组 ---
-    auto* btnSizer = new wxBoxSizer(wxHORIZONTAL);
-    auto* addBtn = new wxButton(&dlg, wxID_ANY, "+ Add Port");
-    auto* delBtn = new wxButton(&dlg, wxID_ANY, "- Delete Port");
-    delBtn->SetForegroundColour(wxColour(200, 0, 0));
-
     addBtn->Bind(wxEVT_BUTTON, [&](wxCommandEvent&) {
         Port p;
+        p.identifier = "In" + std::to_string(in_ports.size() + 1);
         p.direction = PortDirection::In;
-        p.identifier = "In" + std::to_string(in_tempPorts.size()); // 简易编号
-        in_tempPorts.push_back(p);
-        rebuildPortsUI();
+        in_ports.push_back(p);
+        rebuild();
         });
 
     delBtn->Bind(wxEVT_BUTTON, [&](wxCommandEvent&) {
-        if (in_tempPorts.size() > 0) {
-            in_tempPorts.pop_back();
-            rebuildPortsUI();
+        if (!in_ports.empty()) {
+            in_ports.pop_back();
+            rebuild();
         }
         });
 
-    btnSizer->Add(addBtn, 0, wxRIGHT, 10);
-    btnSizer->Add(delBtn, 0);
-    rootSizer->Add(btnSizer, 0, wxALIGN_CENTER_HORIZONTAL | wxBOTTOM, 10);
+    rebuild(); // 初始显示
 
-    // --- 5. 标准对话框按钮 ---
-    rootSizer->Add(dlg.CreateSeparatedButtonSizer(wxOK | wxCANCEL), 0, wxEXPAND | wxALL, 10);
-
-    dlg.SetSizer(rootSizer);
     if (dlg.ShowModal() != wxID_OK) return nullptr;
 
-    // --- 构造最终节点 ---
-    auto* node = new ContinuousAssignNode(out_tempPorts[0].identifier, exprCtrl->GetValue().ToStdString());
-    node->in_ports = in_tempPorts;
-    node->out_ports = out_tempPorts;
-
+    wxString id = out_ports[0].identifier; // 或者从 exprCtrl 派生？原代码是用 out_ports[0].identifier 作为 id？实际上 ContinuousAssignNode 构造函数接受 id 和 raw_assign，这里我们用 out_ports[0].identifier 作为 id，expr 作为 raw_assign。
+    auto* node = new ContinuousAssignNode(id.ToStdString(), expr);
+    node->in_ports = in_ports;
+    node->out_ports = out_ports;
     return node;
 }

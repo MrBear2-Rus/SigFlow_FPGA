@@ -24,6 +24,7 @@ class ToolBars;
 class CanvasNoteBook;
 class HandyToolKit;
 class ToolboxPanel;
+class Structuring;
 
 wxDECLARE_EVENT(EVT_SFTREE_NODE_ACTIVATED, wxCommandEvent);
 
@@ -48,13 +49,15 @@ private:
     TerminalCtrl* m_terminalCtrl;
 
     PluginManager* m_pluginMgr;
+
+    Structuring* m_structuring;
+    wxTimer*     m_textTimer;
+
     void RefreshTitle();
     // 声明事件处理函数
     void OnAnalysisComplete(wxThreadEvent& event);
-
-    wxTimer* m_refreshTimer;
-    void OnRefreshTimer(wxTimerEvent& event);
-    std::string m_lastProcessedCode; // 用于对比，避免没改动也分析
+    void OnStcModified(wxStyledTextEvent& event);
+    void OnAnalysisTimer(wxTimerEvent&);
 
 private:
     bool SaveToFile(const wxString& filePath);

@@ -1,4 +1,4 @@
-﻿#include <wx/msgdlg.h>
+#include <wx/msgdlg.h>
 #include <wx/filename.h> 
 #include <wx/sstream.h>
 #include <wx/aui/aui.h>
@@ -15,6 +15,7 @@
 #include "CanvasModel.h"
 #include "my_log.h"
 #include "CanvasNoteBook.h"
+#include "VerilogStructuring.h"
 
 extern std::vector<SecondElement> g_elements;
 
@@ -59,8 +60,7 @@ MainFrame::MainFrame()
     m_sigFlowTreePanel(nullptr),
     m_sfnPropertyPanel(nullptr),
     m_terminalCtrl(nullptr),
-    m_pluginMgr(nullptr),
-    m_refreshTimer(nullptr)
+    m_pluginMgr(nullptr)
 {
     // 图标
     wxInitAllImageHandlers();
@@ -80,10 +80,6 @@ MainFrame::MainFrame()
 
     Bind(wxEVT_CLOSE_WINDOW, &MainFrame::OnClose, this);
     
-    // 计时器
-    m_refreshTimer = new wxTimer(this, 100000);
-    this->Bind(wxEVT_TIMER, &MainFrame::OnRefreshTimer, this, 100000);
-    m_refreshTimer->Start(1000);
 
     // 构造SigTree
     sigTree = new SigFlowTree(this);
@@ -102,6 +98,10 @@ MainFrame::MainFrame()
     GetStatusBar()->SetFieldsCount(4, widths);
     GetStatusBar()->SetStatusStyles(4, style);
 
+    m_structuring = new Structuring();
+    m_textTimer = new wxTimer();
+    m_textTimer->Bind(wxEVT_TIMER, &MainFrame::OnAnalysisTimer, this);
+
     // 画布
     m_canvas = new CanvasNoteBook(this, sigTree, wxID_ANY, FromDIP(1123), FromDIP(794));
 
@@ -116,6 +116,15 @@ MainFrame::MainFrame()
 
     // 文本编辑面板
     m_verilogEditor = new SigTextEditor(this);
+    m_verilogEditor->SetModEventMask(
+        wxSTC_MOD_INSERTTEXT |
+        wxSTC_MOD_DELETETEXT
+    );
+    m_verilogEditor->Bind(
+        wxEVT_STC_MODIFIED,
+        &MainFrame::OnStcModified,
+        this
+    );
 
     // 异步IDE分析
     m_analysisCenter = new AsyncAnalysisCenter(this);
@@ -152,10 +161,6 @@ MainFrame::MainFrame()
     sideBar->SetArtProvider(new MyCustomToolBarArt());
 
 
-    // 插件加载
-
-    //m_pluginMgr = new PluginManager();
-    //m_pluginMgr->LoadPlugins("./plugins");
     // 插件加载
     m_pluginMgr = new PluginManager();
 
@@ -388,8 +393,6 @@ MainFrame::MainFrame()
 
 MainFrame::~MainFrame()
 {
-    m_refreshTimer->Stop();
-    delete m_refreshTimer;
     m_auiMgr.UnInit(); 
 
     m_verilogEditor = nullptr;
@@ -1380,49 +1383,77 @@ wxString MainFrame::GetWorkspaceCopyPath(const wxString& m_currentFilePath) {
     return wxEmptyString; // 如果不在项目内，返回空
 }
 
-
-
-
-
-void MainFrame::OnRefreshTimer(wxTimerEvent& event) {
-    if (!m_verilogEditor)          // 如果编辑器已销毁，直接返回
-        return;
-    if (m_verilogEditor->GetModify() && snap_version != m_verilogEditor->GetSnapVersion()) {
-        snap_version = m_verilogEditor->GetSnapVersion();
-        wxString fullPath = m_verilogEditor->GetCurrentPath();
-        wxFileName fn1(fullPath);
-        wxString ext = fn1.GetExt().Lower(); // 获取后缀并转换为小写，防止 .V 或 .SV 识别失败
-
-        bool is_verilog = (ext == "v" || ext == "sv" || ext == "vh" || ext == "svh");
-        if (!is_verilog) return;
-
-        // 1. 获取最新代码内容
-        wxString currentCode = m_verilogEditor->GetText();
-        StructeredPackage sp = VerilogStructuring(currentCode.ToStdString());
-
-        // 2. [优化] 只有内容真正改变才推送，避免仅光标移动触发分析
-        // if (currentCode == m_lastCode) return; 
-
-        wxString cachePath = GetWorkspaceCopyPath(fullPath);
-
-        wxFile file(cachePath, wxFile::write);
-        // 4. 保存快照：这里建议用 WriteStringToFile 避免干扰 STC 的撤销栈
-        if (file.IsOpened()) {
-            if (file.Write(sp.stable_code)) {
-                file.Close();
-
-                // 处理WorkSpace文件
-            }
-        }
-    }
-}
-
 void MainFrame::OnAnalysisComplete(wxThreadEvent& event) {
     AnalysisResult result = event.GetPayload<AnalysisResult>();
 
 
     if (result.linted) m_verilogEditor->VisualFeedBack(result.lint);
     //if (result.parsed) m_canvas->
+}
+
+void MainFrame::OnStcModified(wxStyledTextEvent& event)
+{
+    if (m_verilogEditor->m_isLoading) return;
+    int type = event.GetModificationType();
+    int pos = event.GetPosition();
+    int len = event.GetLength();
+    wxString text = event.GetText();
+
+    if (type & wxSTC_MOD_INSERTTEXT)
+    {
+        m_structuring->OnInsert(pos, text.ToStdString());
+    }
+
+    if (type & wxSTC_MOD_DELETETEXT)
+    {
+        m_structuring->OnDelete(pos, len);
+    }
+
+    // 启动或重置定时器（例如 300ms）
+    m_textTimer->StartOnce(300);
+}
+
+void MainFrame::OnAnalysisTimer(wxTimerEvent&)
+{
+    if (m_structuring->IsEmpty())
+        return;
+
+    int L = m_structuring->Start();
+    int R = m_structuring->End();
+
+    wxString delta = m_verilogEditor->GetTextRange(L, R);
+    wxString stable = m_verilogEditor->GetTextRange(0, L) + m_verilogEditor->GetTextRange(R, m_verilogEditor->GetLength());
+
+    wxLogDebug("delta:\n" + delta + "\n");
+    wxLogDebug("stable:\n" + stable);
+
+    /*
+    if (delta.StartsWith("module")) {
+        // 如果已经是以 module 开头，可以不做处理或执行其他逻辑
+    }
+    else {
+        // 只有不以 module 开头时，才包裹模板
+        delta = "module _tmp;\n" + delta + "\nendmodule\n";
+    }*/
+    delta = "module _tmp;\n" + delta + "\nendmodule\n";
+    
+
+    AnaPac ap  = StructuringX(delta.ToStdString());
+    if (!ap.has_error) {
+        m_structuring->Clear();
+        TSTreeCursor cursor = ts_tree_cursor_new(ap.node);
+        std::string fp = m_verilogEditor->m_currentFilePath.ToStdString
+            ();
+        std::string code = delta.ToStdString();
+        sigTree->UpdateTreeFromTS(&cursor, sigTree->GetFileNode(fp)->GetChildren()[0], fp, code);
+
+
+
+    }
+    // 交给分析模块
+    //AnalyzeDelta(L, delta.ToStdString());
+
+    //m_structuring.Clear();
 }
 
 

@@ -18,8 +18,29 @@ StructeredPackage VerilogStructuring(const std::string& code) {
     TreeSitterLinter TSLinter;
 
     sp.TSRes = TSLinter.Lint(code);
-    std::vector<int> stable_lines = GetStableLines(sp.TSRes);
-    sp.stable_code = get_stable_code(code, stable_lines);
+    sp.stable_lines = GetStableLines(sp.TSRes);
+    sp.stable_code = get_stable_code(code, sp.stable_lines);
+    sp.is_ts_success = true;
+    for (auto b : sp.TSRes) {
+        if (b.stability != Stability::Stable) sp.is_ts_success = false;
+    }
+    return sp;
+}
+
+bool StructureTest(const std::string& code) {
+    TreeSitterLinter TSLinter;
+    return TSLinter.TSTest(code);
+}
+
+AnaPac StructuringX(const std::string& code) {
+    AnaPac sp;
+    TreeSitterLinter TSLinter;
+    std::tie(sp.node, sp.has_error) = TSLinter.GetStructNode(code);
+    if (sp.node.tree) {
+    }
+    else {
+        sp.has_error = true;
+    }
 
     return sp;
 }

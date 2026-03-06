@@ -34,7 +34,7 @@ std::vector<BlockInfo> TreeSitterLinter::Lint(wxString code) {
     //tree = new_tree;
     TSNode root_node = ts_tree_root_node(new_tree);
     int id_count = 1;
-    //DumpTree(root_node, code);
+    DumpTree(root_node, code);
     TraverseNode(root_node, code, res, id_count);
 
     std::sort(res.begin(), res.end(), [](const BlockInfo& a, const BlockInfo& b) {
@@ -44,6 +44,30 @@ std::vector<BlockInfo> TreeSitterLinter::Lint(wxString code) {
     return res;
 }
 
+bool TreeSitterLinter::TSTest(wxString code) {
+
+
+    TSTree* new_tree = ts_parser_parse_string(parser, nullptr, code.c_str(), code.length());
+
+    TSNode root_node = ts_tree_root_node(new_tree);
+    DumpTree(root_node, code);
+    bool test = ts_node_has_error(root_node);
+    ts_tree_delete(new_tree);
+
+    return !test;
+}
+
+    std::tuple<TSNode, bool> TreeSitterLinter::GetStructNode(wxString code) {
+        TSTree* new_tree = ts_parser_parse_string(parser, nullptr, code.c_str(), code.length());
+        
+        TSNode root_node = ts_tree_root_node(new_tree);
+        bool x = ts_node_has_error(root_node);
+        //DumpTree(root_node, code);
+        TSNode decl = ts_node_named_child(root_node, 0);
+        TSNode item = ts_node_named_child(decl, 1);
+        //DumpTree(item, code);
+        return std::make_tuple(root_node, x);
+    }
 
 
 std::vector<BlockInfo> TreeSitterLinter::LintFromPath(wxString filePath) {
