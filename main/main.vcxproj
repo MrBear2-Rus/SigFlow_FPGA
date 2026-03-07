@@ -74,6 +74,8 @@
     <ClInclude Include="SigFlowTreePanel.h" />
     <ClInclude Include="SigTextEditor.h" />
     <ClInclude Include="SigTree.h" />
+    <ClInclude Include="Statement.h" />
+    <ClInclude Include="StatementSequence.h" />
     <ClInclude Include="TerminalController.h" />
     <ClInclude Include="TerminalCtrl.h" />
     <ClInclude Include="ToolboxModel.h" />

@@ -2,13 +2,12 @@
 #include "PropertyPanelBuilder.h"
 #include <wx/statline.h>
 
-SigFlowTreePanel::SigFlowTreePanel(wxWindow* parent,SigFlowTree* sfTree)
+SigFlowTreePanel::SigFlowTreePanel(wxWindow* parent, SigFlowTree* sfTree)
     : wxPanel(parent) {
     this->sfTree = sfTree;
     tree = new wxTreeCtrl(this, wxID_ANY,
         wxDefaultPosition, wxDefaultSize,
         wxTR_DEFAULT_STYLE | wxTR_HAS_BUTTONS | wxTR_LINES_AT_ROOT);
-
 
     addBtn = new wxButton(this, wxID_ANY, "Add Node");
     delBtn = new wxButton(this, wxID_ANY, "Delete Node");
@@ -34,7 +33,7 @@ void SigFlowTreePanel::BuildBranch(wxTreeItemId uiParent, SigTreeNode* logicPare
     for (auto* child : logicParent->GetChildren()) {
         wxTreeItemId uiChild = tree->AppendItem(
             uiParent,
-            child->GetName(), // 自动根据类型返回正确的名字
+            child->GetName(),
             -1, -1,
             new SigTreeItemData(child)
         );
@@ -53,7 +52,6 @@ void SigFlowTreePanel::BuildBranch(wxTreeItemId uiParent, SigTreeNode* logicPare
         else {
             tree->Expand(uiChild);
         }
-        
     }
 }
 
@@ -61,27 +59,18 @@ void SigFlowTreePanel::OnItemActivated(wxTreeEvent& event) {
     wxTreeItemId id = event.GetItem();
     if (!id.IsOk()) return;
 
-    // 1. 提取绑定的数据
     SigTreeItemData* data = static_cast<SigTreeItemData*>(tree->GetItemData(id));
     if (data && data->node) {
-        // 2. 包装并向上传递
         wxCommandEvent evt(EVT_SFTREE_NODE_ACTIVATED, GetId());
-
-        // 将指针存入 ClientData (注意：CommandEvent 只能存 void*)
         evt.SetClientData(static_cast<void*>(data->node));
-
-        // 向上传播
         GetParent()->ProcessWindowEvent(evt);
-        
     }
 }
 
 void SigFlowTreePanel::Fresh() {
     if (!tree) return;
 
-
-
-    tree->Freeze(); // 防止频繁重绘闪烁
+    tree->Freeze();
     tree->DeleteAllItems();
 
     if (!sfTree || !sfTree->root) {
@@ -95,7 +84,6 @@ void SigFlowTreePanel::Fresh() {
     wxString rootLabel;
     if (sfTree->root->type == SigTreeNodeType::Project) {
         auto proj = static_cast<ProjectNode*>(sfTree->root);
-        // 提取文件名作为显示名称，或者直接显示路径
         rootLabel = wxString::FromUTF8(proj->projectPath);
     }
     else {
@@ -132,23 +120,19 @@ void SigFlowTreePanel::OnAdd(wxCommandEvent&) {
     wxMenuItem* addAssign = menu.Append(1006, "Add Assignment");
     wxMenuItem* addAlways = menu.Append(1007, "Add Always Block");
 
-    // -------- 根据上下文启用 / 禁用 --------
     bool isFile = parent->type == SigTreeNodeType::File;
     bool isTop = parent->type == SigTreeNodeType::Top;
-    bool isSec = parent->type == SigTreeNodeType::Second;
     addModule->Enable(isFile);
-
     addWire->Enable(isTop);
-    addReg->Enable(isTop );
-    addInst->Enable(isTop );
-    addGate->Enable(isTop );
-    addAssign->Enable(isTop );
+    addReg->Enable(isTop);
+    addInst->Enable(isTop);
+    addGate->Enable(isTop);
+    addAssign->Enable(isTop);
     addAlways->Enable(isTop);
 
     menu.Bind(wxEVT_MENU, &SigFlowTreePanel::OnAddMenu, this);
     addBtn->PopupMenu(&menu, 0, addBtn->GetSize().y);
 }
-
 
 void SigFlowTreePanel::OnAddMenu(wxCommandEvent& e) {
     wxTreeItemId sel = tree->GetSelection();
@@ -162,38 +146,37 @@ void SigFlowTreePanel::OnAddMenu(wxCommandEvent& e) {
     std::unique_ptr<SigTreeNode> newNode;
 
     switch (e.GetId()) {
-    case 1001: // Add Module
+    case 1001:
         newNode.reset(ShowCreateTopDialog(TopNodeType::Module, parent));
         break;
-    case 1002: // Add Wire
+    case 1002:
         newNode.reset(ShowCreateSignalDialog(SignalType::Wire, parent));
         break;
-    case 1003: // Add Reg
+    case 1003:
         newNode.reset(ShowCreateSignalDialog(SignalType::Reg, parent));
         break;
-    case 1004: // Add Module Instance
+    case 1004:
         newNode.reset(ShowCreateSecondDialog(SecondNodeType::ModuleInstance, parent));
         break;
-    case 1005: // Add Gate
+    case 1005:
         newNode.reset(ShowCreateSecondDialog(SecondNodeType::GateInstance, parent));
         break;
-    case 1006: // Add Assignment
+    case 1006:
         newNode.reset(ShowCreateSecondDialog(SecondNodeType::ContinuousAssign, parent));
         break;
-    case 1007: // Add Always
+    case 1007:
         newNode.reset(ShowCreateSecondDialog(SecondNodeType::Always, parent));
         break;
     default:
         return;
     }
 
-    if (!newNode) return; // 用户点了 Cancel
+    if (!newNode) return;
 
     sfTree->AddChild(parent, newNode.get());
 
     Fresh();
 }
-
 
 void SigFlowTreePanel::OnDelete(wxCommandEvent&) {
     wxTreeItemId sel = tree->GetSelection();
@@ -203,37 +186,32 @@ void SigFlowTreePanel::OnDelete(wxCommandEvent&) {
     if (!data || !data->node) return;
 
     SigTreeNode* node = data->node;
-    if (!node->GetParent()) return; // 不允许删 root
+    if (!node->GetParent()) return;
 
-    // ---- 修改模型 ----
     sfTree->RemoveChild(node->GetParent(), node);
 
-    // ---- 同步刷新 ----
     Fresh();
-
 }
+
+// ==================== 对话框实现 ====================
 
 TopNode* SigFlowTreePanel::ShowCreateTopDialog(TopNodeType type, SigTreeNode* parent) {
     wxDialog dlg(this, wxID_ANY, "Create Module", wxDefaultPosition, wxDefaultSize,
         wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
 
-    // 临时数据
     std::vector<Port> in_ports, out_ports;
 
-    // 标识符行
     wxTextCtrl* idCtrl = nullptr;
     auto* topSizer = new wxBoxSizer(wxVERTICAL);
     topSizer->Add(PropertyPanelBuilder::CreateIdentifierRow(&dlg, "Identifier:", "module_name", &idCtrl),
         0, wxEXPAND | wxALL, 10);
 
-    // 滚动窗口用于端口列表
     auto* scrolled = new wxScrolledWindow(&dlg, wxID_ANY, wxDefaultPosition, wxSize(400, 250));
     auto* portsSizer = new wxBoxSizer(wxVERTICAL);
     scrolled->SetSizer(portsSizer);
     scrolled->SetScrollRate(0, 10);
     topSizer->Add(scrolled, 1, wxEXPAND | wxLEFT | wxRIGHT, 10);
 
-    // 添加端口按钮
     auto* btnSizer = new wxBoxSizer(wxHORIZONTAL);
     auto* addInBtn = PropertyPanelBuilder::CreateButton(&dlg, "+ Add In", wxColour(0, 120, 215));
     auto* addOutBtn = PropertyPanelBuilder::CreateButton(&dlg, "+ Add Out", wxColour(0, 120, 215));
@@ -241,14 +219,11 @@ TopNode* SigFlowTreePanel::ShowCreateTopDialog(TopNodeType type, SigTreeNode* pa
     btnSizer->Add(addOutBtn, 0);
     topSizer->Add(btnSizer, 0, wxALIGN_CENTER_HORIZONTAL | wxTOP | wxBOTTOM, 10);
 
-    // 标准按钮
     topSizer->Add(dlg.CreateSeparatedButtonSizer(wxOK | wxCANCEL), 0, wxEXPAND | wxALL, 10);
     dlg.SetSizerAndFit(topSizer);
 
-    // 重建函数
     std::function<void()> rebuild = [&]() {
         portsSizer->Clear(true);
-        // 输入端口
         for (size_t i = 0; i < in_ports.size(); ++i) {
             wxTextCtrl* nameCtrl = nullptr;
             wxButton* delBtn = nullptr;
@@ -267,7 +242,6 @@ TopNode* SigFlowTreePanel::ShowCreateTopDialog(TopNodeType type, SigTreeNode* pa
             }
             portsSizer->Add(rowWrapper, 0, wxEXPAND);
         }
-        // 输出端口
         for (size_t i = 0; i < out_ports.size(); ++i) {
             wxTextCtrl* nameCtrl = nullptr;
             wxButton* delBtn = nullptr;
@@ -290,7 +264,6 @@ TopNode* SigFlowTreePanel::ShowCreateTopDialog(TopNodeType type, SigTreeNode* pa
         scrolled->FitInside();
         };
 
-    // 添加端口按钮事件
     addInBtn->Bind(wxEVT_BUTTON, [&](wxCommandEvent&) {
         Port p;
         p.identifier = "in" + std::to_string(in_ports.size() + 1);
@@ -306,7 +279,6 @@ TopNode* SigFlowTreePanel::ShowCreateTopDialog(TopNodeType type, SigTreeNode* pa
         rebuild();
         });
 
-    // 初始添加一个示例端口（可选）
     if (in_ports.empty() && out_ports.empty()) {
         in_ports.push_back({ "in1", PortDirection::In });
         out_ports.push_back({ "out1", PortDirection::Out });
@@ -344,15 +316,14 @@ SignalNode* SigFlowTreePanel::ShowCreateSignalDialog(SignalType type, SigTreeNod
 
 SecondNode* SigFlowTreePanel::ShowCreateSecondDialog(SecondNodeType type, SigTreeNode* parent) {
     switch (type) {
-    case SecondNodeType::ModuleInstance:{
+    case SecondNodeType::ModuleInstance:
         return CreateModuleInstDialog(parent);
-    }
-    case SecondNodeType::GateInstance: {
+    case SecondNodeType::GateInstance:
         return CreateGateInstDialog(parent);
-    }
-    case SecondNodeType::ContinuousAssign:{
+    case SecondNodeType::ContinuousAssign:
         return CreateContiniousAssignDialog(parent);
-     }
+    default:
+        return nullptr;
     }
 }
 
@@ -360,12 +331,10 @@ SecondNode* SigFlowTreePanel::CreateModuleInstDialog(SigTreeNode* parent) {
     wxDialog dlg(this, wxID_ANY, "Instantiate Module", wxDefaultPosition, wxDefaultSize,
         wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
 
-    // 获取所有可实例化的模块定义（排除当前模块自身）
     wxArrayString defNames;
     std::vector<TopNode*> defPointers;
     for (auto const& [name, defPtr] : sfTree->DefinitionTable) {
         if (defPtr->topType == TopNodeType::Module) {
-            // 如果是当前模块内部，通常不能实例化自身，但可根据需求调整
             TopNode* tn = dynamic_cast<TopNode*>(parent);
             if (!tn || name != tn->identifier) {
                 defNames.Add(name);
@@ -378,10 +347,8 @@ SecondNode* SigFlowTreePanel::CreateModuleInstDialog(SigTreeNode* parent) {
         return nullptr;
     }
 
-    // 临时数据
     std::vector<Port> in_ports, out_ports;
 
-    // 顶部标识符和定义选择
     wxTextCtrl* idCtrl = nullptr;
     wxChoice* defChoice = nullptr;
     auto* topSizer = new wxBoxSizer(wxVERTICAL);
@@ -393,7 +360,6 @@ SecondNode* SigFlowTreePanel::CreateModuleInstDialog(SigTreeNode* parent) {
     gridSizer->Add(PropertyPanelBuilder::CreateChoiceRow(&dlg, "", defNames, 0, &defChoice), 1, wxEXPAND);
     topSizer->Add(gridSizer, 0, wxEXPAND | wxALL, 10);
 
-    // 滚动窗口用于端口列表
     auto* scrolled = new wxScrolledWindow(&dlg, wxID_ANY, wxDefaultPosition, wxSize(500, 300));
     auto* portsSizer = new wxBoxSizer(wxVERTICAL);
     scrolled->SetSizer(portsSizer);
@@ -402,14 +368,12 @@ SecondNode* SigFlowTreePanel::CreateModuleInstDialog(SigTreeNode* parent) {
     topSizer->Add(dlg.CreateSeparatedButtonSizer(wxOK | wxCANCEL), 0, wxEXPAND | wxALL, 10);
     dlg.SetSizerAndFit(topSizer);
 
-    // 重建函数
     std::function<void(int)> rebuild = [&](int sel) {
         portsSizer->Clear(true);
         in_ports.clear();
         out_ports.clear();
         TopNode* def = defPointers[sel];
 
-        // 从定义复制端口，conn 初始为空
         for (const auto& p : def->GetInPorts()) {
             in_ports.push_back({ p.identifier, p.direction, "" });
         }
@@ -417,7 +381,6 @@ SecondNode* SigFlowTreePanel::CreateModuleInstDialog(SigTreeNode* parent) {
             out_ports.push_back({ p.identifier, p.direction, "" });
         }
 
-        // 创建输入端口行
         for (size_t i = 0; i < in_ports.size(); ++i) {
             wxTextCtrl* connCtrl = nullptr;
             auto* wrapper = PropertyPanelBuilder::CreateSecondPortRow(scrolled,
@@ -432,7 +395,6 @@ SecondNode* SigFlowTreePanel::CreateModuleInstDialog(SigTreeNode* parent) {
             }
             portsSizer->Add(wrapper, 0, wxEXPAND);
         }
-        // 创建输出端口行
         for (size_t i = 0; i < out_ports.size(); ++i) {
             wxTextCtrl* connCtrl = nullptr;
             auto* wrapper = PropertyPanelBuilder::CreateSecondPortRow(scrolled,
@@ -465,7 +427,6 @@ SecondNode* SigFlowTreePanel::CreateModuleInstDialog(SigTreeNode* parent) {
     auto* node = new ModuleInstNode(id.ToStdString(), defName.ToStdString());
     node->in_ports = in_ports;
     node->out_ports = out_ports;
-    // 后续在 AddChild 时会自动链接定义
     return node;
 }
 
@@ -473,10 +434,8 @@ SecondNode* SigFlowTreePanel::CreateGateInstDialog(SigTreeNode* parent) {
     wxDialog dlg(this, wxID_ANY, "Create Gate Instance", wxDefaultPosition, wxDefaultSize,
         wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
 
-    // 临时端口数据
-    std::vector<Port> ports;  // 包含所有端口，方向由定义决定
+    std::vector<Port> ports;
 
-    // 顶部标识符和门类型
     wxTextCtrl* idCtrl = nullptr;
     wxChoice* gateChoice = nullptr;
     auto* topSizer = new wxBoxSizer(wxVERTICAL);
@@ -491,7 +450,6 @@ SecondNode* SigFlowTreePanel::CreateGateInstDialog(SigTreeNode* parent) {
     gridSizer->Add(PropertyPanelBuilder::CreateChoiceRow(&dlg, "", gateTypes, 0, &gateChoice), 1, wxEXPAND);
     topSizer->Add(gridSizer, 0, wxEXPAND | wxALL, 10);
 
-    // 滚动窗口
     auto* scrolled = new wxScrolledWindow(&dlg, wxID_ANY, wxDefaultPosition, wxSize(500, 250));
     auto* portsSizer = new wxBoxSizer(wxVERTICAL);
     scrolled->SetSizer(portsSizer);
@@ -500,7 +458,6 @@ SecondNode* SigFlowTreePanel::CreateGateInstDialog(SigTreeNode* parent) {
     topSizer->Add(dlg.CreateSeparatedButtonSizer(wxOK | wxCANCEL), 0, wxEXPAND | wxALL, 10);
     dlg.SetSizerAndFit(topSizer);
 
-    // 根据门类型生成端口定义
     auto getPortDefs = [](const wxString& type) -> std::vector<Port> {
         std::vector<Port> defs;
         if (type == "buf" || type == "not") {
@@ -516,7 +473,6 @@ SecondNode* SigFlowTreePanel::CreateGateInstDialog(SigTreeNode* parent) {
         return defs;
         };
 
-    // 重建函数
     std::function<void()> rebuild = [&]() {
         portsSizer->Clear(true);
         ports = getPortDefs(gateChoice->GetStringSelection());
@@ -547,7 +503,6 @@ SecondNode* SigFlowTreePanel::CreateGateInstDialog(SigTreeNode* parent) {
     if (id.empty()) return nullptr;
     GateType gt = SigFlowTree::GateTypeFromString(gateChoice->GetStringSelection().ToStdString());
     auto* node = new GateInstNode(id.ToStdString(), gt);
-    // 根据方向分配 in/out ports
     for (const auto& p : ports) {
         if (p.direction == PortDirection::In)
             node->in_ports.push_back(p);
@@ -561,14 +516,12 @@ SecondNode* SigFlowTreePanel::CreateContiniousAssignDialog(SigTreeNode* parent) 
     wxDialog dlg(this, wxID_ANY, "Create Continuous Assignment", wxDefaultPosition, wxSize(500, 600),
         wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
 
-    // 临时数据
     std::string expr;
     std::vector<Port> in_ports;
-    std::vector<Port> out_ports = { {"Out1", PortDirection::Out, ""} }; // 默认一个输出
+    std::vector<Port> out_ports = { {"Out1", PortDirection::Out, ""} };
 
     auto* topSizer = new wxBoxSizer(wxVERTICAL);
 
-    // 表达式行
     wxTextCtrl* exprCtrl = nullptr;
     topSizer->Add(PropertyPanelBuilder::CreateEditableTextRow(&dlg, "Expression:", expr, &exprCtrl),
         0, wxEXPAND | wxALL, 10);
@@ -576,14 +529,12 @@ SecondNode* SigFlowTreePanel::CreateContiniousAssignDialog(SigTreeNode* parent) 
         exprCtrl->Bind(wxEVT_TEXT, [&](wxCommandEvent& e) { expr = e.GetString().ToStdString(); });
     }
 
-    // 滚动窗口用于端口
     auto* scrolled = new wxScrolledWindow(&dlg, wxID_ANY, wxDefaultPosition, wxSize(-1, 300));
     auto* portsSizer = new wxBoxSizer(wxVERTICAL);
     scrolled->SetSizer(portsSizer);
     scrolled->SetScrollRate(0, 10);
     topSizer->Add(scrolled, 1, wxEXPAND | wxLEFT | wxRIGHT, 10);
 
-    // 添加/删除端口按钮
     auto* btnSizer = new wxBoxSizer(wxHORIZONTAL);
     auto* addBtn = PropertyPanelBuilder::CreateButton(&dlg, "+ Add Port", wxColour(0, 120, 215));
     auto* delBtn = PropertyPanelBuilder::CreateButton(&dlg, "- Delete Port", wxColour(200, 0, 0));
@@ -593,10 +544,8 @@ SecondNode* SigFlowTreePanel::CreateContiniousAssignDialog(SigTreeNode* parent) 
     topSizer->Add(dlg.CreateSeparatedButtonSizer(wxOK | wxCANCEL), 0, wxEXPAND | wxALL, 10);
     dlg.SetSizerAndFit(topSizer);
 
-    // 重建函数
     std::function<void()> rebuild = [&]() {
         portsSizer->Clear(true);
-        // 输出端口
         for (size_t i = 0; i < out_ports.size(); ++i) {
             wxTextCtrl* connCtrl = nullptr;
             auto* wrapper = PropertyPanelBuilder::CreateSecondPortRow(scrolled,
@@ -611,7 +560,6 @@ SecondNode* SigFlowTreePanel::CreateContiniousAssignDialog(SigTreeNode* parent) 
             }
             portsSizer->Add(wrapper, 0, wxEXPAND);
         }
-        // 输入端口
         for (size_t i = 0; i < in_ports.size(); ++i) {
             wxTextCtrl* connCtrl = nullptr;
             auto* wrapper = PropertyPanelBuilder::CreateSecondPortRow(scrolled,
@@ -645,11 +593,11 @@ SecondNode* SigFlowTreePanel::CreateContiniousAssignDialog(SigTreeNode* parent) 
         }
         });
 
-    rebuild(); // 初始显示
+    rebuild();
 
     if (dlg.ShowModal() != wxID_OK) return nullptr;
 
-    wxString id = out_ports[0].identifier; // 或者从 exprCtrl 派生？原代码是用 out_ports[0].identifier 作为 id？实际上 ContinuousAssignNode 构造函数接受 id 和 raw_assign，这里我们用 out_ports[0].identifier 作为 id，expr 作为 raw_assign。
+    wxString id = out_ports[0].identifier;
     auto* node = new ContinuousAssignNode(id.ToStdString(), expr);
     node->in_ports = in_ports;
     node->out_ports = out_ports;

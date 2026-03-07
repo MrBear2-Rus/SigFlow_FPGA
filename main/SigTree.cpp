@@ -1,4 +1,4 @@
-﻿#include "SigTree.h"
+#include "SigTree.h"
 #include "MainFrame.h"
 
 #include <json/json.h>
@@ -11,6 +11,8 @@
 #include <set>
 #include <queue>
 
+#include <unordered_set>
+
 extern "C" TSLanguage* tree_sitter_verilog();
 
 namespace fs = std::filesystem;
@@ -20,7 +22,7 @@ SecondNodeType isTSNodeSecond(std::string node_type);
 bool isTSNodeNet(std::string node_type);
 void CollectSigTreeNodeInfoTS(SigTreeNode* node, TSNode& TSnode, std::string filepath, std::string code);
 
-SigFlowTree::SigFlowTree(MainFrame* parent): m_parent(parent) {
+SigFlowTree::SigFlowTree(MainFrame* parent) : m_parent(parent) {
     const char* top_temp = R"(
                 ;; 1. 模块定义捕获（独立，保证只要有模块名就能匹配）
                 (module_declaration
@@ -123,8 +125,6 @@ SigFlowTree::SigFlowTree(MainFrame* parent): m_parent(parent) {
         )";
 
     net = ts_query_new(tree_sitter_verilog(), net_temp, strlen(net_temp), &net_error_offset, &net_error_type);
-
-
 }
 
 void SigFlowTree::LoadProject(std::string projectPath) {
@@ -136,7 +136,7 @@ struct ExpressionResult {
     std::vector<Port> extracted_ports;
 };
 
-ExpressionResult FormalizeExpression(TSNode node, const std::string& code, int &in_counter, int exp_id) {
+ExpressionResult FormalizeExpression(TSNode node, const std::string& code, int& in_counter, int exp_id) {
     ExpressionResult result;
     const char* type = ts_node_type(node);
 
@@ -154,7 +154,6 @@ ExpressionResult FormalizeExpression(TSNode node, const std::string& code, int &
         else {
             placeholder = "in" + std::to_string(in_counter++);
         }
-        
 
         result.template_text = placeholder;
 
@@ -204,7 +203,7 @@ ExpressionResult FormalizeExpression(TSNode node, const std::string& code, int &
     return result;
 }
 
-void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,std::string& filePath, std::string& code) {
+void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot, std::string& filePath, std::string& code) {
     TSNode currentNode = ts_tree_cursor_current_node(cursor);
     SigTreeNode* newParent = SigRoot;
     std::string node_type = ts_node_type(currentNode);
@@ -229,7 +228,6 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
         if (node_type == "source_file") {
             FileNode* fn = arena.make<FileNode>(filePath);
             fn = static_cast<FileNode*>(this->AddChild(newParent, fn));
-            //CollectSigTreeNodeInfoTS(fn, currentNode, filePath, code);
             newParent = fn;
         }
     }
@@ -256,13 +254,13 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                     // 3. 识别零件的标签名（通过 ID 换取字符串）
                     uint32_t name_len;
                     const char* tag_name = ts_query_capture_name_for_id(top, capture.index, &name_len);
-                    
+
                     // 4. 根据标签名分发逻辑
                     if (strcmp(tag_name, "mod.name") == 0) {
                         TSNode nameNode = capture.node;
                         id = code.substr(ts_node_start_byte(nameNode),
                             ts_node_end_byte(nameNode) - ts_node_start_byte(nameNode));
- 
+
                     }
                     else if (strcmp(tag_name, "port.dir") == 0) {
                         std::string d = code.substr(ts_node_start_byte(capture.node),
@@ -274,7 +272,7 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                         p.identifier = code.substr(ts_node_start_byte(capture.node),
                             ts_node_end_byte(capture.node) - ts_node_start_byte(capture.node));
                         if (p.direction == PortDirection::In) in.push_back(p);
-                        else if(p.direction == PortDirection::Out) out.push_back(p);
+                        else if (p.direction == PortDirection::Out) out.push_back(p);
                     }
                 }
             }
@@ -284,9 +282,7 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
             tn->UpdateInPorts(in);
             tn->UpdateOutPorts(out);
             tn = static_cast<TopNode*>(this->AddChild(newParent, tn));
-            //CollectSigTreeNodeInfoTS(tn, currentNode, filePath, code);
             newParent = tn;
-
         }
     }
     else if (newParent->type == SigTreeNodeType::Top) {
@@ -294,8 +290,6 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
         SecondNodeType second_type = isTSNodeSecond(node_type);
         // 找Net
         if (node_type == "net_declaration") {
-            
-
             TSQueryCursor* cursor = ts_query_cursor_new();
             ts_query_cursor_exec(cursor, net, currentNode);
 
@@ -304,33 +298,27 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
             SignalType st = SignalType::Wire;
             SigTreeNode* netParent = newParent;
             while (ts_query_cursor_next_match(cursor, &match)) {
-                
+
                 for (uint16_t i = 0; i < match.capture_count; i++) {
                     TSQueryCapture capture = match.captures[i];
 
-                    // 3. 识别零件的标签名（通过 ID 换取字符串）
                     uint32_t name_len;
                     const char* tag_name = ts_query_capture_name_for_id(net, capture.index, &name_len);
 
-                    // 4. 根据标签名分发逻辑
                     if (strcmp(tag_name, "net.name") == 0) {
                         TSNode nameNode = capture.node;
                         id = code.substr(ts_node_start_byte(nameNode),
                             ts_node_end_byte(nameNode) - ts_node_start_byte(nameNode));
-                        //CollectSigTreeNodeInfoTS(nn, currentNode, filePath, code);
                         st = SignalType::Wire;
-                        
                     }
-
                 }
                 SignalNode tmpNode(id, st);
                 SignalNode* nn = static_cast<SignalNode*>(this->AddChild(netParent, &tmpNode));
                 if (nn) {
-                SignalTable.emplace(nn->identifier, nn);
-                newParent = nn;
+                    SignalTable.emplace(nn->identifier, nn);
+                    newParent = nn;
+                }
             }
-            
-        }
             ts_query_cursor_delete(cursor);
         }
         else if (node_type == "data_declaration") {
@@ -340,30 +328,25 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
             TSQueryMatch match;
             SigTreeNode* dataParent = newParent;
             while (ts_query_cursor_next_match(cursor, &match)) {
-                //SignalNode* nn = arena.make<SignalNode>();
                 for (uint16_t i = 0; i < match.capture_count; i++) {
                     TSQueryCapture capture = match.captures[i];
 
-                    // 3. 识别零件的标签名（通过 ID 换取字符串）
                     uint32_t name_len;
                     const char* tag_name = ts_query_capture_name_for_id(net, capture.index, &name_len);
 
-                    // 4. 根据标签名分发逻辑
                     if (strcmp(tag_name, "net.name") == 0) {
                         TSNode nameNode = capture.node;
-                        //CollectSigTreeNodeInfoTS(nn, currentNode, filePath, code);
                         id = code.substr(ts_node_start_byte(nameNode),
                             ts_node_end_byte(nameNode) - ts_node_start_byte(nameNode));
                     }
-
                 }
                 SignalNode tmpNode(id, SignalType::Reg);
                 SignalNode* nn = static_cast<SignalNode*>(AddChild(dataParent, &tmpNode));
                 if (nn) {
-                SignalTable.emplace(nn->identifier, nn);
-                newParent = nn;
+                    SignalTable.emplace(nn->identifier, nn);
+                    newParent = nn;
+                }
             }
-        }
             ts_query_cursor_delete(cursor);
         }
         // 找Second
@@ -384,11 +367,9 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                     for (uint16_t i = 0; i < match.capture_count; i++) {
                         TSQueryCapture capture = match.captures[i];
 
-                        // 3. 识别零件的标签名（通过 ID 换取字符串）
                         uint32_t name_len;
                         const char* tag_name = ts_query_capture_name_for_id(second, capture.index, &name_len);
 
-                        // 4. 根据标签名分发逻辑
                         if (strcmp(tag_name, "modinst.modname") == 0) {
                             TSNode nameNode = capture.node;
                             def = code.substr(ts_node_start_byte(nameNode),
@@ -414,8 +395,6 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                         }
                     }
                 }
-                //ModuleInstNode* mn = arena.make<ModuleInstNode>(id, def);
-                //mn->inout_ports = ps;
                 mn = static_cast<ModuleInstNode*>(this->AddChild(newParent, mn));
                 newParent = mn;
             }
@@ -479,14 +458,14 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                 uint32_t last_node_id = 0;
                 const char* last_tag = "";
 
-                int exp_input_count = 1;
-                int onput_count = 1;
-                NB_OR_B_Expression exp;
-                EdgeType et;
+                EdgeType et = EdgeType::Posedge; // 默认
                 std::string id;
-                std::vector<Port> in;
-                std::vector<Port> out;
-                std::vector<NB_OR_B_Expression> exps;
+                std::unordered_set<std::string> inPortsSet;
+                std::unordered_set<std::string> outPortsSet;
+
+                // 先创建 AlwaysNode，后续填充端口和语句
+                AlwaysNode* an = arena.make<AlwaysNode>("", et); // 临时标识符，后面会设置
+                std::unique_ptr<AlwaysStatement> currentStmt;
 
                 while (ts_query_cursor_next_capture(cursor, &match, &capture_index)) {
                     const TSQueryCapture& capture = match.captures[capture_index];
@@ -495,7 +474,7 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
 
                     uint32_t current_node_id = ts_node_start_byte(capture.node);
                     if (current_node_id == last_node_id && strcmp(tag_name, last_tag) == 0) {
-                        continue; // 同样的标签在同样的位置，跳过！
+                        continue;
                     }
                     last_node_id = current_node_id;
                     last_tag = tag_name;
@@ -504,91 +483,84 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                         ts_node_end_byte(capture.node) - ts_node_start_byte(capture.node));
 
                     if (strcmp(tag_name, "clk.edge") == 0) {
-                        TSNode nameNode = capture.node;
-                        std::string edgeType = code.substr(ts_node_start_byte(nameNode),
-                            ts_node_end_byte(nameNode) - ts_node_start_byte(nameNode));
-                        if (edgeType == "posedge") {
-                            et = EdgeType::Posedge;
-                        }
-                        else if (edgeType == "negedge") {
-                            et = EdgeType::Negedge;
-                        }
-
+                        if (text == "posedge") et = EdgeType::Posedge;
+                        else if (text == "negedge") et = EdgeType::Negedge;
                     }
                     else if (strcmp(tag_name, "clk.name") == 0) {
-                        TSNode nameNode = capture.node;
-                        Port p("CLK", PortDirection::In, code.substr(ts_node_start_byte(nameNode),
-                            ts_node_end_byte(nameNode) - ts_node_start_byte(nameNode)));
-
-                        in.push_back(p);
-                        id = "@" + p.conn;
-
+                        // 时钟信号也作为输入端口
+                        if (inPortsSet.find(text) == inPortsSet.end()) {
+                            inPortsSet.insert(text);
+                            an->in_ports.push_back(Port(text, PortDirection::In, ""));
+                        }
+                        id = "@" + text; // 标识符使用时钟名
+                        an->identifier = id;
                     }
                     else if (strcmp(tag_name, "assign.lhs") == 0) {
-                        TSNode nameNode = capture.node;
-                        Port p(std::format("out{}", onput_count++), PortDirection::Out, code.substr(ts_node_start_byte(nameNode),
-                            ts_node_end_byte(nameNode) - ts_node_start_byte(nameNode)));
-
-                        out.push_back(p);
-                        exp.out_port_id = out.size() - 1;
-
-
-                        TSNode father = ts_node_parent(nameNode);
-                        std::string f_type = ts_node_type(father);
-                        if (f_type  == "nonblocking_assignment") {
-                            exp.is_blocking = false;
+                        // 完成前一条语句
+                        if (currentStmt) {
+                            an->addStatement(std::move(currentStmt));
                         }
-                        else if(f_type == "blocking_assignment"){
-                            exp.is_blocking = true;
+                        // 新建语句
+                        std::string lhsName = text;
+                        // 输出端口去重
+                        if (outPortsSet.find(lhsName) == outPortsSet.end()) {
+                            outPortsSet.insert(lhsName);
+                            an->out_ports.push_back(Port(lhsName, PortDirection::Out, ""));
                         }
-                        
-
-                    }
-                    else if (strcmp(tag_name, "assign.delay") == 0) {
-                        TSNode nameNode = capture.node;
-                        std::string delay = code.substr(ts_node_start_byte(nameNode),
-                            ts_node_end_byte(nameNode) - ts_node_start_byte(nameNode));
-                        size_t firstDigit = delay.find_first_of("0123456789.");
-
-                        if (firstDigit != std::string::npos) {
-                            try {
-                                exp.delay = std::stof(delay.substr(firstDigit));
-                            }
-                            catch (...) {
-                                exp.delay = 0.0f;
-                            }
-                        }
-                        else {
-                            exp.delay = 0.0f; // 没找到数字
-                        }
-
+                        // 创建语句，默认非阻塞，延迟0，空表达式
+                        currentStmt = std::make_unique<AlwaysStatement>(
+                            false, "", 0.0f, lhsName, std::vector<std::string>{}
+                        );
                     }
                     else if (strcmp(tag_name, "assign.rhs") == 0) {
-                        TSNode nameNode = capture.node;
-                        // 2. 提取所有右侧变量
-                        std::set<std::string> rhsSignals;
-                        int input_count = 1;
-                        ExpressionResult res = FormalizeExpression(capture.node, code, input_count, exp_input_count);
-                        exp.nb_or_b_expression = res.template_text;
-                        int startIndex = (int)in.size();
-                        in.insert(in.end(), res.extracted_ports.begin(), res.extracted_ports.end());
-                        int endIndex = (int)in.size() ;
-                        exp.in_port_ids.clear();
-                        for (int i = startIndex; i < endIndex; ++i) {
-                            exp.in_port_ids.push_back(i);
+                        if (!currentStmt) continue;
+                        int dummy_counter = 1;
+                        ExpressionResult res = FormalizeExpression(capture.node, code, dummy_counter, -1);
+                        // 设置表达式模板
+                        currentStmt->nb_or_b_expression = res.template_text;
+                        // 处理提取的端口
+                        for (const auto& p : res.extracted_ports) {
+                            std::string sigName = p.conn; // 原始信号名
+                            // 添加到语句的输入列表（允许重复）
+                            currentStmt->in_port_names.push_back(sigName);
+                            // 全局输入端口去重
+                            if (inPortsSet.find(sigName) == inPortsSet.end()) {
+                                inPortsSet.insert(sigName);
+                                an->in_ports.push_back(Port(sigName, PortDirection::In, ""));
+                            }
                         }
-                        exps.push_back(exp);
-                        exp_input_count++;
-
+                    }
+                    else if (strcmp(tag_name, "assign.delay") == 0) {
+                        if (!currentStmt) continue;
+                        // 尝试解析延迟数值（可能为 #10 等形式）
+                        // 这里简化处理：去掉 '#' 并转换为浮点数
+                        std::string delayStr = text;
+                        size_t pos = delayStr.find('#');
+                        if (pos != std::string::npos) delayStr = delayStr.substr(pos + 1);
+                        try {
+                            currentStmt->delay = std::stof(delayStr);
+                        }
+                        catch (...) {
+                            currentStmt->delay = 0.0f;
+                        }
                     }
                 }
-                AlwaysNode* an = arena.make<AlwaysNode>(id, et);
-                an->in_ports = in;
-                an->out_ports = out;
-                an->nb_or_b_expressions = exps;
+
+                // 添加最后一个语句
+                if (currentStmt) {
+                    an->addStatement(std::move(currentStmt));
+                }
+
+                ts_query_cursor_delete(cursor);
+
+                // 如果始终没有找到时钟名，使用默认标识符
+                if (an->identifier.empty()) {
+                    an->identifier = "@unknown_clk";
+                }
+                an->edgeType = et;
+
                 an = static_cast<AlwaysNode*>(this->AddChild(newParent, an));
                 newParent = an;
-
             }
             else if (second_type == SecondNodeType::ContinuousAssign) {
                 TSQueryCursor* cursor = ts_query_cursor_new();
@@ -613,7 +585,7 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
 
                     uint32_t current_node_id = ts_node_start_byte(capture.node);
                     if (current_node_id == last_node_id && strcmp(tag_name, last_tag) == 0) {
-                        continue; // 同样的标签在同样的位置，跳过！
+                        continue;
                     }
                     last_node_id = current_node_id;
                     last_tag = tag_name;
@@ -625,14 +597,11 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                         TSNode nameNode = capture.node;
                         id = code.substr(ts_node_start_byte(nameNode),
                             ts_node_end_byte(nameNode) - ts_node_start_byte(nameNode));
-
                         out = Port("out", PortDirection::Out, code.substr(ts_node_start_byte(nameNode),
                             ts_node_end_byte(nameNode) - ts_node_start_byte(nameNode)));
-
                     }
                     else if (strcmp(tag_name, "assign.rhs") == 0) {
                         TSNode nameNode = capture.node;
-                        std::set<std::string> rhsSignals;
                         int input_count = 1;
                         ExpressionResult res = FormalizeExpression(capture.node, code, input_count, -1);
                         exp = res.template_text;
@@ -644,10 +613,7 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                 an->out_ports.push_back(out);
                 an = static_cast<ContinuousAssignNode*>(this->AddChild(newParent, an));
                 newParent = an;
-
-
-                }
-            //CollectSigTreeNodeInfoTS(sn, currentNode, filePath, code);
+            }
         }
     }
 
@@ -660,7 +626,6 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
         // 处理完所有子节点后，务必跳回父节点
         ts_tree_cursor_goto_parent(cursor);
     }
-
 }
 
 TopNodeType isTSNodeTop(std::string node_type) {
@@ -671,9 +636,9 @@ TopNodeType isTSNodeTop(std::string node_type) {
 
 SecondNodeType isTSNodeSecond(std::string node_type) {
     if (node_type == "module_instantiation") return SecondNodeType::ModuleInstance;
-    else if(node_type == "gate_instantiation") return SecondNodeType::GateInstance;
-    else if(node_type == "always_construct") return SecondNodeType::Always;
-    else if(node_type == "continuous_assign") return SecondNodeType::ContinuousAssign;
+    else if (node_type == "gate_instantiation") return SecondNodeType::GateInstance;
+    else if (node_type == "always_construct") return SecondNodeType::Always;
+    else if (node_type == "continuous_assign") return SecondNodeType::ContinuousAssign;
     else return SecondNodeType::Null;
 }
 
@@ -681,27 +646,6 @@ bool isTSNodeNet(std::string node_type) {
     if (node_type == "net_declaration") return true;
     else return false;
 }
-
-/*
-
-void CollectSigTreeNodeInfoTS(SigTreeNode* node, TSNode& TSnode, std::string filepath, std::string code) {
-    // Verilog Info
-    node->verilogInfo.filePath = filepath;
-
-    TSPoint start_pt = ts_node_start_point(TSnode);
-    node->verilogInfo.startLine = start_pt.row + 1;
-    node->verilogInfo.startCol = start_pt.column + 1;
-    TSPoint end_pt = ts_node_end_point(TSnode);
-    node->verilogInfo.endLine = end_pt.row + 1;
-    node->verilogInfo.endCol = end_pt.column + 1;
-
-    node->verilogInfo.Code = code.substr(ts_node_start_byte(TSnode),
-        ts_node_end_byte(TSnode) - ts_node_start_byte(TSnode));
-    
-
-    // Schematic Info
-
-}*/
 
 void SigFlowTree::ConstructDefinitionTable() {
     for (SigTreeNode* sig : root->GetChildren()) {
@@ -721,27 +665,20 @@ void SigFlowTree::ConstructInstanceTable() {
                     InstanceTable.emplace(inst->identifier, static_cast<ModuleInstNode*>(inst));
                 }
             }
-
         }
     }
 }
 
 std::vector<std::string> SigFlowTree::GetDefinitions() {
     std::vector<std::string> defs;
-
-    // 预分配内存以提高性能（可选，但推荐）
     defs.reserve(DefinitionTable.size());
-
-    // 遍历 Map，提取所有的键（Definition Name）
     for (auto const& [name, node] : DefinitionTable) {
         defs.push_back(name);
     }
-
     return defs;
 }
 
 void SigFlowTree::LinkInstsWithDefs() {
-    // 1. 遍历所有的实例节点
     for (auto& pair : InstanceTable) {
         LinkSingleInstWithDef(pair.second);
     }
@@ -752,15 +689,12 @@ void SigFlowTree::LinkSingleInstWithDef(ModuleInstNode* inst) {
     if (!inst) return;
     inst->in_ports.clear();
     inst->out_ports.clear();
-    // 1. 查找定义
     auto it = DefinitionTable.find(inst->defIdentifier);
 
     if (it != DefinitionTable.end()) {
         TopNode* def = it->second;
         inst->Definition = def;
 
-        // 2. 同步端口属性（方向等）
-        // 这一步是确保实例的行为与其定义的模板一致
         if (inst->inout_ports.size() > 0) {
             for (auto& instPort : inst->inout_ports) {
                 auto defInPortIt = std::find_if(def->GetInPorts().begin(), def->GetInPorts().end(),
@@ -773,17 +707,13 @@ void SigFlowTree::LinkSingleInstWithDef(ModuleInstNode* inst) {
                     });
 
                 if (defInPortIt != def->GetInPorts().end()) {
-                    // 同步来自定义的关键元数据
                     instPort.direction = defInPortIt->direction;
                     inst->in_ports.push_back(instPort);
                 }
                 else if (defOutPortIt != def->GetOutPorts().end()) {
                     instPort.direction = defOutPortIt->direction;
                     inst->out_ports.push_back(instPort);
-
                 }
-
-                // 如果没找到，instPort.direction 保持默认或之前状态
             }
             inst->inout_ports.clear();
         }
@@ -795,15 +725,10 @@ void SigFlowTree::LinkSingleInstWithDef(ModuleInstNode* inst) {
                 inst->out_ports.push_back(p);
             }
         }
-
-    }
-    else {
-        // 找不到定义，置为空以防野指针
     }
 }
 
 void SigFlowTree::HangInst(ModuleInstNode* inst) {
-    // 保持defIdentifier，用于寻找可能的引用
     inst->Definition = nullptr;
     for (auto& port : inst->out_ports) {
         port.direction = PortDirection::InOut;
@@ -817,13 +742,9 @@ void SigFlowTree::HangInst(ModuleInstNode* inst) {
     inst->in_ports.clear();
 }
 
-
 void SigFlowTree::UpdateTreeFromSlang(slang::ast::Compilation* compilation) {
-
+    // Not implemented
 }
-
-
-
 
 void SigFlowTree::PrintTree() {
     OutputDebugStringA("######################## SigTree ########################\n");
@@ -850,12 +771,11 @@ void SigFlowTree::PrintTree() {
                     nn->Print();
                     OutputDebugStringA("\n");
                 }
-
             }
         }
-
     };
 }
+
 void SigTreeNode::Print() {
     std::string info;
 
@@ -877,17 +797,11 @@ void SigTreeNode::Print() {
         info += "Signal";
         break;
     default:
-            info += "Unknown";
+        info += "Unknown";
     }
     info += "\n";
 
-    /*
-    info += "Verilog Info: \n";
-    info += std::format("{} ({},{})-({},{})\n", verilogInfo.filePath, verilogInfo.startLine, verilogInfo.startCol, verilogInfo.endLine, verilogInfo.endCol);
-    info += "code: " + verilogInfo.Code.substr(0, 30) + "\n";*/
-
     OutputDebugStringA(info.c_str());
-
 }
 
 void SigTreeNode::ClearNode() {
@@ -904,7 +818,7 @@ std::string SigTreeNode::ToVerilog() {
     return std::format("");
 }
 
-std::string ProjectNode::ToVerilog(){
+std::string ProjectNode::ToVerilog() {
     return std::format("");
 }
 
@@ -913,25 +827,19 @@ std::string FileNode::ToVerilog() {
     for (auto* child : GetChildren()) {
         v += child->ToVerilog();
     }
-
     return v;
 }
-
 
 std::string TopNode::ToVerilog() {
     std::string v = std::format("module {}", identifier);
     v += "(";
     for (auto port : in_ports) {
         v += std::format("{} {},\n", port.portDirectionToStr(port.direction), port.identifier);
-
     }
     for (auto port : out_ports) {
         v += std::format("{} {},\n", port.portDirectionToStr(port.direction), port.identifier);
-
     }
-
     v += ")\n";
-    
 
     for (auto* child : GetChildren()) {
         v += child->ToVerilog();
@@ -956,144 +864,82 @@ std::string SignalNode::ToVerilog() {
     return v;
 }
 
+// 删除所有与 nb_or_b_expressions 相关的旧方法
+// DelExpressionsPort, AddExpressionsPort, AddEmptyExpression, DelLastExpression 已移除
 
-void AlwaysNode::DelExpressionsPort(int idx, int del) {
-    
-    if (del < 0 || del >= (int)in_ports.size()) return;
-
-    // 1. 先删除实际的元素
-    in_ports.erase(in_ports.begin() + del);
-
-    // 2. 更新所有表达式中的索引映射
-    NB_OR_B_Expression& exp = nb_or_b_expressions[idx];
-
-    // 更新输入端口索引列表
-    for (auto it = exp.in_port_ids.begin(); it != exp.in_port_ids.end(); ) {
-        if (*it == del) {
-            it = exp.in_port_ids.erase(it); // 如果引用的正是被删掉的，从表达式中移除引用
-        }
-        else {
-            if (*it > del) (*it)--;
-            ++it;
-        }
-    }
-    
+std::string AlwaysNode::GetName() {
+    return SigFlowTree::ToString(secondType) + " " + identifier;
 }
 
-void AlwaysNode::DelExpressionsPort(int del) {
-
-    if (del < 0 || del >= (int)in_ports.size()) return;
-
-    // 1. 先删除实际的元素
-    in_ports.erase(in_ports.begin() + del);
-
-    // 2. 更新所有表达式中的索引映射
-    for (NB_OR_B_Expression& exp : nb_or_b_expressions) {
-        // 更新输入端口索引列表
-        for (auto it = exp.in_port_ids.begin(); it != exp.in_port_ids.end(); ) {
-            if (*it == del) {
-                it = exp.in_port_ids.erase(it); // 如果引用的正是被删掉的，从表达式中移除引用
-            }
-            else {
-                if (*it > del) (*it)--;
-                ++it;
-            }
-        }
-    }
-
+void AlwaysNode::Print() {
+    std::string info;
+    info += "SecondType: Always\n";
+    info += "Edge: " + std::string(edgeType == EdgeType::Posedge ? "posedge" : "negedge") + "\n";
+    info += "Statement count: " + std::to_string(getStatementCount()) + "\n";
+    OutputDebugStringA(info.c_str());
+    SecondNode::Print();
 }
 
+//=============================================================================
+// AlwaysNode 新增接口实现（StatementSequence）
+//=============================================================================
 
-
-void AlwaysNode::AddExpressionsPort(int exp_id) {
-    
-    if (exp_id < 0 || exp_id >= (int)nb_or_b_expressions.size()) return;
-
-    NB_OR_B_Expression& exp = nb_or_b_expressions[exp_id];
-
-    // 1. 准备新端口数据
-    Port newPort;
-    newPort.identifier = "in" + std::to_string(exp_id+1) + "_" + std::to_string(exp.in_port_ids.size()+1);
-    newPort.direction = PortDirection::In;
-
-    // 2. 确定插入位置
-    // 如果该表达式已有输入端口，插在最后一个输入端口后面；否则插在输出端口后面
-    int insertPos;
-    if (!exp.in_port_ids.empty()) {
-        insertPos = exp.in_port_ids.back() + 1;
-    }
-    else {
-        insertPos = exp.out_port_id + 1;
-    }
-
-    // 边界安全检查
-    if (insertPos > (int)in_ports.size()) insertPos = (int)in_ports.size();
-
-    // 3. 全局索引偏移处理
-    // 凡是等于或大于插入位置的索引，全部加 1，为新成员腾出位置
-    for (NB_OR_B_Expression& e : nb_or_b_expressions) {
-        if (e.out_port_id >= insertPos) e.out_port_id++;
-        for (int& id : e.in_port_ids) {
-            if (id >= insertPos) id++;
-        }
-    }
-
-    // 4. 执行物理插入
-    in_ports.insert(in_ports.begin() + insertPos, newPort);
-
-    // 5. 将新索引关联到当前表达式
-    exp.in_port_ids.push_back(insertPos);
+void AlwaysNode::addStatement(std::unique_ptr<Statement> stmt) {
+    statements_.push_back(std::move(stmt));
 }
 
-void AlwaysNode::AddEmptyExpression() {
-    
-    NB_OR_B_Expression newExp;
-    newExp.nb_or_b_expression = ""; // 默认右值
-    newExp.is_blocking = false;              // 默认非阻塞 <=
-    newExp.delay = 0.0f;
-
-    // 创建一个对应的默认输出端口
-    Port outP;
-    outP.identifier = "out" + std::to_string(nb_or_b_expressions.size()+1);
-    outP.direction = PortDirection::Out;
-
-    // 使用你之前的逻辑：先加 Port，再记索引
-    newExp.out_port_id = (int)this->out_ports.size();
-    this->out_ports.push_back(outP);
-
-    this->nb_or_b_expressions.push_back(newExp);
+void AlwaysNode::insertStatement(size_t index, std::unique_ptr<Statement> stmt) {
+    if (index <= statements_.size()) {
+        statements_.insert(statements_.begin() + index, std::move(stmt));
+    }
 }
 
-void AlwaysNode::DelLastExpression() {
-    if (nb_or_b_expressions.empty()) return;
-
-    // 可选：你可能想同时删除该表达式关联的所有 ports
-    // 这里简单处理：只弹出最后一个表达式
-    nb_or_b_expressions.pop_back();
+void AlwaysNode::removeStatement(size_t index) {
+    if (index < statements_.size()) {
+        statements_.erase(statements_.begin() + index);
+    }
 }
 
+const Statement* AlwaysNode::getStatement(size_t index) const {
+    if (index < statements_.size()) {
+        return statements_[index].get();
+    }
+    return nullptr;
+}
+
+size_t AlwaysNode::getStatementCount() const {
+    return statements_.size();
+}
+
+void AlwaysNode::updateSignalName(const std::string& oldName, const std::string& newName) {
+    StatementSequence::updateSignalName(oldName, newName);
+}
+
+SigTreeNode* AlwaysNode::Clone(Arena& arena) const {
+    // 使用带参数的构造函数创建新对象，避免拷贝 statements_
+    auto* copy = arena.make<AlwaysNode>(identifier, edgeType);
+    copy->in_ports = this->in_ports;
+    copy->out_ports = this->out_ports;
+    // statements_ 留空，克隆时不复制语句对象（应由外部重新填充）
+    return copy;
+}
 
 std::string ProjectNode::GetName() { return "Project " + std::filesystem::path(projectPath).filename().string(); }
-std::string FileNode::GetName()  { return "File " + std::filesystem::path(filePath).filename().string(); }
+std::string FileNode::GetName() { return "File " + std::filesystem::path(filePath).filename().string(); }
 std::string TopNode::GetName() { return SigFlowTree::ToString(topType) + " " + identifier; }
-std::string SecondNode::GetName() { return SigFlowTree::ToString(secondType) + " " + identifier;};
-std::string SignalNode::GetName()  { return SigFlowTree::ToString(signalType) + " " + identifier; }
-
-
-
+std::string SecondNode::GetName() { return SigFlowTree::ToString(secondType) + " " + identifier; };
+std::string SignalNode::GetName() { return SigFlowTree::ToString(signalType) + " " + identifier; }
 
 void ProjectNode::Print() {
     SigTreeNode::Print();
     std::string info;
-
-    info = "ProjectPath: "+ projectPath + "\n";
+    info = "ProjectPath: " + projectPath + "\n";
     OutputDebugStringA(info.c_str());
 }
 
 void FileNode::Print() {
     SigTreeNode::Print();
     std::string info;
-
     info = "FilePath: " + filePath + "\n";
     OutputDebugStringA(info.c_str());
 }
@@ -1101,7 +947,6 @@ void FileNode::Print() {
 void TopNode::Print() {
     SigTreeNode::Print();
     std::string info;
-
     info = "Identifier: " + identifier + "\n";
 
     switch (topType) {
@@ -1118,7 +963,7 @@ void TopNode::Print() {
     for (Port& p : in_ports) {
         info += "port: " + p.identifier + " " + "In" + "\n";
     }
-    for (Port& p : in_ports) {
+    for (Port& p : out_ports) {
         info += "port: " + p.identifier + " " + "Out" + "\n";
     }
 
@@ -1130,7 +975,6 @@ void SecondNode::Print() {
     std::string info;
     info = "Identifier: " + identifier + "\n";
 
-
     for (Port& p : in_ports) {
         info += "port: " + p.identifier + " " + "In" + " to: " + p.conn + "\n";
     }
@@ -1140,7 +984,6 @@ void SecondNode::Print() {
     }
 
     OutputDebugStringA(info.c_str());
-
 }
 
 void SignalNode::Print() {
@@ -1150,7 +993,6 @@ void SignalNode::Print() {
     info += "Identifier: " + identifier + "\n";
 
     OutputDebugStringA(info.c_str());
-
 }
 
 void SigTreeNode::RemoveChildren() {
@@ -1163,8 +1005,6 @@ void SigTreeNode::RemoveChild(SigTreeNode* child) {
     auto it = std::find(children.begin(), children.end(), child);
     if (it == children.end())
         return;
-
-    //(*it)->parent = nullptr;
     children.erase(it);
 }
 
@@ -1172,15 +1012,10 @@ bool SigTreeNode::AddChild(SigTreeNode* child) {
     if (!child) return false;
 
     if (this->CanBeChild(child->type) && child->CanBeParent(this->type)) {
-
-        // 防止重复插入
         if (child->parent == this) return false;
-
-        // 如果之前有父节点，先从原父节点解绑
         if (child->parent) {
             child->parent->RemoveChild(child);
         }
-
         child->parent = this;
         children.push_back(child);
         return true;
@@ -1188,13 +1023,12 @@ bool SigTreeNode::AddChild(SigTreeNode* child) {
     else return false;
 }
 
-
 void SigFlowTree::ClearTree() {
     DefinitionTable.clear();
     InstanceTable.clear();
     SignalTable.clear();
     root = nullptr;
-    arena.reset(); // 释放所有内存块
+    arena.reset();
 }
 
 void SigFlowTree::RemoveChild(SigTreeNode* parent, SigTreeNode* child) {
@@ -1210,25 +1044,20 @@ void SigFlowTree::RemoveChild(SigTreeNode* parent, SigTreeNode* child) {
 SigTreeNode* SigFlowTree::AddChild(SigTreeNode* parent, SigTreeNode* externalNode) {
     if (!externalNode) return nullptr;
 
-    // A. 契约预检 (最重要的一步！)
     if (parent) {
-        // 使用虛函数多态检查，无需克隆即可判断是否合法
         if (!parent->CanBeChild(externalNode->type) ||
             !externalNode->CanBeParent(parent->type)) {
-            // 这里可以记录错误日志：无法将 externalNode 挂载到 parent 下
-            return nullptr; // 拒绝克隆，没有任何内存浪费
+            return nullptr;
         }
     }
     else {
         if (externalNode->type != SigTreeNodeType::Project) {
-            return nullptr; // 根节点必须是 Project
+            return nullptr;
         }
     }
 
-    // B. 安全的深度克隆
     SigTreeNode* safeNode = CloneSubtreeToArena(externalNode);
 
-    // C. 物理挂载 (此时 AddChild 应当总能成功)
     if (parent) {
         parent->AddChild(safeNode);
         wxCommandEvent event(EVT_SIGFLOWNODE_ADD);
@@ -1239,7 +1068,6 @@ SigTreeNode* SigFlowTree::AddChild(SigTreeNode* parent, SigTreeNode* externalNod
         this->root = static_cast<ProjectNode*>(safeNode);
     }
 
-    // D. 业务逻辑注册
     RegisterNodeRecursive(safeNode);
     return safeNode;
 }
@@ -1247,10 +1075,8 @@ SigTreeNode* SigFlowTree::AddChild(SigTreeNode* parent, SigTreeNode* externalNod
 SigTreeNode* SigFlowTree::CloneSubtreeToArena(SigTreeNode* node) {
     if (!node) return nullptr;
 
-    // 利用子类实现的 Clone(arena) 方法进行多态拷贝
     SigTreeNode* newNode = node->Clone(this->arena);
 
-    // 递归克隆所有子节点
     for (auto child : node->GetChildren()) {
         SigTreeNode* newChild = CloneSubtreeToArena(child);
         newNode->AddChild(newChild);
@@ -1266,6 +1092,7 @@ void SigFlowTree::AddInPort(SecondNode* sn) {
     evt.SetClientData(sn);
     wxPostEvent(m_parent->GetEventHandler(), evt);
 }
+
 void SigFlowTree::AddOutPort(SecondNode* sn) {
     std::string name = "out" + std::to_string(sn->out_ports.size() + 1);
     Port p(name, PortDirection::Out);
@@ -1273,7 +1100,6 @@ void SigFlowTree::AddOutPort(SecondNode* sn) {
     sn->out_ports.push_back(p);
     evt.SetClientData(sn);
     wxPostEvent(m_parent->GetEventHandler(), evt);
-
 }
 
 void SigFlowTree::AddInPort(TopNode* tn) {
@@ -1294,20 +1120,13 @@ void SigFlowTree::AddOutPort(TopNode* tn) {
     wxPostEvent(m_parent->GetEventHandler(), evt);
 }
 
-
 void SigFlowTree::AddInOutPort(SecondNode* sn) {
-    /*
-    if (p.direction == PortDirection::InOut)
-        sn->inout_ports.push_back(p);
-    wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
-    evt.SetClientData(sn);
-    wxPostEvent(m_parent->GetEventHandler(), evt);*/
-
+    // Not implemented
 }
 
 void SigFlowTree::SecondDelLastInPort(SecondNode* sn) {
     if (!sn->in_ports.empty())
-    sn->in_ports.pop_back();
+        sn->in_ports.pop_back();
     wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
     evt.SetClientData(sn);
     wxPostEvent(m_parent->GetEventHandler(), evt);
@@ -1323,11 +1142,10 @@ void SigFlowTree::TopDelPort(TopNode* sn, Port p) {
             sn->GetInPorts().erase(it);
             wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
             evt.SetClientData(sn);
-            //wxPostEvent(m_parent->GetEventHandler(), evt);
             m_parent->GetEventHandler()->ProcessEvent(evt);
         }
     }
-    else if(p.direction == PortDirection::Out) {
+    else if (p.direction == PortDirection::Out) {
         auto it = std::find_if(sn->GetOutPorts().begin(), sn->GetOutPorts().end(),
             [&](const Port& item) {
                 return item.identifier == p.identifier;
@@ -1336,14 +1154,10 @@ void SigFlowTree::TopDelPort(TopNode* sn, Port p) {
             sn->GetOutPorts().erase(it);
             wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
             evt.SetClientData(sn);
-            //wxPostEvent(m_parent->GetEventHandler(), evt);
             m_parent->GetEventHandler()->ProcessEvent(evt);
         }
     }
-
-
 }
-
 
 void SigFlowTree::TopDelPort(TopNode* sn, wxString port_id) {
     auto it = std::find_if(sn->GetInPorts().begin(), sn->GetInPorts().end(),
@@ -1354,10 +1168,8 @@ void SigFlowTree::TopDelPort(TopNode* sn, wxString port_id) {
         sn->GetInPorts().erase(it);
         wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
         evt.SetClientData(sn);
-        //wxPostEvent(m_parent->GetEventHandler(), evt);
         m_parent->GetEventHandler()->ProcessEvent(evt);
     }
-    
 
     auto it2 = std::find_if(sn->GetOutPorts().begin(), sn->GetOutPorts().end(),
         [&](const Port& item) {
@@ -1367,21 +1179,15 @@ void SigFlowTree::TopDelPort(TopNode* sn, wxString port_id) {
         sn->GetOutPorts().erase(it2);
         wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
         evt.SetClientData(sn);
-        //wxPostEvent(m_parent->GetEventHandler(), evt);
         m_parent->GetEventHandler()->ProcessEvent(evt);
     }
-    
 }
 
-
 void SigFlowTree::PortReName(TopNode* tn, wxString old_id, wxString new_id) {
-    // 1. 查找旧端口（先找输入，再找输出）
     auto findAndRename = [&](std::vector<Port>& ports) -> bool {
         auto it = std::find_if(ports.begin(), ports.end(),
             [&](const Port& item) { return item.identifier == old_id; });
-
         if (it != ports.end()) {
-            // 执行重命名核心逻辑
             it->identifier = new_id;
             return true;
         }
@@ -1393,44 +1199,61 @@ void SigFlowTree::PortReName(TopNode* tn, wxString old_id, wxString new_id) {
         changed = findAndRename(tn->GetOutPorts());
     }
 
-    // 2. 如果发生了修改，通知 UI
     if (changed) {
         wxCommandEvent* evt = new wxCommandEvent(EVT_SIGFLOWNODE_CHANGED);
         evt->SetClientData(tn);
-
-        // 核心：使用 QueueEvent 或 wxPostEvent 异步通知
-        // 避免在重命名瞬间（通常是输入框失去焦点时）立即销毁/重建 UI 导致崩溃
         m_parent->GetEventHandler()->QueueEvent(evt);
     }
 }
 
-
 void SigFlowTree::PortReName(SecondNode* sn, wxString old_id, wxString new_id) {
-    // 1. 查找旧端口（先找输入，再找输出）
+    std::string oldStr = old_id.ToStdString();
+    std::string newStr = new_id.ToStdString();
+
+    // 先尝试在 in_ports 和 out_ports 中查找并重命名
+    bool changed = false;
     auto findAndRename = [&](std::vector<Port>& ports) -> bool {
         auto it = std::find_if(ports.begin(), ports.end(),
-            [&](const Port& item) { return item.identifier == old_id; });
-
+            [&](const Port& item) { return item.identifier == oldStr; });
         if (it != ports.end()) {
-            // 执行重命名核心逻辑
-            it->identifier = new_id;
+            it->identifier = newStr;
             return true;
         }
         return false;
         };
 
-    bool changed = findAndRename(sn->in_ports);
+    changed = findAndRename(sn->in_ports);
     if (!changed) {
         changed = findAndRename(sn->out_ports);
     }
 
-    // 2. 如果发生了修改，通知 UI
+    // 如果是 AlwaysNode，还需要更新语句中的引用
+    if (sn->secondType == SecondNodeType::Always) {
+        AlwaysNode* an = static_cast<AlwaysNode*>(sn);
+        for (size_t i = 0; i < an->getStatementCount(); ++i) {
+            const Statement* stmtBase = an->getStatement(i);
+            auto* stmt = const_cast<AlwaysStatement*>(dynamic_cast<const AlwaysStatement*>(stmtBase));
+            if (!stmt) continue;
+
+            // 更新输出端口名
+            if (stmt->out_port_name == oldStr) {
+                stmt->out_port_name = newStr;
+                changed = true;
+            }
+
+            // 更新输入端口名列表
+            for (auto& name : stmt->in_port_names) {
+                if (name == oldStr) {
+                    name = newStr;
+                    changed = true;
+                }
+            }
+        }
+    }
+
     if (changed) {
         wxCommandEvent* evt = new wxCommandEvent(EVT_SIGFLOWNODE_CHANGED);
         evt->SetClientData(sn);
-
-        // 核心：使用 QueueEvent 或 wxPostEvent 异步通知
-        // 避免在重命名瞬间（通常是输入框失去焦点时）立即销毁/重建 UI 导致崩溃
         m_parent->GetEventHandler()->QueueEvent(evt);
     }
 }
@@ -1440,16 +1263,14 @@ void SigFlowTree::PortConn(SecondNode* sn, wxString id, wxString conn) {
 
     bool found = false;
 
-    // 1. 查找并修改 InPorts
     for (auto& p : sn->in_ports) {
         if (p.identifier == id) {
-            p.conn = conn; // 假设 Port 结构体有 conn 成员
+            p.conn = conn;
             found = true;
             break;
         }
     }
 
-    // 2. 如果没找到，查找并修改 OutPorts
     if (!found) {
         for (auto& p : sn->out_ports) {
             if (p.identifier == id) {
@@ -1460,10 +1281,9 @@ void SigFlowTree::PortConn(SecondNode* sn, wxString id, wxString conn) {
         }
     }
 
-    // 3. 上报事件，通知 UI 更新 (使用异步事件保证安全)
     if (found) {
         wxCommandEvent* evt = new wxCommandEvent(EVT_SIGFLOWNODE_CHANGED);
-        evt->SetClientData(sn); // 携带节点信息
+        evt->SetClientData(sn);
         m_parent->GetEventHandler()->QueueEvent(evt);
     }
 }
@@ -1480,7 +1300,6 @@ void SigFlowTree::ReIdentifier(SecondNode* sn, wxString id) {
     wxCommandEvent* evt = new wxCommandEvent(EVT_SIGFLOWNODE_CHANGED);
     evt->SetClientData(sn);
     m_parent->GetEventHandler()->QueueEvent(evt);
-
 }
 
 void SigFlowTree::ReIdentifier(SignalNode* sn, wxString id) {
@@ -1488,13 +1307,11 @@ void SigFlowTree::ReIdentifier(SignalNode* sn, wxString id) {
     wxCommandEvent* evt = new wxCommandEvent(EVT_SIGFLOWNODE_CHANGED);
     evt->SetClientData(sn);
     m_parent->GetEventHandler()->QueueEvent(evt);
-
 }
 
 void SigFlowTree::RegisterNodeRecursive(SigTreeNode* node) {
     if (!node) return;
 
-    // 根据类型重新填表
     if (node->type == SigTreeNodeType::Top) {
         TopNode* tn = static_cast<TopNode*>(node);
         DefinitionTable[tn->identifier] = tn;
@@ -1505,7 +1322,6 @@ void SigFlowTree::RegisterNodeRecursive(SigTreeNode* node) {
             }
         }
     }
-
     else if (node->type == SigTreeNodeType::Second) {
         SecondNode* sn = static_cast<SecondNode*>(node);
         if (sn->secondType == SecondNodeType::ModuleInstance) {
@@ -1514,7 +1330,6 @@ void SigFlowTree::RegisterNodeRecursive(SigTreeNode* node) {
             LinkSingleInstWithDef(mn);
         }
     }
-
     else if (node->type == SigTreeNodeType::Signal) {
         SignalNode* sn = static_cast<SignalNode*>(node);
         SignalTable.emplace(sn->identifier, sn);
@@ -1528,13 +1343,10 @@ void SigFlowTree::RegisterNodeRecursive(SigTreeNode* node) {
 void SigFlowTree::UnregisterNodeRecursive(SigTreeNode* node) {
     if (!node) return;
 
-    // 1. 根据当前节点类型，从对应的表中移除
     switch (node->type) {
     case SigTreeNodeType::Top: {
         TopNode* top = static_cast<TopNode*>(node);
         DefinitionTable.erase(top->identifier);
-
-        // 可选：断开所有引用该定义的实例链接
         for (auto& pair : InstanceTable) {
             if (pair.second->Definition == top) {
                 HangInst(pair.second);
@@ -1548,14 +1360,12 @@ void SigFlowTree::UnregisterNodeRecursive(SigTreeNode* node) {
         break;
     }
     case SigTreeNodeType::Signal: {
-        // 如果你有 SignalTable，在这里 erase
+        // 如果有 SignalTable，在这里 erase
         break;
     }
     default: break;
     }
 
-    // 2. 关键：递归处理所有子节点
-    // 确保整个子树里的所有符号都被从 Map 中清理干净
     for (auto child : node->GetChildren()) {
         UnregisterNodeRecursive(child);
     }
@@ -1569,15 +1379,11 @@ FileNode* SigFlowTree::GetFileNode(std::string filePath) {
     return nullptr;
 }
 
-
-std::vector<int> SigFlowTree::SecondNodeTopoLevel(TopNode* tn)
-{
+std::vector<int> SigFlowTree::SecondNodeTopoLevel(TopNode* tn) {
     if (!tn) return {};
 
-    // 1️⃣ 收集 SecondNode
     std::vector<SecondNode*> nodes;
-    for (auto* child : tn->GetChildren())
-    {
+    for (auto* child : tn->GetChildren()) {
         if (child->type == SigTreeNodeType::Second)
             nodes.push_back(static_cast<SecondNode*>(child));
     }
@@ -1586,29 +1392,19 @@ std::vector<int> SigFlowTree::SecondNodeTopoLevel(TopNode* tn)
     std::vector<int> indegree(n, 0);
     std::vector<int> level(n, 0);
 
-    // 建立索引映射
     std::unordered_map<SecondNode*, int> index;
     for (int i = 0; i < n; ++i)
         index[nodes[i]] = i;
 
-    // 2️⃣ 构建图（邻接表）
     std::vector<std::vector<int>> adj(n);
 
-    for (int i = 0; i < n; ++i)
-    {
-        for (int j = 0; j < n; ++j)
-        {
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < n; ++j) {
             if (i == j) continue;
 
-            // i.out → j.in ?
-            for (auto& p_out : nodes[i]->out_ports)
-            {
-
-                for (auto& p_in : nodes[j]->in_ports)
-                {
-
-                    if (!p_out.conn.empty() && p_out.conn == p_in.conn)
-                    {
+            for (auto& p_out : nodes[i]->out_ports) {
+                for (auto& p_in : nodes[j]->in_ports) {
+                    if (!p_out.conn.empty() && p_out.conn == p_in.conn) {
                         adj[i].push_back(j);
                         indegree[j]++;
                     }
@@ -1617,13 +1413,10 @@ std::vector<int> SigFlowTree::SecondNodeTopoLevel(TopNode* tn)
         }
     }
 
-    // 3️⃣ Kahn 拓扑分层
     std::queue<int> q;
 
-    for (int i = 0; i < n; ++i)
-    {
-        if (indegree[i] == 0)
-        {
+    for (int i = 0; i < n; ++i) {
+        if (indegree[i] == 0) {
             level[i] = 0;
             q.push(i);
         }
@@ -1631,14 +1424,12 @@ std::vector<int> SigFlowTree::SecondNodeTopoLevel(TopNode* tn)
 
     int processed = 0;
 
-    while (!q.empty())
-    {
+    while (!q.empty()) {
         int u = q.front();
         q.pop();
         processed++;
 
-        for (int v : adj[u])
-        {
+        for (int v : adj[u]) {
             level[v] = std::max(level[v], level[u] + 1);
             indegree[v]--;
 
@@ -1647,18 +1438,13 @@ std::vector<int> SigFlowTree::SecondNodeTopoLevel(TopNode* tn)
         }
     }
 
-    // 4️⃣ 处理环（剩余 indegree > 0 的节点）
-    if (processed < n)
-    {
+    if (processed < n) {
         int maxLevel = 0;
         for (int i = 0; i < n; ++i)
             maxLevel = std::max(maxLevel, level[i]);
 
-        for (int i = 0; i < n; ++i)
-        {
-            if (indegree[i] > 0)
-            {
-                // 将环内节点设为同一层
+        for (int i = 0; i < n; ++i) {
+            if (indegree[i] > 0) {
                 level[i] = maxLevel;
             }
         }
@@ -1667,12 +1453,11 @@ std::vector<int> SigFlowTree::SecondNodeTopoLevel(TopNode* tn)
     return level;
 }
 
-
-GateInstNode::GateInstNode(std::string id, GateType gt) :SecondNode(id, SecondNodeType::GateInstance), gatetype(gt) {
+GateInstNode::GateInstNode(std::string id, GateType gt) : SecondNode(id, SecondNodeType::GateInstance), gatetype(gt) {
     in_ports.push_back(Port("in1", PortDirection::In));
     in_ports.push_back(Port("in2", PortDirection::In));
     out_ports.push_back(Port("out", PortDirection::Out));
-};
+}
 
 std::string GateInstNode::ToVerilog() {
     std::string v = SigFlowTree::ToString(gatetype) + " " + identifier + " (";
@@ -1695,7 +1480,7 @@ void GateInstNode::Print() {
     SecondNode::Print();
 }
 
-ModuleInstNode::ModuleInstNode(std::string id, TopNode* Definition) :SecondNode(id, SecondNodeType::ModuleInstance) {
+ModuleInstNode::ModuleInstNode(std::string id, TopNode* Definition) : SecondNode(id, SecondNodeType::ModuleInstance) {
     SetDefinition(Definition);
     SetDefinition(Definition->identifier);
 }
@@ -1725,7 +1510,6 @@ std::string ModuleInstNode::ToVerilog() {
         v += std::format(".{}({}),\n", port.identifier, port.conn);
     }
     v += ")\n";
-
     return v;
 }
 
@@ -1744,21 +1528,9 @@ void ModuleInstNode::Print() {
     SecondNode::Print();
 }
 
-
-ContinuousAssignNode::ContinuousAssignNode(std::string id, std::string raw_assign) :SecondNode(id, SecondNodeType::ContinuousAssign){
-    /*
-    std::string code = std::format("module _tmp\n{} = {};\n endmodule;", id, raw_assign);
-    TSParser* parser = ts_parser_new();
-    ts_parser_set_language(parser, tree_sitter_verilog());
-    TSTree* tree = ts_parser_parse_string(parser, nullptr, code.c_str(), code.length());
-
-
-
-
-
-    ts_parser_delete(parser);
-    ts_tree_delete(tree);*/
-};
+ContinuousAssignNode::ContinuousAssignNode(std::string id, std::string raw_assign) : SecondNode(id, SecondNodeType::ContinuousAssign) {
+    // 构造函数，可根据需要解析 raw_assign
+}
 
 std::string ContinuousAssignNode::ToVerilog() {
     std::string v = std::format("assign ");
@@ -1784,34 +1556,135 @@ void ContinuousAssignNode::Print() {
     SecondNode::Print();
 }
 
+//=============================================================================
+// AlwaysNode 新增接口实现（基于信号名称）
+//=============================================================================
 
+void AlwaysNode::AddEmptyExpression() {
+    // 生成默认输出端口名（确保唯一）
+    std::string outName = "out" + std::to_string(out_ports.size() + 1);
+    out_ports.push_back(Port(outName, PortDirection::Out, ""));
+
+    // 创建默认 AlwaysStatement
+    auto stmt = std::make_unique<AlwaysStatement>(
+        false,          // 默认非阻塞
+        "",             // 空表达式
+        0.0f,           // 无延迟
+        outName,        // 输出端口名
+        std::vector<std::string>{} // 输入端口列表为空
+    );
+
+    addStatement(std::move(stmt));
+}
+
+void AlwaysNode::DelLastExpression() {
+    if (getStatementCount() > 0) {
+        size_t lastIdx = getStatementCount() - 1;
+        auto* stmt = dynamic_cast<const AlwaysStatement*>(getStatement(lastIdx));
+        if (stmt) {
+            std::string outName = stmt->out_port_name;
+            removeStatement(lastIdx);
+            // 同步删除输出端口
+            auto& out = out_ports;
+            out.erase(std::remove_if(out.begin(), out.end(),
+                [&outName](const Port& p) { return p.identifier == outName; }),
+                out.end());
+        }
+    }
+}
+
+void AlwaysNode::AddPortToExpression(int exp_id) {
+    if (exp_id < 0 || exp_id >= static_cast<int>(statements_.size())) return;
+
+    auto* stmt = dynamic_cast<AlwaysStatement*>(statements_[exp_id].get());
+    if (!stmt) return;
+
+    AddPortToExpression(stmt);
+}
+
+void AlwaysNode::DeletePort(int portIndex) {
+    if (portIndex < 0 || portIndex >= static_cast<int>(in_ports.size())) return;
+
+    // 获取要删除的端口名
+    std::string portName = in_ports[portIndex].identifier;
+
+    // 从 in_ports 中删除该端口
+    in_ports.erase(in_ports.begin() + portIndex);
+
+    // 遍历所有语句，从它们的 in_port_names 中移除该端口名
+    for (auto& stmtPtr : statements_) {
+        auto* stmt = dynamic_cast<AlwaysStatement*>(stmtPtr.get());
+        if (!stmt) continue;
+        auto& names = stmt->in_port_names;
+        names.erase(std::remove(names.begin(), names.end(), portName), names.end());
+    }
+
+    // 注意：如果某语句的输出端口名恰好等于 portName，此处不处理（输出端口仅通过表达式删除间接移除）
+}
+
+// 更新 ToVerilog 以使用 statements_（原代码已正确，无需修改）
 std::string AlwaysNode::ToVerilog() {
-    std::string v = std::format("assign ");
-    for (auto port : out_ports) {
-        v += port.conn + " = ";
+    std::string v = "always @(";
+    v += (edgeType == EdgeType::Posedge) ? "posedge " : "negedge ";
+    v += identifier + ") begin\n";
+    for (size_t i = 0; i < statements_.size(); ++i) {
+        auto* stmt = dynamic_cast<AlwaysStatement*>(statements_[i].get());
+        if (!stmt) continue;
+        if (stmt->delay > 0.0f)
+            v += "    #" + std::to_string(stmt->delay) + " ";
+        else
+            v += "    ";
+        v += stmt->out_port_name + " ";
+        v += (stmt->is_blocking ? "= " : "<= ");
+        v += stmt->nb_or_b_expression + ";\n";
     }
-    for (auto port : in_ports) {
-        v += port.conn + " = ";
-    }
-    v += ";\n";
+    v += "end\n";
     return v;
 }
 
-std::string AlwaysNode::GetName() {
-    return SigFlowTree::ToString(secondType) + " " + identifier;
+void AlwaysNode::CleanUnusedInPorts() {
+    std::unordered_set<std::string> usedInPorts;
+    for (size_t i = 0; i < getStatementCount(); ++i) {
+        const Statement* stmtBase = getStatement(i);
+        auto* stmt = dynamic_cast<const AlwaysStatement*>(stmtBase);
+        if (!stmt) continue;
+        usedInPorts.insert(stmt->in_port_names.begin(), stmt->in_port_names.end());
+    }
+
+    in_ports.erase(std::remove_if(in_ports.begin(), in_ports.end(),
+        [&](const Port& p) { return usedInPorts.find(p.identifier) == usedInPorts.end(); }),
+        in_ports.end());
 }
 
-void AlwaysNode::Print() {
-    std::string info;
-    info += "SecondType: Always\n";
-    for (int i = 0; i < nb_or_b_expressions.size(); i++) {
-        //info += std::format("#{} {} {} {}\n", nb_or_b_expressions[i].delay, ports[nb_or_b_expressions[i].out_port_id].conn, nb_or_b_expressions[i].is_blocking?"=":"<=", nb_or_b_expressions[i].nb_or_b_expression);
-        info += std::format("inPorts ids:");
-        for (int id : nb_or_b_expressions[i].in_port_ids) {
-            info += std::format("{} ", id);
-        }
-        info += std::format("\n");
-    }
-    OutputDebugStringA(info.c_str());
-    SecondNode::Print();
+void AlwaysNode::RemoveExpression(size_t index) {
+    if (index >= statements_.size()) return;
+
+    // 获取要删除的语句，并转成 AlwaysStatement 以便访问输出端口名
+    auto* stmt = dynamic_cast<AlwaysStatement*>(statements_[index].get());
+    if (!stmt) return;
+
+    std::string outName = stmt->out_port_name;
+
+    // 删除语句
+    removeStatement(index);
+
+    // 从输出端口中移除对应的端口（假设输出端口名唯一）
+    auto& outs = out_ports;
+    outs.erase(std::remove_if(outs.begin(), outs.end(),
+        [&outName](const Port& p) { return p.identifier == outName; }),
+        outs.end());
+
+    // 清理无用的输入端口
+    CleanUnusedInPorts();
+}
+
+void AlwaysNode::AddPortToExpression(AlwaysStatement* stmt) {
+    if (!stmt) return;
+
+    // 生成唯一输入端口名
+    std::string inName = "in" + std::to_string(in_ports.size() + 1);
+    in_ports.push_back(Port(inName, PortDirection::In, ""));
+
+    // 将端口名加入语句的输入列表
+    stmt->in_port_names.push_back(inName);
 }

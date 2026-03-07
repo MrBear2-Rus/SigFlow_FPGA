@@ -275,5 +275,11 @@
     <ClInclude Include="PropertyPanelBuilder.h">
       <Filter>头文件\gui\propertyPanel</Filter>
     </ClInclude>
+    <ClInclude Include="Statement.h">
+      <Filter>头文件\gui</Filter>
+    </ClInclude>
+    <ClInclude Include="StatementSequence.h">
+      <Filter>头文件\gui</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
