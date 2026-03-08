@@ -1,4 +1,4 @@
-#include "CanvasNoteBook.h"
+﻿#include "CanvasNoteBook.h"
 #include "MainFrame.h"
 
 #include <wx/aui/auibar.h>
@@ -73,7 +73,9 @@ void CanvasNoteBook::UpdateNoteBook() {
     AdjustScaleToFit();
 
     DeleteAddButton();
-
+    this->InvalidateBestSize();
+    this->Layout();
+    this->Update(); // 强制立即重绘
     CallAfter(&CanvasNoteBook::AddCustomButton);
 }
 
@@ -218,6 +220,19 @@ void CanvasNoteBook::AddCustomButton() {
     for (wxWindow* child : children) {
         if (child->GetClassInfo()->GetClassName() == wxString("wxAuiTabCtrl")) {
             tabCtrl = child;
+            child->Bind(wxEVT_PAINT, [this](wxPaintEvent& evt) {
+                evt.Skip(); // 先让 wxAuiTabCtrl 完成它所有的绘制工作
+
+                // CallAfter 会将任务放入队列，在当前所有 Paint 消息处理完后立即执行
+                this->CallAfter([this]() {
+                    if (m_addBtn) {
+                        wxSize sz = this->GetClientSize();
+                        m_addBtn->SetPosition(wxPoint(sz.x - 30, 3));
+                        m_addBtn->Raise();    // 确保在最上层
+                        m_addBtn->Refresh();  // 强制按钮自己重绘一次
+                    }
+                    });
+                });
             break;
         }
     }
@@ -242,20 +257,6 @@ void CanvasNoteBook::AddCustomButton() {
     m_addBtn->Raise();
     wxSize sz = this->GetClientSize();
     m_addBtn->SetPosition(wxPoint(sz.x-30, 3));
-    // 4. 监听 Notebook 的大小变化，而不是 TabCtrl
-    this->Bind(wxEVT_SIZE, [this](wxSizeEvent& evt) {
-        wxSize sz = this->GetClientSize();
-
-        // --- 核心定位逻辑 ---
-        // 避开 Scroll 按钮和关闭按钮，将其放在标签栏的右上角
-        // 宽度 30px 通常足以避开左侧的 Tab，在最右侧的按钮左边
-        int xPos = sz.x - 30;
-        int yPos = 3; // 标签栏通常高度较小，放在顶部下方即可
-
-        if (m_addBtn)  m_addBtn->SetPosition(wxPoint(xPos, yPos));
-
-        evt.Skip();
-        });
 }
 
 void CanvasNoteBook::DeleteAddButton() {
