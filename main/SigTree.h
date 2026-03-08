@@ -125,7 +125,7 @@ private:
     // Tree 连接
     SigTreeNode* parent = nullptr;
     std::vector<SigTreeNode*> children;
-
+    
 
 
     // 父子连接
@@ -374,6 +374,7 @@ public:
     EdgeType edgeType;
     std::vector<NB_OR_B_Expression> nb_or_b_expressions;
 
+
     AlwaysNode(std::string id, EdgeType edgeType) :SecondNode(id, SecondNodeType::Always), edgeType(edgeType) {};
 
 
@@ -425,7 +426,7 @@ public:
 
     SigFlowTree(MainFrame* parent);
     void LoadProject(std::string projectPath);
-    void UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot, std::string& filePath, std::string& code);
+    void UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot, std::string& filePath, std::string& code, std::unordered_map<SigTreeNode*, std::tuple<int, int>>& outMap);
     void UpdateTreeFromSlang(slang::ast::Compilation* compilation);
     void ClearTree();
 

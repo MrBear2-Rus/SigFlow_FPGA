@@ -298,7 +298,7 @@ TopNode* SigFlowTreePanel::ShowCreateTopDialog(TopNodeType type, SigTreeNode* pa
         auto* addOutBtn = new wxButton(&dlg, wxID_ANY, "+ Add Out");
         addOutBtn->Bind(wxEVT_BUTTON, [&](wxCommandEvent&) {
             Port p;
-            p.identifier = "port" + std::to_string(in_ports.size());
+            p.identifier = "port" + std::to_string(out_ports.size());
             p.direction = PortDirection::Out;
             out_ports.push_back(p);
             rebuild();

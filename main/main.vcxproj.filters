@@ -168,6 +168,9 @@
     <ClCompile Include="CanvasNoteBook.cpp">
       <Filter>源文件\gui\canvas</Filter>
     </ClCompile>
+    <ClCompile Include="VerilogManager.cpp">
+      <Filter>源文件\text_analysis</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="my_log.h">
@@ -268,6 +271,9 @@
     </ClInclude>
     <ClInclude Include="CanvasNoteBook.h">
       <Filter>头文件\gui\canvas</Filter>
+    </ClInclude>
+    <ClInclude Include="VerilogManager.h">
+      <Filter>头文件\text_analysis</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

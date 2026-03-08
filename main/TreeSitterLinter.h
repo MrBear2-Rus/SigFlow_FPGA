@@ -36,6 +36,8 @@ public:
     TreeSitterLinter();
     ~TreeSitterLinter();
 
+    bool TSTest(wxString code);
+    std::tuple<TSNode, bool> GetStructNode(wxString code);
     std::vector<BlockInfo> Lint(wxString code);
     std::vector<BlockInfo> LintFromPath(wxString filePath);
 

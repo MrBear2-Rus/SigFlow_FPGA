@@ -204,7 +204,7 @@ ExpressionResult FormalizeExpression(TSNode node, const std::string& code, int &
     return result;
 }
 
-void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,std::string& filePath, std::string& code) {
+void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,std::string& filePath, std::string& code, std::unordered_map<SigTreeNode*, std::tuple<int, int>>& outMap) {
     TSNode currentNode = ts_tree_cursor_current_node(cursor);
     SigTreeNode* newParent = SigRoot;
     std::string node_type = ts_node_type(currentNode);
@@ -213,15 +213,14 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
         if (ts_tree_cursor_goto_first_child(cursor)) {
             // 递归子节点
             do {
-                UpdateTreeFromTS(cursor, newParent, filePath, code);
+                UpdateTreeFromTS(cursor, newParent, filePath, code, outMap);
             } while (ts_tree_cursor_goto_next_sibling(cursor));
 
             // 处理完所有子节点后，务必跳回父节点
             ts_tree_cursor_goto_parent(cursor);
         }
-        return;
+        return ;
     }
-
     // 首先判断parent类型
     if (newParent->type == SigTreeNodeType::Project) {
         // 找File
@@ -229,7 +228,7 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
         if (node_type == "source_file") {
             FileNode* fn = arena.make<FileNode>(filePath);
             fn = static_cast<FileNode*>(this->AddChild(newParent, fn));
-            //CollectSigTreeNodeInfoTS(fn, currentNode, filePath, code);
+            outMap[fn] = std::make_tuple(ts_node_start_point(currentNode).row, ts_node_end_point(currentNode).row);
             newParent = fn;
         }
     }
@@ -284,7 +283,7 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
             tn->UpdateInPorts(in);
             tn->UpdateOutPorts(out);
             tn = static_cast<TopNode*>(this->AddChild(newParent, tn));
-            //CollectSigTreeNodeInfoTS(tn, currentNode, filePath, code);
+            outMap[tn] = std::make_tuple(ts_node_start_point(currentNode).row, ts_node_end_point(currentNode).row);
             newParent = tn;
 
         }
@@ -325,9 +324,11 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                 }
                 SignalNode tmpNode(id, st);
                 SignalNode* nn = static_cast<SignalNode*>(this->AddChild(netParent, &tmpNode));
+                
                 if (nn) {
-                SignalTable.emplace(nn->identifier, nn);
-                newParent = nn;
+                    outMap[nn] = std::make_tuple(ts_node_start_point(currentNode).row, ts_node_end_point(currentNode).row);
+                    SignalTable.emplace(nn->identifier, nn);
+                    newParent = nn;
             }
             
         }
@@ -360,6 +361,7 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                 SignalNode tmpNode(id, SignalType::Reg);
                 SignalNode* nn = static_cast<SignalNode*>(AddChild(dataParent, &tmpNode));
                 if (nn) {
+                    outMap[nn] = std::make_tuple(ts_node_start_point(currentNode).row, ts_node_end_point(currentNode).row);
                 SignalTable.emplace(nn->identifier, nn);
                 newParent = nn;
             }
@@ -417,6 +419,7 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                 //ModuleInstNode* mn = arena.make<ModuleInstNode>(id, def);
                 //mn->inout_ports = ps;
                 mn = static_cast<ModuleInstNode*>(this->AddChild(newParent, mn));
+                outMap[mn] = std::make_tuple(ts_node_start_point(currentNode).row, ts_node_end_point(currentNode).row);
                 newParent = mn;
             }
             else if (second_type == SecondNodeType::GateInstance) {
@@ -467,6 +470,7 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                 gn->in_ports[1].conn = in_conn[1];
                 gn->out_ports[0].conn = out_conn[0];
                 gn = static_cast<GateInstNode*>(this->AddChild(newParent, gn));
+                outMap[gn] = std::make_tuple(ts_node_start_point(currentNode).row, ts_node_end_point(currentNode).row);
                 newParent = gn;
             }
             else if (second_type == SecondNodeType::Always) {
@@ -587,6 +591,7 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                 an->out_ports = out;
                 an->nb_or_b_expressions = exps;
                 an = static_cast<AlwaysNode*>(this->AddChild(newParent, an));
+                outMap[an] = std::make_tuple(ts_node_start_point(currentNode).row, ts_node_end_point(currentNode).row);
                 newParent = an;
 
             }
@@ -643,6 +648,7 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                 an->in_ports = in;
                 an->out_ports.push_back(out);
                 an = static_cast<ContinuousAssignNode*>(this->AddChild(newParent, an));
+                outMap[an] = std::make_tuple(ts_node_start_point(currentNode).row, ts_node_end_point(currentNode).row);
                 newParent = an;
 
 
@@ -654,7 +660,7 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
     if (ts_tree_cursor_goto_first_child(cursor)) {
         // 递归子节点
         do {
-            UpdateTreeFromTS(cursor, newParent, filePath, code);
+            UpdateTreeFromTS(cursor, newParent, filePath, code, outMap);
         } while (ts_tree_cursor_goto_next_sibling(cursor));
 
         // 处理完所有子节点后，务必跳回父节点
@@ -1233,7 +1239,7 @@ SigTreeNode* SigFlowTree::AddChild(SigTreeNode* parent, SigTreeNode* externalNod
         parent->AddChild(safeNode);
         wxCommandEvent event(EVT_SIGFLOWNODE_ADD);
         event.SetClientData(safeNode);
-        wxPostEvent(m_parent->GetEventHandler(), event);
+        m_parent->GetEventHandler()->ProcessEvent(event);
     }
     else {
         this->root = static_cast<ProjectNode*>(safeNode);
@@ -1675,14 +1681,19 @@ GateInstNode::GateInstNode(std::string id, GateType gt) :SecondNode(id, SecondNo
 };
 
 std::string GateInstNode::ToVerilog() {
-    std::string v = SigFlowTree::ToString(gatetype) + " " + identifier + " (";
+    std::string v = "    " + SigFlowTree::ToString(gatetype) + " " + identifier + "(";
+
     for (auto port : out_ports) {
-        v += port.conn + " = ";
+        v += port.conn + ", ";
+
     }
-    for (auto port : in_ports) {
-        v += port.conn + " = ";
+    for (int i = 0; i < in_ports.size(); i++) {
+        auto port = in_ports[i];
+        v += port.conn;
+        if (i < in_ports.size()-1) v +=", ";
     }
-    v += ");\n";
+
+    v += ");\n\n";
     return v;
 }
 
@@ -1716,15 +1727,15 @@ void ModuleInstNode::SetDefinition(TopNode* Definition) {
 }
 
 std::string ModuleInstNode::ToVerilog() {
-    std::string v = std::format("{} ", identifier);
-    v += "(";
+    std::string v = std::format("    {} {}", defIdentifier, identifier);
+    v += "(\n";
     for (auto port : in_ports) {
-        v += std::format(".{}({}),\n", port.identifier, port.conn);
+        v += std::format("        .{}({}),\n", port.identifier, port.conn);
     }
     for (auto port : out_ports) {
-        v += std::format(".{}({}),\n", port.identifier, port.conn);
+        v += std::format("        .{}({}),\n", port.identifier, port.conn);
     }
-    v += ")\n";
+    v += "    );\n\n";
 
     return v;
 }
