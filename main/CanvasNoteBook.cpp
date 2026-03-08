@@ -1,4 +1,4 @@
-﻿#include "CanvasNoteBook.h"
+#include "CanvasNoteBook.h"
 #include "MainFrame.h"
 
 #include <wx/aui/auibar.h>
@@ -61,6 +61,14 @@ void CanvasNoteBook::DeleteAll() {
 
 
 void CanvasNoteBook::UpdateNoteBook() {
+    if (!fn) {
+        DeleteAll(); // 既然没有数据节点，理应清空界面
+        // 还需要重置按钮或刷新布局，防止残留
+        DeleteAddButton();
+        this->Layout();
+        this->Refresh();
+        return;
+    }
     DeleteAll();
     bool sel = true;
     for (auto* cld : fn->GetChildren()) {

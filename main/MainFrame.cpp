@@ -254,6 +254,31 @@ MainFrame::MainFrame()
 
 
     topBar->Realize();
+    // 绑定顶端工具栏按钮事件：将工具栏按钮的点击映射到 MainFrame 的业务函数
+    Bind(wxEVT_TOOL, [this](wxCommandEvent& e) {
+        switch (e.GetId()) {
+        case ID_TB_NEW:
+            DoFileNew();
+            break;
+        case ID_TB_OPEN:
+            DoFileOpen();
+            break;
+        case ID_TB_SAVE:
+            DoFileSave();
+            break;
+        case ID_TB_RECLAIM:
+            DoSimClean(); // 复用清理接口作为回收占位行为
+            break;
+        case ID_TB_START:
+            DoSimRun();
+            break;
+        case ID_TB_STOP:
+            DoSimReset();
+            break;
+        default:
+            break;
+        }
+    }, ID_TB_NEW, ID_TB_STOP);
     
     wxAuiNotebook* rightNotebook = new wxAuiNotebook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
         wxAUI_NB_TOP | wxAUI_NB_TAB_MOVE | wxAUI_NB_TAB_EXTERNAL_MOVE | wxAUI_NB_TAB_SPLIT);
@@ -606,15 +631,92 @@ void MainFrame::DoFileOpenProject() {
 
 
 void MainFrame::DoFileNew() {
-    // ֱ�Ӵ���һ���µĿհ�MainFrame����
-    MainFrame* newFrame = new MainFrame();  // ����MainFrame���캯�����ʼ���հ�״̬
+    // Create a new project directory with basic structure and open it in the project tree
+    // 1) Ask for parent folder
+    wxDirDialog dirDlg(this, "Select parent folder for new project", "",
+        wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
+    if (dirDlg.ShowModal() != wxID_OK) return;
+    wxString parent = dirDlg.GetPath();
 
-    // ��ʾ�´��ڣ�������ʾ��
-    newFrame->Centre(wxBOTH);
-    newFrame->Show(true);
+    // 2) Ask for project name
+    wxTextEntryDialog nameDlg(this, "Enter project name:", "New Project", "NewProject");
+    if (nameDlg.ShowModal() != wxID_OK) return;
+    wxString projName = nameDlg.GetValue();
+    if (projName.IsEmpty()) {
+        wxMessageBox("Project name cannot be empty", "Error", wxOK | wxICON_ERROR, this);
+        return;
+    }
 
-    // ����ѡ�������Ҫ��¼���д򿪵Ĵ��ڣ������ӵ������б���
-    // m_allFrames.push_back(newFrame);  // ��Ҫ��MainFrame��������m_allFrames
+    // 3) Build project path and check
+    wxFileName fn(parent, projName);
+    wxString projPath = fn.GetFullPath();
+    if (wxDirExists(projPath)) {
+        wxDir dir(projPath);
+        wxString anyName;
+        bool notEmpty = dir.IsOpened() && dir.GetFirst(&anyName);
+        if (notEmpty) {
+            int res = wxMessageBox("The folder already exists and is not empty. Overwrite?", "Confirm",
+                wxYES_NO | wxICON_QUESTION, this);
+            if (res != wxYES) return;
+        }
+    }
+    else if (wxFileExists(projPath)) {
+        int res = wxMessageBox("A file with the same name exists. Overwrite?", "Confirm",
+            wxYES_NO | wxICON_QUESTION, this);
+        if (res != wxYES) return;
+        wxRemoveFile(projPath);
+    }
+
+    // 4) Create directory structure
+    if (!wxFileName::Mkdir(projPath, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL)) {
+        wxMessageBox("Failed to create project folder", "Error", wxOK | wxICON_ERROR, this);
+        return;
+    }
+    wxString srcDir = projPath + wxFileName::GetPathSeparator() + "src";
+    wxString libDir = projPath + wxFileName::GetPathSeparator() + "lib";
+    wxString sigflowDir = projPath + wxFileName::GetPathSeparator() + ".sigflow";
+    wxString workspaceDir = sigflowDir + wxFileName::GetPathSeparator() + "workspace";
+    wxString simDir = sigflowDir + wxFileName::GetPathSeparator() + "sim";
+    wxFileName::Mkdir(srcDir, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
+    wxFileName::Mkdir(libDir, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
+    wxFileName::Mkdir(workspaceDir, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
+    wxFileName::Mkdir(simDir, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
+
+    // 5) Create a minimal sigflow.project JSON
+    wxString projectJson = "{\n  \"build\": { \"top_module\": [] },\n  \"paths\": { \"source_files\": [], \"library_files\": [] }\n}\n";
+    wxString projFile = projPath + wxFileName::GetPathSeparator() + "sigflow.project";
+    wxFile pfile;
+    if (pfile.Open(projFile, wxFile::write)) {
+        pfile.Write(projectJson);
+        pfile.Close();
+    }
+
+    // 6) Create a sample top Verilog file to get started
+    wxString sampleTop = srcDir + wxFileName::GetPathSeparator() + "top.v";
+    wxFile sampleFile;
+    if (sampleFile.Open(sampleTop, wxFile::write)) {
+        wxString sampleCode = "module top();\n    // TODO: add signals and logic\nendmodule\n";
+        sampleFile.Write(sampleCode);
+        sampleFile.Close();
+    }
+
+    // 7) Create README
+    wxString readmePath = projPath + wxFileName::GetPathSeparator() + "README.md";
+    wxFile rfile;
+    if (rfile.Open(readmePath, wxFile::write)) {
+        rfile.Write(wxString::Format("# %s\n\nThis is a new SigFlow project.", projName));
+        rfile.Close();
+    }
+
+    // 8) Load the project into UI
+    m_projectTreePanel->LoadProject(projPath);
+    m_currentProjectPath = projPath;
+    m_workspacePath = workspaceDir;
+    m_projectName = projName;
+    RefreshTitle();
+
+    // 9) Open sample file in editor so user can start coding
+    DoFileOpen(sampleTop);
 }
 
 //�����ļ���ʵ�֣����������ĸ�����
