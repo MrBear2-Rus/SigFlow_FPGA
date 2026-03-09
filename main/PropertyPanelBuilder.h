@@ -27,15 +27,18 @@ public:
         wxTextCtrl** nameCtrlOut = nullptr, wxButton** deleteBtnOut = nullptr);
 
     // SecondNode / ContinuousAssign / Always 端口行（方向只读、名称只读、连接可编辑），返回连接文本框
-    static wxSizer* CreateSecondPortRow(wxWindow* parent, const wxString& direction, const wxString& portName,
-        const wxString& connValue, wxTextCtrl** connCtrlOut = nullptr);
+    static wxSizer* CreateSecondPortRow(wxWindow* parent, const wxString& direction,
+        const wxString& portName, const wxString& connValue,
+        wxTextCtrl** connCtrlOut = nullptr,
+        wxButton** deleteBtnOut = nullptr);
 
     // AlwaysNode 表达式行（delay、输出端口名只读、操作符选择、RHS 可编辑），返回各控件指针
     static wxSizer* CreateNBOrBExpressionRow(wxWindow* parent, float delay, const wxString& outPortName,
         bool isBlocking, const wxString& rhs,
         wxTextCtrl** delayCtrlOut = nullptr,
         wxChoice** opChoiceOut = nullptr,
-        wxTextCtrl** rhsCtrlOut = nullptr);
+        wxTextCtrl** rhsCtrlOut = nullptr,
+        wxButton** deleteBtnOut = nullptr);
 
     // 通用按钮创建（可指定前景色）
     static wxButton* CreateButton(wxWindow* parent, const wxString& label,

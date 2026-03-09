@@ -414,7 +414,7 @@ public:
 
     void CleanUnusedInPorts();   // 删除未被任何语句引用的输入端口
 
-
+    void DeletePort(const std::string& portName);
     SigTreeNode* Clone(Arena& arena) const override;
 };
 

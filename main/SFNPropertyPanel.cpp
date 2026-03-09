@@ -352,32 +352,8 @@ wxSizer* SFNPropertyPanel::Add_BN_OR_B_Expressions(AlwaysNode* an) {
 
         auto groupWrapper = new wxBoxSizer(wxVERTICAL);
 
-        Add_BN_OR_B_Expression(groupWrapper, an, stmt);
+        Add_BN_OR_B_Expression(groupWrapper, an, stmt, i);
         Add_BN_OR_B_Ports(groupWrapper, an, stmt, static_cast<int>(i));
-
-        // ---- 新增：每个表达式独立的删除按钮 ----
-        auto deleteExpBtn = PropertyPanelBuilder::CreateButton(this, "Delete Expression", wxColour(200, 0, 0));
-        deleteExpBtn->Bind(wxEVT_BUTTON, [this, an, i](wxCommandEvent&) {
-            if (an->getStatementCount() > i) {
-                // 先获取要删除语句的输出端口名
-                auto* targetStmt = dynamic_cast<const AlwaysStatement*>(an->getStatement(i));
-                if (targetStmt) {
-                    std::string outName = targetStmt->out_port_name;
-                    // 删除语句
-                    an->removeStatement(i);
-                    // 同步删除输出端口
-                    auto& outPorts = an->out_ports;
-                    outPorts.erase(std::remove_if(outPorts.begin(), outPorts.end(),
-                        [&outName](const Port& p) { return p.identifier == outName; }),
-                        outPorts.end());
-                    // 清理无用的输入端口
-                    an->CleanUnusedInPorts();
-                }
-                LoadNode(m_node);
-            }
-            });
-        groupWrapper->Add(deleteExpBtn, 0, wxALIGN_CENTER_HORIZONTAL | wxALL, 5);
-        // ---------------------------------------
 
         if (i < an->getStatementCount() - 1)
             groupWrapper->Add(new wxStaticLine(this, wxID_ANY), 0, wxEXPAND | wxTOP | wxBOTTOM, 10);
@@ -401,25 +377,26 @@ wxSizer* SFNPropertyPanel::Add_BN_OR_B_Expressions(AlwaysNode* an) {
         LoadNode(m_node);
         });
     delLastExpBtn->Bind(wxEVT_BUTTON, [this, an](wxCommandEvent&) {
-        an->DelLastExpression();  // 此函数已清理输出端口
-        an->CleanUnusedInPorts(); // 清理无用的输入端口
+        an->DelLastExpression();
+        an->CleanUnusedInPorts();
         LoadNode(m_node);
         });
 
     return mainSizer;
 }
 
-void SFNPropertyPanel::Add_BN_OR_B_Expression(wxSizer* groupSizer, AlwaysNode* an, AlwaysStatement* stmt) {
+void SFNPropertyPanel::Add_BN_OR_B_Expression(wxSizer* groupSizer, AlwaysNode* an, AlwaysStatement* stmt, size_t expIndex) {
     wxString outName = wxString::FromUTF8(stmt->out_port_name);
 
     wxTextCtrl* delayCtrl = nullptr;
     wxChoice* opChoice = nullptr;
     wxTextCtrl* rhsCtrl = nullptr;
+    wxButton* deleteExpBtn = nullptr;
 
     auto rowSizer = PropertyPanelBuilder::CreateNBOrBExpressionRow(this, stmt->delay, outName,
         stmt->is_blocking,
         wxString::FromUTF8(stmt->nb_or_b_expression),
-        &delayCtrl, &opChoice, &rhsCtrl);
+        &delayCtrl, &opChoice, &rhsCtrl, &deleteExpBtn);
     groupSizer->Add(rowSizer, 0, wxEXPAND | wxBOTTOM, 8);
 
     if (delayCtrl) {
@@ -462,6 +439,14 @@ void SFNPropertyPanel::Add_BN_OR_B_Expression(wxSizer* groupSizer, AlwaysNode* a
         rhsCtrl->Bind(wxEVT_TEXT_ENTER, syncRHS);
         rhsCtrl->Bind(wxEVT_KILL_FOCUS, syncRHS);
     }
+
+    // 绑定删除表达式按钮
+    if (deleteExpBtn) {
+        deleteExpBtn->Bind(wxEVT_BUTTON, [this, an, expIndex](wxCommandEvent&) {
+            an->RemoveExpression(expIndex);
+            LoadNode(m_node); // 刷新面板
+            });
+    }
 }
 
 void SFNPropertyPanel::Add_BN_OR_B_Ports(wxSizer* groupSizer, AlwaysNode* an, AlwaysStatement* stmt, int exp_id) {
@@ -483,42 +468,23 @@ void SFNPropertyPanel::Add_BN_OR_B_Ports(wxSizer* groupSizer, AlwaysNode* an, Al
         }
     }
 
-    // 底部按钮组：添加/删除端口
+    // 只保留“+ Add Port”按钮
     auto btnSizer = new wxBoxSizer(wxHORIZONTAL);
     auto addBtn = CreateAddButton(this, "+ Add Port", [this, an, stmt]() {
         an->AddPortToExpression(stmt);
         LoadNode(m_node);
         });
-    auto delBtn = PropertyPanelBuilder::CreateButton(this, "- Delete Port", wxColour(200, 0, 0));
-    delBtn->Bind(wxEVT_BUTTON, [this, an, stmt](wxCommandEvent&) {
-        if (!stmt->in_port_names.empty()) {
-            std::string lastPortName = stmt->in_port_names.back();
-            int index = -1;
-            for (size_t i = 0; i < an->in_ports.size(); ++i) {
-                if (an->in_ports[i].identifier == lastPortName) {
-                    index = static_cast<int>(i);
-                    break;
-                }
-            }
-            if (index != -1) {
-                an->DeletePort(index);
-                LoadNode(m_node);
-            }
-        }
-        else {
-            wxLogWarning("Must keep at least one input port.");
-        }
-        });
     btnSizer->Add(addBtn, 0, wxALL, 5);
-    btnSizer->Add(delBtn, 0, wxALL, 5);
     groupSizer->Add(btnSizer, 0, wxALIGN_CENTER_HORIZONTAL | wxTOP | wxBOTTOM, 15);
 }
 
-void SFNPropertyPanel::Add_BN_OR_B_Port(wxSizer* groupSizer, AlwaysNode* an, Port& p) {
+void SFNPropertyPanel::Add_BN_OR_B_Port(wxSizer* groupSizer, AlwaysNode* an, Port& p)
+{
     wxTextCtrl* connCtrl = nullptr;
+    wxButton* deletePortBtn = nullptr;
     auto wrapper = PropertyPanelBuilder::CreateSecondPortRow(this, SigFlowTree::ToString(p.direction),
         p.identifier, wxString::FromUTF8(p.conn),
-        &connCtrl);
+        &connCtrl, &deletePortBtn);
     if (connCtrl) {
         wxString portName = p.identifier;
         auto syncConn = [this, an, portName](wxEvent& event) {
@@ -533,5 +499,16 @@ void SFNPropertyPanel::Add_BN_OR_B_Port(wxSizer* groupSizer, AlwaysNode* an, Por
         connCtrl->Bind(wxEVT_TEXT_ENTER, syncConn);
         connCtrl->Bind(wxEVT_KILL_FOCUS, syncConn);
     }
+
+    // 绑定删除端口按钮
+    if (deletePortBtn) {
+        wxString portName = p.identifier;
+        deletePortBtn->Bind(wxEVT_BUTTON, [this, an, portName](wxCommandEvent&) {
+            // 调用按名称删除端口的方法
+            an->DeletePort(portName.ToStdString());
+            LoadNode(m_node);
+            });
+    }
+
     groupSizer->Add(wrapper, 0, wxEXPAND);
 }

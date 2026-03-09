@@ -26,7 +26,7 @@ private:
     wxSizer* CreateContinuousAssignPortsSizer(ContinuousAssignNode* cn);
 
     wxSizer* Add_BN_OR_B_Expressions(AlwaysNode* an);
-    void Add_BN_OR_B_Expression(wxSizer* groupSizer, AlwaysNode* an, AlwaysStatement* stmt);
+    void Add_BN_OR_B_Expression(wxSizer* groupSizer, AlwaysNode* an, AlwaysStatement* stmt, size_t expIndex);
     void Add_BN_OR_B_Ports(wxSizer* groupSizer, AlwaysNode* an, AlwaysStatement* stmt, int exp_id);
     void Add_BN_OR_B_Port(wxSizer* groupSizer, AlwaysNode* an, Port& p);
 };

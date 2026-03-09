@@ -1743,3 +1743,12 @@ void AlwaysNode::AddPortToExpression(AlwaysStatement* stmt) {
     // 将端口名加入语句的输入列表
     stmt->in_port_names.push_back(inName);
 }
+
+void AlwaysNode::DeletePort(const std::string& portName) {
+    for (size_t i = 0; i < in_ports.size(); ++i) {
+        if (in_ports[i].identifier == portName) {
+            DeletePort(static_cast<int>(i));
+            return;
+        }
+    }
+}

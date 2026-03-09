@@ -91,7 +91,9 @@ wxSizer* PropertyPanelBuilder::CreateTopPortRow(wxWindow* parent, const wxString
 
 wxSizer* PropertyPanelBuilder::CreateSecondPortRow(wxWindow* parent, const wxString& direction,
     const wxString& portName, const wxString& connValue,
-    wxTextCtrl** connCtrlOut) {
+    wxTextCtrl** connCtrlOut,
+    wxButton** deleteBtnOut)
+{
     auto rowSizer = new wxBoxSizer(wxHORIZONTAL);
     auto dirCtrl = new wxTextCtrl(parent, wxID_ANY, direction);
     SetReadOnlyBackground(dirCtrl, parent);
@@ -109,8 +111,16 @@ wxSizer* PropertyPanelBuilder::CreateSecondPortRow(wxWindow* parent, const wxStr
         wxDefaultPosition, wxDefaultSize, wxTE_PROCESS_ENTER);
     connCtrl->SetHint("Connected Signal");
     connCtrl->SetBackgroundColour(wxColour(240, 248, 255)); // 浅蓝背景
-    rowSizer->Add(connCtrl, 1, wxEXPAND | wxRIGHT, 10);
+    rowSizer->Add(connCtrl, 1, wxEXPAND | wxRIGHT, 5);
     if (connCtrlOut) *connCtrlOut = connCtrl;
+
+    // 删除按钮
+    if (deleteBtnOut) {
+        auto delBtn = new wxButton(parent, wxID_ANY, "X", wxDefaultPosition, wxSize(25, 25));
+        delBtn->SetToolTip("Delete this port");
+        rowSizer->Add(delBtn, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 10);
+        *deleteBtnOut = delBtn;
+    }
 
     auto wrapper = new wxBoxSizer(wxVERTICAL);
     wrapper->Add(rowSizer, 0, wxEXPAND | wxTOP | wxBOTTOM, 5);
@@ -123,8 +133,14 @@ wxSizer* PropertyPanelBuilder::CreateNBOrBExpressionRow(wxWindow* parent, float 
     bool isBlocking, const wxString& rhs,
     wxTextCtrl** delayCtrlOut,
     wxChoice** opChoiceOut,
-    wxTextCtrl** rhsCtrlOut) {
+    wxTextCtrl** rhsCtrlOut,
+    wxButton** deleteBtnOut)
+{
     auto rowSizer = new wxBoxSizer(wxHORIZONTAL);
+
+    // 添加 "Expression:" 标签
+    auto exprLabel = new wxStaticText(parent, wxID_ANY, "Expression:");
+    rowSizer->Add(exprLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 5);
 
     // # 和 delay 文本框
     auto hash = new wxStaticText(parent, wxID_ANY, "#");
@@ -155,6 +171,14 @@ wxSizer* PropertyPanelBuilder::CreateNBOrBExpressionRow(wxWindow* parent, float 
     rhsCtrl->SetMinSize(wxSize(300, -1));
     rowSizer->Add(rhsCtrl, 1, wxALIGN_CENTER_VERTICAL | wxRIGHT, 5);
     if (rhsCtrlOut) *rhsCtrlOut = rhsCtrl;
+
+    // 删除按钮
+    if (deleteBtnOut) {
+        auto delBtn = new wxButton(parent, wxID_ANY, "X", wxDefaultPosition, wxSize(25, 25));
+        delBtn->SetToolTip("Delete this expression");
+        rowSizer->Add(delBtn, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 5);
+        *deleteBtnOut = delBtn;
+    }
 
     // 包装成垂直 sizer（如果需要分割线，由调用者添加）
     auto wrapper = new wxBoxSizer(wxVERTICAL);
