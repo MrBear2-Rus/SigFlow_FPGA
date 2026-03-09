@@ -178,7 +178,31 @@ bool Plug_DeepSeek::LoadConversationIntoSession(const std::string& name) {
 
 // 接收宿主传入的项目根路径
 void Plug_DeepSeek::SetProjectRoot(const std::string& path) {
-    if (!path.empty()) m_projectRoot = path;
+    if (path.empty()) return;
+    // Save project root and prefer storing plugin data inside the project folder
+    m_projectRoot = path;
+    try {
+        namespace fs = std::filesystem;
+        fs::path newDataDir = fs::path(m_projectRoot) / ".DeepSeekPlugin";
+        std::error_code ec;
+        fs::create_directories(newDataDir, ec);
+        std::string newHistory = (newDataDir / "history.json").string();
+
+        // If we previously had a history file somewhere else and the new one doesn't exist,
+        // try to copy it to the project folder so user history is preserved.
+        try {
+            if (!m_historyFile.empty() && fs::exists(m_historyFile) && !fs::exists(newHistory)) {
+                fs::copy_file(m_historyFile, newHistory, fs::copy_options::skip_existing, ec);
+            }
+        } catch (...) { /* ignore migration errors */ }
+
+        m_dataDir = newDataDir.string();
+        m_historyFile = newHistory;
+
+        // Persist whatever is currently in memory into the project-local history file
+        SaveConversationsToDisk();
+    }
+    catch (...) { /* ignore errors */ }
 }
 
 Plug_DeepSeek::~Plug_DeepSeek() {}
@@ -694,12 +718,12 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
             wxMessageBox(wxString::FromUTF8("你已经在新对话里了"), wxString::FromUTF8("提示"), wxOK | wxICON_INFORMATION);
             return;
         }
+
         // 在创建新对话前，若当前会话已存在但内容为空，则将其删除（避免累积空的“新对话”）
         try {
             if (!this->m_currentSessionName.empty()) {
                 auto it = m_conversationContents.find(this->m_currentSessionName);
                 if (it != m_conversationContents.end() && it->second.empty()) {
-                    // 从 UI 中删除对应项
                     int idx = convoList->FindString(wxString::FromUTF8(this->m_currentSessionName));
                     if (idx != wxNOT_FOUND) convoList->Delete(idx);
                     RemoveConversation(this->m_currentSessionName);
@@ -709,20 +733,45 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
 
         // 优先保存当前会话内存上下文，否则回退到 UI 文本
         std::string cur = this->m_currentSessionHistory.empty() ? std::string(historyCtrl->GetValue().ToUTF8().data()) : this->m_currentSessionHistory;
-        // 生成基于时间戳的名称以保存当前会话
-        auto now = std::chrono::system_clock::now();
-        std::time_t t = std::chrono::system_clock::to_time_t(now);
-        std::tm tm;
-        localtime_s(&tm, &t);
-        std::ostringstream ss;
-        ss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
-        std::string savedName = std::string("会话 ") + ss.str();
 
-        // 保存当前会话内容（AddConversation 可能会修改名称以避免冲突）
-        std::string savedFinal = this->AddConversation(savedName, cur);
-        convoList->Append(wxString::FromUTF8(savedFinal));
+        // 如果当前会话已有系统生成的标题且该会话不是占位，会把内容保存到该现有会话，而不是用时间戳新建一个条目。
+        try {
+            if (!this->m_currentSessionName.empty() && !this->m_currentSessionIsPlaceholder) {
+                // 更新已有会话内容并持久化
+                this->m_conversationContents[this->m_currentSessionName] = cur;
+                this->SaveConversationsToDisk();
+                // 确保 UI 列表中存在该会话项
+                if (convoList->FindString(wxString::FromUTF8(this->m_currentSessionName)) == wxNOT_FOUND) {
+                    convoList->Append(wxString::FromUTF8(this->m_currentSessionName));
+                }
+            } else {
+                // 生成基于时间戳的名称以保存当前会话（仅当没有有效会话名时）
+                auto now = std::chrono::system_clock::now();
+                std::time_t t = std::chrono::system_clock::to_time_t(now);
+                std::tm tm;
+                localtime_s(&tm, &t);
+                std::ostringstream ss;
+                ss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+                std::string savedName = std::string("会话 ") + ss.str();
+                std::string savedFinal = this->AddConversation(savedName, cur);
+                convoList->Append(wxString::FromUTF8(savedFinal));
+            }
+        } catch (...) {
+            // 兜底：如果保存失败，再用时间戳新建
+            try {
+                auto now = std::chrono::system_clock::now();
+                std::time_t t = std::chrono::system_clock::to_time_t(now);
+                std::tm tm;
+                localtime_s(&tm, &t);
+                std::ostringstream ss;
+                ss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+                std::string savedName = std::string("会话 ") + ss.str();
+                std::string savedFinal = this->AddConversation(savedName, cur);
+                convoList->Append(wxString::FromUTF8(savedFinal));
+            } catch (...) {}
+        }
 
-        // 创建新的占位会话 "新对话"
+        // 创建新的占位会话 "新对话"（始终创建一个占位条目并切换到它）
         std::string placeholder = "新对话";
         std::string placeholderFinal = this->AddConversation(placeholder, "");
         convoList->Append(wxString::FromUTF8(placeholderFinal));
