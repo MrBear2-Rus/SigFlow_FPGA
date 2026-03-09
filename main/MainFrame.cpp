@@ -1,4 +1,4 @@
-#include <wx/msgdlg.h>
+﻿#include <wx/msgdlg.h>
 #include <wx/filename.h> 
 #include <wx/sstream.h>
 #include <wx/aui/aui.h>
@@ -16,8 +16,10 @@
 #include "my_log.h"
 #include "CanvasNoteBook.h"
 #include "VerilogStructuring.h"
+#include "VerilogManager.h"
 
 extern std::vector<SecondElement> g_elements;
+extern "C" TSLanguage* tree_sitter_verilog();
 
 wxDEFINE_EVENT(EVT_SFTREE_NODE_ACTIVATED, wxCommandEvent);
 wxDEFINE_EVENT(EVT_SIGFLOWNODE_ADD, wxCommandEvent);
@@ -79,7 +81,6 @@ MainFrame::MainFrame()
 
 
     Bind(wxEVT_CLOSE_WINDOW, &MainFrame::OnClose, this);
-    
 
     // 构造SigTree
     sigTree = new SigFlowTree(this);
@@ -98,12 +99,10 @@ MainFrame::MainFrame()
     GetStatusBar()->SetFieldsCount(4, widths);
     GetStatusBar()->SetStatusStyles(4, style);
 
-    m_structuring = new Structuring();
-    m_textTimer = new wxTimer();
-    m_textTimer->Bind(wxEVT_TIMER, &MainFrame::OnAnalysisTimer, this);
 
     // 画布
     m_canvas = new CanvasNoteBook(this, sigTree, wxID_ANY, FromDIP(1123), FromDIP(794));
+
 
     // 元件库
     m_toolbox = new ToolboxPanel(this);
@@ -115,16 +114,10 @@ MainFrame::MainFrame()
     this->Bind(EVT_SFTREE_NODE_ACTIVATED, &MainFrame::OnSFNodeActivated, this);
 
     // 文本编辑面板
+    m_parser = ts_parser_new();
+    ts_parser_set_language(m_parser, tree_sitter_verilog());
     m_verilogEditor = new SigTextEditor(this);
-    m_verilogEditor->SetModEventMask(
-        wxSTC_MOD_INSERTTEXT |
-        wxSTC_MOD_DELETETEXT
-    );
-    m_verilogEditor->Bind(
-        wxEVT_STC_MODIFIED,
-        &MainFrame::OnStcModified,
-        this
-    );
+    m_verilogMgr = new VerilogManager(m_verilogEditor, sigTree, m_parser);
 
     // 异步IDE分析
     m_analysisCenter = new AsyncAnalysisCenter(this);
@@ -566,13 +559,8 @@ void MainFrame::DoFileOpenProject() {
 
                     std::string stdCode = fileContent.ToStdString();
 
-                    // 3. 为当前文件构造 Tree-sitter 资源
-                    TSParser* parser = ts_parser_new();
-                    ts_parser_set_language(parser, tree_sitter_verilog());
 
-                    // 解析当前读取到的 stdCode，而不是全局的 sp.stable_code
-                    TSTree* new_tree = ts_parser_parse_string(parser, nullptr, stdCode.c_str(), stdCode.length());
-                    
+                    TSTree* new_tree = ts_parser_parse_string(m_parser, nullptr, stdCode.c_str(), stdCode.length());
                     if (new_tree) {
                         TSNode rootNode = ts_tree_root_node(new_tree);
                         // 调试打印
@@ -582,14 +570,14 @@ void MainFrame::DoFileOpenProject() {
 
                         // 4. 更新数据模型
                         // 注意：这里传入的是当前文件的路径 absPath1 和当前文件的代码 stdCode
-                        DumpTree(rootNode, stdCode, 0);
-                        sigTree->UpdateTreeFromTS(&cursor, sigTree->root, absPath1, stdCode);
-
+                        //DumpTree(rootNode, stdCode, 0);
+                        std::unordered_map<SigTreeNode*, std::tuple<int, int>> map;
+                        sigTree->UpdateTreeFromTS(&cursor, sigTree->root, absPath1, stdCode, map);
+                        maps[absPath1] = map;
                         // 清理 TS 局部资源
                         ts_tree_cursor_delete(&cursor);
                         ts_tree_delete(new_tree);
                     }
-                    ts_parser_delete(parser);
                 }
 
                 // 5. 所有文件解析完成后，一次性刷新 UI
@@ -1405,13 +1393,13 @@ void MainFrame::DoHelpAbout()
 
 void MainFrame::OnOpenFileFromTree(wxCommandEvent& evt) {
     wxString path = evt.GetString();
-    m_verilogEditor->OpenFile(path);   // 你已有的打开文件逻辑
     m_currentFilePath = path;
     FileNode* fn = sigTree->GetFileNode(path.ToStdString());
     m_sigFlowTreePanel->SetFileNode(fn);
 
     m_canvas->SaveOrNotWindow();
     m_canvas->SetFileNode(fn);
+    m_verilogMgr->SetFileNode(fn, maps[path]);
     
     RefreshTitle();
 }
@@ -1488,74 +1476,11 @@ wxString MainFrame::GetWorkspaceCopyPath(const wxString& m_currentFilePath) {
 void MainFrame::OnAnalysisComplete(wxThreadEvent& event) {
     AnalysisResult result = event.GetPayload<AnalysisResult>();
 
-
-    if (result.linted) m_verilogEditor->VisualFeedBack(result.lint);
-    //if (result.parsed) m_canvas->
-}
-
-void MainFrame::OnStcModified(wxStyledTextEvent& event)
-{
-    if (m_verilogEditor->m_isLoading) return;
-    int type = event.GetModificationType();
-    int pos = event.GetPosition();
-    int len = event.GetLength();
-    wxString text = event.GetText();
-
-    if (type & wxSTC_MOD_INSERTTEXT)
-    {
-        m_structuring->OnInsert(pos, text.ToStdString());
-    }
-
-    if (type & wxSTC_MOD_DELETETEXT)
-    {
-        m_structuring->OnDelete(pos, len);
-    }
-
-    // 启动或重置定时器（例如 300ms）
-    m_textTimer->StartOnce(300);
-}
-
-void MainFrame::OnAnalysisTimer(wxTimerEvent&)
-{
-    if (m_structuring->IsEmpty())
-        return;
-
-    int L = m_structuring->Start();
-    int R = m_structuring->End();
-
-    wxString delta = m_verilogEditor->GetTextRange(L, R);
-    wxString stable = m_verilogEditor->GetTextRange(0, L) + m_verilogEditor->GetTextRange(R, m_verilogEditor->GetLength());
-
-    wxLogDebug("delta:\n" + delta + "\n");
-    wxLogDebug("stable:\n" + stable);
-
-    /*
-    if (delta.StartsWith("module")) {
-        // 如果已经是以 module 开头，可以不做处理或执行其他逻辑
-    }
-    else {
-        // 只有不以 module 开头时，才包裹模板
-        delta = "module _tmp;\n" + delta + "\nendmodule\n";
-    }*/
-    delta = "module _tmp;\n" + delta + "\nendmodule\n";
-    
-
-    AnaPac ap  = StructuringX(delta.ToStdString());
-    if (!ap.has_error) {
-        m_structuring->Clear();
-        TSTreeCursor cursor = ts_tree_cursor_new(ap.node);
-        std::string fp = m_verilogEditor->m_currentFilePath.ToStdString
-            ();
-        std::string code = delta.ToStdString();
-        sigTree->UpdateTreeFromTS(&cursor, sigTree->GetFileNode(fp)->GetChildren()[0], fp, code);
-
-
-
     }
     // 交给分析模块
     //AnalyzeDelta(L, delta.ToStdString());
 
-    //m_structuring.Clear();
+    if (result.linted) m_verilogEditor->VisualFeedBack(result.lint);
 }
 
 
@@ -1591,6 +1516,7 @@ void MainFrame:: OnSFTreeChanged(wxCommandEvent& event) {
 void MainFrame::OnSFNodeAdded(wxCommandEvent& event) {
     OnSFTreeChanged(event);
     m_canvas->SigFlowNodeAdded(static_cast<SigTreeNode*>(event.GetClientData()));
+    m_verilogMgr->SigFlowNodeAdded(static_cast<SigTreeNode*>(event.GetClientData()));
 }
 
 void MainFrame::OnSFNodeDeleted(wxCommandEvent& event) {

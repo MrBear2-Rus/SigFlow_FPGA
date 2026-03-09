@@ -1,4 +1,4 @@
-// SigTree.h
+﻿// SigTree.h
 #pragma once
 
 #include <string>
@@ -444,7 +444,7 @@ public:
 
     SigFlowTree(MainFrame* parent);
     void LoadProject(std::string projectPath);
-    void UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot, std::string& filePath, std::string& code);
+    void UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot, std::string& filePath, std::string& code, std::unordered_map<SigTreeNode*, std::tuple<int, int>>& outMap);
     void UpdateTreeFromSlang(slang::ast::Compilation* compilation);
     void ClearTree();
 
