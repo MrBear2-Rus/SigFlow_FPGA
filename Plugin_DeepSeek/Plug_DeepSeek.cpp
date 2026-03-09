@@ -32,6 +32,11 @@ using json = nlohmann::json;
 
 wxDEFINE_EVENT(EVT_AI_RESPONSE, wxThreadEvent);
 
+// Two-step global state (kept in cpp to avoid header changes):
+static std::atomic<int> g_aiPhase{0}; // 0=idle,1=design,2=generate
+static std::string g_pendingGenerationPrompt;
+static std::mutex g_pendingPromptMutex;
+
 Plug_DeepSeek::Plug_DeepSeek() {
     m_apiKey = "sk-8801be45326a4776ac37f3b120ee1888"; // 实际开发建议从配置文件读取
     m_apiUrl = "https://api.deepseek.com/chat/completions";
@@ -313,8 +318,26 @@ std::string Plug_DeepSeek::ProcessCommand(const std::string& cmd) {
             "现在开始！用户的请求是：" + cmd;
     }
 
-    // 如果存在已设置的 panel，则启用流式回传，便于增量显示
-    return CallDeepSeekAPI(fullPrompt, this->m_panel, true);
+    // 两步交互：先请求“设计思路”（不包含任何代码），流式回传；
+    // 如果用户接受，再使用完整提示进行第二次生成（包含代码/记忆写入等）
+    {
+        std::lock_guard<std::mutex> lk(g_pendingPromptMutex);
+        g_pendingGenerationPrompt = fullPrompt;
+        g_aiPhase = 1; // design phase
+    }
+
+    // 设计提示：要求极其简明的行为概述（不包含任何代码或实现细节）
+    std::string designPrompt = memStr +
+        "请用不超过5行的简短说明，概述系统接下来将要执行的主要步骤或行动（仅说明将要做什么，不要给实现细节或代码）。每行不超过100字符，禁止输出任何代码或示例。用户的请求是：" + cmd;
+
+    // 如果用户尚未打开项目，弹窗提示并返回（避免误触发文件写入流程）
+    if (this->m_projectRoot.empty()) {
+        wxWindow* parent = this->m_panel ? this->m_panel : nullptr;
+        wxMessageBox(wxString::FromUTF8("请先打开一个项目目录或者新建项目"), wxString::FromUTF8("请先打开项目"), wxOK | wxICON_INFORMATION, parent);
+        return std::string();
+    }
+
+    return CallDeepSeekAPI(designPrompt, this->m_panel, true);
 }
 std::string Plug_DeepSeek::CallDeepSeekAPI(const std::string& prompt, wxWindow* panel, bool stream) {
     std::string responseData;
@@ -812,7 +835,7 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
     });
 
     // 5. 处理返回的事件（支持流分块、完成和取消信号）
-    panel->Bind(EVT_AI_RESPONSE, [this, historyCtrl, sendBtn, inputCtrl, cancelBtn, convoList](wxThreadEvent& evt) {
+    panel->Bind(EVT_AI_RESPONSE, [this, historyCtrl, sendBtn, inputCtrl, cancelBtn, convoList, panel](wxThreadEvent& evt) {
         int code = evt.GetInt();
         // code meanings: 0 (default) = final non-stream content (string contains final AI-formatted reply)
         // 1 = partial stream chunk (append directly)
@@ -879,6 +902,40 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
         this->m_currentSessionIsPlaceholder = false;
         wxString response = evt.GetString();
 
+        // Debug: log current phase and that final response received
+        wxLogDebug(wxString::Format(wxString::FromUTF8("EVT_AI_RESPONSE final received, g_aiPhase=%d"), (int)g_aiPhase.load()));
+
+        // If we are in design phase, always prompt user whether to proceed to generation
+        if (g_aiPhase == 1) {
+            wxMessageDialog dlg(panel, wxString::FromUTF8("是否接受以上设计并开始生成代码？"), wxString::FromUTF8("接受设计"), wxICON_QUESTION | wxYES_NO);
+            int ret = dlg.ShowModal();
+            if (ret == wxID_YES) {
+                std::string genPrompt;
+                {
+                    std::lock_guard<std::mutex> lk(g_pendingPromptMutex);
+                    genPrompt = g_pendingGenerationPrompt;
+                    g_aiPhase = 2;
+                }
+                historyCtrl->AppendText(wxString::FromUTF8("\n系统: 用户接受设计，开始生成代码...\n"));
+                m_threads.emplace_back([this, genPrompt]() {
+                    this->CallDeepSeekAPI(genPrompt, this->m_panel, true);
+                    wxThreadEvent* doneEvt = new wxThreadEvent(EVT_AI_RESPONSE);
+                    doneEvt->SetInt(4);
+                    if (this->m_panel) wxQueueEvent(this->m_panel, doneEvt);
+                    g_aiPhase = 0;
+                });
+            } else {
+                historyCtrl->AppendText(wxString::FromUTF8("\n系统: 用户拒绝设计，已取消后续生成。\n"));
+                wxLogMessage(wxString::FromUTF8("用户拒绝设计，取消后续生成"));
+                g_aiPhase = 0;
+                if (sendBtn) sendBtn->Enable();
+                if (inputCtrl) inputCtrl->Enable();
+                if (cancelBtn) cancelBtn->Disable();
+            }
+            try { this->m_currentSessionHistory += std::string(response.ToUTF8().data()) + "\n"; } catch (...) {}
+            return;
+        }
+
         // 1. 解析 AI 的严格格式回复
         DSResult res = ParseDSResponse(response);
 
@@ -907,6 +964,40 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
             this->m_currentSessionHistory += std::string(a) + "\n";
         } catch (...) {
             historyCtrl->AppendText(res.analysis + "\n");
+        }
+
+        // If we are in the design phase (first step), ask user whether to proceed to generation
+        if (g_aiPhase == 1) {
+            // Use a modal dialog parented to the panel to ensure it appears and waits for the user
+            wxMessageDialog dlg(panel, wxString::FromUTF8("是否接受以上设计并开始生成代码？"), wxString::FromUTF8("接受设计"), wxICON_QUESTION | wxYES_NO);
+            int ret = dlg.ShowModal();
+            if (ret == wxID_YES) {
+                // transition to generation phase and start generation in background
+                std::string genPrompt;
+                {
+                    std::lock_guard<std::mutex> lk(g_pendingPromptMutex);
+                    genPrompt = g_pendingGenerationPrompt;
+                    g_aiPhase = 2;
+                }
+                historyCtrl->AppendText(wxString::FromUTF8("\n系统: 用户接受设计，开始生成代码...\n"));
+                // spawn background thread to call generation prompt (will stream into panel)
+                m_threads.emplace_back([this, genPrompt]() {
+                    this->CallDeepSeekAPI(genPrompt, this->m_panel, true);
+                    // notify UI to re-enable controls when done
+                    wxThreadEvent* doneEvt = new wxThreadEvent(EVT_AI_RESPONSE);
+                    doneEvt->SetInt(4);
+                    if (this->m_panel) wxQueueEvent(this->m_panel, doneEvt);
+                    g_aiPhase = 0;
+                });
+            } else {
+                historyCtrl->AppendText(wxString::FromUTF8("\n系统: 用户拒绝设计，已取消后续生成。\n"));
+                g_aiPhase = 0;
+                if (sendBtn) sendBtn->Enable();
+                if (inputCtrl) inputCtrl->Enable();
+                if (cancelBtn) cancelBtn->Disable();
+            }
+            try { this->m_currentSessionHistory += std::string(response.ToUTF8().data()) + "\n"; } catch (...) {}
+            return;
         }
 
         // 如果存在生成的代码片段，询问用户是否确认写入到项目文件
