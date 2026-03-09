@@ -38,6 +38,7 @@ private:
     // 当前会话状态（用于在加载/恢复会话后继续对话）
     std::string m_currentSessionName;
     std::string m_currentSessionHistory; // 仅文本回放/上下文
+    bool m_currentSessionIsPlaceholder = false; // 标记当前会话名为占位符（例如“新对话”）
 
     std::atomic<bool> m_isReleased{false}; 
     std::vector<std::thread> m_threads;
@@ -70,7 +71,8 @@ private:
 
     // 本地持久化相关
     void SaveConversationsToDisk();
-    void AddConversation(const std::string& name, const std::string& content);
+    // AddConversation returns the actual stored name (may be suffixed to avoid collisions)
+    std::string AddConversation(const std::string& name, const std::string& content);
     void RemoveConversation(const std::string& name);
     void RenameConversation(const std::string& oldName, const std::string& newName);
     void ExportConversation(const std::string& name, const std::string& path);
