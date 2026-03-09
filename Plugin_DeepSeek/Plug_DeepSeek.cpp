@@ -74,6 +74,18 @@ Plug_DeepSeek::Plug_DeepSeek() {
     }
     catch (...) { /* 忽略加载异常 */ }
 
+    // 删除载入时的空会话（避免遗留的 "新对话" 空条目）
+    try {
+        std::vector<std::string> empties;
+        for (const auto &n : m_savedConversations) {
+            auto it = m_conversationContents.find(n);
+            if (it == m_conversationContents.end() || it->second.empty()) empties.push_back(n);
+        }
+        for (const auto &n : empties) {
+            RemoveConversation(n);
+        }
+    } catch (...) { }
+
 }
 
 // 将当前内存的会话列表写入磁盘
@@ -659,6 +671,18 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
             wxMessageBox(wxString::FromUTF8("你已经在新对话里了"), wxString::FromUTF8("提示"), wxOK | wxICON_INFORMATION);
             return;
         }
+        // 在创建新对话前，若当前会话已存在但内容为空，则将其删除（避免累积空的“新对话”）
+        try {
+            if (!this->m_currentSessionName.empty()) {
+                auto it = m_conversationContents.find(this->m_currentSessionName);
+                if (it != m_conversationContents.end() && it->second.empty()) {
+                    // 从 UI 中删除对应项
+                    int idx = convoList->FindString(wxString::FromUTF8(this->m_currentSessionName));
+                    if (idx != wxNOT_FOUND) convoList->Delete(idx);
+                    RemoveConversation(this->m_currentSessionName);
+                }
+            }
+        } catch (...) {}
 
         // 优先保存当前会话内存上下文，否则回退到 UI 文本
         std::string cur = this->m_currentSessionHistory.empty() ? std::string(historyCtrl->GetValue().ToUTF8().data()) : this->m_currentSessionHistory;
