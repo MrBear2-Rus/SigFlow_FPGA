@@ -69,21 +69,21 @@ void SFNPropertyPanel::LoadNode(SigTreeNode* node) {
     switch (node->type) {
     case SigTreeNodeType::Project: {
         auto pn = static_cast<ProjectNode*>(node);
-        m_mainSizer->Add(PropertyPanelBuilder::CreateSectionTitle(this, "Project Properties"), 0, wxEXPAND | wxALL, 5);
+        //m_mainSizer->Add(PropertyPanelBuilder::CreateSectionTitle(this, "Project Properties"), 0, wxEXPAND | wxALL, 5);
         m_mainSizer->Add(PropertyPanelBuilder::CreateTextRow(this, "Type:", "Project"), 0, wxEXPAND | wxLEFT | wxRIGHT, 5);
         m_mainSizer->Add(PropertyPanelBuilder::CreateTextRow(this, "Project Path:", pn->projectPath), 0, wxEXPAND | wxLEFT | wxRIGHT, 5);
         break;
     }
     case SigTreeNodeType::File: {
         auto fn = static_cast<FileNode*>(node);
-        m_mainSizer->Add(PropertyPanelBuilder::CreateSectionTitle(this, "File Properties"), 0, wxEXPAND | wxALL, 5);
+        //m_mainSizer->Add(PropertyPanelBuilder::CreateSectionTitle(this, "File Properties"), 0, wxEXPAND | wxALL, 5);
         m_mainSizer->Add(PropertyPanelBuilder::CreateTextRow(this, "Type:", "File"), 0, wxEXPAND | wxLEFT | wxRIGHT, 5);
         m_mainSizer->Add(PropertyPanelBuilder::CreateTextRow(this, "File Path:", fn->filePath), 0, wxEXPAND | wxLEFT | wxRIGHT, 5);
         break;
     }
     case SigTreeNodeType::Top: {
         auto tn = static_cast<TopNode*>(node);
-        m_mainSizer->Add(PropertyPanelBuilder::CreateSectionTitle(this, "Top Properties"), 0, wxEXPAND | wxALL, 5);
+        //m_mainSizer->Add(PropertyPanelBuilder::CreateSectionTitle(this, "Top Properties"), 0, wxEXPAND | wxALL, 5);
         m_mainSizer->Add(PropertyPanelBuilder::CreateTextRow(this, "Type:", SigFlowTree::ToString(tn->topType)), 0, wxEXPAND | wxLEFT | wxRIGHT, 5);
 
         // Identifier
@@ -110,7 +110,7 @@ void SFNPropertyPanel::LoadNode(SigTreeNode* node) {
     }
     case SigTreeNodeType::Signal: {
         auto sn = static_cast<SignalNode*>(node);
-        m_mainSizer->Add(PropertyPanelBuilder::CreateSectionTitle(this, "Signal Properties"), 0, wxEXPAND | wxALL, 5);
+        //m_mainSizer->Add(PropertyPanelBuilder::CreateSectionTitle(this, "Signal Properties"), 0, wxEXPAND | wxALL, 5);
         m_mainSizer->Add(PropertyPanelBuilder::CreateTextRow(this, "Type:", SigFlowTree::ToString(sn->signalType)), 0, wxEXPAND | wxLEFT | wxRIGHT, 5);
 
         wxTextCtrl* idCtrl = nullptr;
@@ -131,7 +131,7 @@ void SFNPropertyPanel::LoadNode(SigTreeNode* node) {
     }
     case SigTreeNodeType::Second: {
         auto sn = static_cast<SecondNode*>(node);
-        m_mainSizer->Add(PropertyPanelBuilder::CreateSectionTitle(this, "Second Node Properties"), 0, wxEXPAND | wxALL, 5);
+        //m_mainSizer->Add(PropertyPanelBuilder::CreateSectionTitle(this, "Second Node Properties"), 0, wxEXPAND | wxALL, 5);
         m_mainSizer->Add(PropertyPanelBuilder::CreateTextRow(this, "Type:", SigFlowTree::ToString(sn->secondType)), 0, wxEXPAND | wxLEFT | wxRIGHT, 5);
 
         if (sn->secondType == SecondNodeType::ModuleInstance) {

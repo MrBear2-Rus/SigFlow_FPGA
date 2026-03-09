@@ -29,4 +29,6 @@ public:
 
     // 获取此语句的赋值类型，默认返回 NONE
     virtual AssignmentType getAssignmentType() const { return AssignmentType::NONE; }
+
+    virtual std::unique_ptr<Statement> clone() const = 0;
 };

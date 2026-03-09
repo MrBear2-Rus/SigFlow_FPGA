@@ -136,7 +136,13 @@ struct ExpressionResult {
     std::vector<Port> extracted_ports;
 };
 
-ExpressionResult FormalizeExpression(TSNode node, const std::string& code, int& in_counter, int exp_id) {
+ExpressionResult FormalizeExpression(
+    TSNode node,
+    const std::string& code,
+    std::unordered_map<std::string, std::string>& placeholderMap,  // 信号名 -> 占位符映射（表达式内去重）
+    int exp_id,                                                     // 当前表达式序号
+    int& localCounter                                               // 表达式内输入计数器（引用）
+) {
     ExpressionResult result;
     const char* type = ts_node_type(node);
 
@@ -146,24 +152,28 @@ ExpressionResult FormalizeExpression(TSNode node, const std::string& code, int& 
             ts_node_end_byte(node) - ts_node_start_byte(node));
 
         std::string placeholder;
-
-        // 生成唯一的占位符名，例如 In1, In2...
-        if (exp_id != -1) {
-            placeholder = "in" + std::to_string(exp_id) + "_" + std::to_string(in_counter++);
+        auto it = placeholderMap.find(original_conn);
+        if (it != placeholderMap.end()) {
+            placeholder = it->second;                     // 复用占位符
         }
         else {
-            placeholder = "in" + std::to_string(in_counter++);
+            if (exp_id != -1) {
+                placeholder = "in" + std::to_string(exp_id) + "_" + std::to_string(localCounter++);
+            }
+            else {
+                placeholder = "in" + std::to_string(localCounter++);
+            }
+            placeholderMap[original_conn] = placeholder;  // 记录映射
+
+            // 创建端口（仅当第一次出现时）
+            Port p;
+            p.identifier = placeholder;
+            p.conn = original_conn;
+            p.direction = PortDirection::In;
+            result.extracted_ports.push_back(p);
         }
 
         result.template_text = placeholder;
-
-        // 创建对应的 Port 对象
-        Port p;
-        p.identifier = placeholder;
-        p.conn = original_conn;
-        p.direction = PortDirection::In;
-        result.extracted_ports.push_back(p);
-
         return result;
     }
 
@@ -184,7 +194,7 @@ ExpressionResult FormalizeExpression(TSNode node, const std::string& code, int& 
         result.template_text += code.substr(last_pos, ts_node_start_byte(child) - last_pos);
 
         // 递归处理子节点
-        ExpressionResult child_res = FormalizeExpression(child, code, in_counter, exp_id);
+        ExpressionResult child_res = FormalizeExpression(child, code, placeholderMap, exp_id, localCounter);
 
         // 合并结果
         result.template_text += child_res.template_text;
@@ -467,6 +477,8 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot, s
                 AlwaysNode* an = arena.make<AlwaysNode>("", et); // 临时标识符，后面会设置
                 std::unique_ptr<AlwaysStatement> currentStmt;
 
+                int pendingExpId = -1;  // 暂存当前语句的表达式序号
+
                 while (ts_query_cursor_next_capture(cursor, &match, &capture_index)) {
                     const TSQueryCapture& capture = match.captures[capture_index];
                     uint32_t name_len;
@@ -487,47 +499,54 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot, s
                         else if (text == "negedge") et = EdgeType::Negedge;
                     }
                     else if (strcmp(tag_name, "clk.name") == 0) {
-                        // 时钟信号也作为输入端口
-                        if (inPortsSet.find(text) == inPortsSet.end()) {
-                            inPortsSet.insert(text);
-                            an->in_ports.push_back(Port(text, PortDirection::In, ""));
+                        // 时钟输入端口统一命名为 "CLK"，原始信号名存入 conn
+                        auto it = std::find_if(an->in_ports.begin(), an->in_ports.end(),
+                            [](const Port& p) { return p.identifier == "CLK"; });
+                        if (it == an->in_ports.end()) {
+                            an->in_ports.push_back(Port("CLK", PortDirection::In, text));
                         }
-                        id = "@" + text; // 标识符使用时钟名
+                        else {
+                            // 若已存在，可覆盖或忽略；这里简单忽略
+                        }
+                        id = "@" + text;       // 节点标识符仍保留原始时钟名，便于区分不同 always
                         an->identifier = id;
                     }
                     else if (strcmp(tag_name, "assign.lhs") == 0) {
-                        // 完成前一条语句
-                        if (currentStmt) {
-                            an->addStatement(std::move(currentStmt));
+                        if (currentStmt) an->addStatement(std::move(currentStmt));
+
+                        pendingExpId = an->getStatementCount();          // 当前语句的索引即为表达式序号
+                        std::string outName = "out" + std::to_string(pendingExpId);   // 抽象输出端口名
+                        std::string lhsName = text;                      // 原始左值信号名
+
+                        // 添加输出端口，identifier 为抽象名，conn 为原始信号名
+                        if (std::find_if(an->out_ports.begin(), an->out_ports.end(),
+                            [&outName](const Port& p) { return p.identifier == outName; }) == an->out_ports.end()) {
+                            an->out_ports.push_back(Port(outName, PortDirection::Out, lhsName));
                         }
-                        // 新建语句
-                        std::string lhsName = text;
-                        // 输出端口去重
-                        if (outPortsSet.find(lhsName) == outPortsSet.end()) {
-                            outPortsSet.insert(lhsName);
-                            an->out_ports.push_back(Port(lhsName, PortDirection::Out, ""));
-                        }
-                        // 创建语句，默认非阻塞，延迟0，空表达式
-                        currentStmt = std::make_unique<AlwaysStatement>(
-                            false, "", 0.0f, lhsName, std::vector<std::string>{}
-                        );
+
+                        currentStmt = std::make_unique<AlwaysStatement>(false, "", 0.0f, outName, std::vector<std::string>{});
                     }
                     else if (strcmp(tag_name, "assign.rhs") == 0) {
-                        if (!currentStmt) continue;
-                        int dummy_counter = 1;
-                        ExpressionResult res = FormalizeExpression(capture.node, code, dummy_counter, -1);
+                        if (!currentStmt || pendingExpId == -1) continue;
+
+                        int exp_id = pendingExpId;
+                        pendingExpId = -1;  // 消费后重置
+
+                        std::unordered_map<std::string, std::string> localPlaceholderMap;
+                        int localCounter = 1;
+                        ExpressionResult res = FormalizeExpression(
+                            capture.node, code, localPlaceholderMap, exp_id, localCounter
+                        );
+
                         // 设置表达式模板
                         currentStmt->nb_or_b_expression = res.template_text;
-                        // 处理提取的端口
+
+                        // 处理提取的端口（每个表达式内唯一的信号）
                         for (const auto& p : res.extracted_ports) {
-                            std::string sigName = p.conn; // 原始信号名
-                            // 添加到语句的输入列表（允许重复）
-                            currentStmt->in_port_names.push_back(sigName);
-                            // 全局输入端口去重
-                            if (inPortsSet.find(sigName) == inPortsSet.end()) {
-                                inPortsSet.insert(sigName);
-                                an->in_ports.push_back(Port(sigName, PortDirection::In, ""));
-                            }
+                            // 将占位符加入语句的输入列表（供后续替换用）
+                            currentStmt->in_port_names.push_back(p.identifier);
+                            // 直接追加到 AlwaysNode 的 in_ports（不同表达式允许同名信号重复）
+                            an->in_ports.push_back(p);
                         }
                     }
                     else if (strcmp(tag_name, "assign.delay") == 0) {
@@ -603,7 +622,9 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot, s
                     else if (strcmp(tag_name, "assign.rhs") == 0) {
                         TSNode nameNode = capture.node;
                         int input_count = 1;
-                        ExpressionResult res = FormalizeExpression(capture.node, code, input_count, -1);
+                        std::unordered_map<std::string, std::string> localPlaceholderMap;
+                        int localCounter = 1;
+                        ExpressionResult res = FormalizeExpression(capture.node, code, localPlaceholderMap, -1, localCounter);
                         exp = res.template_text;
                         in.insert(in.end(), res.extracted_ports.begin(), res.extracted_ports.end());
                     }
@@ -916,11 +937,12 @@ void AlwaysNode::updateSignalName(const std::string& oldName, const std::string&
 }
 
 SigTreeNode* AlwaysNode::Clone(Arena& arena) const {
-    // 使用带参数的构造函数创建新对象，避免拷贝 statements_
     auto* copy = arena.make<AlwaysNode>(identifier, edgeType);
     copy->in_ports = this->in_ports;
     copy->out_ports = this->out_ports;
-    // statements_ 留空，克隆时不复制语句对象（应由外部重新填充）
+    for (const auto& stmt : statements_) {
+        copy->statements_.push_back(stmt->clone());
+    }
     return copy;
 }
 
@@ -1626,22 +1648,53 @@ void AlwaysNode::DeletePort(int portIndex) {
 std::string AlwaysNode::ToVerilog() {
     std::string v = "always @(";
     v += (edgeType == EdgeType::Posedge) ? "posedge " : "negedge ";
-    v += identifier + ") begin\n";
+
+    // 从输入端口中提取时钟信号的实际连接名
+    std::string clkSignal;
+    for (const auto& port : in_ports) {
+        if (port.identifier == "CLK") {
+            clkSignal = port.conn;
+            break;
+        }
+    }
+    if (clkSignal.empty()) clkSignal = identifier; // 后备
+    v += clkSignal + ") begin\n";
+
     for (size_t i = 0; i < statements_.size(); ++i) {
         auto* stmt = dynamic_cast<AlwaysStatement*>(statements_[i].get());
         if (!stmt) continue;
+
+        // 替换表达式中的输入占位符
+        std::string expr = stmt->nb_or_b_expression;
+        for (const auto& port : in_ports) {
+            size_t pos = 0;
+            while ((pos = expr.find(port.identifier, pos)) != std::string::npos) {
+                expr.replace(pos, port.identifier.length(), port.conn);
+                pos += port.conn.length();
+            }
+        }
+
+        // 查找输出端口对应的实际信号名
+        std::string outSignal = stmt->out_port_name;
+        for (const auto& port : out_ports) {
+            if (port.identifier == stmt->out_port_name) {
+                outSignal = port.conn;
+                break;
+            }
+        }
+
         if (stmt->delay > 0.0f)
             v += "    #" + std::to_string(stmt->delay) + " ";
         else
             v += "    ";
-        v += stmt->out_port_name + " ";
+
+        v += outSignal + " ";
         v += (stmt->is_blocking ? "= " : "<= ");
-        v += stmt->nb_or_b_expression + ";\n";
+        v += expr + ";\n";
     }
     v += "end\n";
     return v;
 }
-
 void AlwaysNode::CleanUnusedInPorts() {
     std::unordered_set<std::string> usedInPorts;
     for (size_t i = 0; i < getStatementCount(); ++i) {
@@ -1652,8 +1705,10 @@ void AlwaysNode::CleanUnusedInPorts() {
     }
 
     in_ports.erase(std::remove_if(in_ports.begin(), in_ports.end(),
-        [&](const Port& p) { return usedInPorts.find(p.identifier) == usedInPorts.end(); }),
-        in_ports.end());
+        [&](const Port& p) {
+            // 保留时钟端口 "CLK"（即使未使用）
+            return p.identifier != "CLK" && usedInPorts.find(p.identifier) == usedInPorts.end();
+        }), in_ports.end());
 }
 
 void AlwaysNode::RemoveExpression(size_t index) {
