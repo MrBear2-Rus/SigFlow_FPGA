@@ -1476,7 +1476,7 @@ wxString MainFrame::GetWorkspaceCopyPath(const wxString& m_currentFilePath) {
 void MainFrame::OnAnalysisComplete(wxThreadEvent& event) {
     AnalysisResult result = event.GetPayload<AnalysisResult>();
 
-    }
+    
     // 交给分析模块
     //AnalyzeDelta(L, delta.ToStdString());
 
