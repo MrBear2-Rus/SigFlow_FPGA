@@ -608,8 +608,7 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
         wxDefaultPosition, wxDefaultSize, wxTE_PROCESS_ENTER);
     inputCtrl->SetHint(wxString::FromUTF8("输入问题，按回车或点击发送..."));
 
-    // --- 修改区：增加复制按钮，调整按钮宽度 ---
-    wxButton* copyBtn = new wxButton(panel, wxID_ANY, wxString::FromUTF8("复制代码"), wxDefaultPosition, wxSize(80, -1));
+    // --- 修改区：调整按钮宽度 ---
     wxButton* sendBtn = new wxButton(panel, wxID_ANY, wxString::FromUTF8("发送"), wxDefaultPosition, wxSize(80, -1));
     sendBtn->SetDefault(); // 设置为默认按钮（回车触发）
     // 取消按钮（用于中断正在进行的请求）
@@ -623,19 +622,12 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
     wxPanel* leftPanel = new wxPanel(panel, wxID_ANY);
     wxBoxSizer* leftSizer = new wxBoxSizer(wxVERTICAL);
     wxListBox* convoList = new wxListBox(leftPanel, wxID_ANY);
-    wxButton* loadBtn = new wxButton(leftPanel, wxID_ANY, wxString::FromUTF8("加载"));
-    wxButton* renameBtn = new wxButton(leftPanel, wxID_ANY, wxString::FromUTF8("重命名"));
-    wxButton* exportBtn = new wxButton(leftPanel, wxID_ANY, wxString::FromUTF8("导出"));
-    wxButton* deleteBtn = new wxButton(leftPanel, wxID_ANY, wxString::FromUTF8("删除"));
 
     // 填充已保存会话
     for (const auto& n : m_savedConversations) convoList->Append(wxString::FromUTF8(n));
 
+    // 仅将会话列表加入左侧面板，操作通过右键菜单触发
     leftSizer->Add(convoList, 1, wxEXPAND | wxALL, 6);
-    leftSizer->Add(loadBtn, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 6);
-    leftSizer->Add(renameBtn, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 6);
-    leftSizer->Add(exportBtn, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 6);
-    leftSizer->Add(deleteBtn, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 6);
     leftPanel->SetSizer(leftSizer);
 
     // 右侧：历史对话与输入
@@ -645,7 +637,6 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
 
     wxBoxSizer* inputSizer = new wxBoxSizer(wxHORIZONTAL);
     inputSizer->Add(inputCtrl, 1, wxEXPAND | wxRIGHT, 10);
-    inputSizer->Add(copyBtn, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 5); // 复制按钮
     // 新对话按钮放在右侧输入区
     wxButton* newConvBtn = new wxButton(panel, wxID_ANY, wxString::FromUTF8("新对话"), wxDefaultPosition, wxSize(80, -1));
     inputSizer->Add(newConvBtn, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 5); // 新对话按钮
@@ -688,67 +679,91 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
         wxLogStatus(wxString::FromUTF8("对话已保存，本地新对话已创建。"));
     });
     
-    // 加载会话到当前工作区（可以继续对话）
-    loadBtn->Bind(wxEVT_BUTTON, [this, convoList, historyCtrl](wxCommandEvent&) {
-        int sel = convoList->GetSelection();
-        if (sel == wxNOT_FOUND) {
-            wxLogStatus(wxString::FromUTF8("请先选择要加载的会话。"));
-            return;
+    // 右键菜单：在会话列表上右键显示加载/重命名/导出/删除操作
+    convoList->Bind(wxEVT_CONTEXT_MENU, [this, convoList, historyCtrl, panel](wxContextMenuEvent& evt) {
+        // 计算在列表中的点击项，优先根据鼠标位置选择项
+        wxPoint screenPt = evt.GetPosition();
+        wxPoint listPt = wxDefaultPosition;
+        if (screenPt.x != -1 || screenPt.y != -1) {
+            listPt = convoList->ScreenToClient(screenPt);
+            // 如果能够命中项则选中它（HitTest 在不同 wx 版本中可用）
+            int hit = wxNOT_FOUND;
+            #if wxCHECK_VERSION(3,1,0)
+            hit = convoList->HitTest(listPt);
+            #else
+            // fallback: keep current selection
+            (void)listPt;
+            #endif
+            if (hit != wxNOT_FOUND) convoList->SetSelection(hit);
         }
-        wxString name = convoList->GetString(sel);
-        if (this->LoadConversationIntoSession(std::string(name.ToUTF8().data()))) {
-            historyCtrl->SetValue(wxString::FromUTF8(this->m_currentSessionHistory));
-            wxLogStatus(wxString::FromUTF8("会话已加载，可继续对话。"));
-        }
-    });
 
-    // 重命名会话
-    renameBtn->Bind(wxEVT_BUTTON, [this, convoList](wxCommandEvent&) {
         int sel = convoList->GetSelection();
-        if (sel == wxNOT_FOUND) return;
-        wxString oldName = convoList->GetString(sel);
-        wxString newName = wxGetTextFromUser(wxString::FromUTF8("输入新的会话名称:"), wxString::FromUTF8("重命名会话"), oldName);
-        if (newName.IsEmpty() || newName == oldName) return;
-        this->RenameConversation(std::string(oldName.ToUTF8().data()), std::string(newName.ToUTF8().data()));
-        convoList->SetString(sel, newName);
-    });
 
-    // 导出到文件
-    exportBtn->Bind(wxEVT_BUTTON, [this, convoList](wxCommandEvent&) {
-        int sel = convoList->GetSelection();
-        if (sel == wxNOT_FOUND) return;
-        wxString name = convoList->GetString(sel);
-        wxFileDialog saveFile(nullptr, wxString::FromUTF8("导出会话到文件"), wxEmptyString, name + ".txt", wxString::FromUTF8("文本文件 (*.txt)|*.txt"), wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
-        if (saveFile.ShowModal() == wxID_OK) {
-            wxString path = saveFile.GetPath();
-            this->ExportConversation(std::string(name.ToUTF8().data()), std::string(path.ToUTF8().data()));
-            wxLogStatus(wxString::FromUTF8("会话已导出。"));
-        }
-    });
+        wxMenu* menu = new wxMenu();
+        const int ID_LOAD = 2001;
+        const int ID_RENAME = 2002;
+        const int ID_EXPORT = 2003;
+        const int ID_DELETE = 2004;
 
-    // 删除会话
-    deleteBtn->Bind(wxEVT_BUTTON, [this, convoList](wxCommandEvent&) {
-        int sel = convoList->GetSelection();
-        if (sel == wxNOT_FOUND) return;
-        wxString name = convoList->GetString(sel);
-        this->RemoveConversation(std::string(name.ToUTF8().data()));
-        convoList->Delete(sel);
-        wxLogStatus(wxString::FromUTF8("会话已删除。"));
+        menu->Append(ID_LOAD, wxString::FromUTF8("加载"));
+        menu->Append(ID_RENAME, wxString::FromUTF8("重命名"));
+        menu->Append(ID_EXPORT, wxString::FromUTF8("导出"));
+        menu->Append(ID_DELETE, wxString::FromUTF8("删除"));
+
+        // 如果没有选中项，则禁用需要选中项的操作
+        bool hasSel = (sel != wxNOT_FOUND);
+        menu->Enable(ID_LOAD, hasSel);
+        menu->Enable(ID_RENAME, hasSel);
+        menu->Enable(ID_EXPORT, hasSel);
+        menu->Enable(ID_DELETE, hasSel);
+
+        // 绑定菜单命令处理器
+        menu->Bind(wxEVT_MENU, [this, convoList, historyCtrl, panel, ID_LOAD, ID_RENAME, ID_EXPORT, ID_DELETE](wxCommandEvent& e) {
+            int id = e.GetId();
+            int sel = convoList->GetSelection();
+            if (id == ID_LOAD) {
+                if (sel == wxNOT_FOUND) return;
+                wxString name = convoList->GetString(sel);
+                if (this->LoadConversationIntoSession(std::string(name.ToUTF8().data()))) {
+                    historyCtrl->SetValue(wxString::FromUTF8(this->m_currentSessionHistory));
+                    wxLogStatus(wxString::FromUTF8("会话已加载，可继续对话。"));
+                }
+            }
+            else if (id == ID_RENAME) {
+                if (sel == wxNOT_FOUND) return;
+                wxString oldName = convoList->GetString(sel);
+                wxString newName = wxGetTextFromUser(wxString::FromUTF8("输入新的会话名称:"), wxString::FromUTF8("重命名会话"), oldName);
+                if (newName.IsEmpty() || newName == oldName) return;
+                this->RenameConversation(std::string(oldName.ToUTF8().data()), std::string(newName.ToUTF8().data()));
+                convoList->SetString(sel, newName);
+            }
+            else if (id == ID_EXPORT) {
+                if (sel == wxNOT_FOUND) return;
+                wxString name = convoList->GetString(sel);
+                wxFileDialog saveFile(nullptr, wxString::FromUTF8("导出会话到文件"), wxEmptyString, name + ".txt", wxString::FromUTF8("文本文件 (*.txt)|*.txt"), wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
+                if (saveFile.ShowModal() == wxID_OK) {
+                    wxString path = saveFile.GetPath();
+                    this->ExportConversation(std::string(name.ToUTF8().data()), std::string(path.ToUTF8().data()));
+                    wxLogStatus(wxString::FromUTF8("会话已导出。"));
+                }
+            }
+            else if (id == ID_DELETE) {
+                if (sel == wxNOT_FOUND) return;
+                wxString name = convoList->GetString(sel);
+                this->RemoveConversation(std::string(name.ToUTF8().data()));
+                convoList->Delete(sel);
+                wxLogStatus(wxString::FromUTF8("会话已删除。"));
+            }
+        });
+
+        // 在列表的点击位置显示菜单
+        if (listPt == wxDefaultPosition) convoList->PopupMenu(menu);
+        else convoList->PopupMenu(menu, listPt);
+        delete menu;
     });
     
 
-    // --- 修改区：复制按钮的点击事件 ---
-    copyBtn->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
-        if (this->m_latestCode.IsEmpty()) return;
-
-        // 打开剪贴板并写入代码
-        if (wxTheClipboard->Open()) {
-            wxTheClipboard->SetData(new wxTextDataObject(this->m_latestCode));
-            wxTheClipboard->Close();
-            // 可以在主程序状态栏显示一条提示
-            wxLogStatus(wxString::FromUTF8("代码已成功复制到剪贴板！"));
-        }
-        });
+    // NOTE: 复制功能已移除 per user request
 
     // 取消按钮绑定：请求取消当前正在进行的网络请求
     cancelBtn->Bind(wxEVT_BUTTON, [this, panel, sendBtn, inputCtrl, cancelBtn, historyCtrl](wxCommandEvent&) {
@@ -798,10 +813,9 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
         // 1. 解析 AI 的严格格式回复
         DSResult res = ParseDSResponse(response);
 
-        // 兜底机制：如果 AI 偶尔抽风没按格式返回，就直接显示原文
+        // 兜底机制：如果 AI 没按约定格式返回，则直接显示原文
         if (res.analysis.IsEmpty() && res.code.IsEmpty()) {
             historyCtrl->AppendText(response + "\n");
-            historyCtrl->ShowPosition(historyCtrl->GetLastPosition());
             // 追加完整原文到当前会话上下文
             try { this->m_currentSessionHistory += std::string(response.ToUTF8().data()) + "\n"; } catch (...) {}
             // 恢复 UI
@@ -811,216 +825,151 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
             return;
         }
 
-        // 2. 漂亮地分块显示（分析/代码/总结）
+        // 仅展示分析（简短），不展示代码/总结/记忆
         historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLUE));
         historyCtrl->AppendText(wxString::FromUTF8("\n[分析]\n"));
         historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLACK));
-        historyCtrl->AppendText(res.analysis + "\n");
-
-        if (!res.code.IsEmpty()) {
-            this->m_latestCode = res.code;
-            historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLUE));
-            historyCtrl->AppendText(wxString::FromUTF8("\n[纯代码]\n"));
-            historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLACK));
-            historyCtrl->AppendText(res.code + "\n");
+        try {
+            std::string a = std::string(res.analysis.ToUTF8().data());
+            const size_t maxShow = 400;
+            if (a.size() > maxShow) a = a.substr(0, maxShow) + "...";
+            historyCtrl->AppendText(wxString::FromUTF8(a) + "\n");
+            // 将简短分析追加到会话上下文
+            this->m_currentSessionHistory += std::string(a) + "\n";
+        } catch (...) {
+            historyCtrl->AppendText(res.analysis + "\n");
         }
 
-        // 如果处于自动创建文件模式，则在获取到代码后尝试将其写入到 projectRoot/src/<name>.v
-        if (this->m_autoCreatePending && !res.code.IsEmpty()) {
-            // Helper: extract multiple files from the provided code text
-            auto ExtractFiles = [](const std::string& code) {
-                std::map<std::string, std::string> files;
-
-                // 1) 按 ==== filename ==== 格式分割
-                size_t pos = 0;
-                std::string marker = "==== ";
-                bool foundMarker = false;
-                while (true) {
-                    size_t hdr = code.find(marker, pos);
-                    if (hdr == std::string::npos) break;
-                    foundMarker = true;
-                    size_t nameStart = hdr + marker.size();
-                    size_t nameEnd = code.find(" ====", nameStart);
-                    if (nameEnd == std::string::npos) break;
-                    std::string name = code.substr(nameStart, nameEnd - nameStart);
-                    size_t contentStart = nameEnd + 5; // length of " ===="
-                    // skip possible newline
-                    if (contentStart < code.size() && (code[contentStart] == '\r' || code[contentStart] == '\n')) ++contentStart;
-                    if (contentStart < code.size() && code[contentStart] == '\n') ++contentStart;
-                    size_t next = code.find(marker, contentStart);
-                    std::string content;
-                    if (next == std::string::npos) content = code.substr(contentStart);
-                    else content = code.substr(contentStart, next - contentStart);
-                    // trim trailing whitespace
-                    while (!content.empty() && (content.back()=='\n' || content.back()=='\r')) content.pop_back();
-                    files[name] = content;
-                    pos = next;
-                    if (pos == std::string::npos) break;
-                }
-
-                if (!files.empty()) return files;
-
-                // 2) 查找 ``` fenced code blocks，尝试从 fence 行中解析文件名，例如 ```verilog filename.v
-                pos = 0;
-                while (true) {
-                    size_t f1 = code.find("```", pos);
-                    if (f1 == std::string::npos) break;
-                    size_t lineEnd = code.find('\n', f1);
-                    if (lineEnd == std::string::npos) break;
-                    std::string fenceLine = code.substr(f1+3, lineEnd - (f1+3));
-                    // try to find a filename in the fenceLine
-                    std::string filename;
-                    // split by space and take last token if contains a dot
-                    std::istringstream iss(fenceLine);
-                    std::string token;
-                    while (iss >> token) {
-                        if (token.find('.') != std::string::npos) filename = token;
+        // 如果存在生成的代码片段，询问用户是否确认写入到项目文件
+        if (!res.code.IsEmpty()) {
+            this->m_latestCode = res.code; // 保留完整代码以便写入
+            int ans = wxMessageBox(wxString::FromUTF8("是否确认进行代码填入"), wxString::FromUTF8("确认"), wxYES_NO | wxICON_QUESTION);
+            if (ans == wxYES) {
+                // Helper: extract multiple files from the provided code text
+                auto ExtractFiles = [](const std::string& code) {
+                    std::map<std::string, std::string> files;
+                    // 1) 按 ==== filename ==== 格式分割
+                    size_t pos = 0;
+                    std::string marker = "==== ";
+                    while (true) {
+                        size_t hdr = code.find(marker, pos);
+                        if (hdr == std::string::npos) break;
+                        size_t nameStart = hdr + marker.size();
+                        size_t nameEnd = code.find(" ====", nameStart);
+                        if (nameEnd == std::string::npos) break;
+                        std::string name = code.substr(nameStart, nameEnd - nameStart);
+                        size_t contentStart = nameEnd + 5;
+                        if (contentStart < code.size() && (code[contentStart] == '\r' || code[contentStart] == '\n')) ++contentStart;
+                        if (contentStart < code.size() && code[contentStart] == '\n') ++contentStart;
+                        size_t next = code.find(marker, contentStart);
+                        std::string content;
+                        if (next == std::string::npos) content = code.substr(contentStart);
+                        else content = code.substr(contentStart, next - contentStart);
+                        while (!content.empty() && (content.back()=='\n' || content.back()=='\r')) content.pop_back();
+                        files[name] = content;
+                        pos = next;
+                        if (pos == std::string::npos) break;
                     }
-                    size_t f2 = code.find("```", lineEnd+1);
-                    if (f2 == std::string::npos) break;
-                    std::string content = code.substr(lineEnd+1, f2 - (lineEnd+1));
-                    if (!filename.empty()) files[filename] = content;
-                    pos = f2 + 3;
-                }
-                if (!files.empty()) return files;
-
-                // 3) 尝试按 module ... endmodule 切分为多个文件
-                std::string lower = code;
-                for (auto &c : lower) c = (char)tolower(c);
-                size_t searchPos = 0;
-                std::vector<std::pair<size_t,size_t>> modRanges;
-                while (true) {
-                    size_t mpos = lower.find("module ", searchPos);
-                    if (mpos == std::string::npos) break;
-                    // find corresponding endmodule after mpos
-                    size_t epos = lower.find("endmodule", mpos);
-                    if (epos == std::string::npos) break;
-                    // include the word 'endmodule' length
-                    size_t endpos = epos + strlen("endmodule");
-                    modRanges.emplace_back(mpos, endpos);
-                    searchPos = endpos;
-                }
-                if (modRanges.size() > 1) {
-                    // take any header before first module as common header
-                    size_t headerEnd = modRanges.front().first;
-                    std::string header = code.substr(0, headerEnd);
-                    for (size_t i = 0; i < modRanges.size(); ++i) {
-                        size_t s = modRanges[i].first;
-                        size_t e = modRanges[i].second;
-                        std::string block = code.substr(s, e - s);
-                        // extract module name
-                        size_t nameStart = s + strlen("module ");
-                        while (nameStart < code.size() && isspace((unsigned char)code[nameStart])) ++nameStart;
-                        size_t nameEnd = nameStart;
-                        while (nameEnd < code.size() && (isalnum((unsigned char)code[nameEnd]) || code[nameEnd]=='_' || code[nameEnd]=='$')) ++nameEnd;
-                        std::string modname = "module_" + std::to_string(i+1);
-                        if (nameEnd > nameStart) modname = code.substr(nameStart, nameEnd - nameStart);
-                        std::string fname = MakeSafeFilename(modname + ".v", ".v");
-                        // include header in first file
-                        if (i == 0 && !header.empty()) files[fname] = header + "\n" + block;
-                        else files[fname] = block;
+                    if (!files.empty()) return files;
+                    // 2) fenced code blocks
+                    pos = 0;
+                    while (true) {
+                        size_t f1 = code.find("```", pos);
+                        if (f1 == std::string::npos) break;
+                        size_t lineEnd = code.find('\n', f1);
+                        if (lineEnd == std::string::npos) break;
+                        std::string fenceLine = code.substr(f1+3, lineEnd - (f1+3));
+                        std::string filename;
+                        std::istringstream iss(fenceLine);
+                        std::string token;
+                        while (iss >> token) {
+                            if (token.find('.') != std::string::npos) filename = token;
+                        }
+                        size_t f2 = code.find("```", lineEnd+1);
+                        if (f2 == std::string::npos) break;
+                        std::string content = code.substr(lineEnd+1, f2 - (lineEnd+1));
+                        if (!filename.empty()) files[filename] = content;
+                        pos = f2 + 3;
                     }
-                    return files;
-                }
-
-                // 4) fallback: single unnamed file
-                files["" ] = code;
-                return files;
-            };
-
-            try {
-                std::string codeUtf8 = std::string(res.code.ToUTF8().data());
-                auto files = ExtractFiles(codeUtf8);
-
-                namespace fs = std::filesystem;
-                fs::path baseSrc = (!this->m_projectRoot.empty()) ? fs::path(this->m_projectRoot) : fs::current_path();
-                fs::path srcDir = baseSrc / "src";
-                fs::path libDir = baseSrc / "lib";
-                std::error_code ec;
-                fs::create_directories(srcDir, ec);
-                fs::create_directories(libDir, ec);
-
-                // If only one unnamed file, determine filename similarly to previous behavior
-                if (files.size() == 1 && files.begin()->first.empty()) {
-                    std::string filename = this->m_autoFilename;
-                    if (filename.empty()) {
-                        // try extract module name
-                        std::string lower = codeUtf8;
-                        for (auto &c : lower) c = (char)tolower(c);
-                        size_t mpos = lower.find("module ");
-                        if (mpos != std::string::npos) {
-                            size_t nameStart = mpos + 7;
-                            while (nameStart < codeUtf8.size() && isspace((unsigned char)codeUtf8[nameStart])) ++nameStart;
+                    if (!files.empty()) return files;
+                    // 3) module ... endmodule 切分
+                    std::string lower = code;
+                    for (auto &c : lower) c = (char)tolower(c);
+                    size_t searchPos = 0;
+                    std::vector<std::pair<size_t,size_t>> modRanges;
+                    while (true) {
+                        size_t mpos = lower.find("module ", searchPos);
+                        if (mpos == std::string::npos) break;
+                        size_t epos = lower.find("endmodule", mpos);
+                        if (epos == std::string::npos) break;
+                        size_t endpos = epos + strlen("endmodule");
+                        modRanges.emplace_back(mpos, endpos);
+                        searchPos = endpos;
+                    }
+                    if (modRanges.size() > 1) {
+                        size_t headerEnd = modRanges.front().first;
+                        std::string header = code.substr(0, headerEnd);
+                        for (size_t i = 0; i < modRanges.size(); ++i) {
+                            size_t s = modRanges[i].first;
+                            size_t e = modRanges[i].second;
+                            std::string block = code.substr(s, e - s);
+                            size_t nameStart = s + strlen("module ");
+                            while (nameStart < code.size() && isspace((unsigned char)code[nameStart])) ++nameStart;
                             size_t nameEnd = nameStart;
-                            while (nameEnd < codeUtf8.size() && (isalnum((unsigned char)codeUtf8[nameEnd]) || codeUtf8[nameEnd]=='_' || codeUtf8[nameEnd]=='$')) ++nameEnd;
-                            if (nameEnd > nameStart) filename = codeUtf8.substr(nameStart, nameEnd - nameStart);
+                            while (nameEnd < code.size() && (isalnum((unsigned char)code[nameEnd]) || code[nameEnd]=='_' || code[nameEnd]=='$')) ++nameEnd;
+                            std::string modname = "module_" + std::to_string(i+1);
+                            if (nameEnd > nameStart) modname = code.substr(nameStart, nameEnd - nameStart);
+                            std::string fname = MakeSafeFilename(modname + ".v", ".v");
+                            if (i == 0 && !header.empty()) files[fname] = header + "\n" + block;
+                            else files[fname] = block;
                         }
+                        return files;
                     }
-                    if (filename.empty()) {
-                        auto now = std::chrono::system_clock::now();
-                        std::time_t t = std::chrono::system_clock::to_time_t(now);
-                        std::tm tm;
-                        localtime_s(&tm, &t);
-                        std::ostringstream ss;
-                        ss << "auto_v_" << std::put_time(&tm, "%Y%m%d%H%M%S");
-                        filename = ss.str();
-                    }
-                    filename = MakeSafeFilename(filename, ".v");
-                    fs::path outPath = srcDir / filename;
-                    std::ofstream ofs(outPath, std::ios::out | std::ios::binary);
-                    if (ofs) {
-                        ofs << files.begin()->second;
-                        ofs.close();
-                        wxString msg = wxString::FromUTF8("已在: ") + wxString::FromUTF8(outPath.string()) + wxString::FromUTF8(" 创建 Verilog 文件。");
-                        wxLogStatus(msg);
-                        historyCtrl->AppendText(msg + wxString::FromUTF8("\n"));
-                    } else {
-                        wxString msg = wxString::FromUTF8("错误：无法写入文件: ") + wxString::FromUTF8(outPath.string());
-                        wxLogError(msg);
-                        historyCtrl->AppendText(msg + wxString::FromUTF8("\n"));
-                    }
-                } else {
-                    // multiple files (or named single file)
-                    for (const auto &p : files) {
-                        std::string fname = p.first;
-                        std::string content = p.second;
-                        fs::path outPath;
-                        if (fname.empty()) {
-                            // should not happen here, skip
-                            continue;
-                        }
-                        // If filename contains directory path, preserve it relative to project root
-                        fs::path fp(fname);
-                        std::string base = fp.filename().string();
-                        std::string ext = fp.extension().string();
-                        if (ext.empty()) ext = ".v";
-                        std::string safeBase = MakeSafeFilename(base, ext);
-                        if (fp.has_parent_path()) {
-                            fs::path parent = fp.parent_path();
-                            // decide whether parent contains lib
-                            if (parent.string().find("lib") != std::string::npos) {
-                                fs::create_directories(libDir / parent, ec);
-                                outPath = libDir / parent / safeBase;
-                            } else {
-                                fs::create_directories(srcDir / parent, ec);
-                                outPath = srcDir / parent / safeBase;
-                            }
-                        } else {
-                            // decide by extension/heuristic: header extensions go to lib
-                            std::string lcExt = ext;
-                            for (auto &c : lcExt) c = (char)tolower(c);
-                            if (lcExt == ".svh" || lcExt == ".vh") {
-                                outPath = libDir / safeBase;
-                            } else {
-                                outPath = srcDir / safeBase;
-                            }
-                        }
+                    files[""] = code;
+                    return files;
+                };
 
+                try {
+                    std::string codeUtf8 = std::string(res.code.ToUTF8().data());
+                    auto files = ExtractFiles(codeUtf8);
+                    namespace fs = std::filesystem;
+                    fs::path baseSrc = (!this->m_projectRoot.empty()) ? fs::path(this->m_projectRoot) : fs::current_path();
+                    fs::path srcDir = baseSrc / "src";
+                    fs::path libDir = baseSrc / "lib";
+                    std::error_code ec;
+                    fs::create_directories(srcDir, ec);
+                    fs::create_directories(libDir, ec);
+
+                    if (files.size() == 1 && files.begin()->first.empty()) {
+                        std::string filename = this->m_autoFilename;
+                        if (filename.empty()) {
+                            std::string lower = codeUtf8;
+                            for (auto &c : lower) c = (char)tolower(c);
+                            size_t mpos = lower.find("module ");
+                            if (mpos != std::string::npos) {
+                                size_t nameStart = mpos + 7;
+                                while (nameStart < codeUtf8.size() && isspace((unsigned char)codeUtf8[nameStart])) ++nameStart;
+                                size_t nameEnd = nameStart;
+                                while (nameEnd < codeUtf8.size() && (isalnum((unsigned char)codeUtf8[nameEnd]) || codeUtf8[nameEnd]=='_' || codeUtf8[nameEnd]=='$')) ++nameEnd;
+                                if (nameEnd > nameStart) filename = codeUtf8.substr(nameStart, nameEnd - nameStart);
+                            }
+                        }
+                        if (filename.empty()) {
+                            auto now = std::chrono::system_clock::now();
+                            std::time_t t = std::chrono::system_clock::to_time_t(now);
+                            std::tm tm;
+                            localtime_s(&tm, &t);
+                            std::ostringstream ss;
+                            ss << "auto_v_" << std::put_time(&tm, "%Y%m%d%H%M%S");
+                            filename = ss.str();
+                        }
+                        filename = MakeSafeFilename(filename, ".v");
+                        fs::path outPath = srcDir / filename;
                         std::ofstream ofs(outPath, std::ios::out | std::ios::binary);
                         if (ofs) {
-                            ofs << content;
+                            ofs << files.begin()->second;
                             ofs.close();
-                            wxString msg = wxString::FromUTF8("已在: ") + wxString::FromUTF8(outPath.string()) + wxString::FromUTF8(" 创建文件。");
+                            wxString msg = wxString::FromUTF8("已在: ") + wxString::FromUTF8(outPath.string()) + wxString::FromUTF8(" 创建 Verilog 文件。");
                             wxLogStatus(msg);
                             historyCtrl->AppendText(msg + wxString::FromUTF8("\n"));
                         } else {
@@ -1028,32 +977,54 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
                             wxLogError(msg);
                             historyCtrl->AppendText(msg + wxString::FromUTF8("\n"));
                         }
+                    } else {
+                        for (const auto &p : files) {
+                            std::string fname = p.first;
+                            std::string content = p.second;
+                            if (fname.empty()) continue;
+                            fs::path outPath;
+                            fs::path fp(fname);
+                            std::string base = fp.filename().string();
+                            std::string ext = fp.extension().string();
+                            if (ext.empty()) ext = ".v";
+                            std::string safeBase = MakeSafeFilename(base, ext);
+                            if (fp.has_parent_path()) {
+                                fs::path parent = fp.parent_path();
+                                if (parent.string().find("lib") != std::string::npos) {
+                                    fs::create_directories(libDir / parent, ec);
+                                    outPath = libDir / parent / safeBase;
+                                } else {
+                                    fs::create_directories(srcDir / parent, ec);
+                                    outPath = srcDir / parent / safeBase;
+                                }
+                            } else {
+                                std::string lcExt = ext;
+                                for (auto &c : lcExt) c = (char)tolower(c);
+                                if (lcExt == ".svh" || lcExt == ".vh") outPath = libDir / safeBase;
+                                else outPath = srcDir / safeBase;
+                            }
+                            std::ofstream ofs(outPath, std::ios::out | std::ios::binary);
+                            if (ofs) {
+                                ofs << content;
+                                ofs.close();
+                                wxString msg = wxString::FromUTF8("已在: ") + wxString::FromUTF8(outPath.string()) + wxString::FromUTF8(" 创建文件。");
+                                wxLogStatus(msg);
+                                historyCtrl->AppendText(msg + wxString::FromUTF8("\n"));
+                            } else {
+                                wxString msg = wxString::FromUTF8("错误：无法写入文件: ") + wxString::FromUTF8(outPath.string());
+                                wxLogError(msg);
+                                historyCtrl->AppendText(msg + wxString::FromUTF8("\n"));
+                            }
+                        }
                     }
                 }
+                catch (...) {
+                    wxLogError(wxString::FromUTF8("写入文件时发生异常。"));
+                    historyCtrl->AppendText(wxString::FromUTF8("写入文件时发生异常。\n"));
+                }
+            } else {
+                historyCtrl->AppendText(wxString::FromUTF8("用户已取消代码填入。\n"));
             }
-            catch (...) {
-                wxLogError(wxString::FromUTF8("自动创建文件时发生异常。"));
-            }
-
-            // Reset flags
-            this->m_autoCreatePending = false;
-            this->m_autoFilename.clear();
-            this->m_autoAllowMulti = false;
-        }
-
-        historyCtrl->SetDefaultStyle(wxTextAttr(wxColour(0, 128, 0)));
-        historyCtrl->AppendText(wxString::FromUTF8("\n[总结]: "));
-        historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLACK));
-        historyCtrl->AppendText(res.summary + "\n\n");
-
-        if (!res.memory.IsEmpty()) {
-            this->memory_queue.Add(res.memory);
-            while (this->memory_queue.GetCount() > 10) {
-                this->memory_queue.RemoveAt(0);
-            }
-            this->memory = wxString::FromUTF8("【之前的记忆上下文】:\n");
-            for (const auto& m : this->memory_queue) this->memory += "- " + m + "\n";
-            this->memory += wxString::FromUTF8("【记忆上下文结束】\n\n");
         }
 
         historyCtrl->ShowPosition(historyCtrl->GetLastPosition());
