@@ -1093,10 +1093,14 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
                 wxBoxSizer* vs = new wxBoxSizer(wxVERTICAL);
                 wxBoxSizer* hs = new wxBoxSizer(wxHORIZONTAL);
 
-                wxListBox* fileList = new wxListBox(&previewDlg, wxID_ANY);
+                // 【修改点1】：使用 wxCheckListBox 替换普通 ListBox
+                wxCheckListBox* fileList = new wxCheckListBox(&previewDlg, wxID_ANY);
+                int checkIdx = 0;
                 for (const auto& fp : files) {
                     std::string name = fp.first.empty() ? std::string("(自动命名)") : fp.first;
                     fileList->Append(wxString::FromUTF8(name));
+                    fileList->Check(checkIdx, true); // 默认将所有文件设为勾选状态
+                    checkIdx++;
                 }
                 hs->Add(fileList, 0, wxEXPAND | wxALL, 6);
 
@@ -1105,13 +1109,16 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
                 vs->Add(hs, 1, wxEXPAND);
 
                 wxBoxSizer* btns = new wxBoxSizer(wxHORIZONTAL);
-                // 绑定到标准的 wxID_OK / wxID_CANCEL 自动触发对话框返回
-                wxButton* acceptAllBtn = new wxButton(&previewDlg, wxID_OK, wxString::FromUTF8("接受修改 (Accept All)"));
 
-
+                // 1. 创建按钮
+                wxButton* acceptSelectedBtn = new wxButton(&previewDlg, wxID_OK, wxString::FromUTF8("接受选中项 (Accept Selected)"));
                 wxButton* rejectAllBtn = new wxButton(&previewDlg, wxID_CANCEL, wxString::FromUTF8("取消 (Reject All)"));
-                btns->Add(acceptAllBtn, 0, wxRIGHT, 8);
+
+                // 2. 将按钮添加到 sizer 中 (注意这里使用的是 acceptSelectedBtn)
+                btns->Add(acceptSelectedBtn, 0, wxRIGHT, 8);
                 btns->Add(rejectAllBtn, 0, wxRIGHT, 8);
+
+                // 3. 放入主布局
                 vs->Add(btns, 0, wxALIGN_RIGHT | wxALL, 8);
                 previewDlg.SetSizer(vs);
 
@@ -1155,34 +1162,37 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
                     fs::create_directories(libDir, ec);
 
                     try {
+                        int currentFileIdx = 0; // 用于追踪当前处理的文件在列表中的索引
+                        bool hasFileWritten = false; // 记录是否有文件被写入
+
                         for (const auto& p : files) {
+                            // 【修改点3】：检查用户是否在UI界面中勾选了此文件，未勾选则直接跳过
+                            if (!fileList->IsChecked(currentFileIdx)) {
+                                currentFileIdx++;
+                                continue;
+                            }
+
                             fs::path outPath;
                             std::string fileName = p.first;
 
                             if (fileName.empty()) {
-                                // 兜底：如果没有解析出文件名，则使用用户指定的 autoFilename，若无则使用 temp.v
                                 std::string defName = this->m_autoFilename.empty() ? "temp.v" : this->m_autoFilename;
                                 outPath = srcDir / defName;
                             }
                             else {
-                                // 如果 AI 返回了带路径的文件名（如 "lib/header.svh" 或 "counter.sv"）
-                                // 为了安全，去除路径最开头的斜杠（防止被识别为绝对路径导致拼接失败）
                                 while (!fileName.empty() && (fileName.front() == '/' || fileName.front() == '\\')) {
                                     fileName.erase(0, 1);
                                 }
 
-                                // 【修改点】：判断 AI 返回的文件名是否包含相对路径层级
+                                // 【此处保留了你上一个要求：无路径的放 ./src 下，有路径的尊重原路径】
                                 std::filesystem::path parsedPath(fileName);
                                 if (!parsedPath.has_parent_path()) {
-                                    // 如果只是纯粹的文件名（如 "counter.v"），则强制放入 ./src 目录下
                                     outPath = srcDir / fileName;
                                 }
                                 else {
-                                    // 如果 AI 显式指定了子文件夹（如 "lib/header.svh" 或 "src/top.v"），则顺从其路径结构
                                     outPath = baseSrc / fileName;
                                 }
 
-                                // 确保该文件所需的子目录已经存在 (例如项目下本来没有 lib 文件夹)
                                 fs::create_directories(outPath.parent_path(), ec);
                             }
 
@@ -1195,14 +1205,23 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
                                 this->m_generationCreatedFiles.push_back(outPath.string());
                             }
 
-                            // 写入
+                            // 写入文件
                             std::ofstream ofs(outPath, std::ios::out | std::ios::binary);
                             if (!ofs) throw std::runtime_error("无法打开文件进行写入: " + outPath.string());
                             ofs << p.second;
-                        } // <--- 关键：之前大概率是复制时丢了这里的 for 循环右括号！
 
-                        historyCtrl->AppendText(wxString::FromUTF8("系统: 文件已成功写入项目并保存。\n"));
-                    } // <--- 以及这个 try 块的右括号！
+                            hasFileWritten = true;
+                            currentFileIdx++; // 记得在循环结束增加索引
+                        }
+
+                        // 给用户的反馈提示可以更精准一些
+                        if (hasFileWritten) {
+                            historyCtrl->AppendText(wxString::FromUTF8("系统: 选中的文件已成功写入项目并保存。\n"));
+                        }
+                        else {
+                            historyCtrl->AppendText(wxString::FromUTF8("系统: 用户取消了所有文件的勾选，未写入任何文件。\n"));
+                        }
+                    }
                     catch (const std::exception& e) {
                         writeSuccess = false;
                         wxLogError(wxString::FromUTF8("写入过程中发生致命错误: ") + wxString::FromUTF8(e.what()));
