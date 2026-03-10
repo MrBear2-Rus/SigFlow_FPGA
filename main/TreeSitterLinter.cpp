@@ -62,7 +62,7 @@ bool TreeSitterLinter::TSTest(wxString code) {
         
         TSNode root_node = ts_tree_root_node(new_tree);
         bool x = ts_node_has_error(root_node);
-        //DumpTree(root_node, code);
+        DumpTree(root_node, code);
         TSNode decl = ts_node_named_child(root_node, 0);
         TSNode item = ts_node_named_child(decl, 1);
         //DumpTree(item, code);

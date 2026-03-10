@@ -25,6 +25,7 @@ class CanvasNoteBook;
 class HandyToolKit;
 class ToolboxPanel;
 class Structuring;
+class VerilogManager;
 
 wxDECLARE_EVENT(EVT_SFTREE_NODE_ACTIVATED, wxCommandEvent);
 
@@ -50,14 +51,13 @@ private:
 
     PluginManager* m_pluginMgr;
 
-    Structuring* m_structuring;
-    wxTimer*     m_textTimer;
+    VerilogManager* m_verilogMgr;
+    TSParser* m_parser;
 
+    std::map<wxString, std::unordered_map<SigTreeNode*, std::tuple<int, int>>> maps;
     void RefreshTitle();
     // 声明事件处理函数
     void OnAnalysisComplete(wxThreadEvent& event);
-    void OnStcModified(wxStyledTextEvent& event);
-    void OnAnalysisTimer(wxTimerEvent&);
 
 private:
     bool SaveToFile(const wxString& filePath);

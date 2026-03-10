@@ -1,4 +1,4 @@
-#include "SigFlowTreePanel.h"
+﻿#include "SigFlowTreePanel.h"
 #include "PropertyPanelBuilder.h"
 #include <wx/statline.h>
 

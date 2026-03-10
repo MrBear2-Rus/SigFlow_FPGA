@@ -3,7 +3,7 @@
 #include "AsyncAnalysisCenter.h"
 
 enum EDITOR_MODE {Verilog, Markdown, JsonStyle, Text};
-
+#define BLOCK_MARKER_ID 0 // 用于块背景高亮的标记 ID
 
 
 // Scintilla 支持 0-31，建议从 0 开始
@@ -48,6 +48,8 @@ public:
     void RenderLineMarker(const std::vector<Stability> line_status);
     void MarkerDeleteAllByID(int markerId);
     void RenderFoldingStructure(const std::vector<bool> is_lines_header, const std::vector<int> line_depth);
+
+
     //void RenderSemanticColors(const std::vector<VerilogBlock>& blocks);
 
     //void ClearAllFeedBack();
