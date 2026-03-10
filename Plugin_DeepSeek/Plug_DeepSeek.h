@@ -9,6 +9,8 @@
 #include <atomic>
 #include <mutex>
 #include <winhttp.h>
+#include <fstream>
+#include <memory>
 
 class Plug_DeepSeek : public ISigPlugin {
 public:
@@ -23,6 +25,9 @@ public:
     void SetProjectRoot(const std::string& path) override;
 
 private:
+    std::atomic<int> m_aiPhase{ 0 }; // 0=idle, 1=design, 2=generate
+    std::string m_pendingGenerationPrompt;
+    std::mutex m_pendingPromptMutex;
     std::string m_apiKey;
     std::string m_apiUrl;
 
@@ -61,6 +66,14 @@ private:
     HINTERNET m_hSessionHandle = NULL;
     HINTERNET m_hConnectHandle = NULL;
     HINTERNET m_hRequestHandle = NULL;
+
+    // Generation-time temporary buffering & backups
+    std::string m_generationTempPath; // path to temporary aggregated response during generation
+    std::unique_ptr<std::ofstream> m_generationTempStream; // stream writing incremental response
+    std::mutex m_generationMutex; // protects generation temp stream and backup structures
+    std::map<std::string, std::string> m_generationBackups; // path -> original contents (for rollback)
+    std::vector<std::string> m_generationCreatedFiles; // files created by generation (to remove on reject)
+    bool m_generationActive = false; // whether a generation is in progress
 
     // 内部辅助函数：处理网络请求
     static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp);
