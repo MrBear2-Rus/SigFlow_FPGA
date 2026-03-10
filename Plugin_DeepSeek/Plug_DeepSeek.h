@@ -44,7 +44,7 @@ private:
     std::string m_currentSessionName;
     std::string m_currentSessionHistory; // 仅文本回放/上下文
     bool m_currentSessionIsPlaceholder = false; // 标记当前会话名为占位符（例如“新对话”）
-
+    void GenerateAndSetSessionTitle(const std::string& firstUserMsg, wxWindow* panel);
     std::atomic<bool> m_isReleased{false}; 
     std::vector<std::thread> m_threads;
     std::string m_projectRoot;

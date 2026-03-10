@@ -224,7 +224,7 @@ void Plug_DeepSeek::Release() {
 
 std::string Plug_DeepSeek::ProcessCommand(const std::string& cmd) {
     // 修复编码隐患：必须用 ToUTF8() 转换为标准 UTF-8 字节流，切忌使用 ToStdString()
-    std::string memStr = memory.IsEmpty() ? "" : std::string(memory.ToUTF8().data());
+    std::string memStr = memory.IsEmpty() ? "" : memory.ToStdString(wxConvUTF8);
 
     // 支持特殊命令：/scanproject 或 /scan 来收集本仓库/解决方案下的所有文本源码文件并发送给 AI
     // 新增命令：/autogen 用于自动生成单文件或多文件 Verilog/相关源码，并写入到 projectRoot/src/ 或 projectRoot/lib/
@@ -239,6 +239,7 @@ std::string Plug_DeepSeek::ProcessCommand(const std::string& cmd) {
     // 否则，单文件情况下直接返回代码块。
     const std::string genCmd = "/autogen";
     const std::string legacyGenCmd = "/genfile"; // 兼容
+    const std::string topdownCmd = "/topdown";   // <--- 新增：顶层向下设计命令
     std::string fullPrompt;
     const std::string scanCmd = "/scanproject";
     const std::string scanCmd2 = "/scan";
@@ -279,6 +280,44 @@ std::string Plug_DeepSeek::ProcessCommand(const std::string& cmd) {
             "## 3. 简要总结\n...\n"
             "## 4. 记忆存储\n...\n\n"
             "现在开始！用户的请求是：" + userQuestion;
+    }
+    // =========== 处理 /topdown 命令 ===========
+    else if (cmd.rfind(topdownCmd, 0) == 0) {
+        // 提取用户的实际需求描述
+        std::string userInput = cmd.substr(topdownCmd.length());
+        while (!userInput.empty() && isspace((unsigned char)userInput.front())) userInput.erase(userInput.begin());
+        std::string userQuestion = userInput.empty() ? "请进行顶层设计，完成top.v并分多文件实现子模块。" : userInput;
+
+        // 设置标志位，允许自动生成和多文件解析
+        this->m_autoCreatePending = true;
+        this->m_autoAllowMulti = true;
+        this->m_autoFilename = "src/top.v"; // 默认首文件
+
+        // 构造强制采用顶层向下设计的 Prompt (加强了对 top.v 和 module top 的强制约束)
+        fullPrompt = memStr +
+            "你是一个严格遵守格式的架构级 Verilog/SystemVerilog 专家。\n"
+            "用户项目已初始化了默认的顶层文件 src/top.v。现在要求采用【顶层向下(Top-Down)】的设计方法。无论用户问什么，你都必须且只能按以下格式回复，严禁任何前言和后语：\n"
+            "## 1. 分析\n"
+            "分析系统架构，明确顶层与子模块划分。\n"
+            "## 2. 纯代码\n"
+            "(必须按照以下步骤并在本段内以特定格式输出多个文件内容：\n"
+            "  第一步：首先输出顶层文件。文件名【必须且只能是】 src/top.v，并且模块名【必须命名为】 top （即 module top (...); ）。在此文件中仅进行子模块的例化和外设信号连线，严禁实现子模块的具体逻辑。\n"
+            "  第二步：然后，逐个实现 top 模块中例化使用到的每一个子模块，并将它们输出为独立的源文件。\n"
+            "多文件输出格式如下：\n"
+            "==== src/top.v ====\n"
+            "module top (\n"
+            "    // 端口定义\n"
+            ");\n"
+            "    // 子模块例化和连线\n"
+            "endmodule\n"
+            "==== src/sub_mod1.v ====\n"
+            "<子模块1的代码>\n"
+            "==== src/sub_mod2.v ====\n"
+            "<子模块2的代码>\n)\n"
+            "## 3. 简要总结\n...\n"
+            "## 4. 记忆存储\n...\n\n"
+            "现在开始！用户的系统需求是：" + userQuestion;
+
     }
     else if (cmd.rfind(scanCmd, 0) == 0 || cmd.rfind(scanCmd2, 0) == 0) {
         // 从命令中提取后续用户问题（空格后的部分）
@@ -646,6 +685,95 @@ void Plug_DeepSeek::CancelCurrentRequest() {
 // 在 Plug_DeepSeek.cpp 中
 extern "C" __declspec(dllexport) ISigPlugin* CreateSigPlugin() {
     return new Plug_DeepSeek();
+}
+
+void Plug_DeepSeek::GenerateAndSetSessionTitle(const std::string& firstUserMsg, wxWindow* panel) {
+    try {
+        if (this->m_currentSessionName.empty() || this->m_currentSessionIsPlaceholder) {
+            std::string titlePrompt = std::string("请将下面的会话内容与最新用户问句一起总结为不超过十个字的会话标题（仅返回标题，禁止任何其它文字）：\n") + this->m_currentSessionHistory + "\n用户: " + firstUserMsg;
+            std::string titleRes = this->CallDeepSeekAPI(titlePrompt, nullptr, false);
+
+            // 取第一行并去除首尾空白
+            size_t nl = titleRes.find_first_of("\r\n");
+            if (nl != std::string::npos) titleRes = titleRes.substr(0, nl);
+
+            auto trim = [](std::string& s) {
+                while (!s.empty() && isspace((unsigned char)s.front())) s.erase(s.begin());
+                while (!s.empty() && isspace((unsigned char)s.back())) s.pop_back();
+                };
+            trim(titleRes);
+
+            // 去除常见前缀/标签并移除引号
+            if (!titleRes.empty() && (titleRes.front() == '"' || titleRes.front() == '\'' || titleRes.front() == '“' || titleRes.front() == '”')) titleRes.erase(0, 1);
+            if (!titleRes.empty() && (titleRes.back() == '"' || titleRes.back() == '\'' || titleRes.back() == '“' || titleRes.back() == '”')) titleRes.pop_back();
+
+            size_t colon = titleRes.find_last_of("：:");
+            if (colon != std::string::npos) {
+                titleRes = titleRes.substr(colon + 1);
+                trim(titleRes);
+            }
+
+            const std::vector<std::string> prefixes = { "会话标题", "标题", "会话", "title" };
+            for (const auto& p : prefixes) {
+                if (titleRes.rfind(p, 0) == 0) {
+                    titleRes = titleRes.substr(p.size());
+                    trim(titleRes);
+                }
+            }
+
+            // 压缩连续空白
+            std::string collapsed;
+            bool lastWasSpace = false;
+            for (char c : titleRes) {
+                if (isspace((unsigned char)c)) {
+                    if (!lastWasSpace) { collapsed.push_back(' '); lastWasSpace = true; }
+                }
+                else { collapsed.push_back(c); lastWasSpace = false; }
+            }
+            titleRes = collapsed;
+
+            // 限制为不超过10个字符
+            wxString wxTitle = wxString::FromUTF8(titleRes);
+            wxTitle = wxTitle.Left(10);
+            std::string finalTitle = std::string(wxTitle.ToUTF8().data());
+
+            if (finalTitle.empty()) {
+                // 兜底使用时间戳命名
+                auto now = std::chrono::system_clock::now();
+                std::time_t t = std::chrono::system_clock::to_time_t(now);
+                std::tm tm;
+                localtime_s(&tm, &t);
+                std::ostringstream ss;
+                ss << "会话 " << std::put_time(&tm, "%Y%m%d%H%M%S");
+                finalTitle = ss.str();
+            }
+
+            // 如果当前是占位会话，则改名；否则新增会话
+            std::string evtPayload;
+            if (this->m_currentSessionIsPlaceholder) {
+                std::string oldName = this->m_currentSessionName;
+                try {
+                    this->RenameConversation(oldName, finalTitle);
+                }
+                catch (...) {}
+                this->m_currentSessionName = finalTitle;
+                this->m_currentSessionIsPlaceholder = false;
+                evtPayload = oldName + "\n" + finalTitle;
+            }
+            else {
+                std::string added = this->AddConversation(finalTitle, this->m_currentSessionHistory);
+                this->m_currentSessionName = added;
+                evtPayload = added;
+            }
+
+            // 发送 UI 更新事件
+            wxThreadEvent* titleEvt = new wxThreadEvent(EVT_AI_RESPONSE);
+            titleEvt->SetInt(5);
+            titleEvt->SetString(wxString::FromUTF8(evtPayload));
+            if (panel) wxQueueEvent(panel, titleEvt);
+        }
+    }
+    catch (...) { /* 忽略命名失败，不影响核心流程 */ }
 }
 
 wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
@@ -1046,7 +1174,9 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
 
                     // 提取文件名并去除首尾空格
                     std::string filename = codeBlock.substr(pos + delimiter.length(), end_pos - (pos + delimiter.length()));
-                    filename.erase(0, filename.find_first_not_of(" \t\r\n"));
+                    size_t start = filename.find_first_not_of(" \t\r\n");
+                    if (start == std::string::npos) filename.clear();
+                    else filename.erase(0, start);
                     filename.erase(filename.find_last_not_of(" \t\r\n") + 1);
 
                     pos = end_pos + delimiter.length();
@@ -1291,86 +1421,8 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
         if (cancelBtn) cancelBtn->Enable();
 
         std::string promptUtf8 = userMsg.ToUTF8().data();
-
         m_threads.emplace_back([this, panel, promptUtf8]() {
-            // 在调用主 AI 请求前，若当前会话尚未命名，则请求短标题（不超过10字）作为会话名称并保存。
-            try {
-                if (this->m_currentSessionName.empty() || this->m_currentSessionIsPlaceholder) {
-                    std::string titlePrompt = std::string("请将下面的会话内容与最新用户问句一起总结为不超过十个字的会话标题（仅返回标题，禁止任何其它文字）：\n") + this->m_currentSessionHistory + "\n用户: " + promptUtf8;
-                    std::string titleRes = this->CallDeepSeekAPI(titlePrompt, nullptr, false);
-                    // 取第一行并去除首尾空白
-                    size_t nl = titleRes.find_first_of("\r\n");
-                    if (nl != std::string::npos) titleRes = titleRes.substr(0, nl);
-                    // trim
-                    auto trim = [](std::string &s) {
-                        while (!s.empty() && isspace((unsigned char)s.front())) s.erase(s.begin());
-                        while (!s.empty() && isspace((unsigned char)s.back())) s.pop_back();
-                    };
-                    trim(titleRes);
-                    
-                    // 去除常见前缀/标签（例如："会话标题：..."、"标题:" 等），并移除引号
-                    if (!titleRes.empty() && (titleRes.front() == '"' || titleRes.front() == '\'' || titleRes.front() == '“' || titleRes.front() == '”')) titleRes.erase(0, 1);
-                    if (!titleRes.empty() && (titleRes.back() == '"' || titleRes.back() == '\'' || titleRes.back() == '“' || titleRes.back() == '”')) titleRes.pop_back();
-                    size_t colon = titleRes.find_last_of("：:");
-                    if (colon != std::string::npos) {
-                        titleRes = titleRes.substr(colon + 1);
-                        trim(titleRes);
-                    }
-                    const std::vector<std::string> prefixes = {"会话标题", "标题", "会话", "title"};
-                    for (const auto &p : prefixes) {
-                        if (titleRes.rfind(p, 0) == 0) {
-                            titleRes = titleRes.substr(p.size());
-                            trim(titleRes);
-                        }
-                    }
-                    // 压缩连续空白
-                    std::string collapsed;
-                    bool lastWasSpace = false;
-                    for (char c : titleRes) {
-                        if (isspace((unsigned char)c)) {
-                            if (!lastWasSpace) { collapsed.push_back(' '); lastWasSpace = true; }
-                        } else { collapsed.push_back(c); lastWasSpace = false; }
-                    }
-                    titleRes = collapsed;
-                    // 限制为不超过10个字符（使用 wxString 按字符截断以兼容多字节）
-                    wxString wxTitle = wxString::FromUTF8(titleRes);
-                    wxTitle = wxTitle.Left(10);
-                    std::string finalTitle = std::string(wxTitle.ToUTF8().data());
-                    if (finalTitle.empty()) {
-                        // 兜底使用时间戳命名
-                        auto now = std::chrono::system_clock::now();
-                        std::time_t t = std::chrono::system_clock::to_time_t(now);
-                        std::tm tm;
-                        localtime_s(&tm, &t);
-                        std::ostringstream ss;
-                        ss << "会话 " << std::put_time(&tm, "%Y%m%d%H%M%S");
-                        finalTitle = ss.str();
-                    }
-                    // 如果当前是占位会话，则改名；否则新增会话
-                    std::string evtPayload;
-                    if (this->m_currentSessionIsPlaceholder) {
-                        std::string oldName = this->m_currentSessionName;
-                        try {
-                            // RenameConversation will update storage; ensure we use a unique final name
-                            this->RenameConversation(oldName, finalTitle);
-                        } catch (...) { }
-                        this->m_currentSessionName = finalTitle;
-                        this->m_currentSessionIsPlaceholder = false;
-                        // 通过事件传递 old\nnew 以便 UI 在列表中替换
-                        evtPayload = oldName + "\n" + finalTitle;
-                    } else {
-                        std::string added = this->AddConversation(finalTitle, this->m_currentSessionHistory);
-                        this->m_currentSessionName = added;
-                        evtPayload = added;
-                    }
-
-                    wxThreadEvent* titleEvt = new wxThreadEvent(EVT_AI_RESPONSE);
-                    titleEvt->SetInt(5);
-                    titleEvt->SetString(wxString::FromUTF8(evtPayload));
-                    if (panel) wxQueueEvent(panel, titleEvt);
-                }
-            } catch (...) { /* 忽略命名失败 */ }
-
+            this->GenerateAndSetSessionTitle(promptUtf8, panel);
             // 调用 ProcessCommand（内部会在流式模式下向 panel 回传部分/最终事件）
             this->ProcessCommand(promptUtf8);
 
@@ -1380,7 +1432,7 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
             wxThreadEvent* doneEvt = new wxThreadEvent(EVT_AI_RESPONSE);
             doneEvt->SetInt(4);
             wxQueueEvent(panel, doneEvt);
-        });
+         });
     };
 
     sendBtn->Bind(wxEVT_BUTTON, [this, historyCtrl, inputCtrl, panel, sendBtn, cancelBtn](wxCommandEvent& event) {
@@ -1397,79 +1449,9 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
         if (sendBtn) sendBtn->Disable();
         if (inputCtrl) inputCtrl->Disable();
         if (cancelBtn) cancelBtn->Enable();
-
         std::string promptUtf8 = userMsg.ToUTF8().data();
         m_threads.emplace_back([this, panel, promptUtf8]() {
-            try {
-                if (this->m_currentSessionName.empty() || this->m_currentSessionIsPlaceholder) {
-                    std::string titlePrompt = std::string("请将下面的会话内容与最新用户问句一起总结为不超过十个字的会话标题（仅返回标题，禁止任何其它文字）：\n") + this->m_currentSessionHistory + "\n用户: " + promptUtf8;
-                    std::string titleRes = this->CallDeepSeekAPI(titlePrompt, nullptr, false);
-                    // 取第一行并去除首尾空白
-                    size_t nl = titleRes.find_first_of("\r\n");
-                    if (nl != std::string::npos) titleRes = titleRes.substr(0, nl);
-                    auto trim = [](std::string &s) {
-                        while (!s.empty() && isspace((unsigned char)s.front())) s.erase(s.begin());
-                        while (!s.empty() && isspace((unsigned char)s.back())) s.pop_back();
-                    };
-                    trim(titleRes);
-                    if (!titleRes.empty() && (titleRes.front() == '"' || titleRes.front() == '\'' || titleRes.front() == '“' || titleRes.front() == '”')) titleRes.erase(0, 1);
-                    if (!titleRes.empty() && (titleRes.back() == '"' || titleRes.back() == '\'' || titleRes.back() == '“' || titleRes.back() == '”')) titleRes.pop_back();
-                    size_t colon = titleRes.find_last_of("：:");
-                    if (colon != std::string::npos) {
-                        titleRes = titleRes.substr(colon + 1);
-                        trim(titleRes);
-                    }
-                    const std::vector<std::string> prefixes = {"会话标题", "标题", "会话", "title"};
-                    for (const auto &p : prefixes) {
-                        if (titleRes.rfind(p, 0) == 0) {
-                            titleRes = titleRes.substr(p.size());
-                            trim(titleRes);
-                        }
-                    }
-                    // 压缩连续空白
-                    std::string collapsed;
-                    bool lastWasSpace = false;
-                    for (char c : titleRes) {
-                        if (isspace((unsigned char)c)) {
-                            if (!lastWasSpace) { collapsed.push_back(' '); lastWasSpace = true; }
-                        } else { collapsed.push_back(c); lastWasSpace = false; }
-                    }
-                    titleRes = collapsed;
-                    // 限制为不超过10个字符（使用 wxString 按字符截断以兼容多字节）
-                    wxString wxTitle = wxString::FromUTF8(titleRes);
-                    wxTitle = wxTitle.Left(10);
-                    std::string finalTitle = std::string(wxTitle.ToUTF8().data());
-                    if (finalTitle.empty()) {
-                        auto now = std::chrono::system_clock::now();
-                        std::time_t t = std::chrono::system_clock::to_time_t(now);
-                        std::tm tm;
-                        localtime_s(&tm, &t);
-                        std::ostringstream ss;
-                        ss << "会话 " << std::put_time(&tm, "%Y%m%d%H%M%S");
-                        finalTitle = ss.str();
-                    }
-                    // 如果当前是占位会话，则改名；否则新增会话
-                    std::string evtPayload;
-                    if (this->m_currentSessionIsPlaceholder) {
-                        std::string oldName = this->m_currentSessionName;
-                        try {
-                            this->RenameConversation(oldName, finalTitle);
-                        } catch (...) { }
-                        this->m_currentSessionName = finalTitle;
-                        this->m_currentSessionIsPlaceholder = false;
-                        evtPayload = oldName + "\n" + finalTitle;
-                    } else {
-                        std::string added = this->AddConversation(finalTitle, this->m_currentSessionHistory);
-                        this->m_currentSessionName = added;
-                        evtPayload = added;
-                    }
-
-                    wxThreadEvent* titleEvt = new wxThreadEvent(EVT_AI_RESPONSE);
-                    titleEvt->SetInt(5);
-                    titleEvt->SetString(wxString::FromUTF8(evtPayload));
-                    if (panel) wxQueueEvent(panel, titleEvt);
-                }
-            } catch (...) { }
+            this->GenerateAndSetSessionTitle(promptUtf8, panel);
 
             this->ProcessCommand(promptUtf8);
             if (m_isReleased) return;
@@ -1477,6 +1459,7 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
             doneEvt->SetInt(4);
             wxQueueEvent(panel, doneEvt);
         });
+
     }, wxID_ANY);
 
     inputCtrl->Bind(wxEVT_TEXT_ENTER, [this, historyCtrl, inputCtrl, panel, sendBtn, cancelBtn](wxCommandEvent& event) {
@@ -1491,86 +1474,16 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
         if (sendBtn) sendBtn->Disable();
         if (inputCtrl) inputCtrl->Disable();
         if (cancelBtn) cancelBtn->Enable();
-
         std::string promptUtf8 = userMsg.ToUTF8().data();
         m_threads.emplace_back([this, panel, promptUtf8]() {
-            try {
-                if (this->m_currentSessionName.empty() || this->m_currentSessionIsPlaceholder) {
-                    std::string titlePrompt = std::string("请将下面的会话内容与最新用户问句一起总结为不超过十个字的会话标题（仅返回标题，禁止任何其它文字）：\n") + this->m_currentSessionHistory + "\n用户: " + promptUtf8;
-                    std::string titleRes = this->CallDeepSeekAPI(titlePrompt, nullptr, false);
-                    // 取第一行并去除首尾空白
-                    size_t nl = titleRes.find_first_of("\r\n");
-                    if (nl != std::string::npos) titleRes = titleRes.substr(0, nl);
-                    auto trim = [](std::string &s) {
-                        while (!s.empty() && isspace((unsigned char)s.front())) s.erase(s.begin());
-                        while (!s.empty() && isspace((unsigned char)s.back())) s.pop_back();
-                    };
-                    trim(titleRes);
-                    if (!titleRes.empty() && (titleRes.front() == '"' || titleRes.front() == '\'' || titleRes.front() == '“' || titleRes.front() == '”')) titleRes.erase(0, 1);
-                    if (!titleRes.empty() && (titleRes.back() == '"' || titleRes.back() == '\'' || titleRes.back() == '“' || titleRes.back() == '”')) titleRes.pop_back();
-                    size_t colon = titleRes.find_last_of("：:");
-                    if (colon != std::string::npos) {
-                        titleRes = titleRes.substr(colon + 1);
-                        trim(titleRes);
-                    }
-                    const std::vector<std::string> prefixes = {"会话标题", "标题", "会话", "title"};
-                    for (const auto &p : prefixes) {
-                        if (titleRes.rfind(p, 0) == 0) {
-                            titleRes = titleRes.substr(p.size());
-                            trim(titleRes);
-                        }
-                    }
-                    // 压缩连续空白
-                    std::string collapsed;
-                    bool lastWasSpace = false;
-                    for (char c : titleRes) {
-                        if (isspace((unsigned char)c)) {
-                            if (!lastWasSpace) { collapsed.push_back(' '); lastWasSpace = true; }
-                        } else { collapsed.push_back(c); lastWasSpace = false; }
-                    }
-                    titleRes = collapsed;
-                    // 限制为不超过10个字符（使用 wxString 按字符截断以兼容多字节）
-                    wxString wxTitle = wxString::FromUTF8(titleRes);
-                    wxTitle = wxTitle.Left(10);
-                    std::string finalTitle = std::string(wxTitle.ToUTF8().data());
-                    if (finalTitle.empty()) {
-                        auto now = std::chrono::system_clock::now();
-                        std::time_t t = std::chrono::system_clock::to_time_t(now);
-                        std::tm tm;
-                        localtime_s(&tm, &t);
-                        std::ostringstream ss;
-                        ss << "会话 " << std::put_time(&tm, "%Y%m%d%H%M%S");
-                        finalTitle = ss.str();
-                    }
-                    // 如果当前是占位会话，则改名；否则新增会话
-                    std::string evtPayload;
-                    if (this->m_currentSessionIsPlaceholder) {
-                        std::string oldName = this->m_currentSessionName;
-                        try {
-                            this->RenameConversation(oldName, finalTitle);
-                        } catch (...) { }
-                        this->m_currentSessionName = finalTitle;
-                        this->m_currentSessionIsPlaceholder = false;
-                        evtPayload = oldName + "\n" + finalTitle;
-                    } else {
-                        std::string added = this->AddConversation(finalTitle, this->m_currentSessionHistory);
-                        this->m_currentSessionName = added;
-                        evtPayload = added;
-                    }
-
-                    wxThreadEvent* titleEvt = new wxThreadEvent(EVT_AI_RESPONSE);
-                    titleEvt->SetInt(5);
-                    titleEvt->SetString(wxString::FromUTF8(evtPayload));
-                    if (panel) wxQueueEvent(panel, titleEvt);
-                }
-            } catch (...) { }
+            this->GenerateAndSetSessionTitle(promptUtf8, panel);
 
             this->ProcessCommand(promptUtf8);
             if (m_isReleased) return;
             wxThreadEvent* doneEvt = new wxThreadEvent(EVT_AI_RESPONSE);
             doneEvt->SetInt(4);
             wxQueueEvent(panel, doneEvt);
-        });
+         });
     }, wxID_ANY);
 
     // 自动在打开插件时创建并加载一个占位的新对话（仅当当前会话未设置时）
@@ -1588,6 +1501,3 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
 
     return panel;
 }
-
-
-// ParseDSResponse implementation moved to Plug_DeepSeek_helpers.h
