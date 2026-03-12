@@ -26,6 +26,7 @@ class HandyToolKit;
 class ToolboxPanel;
 class Structuring;
 class VerilogManager;
+class WavePanel;
 
 wxDECLARE_EVENT(EVT_SFTREE_NODE_ACTIVATED, wxCommandEvent);
 
@@ -48,6 +49,7 @@ private:
     SigFlowTreePanel* m_sigFlowTreePanel;
     SFNPropertyPanel* m_sfnPropertyPanel;
     TerminalCtrl* m_terminalCtrl;
+    WavePanel* m_wavePanel;
 
     PluginManager* m_pluginMgr;
 

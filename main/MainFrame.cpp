@@ -17,6 +17,7 @@
 #include "CanvasNoteBook.h"
 #include "VerilogStructuring.h"
 #include "VerilogManager.h"
+#include "WavePanel.h"
 
 extern std::vector<SecondElement> g_elements;
 extern "C" TSLanguage* tree_sitter_verilog();
@@ -141,6 +142,7 @@ MainFrame::MainFrame()
  
     // 终端
     m_terminalCtrl = new TerminalCtrl(this);
+    m_wavePanel = new WavePanel(this);
 
     auto GetIcon = [&](const wxString& path) {
         wxBitmapBundle bundle = wxBitmapBundle::FromSVGFile(path, wxSize(24, 24));
@@ -297,9 +299,10 @@ MainFrame::MainFrame()
     wxAuiNotebook* bottomNotebook = new wxAuiNotebook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
         wxAUI_NB_TOP | wxAUI_NB_TAB_MOVE | wxAUI_NB_TAB_EXTERNAL_MOVE | wxAUI_NB_TAB_SPLIT);
 
-    
+    m_terminalCtrl->Reparent(bottomNotebook);
+    m_wavePanel->Reparent(bottomNotebook);
     bottomNotebook->AddPage(m_terminalCtrl, "Terminal");
-
+    bottomNotebook->AddPage(m_wavePanel, "Waveform");
 
 
     // 1. 先最大化窗口，确保尺寸基准正确

@@ -22,6 +22,7 @@
     <ClCompile Include="..\3rd\json\jsoncpp.cpp" />
     <ClCompile Include="..\3rd\tree-sitter-verilog\src\parser.c" />
     <ClCompile Include="..\3rd\tree-sitter\lib\src\lib.c" />
+    <ClCompile Include="..\3rd\vcd\vcd.cpp" />
     <ClCompile Include="AsyncAnalysisCenter.cpp" />
     <ClCompile Include="CanvasElement.cpp" />
     <ClCompile Include="CanvasModel.cpp" />
@@ -50,6 +51,7 @@
     <ClCompile Include="ToolStateMachine.cpp" />
     <ClCompile Include="VerilogManager.cpp" />
     <ClCompile Include="VerilogStructuring.cpp" />
+    <ClCompile Include="WavePanel.cpp" />
     <ClCompile Include="Wire.cpp" />
     <ClCompile Include="Simulation\SimulationEngine.cpp" />
     <ClCompile Include="Simulation\VerilatorRunner.cpp" />
@@ -86,6 +88,7 @@
     <ClInclude Include="TreeSitterLinter.h" />
     <ClInclude Include="VerilogManager.h" />
     <ClInclude Include="VerilogStructuring.h" />
+    <ClInclude Include="WavePanel.h" />
     <ClInclude Include="Wire.h" />
     <ClInclude Include="Simulation\SimulationEngine.h" />
     <ClInclude Include="Simulation\VerilatorRunner.h" />
