@@ -1,4 +1,4 @@
-﻿#include "Wire.h"
+#include "Wire.h"
 #include "CanvasPanel.h"
 
 void Wire::Draw(wxGraphicsContext* gc) const {
@@ -20,13 +20,14 @@ void Wire::Draw(wxGraphicsContext* gc) const {
     for (const auto& pt : pts) {
         if (pt.type == CPType::Pin) continue;
         if (pt.type == CPType::Bend) continue;
-        // 设置节点的颜色逻辑
-        wxColour dotColor = (pt.type == CPType::Branch) ? colors[2] : strokeColor;
+
+        wxColour dotColor = strokeColor;
+        int radius = 3;
+
         gc->SetPen(wxPen(dotColor, 1));
         gc->SetBrush(wxBrush(dotColor));
-
-        // GC 中画圆的方法是 DrawEllipse
-        gc->DrawEllipse(pt.pos.x - 3, pt.pos.y - 3, 6, 6);
+        gc->DrawEllipse(pt.pos.x - radius, pt.pos.y - radius,
+                        radius * 2, radius * 2);
     }
 }
 
