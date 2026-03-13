@@ -9,6 +9,8 @@
 #include <atomic>
 #include <mutex>
 #include <winhttp.h>
+#include <fstream>
+#include <memory>
 
 class Plug_DeepSeek : public ISigPlugin {
 public:
@@ -23,6 +25,9 @@ public:
     void SetProjectRoot(const std::string& path) override;
 
 private:
+    std::atomic<int> m_aiPhase{ 0 }; // 0=idle, 1=design, 2=generate
+    std::string m_pendingGenerationPrompt;
+    std::mutex m_pendingPromptMutex;
     std::string m_apiKey;
     std::string m_apiUrl;
 
@@ -38,7 +43,8 @@ private:
     // 当前会话状态（用于在加载/恢复会话后继续对话）
     std::string m_currentSessionName;
     std::string m_currentSessionHistory; // 仅文本回放/上下文
-
+    bool m_currentSessionIsPlaceholder = false; // 标记当前会话名为占位符（例如“新对话”）
+    void GenerateAndSetSessionTitle(const std::string& firstUserMsg, wxWindow* panel);
     std::atomic<bool> m_isReleased{false}; 
     std::vector<std::thread> m_threads;
     std::string m_projectRoot;
@@ -61,6 +67,14 @@ private:
     HINTERNET m_hConnectHandle = NULL;
     HINTERNET m_hRequestHandle = NULL;
 
+    // Generation-time temporary buffering & backups
+    std::string m_generationTempPath; // path to temporary aggregated response during generation
+    std::unique_ptr<std::ofstream> m_generationTempStream; // stream writing incremental response
+    std::mutex m_generationMutex; // protects generation temp stream and backup structures
+    std::map<std::string, std::string> m_generationBackups; // path -> original contents (for rollback)
+    std::vector<std::string> m_generationCreatedFiles; // files created by generation (to remove on reject)
+    bool m_generationActive = false; // whether a generation is in progress
+
     // 内部辅助函数：处理网络请求
     static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp);
     // 如果 panel 非空且 stream 为 true，则会使用增量回传（流式）并在完成时返回完整响应字符串
@@ -70,7 +84,8 @@ private:
 
     // 本地持久化相关
     void SaveConversationsToDisk();
-    void AddConversation(const std::string& name, const std::string& content);
+    // AddConversation returns the actual stored name (may be suffixed to avoid collisions)
+    std::string AddConversation(const std::string& name, const std::string& content);
     void RemoveConversation(const std::string& name);
     void RenameConversation(const std::string& oldName, const std::string& newName);
     void ExportConversation(const std::string& name, const std::string& path);

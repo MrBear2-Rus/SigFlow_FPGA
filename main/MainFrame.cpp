@@ -15,8 +15,12 @@
 #include "CanvasModel.h"
 #include "my_log.h"
 #include "CanvasNoteBook.h"
+#include "VerilogStructuring.h"
+#include "VerilogManager.h"
+#include "WavePanel.h"
 
 extern std::vector<SecondElement> g_elements;
+extern "C" TSLanguage* tree_sitter_verilog();
 
 wxDEFINE_EVENT(EVT_SFTREE_NODE_ACTIVATED, wxCommandEvent);
 wxDEFINE_EVENT(EVT_SIGFLOWNODE_ADD, wxCommandEvent);
@@ -59,8 +63,7 @@ MainFrame::MainFrame()
     m_sigFlowTreePanel(nullptr),
     m_sfnPropertyPanel(nullptr),
     m_terminalCtrl(nullptr),
-    m_pluginMgr(nullptr),
-    m_refreshTimer(nullptr)
+    m_pluginMgr(nullptr)
 {
     // 图标
     wxInitAllImageHandlers();
@@ -79,11 +82,6 @@ MainFrame::MainFrame()
 
 
     Bind(wxEVT_CLOSE_WINDOW, &MainFrame::OnClose, this);
-    
-    // 计时器
-    m_refreshTimer = new wxTimer(this, 100000);
-    this->Bind(wxEVT_TIMER, &MainFrame::OnRefreshTimer, this, 100000);
-    m_refreshTimer->Start(1000);
 
     // 构造SigTree
     sigTree = new SigFlowTree(this);
@@ -102,8 +100,10 @@ MainFrame::MainFrame()
     GetStatusBar()->SetFieldsCount(4, widths);
     GetStatusBar()->SetStatusStyles(4, style);
 
+
     // 画布
     m_canvas = new CanvasNoteBook(this, sigTree, wxID_ANY, FromDIP(1123), FromDIP(794));
+
 
     // 元件库
     m_toolbox = new ToolboxPanel(this);
@@ -115,7 +115,10 @@ MainFrame::MainFrame()
     this->Bind(EVT_SFTREE_NODE_ACTIVATED, &MainFrame::OnSFNodeActivated, this);
 
     // 文本编辑面板
+    m_parser = ts_parser_new();
+    ts_parser_set_language(m_parser, tree_sitter_verilog());
     m_verilogEditor = new SigTextEditor(this);
+    m_verilogMgr = new VerilogManager(m_verilogEditor, sigTree, m_parser);
 
     // 异步IDE分析
     m_analysisCenter = new AsyncAnalysisCenter(this);
@@ -139,6 +142,7 @@ MainFrame::MainFrame()
  
     // 终端
     m_terminalCtrl = new TerminalCtrl(this);
+    m_wavePanel = new WavePanel(this);
 
     auto GetIcon = [&](const wxString& path) {
         wxBitmapBundle bundle = wxBitmapBundle::FromSVGFile(path, wxSize(24, 24));
@@ -152,10 +156,6 @@ MainFrame::MainFrame()
     sideBar->SetArtProvider(new MyCustomToolBarArt());
 
 
-    // 插件加载
-
-    //m_pluginMgr = new PluginManager();
-    //m_pluginMgr->LoadPlugins("./plugins");
     // 插件加载
     m_pluginMgr = new PluginManager();
 
@@ -249,6 +249,31 @@ MainFrame::MainFrame()
 
 
     topBar->Realize();
+    // 绑定顶端工具栏按钮事件：将工具栏按钮的点击映射到 MainFrame 的业务函数
+    Bind(wxEVT_TOOL, [this](wxCommandEvent& e) {
+        switch (e.GetId()) {
+        case ID_TB_NEW:
+            DoFileNew();
+            break;
+        case ID_TB_OPEN:
+            DoFileOpen();
+            break;
+        case ID_TB_SAVE:
+            DoFileSave();
+            break;
+        case ID_TB_RECLAIM:
+            DoSimClean(); // 复用清理接口作为回收占位行为
+            break;
+        case ID_TB_START:
+            DoSimRun();
+            break;
+        case ID_TB_STOP:
+            DoSimReset();
+            break;
+        default:
+            break;
+        }
+    }, ID_TB_NEW, ID_TB_STOP);
     
     wxAuiNotebook* rightNotebook = new wxAuiNotebook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
         wxAUI_NB_TOP | wxAUI_NB_TAB_MOVE | wxAUI_NB_TAB_EXTERNAL_MOVE | wxAUI_NB_TAB_SPLIT);
@@ -274,9 +299,10 @@ MainFrame::MainFrame()
     wxAuiNotebook* bottomNotebook = new wxAuiNotebook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
         wxAUI_NB_TOP | wxAUI_NB_TAB_MOVE | wxAUI_NB_TAB_EXTERNAL_MOVE | wxAUI_NB_TAB_SPLIT);
 
-    
+    m_terminalCtrl->Reparent(bottomNotebook);
+    m_wavePanel->Reparent(bottomNotebook);
     bottomNotebook->AddPage(m_terminalCtrl, "Terminal");
-
+    bottomNotebook->AddPage(m_wavePanel, "Waveform");
 
 
     // 1. 先最大化窗口，确保尺寸基准正确
@@ -388,8 +414,6 @@ MainFrame::MainFrame()
 
 MainFrame::~MainFrame()
 {
-    m_refreshTimer->Stop();
-    delete m_refreshTimer;
     m_auiMgr.UnInit(); 
 
     m_verilogEditor = nullptr;
@@ -538,13 +562,8 @@ void MainFrame::DoFileOpenProject() {
 
                     std::string stdCode = fileContent.ToStdString();
 
-                    // 3. 为当前文件构造 Tree-sitter 资源
-                    TSParser* parser = ts_parser_new();
-                    ts_parser_set_language(parser, tree_sitter_verilog());
 
-                    // 解析当前读取到的 stdCode，而不是全局的 sp.stable_code
-                    TSTree* new_tree = ts_parser_parse_string(parser, nullptr, stdCode.c_str(), stdCode.length());
-                    
+                    TSTree* new_tree = ts_parser_parse_string(m_parser, nullptr, stdCode.c_str(), stdCode.length());
                     if (new_tree) {
                         TSNode rootNode = ts_tree_root_node(new_tree);
                         // 调试打印
@@ -554,14 +573,14 @@ void MainFrame::DoFileOpenProject() {
 
                         // 4. 更新数据模型
                         // 注意：这里传入的是当前文件的路径 absPath1 和当前文件的代码 stdCode
-                        DumpTree(rootNode, stdCode, 0);
-                        sigTree->UpdateTreeFromTS(&cursor, sigTree->root, absPath1, stdCode);
-
+                        //DumpTree(rootNode, stdCode, 0);
+                        std::unordered_map<SigTreeNode*, std::tuple<int, int>> map;
+                        sigTree->UpdateTreeFromTS(&cursor, sigTree->root, absPath1, stdCode, map);
+                        maps[absPath1] = map;
                         // 清理 TS 局部资源
                         ts_tree_cursor_delete(&cursor);
                         ts_tree_delete(new_tree);
                     }
-                    ts_parser_delete(parser);
                 }
 
                 // 5. 所有文件解析完成后，一次性刷新 UI
@@ -603,15 +622,92 @@ void MainFrame::DoFileOpenProject() {
 
 
 void MainFrame::DoFileNew() {
-    // ֱ�Ӵ���һ���µĿհ�MainFrame����
-    MainFrame* newFrame = new MainFrame();  // ����MainFrame���캯�����ʼ���հ�״̬
+    // Create a new project directory with basic structure and open it in the project tree
+    // 1) Ask for parent folder
+    wxDirDialog dirDlg(this, "Select parent folder for new project", "",
+        wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
+    if (dirDlg.ShowModal() != wxID_OK) return;
+    wxString parent = dirDlg.GetPath();
 
-    // ��ʾ�´��ڣ�������ʾ��
-    newFrame->Centre(wxBOTH);
-    newFrame->Show(true);
+    // 2) Ask for project name
+    wxTextEntryDialog nameDlg(this, "Enter project name:", "New Project", "NewProject");
+    if (nameDlg.ShowModal() != wxID_OK) return;
+    wxString projName = nameDlg.GetValue();
+    if (projName.IsEmpty()) {
+        wxMessageBox("Project name cannot be empty", "Error", wxOK | wxICON_ERROR, this);
+        return;
+    }
 
-    // ����ѡ�������Ҫ��¼���д򿪵Ĵ��ڣ������ӵ������б���
-    // m_allFrames.push_back(newFrame);  // ��Ҫ��MainFrame��������m_allFrames
+    // 3) Build project path and check
+    wxFileName fn(parent, projName);
+    wxString projPath = fn.GetFullPath();
+    if (wxDirExists(projPath)) {
+        wxDir dir(projPath);
+        wxString anyName;
+        bool notEmpty = dir.IsOpened() && dir.GetFirst(&anyName);
+        if (notEmpty) {
+            int res = wxMessageBox("The folder already exists and is not empty. Overwrite?", "Confirm",
+                wxYES_NO | wxICON_QUESTION, this);
+            if (res != wxYES) return;
+        }
+    }
+    else if (wxFileExists(projPath)) {
+        int res = wxMessageBox("A file with the same name exists. Overwrite?", "Confirm",
+            wxYES_NO | wxICON_QUESTION, this);
+        if (res != wxYES) return;
+        wxRemoveFile(projPath);
+    }
+
+    // 4) Create directory structure
+    if (!wxFileName::Mkdir(projPath, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL)) {
+        wxMessageBox("Failed to create project folder", "Error", wxOK | wxICON_ERROR, this);
+        return;
+    }
+    wxString srcDir = projPath + wxFileName::GetPathSeparator() + "src";
+    wxString libDir = projPath + wxFileName::GetPathSeparator() + "lib";
+    wxString sigflowDir = projPath + wxFileName::GetPathSeparator() + ".sigflow";
+    wxString workspaceDir = sigflowDir + wxFileName::GetPathSeparator() + "workspace";
+    wxString simDir = sigflowDir + wxFileName::GetPathSeparator() + "sim";
+    wxFileName::Mkdir(srcDir, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
+    wxFileName::Mkdir(libDir, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
+    wxFileName::Mkdir(workspaceDir, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
+    wxFileName::Mkdir(simDir, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
+
+    // 5) Create a minimal sigflow.project JSON
+    wxString projectJson = "{\n  \"build\": { \"top_module\": [] },\n  \"paths\": { \"source_files\": [], \"library_files\": [] }\n}\n";
+    wxString projFile = projPath + wxFileName::GetPathSeparator() + "sigflow.project";
+    wxFile pfile;
+    if (pfile.Open(projFile, wxFile::write)) {
+        pfile.Write(projectJson);
+        pfile.Close();
+    }
+
+    // 6) Create a sample top Verilog file to get started
+    wxString sampleTop = srcDir + wxFileName::GetPathSeparator() + "top.v";
+    wxFile sampleFile;
+    if (sampleFile.Open(sampleTop, wxFile::write)) {
+        wxString sampleCode = "module top();\n    // TODO: add signals and logic\nendmodule\n";
+        sampleFile.Write(sampleCode);
+        sampleFile.Close();
+    }
+
+    // 7) Create README
+    wxString readmePath = projPath + wxFileName::GetPathSeparator() + "README.md";
+    wxFile rfile;
+    if (rfile.Open(readmePath, wxFile::write)) {
+        rfile.Write(wxString::Format("# %s\n\nThis is a new SigFlow project.", projName));
+        rfile.Close();
+    }
+
+    // 8) Load the project into UI
+    m_projectTreePanel->LoadProject(projPath);
+    m_currentProjectPath = projPath;
+    m_workspacePath = workspaceDir;
+    m_projectName = projName;
+    RefreshTitle();
+
+    // 9) Open sample file in editor so user can start coding
+    DoFileOpen(sampleTop);
 }
 
 //�����ļ���ʵ�֣����������ĸ�����
@@ -1300,13 +1396,13 @@ void MainFrame::DoHelpAbout()
 
 void MainFrame::OnOpenFileFromTree(wxCommandEvent& evt) {
     wxString path = evt.GetString();
-    m_verilogEditor->OpenFile(path);   // 你已有的打开文件逻辑
     m_currentFilePath = path;
     FileNode* fn = sigTree->GetFileNode(path.ToStdString());
     m_sigFlowTreePanel->SetFileNode(fn);
 
     m_canvas->SaveOrNotWindow();
     m_canvas->SetFileNode(fn);
+    m_verilogMgr->SetFileNode(fn, maps[path]);
     
     RefreshTitle();
 }
@@ -1380,49 +1476,14 @@ wxString MainFrame::GetWorkspaceCopyPath(const wxString& m_currentFilePath) {
     return wxEmptyString; // 如果不在项目内，返回空
 }
 
-
-
-
-
-void MainFrame::OnRefreshTimer(wxTimerEvent& event) {
-    if (!m_verilogEditor)          // 如果编辑器已销毁，直接返回
-        return;
-    if (m_verilogEditor->GetModify() && snap_version != m_verilogEditor->GetSnapVersion()) {
-        snap_version = m_verilogEditor->GetSnapVersion();
-        wxString fullPath = m_verilogEditor->GetCurrentPath();
-        wxFileName fn1(fullPath);
-        wxString ext = fn1.GetExt().Lower(); // 获取后缀并转换为小写，防止 .V 或 .SV 识别失败
-
-        bool is_verilog = (ext == "v" || ext == "sv" || ext == "vh" || ext == "svh");
-        if (!is_verilog) return;
-
-        // 1. 获取最新代码内容
-        wxString currentCode = m_verilogEditor->GetText();
-        StructeredPackage sp = VerilogStructuring(currentCode.ToStdString());
-
-        // 2. [优化] 只有内容真正改变才推送，避免仅光标移动触发分析
-        // if (currentCode == m_lastCode) return; 
-
-        wxString cachePath = GetWorkspaceCopyPath(fullPath);
-
-        wxFile file(cachePath, wxFile::write);
-        // 4. 保存快照：这里建议用 WriteStringToFile 避免干扰 STC 的撤销栈
-        if (file.IsOpened()) {
-            if (file.Write(sp.stable_code)) {
-                file.Close();
-
-                // 处理WorkSpace文件
-            }
-        }
-    }
-}
-
 void MainFrame::OnAnalysisComplete(wxThreadEvent& event) {
     AnalysisResult result = event.GetPayload<AnalysisResult>();
 
+    
+    // 交给分析模块
+    //AnalyzeDelta(L, delta.ToStdString());
 
     if (result.linted) m_verilogEditor->VisualFeedBack(result.lint);
-    //if (result.parsed) m_canvas->
 }
 
 
@@ -1458,6 +1519,7 @@ void MainFrame:: OnSFTreeChanged(wxCommandEvent& event) {
 void MainFrame::OnSFNodeAdded(wxCommandEvent& event) {
     OnSFTreeChanged(event);
     m_canvas->SigFlowNodeAdded(static_cast<SigTreeNode*>(event.GetClientData()));
+    m_verilogMgr->SigFlowNodeAdded(static_cast<SigTreeNode*>(event.GetClientData()));
 }
 
 void MainFrame::OnSFNodeDeleted(wxCommandEvent& event) {

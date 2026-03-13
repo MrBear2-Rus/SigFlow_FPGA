@@ -24,6 +24,9 @@ class ToolBars;
 class CanvasNoteBook;
 class HandyToolKit;
 class ToolboxPanel;
+class Structuring;
+class VerilogManager;
+class WavePanel;
 
 wxDECLARE_EVENT(EVT_SFTREE_NODE_ACTIVATED, wxCommandEvent);
 
@@ -46,15 +49,17 @@ private:
     SigFlowTreePanel* m_sigFlowTreePanel;
     SFNPropertyPanel* m_sfnPropertyPanel;
     TerminalCtrl* m_terminalCtrl;
+    WavePanel* m_wavePanel;
 
     PluginManager* m_pluginMgr;
+
+    VerilogManager* m_verilogMgr;
+    TSParser* m_parser;
+
+    std::map<wxString, std::unordered_map<SigTreeNode*, std::tuple<int, int>>> maps;
     void RefreshTitle();
     // 声明事件处理函数
     void OnAnalysisComplete(wxThreadEvent& event);
-
-    wxTimer* m_refreshTimer;
-    void OnRefreshTimer(wxTimerEvent& event);
-    std::string m_lastProcessedCode; // 用于对比，避免没改动也分析
 
 private:
     bool SaveToFile(const wxString& filePath);

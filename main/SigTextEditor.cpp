@@ -9,6 +9,7 @@ SigTextEditor::SigTextEditor(wxWindow* parent)
     SetProperty("fold.comment", "1"); // 如果有注释折叠可以开启
     Bind(wxEVT_STC_MARGINCLICK, &SigTextEditor::OnMarginClick, this);
     Bind(wxEVT_STC_MODIFIED, &SigTextEditor::OnTextChanged, this);
+
 }
 
 
@@ -648,8 +649,8 @@ void SigTextEditor::RenderLineMarker(const std::vector<Stability> line_status) {
 
 
     // 2. 遍历状态数组 (从索引 1 开始)
-    for (size_t i = 1; i < line_status.size(); ++i) {
-        int stc_line_number = static_cast<int>(i) - 1; // 转换为 0-based
+    for (size_t i = 0; i < line_status.size(); ++i) {
+        int stc_line_number = static_cast<int>(i); // 转换为 0-based
 
         switch (line_status[i]) {
         case Stability::Stable:
@@ -718,7 +719,7 @@ void SigTextEditor::OnMarginClick(wxStyledTextEvent& event) {
 
 void SigTextEditor::DebugFoldLevels() {
     int total_lines = GetLineCount();
-    //wxLogDebug("--- Folding Debug Info (Detailed) ---");
+    wxLogDebug("--- Folding Debug Info (Detailed) ---");
 
     for (int i = 0; i < total_lines; ++i) {
         // 1. 获取原始的 Level 信息
@@ -755,8 +756,8 @@ void SigTextEditor::DebugFoldLevels() {
             is_header ? "<-- HEADER" : ""
         );
 
-        //wxLogDebug(info);
+        wxLogDebug(info);
     }
-    //wxLogDebug("-------------------------------------");
+    wxLogDebug("-------------------------------------");
 }
 

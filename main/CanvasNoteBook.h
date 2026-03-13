@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <wx/aui/auibook.h>
 #include <wx/wx.h>
 #include "CanvasPanel.h"
@@ -14,12 +14,11 @@ public:
     std::vector<CanvasPanel*> cvses;
     size_t size_x, size_y;
 
-    wxButton* m_addBtn = nullptr;
+    
 
     CanvasNoteBook(MainFrame* pa, SigFlowTree* sftree, wxWindowID id, size_t size_x, size_t size_y);
     void SetFileNode(FileNode* node) {
-        fn = node; UpdateNoteBook
-        ();
+        fn = node; UpdateNoteBook();
     };
 
     bool AddCanvasPage(CanvasPanel* panel, const wxString& caption, bool select = false);
@@ -47,5 +46,8 @@ public:
     void SigFlowNodeChanged(SigTreeNode* n);
 
     wxDECLARE_EVENT_TABLE(); // 新增：事件表声明
-    
+
+private:
+    bool m_btnCreated = false;
+    wxButton* m_addBtn ;
 };

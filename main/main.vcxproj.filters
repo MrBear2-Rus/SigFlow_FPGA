@@ -168,6 +168,18 @@
     <ClCompile Include="CanvasNoteBook.cpp">
       <Filter>源文件\gui\canvas</Filter>
     </ClCompile>
+    <ClCompile Include="PropertyPanelBuilder.cpp">
+      <Filter>源文件\gui\propertyPanel</Filter>
+    </ClCompile>
+    <ClCompile Include="VerilogManager.cpp">
+      <Filter>源文件\text_analysis</Filter>
+    </ClCompile>
+    <ClCompile Include="WavePanel.cpp">
+      <Filter>源文件\gui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rd\vcd\vcd.cpp">
+      <Filter>源文件\3rd</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="my_log.h">
@@ -268,6 +280,21 @@
     </ClInclude>
     <ClInclude Include="CanvasNoteBook.h">
       <Filter>头文件\gui\canvas</Filter>
+    </ClInclude>
+    <ClInclude Include="PropertyPanelBuilder.h">
+      <Filter>头文件\gui\propertyPanel</Filter>
+    </ClInclude>
+    <ClInclude Include="Statement.h">
+      <Filter>头文件\gui</Filter>
+    </ClInclude>
+    <ClInclude Include="StatementSequence.h">
+      <Filter>头文件\gui</Filter>
+    </ClInclude>
+    <ClInclude Include="VerilogManager.h">
+      <Filter>头文件\text_analysis</Filter>
+    </ClInclude>
+    <ClInclude Include="WavePanel.h">
+      <Filter>头文件\gui</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
