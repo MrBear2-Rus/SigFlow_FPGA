@@ -1,4 +1,4 @@
-﻿// MainFrame.h
+// MainFrame.h
 #pragma once
 #include <wx/wx.h>
 #include <wx/aui/aui.h>
@@ -79,7 +79,7 @@ public:
 
     void OnUndoStackChanged();
     void OnOpenFileFromTree(wxCommandEvent& evt);
-
+    void SetProjectDir(const wxString& projectDir);
     /* File 菜单业务接口 */
     void DoFileOpenProject();
     void DoFileNew();

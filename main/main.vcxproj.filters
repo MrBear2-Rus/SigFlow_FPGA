@@ -180,6 +180,9 @@
     <ClCompile Include="..\3rd\vcd\vcd.cpp">
       <Filter>源文件\3rd</Filter>
     </ClCompile>
+    <ClCompile Include="ProjectStartWindow.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="my_log.h">
@@ -294,6 +297,9 @@
       <Filter>头文件\text_analysis</Filter>
     </ClInclude>
     <ClInclude Include="WavePanel.h">
+      <Filter>头文件\gui</Filter>
+    </ClInclude>
+    <ClInclude Include="ProjectStartWindow.h">
       <Filter>头文件\gui</Filter>
     </ClInclude>
   </ItemGroup>
