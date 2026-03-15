@@ -4,28 +4,62 @@
 void Wire::Draw(wxGraphicsContext* gc) const {
     if (pts.size() < 2) return;
 
-    // 1. 创建路径（把所有线段合并成一个矢量对象）
+    // --- 1. 查找最长线段并绘制路径 ---
     wxGraphicsPath wirePath = gc->CreatePath();
+
+    double maxLenSq = -1.0; // 使用长度平方比较，节省开销
+    wxPoint2DDouble textCenter;
+
     for (size_t i = 1; i < pts.size(); ++i) {
-        wirePath.MoveToPoint(pts[i - 1].pos.x, pts[i - 1].pos.y);
-        wirePath.AddLineToPoint(pts[i].pos.x, pts[i].pos.y);
+        double x1 = pts[i - 1].pos.x;
+        double y1 = pts[i - 1].pos.y;
+        double x2 = pts[i].pos.x;
+        double y2 = pts[i].pos.y;
+
+        wirePath.MoveToPoint(x1, y1);
+        wirePath.AddLineToPoint(x2, y2);
+
+        // 计算当前段的长度平方 (dx^2 + dy^2)
+        double dx = x2 - x1;
+        double dy = y2 - y1;
+
+        if (std::abs(dy) < 1e-6) {
+            double distSq = dx * dx; // 水平线长度平方就是 dx^2
+            if (distSq > maxLenSq) {
+                maxLenSq = distSq;
+                textCenter.m_x = x1 + dx / 2.0;
+                textCenter.m_y = y1 + dy / 2.0;
+            }
+        }
     }
 
-    // 2. 一次性描边（极大地降低 CPU 开销）
+    // --- 2. 绘制导线 ---
     wxColour strokeColor = (status == LogicSignal::ZERO) ? colors[0] : colors[1];
     gc->SetPen(wxPen(strokeColor, 3));
     gc->StrokePath(wirePath);
 
-    // 3. 绘制节点（打点）
+    // --- 3. 绘制 Identifier 文本 ---
+    if (!identifier.empty()) {
+        // 设置字体（建议在类中初始化，避免重复创建）
+        gc->SetFont(font, *wxBLACK);
+
+        double tw, th, de, ex;
+        gc->GetTextExtent(identifier, &tw, &th, &de, &ex);
+
+        // 背景填充（可选，为了防止文本被线划过，增加可读性）
+        // gc->SetBrush(*wxWHITE_BRUSH);
+        // gc->DrawRectangle(textCenter.m_x - tw/2 - 2, textCenter.m_y - th/2 - 2, tw + 4, th + 4);
+
+        // 居中绘制：中点减去文本宽高的一半
+        gc->DrawText(identifier, textCenter.m_x - tw / 2.0, textCenter.m_y - th);
+    }
+
+    // --- 4. 绘制节点（打点） ---
     for (const auto& pt : pts) {
-        if (pt.type == CPType::Pin) continue;
-        if (pt.type == CPType::Bend) continue;
-        // 设置节点的颜色逻辑
+        if (pt.type == CPType::Pin || pt.type == CPType::Bend) continue;
         wxColour dotColor = (pt.type == CPType::Branch) ? colors[2] : strokeColor;
         gc->SetPen(wxPen(dotColor, 1));
         gc->SetBrush(wxBrush(dotColor));
-
-        // GC 中画圆的方法是 DrawEllipse
         gc->DrawEllipse(pt.pos.x - 3, pt.pos.y - 3, 6, 6);
     }
 }
@@ -81,6 +115,10 @@ void Wire::GenerateCells()
     }
 }
 
+void Wire::SetSelf(SignalNode* s){
+    self = s;
+    identifier = s->identifier;
+}
 
 std::vector<ControlPoint> Wire::Route(const ControlPoint& start, const ControlPoint& end) {
     std::vector<ControlPoint> out;

@@ -210,11 +210,15 @@ void CanvasPanel::OnPaint(wxPaintEvent&) {
 
             gc->SetPen(wxPen(wxColour(*wxBLACK), 1.0 / m_scale));
             gc->SetBrush(wxColour(*wxBLACK));
-            Wire w = GetWires()[m_hoverInfo.wireIndex];
-            wxPoint sectionStart = w.pts[m_hoverInfo.wireSectionIndex].pos;
-            wxPoint sectionEnd = w.pts[m_hoverInfo.wireSectionIndex + 1].pos;
-            wxPoint sectionMid = (sectionStart + sectionEnd) / 2;
-            gc->DrawRectangle(sectionMid.x - 3, sectionMid.y - 3, 6, 6);
+            const std::vector<Wire>& ws = GetWires();
+            if (ws.size() > m_hoverInfo.wireIndex) {
+                Wire w = ws[m_hoverInfo.wireIndex];
+                wxPoint sectionStart = w.pts[m_hoverInfo.wireSectionIndex].pos;
+                wxPoint sectionEnd = w.pts[m_hoverInfo.wireSectionIndex + 1].pos;
+                wxPoint sectionMid = (sectionStart + sectionEnd) / 2;
+                gc->DrawRectangle(sectionMid.x - 3, sectionMid.y - 3, 6, 6);
+            }
+
         }
 
         
@@ -284,20 +288,15 @@ void CanvasPanel::OnPaint(wxPaintEvent&) {
     }
 }
 
-int CanvasPanel::HitElementTest(const wxPoint& canvasPos)
+std::tuple<int, int> CanvasPanel::HitElementAndPinTest(const wxPoint& canvasPos, bool* isInput, wxPoint* worldPos)
 {
+    int elem_id = -1;
+    int pin_id = -1;
     for (size_t i = 0; i < m_elems.size(); ++i) {
         // 元素的边界是画布坐标，直接比较
         if (m_elems[i].GetBounds().Contains(canvasPos)) {
-            return i;
+            elem_id = i;
         }
-    }
-    return -1;
-}
-
-int CanvasPanel::HitHoverPin(const wxPoint& canvasPos, bool* isInput, wxPoint* worldPos){
-    
-    for (size_t i = 0; i < m_elems.size(); ++i) {
         const auto& elem = m_elems[i];
         // 输入引脚尖端（突出 1 px）
         for (size_t p = 0; p < elem.GetInputPins().size(); ++p) {
@@ -306,7 +305,8 @@ int CanvasPanel::HitHoverPin(const wxPoint& canvasPos, bool* isInput, wxPoint* w
             if (abs(canvasPos.x - tip.x) <= 4 && abs(canvasPos.y - tip.y) <= 4) {
                 *isInput = true;
                 *worldPos = tip;
-                return p;
+                elem_id = i;
+                pin_id = p;
             }
         }
         // 输出引脚尖端（突出 1 px）
@@ -316,7 +316,8 @@ int CanvasPanel::HitHoverPin(const wxPoint& canvasPos, bool* isInput, wxPoint* w
             if (abs(canvasPos.x - tip.x) <= 4 && abs(canvasPos.y - tip.y) <= 4) {
                 *isInput = false;
                 *worldPos = tip;
-                return p;
+                elem_id = i;
+                pin_id = p;
             }
         }
 
@@ -327,33 +328,12 @@ int CanvasPanel::HitHoverPin(const wxPoint& canvasPos, bool* isInput, wxPoint* w
             if (abs(canvasPos.x - tip.x) <= 4 && abs(canvasPos.y - tip.y) <= 4) {
                 *isInput = false;
                 *worldPos = tip;
-                return p;
+                elem_id = i;
+                pin_id = p;
             }
         }
     }
-
-    const auto& elem = m_tbox;
-    // 输入引脚尖端（突出 1 px）
-    for (size_t p = 0; p < elem.GetInputPins().size(); ++p) {
-        wxPoint tip = elem.GetPos() + wxPoint(elem.GetInputPins()[p].pos.x - 1,
-            elem.GetInputPins()[p].pos.y);
-        if (abs(canvasPos.x - tip.x) <= 4 && abs(canvasPos.y - tip.y) <= 4) {
-            *isInput = true;
-            *worldPos = tip;
-            return p;
-        }
-    }
-    // 输出引脚尖端（突出 1 px）
-    for (size_t p = 0; p < elem.GetOutputPins().size(); ++p) {
-        wxPoint tip = elem.GetPos() + wxPoint(elem.GetOutputPins()[p].pos.x + 1,
-            elem.GetOutputPins()[p].pos.y);
-        if (abs(canvasPos.x - tip.x) <= 4 && abs(canvasPos.y - tip.y) <= 4) {
-            *isInput = false;
-            *worldPos = tip;
-            return p;
-        }
-    }
-    return -1;
+    return std::tie(elem_id, pin_id);
 }
 
 int CanvasPanel::HitWire(const wxPoint& canvasPos) {
@@ -602,10 +582,12 @@ void CanvasPanel::UpdateHoverInfo(const wxPoint& screenPos) {
     m_hoverInfo.canvasPos = ClientToCanvas(screenPos);
     m_hoverInfo.snappedPos = Snap(m_hoverInfo.canvasPos);
 
-    // 悬停引脚信息检测
+    // 悬停引脚和元件信息检测
     bool isInput = false;
     wxPoint pinWorldPos;
-    int pinIdx = HitHoverPin(m_hoverInfo.canvasPos, &isInput, &pinWorldPos);
+    int pinIdx = -1;
+    int elementIndex = -1;
+    std::tie(elementIndex, pinIdx)= HitElementAndPinTest(m_hoverInfo.canvasPos, &isInput, &pinWorldPos);
 
     // 导线控制点信息检测
     int wireIdx = HitWire(m_hoverInfo.canvasPos);
@@ -621,8 +603,6 @@ void CanvasPanel::UpdateHoverInfo(const wxPoint& screenPos) {
         wireSectionIdx = cell.pre_pts_idx;
     }
 
-    // 悬停元件信息检测
-    int elementIndex = HitElementTest(m_hoverInfo.canvasPos);
 
     // 悬停文本检测
     int textIndex = HitTestText(m_hoverInfo.canvasPos);
@@ -918,7 +898,58 @@ void CanvasPanel::UpdateSelection(std::vector<int> m_elemIdx, std::vector<int> m
 
 void CanvasPanel::AddWire(const Wire& wire) {
     m_wires.push_back(wire); 
-    m_wires.back().GenerateCells(); 
+    m_wires.back().GenerateCells();
+    auto& w = m_wires.back();
+    
+    int from_id = w.Left.elemIdx;
+    int from_pin = w.Left.PinIdx;
+    bool is_input = w.Left.isInput;
+    while (from_id == -1) {
+        from_id = m_wires[w.Left.wireIdx].Left.elemIdx;
+        from_pin = m_wires[w.Left.wireIdx].Left.PinIdx;
+        is_input = m_wires[w.Left.wireIdx].Left.isInput;
+    }
+    SecondElement from = m_elems[from_id];
+
+    int to_id = w.Right.elemIdx;
+    int to_pin = w.Right.PinIdx;
+    while (to_id == -1) {
+        to_id = m_wires[w.Right.wireIdx].Right.elemIdx;
+        to_pin = m_wires[w.Right.wireIdx].Right.PinIdx;
+    }
+    SecondElement to = m_elems[to_id];
+
+    SignalNode* sn = sftree->AddNewWire(tn);
+    wxCommandEvent evt2(EVT_SIGFLOWNODE_CHANGED);
+    evt2.SetClientData(sn);
+    m_parent->GetEventHandler()->ProcessEvent(evt2);
+    w.SetSelf(sn);
+
+    if (is_input) {
+
+        from.self->in_ports[from_pin].conn = sn->identifier;
+        wxCommandEvent evt0(EVT_SIGFLOWNODE_CHANGED);
+        evt0.SetClientData(from.self);
+        m_parent->GetEventHandler()->ProcessEvent(evt0);
+
+        to.self->out_ports[to_pin].conn = sn->identifier;
+        wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
+        evt.SetClientData(to.self);
+        m_parent->GetEventHandler()->ProcessEvent(evt);
+    }
+    else {
+        from.self->out_ports[from_pin].conn = sn->identifier;
+        wxCommandEvent evt0(EVT_SIGFLOWNODE_CHANGED);
+        evt0.SetClientData(from.self);
+        m_parent->GetEventHandler()->ProcessEvent(evt0);
+
+        to.self->in_ports[to_pin].conn = sn->identifier;
+        wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
+        evt.SetClientData(to.self);
+        m_parent->GetEventHandler()->ProcessEvent(evt);
+    }
+
+
     Refresh();
     //触发改变
     SetModified(1);
@@ -935,6 +966,14 @@ void CanvasPanel::ReclaimWire(Wire wire, int index) {
     m_wires[index].GenerateCells();
     Refresh();
 };
+
+void CanvasPanel::DeleteWire(int index) {
+    sftree->RemoveSignal(tn, m_wires[index].GetSelf());
+    m_wires.erase(m_wires.begin() + index);
+    m_selWireIdx.erase(std::remove(m_selWireIdx.begin(), m_selWireIdx.end(), index), m_selWireIdx.end());
+    Refresh();
+}
+
 
 bool CanvasPanel::IsNear(const wxPoint& a, const wxPoint& b, int tol) {
     return std::abs(a.x - b.x) <= tol && std::abs(a.y - b.y) <= tol;
@@ -998,7 +1037,7 @@ void CanvasPanel::CompleteAutoWiring() {
     // 2b  顶层模块输入端口 → 信号驱动源
     auto& inPorts = tn->GetInPorts();
     for (int p = 0; p < static_cast<int>(inPorts.size()); p++) {
-        const auto& sig = inPorts[p].identifier;
+        const auto& sig = inPorts[p]->identifier;
         auto& net    = nets[sig];
         net.name     = sig;
         net.srcElem  = -1;
@@ -1017,7 +1056,7 @@ void CanvasPanel::CompleteAutoWiring() {
     // 2d  顶层模块输出端口 → 信号消费者
     auto& outPorts = tn->GetOutPorts();
     for (int p = 0; p < static_cast<int>(outPorts.size()); p++) {
-        const auto& sig = outPorts[p].identifier;
+        const auto& sig = outPorts[p]->identifier;
         if (!nets.count(sig)) continue;
         nets[sig].dests.push_back({-1, p, maxLevel + 1});
     }
@@ -1182,6 +1221,24 @@ void CanvasPanel::CompleteAutoWiring() {
         wxPoint sp = srcPinPos(net);
 
         for (auto& dest : net.dests) {
+            SignalNode* sn = new SignalNode("Unknows", SignalType::Wire);
+            if (dest.elemIdx != -1 && dest.pinIdx != -1) {
+
+                Pin p = m_elems[dest.elemIdx].GetInputPins()[dest.pinIdx];
+                
+                if (p.isOfTop()) {
+                    sn = p.GetSelfSignal();
+                }
+                else {
+                    SignalNode* n = p.GetSelfPort()->signal;
+                    if (n) sn = p.GetSelfPort()->signal;
+                }
+            }
+
+
+
+
+
             wxPoint dp = dstPinPos(dest);
             std::vector<ControlPoint> pts;
 
@@ -1228,6 +1285,7 @@ void CanvasPanel::CompleteAutoWiring() {
 
             if (static_cast<int>(clean.size()) >= 2) {
                 Wire w(std::move(clean));
+                w.SetSelf(sn);
                 w.m_canvas = this;
                 m_wires.push_back(std::move(w));
             }
@@ -1521,6 +1579,15 @@ void CanvasPanel::RefreshElem(SecondNode* sn) {
         }
     }
 }
+
+void CanvasPanel::RefreshSignal(SignalNode* sn) {
+    for (auto& w : m_wires) {
+        if (w.GetSelf() == sn) {
+            w.SetSelf(sn);
+        }
+    }
+}
+
 void CanvasPanel::OnSFNodeActivated(wxCommandEvent& evt) {
     // 透传事件到父窗口（CanvasNoteBook）
     if (m_mainFrame != nullptr) { // m_mainFrame 是 CanvasPanel 中指向 CanvasNoteBook 的指针

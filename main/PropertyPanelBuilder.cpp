@@ -1,4 +1,4 @@
-#include "PropertyPanelBuilder.h"
+﻿#include "PropertyPanelBuilder.h"
 
 // 辅助函数：设置只读文本框的背景色与父窗口一致
 static void SetReadOnlyBackground(wxTextCtrl* ctrl, wxWindow* parent) {
@@ -91,7 +91,8 @@ wxSizer* PropertyPanelBuilder::CreateTopPortRow(wxWindow* parent, const wxString
 
 wxSizer* PropertyPanelBuilder::CreateSecondPortRow(wxWindow* parent, const wxString& direction,
     const wxString& portName, const wxString& connValue,
-    wxTextCtrl** connCtrlOut,
+    const wxArrayString& choices, // 新增：信号选项列表
+    wxChoice** connChoiceOut,     // 修改：返回 Choice 而不是 TextCtrl
     wxButton** deleteBtnOut)
 {
     auto rowSizer = new wxBoxSizer(wxHORIZONTAL);
@@ -107,12 +108,16 @@ wxSizer* PropertyPanelBuilder::CreateSecondPortRow(wxWindow* parent, const wxStr
     colon->SetForegroundColour(wxColour(120, 120, 120));
     rowSizer->Add(colon, 0, wxALIGN_CENTER_VERTICAL | wxLEFT | wxRIGHT, 5);
 
-    auto connCtrl = new wxTextCtrl(parent, wxID_ANY, connValue,
-        wxDefaultPosition, wxDefaultSize, wxTE_PROCESS_ENTER);
-    connCtrl->SetHint("Connected Signal");
-    connCtrl->SetBackgroundColour(wxColour(240, 248, 255)); // 浅蓝背景
-    rowSizer->Add(connCtrl, 1, wxEXPAND | wxRIGHT, 5);
-    if (connCtrlOut) *connCtrlOut = connCtrl;
+    auto connChoice = new wxChoice(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, choices);
+    connChoice->SetBackgroundColour(wxColour(240, 248, 255));
+
+    int selection = connChoice->FindString(connValue);
+    if (selection != wxNOT_FOUND) {
+        connChoice->SetSelection(selection);
+    }
+
+    rowSizer->Add(connChoice, 1, wxEXPAND | wxRIGHT, 5);
+    if (connChoice) *connChoiceOut = connChoice;
 
     // 删除按钮
     if (deleteBtnOut) {
