@@ -1,6 +1,7 @@
 ﻿#include "SigFlowTreePanel.h"
 #include "PropertyPanelBuilder.h"
 #include <wx/statline.h>
+#include <wx/artprov.h>
 
 SigFlowTreePanel::SigFlowTreePanel(wxWindow* parent, SigFlowTree* sfTree)
     : wxPanel(parent) {
@@ -26,15 +27,35 @@ SigFlowTreePanel::SigFlowTreePanel(wxWindow* parent, SigFlowTree* sfTree)
     addBtn->Bind(wxEVT_BUTTON, &SigFlowTreePanel::OnAdd, this);
     delBtn->Bind(wxEVT_BUTTON, &SigFlowTreePanel::OnDelete, this);
 
+    InitTreeIcons();
     Fresh();
 }
 
 void SigFlowTreePanel::BuildBranch(wxTreeItemId uiParent, SigTreeNode* logicParent) {
     for (auto* child : logicParent->GetChildren()) {
+        int iconId = -1;
+        switch (child->type) {
+        case SigTreeNodeType::File: {
+            iconId = 1;
+            break;
+        }
+        case SigTreeNodeType::Top: {
+            iconId = 2;
+            break;
+        }
+        case SigTreeNodeType::Second: {
+            iconId = 3;
+            break;
+        }
+        case SigTreeNodeType::Signal:
+            iconId = 4;
+            break;
+        }
+
         wxTreeItemId uiChild = tree->AppendItem(
             uiParent,
             child->GetName(),
-            -1, -1,
+            iconId, iconId,
             new SigTreeItemData(child)
         );
         
@@ -62,7 +83,7 @@ void SigFlowTreePanel::BuildBranch(wxTreeItemId uiParent, SigTreeNode* logicPare
             wxTreeItemId uiChild = tree->AppendItem(
                 uiParent,
                 child->GetName(),
-                -1, -1,
+                4, 4,
                 new SigTreeItemData(child)
             );
         }
@@ -98,7 +119,7 @@ void SigFlowTreePanel::Fresh() {
     wxString rootLabel;
     if (sfTree->root->type == SigTreeNodeType::Project) {
         auto proj = static_cast<ProjectNode*>(sfTree->root);
-        rootLabel = wxString::FromUTF8(proj->projectPath);
+        rootLabel = proj->GetName();
     }
     else {
         rootLabel = "Unknown Project";
@@ -106,7 +127,7 @@ void SigFlowTreePanel::Fresh() {
 
     wxTreeItemId uiRoot = tree->AddRoot(
         rootLabel,
-        -1, -1,
+        0, 0,
         new SigTreeItemData(sfTree->root)
     );
 
@@ -190,6 +211,29 @@ void SigFlowTreePanel::OnAddMenu(wxCommandEvent& e) {
     sfTree->AddChild(parent, newNode.get());
 
     Fresh();
+}
+
+void SigFlowTreePanel::InitTreeIcons() {
+    wxSize sz = wxSize(24, 24);
+    wxImageList* images = new wxImageList(sz.x, sz.y, true);
+
+    // 添加图标（可以从艺术资源、图标文件或位图加载）
+    // 这里的顺序要和上面的 enum 对应
+    auto GetIcon = [&](const wxString& path) {
+        wxBitmapBundle bundle = wxBitmapBundle::FromSVGFile(path, sz);
+        return bundle.GetBitmap(sz);
+        };
+
+    images->Add(GetIcon("res\\icons\\project.svg")); // Proj 0
+    images->Add(wxArtProvider::GetBitmap(wxART_FOLDER, wxART_OTHER, wxSize(24, 24))); // File 1
+    images->Add(GetIcon("res\\svg_icons\\module.svg")); // Module 2
+    images->Add(GetIcon("res\\svg_icons\\secondary.svg")); // Sec 3
+    images->Add(GetIcon("res\\svg\\wiring.svg")); // Sig 4
+    //images->Add(GetIcon("res\\svg_icons\\register.svg")); // Reg 5
+    //images->Add(GetIcon("res\\svg_icons\\register.svg")); // Logic 6
+
+    // 将图像列表交给树控件管理
+    tree->AssignImageList(images);
 }
 
 void SigFlowTreePanel::OnDelete(wxCommandEvent&) {
