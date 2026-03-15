@@ -1217,8 +1217,94 @@ void CanvasPanel::CompleteAutoWiring() {
         return gapX[g];
     };
 
+    // ─── 去除公共前缀，拆分为主干线 + 分支线 ───
+    auto cleanPath = [](const std::vector<ControlPoint>& pts) {
+        std::vector<ControlPoint> clean;
+        for (auto& p : pts)
+            if (clean.empty() || clean.back().pos != p.pos)
+                clean.push_back(p);
+        return clean;
+    };
+
+    auto addWiresForPaths = [&](auto& self,
+        const std::vector<std::vector<ControlPoint>>& allPaths) -> void
+    {
+        if (allPaths.empty()) return;
+
+        if (allPaths.size() == 1) {
+            auto clean = cleanPath(allPaths[0]);
+            if (static_cast<int>(clean.size()) >= 2) {
+                Wire w(std::move(clean));
+                w.m_canvas = this;
+                m_wires.push_back(std::move(w));
+            }
+            return;
+        }
+
+        int minLen = static_cast<int>(allPaths[0].size());
+        for (size_t i = 1; i < allPaths.size(); i++)
+            minLen = std::min(minLen, static_cast<int>(allPaths[i].size()));
+
+        int prefixLen = 0;
+        for (int i = 0; i < minLen; i++) {
+            bool allSame = true;
+            for (size_t j = 1; j < allPaths.size(); j++) {
+                if (allPaths[j][i].pos != allPaths[0][i].pos) {
+                    allSame = false; break;
+                }
+            }
+            if (!allSame) break;
+            prefixLen++;
+        }
+
+        if (prefixLen < 2) {
+            for (auto& path : allPaths) {
+                auto clean = cleanPath(path);
+                if (static_cast<int>(clean.size()) >= 2) {
+                    Wire w(std::move(clean));
+                    w.m_canvas = this;
+                    m_wires.push_back(std::move(w));
+                }
+            }
+            return;
+        }
+
+        // 主干线：从源引脚到分支点
+        std::vector<ControlPoint> trunk(
+            allPaths[0].begin(), allPaths[0].begin() + prefixLen);
+        trunk.back().type = CPType::Branch;
+        auto cleanTrunk = cleanPath(trunk);
+        if (static_cast<int>(cleanTrunk.size()) >= 2) {
+            cleanTrunk.back().type = CPType::Branch;
+            Wire w(std::move(cleanTrunk));
+            w.m_canvas = this;
+            m_wires.push_back(std::move(w));
+        }
+
+        // 按分叉方向分组，递归处理子路径
+        wxPoint branchPos = allPaths[0][prefixLen - 1].pos;
+        std::map<std::pair<int,int>,
+                 std::vector<std::vector<ControlPoint>>> groups;
+
+        for (auto& path : allPaths) {
+            std::vector<ControlPoint> sub;
+            sub.push_back({branchPos, CPType::Branch});
+            for (int i = prefixLen; i < static_cast<int>(path.size()); i++)
+                sub.push_back(path[i]);
+
+            auto key = (prefixLen < static_cast<int>(path.size()))
+                ? std::make_pair(path[prefixLen].pos.x, path[prefixLen].pos.y)
+                : std::make_pair(path.back().pos.x, path.back().pos.y);
+            groups[key].push_back(std::move(sub));
+        }
+
+        for (auto& [k, subPaths] : groups)
+            self(self, subPaths);
+    };
+
     for (auto& [sig, net] : nets) {
         wxPoint sp = srcPinPos(net);
+        std::vector<std::vector<ControlPoint>> forwardPaths;
 
         for (auto& dest : net.dests) {
             SignalNode* sn = new SignalNode("Unknows", SignalType::Wire);
@@ -1240,18 +1326,22 @@ void CanvasPanel::CompleteAutoWiring() {
 
 
             wxPoint dp = dstPinPos(dest);
-            std::vector<ControlPoint> pts;
-
             int dL = dest.layer;
             bool isSkip = (dL - net.srcLayer) > 1;
 
             if (dL <= net.srcLayer) {
-                // 反向或同层: 直连 (DAG 中不应出现)
-                pts.push_back({sp, CPType::Pin});
-                pts.push_back({dp, CPType::Pin});
+                std::vector<ControlPoint> pts = {{sp, CPType::Pin}, {dp, CPType::Pin}};
+                auto clean = cleanPath(pts);
+                if (static_cast<int>(clean.size()) >= 2) {
+                    Wire w(std::move(clean));
+                    w.m_canvas = this;
+                    m_wires.push_back(std::move(w));
+                }
+                continue;
             }
-            else if (!isSkip) {
-                // ─── 相邻层: Z 形布线 ───
+
+            std::vector<ControlPoint> pts;
+            if (!isSkip) {
                 int cx = getChanX(sig, dL);
                 pts.push_back({sp, CPType::Pin});
                 if (sp.y != dp.y) {
@@ -1263,12 +1353,10 @@ void CanvasPanel::CompleteAutoWiring() {
                 pts.push_back({dp, CPType::Pin});
             }
             else {
-                // ─── 跨层: 经水平通道 ───
                 int firstG = std::max(0, net.srcLayer + 1);
                 int cx1 = getChanX(sig, firstG);
                 int cx2 = getChanX(sig, dL);
                 int hy  = hChanY.count(sig) ? hChanY[sig] : hChanStartY;
-
                 pts.push_back({sp, CPType::Pin});
                 pts.push_back({{cx1, sp.y}, CPType::Bend});
                 pts.push_back({{cx1, hy},   CPType::Bend});
@@ -1278,6 +1366,7 @@ void CanvasPanel::CompleteAutoWiring() {
             }
 
             // 移除零长线段
+            /*
             std::vector<ControlPoint> clean;
             for (auto& p : pts)
                 if (clean.empty() || clean.back().pos != p.pos)
@@ -1288,8 +1377,13 @@ void CanvasPanel::CompleteAutoWiring() {
                 w.SetSelf(sn);
                 w.m_canvas = this;
                 m_wires.push_back(std::move(w));
-            }
+            }*/
+            auto clean = cleanPath(pts);
+            if (static_cast<int>(clean.size()) >= 2)
+                forwardPaths.push_back(std::move(clean));
         }
+
+        addWiresForPaths(addWiresForPaths, forwardPaths);
     }
 
     for (auto& w : m_wires) w.GenerateCells();
