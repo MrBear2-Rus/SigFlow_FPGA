@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <wx/wx.h>
 #include <wx/filedlg.h>
 #include <wx/listctrl.h>
@@ -46,7 +46,9 @@ class WavePanel : public wxPanel
 {
 public:
     WavePanel(wxWindow* parent);
+    void OpenVCDFile(wxString path);
 
+    void ClearWavePanel();
 private:
     void OnOpenVcd(wxCommandEvent&);
     void OnTogglePlay(wxCommandEvent&);

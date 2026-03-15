@@ -115,7 +115,9 @@ MainMenuBar::MainMenuBar(MainFrame* owner)
 
 MainMenuBar::~MainMenuBar()
 {
-    SaveHistory();
+    if (m_fileHistory.GetCount() != 0) {
+        SaveHistory();
+    }
 }
 
 /* ---------- 最近文件列表封装 ---------- */
@@ -406,6 +408,9 @@ void MainMenuBar::OnPreferences(wxCommandEvent&)
 }
 void MainMenuBar::OnExit(wxCommandEvent&)
 {
+    if (m_fileHistory.GetCount() != 0) {
+        SaveHistory();
+    }
     m_owner->Close(true);
 }
 void MainMenuBar::OnFileHistory(wxCommandEvent& evt)
