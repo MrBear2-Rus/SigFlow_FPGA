@@ -1,4 +1,4 @@
-#include <wx/msgdlg.h>
+﻿#include <wx/msgdlg.h>
 #include <wx/filename.h> 
 #include <wx/sstream.h>
 #include <wx/aui/aui.h>
@@ -751,21 +751,21 @@ void MainFrame::SetProjectDir(const wxString& projectDir)
     wxCommandEvent evt;
     OnSFTreeChanged(evt);
 }
-void MainFrame::DoFileNew() {
+bool MainFrame::DoFileNew() {
     // Create a new project directory with basic structure and open it in the project tree
     // 1) Ask for parent folder
     wxDirDialog dirDlg(this, "Select parent folder for new project", "",
         wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
-    if (dirDlg.ShowModal() != wxID_OK) return;
+    if (dirDlg.ShowModal() != wxID_OK) return false;
     wxString parent = dirDlg.GetPath();
 
     // 2) Ask for project name
     wxTextEntryDialog nameDlg(this, "Enter project name:", "New Project", "NewProject");
-    if (nameDlg.ShowModal() != wxID_OK) return;
+    if (nameDlg.ShowModal() != wxID_OK) return false;
     wxString projName = nameDlg.GetValue();
     if (projName.IsEmpty()) {
         wxMessageBox("Project name cannot be empty", "Error", wxOK | wxICON_ERROR, this);
-        return;
+        return false;
     }
 
     // 3) Build project path and check
@@ -778,20 +778,20 @@ void MainFrame::DoFileNew() {
         if (notEmpty) {
             int res = wxMessageBox("The folder already exists and is not empty. Overwrite?", "Confirm",
                 wxYES_NO | wxICON_QUESTION, this);
-            if (res != wxYES) return;
+            if (res != wxYES) return false;
         }
     }
     else if (wxFileExists(projPath)) {
         int res = wxMessageBox("A file with the same name exists. Overwrite?", "Confirm",
             wxYES_NO | wxICON_QUESTION, this);
-        if (res != wxYES) return;
+        if (res != wxYES) return false;
         wxRemoveFile(projPath);
     }
 
     // 4) Create directory structure
     if (!wxFileName::Mkdir(projPath, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL)) {
         wxMessageBox("Failed to create project folder", "Error", wxOK | wxICON_ERROR, this);
-        return;
+        return false;
     }
     wxString srcDir = projPath + wxFileName::GetPathSeparator() + "src";
     wxString libDir = projPath + wxFileName::GetPathSeparator() + "lib";
@@ -838,6 +838,7 @@ void MainFrame::DoFileNew() {
 
     // 9) Open sample file in editor so user can start coding
     DoFileOpen(sampleTop);
+    return true;
 }
 
 //�����ļ���ʵ�֣����������ĸ�����

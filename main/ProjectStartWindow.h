@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <wx/wx.h>
 #include <wx/listctrl.h>
 #include <wx/filehistory.h>
@@ -12,7 +12,7 @@ class ProjectStartWindow : public wxDialog
 public:
     // 构造/析构
     ProjectStartWindow(wxWindow* parent = nullptr, wxWindowID id = wxID_ANY,
-        const wxString& title = wxString::FromUTF8("SigFLow-StartWidget"),
+        const wxString& title = wxString::FromUTF8("SigFlow"),
         const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize(800, 600),
         long style = wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
     ~ProjectStartWindow();

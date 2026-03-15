@@ -1,4 +1,4 @@
-// MainFrame.h
+﻿// MainFrame.h
 #pragma once
 #include <wx/wx.h>
 #include <wx/aui/aui.h>
@@ -82,7 +82,7 @@ public:
     void SetProjectDir(const wxString& projectDir);
     /* File 菜单业务接口 */
     void DoFileOpenProject();
-    void DoFileNew();
+    bool DoFileNew();
     void DoFileOpen(const wxString& path = {});
     void DoFileSave();
     void DoFileSaveAs();
