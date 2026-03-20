@@ -1,4 +1,4 @@
-﻿#include <wx/msgdlg.h>
+#include <wx/msgdlg.h>
 #include <wx/filename.h> 
 #include <wx/sstream.h>
 #include <wx/aui/aui.h>
@@ -1763,37 +1763,53 @@ void MainFrame::DoSimCompile()
 
 void MainFrame::DoSimRun()
 {
-    if (!m_simEngine || !m_simEngine->IsCompiled("")) {
-        wxMessageBox(wxT("请先编译仿真模型"), wxT("运行仿真"), wxOK | wxICON_WARNING);
+    // 1. 确保项目已打开
+    if (m_currentProjectPath.IsEmpty()) {
+        wxMessageBox(wxT("请先打开项目"), wxT("运行仿真"), wxOK | wxICON_WARNING);
         return;
     }
 
-    // 选择输出VCD文件路径
-    wxFileDialog saveDialog(
-        this,
-        "保存波形文件",
-        m_currentProjectPath,
-        "waveform.vcd",
-        "VCD files (*.vcd)|*.vcd",
-        wxFD_SAVE | wxFD_OVERWRITE_PROMPT
-    );
+    // 2. 初始化仿真引擎（如果尚未初始化）
+    if (!m_simEngine) {
+        m_simEngine = std::make_unique<SimulationEngine>();
+    }
+    m_simEngine->SetProjectRoot(m_currentProjectPath);
 
-    if (saveDialog.ShowModal() == wxID_CANCEL) {
+    // 3. 读取配置获取顶层模块名
+    wxString topModule;
+    std::vector<wxString> verilogFiles;
+    if (!LoadProjectConfig(m_currentProjectPath, topModule, verilogFiles)) {
+        wxMessageBox(wxT("无法读取项目配置"), wxT("运行仿真"), wxOK | wxICON_WARNING);
         return;
     }
 
-    wxString vcdPath = saveDialog.GetPath();
-    
-    // 运行仿真
+    // 4. 设置顶层模块名并检查 DLL 是否存在
+    m_simEngine->SetTopModule(topModule);
+    if (!m_simEngine->IsCompiled(topModule)) {
+        wxMessageBox(wxT("没有可用的编译结果，请先编译"), wxT("运行仿真"), wxOK | wxICON_WARNING);
+        return;
+    }
+
+    // 5. 设置编译输出回调
+    m_simEngine->SetCompileOutputCallback([this](const wxString& line, bool isError) {
+        OutputDebugStringA(isError ? "[SIM-ERR] " : "[SIM-OUT] ");
+        OutputDebugStringA(line.ToUTF8());
+        OutputDebugStringA("\n");
+    });
+
+    // 6. 运行仿真（VCD 自动输出到 .sigflow/sim/<top>/waveform/wave.vcd）
     SetStatusText(wxT("正在运行仿真..."), 0);
-    SimulationRunResult result = m_simEngine->RunSimulation(vcdPath);
+    SimulationRunResult result = m_simEngine->RunSimulation(wxEmptyString);
 
     if (result.success) {
         wxString msg = wxT("仿真完成!\n波形文件: ");
         msg += result.vcdPath;
         wxMessageBox(msg, wxT("仿真完成"), wxOK | wxICON_INFORMATION);
-        
-        // TODO: 打开波形查看器或显示波形
+
+        // 如果 WavePanel 存在，加载波形
+        if (m_wavePanel) {
+            // TODO: 自动加载 VCD 到波形面板
+        }
     } else {
         wxString msg = wxT("仿真失败!\n");
         msg += result.errorMessage;

@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -56,6 +56,9 @@
     <ClCompile Include="Simulation\SimulationEngine.cpp" />
     <ClCompile Include="Simulation\VerilatorRunner.cpp" />
     <ClCompile Include="Simulation\ProcessRunner.cpp" />
+    <ClCompile Include="Simulation\StimulusParser.cpp" />
+    <ClCompile Include="Simulation\TimelineGenerator.cpp" />
+    <ClCompile Include="Simulation\SimMainGenerator.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\3rd\nanosvg\nanosvg.h" />
@@ -93,6 +96,9 @@
     <ClInclude Include="Simulation\SimulationEngine.h" />
     <ClInclude Include="Simulation\VerilatorRunner.h" />
     <ClInclude Include="Simulation\ProcessRunner.h" />
+    <ClInclude Include="Simulation\StimulusParser.h" />
+    <ClInclude Include="Simulation\TimelineGenerator.h" />
+    <ClInclude Include="Simulation\SimMainGenerator.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

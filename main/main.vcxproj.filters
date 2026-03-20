@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="源文件">
@@ -254,6 +254,15 @@
     <ClCompile Include="Simulation\ProcessRunner.cpp">
       <Filter>源文件\simulation</Filter>
     </ClCompile>
+    <ClCompile Include="Simulation\StimulusParser.cpp">
+      <Filter>源文件\simulation</Filter>
+    </ClCompile>
+    <ClCompile Include="Simulation\TimelineGenerator.cpp">
+      <Filter>源文件\simulation</Filter>
+    </ClCompile>
+    <ClCompile Include="Simulation\SimMainGenerator.cpp">
+      <Filter>源文件\simulation</Filter>
+    </ClCompile>
     <ClInclude Include="Simulation\SimulationEngine.h">
       <Filter>头文件\simulation</Filter>
     </ClInclude>
@@ -261,6 +270,15 @@
       <Filter>头文件\simulation</Filter>
     </ClInclude>
     <ClInclude Include="Simulation\ProcessRunner.h">
+      <Filter>头文件\simulation</Filter>
+    </ClInclude>
+    <ClInclude Include="Simulation\StimulusParser.h">
+      <Filter>头文件\simulation</Filter>
+    </ClInclude>
+    <ClInclude Include="Simulation\TimelineGenerator.h">
+      <Filter>头文件\simulation</Filter>
+    </ClInclude>
+    <ClInclude Include="Simulation\SimMainGenerator.h">
       <Filter>头文件\simulation</Filter>
     </ClInclude>
     <ClInclude Include="TerminalCtrl.h">
