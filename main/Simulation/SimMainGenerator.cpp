@@ -73,62 +73,63 @@ std::string SimMainGenerator::GenerateEventDriving(const Timeline& timeline)
     ss << "    // === Timeline event handling ===\n";
     ss << "    // Max simulation time: " << timeline.maxSimTime << "\n\n";
 
+    std::string halfP = std::to_string(timeline.clock.halfPeriod);
+
     // 将事件按时间分组
     std::map<uint64_t, std::vector<const TimelineEvent*>> eventsByTime;
     for (const auto& evt : timeline.events) {
         eventsByTime[evt.time].push_back(&evt);
     }
 
+    // 生成时钟推进代码块的 lambda（避免重复）
+    auto emitAdvanceLoop = [&](uint64_t targetTime) {
+        ss << "    // 推进到时间 " << targetTime << "\n";
+        ss << "    while (sim_time < " << targetTime << ") {\n";
+        ss << "        sim_time++;\n";
+        if (timeline.clock.valid) {
+            ss << "        if (sim_time % " << halfP << " == 0) {\n";
+            ss << "            top->" << timeline.clock.signalName
+               << " = !top->" << timeline.clock.signalName << ";\n";
+            ss << "        }\n";
+        }
+        ss << "        top->eval();\n";
+        ss << "        tfp->dump(sim_time);\n";
+        ss << "    }\n\n";
+    };
+
     uint64_t lastTime = 0;
     for (const auto& [time, events] : eventsByTime) {
-        // 输出该时间点的所有事件
-        bool hasAssignment = false;
+        // 收集该时间点的赋值和注释
+        std::vector<std::string> comments;
+        std::vector<std::pair<std::string, std::string>> assignments; // signal, cppValue
+
         for (const auto* evt : events) {
             if (evt->signalName.empty()) {
-                // 这是注释事件（如边沿等待标记）
-                ss << "    // " << evt->comment << "\n";
+                comments.push_back(evt->comment);
                 continue;
             }
-
-            std::string cppValue = VerilogValueToCpp(evt->value);
-            ss << "    // [" << time << "] " << evt->signalName << " = " << evt->value << "\n";
-            ss << "    top->" << evt->signalName << " = " << cppValue << ";\n";
-            hasAssignment = true;
+            assignments.emplace_back(evt->signalName, VerilogValueToCpp(evt->value));
         }
 
-        if (hasAssignment) {
-            // 如果需要从上一时间推进到当前时间
-            if (time > lastTime && lastTime > 0) {
-                ss << "\n    // 推进到时间 " << time << "\n";
-                ss << "    while (sim_time < " << time << ") {\n";
+        if (assignments.empty() && comments.empty()) continue;
 
-                // 如果有时钟，在推进过程中翻转时钟
-                if (timeline.clock.valid) {
-                    ss << "        if (sim_time % " << timeline.clock.halfPeriod << " == 0) {\n";
-                    ss << "            top->" << timeline.clock.signalName
-                       << " = !top->" << timeline.clock.signalName << ";\n";
-                    ss << "        }\n";
-                }
+        // 先推进时间到目标时刻，再执行赋值
+        if (time > lastTime) {
+            emitAdvanceLoop(time);
+        }
 
-                ss << "        top->eval();\n";
-                ss << "        tfp->dump(sim_time);\n";
-                ss << "        sim_time++;\n";
-                ss << "    }\n\n";
-            } else if (time > 0 && lastTime == 0) {
-                ss << "\n    // 推进到时间 " << time << "\n";
-                ss << "    while (sim_time < " << time << ") {\n";
-                if (timeline.clock.valid) {
-                    ss << "        if (sim_time % " << timeline.clock.halfPeriod << " == 0) {\n";
-                    ss << "            top->" << timeline.clock.signalName
-                       << " = !top->" << timeline.clock.signalName << ";\n";
-                    ss << "        }\n";
-                }
-                ss << "        top->eval();\n";
-                ss << "        tfp->dump(sim_time);\n";
-                ss << "        sim_time++;\n";
-                ss << "    }\n\n";
-            }
+        // 输出注释
+        for (const auto& c : comments) {
+            ss << "    // " << c << "\n";
+        }
 
+        // 输出赋值
+        for (const auto& [sig, val] : assignments) {
+            ss << "    // [" << time << "] " << sig << " = " << val << "\n";
+            ss << "    top->" << sig << " = " << val << ";\n";
+        }
+
+        if (!assignments.empty()) {
             ss << "    top->eval();\n";
             ss << "    tfp->dump(sim_time);\n\n";
             lastTime = time;
@@ -138,20 +139,20 @@ std::string SimMainGenerator::GenerateEventDriving(const Timeline& timeline)
     // 最后运行额外步骤以捕获所有变化
     uint64_t extraSteps = 100;
     if (timeline.clock.valid) {
-        // 至少跑几个完整时钟周期
         extraSteps = std::max(extraSteps, timeline.clock.halfPeriod * 10);
     }
 
     ss << "    // Run additional steps\n";
-    ss << "    for (int i = 0; i < " << extraSteps << "; i++) {\n";
+    ss << "    for (vluint64_t i = 0; i < " << extraSteps << "; i++) {\n";
+    ss << "        sim_time++;\n";
     if (timeline.clock.valid) {
-        ss << "        if (sim_time % " << timeline.clock.halfPeriod << " == 0) {\n";
+        ss << "        if (sim_time % " << halfP << " == 0) {\n";
         ss << "            top->" << timeline.clock.signalName
            << " = !top->" << timeline.clock.signalName << ";\n";
         ss << "        }\n";
     }
     ss << "        top->eval();\n";
-    ss << "        tfp->dump(sim_time++);\n";
+    ss << "        tfp->dump(sim_time);\n";
     ss << "    }\n\n";
 
     return ss.str();

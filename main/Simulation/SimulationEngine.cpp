@@ -825,7 +825,7 @@ bool SimulationEngine::CompileSimRunner(const wxString& topModule, const wxStrin
         batchContent += "if %errorLevel% neq 0 exit /b %errorLevel%\n";
         batchContent += "cl /O2 /MD /EHsc /W3 /std:c++20 ";
         batchContent += "/Fe\"" + exePath + "\" ";
-        batchContent += "/Fo" + cacheDir + "\\ ";
+        batchContent += "/Fo" + objDir + "\\ ";
         batchContent += "\"" + simMainPath + "\" ";
         batchContent += "\"" + objDir + "\\*.cpp\" ";
         batchContent += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated.cpp\" ";
