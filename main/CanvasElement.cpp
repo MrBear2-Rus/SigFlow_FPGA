@@ -565,15 +565,32 @@ void TopModuleBox::Draw(wxGraphicsContext* gc) const
 }
 
 // 改进后的构造函数
+Pin::Pin(Point p, bool input) : pos(p), isInput(input), self(nullptr), top_self(nullptr) {
+}
+
 Pin::Pin(Point p, bool input, Port* s)
-    : pos(p), isInput(input), self(s) // 全部使用初始化列表
+    : pos(p), isInput(input), self(s), top_self(nullptr) // 全部使用初始化列表
 {
     if (s) this->identifier = (s->identifier);
     else this->identifier = "none";
 }
+
+Pin::Pin(Point p, bool input, SignalNode* s)
+    : pos(p), isInput(input), self(nullptr), top_self(s) // 全部使用初始化列表
+{
+    if (s) this->identifier = (s->identifier);
+    else this->identifier = "none";
+}
+
 void Pin::SetSelf(Port* s) {
     if (!s) return;
     self = s;
+    identifier = s->identifier;
+}
+
+void Pin::SetSelf(SignalNode* s) {
+    if (!s) return;
+    top_self = s;
     identifier = s->identifier;
 }
 
@@ -600,7 +617,7 @@ TopModuleBox::TopModuleBox(wxPoint start, wxPoint end, TopNode* self) :
         for (int i = 0; i < self->GetInPorts().size(); ++i) {
             // 第 i 个引脚的位置在第 i+1 个等分点上
             int py = static_cast<int>((i + 1) * segment);
-            m_inPins.push_back(Pin(Snap(Point(0, py)), true, &self->GetInPorts()[i]));
+            m_inPins.push_back(Pin(Snap(Point(0, py)), true, self->GetInPorts()[i]));
         }
     }
 
@@ -609,7 +626,7 @@ TopModuleBox::TopModuleBox(wxPoint start, wxPoint end, TopNode* self) :
         float segment = static_cast<float>(height) / (self->GetOutPorts().size() + 1);
         for (int j = 0; j < self->GetOutPorts().size(); ++j) {
             int py = static_cast<int>((j + 1) * segment);
-            m_outPins.push_back(Pin(Snap(Point(width, py)), false, &self->GetOutPorts()[j]));
+            m_outPins.push_back(Pin(Snap(Point(width, py)), false, self->GetOutPorts()[j]));
         }
     }
 
@@ -634,7 +651,7 @@ void TopModuleBox::SetEnd(wxPoint end) {
         for (int i = 0; i < self->GetInPorts().size(); ++i) {
             // 第 i 个引脚的位置在第 i+1 个等分点上
             int py = static_cast<int>((i + 1) * segment);
-            m_inPins.push_back(Pin(Snap(Point(0, py)), true, &self->GetInPorts()[i]));
+            m_inPins.push_back(Pin(Snap(Point(0, py)), true, self->GetInPorts()[i]));
         }
     }
 
@@ -643,7 +660,7 @@ void TopModuleBox::SetEnd(wxPoint end) {
         float segment = static_cast<float>(height) / (self->GetOutPorts().size() + 1);
         for (int j = 0; j < self->GetOutPorts().size(); ++j) {
             int py = static_cast<int>((j + 1) * segment);
-            m_outPins.push_back(Pin(Snap(Point(width, py)), false, &self->GetOutPorts()[j]));
+            m_outPins.push_back(Pin(Snap(Point(width, py)), false, self->GetOutPorts()[j]));
         }
     }
 

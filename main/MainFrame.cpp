@@ -620,22 +620,152 @@ void MainFrame::DoFileOpenProject() {
     }
 }
 
+void MainFrame::SetProjectDir(const wxString& projectDir)
+{
+    // 1. 基础容错：检查目录是否存在（替代原有弹窗选择后的路径验证）
+    if (!wxDir::Exists(projectDir))
+    {
+        wxMessageBox(wxString::FromUTF8("项目目录不存在：") + projectDir,
+            wxString::FromUTF8("错误"), wxOK | wxICON_ERROR);
+        return;
+    }
 
-void MainFrame::DoFileNew() {
+    // 2. 完全复用你原有 DoFileOpenProj
+// ect 的核心逻辑（从进度条开始）
+    wxProgressDialog progress("Loading Project", "Initializing...",
+        100, this,
+        wxPD_APP_MODAL | wxPD_AUTO_HIDE | wxPD_SMOOTH);
+
+    m_projectTreePanel->LoadProject(projectDir);
+    m_currentProjectPath = projectDir;
+
+    sigTree->LoadProject(projectDir.ToStdString());
+
+    wxString fullPath = projectDir + wxFileName::GetPathSeparator() + "sigflow.project";
+    wxFile file(fullPath);
+    wxString content;
+    file.ReadAll(&content);
+    std::string utf8Content = content.ToUTF8().data();
+
+    Json::Value root;
+    Json::CharReaderBuilder builder;
+    std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
+    std::string errs;
+
+    if (reader->parse(utf8Content.c_str(), utf8Content.c_str() + utf8Content.size(), &root, &errs)) {
+        if (root["paths"].isMember("source_files")) {
+            auto& sourceFiles = root["paths"]["source_files"];
+            int totalFiles = sourceFiles.size();
+            progress.SetRange(totalFiles + 2); // 文件数 + 解析JSON(1) + 镜像(1)
+
+            int currentStep = 0;
+
+            for (const auto& file : root["paths"]["source_files"]) {
+
+                currentStep++;
+                wxString fileName = file.asString();
+
+                // --- 2. 更新进度条文字 ---
+                progress.Update(currentStep, "Parsing: " + fileName);
+
+                // 1. 获取文件的绝对路径
+                wxFileName fn1(file.asString());
+                fn1.MakeAbsolute(projectDir);
+                wxString wxAbsPath = fn1.GetFullPath();
+                std::string absPath1 = wxAbsPath.ToStdString();
+
+                // 2. 读取该文件的实际内容 (关键步骤)
+                wxFile vFile(wxAbsPath, wxFile::read);
+                if (!vFile.IsOpened()) continue; // 如果文件打不开，跳过
+
+                wxString fileContent;
+                vFile.ReadAll(&fileContent);
+                vFile.Close();
+
+                std::string stdCode = fileContent.ToStdString();
+
+                // 3. 为当前文件构造 Tree-sitter 资源
+                TSParser* parser = ts_parser_new();
+                ts_parser_set_language(parser, tree_sitter_verilog());
+
+                // 解析当前读取到的 stdCode，而不是全局的 sp.stable_code
+                TSTree* new_tree = ts_parser_parse_string(parser, nullptr, stdCode.c_str(), stdCode.length());
+
+                if (new_tree) {
+                    TSNode rootNode = ts_tree_root_node(new_tree);
+                    // 调试打印
+                    // DumpTree(rootNode, stdCode, 0); 
+
+                    TSTreeCursor cursor = ts_tree_cursor_new(rootNode);
+
+                    // 4. 更新数据模型
+                    // 注意：这里传入的是当前文件的路径 absPath1 和当前文件的代码 stdCode
+                    DumpTree(rootNode, stdCode, 0);
+                    std::unordered_map<SigTreeNode*, std::tuple<int, int>> map;
+                    sigTree->UpdateTreeFromTS(&cursor, sigTree->root, absPath1, stdCode, map);
+                    maps[absPath1] = map;
+
+                    // 清理 TS 局部资源
+                    ts_tree_cursor_delete(&cursor);
+                    ts_tree_delete(new_tree);
+                }
+                ts_parser_delete(parser);
+            }
+
+            // 5. 所有文件解析完成后，一次性刷新 UI
+            // 不要在 for 循环内部 Refresh，否则文件多了会非常卡
+
+            sigTree->LinkInstsWithDefs();
+            sigTree->PrintTree();
+        }
+    }
+
+    // 你的原有逻辑：加载定义到工具箱
+    for (auto defId : sigTree->GetDefinitions()) {
+        m_toolbox->AddDefinition(defId);
+    }
+
+    // 进度条更新：创建工作区镜像
+    progress.Update(progress.GetRange() - 1, "Creating Workspace Mirror...");
+
+    // 构造工作区路径
+    wxString workspacePath = m_currentProjectPath + wxFileName::GetPathSeparator() +
+        ".sigflow" + wxFileName::GetPathSeparator() + "workspace";
+
+    // 镜像目录（复用你的 MirrorDirectory 函数）
+    if (MirrorDirectory(m_currentProjectPath, workspacePath)) {
+        // 更新内部状态（保留你的原有逻辑）
+        m_currentProjectPath = m_currentProjectPath;
+        m_workspacePath = workspacePath; // 确保 MainFrame 有这个成员变量
+        m_projectName = wxFileName(projectDir).GetFullName();
+
+        // 重新加载项目树
+        m_projectTreePanel->LoadProject(m_currentProjectPath);
+        RefreshTitle(); // 确保有这个刷新标题的函数
+    }
+
+    // 进度条完成
+    progress.Update(progress.GetRange(), "Load Complete!");
+
+    // 触发树变更事件（保留你的原有逻辑）
+    wxCommandEvent evt;
+    OnSFTreeChanged(evt);
+}
+bool MainFrame::DoFileNew() {
     // Create a new project directory with basic structure and open it in the project tree
     // 1) Ask for parent folder
     wxDirDialog dirDlg(this, "Select parent folder for new project", "",
         wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
-    if (dirDlg.ShowModal() != wxID_OK) return;
+    if (dirDlg.ShowModal() != wxID_OK) return false;
     wxString parent = dirDlg.GetPath();
 
     // 2) Ask for project name
     wxTextEntryDialog nameDlg(this, "Enter project name:", "New Project", "NewProject");
-    if (nameDlg.ShowModal() != wxID_OK) return;
+    if (nameDlg.ShowModal() != wxID_OK) return false;
     wxString projName = nameDlg.GetValue();
     if (projName.IsEmpty()) {
         wxMessageBox("Project name cannot be empty", "Error", wxOK | wxICON_ERROR, this);
-        return;
+        return false;
     }
 
     // 3) Build project path and check
@@ -648,20 +778,20 @@ void MainFrame::DoFileNew() {
         if (notEmpty) {
             int res = wxMessageBox("The folder already exists and is not empty. Overwrite?", "Confirm",
                 wxYES_NO | wxICON_QUESTION, this);
-            if (res != wxYES) return;
+            if (res != wxYES) return false;
         }
     }
     else if (wxFileExists(projPath)) {
         int res = wxMessageBox("A file with the same name exists. Overwrite?", "Confirm",
             wxYES_NO | wxICON_QUESTION, this);
-        if (res != wxYES) return;
+        if (res != wxYES) return false;
         wxRemoveFile(projPath);
     }
 
     // 4) Create directory structure
     if (!wxFileName::Mkdir(projPath, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL)) {
         wxMessageBox("Failed to create project folder", "Error", wxOK | wxICON_ERROR, this);
-        return;
+        return false;
     }
     wxString srcDir = projPath + wxFileName::GetPathSeparator() + "src";
     wxString libDir = projPath + wxFileName::GetPathSeparator() + "lib";
@@ -708,6 +838,7 @@ void MainFrame::DoFileNew() {
 
     // 9) Open sample file in editor so user can start coding
     DoFileOpen(sampleTop);
+    return true;
 }
 
 //�����ļ���ʵ�֣����������ĸ�����

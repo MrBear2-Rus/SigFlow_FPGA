@@ -208,8 +208,15 @@ ToolboxPanel::ToolboxPanel(wxWindow* parent)
     LoadToolIcon("Label Tool", "text.svg");           // 69: Tools-Label Tool
     m_displayToFile["Label Tool"] = "text";
     LoadToolIcon("BlackBoxDefinition", "blockbox.svg");
-    m_tree->AssignImageList(m_imgList);
+   
 
+    // Grammer Block 分类
+    LoadToolIcon("Continuous Assign", "continuous_assign.svg");           // 69: Tools-Label Tool
+    m_displayToFile["Continuous Assign"] = "continuous_assign";
+    LoadToolIcon("Always Block", "always_block.svg");           // 69: Tools-Label Tool
+    m_displayToFile["Always Block"] = "always_block";
+
+    m_tree->AssignImageList(m_imgList);
     // 字体样式
     wxFont font(wxFontInfo(11).FaceName("Segoe UI"));
     m_tree->SetFont(font);
@@ -373,7 +380,7 @@ void ToolboxPanel::Rebuild()
     blockDisplayNames.Add("Always Block");
 
 
-    wxTreeItemId blockId = m_tree->AppendItem(root, "Grammer Block", 0, 0);
+    wxTreeItemId blockId = m_tree->AppendItem(root, "Block", 0, 0);
     m_tree->SetItemBold(blockId, true);
     for (const auto& displayName : blockDisplayNames) {
         wxString fileName = m_displayToFile[displayName];

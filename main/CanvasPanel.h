@@ -149,13 +149,14 @@ public:
     void AddWire(const Wire& wire); 
     void AddWireWithoutRecord(const Wire& wire);
     void ReclaimWire(Wire wire, int index);
-    void DeleteWire(int index) { m_wires.erase(m_wires.begin() + index); m_selWireIdx.erase(std::remove(m_selWireIdx.begin(), m_selWireIdx.end(), index), m_selWireIdx.end()); Refresh(); };
+    void DeleteWire(int index);
     void WireSetWholeOffSet(int index, const wxPoint& offset);
     void WirePtsSetPos(int wireIndex, int controlPointIndex, const wxPoint& pos);
     void WireGenerateCells(int Index) { m_wires[Index].GenerateCells(); };
     void UpdateWire(const Wire& newWire, int index) {m_wires[index] = newWire; m_wires[index].GenerateCells(); Refresh(); };
-    void UpdatePreviewWire(Wire& wire) { m_previewWire = wire; Refresh(); };
+    void UpdatePreviewWire(Wire wire) { m_previewWire = wire; Refresh(); };
     void ClearPreviewWire() { m_previewWire = Wire(); Refresh(); };
+    void RefreshSignal(SignalNode* sn);
 
     // 文本管理
     const std::vector<CanvasTextElement>& GetTextElements() const { return m_textElements; }
@@ -226,9 +227,8 @@ private:
 
     void UpdateHoverInfo(const wxPoint& screenPos);
     HoverInfo GetHoverInfo(HoverInfo& hoverInfo) const { hoverInfo = m_hoverInfo; }
-    int HitElementTest(const wxPoint& canvasPos);
+    std::tuple<int, int> HitElementAndPinTest(const wxPoint& canvasPos, bool* isInput, wxPoint* worldPos);
     int HitTestText(wxPoint canvasPos);
-    int HitHoverPin(const wxPoint& canvasPos, bool* isInput, wxPoint* worldPos);
     int HitWire(const wxPoint& canvasPos);
     int HitHoverCell(const wxPoint& canvasPos);
     int HitWireSection(const wxPoint& canvasPos);

@@ -247,16 +247,17 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
         if (top_type != TopNodeType::Null) {
             // 找Port和ID
             std::string id;
-            std::vector<Port> in;
-            std::vector<Port> out;
+            std::vector<SignalNode*> in;
+            std::vector<SignalNode*> out;
 
             TSQueryCursor* cursor = ts_query_cursor_new();
             ts_query_cursor_exec(cursor, top, currentNode);
 
             TSQueryMatch match;
             while (ts_query_cursor_next_match(cursor, &match)) {
-                Port p;
-                p.direction = PortDirection::InOut;
+                SignalNode* p = new SignalNode();
+                
+                p->direction = PortDirection::InOut;
 
                 for (uint16_t i = 0; i < match.capture_count; i++) {
                     TSQueryCapture capture = match.captures[i];
@@ -275,14 +276,14 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                     else if (strcmp(tag_name, "port.dir") == 0) {
                         std::string d = code.substr(ts_node_start_byte(capture.node),
                             ts_node_end_byte(capture.node) - ts_node_start_byte(capture.node));
-                        if (d == "input") p.direction = PortDirection::In;
-                        else if (d == "output") p.direction = PortDirection::Out;
+                        if (d == "input") p->direction = PortDirection::In;
+                        else if (d == "output") p->direction = PortDirection::Out;
                     }
                     else if (strcmp(tag_name, "port.name") == 0) {
-                        p.identifier = code.substr(ts_node_start_byte(capture.node),
+                        p->identifier = code.substr(ts_node_start_byte(capture.node),
                             ts_node_end_byte(capture.node) - ts_node_start_byte(capture.node));
-                        if (p.direction == PortDirection::In) in.push_back(p);
-                        else if (p.direction == PortDirection::Out) out.push_back(p);
+                        if (p->direction == PortDirection::In) in.push_back(p);
+                        else if (p->direction == PortDirection::Out) out.push_back(p);
                     }
                 }
             }
@@ -324,12 +325,10 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                     }
                 }
                 SignalNode tmpNode(id, st);
-                SignalNode* nn = static_cast<SignalNode*>(this->AddChild(netParent, &tmpNode));
+                SignalNode* nn = this->AddSignal(tParent,&tmpNode);
                 
                 if (nn) {
                     outMap[nn] = std::make_tuple(ts_node_start_point(currentNode).row, ts_node_end_point(currentNode).row);
-                    SignalTable.emplace(nn->identifier, nn);
-                    newParent = nn;
             }
             
         }
@@ -355,11 +354,9 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                     }
                 }
                 SignalNode tmpNode(id, SignalType::Reg);
-                SignalNode* nn = static_cast<SignalNode*>(AddChild(dataParent, &tmpNode));
+                SignalNode* nn = this->AddSignal(tParent, &tmpNode);
                 if (nn) {
                     outMap[nn] = std::make_tuple(ts_node_start_point(currentNode).row, ts_node_end_point(currentNode).row);
-                SignalTable.emplace(nn->identifier, nn);
-                newParent = nn;
             }
         }
             ts_query_cursor_delete(cursor);
@@ -374,7 +371,6 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                 TSQueryMatch match;
                 std::string id;
                 std::string def;
-                std::vector<Port> ps;
                 while (ts_query_cursor_next_match(cursor, &match)) {
                     Port p;
                     p.direction = PortDirection::InOut;
@@ -406,7 +402,7 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                             TSNode nameNode = capture.node;
                             p.conn = code.substr(ts_node_start_byte(nameNode),
                                 ts_node_end_byte(nameNode) - ts_node_start_byte(nameNode));
-                            mn->inout_ports.push_back(p);
+                            tParent->AddSecondPort(mn, p);
                         }
                     }
                 }
@@ -458,9 +454,9 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                     }
                 }
                 GateInstNode* gn = arena.make<GateInstNode>(id, gt);
-                gn->in_ports[0].conn = in_conn[0];
-                gn->in_ports[1].conn = in_conn[1];
-                gn->out_ports[0].conn = out_conn[0];
+                tParent->SetSecondPortConn(gn, gn->in_ports[0].identifier, in_conn[0]);
+                tParent->SetSecondPortConn(gn, gn->in_ports[1].identifier, in_conn[1]);
+                tParent->SetSecondPortConn(gn, gn->out_ports[0].identifier, out_conn[0]);
                 gn = static_cast<GateInstNode*>(this->AddChild(newParent, gn));
                 outMap[gn] = std::make_tuple(ts_node_start_point(currentNode).row, ts_node_end_point(currentNode).row);
                 newParent = gn;
@@ -638,8 +634,10 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                     }
                 }
                 ContinuousAssignNode* an = arena.make<ContinuousAssignNode>(id, exp);
-                an->in_ports = in;
-                an->out_ports.push_back(out);
+                for (auto p : in) {
+                    tParent->AddSecondPort(an, p);
+                }
+                tParent->AddSecondPort(an, out);
                 an = static_cast<ContinuousAssignNode*>(this->AddChild(newParent, an));
                 outMap[an] = std::make_tuple(ts_node_start_point(currentNode).row, ts_node_end_point(currentNode).row);
                 newParent = an;
@@ -728,31 +726,35 @@ void SigFlowTree::LinkSingleInstWithDef(ModuleInstNode* inst) {
         if (inst->inout_ports.size() > 0) {
             for (auto& instPort : inst->inout_ports) {
                 auto defInPortIt = std::find_if(def->GetInPorts().begin(), def->GetInPorts().end(),
-                    [&instPort](const Port& p) {
-                        return p.identifier == instPort.identifier;
+                    [&instPort](const SignalNode* p) {
+                        return p->identifier == instPort.identifier;
                     });
                 auto defOutPortIt = std::find_if(def->GetOutPorts().begin(), def->GetOutPorts().end(),
-                    [&instPort](const Port& p) {
-                        return p.identifier == instPort.identifier;
+                    [&instPort](const SignalNode* p) {
+                        return p->identifier == instPort.identifier;
                     });
 
                 if (defInPortIt != def->GetInPorts().end()) {
-                    instPort.direction = defInPortIt->direction;
+                    SignalNode* foundPtr = *defInPortIt;
+                    instPort.direction = foundPtr->direction;
                     inst->in_ports.push_back(instPort);
                 }
                 else if (defOutPortIt != def->GetOutPorts().end()) {
-                    instPort.direction = defOutPortIt->direction;
+                    SignalNode* foundPtr = *defOutPortIt;
+                    instPort.direction = foundPtr->direction;
                     inst->out_ports.push_back(instPort);
                 }
             }
             inst->inout_ports.clear();
         }
         else {
-            for (auto p : def->GetInPorts()) {
-                inst->in_ports.push_back(p);
+            for (auto* p : def->GetInPorts()) {
+                Port p_(p->identifier, p->direction);
+                inst->in_ports.push_back(p_);
             }
-            for (auto p : def->GetOutPorts()) {
-                inst->out_ports.push_back(p);
+            for (auto* p : def->GetOutPorts()) {
+                Port p_(p->identifier, p->direction);
+                inst->out_ports.push_back(p_);
             }
         }
     }
@@ -864,10 +866,10 @@ std::string TopNode::ToVerilog() {
     std::string v = std::format("module {}", identifier);
     v += "(";
     for (auto port : in_ports) {
-        v += std::format("{} {},\n", port.portDirectionToStr(port.direction), port.identifier);
+        v += std::format("{} {},\n", Port::portDirectionToStr(port->direction), port->identifier);
     }
     for (auto port : out_ports) {
-        v += std::format("{} {},\n", port.portDirectionToStr(port.direction), port.identifier);
+        v += std::format("{} {},\n", Port::portDirectionToStr(port->direction), port->identifier);
     }
     v += ")\n";
 
@@ -894,6 +896,11 @@ std::string SignalNode::ToVerilog() {
     return v;
 }
 
+Port::Port(std::string id, PortDirection dir, SignalNode* conn) : identifier(id), direction(dir), signal(conn) {
+    this->conn = conn->identifier;
+};
+
+void Port::SetSignalTo(SignalNode* sn) { signal = sn; conn = sn->identifier; };
 // 删除所有与 nb_or_b_expressions 相关的旧方法
 // DelExpressionsPort, AddExpressionsPort, AddEmptyExpression, DelLastExpression 已移除
 
@@ -955,6 +962,109 @@ SigTreeNode* AlwaysNode::Clone(Arena& arena) const {
     return copy;
 }
 
+void TopNode::AddSignal(SignalNode* sn) {
+    signals.push_back(sn);
+    for (auto child : GetChildren()) {
+         SecondNode* sen = static_cast<SecondNode*>(child);
+         for (auto p : sen->in_ports) {
+             if (p.conn == sn->identifier) {
+                 p.SetSignalTo(sn);
+             }
+         }
+         for (auto p : sen->out_ports) {
+             if (p.conn == sn->identifier) {
+                 p.SetSignalTo(sn);
+             }
+         }
+         if (sen->secondType == SecondNodeType::ModuleInstance) {
+             ModuleInstNode* mn = static_cast<ModuleInstNode*>(sen);
+             for (auto p : mn->inout_ports) {
+                    if (p.conn == sn->identifier) {
+                        p.SetSignalTo(sn);
+                    }
+             }
+         }
+
+        
+    }
+
+}
+
+void TopNode::AddSecondPort(SecondNode* sn, Port p) {
+    for (auto s : in_ports) {
+        if (p.conn == s->identifier) {
+            p.SetSignalTo(s);
+         }
+    }
+    for (auto s : out_ports) {
+        if (p.conn == s->identifier) {
+            p.SetSignalTo(s);
+        }
+    }
+    for (auto s : signals) {
+        if (p.conn == s->identifier) {
+            p.SetSignalTo(s);
+        }
+    }
+    if (p.direction == PortDirection::In) {
+        sn->in_ports.push_back(p);
+    }
+    else if (p.direction == PortDirection::Out) {
+        sn->out_ports.push_back(p);
+    }
+    else if (sn->secondType == SecondNodeType::ModuleInstance) {
+        ModuleInstNode* mn = static_cast<ModuleInstNode*>(sn);
+        mn->inout_ports.push_back(p);
+    }
+}
+
+void TopNode::SetSecondPortConn(SecondNode* sn, std::string pId, std::string conn) {
+    auto searchSignal = [&](Port& p) {
+        for (auto s : in_ports) {
+            if (conn == s->identifier) {
+                p.SetSignalTo(s);
+            }
+        }
+        for (auto s : out_ports) {
+            if (p.conn == s->identifier) {
+                p.SetSignalTo(s);
+            }
+        }
+        for (auto s : signals) {
+            if (p.conn == s->identifier) {
+                p.SetSignalTo(s);
+            }
+        }
+        };
+
+
+    for (auto& p : sn->in_ports) {
+        if (p.identifier == pId) {
+            p.conn = conn;
+            searchSignal(p);
+            return;
+        }
+    }
+    for (auto& p : sn->out_ports) {
+        if (p.identifier == pId) {
+            p.conn = conn;
+            searchSignal(p);
+            return;
+        }
+    }
+    if (sn->secondType == SecondNodeType::ModuleInstance) {
+        ModuleInstNode* mn = static_cast<ModuleInstNode*>(sn);
+        for (auto& p : mn->inout_ports) {
+            if (p.identifier == pId) {
+                p.conn = conn;
+                searchSignal(p);
+                return;
+            }
+        }
+    }
+
+}
+
 std::string ProjectNode::GetName() { return "Project " + std::filesystem::path(projectPath).filename().string(); }
 std::string FileNode::GetName() { return "File " + std::filesystem::path(filePath).filename().string(); }
 std::string TopNode::GetName() { return SigFlowTree::ToString(topType) + " " + identifier; }
@@ -991,11 +1101,11 @@ void TopNode::Print() {
         info += "TopType: Unknown\n";
     }
 
-    for (Port& p : in_ports) {
-        info += "port: " + p.identifier + " " + "In" + "\n";
+    for (SignalNode* p : in_ports) {
+        info += "port: " + p->identifier + " " + "In" + "\n";
     }
-    for (Port& p : out_ports) {
-        info += "port: " + p.identifier + " " + "Out" + "\n";
+    for (SignalNode* p : out_ports) {
+        info += "port: " + p->identifier + " " + "Out" + "\n";
     }
 
     OutputDebugStringA(info.c_str());
@@ -1057,7 +1167,6 @@ bool SigTreeNode::AddChild(SigTreeNode* child) {
 void SigFlowTree::ClearTree() {
     DefinitionTable.clear();
     InstanceTable.clear();
-    SignalTable.clear();
     root = nullptr;
     arena.reset();
 }
@@ -1069,6 +1178,22 @@ void SigFlowTree::RemoveChild(SigTreeNode* parent, SigTreeNode* child) {
     parent->RemoveChild(child);
     wxCommandEvent evt(EVT_SIGFLOWNODE_DEL);
     evt.SetClientData(child);
+    wxPostEvent(m_parent->GetEventHandler(), evt);
+}
+
+void SigFlowTree::RemoveSignal(TopNode* parent, SignalNode* sn) {
+    if (!parent || !sn) return;
+
+    auto it = std::find_if(parent->signals.begin(), parent->signals.end(),
+        [sn](SignalNode* n) {
+            return n == sn;
+        }
+    );
+    if (it != parent->signals.end()) {
+        parent->signals.erase(it);
+    }
+    wxCommandEvent evt(EVT_SIGFLOWNODE_DEL);
+    evt.SetClientData(sn);
     wxPostEvent(m_parent->GetEventHandler(), evt);
 }
 
@@ -1103,6 +1228,26 @@ SigTreeNode* SigFlowTree::AddChild(SigTreeNode* parent, SigTreeNode* externalNod
     return safeNode;
 }
 
+SignalNode* SigFlowTree::AddSignal(TopNode* parent, SignalNode* sn) {
+    SignalNode* safeNode = sn->Clone(arena);
+    
+    if (parent) {
+        parent->AddSignal(safeNode);
+        safeNode->parent = parent;
+        wxCommandEvent event(EVT_SIGFLOWNODE_ADD);
+        event.SetClientData(safeNode);
+        m_parent->GetEventHandler()->ProcessEvent(event);
+        return safeNode;
+    }
+    else return nullptr;
+}
+
+SignalNode* SigFlowTree::AddNewWire(TopNode* parent) {
+    SignalNode* sn = new SignalNode("w" + std::to_string(parent->signals.size()+1), SignalType::Wire);
+    return AddSignal(parent, sn);
+}
+
+
 SigTreeNode* SigFlowTree::CloneSubtreeToArena(SigTreeNode* node) {
     if (!node) return nullptr;
 
@@ -1135,7 +1280,7 @@ void SigFlowTree::AddOutPort(SecondNode* sn) {
 
 void SigFlowTree::AddInPort(TopNode* tn) {
     std::string name = "in" + std::to_string(tn->in_ports.size() + 1);
-    Port p(name, PortDirection::In);
+    SignalNode* p = new SignalNode(name, SignalType::Wire, PortDirection::In);
     tn->in_ports.push_back(p);
     wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
     evt.SetClientData(tn);
@@ -1144,9 +1289,9 @@ void SigFlowTree::AddInPort(TopNode* tn) {
 
 void SigFlowTree::AddOutPort(TopNode* tn) {
     std::string name = "out" + std::to_string(tn->out_ports.size() + 1);
-    Port p(name, PortDirection::Out);
-    wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
+    SignalNode* p = new SignalNode(name, SignalType::Wire, PortDirection::Out);
     tn->out_ports.push_back(p);
+    wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
     evt.SetClientData(tn);
     wxPostEvent(m_parent->GetEventHandler(), evt);
 }
@@ -1166,8 +1311,8 @@ void SigFlowTree::SecondDelLastInPort(SecondNode* sn) {
 void SigFlowTree::TopDelPort(TopNode* sn, Port p) {
     if (p.direction == PortDirection::In) {
         auto it = std::find_if(sn->GetInPorts().begin(), sn->GetInPorts().end(),
-            [&](const Port& item) {
-                return item.identifier == p.identifier;
+            [&](const SignalNode* item) {
+                return item->identifier == p.identifier;
             });
         if (it != sn->GetInPorts().end()) {
             sn->GetInPorts().erase(it);
@@ -1178,8 +1323,8 @@ void SigFlowTree::TopDelPort(TopNode* sn, Port p) {
     }
     else if (p.direction == PortDirection::Out) {
         auto it = std::find_if(sn->GetOutPorts().begin(), sn->GetOutPorts().end(),
-            [&](const Port& item) {
-                return item.identifier == p.identifier;
+            [&](const SignalNode* item) {
+                return item->identifier == p.identifier;
             });
         if (it != sn->GetOutPorts().end()) {
             sn->GetOutPorts().erase(it);
@@ -1192,8 +1337,8 @@ void SigFlowTree::TopDelPort(TopNode* sn, Port p) {
 
 void SigFlowTree::TopDelPort(TopNode* sn, wxString port_id) {
     auto it = std::find_if(sn->GetInPorts().begin(), sn->GetInPorts().end(),
-        [&](const Port& item) {
-            return item.identifier == port_id;
+        [&](const SignalNode* item) {
+            return item->identifier == port_id;
         });
     if (it != sn->GetInPorts().end()) {
         sn->GetInPorts().erase(it);
@@ -1203,8 +1348,8 @@ void SigFlowTree::TopDelPort(TopNode* sn, wxString port_id) {
     }
 
     auto it2 = std::find_if(sn->GetOutPorts().begin(), sn->GetOutPorts().end(),
-        [&](const Port& item) {
-            return item.identifier == port_id;
+        [&](const SignalNode* item) {
+            return item->identifier == port_id;
         });
     if (it2 != sn->GetOutPorts().end()) {
         sn->GetOutPorts().erase(it2);
@@ -1215,11 +1360,12 @@ void SigFlowTree::TopDelPort(TopNode* sn, wxString port_id) {
 }
 
 void SigFlowTree::PortReName(TopNode* tn, wxString old_id, wxString new_id) {
-    auto findAndRename = [&](std::vector<Port>& ports) -> bool {
+    auto findAndRename = [&](std::vector<SignalNode*>& ports) -> bool {
         auto it = std::find_if(ports.begin(), ports.end(),
-            [&](const Port& item) { return item.identifier == old_id; });
+            [&](SignalNode* item) { return item->identifier == old_id; });
         if (it != ports.end()) {
-            it->identifier = new_id;
+            auto x = *it;
+            x->identifier = new_id;
             return true;
         }
         return false;
@@ -1360,10 +1506,6 @@ void SigFlowTree::RegisterNodeRecursive(SigTreeNode* node) {
             InstanceTable[mn->identifier] = mn;
             LinkSingleInstWithDef(mn);
         }
-    }
-    else if (node->type == SigTreeNodeType::Signal) {
-        SignalNode* sn = static_cast<SignalNode*>(node);
-        SignalTable.emplace(sn->identifier, sn);
     }
 
     for (auto child : node->GetChildren()) {
@@ -1529,10 +1671,12 @@ void ModuleInstNode::SetDefinition(TopNode* Definition) {
     this->Definition = Definition;
     inout_ports.clear();
     for (auto p : Definition->GetInPorts()) {
-        in_ports.push_back(p);
+        Port p_(p->identifier, p->direction);
+        in_ports.push_back(p_);
     }
     for (auto p : Definition->GetOutPorts()) {
-        out_ports.push_back(p);
+        Port p_(p->identifier, p->direction);
+        out_ports.push_back(p_);
     }
 }
 

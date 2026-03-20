@@ -1,4 +1,4 @@
-#include "SFNPropertyPanel.h"
+﻿#include "SFNPropertyPanel.h"
 #include "PropertyPanelBuilder.h"
 #include <wx/statline.h>
 
@@ -233,18 +233,18 @@ void SFNPropertyPanel::LoadNode(SigTreeNode* node) {
 // 创建 TopNode 端口列表（含添加按钮）
 wxSizer* SFNPropertyPanel::CreateTopPortsSizer(TopNode* tn, PortDirection dir) {
     auto outerSizer = new wxBoxSizer(wxVERTICAL);
-    std::vector<Port>& ports = (dir == PortDirection::In) ? tn->GetInPorts() : tn->GetOutPorts();
+    std::vector<SignalNode*>& ports = (dir == PortDirection::In) ? tn->GetInPorts() : tn->GetOutPorts();
     wxString dirStr = SigFlowTree::ToString(dir);
 
-    for (Port& p : ports) {
+    for (SignalNode* p : ports) {
         wxTextCtrl* nameCtrl = nullptr;
         wxButton* delBtn = nullptr;
-        auto wrapper = PropertyPanelBuilder::CreateTopPortRow(this, dirStr, p.identifier, &nameCtrl, &delBtn);
+        auto wrapper = PropertyPanelBuilder::CreateTopPortRow(this, dirStr, p->identifier, &nameCtrl, &delBtn);
         outerSizer->Add(wrapper, 0, wxEXPAND);
 
         // 绑定端口重命名
         if (nameCtrl) {
-            wxString oldId = p.identifier;
+            wxString oldId = p->identifier;
             auto syncRename = [this, tn, oldId](wxEvent& event) {
                 wxTextCtrl* ctrl = wxDynamicCast(event.GetEventObject(), wxTextCtrl);
                 if (!ctrl) { event.Skip(); return; }
@@ -259,7 +259,7 @@ wxSizer* SFNPropertyPanel::CreateTopPortsSizer(TopNode* tn, PortDirection dir) {
 
         // 绑定删除端口
         if (delBtn) {
-            delBtn->Bind(wxEVT_BUTTON, [this, tn, id = p.identifier](wxCommandEvent&) {
+            delBtn->Bind(wxEVT_BUTTON, [this, tn, id = p->identifier](wxCommandEvent&) {
                 m_tree->TopDelPort(tn, id);
                 });
         }
@@ -283,22 +283,38 @@ wxSizer* SFNPropertyPanel::CreateTopPortsSizer(TopNode* tn, PortDirection dir) {
 // 创建 SecondNode 的单端口行（含连接编辑）
 wxSizer* SFNPropertyPanel::CreateSecondPortRowSizer(SecondNode* sn, const wxString& name,
     PortDirection dir, std::string& conn) {
-    wxTextCtrl* connCtrl = nullptr;
+    wxArrayString choices;
+    choices.Add(""); // 允许空连接
+    TopNode* t = static_cast<TopNode*>(sn->GetParent());
+    for (auto& sig : t->signals) {
+        choices.Add(wxString::FromUTF8(sig->identifier));
+    }
+    for (auto& sig : t->in_ports) {
+        choices.Add(wxString::FromUTF8(sig->identifier));
+    }
+    for (auto& sig : t->out_ports) {
+        choices.Add(wxString::FromUTF8(sig->identifier));
+    }
+
+    wxChoice* connChoice = nullptr;
     auto wrapper = PropertyPanelBuilder::CreateSecondPortRow(this, SigFlowTree::ToString(dir),
-        name, wxString::FromUTF8(conn), &connCtrl);
-    if (connCtrl) {
+        name, wxString::FromUTF8(conn), choices ,&connChoice);
+    if (connChoice) {
         wxString portName = name;
-        auto syncConn = [this, sn, portName](wxEvent& event) {
-            wxTextCtrl* ctrl = wxDynamicCast(event.GetEventObject(), wxTextCtrl);
-            if (!ctrl) { event.Skip(); return; }
-            m_tree->PortConn(sn, portName, ctrl->GetValue().ToStdString());
-            CallAfter([this]() { wxPostEvent(this, wxCommandEvent()); });
-            if (event.GetEventType() == wxEVT_TEXT_ENTER)
-                this->GetParent()->SetFocus();
-            event.Skip();
-            };
-        connCtrl->Bind(wxEVT_TEXT_ENTER, syncConn);
-        connCtrl->Bind(wxEVT_KILL_FOCUS, syncConn);
+        connChoice->Bind(wxEVT_CHOICE, [this, sn, portName](wxCommandEvent& event) {
+            wxChoice* choice = wxDynamicCast(event.GetEventObject(), wxChoice);
+            if (choice) {
+                std::string newVal = choice->GetStringSelection().ToStdString();
+
+                // 调用后端逻辑更新连接
+                m_tree->PortConn(sn, portName, newVal);
+
+                // 触发面板刷新逻辑
+                CallAfter([this]() {
+                    wxPostEvent(this, wxCommandEvent(wxEVT_COMMAND_TEXT_UPDATED));
+                    });
+            }
+            });
     }
     return wrapper;
 }
@@ -480,24 +496,41 @@ void SFNPropertyPanel::Add_BN_OR_B_Ports(wxSizer* groupSizer, AlwaysNode* an, Al
 
 void SFNPropertyPanel::Add_BN_OR_B_Port(wxSizer* groupSizer, AlwaysNode* an, Port& p)
 {
-    wxTextCtrl* connCtrl = nullptr;
+
+    wxArrayString choices;
+    choices.Add(""); // 允许空连接
+    TopNode* t = static_cast<TopNode*>(an->GetParent());
+    for (auto& sig : t->signals) {
+        choices.Add(wxString::FromUTF8(sig->identifier));
+    }
+    for (auto& sig : t->in_ports) {
+        choices.Add(wxString::FromUTF8(sig->identifier));
+    }
+    for (auto& sig : t->out_ports) {
+        choices.Add(wxString::FromUTF8(sig->identifier));
+    }
+
+    wxChoice* connCtrl = nullptr;
     wxButton* deletePortBtn = nullptr;
     auto wrapper = PropertyPanelBuilder::CreateSecondPortRow(this, SigFlowTree::ToString(p.direction),
-        p.identifier, wxString::FromUTF8(p.conn),
+        p.identifier, wxString::FromUTF8(p.conn), choices,
         &connCtrl, &deletePortBtn);
     if (connCtrl) {
         wxString portName = p.identifier;
-        auto syncConn = [this, an, portName](wxEvent& event) {
-            wxTextCtrl* ctrl = wxDynamicCast(event.GetEventObject(), wxTextCtrl);
-            if (!ctrl) { event.Skip(); return; }
-            m_tree->PortConn(an, portName, ctrl->GetValue().ToStdString());
-            CallAfter([this]() { wxPostEvent(this, wxCommandEvent()); });
-            if (event.GetEventType() == wxEVT_TEXT_ENTER)
-                this->GetParent()->SetFocus();
-            event.Skip();
-            };
-        connCtrl->Bind(wxEVT_TEXT_ENTER, syncConn);
-        connCtrl->Bind(wxEVT_KILL_FOCUS, syncConn);
+        connCtrl->Bind(wxEVT_CHOICE, [this, an, portName](wxCommandEvent& event) {
+            wxChoice* choice = wxDynamicCast(event.GetEventObject(), wxChoice);
+            if (choice) {
+                std::string newVal = choice->GetStringSelection().ToStdString();
+
+                // 调用后端逻辑更新连接
+                m_tree->PortConn(an, portName, newVal);
+
+                // 触发面板刷新逻辑
+                CallAfter([this]() {
+                    wxPostEvent(this, wxCommandEvent(wxEVT_COMMAND_TEXT_UPDATED));
+                    });
+            }
+            });
     }
 
     // 绑定删除端口按钮

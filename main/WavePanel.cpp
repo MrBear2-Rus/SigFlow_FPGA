@@ -1,11 +1,10 @@
-﻿#include "WavePanel.h"
-
+#include "WavePanel.h"
 
 WaveformPanel::WaveformPanel(wxWindow* parent)
     : wxPanel(parent), m_vcdData(nullptr), m_currentTimestamp(0),
     m_displayTimeRange(1000), m_maxTimestamp(1000)
 {
-    SetBackgroundColour(wxColour(30, 30, 30));
+    SetBackgroundColour(wxColour(240, 240, 240));  // 浅色背景
     SetDoubleBuffered(true);
     m_rng.seed(std::random_device{}());
     Bind(wxEVT_PAINT, &WaveformPanel::OnPaint, this);
@@ -41,15 +40,16 @@ void WaveformPanel::SetVcdData(vcd_t* vcdData)
 
 void WaveformPanel::SetCurrentTimestamp(int ts) { m_currentTimestamp = ts; Refresh(); }
 
-// 缩放核心逻辑：改变显示的时间跨度
 void WaveformPanel::ZoomIn() {
     m_displayTimeRange = std::max(10, (int)(m_displayTimeRange * 0.7));
     Refresh();
 }
+
 void WaveformPanel::ZoomOut() {
     m_displayTimeRange = std::min(m_maxTimestamp * 2, (int)(m_displayTimeRange * 1.5));
     Refresh();
 }
+
 void WaveformPanel::ZoomReset() { m_displayTimeRange = m_maxTimestamp; Refresh(); }
 
 void WaveformPanel::ClearVcdData() {
@@ -57,7 +57,6 @@ void WaveformPanel::ClearVcdData() {
     m_allSignals.clear();
     Refresh();
 }
-
 
 char WaveformPanel::ParseVcdValue(const char* v) {
     if (!v || !v[0]) return '0';
@@ -78,8 +77,8 @@ void WaveformPanel::OnPaint(wxPaintEvent& event)
     wxPaintDC dc(this);
     wxSize size = GetSize();
     if (!m_vcdData || m_allSignals.empty()) {
-        dc.SetTextForeground(*wxWHITE);
-        dc.DrawText("Please Open a VCD File", size.x / 2 - 50, size.y / 2);
+        dc.SetTextForeground(*wxBLACK);  // 浅色主题的文本颜色
+        dc.DrawText("Please Start Simulation first", size.x / 2 - 100, size.y / 2);  // 修改提示文本
         return;
     }
 
@@ -90,7 +89,7 @@ void WaveformPanel::OnPaint(wxPaintEvent& event)
     double scale = (double)viewW / m_displayTimeRange;
     int timeAxisY = 25;
 
-    // 1. 绘制时间轴和网格
+    // 绘制时间轴和网格
     dc.SetPen(wxPen(wxColour(60, 60, 60), 1, wxPENSTYLE_DOT));
     dc.SetTextForeground(wxColour(150, 150, 150));
     int step = std::max(1, m_displayTimeRange / 10);
@@ -100,14 +99,14 @@ void WaveformPanel::OnPaint(wxPaintEvent& event)
         dc.DrawText(wxString::Format("%d", ts), x - 5, 5);
     }
 
-    // 2. 遍历信号绘制波形
+    // 遍历信号绘制波形
     for (int i = 0; i < (int)m_allSignals.size(); ++i) {
         signal_t* sig = m_allSignals[i];
         int yBase = timeAxisY + i * SIGNAL_ROW_HEIGHT + 30;
         int yH = yBase - 15, yL = yBase + 15;
 
         // 绘制标签
-        dc.SetTextForeground(*wxWHITE);
+        dc.SetTextForeground(*wxBLACK);  // 浅色主题文本颜色
         dc.DrawText(sig->full_name, 10, yBase - 8);
 
         // 获取当前时间戳的值（用于实时显示）
@@ -146,7 +145,7 @@ void WaveformPanel::OnPaint(wxPaintEvent& event)
         dc.DrawText(wxString::Format("= %c", valAtCursor), 120, yBase - 8);
     }
 
-    // 3. 绘制红色播放头
+    // 绘制红色播放头
     int cursorX = LEFT_MARGIN + (int)(m_currentTimestamp * scale);
     if (cursorX >= LEFT_MARGIN && cursorX <= LEFT_MARGIN + viewW) {
         dc.SetPen(wxPen(*wxRED, 2));
@@ -154,6 +153,8 @@ void WaveformPanel::OnPaint(wxPaintEvent& event)
     }
 }
 
+
+#include "WavePanel.h"
 
 WavePanel::WavePanel(wxWindow* parent) : wxPanel(parent, wxID_ANY)
 {
@@ -189,7 +190,6 @@ WavePanel::WavePanel(wxWindow* parent) : wxPanel(parent, wxID_ANY)
     m_timer = new wxTimer(this);
     Bind(wxEVT_TIMER, &WavePanel::OnTimer, this);
 }
-
 
 void WavePanel::OnOpenVcd(wxCommandEvent&) {
     wxFileDialog openDlg(this, "Open VCD", "", "", "VCD files (*.vcd)|*.vcd", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
@@ -234,4 +234,20 @@ void WavePanel::OnSlider(wxCommandEvent&) {
     m_wavePanel->SetCurrentTimestamp(m_slider->GetValue());
 }
 
+void WavePanel::OpenVCDFile(wxString path)
+{
+    vcd_t* data = vcd_read_from_path(const_cast<char*>(path.ToStdString().c_str()));
+    if (data) {
+        m_wavePanel->SetVcdData(data);
+        m_slider->SetRange(0, m_wavePanel->m_maxTimestamp);
+        m_slider->SetValue(0);
+    }
+}
+
+void WavePanel::ClearWavePanel()
+{
+    m_wavePanel->ClearVcdData();
+    m_slider->SetValue(0);
+    m_slider->SetRange(0, 1000);
+}
 

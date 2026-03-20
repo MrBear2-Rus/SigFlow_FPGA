@@ -34,6 +34,7 @@
     <ClCompile Include="MainMenuBar.cpp" />
     <ClCompile Include="PluginManager.cpp" />
     <ClCompile Include="PluginStore.cpp" />
+    <ClCompile Include="ProjectStartWindow.cpp" />
     <ClCompile Include="ProjectTreePanel.cpp" />
     <ClCompile Include="HandyToolKit.cpp" />
     <ClCompile Include="PropertyPanelBuilder.cpp" />
@@ -74,6 +75,7 @@
     <ClInclude Include="HandyToolKit.h" />
     <ClInclude Include="PluginManager.h" />
     <ClInclude Include="PluginStore.h" />
+    <ClInclude Include="ProjectStartWindow.h" />
     <ClInclude Include="ProjectTreePanel.h" />
     <ClInclude Include="PropertyPanelBuilder.h" />
     <ClInclude Include="SFNPropertyPanel.h" />

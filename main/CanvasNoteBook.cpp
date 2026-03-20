@@ -1,4 +1,4 @@
-#include "CanvasNoteBook.h"
+﻿#include "CanvasNoteBook.h"
 #include "MainFrame.h"
 
 #include <wx/aui/auibar.h>
@@ -211,6 +211,16 @@ void CanvasNoteBook::SigFlowNodeChanged(SigTreeNode* n) {
             auto* page = cvses[i];
             if (page->tn == sn->GetParent()) {
                 page->RefreshElem(sn);
+            }
+        }
+        break;
+    }
+    case SigTreeNodeType::Signal: {
+        SignalNode* sn = static_cast<SignalNode*>(n);
+        for (int i = 0; i < cvses.size(); i++) {
+            auto* page = cvses[i];
+            if (page->tn == sn->GetParent()) {
+                page->RefreshSignal(sn);
             }
         }
         break;

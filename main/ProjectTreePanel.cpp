@@ -1,6 +1,7 @@
-#include "ProjectTreePanel.h"
+﻿#include "ProjectTreePanel.h"
 #include <wx/dir.h>
 #include <wx/filename.h>
+#include <wx/artprov.h>
 
 wxDEFINE_EVENT(EVT_PROJECT_LOADED, wxCommandEvent);
 
@@ -14,7 +15,7 @@ ProjectTreePanel::ProjectTreePanel(wxWindow* parent)
     wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
     sizer->Add(m_tree, 1, wxEXPAND | wxALL, 0);
     this->SetSizer(sizer);
-
+    InitTreeIcons();
     // 动态绑定：当 m_tree 触发 Item Activated 事件时，调用当前类的 OnItemActivated 函数
     m_tree->Bind(wxEVT_TREE_ITEM_ACTIVATED, &ProjectTreePanel::OnItemActivated, this);
 }
@@ -44,7 +45,24 @@ void ProjectTreePanel::AddWatchRecursive(const wxString& dir)
 }
 
 
+void ProjectTreePanel::InitTreeIcons() {
 
+    wxSize sz = wxSize(24, 24);
+    wxImageList* images = new wxImageList(sz.x, sz.y, true);
+
+    // 添加图标（可以从艺术资源、图标文件或位图加载）
+    // 这里的顺序要和上面的 enum 对应
+    auto GetIcon = [&](const wxString& path) {
+        wxBitmapBundle bundle = wxBitmapBundle::FromSVGFile(path, sz);
+        return bundle.GetBitmap(sz);
+        };
+
+    images->Add(wxArtProvider::GetBitmap(wxART_FOLDER, wxART_OTHER, wxSize(24, 24))); // Folder 0
+    images->Add(wxArtProvider::GetBitmap(wxART_NORMAL_FILE, wxART_OTHER, wxSize(24, 24))); // File 1
+    // 将图像列表交给树控件管理
+    m_tree->AssignImageList(images);
+    
+}
 
 
 
@@ -91,7 +109,7 @@ void ProjectTreePanel::RefreshTree()
 
     wxTreeItemId rootId = m_tree->AddRoot(
         wxFileName(m_projectRoot).GetFullName(),
-        -1, -1,
+        0, 0,
         new FileTreeItemData(m_projectRoot)
     );
 
@@ -118,7 +136,7 @@ void ProjectTreePanel::BuildTree(const wxString& path, wxTreeItemId parent)
             auto id = m_tree->AppendItem(
                 parent,
                 filename,
-                -1, -1,
+                0, 0,
                 new FileTreeItemData(full)
             );
             m_tree->SetItemHasChildren(id, true);
@@ -128,7 +146,7 @@ void ProjectTreePanel::BuildTree(const wxString& path, wxTreeItemId parent)
             m_tree->AppendItem(
                 parent,
                 filename,
-                -1, -1,
+                1, 1,
                 new FileTreeItemData(full)
             );
         }

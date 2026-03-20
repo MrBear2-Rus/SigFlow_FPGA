@@ -79,10 +79,10 @@ public:
 
     void OnUndoStackChanged();
     void OnOpenFileFromTree(wxCommandEvent& evt);
-
+    void SetProjectDir(const wxString& projectDir);
     /* File 菜单业务接口 */
     void DoFileOpenProject();
-    void DoFileNew();
+    bool DoFileNew();
     void DoFileOpen(const wxString& path = {});
     void DoFileSave();
     void DoFileSaveAs();

@@ -1,9 +1,10 @@
-#pragma once
+﻿#pragma once
 #include <wx/wx.h>
 #include <vector>
 #include <tuple>
 
 class CanvasPanel;
+class SignalNode;
 
 struct WireAnchor {
     size_t wireIdx;   
@@ -47,11 +48,11 @@ public:
     std::vector<ControlPoint> pts;
     Endpoint Left;
     Endpoint Right;
-
+    
     Wire() = default;
     explicit Wire(std::vector<ControlPoint> v) : pts(std::move(v)) {}
 
-
+    wxFont font = wxFont(5, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD);
     //显式声明拷贝/移动构造函数和赋值运算符
     Wire(const Wire&) = default;
     Wire(Wire&&) = default;
@@ -71,6 +72,9 @@ public:
     CanvasPanel* m_canvas;
     std::vector<Cell> cells;          // 每 2 px 小格中心
     void GenerateCells();                // 一次性切分
+
+    void SetSelf(SignalNode* s);
+    SignalNode* GetSelf() const { return self; }
     
     std::vector<wxColor> colors = { wxColour(0, 128, 0), wxColour(0, 255, 0), *wxBLUE };         // 颜色序列:导线0颜色，导线1颜色，导线分支点颜色, 自由点颜色
 
@@ -81,4 +85,8 @@ public:
     LogicSignal status;
     static std::vector<ControlPoint> Route(const ControlPoint& start, const ControlPoint& end);
     void SetStatus(LogicSignal s) { status = s; };
+
+private :
+    SignalNode* self = nullptr;  // 关联的信号节点指针
+    wxString identifier;
 };

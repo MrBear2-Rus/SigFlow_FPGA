@@ -63,12 +63,19 @@ struct Pin {
     wxString identifier;
 
     // 改进后的构造函数
-    Pin(Point p = Point(), bool input = true, Port* s = nullptr);
+    Pin(Point p, bool input);
+    Pin(Point p, bool input, Port* s);
+    Pin(Point p, bool input, SignalNode* s);
     void SetSelf(Port* s);
+    void SetSelf(SignalNode* s);
+    bool isOfTop() { return top_self != nullptr; };
+    Port* GetSelfPort() const { return self; };
+    SignalNode* GetSelfSignal() const { return top_self; }
     wxString GetIdentifier();
 
 private:
     Port* self;
+    SignalNode* top_self;
 };
 
 struct ArcShape {
@@ -136,8 +143,8 @@ public:
     void UpdateShapes(wxRect b, std::vector<Shape> sps) { m_bound = b; m_shapes = sps; };
     void SetEnd(wxPoint end);
 
-    void AddInputPin(const Point& p) { m_inPins.push_back(Pin(p, true, nullptr)); }
-    void AddOutputPin(const Point& p) { m_outPins.push_back(Pin(p, false, nullptr)); }
+    void AddInputPin(const Point& p) { m_inPins.push_back(Pin(p, true)); }
+    void AddOutputPin(const Point& p) { m_outPins.push_back(Pin(p, false)); }
     void AddInputPin(const Point& p, Port* port) { m_inPins.push_back(Pin(p, true, port)); }
     void AddOutputPin(const Point& p, Port* port) { m_outPins.push_back(Pin(p, false, port)); }
     const std::vector<Pin>& GetInputPins() const { return m_inPins; }
@@ -176,8 +183,8 @@ public:
     wxRect GetBounds() const;
     void UpdateShapes(wxRect b, std::vector<Shape> sps) { m_bound = b; m_shapes = sps; };
 
-    void AddInputPin(const Point& p) { m_inPins.push_back(Pin(p, true, nullptr)); }
-    void AddOutputPin(const Point& p) { m_outPins.push_back(Pin(p, false, nullptr)); }
+    void AddInputPin(const Point& p) { m_inPins.push_back(Pin(p, true)); }
+    void AddOutputPin(const Point& p) { m_outPins.push_back(Pin(p, false)); }
     void AddInputPin(const Point& p, Port* port) { m_inPins.push_back(Pin(p, true, port)); }
     void AddOutputPin(const Point& p, Port* port) { m_outPins.push_back(Pin(p, false, port)); }
     void AddInOutputPin(const Point& p, Port* port) { m_inoutPins.push_back(Pin(p, false, port)); }

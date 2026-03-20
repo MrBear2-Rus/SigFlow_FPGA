@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <wx/wx.h>
 #include <wx/statline.h>
 
@@ -29,7 +29,8 @@ public:
     // SecondNode / ContinuousAssign / Always 端口行（方向只读、名称只读、连接可编辑），返回连接文本框
     static wxSizer* CreateSecondPortRow(wxWindow* parent, const wxString& direction,
         const wxString& portName, const wxString& connValue,
-        wxTextCtrl** connCtrlOut = nullptr,
+        const wxArrayString& choices,
+        wxChoice** connCtrlOut = nullptr,
         wxButton** deleteBtnOut = nullptr);
 
     // AlwaysNode 表达式行（delay、输出端口名只读、操作符选择、RHS 可编辑），返回各控件指针
