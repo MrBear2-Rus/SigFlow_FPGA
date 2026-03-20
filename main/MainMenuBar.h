@@ -26,6 +26,8 @@ public:
     void AddDocToWindowList(const wxString& title);
     void SetCurrentDocInWindowList(const wxString& title);
 
+    void SetSimulationBusy(bool busy);
+
 private:
     MainFrame* m_owner;
     wxFileHistory m_fileHistory;

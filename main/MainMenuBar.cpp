@@ -541,6 +541,15 @@ void MainMenuBar::OnAbout(wxCommandEvent&)
     m_owner->DoHelpAbout();
 }
 
+void MainMenuBar::SetSimulationBusy(bool busy)
+{
+    // File=0, Edit=1, Project=2, Window=3, Simulate=4, Help=5
+    EnableTop(0, !busy);  // File
+    EnableTop(1, !busy);  // Edit
+    EnableTop(2, !busy);  // Project
+    EnableTop(4, !busy);  // Simulate
+}
+
 // 仿真相关事件处理
 void MainMenuBar::OnSimCompile(wxCommandEvent&) 
 { 

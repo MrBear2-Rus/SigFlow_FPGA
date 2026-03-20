@@ -1910,9 +1910,12 @@ void MainFrame::DoSimCompile()
     });
     
     // 6. 执行编译
+    auto* menuBar = static_cast<MainMenuBar*>(GetMenuBar());
+    menuBar->SetSimulationBusy(true);
     ShowBusyIndicator(wxT("正在编译仿真模型..."));
     SimulationCompileResult result = m_simEngine->Compile(topModule, verilogFiles);
     HideBusyIndicator(result.success ? wxT("编译完成") : wxT("编译失败"));
+    menuBar->SetSimulationBusy(false);
     
     // 7. 显示结果 - 使用字符串拼接避免 Printf 问题
     if (result.success) {
@@ -1973,6 +1976,8 @@ void MainFrame::DoSimRun()
     });
 
     // 6. 运行仿真（VCD 自动输出到 .sigflow/sim/<top>/waveform/wave.vcd）
+    auto* menuBar = static_cast<MainMenuBar*>(GetMenuBar());
+    menuBar->SetSimulationBusy(true);
     ShowBusyIndicator(wxT("正在运行仿真..."));
     SimulationRunResult result = m_simEngine->RunSimulation(wxEmptyString);
 
@@ -1992,6 +1997,7 @@ void MainFrame::DoSimRun()
     }
 
     HideBusyIndicator(wxT("就绪"));
+    menuBar->SetSimulationBusy(false);
 }
 
 void MainFrame::DoSimClean()
