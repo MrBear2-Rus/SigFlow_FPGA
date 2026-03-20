@@ -572,10 +572,13 @@ bool SimulationEngine::CompileToDll(const wxString& topModule, wxString& errorMs
         return false;
     }
     
-    // 同步等待编译完成（因为 CompileToDll 是同步接口）
-    // 如果需要异步，可以修改这里，但当前设计是同步等待
+    // 轮询等待编译完成，定期 yield 让 UI 保持响应（spinner 动画等）
     OutputDebugStringA("Waiting for compilation to complete...\n");
-    m_processRunner->WaitForCompletion(INFINITE);
+    while (m_processRunner->IsRunning()) {
+        if (m_processRunner->WaitForCompletion(200))
+            break;
+        wxYield();
+    }
     
     OutputDebugStringA(("Compile returned: " + std::to_string(m_processRunner->GetExitCode()) + "\n").c_str());
     
@@ -874,7 +877,11 @@ bool SimulationEngine::CompileSimRunner(const wxString& topModule, const wxStrin
         return false;
     }
 
-    runner->WaitForCompletion(INFINITE);
+    while (runner->IsRunning()) {
+        if (runner->WaitForCompletion(200))
+            break;
+        wxYield();
+    }
 
     if (!simCompileSuccess) {
         errorMsg = wxString::Format(wxT("sim_runner.exe 编译失败 (错误码: %d)"), runner->GetExitCode());
@@ -933,7 +940,20 @@ bool SimulationEngine::ExecuteSimRunner(const wxString& topModule, wxString& err
         return false;
     }
 
-    runner->WaitForCompletion(60000); // 最多等 60 秒
+    {
+        int elapsed = 0;
+        while (runner->IsRunning()) {
+            if (runner->WaitForCompletion(200))
+                break;
+            wxYield();
+            elapsed += 200;
+            if (elapsed >= 60000) {
+                runner->Terminate();
+                errorMsg = wxT("仿真运行超时（60秒）");
+                return false;
+            }
+        }
+    }
 
     if (!runSuccess) {
         errorMsg = wxString::Format(wxT("仿真运行失败 (错误码: %d)"), runner->GetExitCode());

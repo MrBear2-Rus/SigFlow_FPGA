@@ -100,6 +100,13 @@ MainFrame::MainFrame()
     GetStatusBar()->SetFieldsCount(4, widths);
     GetStatusBar()->SetStatusStyles(4, style);
 
+    m_busyIndicator = new wxActivityIndicator(GetStatusBar(), wxID_ANY);
+    m_busyIndicator->Hide();
+    GetStatusBar()->Bind(wxEVT_SIZE, [this](wxSizeEvent& evt) {
+        evt.Skip();
+        LayoutBusyIndicator();
+    });
+
 
     // 画布
     m_canvas = new CanvasNoteBook(this, sigTree, wxID_ANY, FromDIP(1123), FromDIP(794));
@@ -1755,6 +1762,43 @@ bool MainFrame::LoadProjectConfig(const wxString& projectPath,
     return !outTopModule.IsEmpty() && !outSourceFiles.empty();
 }
 
+// ==================== 忙碌指示器 ====================
+
+void MainFrame::LayoutBusyIndicator()
+{
+    if (!m_busyIndicator || !GetStatusBar()) return;
+    wxRect rect;
+    GetStatusBar()->GetFieldRect(0, rect);
+    int h = rect.height - 4;
+    m_busyIndicator->SetSize(rect.x + 4, rect.y + 2, h, h);
+}
+
+void MainFrame::ShowBusyIndicator(const wxString& text)
+{
+    if (!m_busyIndicator) return;
+    LayoutBusyIndicator();
+    m_busyIndicator->Start();
+    m_busyIndicator->Show();
+    if (!text.IsEmpty()) {
+        int indicatorWidth = m_busyIndicator->GetSize().GetWidth() + 8;
+        int spaceWidth = GetStatusBar()->GetTextExtent(" ").GetWidth();
+        int numSpaces = (spaceWidth > 0) ? (indicatorWidth / spaceWidth + 1) : 6;
+        SetStatusText(wxString(' ', numSpaces) + text, 0);
+    }
+    GetStatusBar()->Update();
+    wxYield();
+}
+
+void MainFrame::HideBusyIndicator(const wxString& text)
+{
+    if (!m_busyIndicator) return;
+    m_busyIndicator->Stop();
+    m_busyIndicator->Hide();
+    SetStatusText(text, 0);
+}
+
+// ==================== 仿真 ====================
+
 void MainFrame::DoSimCompile()
 {
     OutputDebugStringA("=== DoSimCompile ENTER ===\n");
@@ -1866,9 +1910,9 @@ void MainFrame::DoSimCompile()
     });
     
     // 6. 执行编译
-    SetStatusText(wxT("正在编译仿真模型..."), 0);
+    ShowBusyIndicator(wxT("正在编译仿真模型..."));
     SimulationCompileResult result = m_simEngine->Compile(topModule, verilogFiles);
-    SetStatusText(result.success ? wxT("编译完成") : wxT("编译失败"), 0);
+    HideBusyIndicator(result.success ? wxT("编译完成") : wxT("编译失败"));
     
     // 7. 显示结果 - 使用字符串拼接避免 Printf 问题
     if (result.success) {
@@ -1929,7 +1973,7 @@ void MainFrame::DoSimRun()
     });
 
     // 6. 运行仿真（VCD 自动输出到 .sigflow/sim/<top>/waveform/wave.vcd）
-    SetStatusText(wxT("正在运行仿真..."), 0);
+    ShowBusyIndicator(wxT("正在运行仿真..."));
     SimulationRunResult result = m_simEngine->RunSimulation(wxEmptyString);
 
     if (result.success) {
@@ -1947,7 +1991,7 @@ void MainFrame::DoSimRun()
         wxMessageBox(msg, wxT("仿真错误"), wxOK | wxICON_ERROR);
     }
 
-    SetStatusText(wxT("就绪"), 0);
+    HideBusyIndicator(wxT("就绪"));
 }
 
 void MainFrame::DoSimClean()
