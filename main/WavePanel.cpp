@@ -1,4 +1,4 @@
-#include "WavePanel.h"
+﻿#include "WavePanel.h"
 
 WaveformPanel::WaveformPanel(wxWindow* parent)
     : wxPanel(parent), m_vcdData(nullptr), m_currentTimestamp(0),
@@ -189,6 +189,11 @@ WavePanel::WavePanel(wxWindow* parent) : wxPanel(parent, wxID_ANY)
 
     m_timer = new wxTimer(this);
     Bind(wxEVT_TIMER, &WavePanel::OnTimer, this);
+}
+
+void WavePanel::OpenVcd() {
+    wxCommandEvent evt;
+    OnOpenVcd(evt);
 }
 
 void WavePanel::OnOpenVcd(wxCommandEvent&) {

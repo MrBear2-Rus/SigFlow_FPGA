@@ -122,6 +122,7 @@ struct Port {
     Port(std::string id, PortDirection dir, std::string conn) : identifier(id), direction(dir), conn(conn) {};
     Port(std::string id, PortDirection dir, SignalNode* conn);
     void SetSignalTo(SignalNode* sn);
+    void RemoveSignal();
     std::string GetConnectionName() { return conn; };
 };
 

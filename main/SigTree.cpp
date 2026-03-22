@@ -901,9 +901,7 @@ Port::Port(std::string id, PortDirection dir, SignalNode* conn) : identifier(id)
 };
 
 void Port::SetSignalTo(SignalNode* sn) { signal = sn; conn = sn->identifier; };
-// 删除所有与 nb_or_b_expressions 相关的旧方法
-// DelExpressionsPort, AddExpressionsPort, AddEmptyExpression, DelLastExpression 已移除
-
+void Port::RemoveSignal() { signal = nullptr; conn = ""; };
 std::string AlwaysNode::GetName() {
     return SigFlowTree::ToString(secondType) + " " + identifier;
 }
@@ -1023,18 +1021,22 @@ void TopNode::SetSecondPortConn(SecondNode* sn, std::string pId, std::string con
         for (auto s : in_ports) {
             if (conn == s->identifier) {
                 p.SetSignalTo(s);
+                return;
             }
         }
         for (auto s : out_ports) {
             if (p.conn == s->identifier) {
                 p.SetSignalTo(s);
+                return;
             }
         }
         for (auto s : signals) {
             if (p.conn == s->identifier) {
                 p.SetSignalTo(s);
+                return;
             }
         }
+        p.RemoveSignal();
         };
 
 
@@ -1437,32 +1439,12 @@ void SigFlowTree::PortReName(SecondNode* sn, wxString old_id, wxString new_id) {
 
 void SigFlowTree::PortConn(SecondNode* sn, wxString id, wxString conn) {
     if (!sn) return;
-
-    bool found = false;
-
-    for (auto& p : sn->in_ports) {
-        if (p.identifier == id) {
-            p.conn = conn;
-            found = true;
-            break;
-        }
-    }
-
-    if (!found) {
-        for (auto& p : sn->out_ports) {
-            if (p.identifier == id) {
-                p.conn = conn;
-                found = true;
-                break;
-            }
-        }
-    }
-
-    if (found) {
-        wxCommandEvent* evt = new wxCommandEvent(EVT_SIGFLOWNODE_CHANGED);
-        evt->SetClientData(sn);
-        m_parent->GetEventHandler()->QueueEvent(evt);
-    }
+    TopNode* tn = static_cast<TopNode*>(sn->GetParent());
+    tn->SetSecondPortConn(sn, id.ToStdString(), conn.ToStdString());
+    wxCommandEvent* evt = new wxCommandEvent(EVT_SIGFLOWNODE_CHANGED);
+    evt->SetClientData(sn);
+    m_parent->GetEventHandler()->QueueEvent(evt);
+    
 }
 
 void SigFlowTree::ReIdentifier(TopNode* tn, wxString id) {

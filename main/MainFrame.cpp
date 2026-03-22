@@ -1492,6 +1492,10 @@ void MainFrame::DoSimSetTickFreq(int hz)
 }
 void MainFrame::DoSimLogging() { wxMessageBox("Logging dialog"); }
 
+void MainFrame::OnSimWaveLoad() {
+    m_wavePanel->OpenVcd();
+};
+
 void MainFrame::DoWindowCombinationalAnalysis()
 {
     wxMessageBox("Window->Combinational Analysis");
