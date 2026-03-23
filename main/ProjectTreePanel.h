@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <wx/wx.h>
 #include <wx/treectrl.h>
 #include <wx/fswatcher.h>
@@ -28,6 +28,8 @@ private:
 
     void OnFileSystemChanged(wxFileSystemWatcherEvent& evt);
     void AddWatchRecursive(const wxString& dir);
+
+    void InitTreeIcons();
 };
 
 class FileTreeItemData : public wxTreeItemData

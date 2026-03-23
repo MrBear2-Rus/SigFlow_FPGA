@@ -34,6 +34,8 @@ public:
     void OnDelete(wxCommandEvent& e);
     void OnAddMenu(wxCommandEvent& e);
 
+    void InitTreeIcons();
+
     TopNode* ShowCreateTopDialog(TopNodeType type, SigTreeNode* parent);
     SignalNode* ShowCreateSignalDialog(SignalType type, SigTreeNode* parent);
     SecondNode* ShowCreateSecondDialog(SecondNodeType type, SigTreeNode* parent);

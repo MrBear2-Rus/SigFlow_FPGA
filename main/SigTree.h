@@ -106,8 +106,9 @@ struct Port {
     std::string identifier;
     PortDirection direction;
     std::string conn;
+    SignalNode* signal = nullptr; 
 
-    std::string portDirectionToStr(PortDirection direction) {
+    static std::string portDirectionToStr(PortDirection direction) {
         switch (direction) {
         case PortDirection::In:    return "input";
         case PortDirection::Out:   return "output";
@@ -119,6 +120,9 @@ struct Port {
     Port() = default;
     Port(std::string id, PortDirection dir) : identifier(id), direction(dir) {};
     Port(std::string id, PortDirection dir, std::string conn) : identifier(id), direction(dir), conn(conn) {};
+    Port(std::string id, PortDirection dir, SignalNode* conn);
+    void SetSignalTo(SignalNode* sn);
+    std::string GetConnectionName() { return conn; };
 };
 
 
@@ -245,13 +249,18 @@ public:
         : SigTreeNode(SigTreeNodeType::Top), topType(toptype), identifier(id) {
     };
 
-    std::vector<Port> in_ports;
-    std::vector<Port> out_ports;
+    std::vector<SignalNode*> in_ports;
+    std::vector<SignalNode*> out_ports;
+    std::vector<SignalNode*> signals;
 
-    std::vector<Port>& GetInPorts() { return in_ports; };
-    std::vector<Port>& GetOutPorts() { return out_ports; };
-    void UpdateInPorts(std::vector<Port> ps) { in_ports = ps; };
-    void UpdateOutPorts(std::vector<Port> ps) { out_ports = ps; };
+    void AddSignal(SignalNode* sn);
+
+    std::vector<SignalNode*>& GetInPorts() { return in_ports; };
+    std::vector<SignalNode*>& GetOutPorts() { return out_ports; };
+    void UpdateInPorts(std::vector<SignalNode*> ps) { in_ports = ps; };
+    void UpdateOutPorts(std::vector<SignalNode*> ps) { out_ports = ps; };
+    void AddSecondPort(SecondNode* sn, Port p);
+    void SetSecondPortConn(SecondNode* sn, std::string pId, std::string conn);
 
     void Print() override;
     std::string ToVerilog() override;
@@ -271,28 +280,31 @@ public:
 };
 
 // ====================  SignalNode  ====================
-class SignalNode : public SigTreeNode {
+class SignalNode : public SigTreeNode{
 public:
     std::string identifier;
     SignalType signalType;
+    PortDirection direction;
 
+    SignalNode() : SigTreeNode(SigTreeNodeType::Signal) {};
+    SignalNode(std::string id, SignalType signalType, PortDirection pd)
+        : SigTreeNode(SigTreeNodeType::Signal), identifier(id), signalType(signalType), direction(pd){
+    }
     SignalNode(std::string id, SignalType signalType)
         : SigTreeNode(SigTreeNodeType::Signal), identifier(id), signalType(signalType) {
-    };
-
-    void Print() override;
-    std::string ToVerilog() override;
-    std::string GetName() override;
-
-    virtual SigTreeNode* Clone(Arena& arena) const override {
-        auto* copy = arena.make<SignalNode>(*this);
-        copy->DetachFromParent();
-        copy->RemoveChildren();
-        return copy;
     }
+    TopNode* parent = nullptr;
 
-    virtual bool CanBeChild(SigTreeNodeType childType) const override { return false; }
-    virtual bool CanBeParent(SigTreeNodeType parentType) const override { return parentType == SigTreeNodeType::Top; }
+    SignalNode* Clone(Arena& arena) const {
+        auto* copy = arena.make<SignalNode>(*this);
+         return copy;
+    }
+    TopNode* GetParent() {
+        return parent;
+    }
+    void Print();
+    std::string ToVerilog();
+    std::string GetName();
 };
 
 // ====================  SecondNode 基类  ====================
@@ -440,7 +452,6 @@ public:
 
     std::map<std::string, TopNode*> DefinitionTable;
     std::map<std::string, ModuleInstNode*> InstanceTable;
-    std::map<std::string, SignalNode*> SignalTable;
 
     SigFlowTree(MainFrame* parent);
     void LoadProject(std::string projectPath);
@@ -451,6 +462,9 @@ public:
     // 子树管理
     void RemoveChild(SigTreeNode* parent, SigTreeNode* child);
     SigTreeNode* AddChild(SigTreeNode* parent, SigTreeNode* externalNode);
+    SignalNode* AddSignal(TopNode* parent, SignalNode* sn);
+    void RemoveSignal(TopNode* parent, SignalNode* sn);
+    SignalNode* AddNewWire(TopNode* parent);
     SigTreeNode* CloneSubtreeToArena(SigTreeNode* externalNode);
     void AddInPort(SecondNode* sn);
     void AddOutPort(SecondNode* sn);

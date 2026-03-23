@@ -1,4 +1,4 @@
-#include "ProjectStartWindow.h"
+﻿#include "ProjectStartWindow.h"
 #include "MainFrame.h"
 #include <wx/filedlg.h>
 #include <wx/msgdlg.h>
@@ -37,6 +37,10 @@ ProjectStartWindow::ProjectStartWindow(wxWindow* parent, wxWindowID id, const wx
 
     // 窗口居中
     Centre(wxBOTH);
+    wxInitAllImageHandlers();
+    wxBitmapBundle svgIcon = wxBitmapBundle::FromSVGFile("res\\svg_icons\\icon.svg", wxSize(24, 24));
+    wxIcon icon = svgIcon.GetIconFor(this);
+    SetIcon(icon);
 }
 
 // 析构函数
@@ -55,7 +59,7 @@ void ProjectStartWindow::InitUI()
     // 左侧区域：最近项目列表
     wxBoxSizer* leftSizer = new wxBoxSizer(wxVERTICAL);
     wxStaticText* titleText = new wxStaticText(this, wxID_ANY,
-        "Recently Opened Projects", wxDefaultPosition, wxDefaultSize, wxALIGN_CENTER);
+        "Start", wxDefaultPosition, wxDefaultSize, wxALIGN_CENTER);
     titleText->SetFont(wxFont(14, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD));
     leftSizer->Add(titleText, 0, wxALL | wxEXPAND, 10);
 
@@ -63,7 +67,7 @@ void ProjectStartWindow::InitUI()
     m_recentProjectsList = new wxListCtrl(this, ID_LIST_RECENT_PROJECTS,
         wxDefaultPosition, wxSize(-1, 400),
         wxLC_REPORT | wxLC_SINGLE_SEL | wxLC_HRULES | wxLC_VRULES);
-    m_recentProjectsList->InsertColumn(0, "Project Path", wxLIST_FORMAT_LEFT, 500);
+    m_recentProjectsList->InsertColumn(0, "Project Path: ", wxLIST_FORMAT_LEFT, 500);
     leftSizer->Add(m_recentProjectsList, 1, wxALL | wxEXPAND, 10);
     mainSizer->Add(leftSizer, 4, wxEXPAND | wxALL, 10);
 

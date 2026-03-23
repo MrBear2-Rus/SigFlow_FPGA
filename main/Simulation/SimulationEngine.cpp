@@ -1,5 +1,8 @@
 #include "SimulationEngine.h"
 #include "ProcessRunner.h"
+#include "StimulusParser.h"
+#include "TimelineGenerator.h"
+#include "SimMainGenerator.h"
 #include <wx/process.h>
 #include <wx/txtstrm.h>
 #include <wx/stdpaths.h>
@@ -7,7 +10,7 @@
 #include <wx/dir.h>
 #include <filesystem>
 #include <fstream>
-#include <windows.h>  // For Windows API
+#include <windows.h>
 #include <wx/timer.h>
 
 namespace fs = std::filesystem;
@@ -139,31 +142,38 @@ wxString SimulationEngine::FindVerilatorPath() const
 
 wxString SimulationEngine::FindVCVarsPath() const
 {
-    // Visual Studio 2022 常见路径
-    const char* vcvarsPaths[] = {
-        "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat",
-        "C:\\Program Files\\Microsoft Visual Studio\\2022\\Professional\\VC\\Auxiliary\\Build\\vcvars64.bat",
-        "C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Auxiliary\\Build\\vcvars64.bat",
-        "C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\VC\\Auxiliary\\Build\\vcvars64.bat",
+    // 按版本从新到旧搜索，支持 VS2026/2025/2022/2019
+    const char* vsVersions[] = { "2026", "2025", "2022", "2019" };
+    const char* editions[] = { "Community", "Professional", "Enterprise", "BuildTools" };
+    const char* programDirs[] = {
+        "C:\\Program Files\\Microsoft Visual Studio",
+        "C:\\Program Files (x86)\\Microsoft Visual Studio"
     };
 
-    for (const auto& path : vcvarsPaths) {
-        if (wxFileExists(path)) {
-            return path;
+    for (const auto& ver : vsVersions) {
+        for (const auto& progDir : programDirs) {
+            for (const auto& edition : editions) {
+                wxString path = wxString::Format("%s\\%s\\%s\\VC\\Auxiliary\\Build\\vcvars64.bat",
+                                                 progDir, ver, edition);
+                if (wxFileExists(path)) {
+                    OutputDebugStringA(("Found vcvars: " + path.ToStdString() + "\n").c_str());
+                    return path;
+                }
+            }
         }
     }
 
-    // Visual Studio 2019 路径
-    const char* vcvarsPaths2019[] = {
-        "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Community\\VC\\Auxiliary\\Build\\vcvars64.bat",
-        "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Professional\\VC\\Auxiliary\\Build\\vcvars64.bat",
-        "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Enterprise\\VC\\Auxiliary\\Build\\vcvars64.bat",
-        "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\BuildTools\\VC\\Auxiliary\\Build\\vcvars64.bat",
-    };
-
-    for (const auto& path : vcvarsPaths2019) {
-        if (wxFileExists(path)) {
-            return path;
+    // 最后尝试 vswhere.exe 自动定位（VS 2017+ 附带）
+    wxString vswhere = "C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\vswhere.exe";
+    if (wxFileExists(vswhere)) {
+        wxString cmd = "\"" + vswhere + "\" -latest -property installationPath";
+        wxArrayString outputArr;
+        if (wxExecute(cmd, outputArr, wxEXEC_SYNC | wxEXEC_HIDE_CONSOLE) == 0 && !outputArr.IsEmpty()) {
+            wxString installPath = outputArr[0].Trim();
+            wxString vcvars = installPath + "\\VC\\Auxiliary\\Build\\vcvars64.bat";
+            if (wxFileExists(vcvars)) {
+                return vcvars;
+            }
         }
     }
 
@@ -437,7 +447,7 @@ bool SimulationEngine::CompileToDll(const wxString& topModule, wxString& errorMs
     wxString vcvarsPath = FindVCVarsPath();
     if (vcvarsPath.IsEmpty()) {
         OutputDebugStringA("ERROR: Visual Studio not found\n");
-        errorMsg = wxT("找不到 Visual Studio，请安装 VS 2022");
+        errorMsg = wxT("找不到 Visual Studio，请安装 VS 2022 或更高版本");
         return false;
     }
     OutputDebugStringA("Found vcvars: ");
@@ -562,10 +572,13 @@ bool SimulationEngine::CompileToDll(const wxString& topModule, wxString& errorMs
         return false;
     }
     
-    // 同步等待编译完成（因为 CompileToDll 是同步接口）
-    // 如果需要异步，可以修改这里，但当前设计是同步等待
+    // 轮询等待编译完成，定期 yield 让 UI 保持响应（spinner 动画等）
     OutputDebugStringA("Waiting for compilation to complete...\n");
-    m_processRunner->WaitForCompletion(INFINITE);
+    while (m_processRunner->IsRunning()) {
+        if (m_processRunner->WaitForCompletion(200))
+            break;
+        wxYield();
+    }
     
     OutputDebugStringA(("Compile returned: " + std::to_string(m_processRunner->GetExitCode()) + "\n").c_str());
     
@@ -616,17 +629,343 @@ bool SimulationEngine::CleanCache(const wxString& topModule)
 SimulationRunResult SimulationEngine::RunSimulation(const wxString& outputVcdPath)
 {
     SimulationRunResult result;
-    
-    if (!m_lastResult.success || m_lastResult.dllPath.IsEmpty()) {
-        result.errorMessage = "没有可用的编译结果，请先编译";
+
+    OutputDebugStringA("=== RunSimulation Start ===\n");
+
+    // 1. 检查是否有可用的 DLL（支持跨会话：直接检查文件系统）
+    wxString topModule = m_currentTopModule;
+    if (topModule.IsEmpty()) {
+        result.errorMessage = wxT("未指定顶层模块名，请先编译");
         return result;
     }
 
-    // TODO: 实现DLL加载和仿真运行
-    // 这里需要实现DLL的动态加载和波形生成
-    
-    result.errorMessage = "仿真运行功能尚未实现";
+    wxString cacheDir = GetCacheDirectory(topModule);
+    wxFileName cacheDirFn(cacheDir);
+    cacheDirFn.MakeAbsolute();
+    cacheDir = cacheDirFn.GetFullPath();
+
+    wxString dllPath = cacheDir + "\\" + topModule + ".dll";
+    if (!wxFileExists(dllPath)) {
+        result.errorMessage = wxT("没有可用的编译结果，请先编译\n找不到: ") + dllPath;
+        return result;
+    }
+
+    OutputDebugStringA(("DLL found: " + dllPath.ToStdString() + "\n").c_str());
+    ReportProgress(10, wxT("找到编译结果，准备仿真..."));
+
+    // 2. 模糊匹配 Testbench 文件
+    wxString testbenchPath = FindTestbenchFile(m_projectRoot);
+    if (testbenchPath.IsEmpty()) {
+        result.errorMessage = wxT("找不到 Testbench 文件\n")
+            wxT("请在项目 src 目录下创建名为 test_bench.v / testbench.v / tb_*.v 等文件");
+        return result;
+    }
+    OutputDebugStringA(("Testbench found: " + testbenchPath.ToStdString() + "\n").c_str());
+    ReportProgress(20, wxString::Format(wxT("找到 Testbench: %s"), testbenchPath));
+
+    // 3. 生成 sim_main.cpp 并编译为 sim_runner.exe
+    wxString compileError;
+    if (!CompileSimRunner(topModule, testbenchPath, compileError)) {
+        result.errorMessage = wxT("仿真编译失败: ") + compileError;
+        return result;
+    }
+    ReportProgress(70, wxT("sim_runner.exe 编译完成"));
+
+    // 4. 运行 sim_runner.exe 生成 VCD
+    wxString runError;
+    if (!ExecuteSimRunner(topModule, runError)) {
+        result.errorMessage = wxT("仿真运行失败: ") + runError;
+        return result;
+    }
+
+    // 5. 检查 VCD 输出
+    wxString vcdPath = cacheDir + "\\waveform\\wave.vcd";
+    if (!wxFileExists(vcdPath)) {
+        result.errorMessage = wxT("仿真完成但未生成波形文件");
+        return result;
+    }
+
+    // 如果用户指定了输出路径，复制 VCD 过去
+    if (!outputVcdPath.IsEmpty() && outputVcdPath != vcdPath) {
+        wxCopyFile(vcdPath, outputVcdPath);
+        result.vcdPath = outputVcdPath;
+    } else {
+        result.vcdPath = vcdPath;
+    }
+
+    result.success = true;
+    ReportProgress(100, wxT("仿真完成!"));
+    OutputDebugStringA("=== RunSimulation Success ===\n");
     return result;
+}
+
+wxString SimulationEngine::FindTestbenchFile(const wxString& projectRoot) const
+{
+    wxString srcDir = projectRoot + "\\src";
+    if (!wxDir::Exists(srcDir)) {
+        OutputDebugStringA("src directory not found\n");
+        return wxEmptyString;
+    }
+
+    wxDir dir;
+    if (!dir.Open(srcDir)) return wxEmptyString;
+
+    // 模糊匹配模式（不区分大小写）
+    // 优先级从高到低
+    const std::vector<std::string> patterns = {
+        "test_bench", "testbench", "Test_Bench", "TestBench",
+        "tb_", "TB_", "Tb_",
+        "_tb.", "_TB.",
+        "stimulus", "Stimulus"
+    };
+
+    wxString filename;
+    std::vector<wxString> candidates;
+
+    bool hasFile = dir.GetFirst(&filename, "*.v", wxDIR_FILES);
+    while (hasFile) {
+        candidates.push_back(filename);
+        hasFile = dir.GetNext(&filename);
+    }
+    // 也搜索 .sv 文件
+    hasFile = dir.GetFirst(&filename, "*.sv", wxDIR_FILES);
+    while (hasFile) {
+        candidates.push_back(filename);
+        hasFile = dir.GetNext(&filename);
+    }
+
+    // 按优先级匹配
+    for (const auto& pattern : patterns) {
+        for (const auto& candidate : candidates) {
+            wxString lower = candidate.Lower();
+            if (lower.Contains(wxString(pattern).Lower())) {
+                return srcDir + "\\" + candidate;
+            }
+        }
+    }
+
+    OutputDebugStringA("No testbench file found by fuzzy matching\n");
+    return wxEmptyString;
+}
+
+bool SimulationEngine::CompileSimRunner(const wxString& topModule, const wxString& testbenchPath,
+                                        wxString& errorMsg)
+{
+    OutputDebugStringA("=== CompileSimRunner Start ===\n");
+    ReportProgress(30, wxT("解析 Testbench..."));
+
+    wxString cacheDir = GetCacheDirectory(topModule);
+    wxFileName cacheDirFn(cacheDir);
+    cacheDirFn.MakeAbsolute();
+    cacheDir = cacheDirFn.GetFullPath();
+
+    wxString objDir = GetObjDirPath(topModule);
+    wxFileName objDirFn(objDir);
+    objDirFn.MakeAbsolute();
+    objDir = objDirFn.GetFullPath();
+
+    // 1. 解析 Testbench
+    StimulusParser parser;
+    TestbenchInfo tbInfo;
+    if (!parser.Parse(testbenchPath, tbInfo)) {
+        errorMsg = wxT("Testbench 解析失败: ") + parser.GetLastError();
+        return false;
+    }
+
+    OutputDebugStringA(("Parsed testbench: module=" + tbInfo.moduleName
+        + " top=" + tbInfo.topModuleName + "\n").c_str());
+
+    // 2. 生成时间线
+    ReportProgress(40, wxT("生成仿真时间线..."));
+    TimelineGenerator tlGen;
+    Timeline timeline = tlGen.Generate(tbInfo, topModule);
+
+    OutputDebugStringA(("Timeline: events=" + std::to_string(timeline.events.size())
+        + " maxTime=" + std::to_string(timeline.maxSimTime) + "\n").c_str());
+
+    // 3. 生成 sim_main.cpp
+    ReportProgress(45, wxT("生成 sim_main.cpp..."));
+    wxString simMainPath = cacheDir + "\\sim_main.cpp";
+    SimMainGenerator mainGen;
+    if (!mainGen.Generate(timeline, simMainPath)) {
+        errorMsg = wxT("sim_main.cpp 生成失败: ") + mainGen.GetLastError();
+        return false;
+    }
+
+    OutputDebugStringA(("sim_main.cpp generated at: " + simMainPath.ToStdString() + "\n").c_str());
+
+    // 4. 创建 waveform 目录
+    wxString waveDir = cacheDir + "\\waveform";
+    CreateDirectoryRecursive(waveDir);
+
+    // 5. 编译 sim_runner.exe
+    ReportProgress(50, wxT("编译 sim_runner.exe..."));
+    wxString vcvarsPath = FindVCVarsPath();
+    if (vcvarsPath.IsEmpty()) {
+        errorMsg = wxT("找不到 Visual Studio，请安装 VS 2022 或更高版本");
+        return false;
+    }
+
+    wxString exePath = cacheDir + "\\sim_runner.exe";
+    wxString batchPath = cacheDir + "\\compile_sim.bat";
+
+    // 确保项目根目录是绝对路径
+    wxFileName projectRootFn(m_projectRoot);
+    projectRootFn.MakeAbsolute();
+    wxString projectRoot = projectRootFn.GetFullPath();
+
+    {
+        wxFile batchFile(batchPath, wxFile::write);
+        if (!batchFile.IsOpened()) {
+            errorMsg = wxT("无法创建编译脚本");
+            return false;
+        }
+
+        wxString batchContent;
+        batchContent += "@echo off\n";
+        batchContent += "chcp 65001 >nul\n";
+        batchContent += "call \"" + vcvarsPath + "\"\n";
+        batchContent += "if %errorLevel% neq 0 exit /b %errorLevel%\n";
+        batchContent += "cl /O2 /MD /EHsc /W3 /std:c++20 ";
+        batchContent += "/Fe\"" + exePath + "\" ";
+        batchContent += "/Fo" + objDir + "\\ ";
+        batchContent += "\"" + simMainPath + "\" ";
+        batchContent += "\"" + objDir + "\\*.cpp\" ";
+        batchContent += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated.cpp\" ";
+        batchContent += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated_vcd_c.cpp\" ";
+        batchContent += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated_threads.cpp\" ";
+        batchContent += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated_timing.cpp\" ";
+
+        // sc_time_stub
+        wxString stubPath = GetSoftwareDirectory() + "\\main\\Simulation\\sc_time_stub.cpp";
+        if (!wxFileExists(stubPath)) {
+            stubPath = cacheDir + "\\sc_time_stub.cpp";
+            CreateScTimeStub(stubPath);
+        }
+        batchContent += "\"" + stubPath + "\" ";
+
+        batchContent += "/I\"C:\\msys64\\mingw64\\share\\verilator\\include\" ";
+        batchContent += "/I\"C:\\msys64\\mingw64\\share\\verilator\\include\\vltstd\" ";
+        batchContent += "/I\"" + objDir + "\" ";
+        batchContent += "/link /MACHINE:X64 ws2_32.lib\n";
+        batchContent += "exit /b %errorLevel%\n";
+
+        batchFile.Write(batchContent);
+        batchFile.Close();
+    }
+
+    // 使用 ProcessRunner 执行编译
+    auto runner = std::make_unique<ProcessRunner>();
+    wxString simCompileLog;
+    bool simCompileSuccess = false;
+
+    runner->SetOutputCallback([&simCompileLog, this](const wxString& output, bool isError) {
+        simCompileLog += output;
+        if (m_outputCallback) {
+            m_outputCallback(output, isError);
+        }
+        OutputDebugStringA(isError ? "[SIM-ERR] " : "[SIM-OUT] ");
+        OutputDebugStringA(output.ToUTF8());
+    });
+
+    runner->SetCompletionCallback([&simCompileSuccess, &exePath](int exitCode) {
+        simCompileSuccess = (exitCode == 0 && wxFileExists(exePath));
+    });
+
+    if (!runner->RunBatchFile(batchPath, projectRoot)) {
+        errorMsg = wxT("启动仿真编译进程失败");
+        return false;
+    }
+
+    while (runner->IsRunning()) {
+        if (runner->WaitForCompletion(200))
+            break;
+        wxYield();
+    }
+
+    if (!simCompileSuccess) {
+        errorMsg = wxString::Format(wxT("sim_runner.exe 编译失败 (错误码: %d)"), runner->GetExitCode());
+        if (!simCompileLog.IsEmpty()) {
+            errorMsg += wxT("\n\n编译日志:\n") + simCompileLog.Left(2000);
+        }
+        return false;
+    }
+
+    // 清理批处理文件
+    wxRemoveFile(batchPath);
+
+    OutputDebugStringA("=== CompileSimRunner Success ===\n");
+    return true;
+}
+
+bool SimulationEngine::ExecuteSimRunner(const wxString& topModule, wxString& errorMsg)
+{
+    OutputDebugStringA("=== ExecuteSimRunner Start ===\n");
+    ReportProgress(80, wxT("运行仿真..."));
+
+    wxString cacheDir = GetCacheDirectory(topModule);
+    wxFileName cacheDirFn(cacheDir);
+    cacheDirFn.MakeAbsolute();
+    cacheDir = cacheDirFn.GetFullPath();
+
+    wxString exePath = cacheDir + "\\sim_runner.exe";
+    if (!wxFileExists(exePath)) {
+        errorMsg = wxT("找不到 sim_runner.exe");
+        return false;
+    }
+
+    // 确保 waveform 目录存在
+    wxString waveDir = cacheDir + "\\waveform";
+    CreateDirectoryRecursive(waveDir);
+
+    // 运行 sim_runner.exe（工作目录设为 cacheDir，因为 VCD 路径是相对的）
+    auto runner = std::make_unique<ProcessRunner>();
+    wxString runLog;
+    bool runSuccess = false;
+
+    runner->SetOutputCallback([&runLog, this](const wxString& output, bool isError) {
+        runLog += output;
+        if (m_outputCallback) {
+            m_outputCallback(output, isError);
+        }
+    });
+
+    runner->SetCompletionCallback([&runSuccess](int exitCode) {
+        runSuccess = (exitCode == 0);
+    });
+
+    wxString cmd = "\"" + exePath + "\"";
+    if (!runner->RunAsync(cmd, cacheDir)) {
+        errorMsg = wxT("启动 sim_runner.exe 失败");
+        return false;
+    }
+
+    {
+        int elapsed = 0;
+        while (runner->IsRunning()) {
+            if (runner->WaitForCompletion(200))
+                break;
+            wxYield();
+            elapsed += 200;
+            if (elapsed >= 60000) {
+                runner->Terminate();
+                errorMsg = wxT("仿真运行超时（60秒）");
+                return false;
+            }
+        }
+    }
+
+    if (!runSuccess) {
+        errorMsg = wxString::Format(wxT("仿真运行失败 (错误码: %d)"), runner->GetExitCode());
+        if (!runLog.IsEmpty()) {
+            errorMsg += wxT("\n\n运行日志:\n") + runLog.Left(2000);
+        }
+        return false;
+    }
+
+    OutputDebugStringA("=== ExecuteSimRunner Success ===\n");
+    ReportProgress(95, wxT("波形文件生成完成"));
+    return true;
 }
 
 bool SimulationEngine::IsCompiling() const

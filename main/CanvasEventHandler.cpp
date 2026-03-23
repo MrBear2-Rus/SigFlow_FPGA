@@ -155,7 +155,7 @@ void CanvasEventHandler::OnCanvasLeftDown(wxMouseEvent& evt) {
         CPType type = CPType::Free;
         if (m_hoverInfo.IsOverPin()) type = CPType::Pin;
         else if (m_hoverInfo.IsOverCell()) type = CPType::Branch;
-        StartWireDrawingDown(m_hoverInfo.snappedPos, CPType::Pin, -1);
+        StartWireDrawingDown(m_hoverInfo.snappedPos, CPType::Pin, m_hoverInfo.elementIndex);
         m_eventHandled = true;
         return;
     }
@@ -189,7 +189,8 @@ void CanvasEventHandler::OnCanvasLeftDown(wxMouseEvent& evt) {
         CPType startType = CPType::Free;
         if (m_hoverInfo.IsOverPin()) startType = CPType::Pin;
         else if (m_hoverInfo.IsOverCell()) startType = CPType::Branch;
-        StartWireDrawingDown(m_hoverInfo.snappedPos, startType, -1);
+        StartWireDrawingDown(m_hoverInfo.snappedPos, startType, m_hoverInfo.elementIndex);
+        if (startType == CPType::Free) CancelWireDrawing();
         m_eventHandled = true;
         break;
     }
@@ -222,10 +223,10 @@ void CanvasEventHandler::StartWireDrawingDown(const wxPoint& startPos, CPType st
         m_canvas->SetStatus("Wiring: Start from workspace. Click to add segments.");
         break;
     case CPType::Branch:
-        m_tempWire.Left = {-1, wireIdx, false, -1};
         m_canvas->SetStatus("Wiring: Start from junction. Click to add segments.");
         break;
     }
+    m_tempWire.Left = { m_hoverInfo.elementIndex, m_hoverInfo.wireIndex, m_hoverInfo.isInputPin, m_hoverInfo.pinIndex };
 }
 
 void  CanvasEventHandler::StartWireDrawingUp() {
@@ -301,7 +302,10 @@ void CanvasEventHandler::FinishWireDrawing() {
     if (m_tempWire.pts[lengthOfTempWire - 2].pos == m_tempWire.pts[lengthOfTempWire - 1].pos) {
         m_tempWire.pts.pop_back();
     }
-    if (m_tempWire.pts.back().type == CPType::Bend) m_tempWire.pts.back().type = CPType::Free;
+    if (m_tempWire.pts.back().type == CPType::Bend) return;
+    m_tempWire.Right = {m_hoverInfo.elementIndex, m_hoverInfo.wireIndex ,m_hoverInfo.isInputPin, m_hoverInfo.pinIndex };
+
+    
     m_canvas->AddWire(m_tempWire);
     CancelWireDrawing();
 }
@@ -374,6 +378,7 @@ void CanvasEventHandler::OnCanvasLeftUp(wxMouseEvent& evt) {
             wxPostEvent(m_canvas, evt); // 发送事件到 CanvasPanel
 
         }
+
         m_toolStateMachine->SetSelectState(SelectToolState::IDLE);
         m_eventHandled = true;
         return;
@@ -1088,25 +1093,26 @@ void CanvasEventHandler::FinishClickSelect(wxMouseEvent& evt) {
         if (elemIdx < 0 || elemIdx >= (int)m_canvas->GetSecond().size()) {
             return;
         }
-
-        // 获取该元件的 SigTreeNode* 指针（self 是 SecondElement 的成员）
         const SecondElement& selectedElem = m_canvas->GetSecond()[elemIdx];
         SigTreeNode* node = selectedElem.self;
 
-        // 空指针检查：防止传递无效指针
-        if (node == nullptr) {
-            wxLogMessage("Warning: Selected element has no SigTreeNode!");
-            return;
-        }
-
-        // 构造事件并发送给 CanvasPanel（父窗口）
         wxCommandEvent evt(EVT_SFTREE_NODE_ACTIVATED); // 事件已能识别
         evt.SetClientData(node); // 携带元件的 SigTreeNode* 指针
         wxPostEvent(m_canvas, evt); // 发送事件到 CanvasPanel
+    }
+    else if(m_wireIdx.size() == 1){
+        int wireIdx = m_wireIdx[0]; // 获取唯一选中的元件索引
 
-        // 调试日志（确认事件触发）
-        //wxLogMessage("EVT_SFTREE_NODE_ACTIVATED triggered for element");
-    
+        // 边界检查：防止索引越界崩溃
+        if (wireIdx < 0 || wireIdx >= (int)m_canvas->GetWires().size()) {
+            return;
+        }
+        const Wire& w = m_canvas->GetWires()[wireIdx];
+        SignalNode* node = w.GetSelf();
+
+        wxCommandEvent evt(EVT_SFTREE_NODE_ACTIVATED); // 事件已能识别
+        evt.SetClientData(node); // 携带元件的 SigTreeNode* 指针
+        wxPostEvent(m_canvas, evt); // 发送事件到 CanvasPanel
     }
     m_toolStateMachine->SetSelectState(SelectToolState::IDLE);
     evt.Skip();

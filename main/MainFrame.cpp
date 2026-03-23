@@ -100,6 +100,13 @@ MainFrame::MainFrame()
     GetStatusBar()->SetFieldsCount(4, widths);
     GetStatusBar()->SetStatusStyles(4, style);
 
+    m_busyIndicator = new wxActivityIndicator(GetStatusBar(), wxID_ANY);
+    m_busyIndicator->Hide();
+    GetStatusBar()->Bind(wxEVT_SIZE, [this](wxSizeEvent& evt) {
+        evt.Skip();
+        LayoutBusyIndicator();
+    });
+
 
     // 画布
     m_canvas = new CanvasNoteBook(this, sigTree, wxID_ANY, FromDIP(1123), FromDIP(794));
@@ -759,21 +766,21 @@ void MainFrame::SetProjectDir(const wxString& projectDir)
     wxCommandEvent evt;
     OnSFTreeChanged(evt);
 }
-void MainFrame::DoFileNew() {
+bool MainFrame::DoFileNew() {
     // Create a new project directory with basic structure and open it in the project tree
     // 1) Ask for parent folder
     wxDirDialog dirDlg(this, "Select parent folder for new project", "",
         wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
-    if (dirDlg.ShowModal() != wxID_OK) return;
+    if (dirDlg.ShowModal() != wxID_OK) return false;
     wxString parent = dirDlg.GetPath();
 
     // 2) Ask for project name
     wxTextEntryDialog nameDlg(this, "Enter project name:", "New Project", "NewProject");
-    if (nameDlg.ShowModal() != wxID_OK) return;
+    if (nameDlg.ShowModal() != wxID_OK) return false;
     wxString projName = nameDlg.GetValue();
     if (projName.IsEmpty()) {
         wxMessageBox("Project name cannot be empty", "Error", wxOK | wxICON_ERROR, this);
-        return;
+        return false;
     }
 
     // 3) Build project path and check
@@ -786,20 +793,20 @@ void MainFrame::DoFileNew() {
         if (notEmpty) {
             int res = wxMessageBox("The folder already exists and is not empty. Overwrite?", "Confirm",
                 wxYES_NO | wxICON_QUESTION, this);
-            if (res != wxYES) return;
+            if (res != wxYES) return false;
         }
     }
     else if (wxFileExists(projPath)) {
         int res = wxMessageBox("A file with the same name exists. Overwrite?", "Confirm",
             wxYES_NO | wxICON_QUESTION, this);
-        if (res != wxYES) return;
+        if (res != wxYES) return false;
         wxRemoveFile(projPath);
     }
 
     // 4) Create directory structure
     if (!wxFileName::Mkdir(projPath, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL)) {
         wxMessageBox("Failed to create project folder", "Error", wxOK | wxICON_ERROR, this);
-        return;
+        return false;
     }
     wxString srcDir = projPath + wxFileName::GetPathSeparator() + "src";
     wxString libDir = projPath + wxFileName::GetPathSeparator() + "lib";
@@ -846,6 +853,7 @@ void MainFrame::DoFileNew() {
 
     // 9) Open sample file in editor so user can start coding
     DoFileOpen(sampleTop);
+    return true;
 }
 
 //�����ļ���ʵ�֣����������ĸ�����
@@ -1762,6 +1770,43 @@ bool MainFrame::LoadProjectConfig(const wxString& projectPath,
     return !outTopModule.IsEmpty() && !outSourceFiles.empty();
 }
 
+// ==================== 忙碌指示器 ====================
+
+void MainFrame::LayoutBusyIndicator()
+{
+    if (!m_busyIndicator || !GetStatusBar()) return;
+    wxRect rect;
+    GetStatusBar()->GetFieldRect(0, rect);
+    int h = rect.height - 4;
+    m_busyIndicator->SetSize(rect.x + 4, rect.y + 2, h, h);
+}
+
+void MainFrame::ShowBusyIndicator(const wxString& text)
+{
+    if (!m_busyIndicator) return;
+    LayoutBusyIndicator();
+    m_busyIndicator->Start();
+    m_busyIndicator->Show();
+    if (!text.IsEmpty()) {
+        int indicatorWidth = m_busyIndicator->GetSize().GetWidth() + 8;
+        int spaceWidth = GetStatusBar()->GetTextExtent(" ").GetWidth();
+        int numSpaces = (spaceWidth > 0) ? (indicatorWidth / spaceWidth + 1) : 6;
+        SetStatusText(wxString(' ', numSpaces) + text, 0);
+    }
+    GetStatusBar()->Update();
+    wxYield();
+}
+
+void MainFrame::HideBusyIndicator(const wxString& text)
+{
+    if (!m_busyIndicator) return;
+    m_busyIndicator->Stop();
+    m_busyIndicator->Hide();
+    SetStatusText(text, 0);
+}
+
+// ==================== 仿真 ====================
+
 void MainFrame::DoSimCompile()
 {
     OutputDebugStringA("=== DoSimCompile ENTER ===\n");
@@ -1873,9 +1918,12 @@ void MainFrame::DoSimCompile()
     });
     
     // 6. 执行编译
-    SetStatusText(wxT("正在编译仿真模型..."), 0);
+    auto* menuBar = static_cast<MainMenuBar*>(GetMenuBar());
+    menuBar->SetSimulationBusy(true);
+    ShowBusyIndicator(wxT("正在编译仿真模型..."));
     SimulationCompileResult result = m_simEngine->Compile(topModule, verilogFiles);
-    SetStatusText(result.success ? wxT("编译完成") : wxT("编译失败"), 0);
+    HideBusyIndicator(result.success ? wxT("编译完成") : wxT("编译失败"));
+    menuBar->SetSimulationBusy(false);
     
     // 7. 显示结果 - 使用字符串拼接避免 Printf 问题
     if (result.success) {
@@ -1901,44 +1949,63 @@ void MainFrame::DoSimCompile()
 
 void MainFrame::DoSimRun()
 {
-    if (!m_simEngine || !m_simEngine->IsCompiled("")) {
-        wxMessageBox(wxT("请先编译仿真模型"), wxT("运行仿真"), wxOK | wxICON_WARNING);
+    // 1. 确保项目已打开
+    if (m_currentProjectPath.IsEmpty()) {
+        wxMessageBox(wxT("请先打开项目"), wxT("运行仿真"), wxOK | wxICON_WARNING);
         return;
     }
 
-    // 选择输出VCD文件路径
-    wxFileDialog saveDialog(
-        this,
-        "保存波形文件",
-        m_currentProjectPath,
-        "waveform.vcd",
-        "VCD files (*.vcd)|*.vcd",
-        wxFD_SAVE | wxFD_OVERWRITE_PROMPT
-    );
+    // 2. 初始化仿真引擎（如果尚未初始化）
+    if (!m_simEngine) {
+        m_simEngine = std::make_unique<SimulationEngine>();
+    }
+    m_simEngine->SetProjectRoot(m_currentProjectPath);
 
-    if (saveDialog.ShowModal() == wxID_CANCEL) {
+    // 3. 读取配置获取顶层模块名
+    wxString topModule;
+    std::vector<wxString> verilogFiles;
+    if (!LoadProjectConfig(m_currentProjectPath, topModule, verilogFiles)) {
+        wxMessageBox(wxT("无法读取项目配置"), wxT("运行仿真"), wxOK | wxICON_WARNING);
         return;
     }
 
-    wxString vcdPath = saveDialog.GetPath();
-    
-    // 运行仿真
-    SetStatusText(wxT("正在运行仿真..."), 0);
-    SimulationRunResult result = m_simEngine->RunSimulation(vcdPath);
+    // 4. 设置顶层模块名并检查 DLL 是否存在
+    m_simEngine->SetTopModule(topModule);
+    if (!m_simEngine->IsCompiled(topModule)) {
+        wxMessageBox(wxT("没有可用的编译结果，请先编译"), wxT("运行仿真"), wxOK | wxICON_WARNING);
+        return;
+    }
+
+    // 5. 设置编译输出回调
+    m_simEngine->SetCompileOutputCallback([this](const wxString& line, bool isError) {
+        OutputDebugStringA(isError ? "[SIM-ERR] " : "[SIM-OUT] ");
+        OutputDebugStringA(line.ToUTF8());
+        OutputDebugStringA("\n");
+    });
+
+    // 6. 运行仿真（VCD 自动输出到 .sigflow/sim/<top>/waveform/wave.vcd）
+    auto* menuBar = static_cast<MainMenuBar*>(GetMenuBar());
+    menuBar->SetSimulationBusy(true);
+    ShowBusyIndicator(wxT("正在运行仿真..."));
+    SimulationRunResult result = m_simEngine->RunSimulation(wxEmptyString);
 
     if (result.success) {
         wxString msg = wxT("仿真完成!\n波形文件: ");
         msg += result.vcdPath;
         wxMessageBox(msg, wxT("仿真完成"), wxOK | wxICON_INFORMATION);
-        
-        // TODO: 打开波形查看器或显示波形
+
+        // 如果 WavePanel 存在，加载波形
+        if (m_wavePanel) {
+            // TODO: 自动加载 VCD 到波形面板
+        }
     } else {
         wxString msg = wxT("仿真失败!\n");
         msg += result.errorMessage;
         wxMessageBox(msg, wxT("仿真错误"), wxOK | wxICON_ERROR);
     }
 
-    SetStatusText(wxT("就绪"), 0);
+    HideBusyIndicator(wxT("就绪"));
+    menuBar->SetSimulationBusy(false);
 }
 
 void MainFrame::DoSimClean()

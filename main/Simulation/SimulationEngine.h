@@ -8,6 +8,9 @@
 
 // 前向声明
 class ProcessRunner;
+class StimulusParser;
+class TimelineGenerator;
+class SimMainGenerator;
 
 // 编译输出回调
 using CompileOutputCallback = std::function<void(const wxString& line, bool isError)>;
@@ -38,6 +41,9 @@ public:
 
     // 设置项目根目录（用于确定.sigflow缓存目录位置）
     void SetProjectRoot(const wxString& projectRoot);
+    
+    // 设置当前顶层模块名（跨会话运行仿真时需要）
+    void SetTopModule(const wxString& topModule) { m_currentTopModule = topModule; }
     
     // 设置编译进度回调
     void SetProgressCallback(CompileProgressCallback callback);
@@ -121,4 +127,14 @@ private:
 
     // 进度报告辅助函数
     void ReportProgress(int percent, const wxString& status);
+
+    // 在项目 src 目录下模糊匹配 Testbench 文件
+    wxString FindTestbenchFile(const wxString& projectRoot) const;
+
+    // 生成 sim_main.cpp 并编译为 sim_runner.exe
+    bool CompileSimRunner(const wxString& topModule, const wxString& testbenchPath,
+                          wxString& errorMsg);
+
+    // 运行 sim_runner.exe 生成 VCD
+    bool ExecuteSimRunner(const wxString& topModule, wxString& errorMsg);
 };

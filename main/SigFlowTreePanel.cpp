@@ -1,6 +1,7 @@
 ﻿#include "SigFlowTreePanel.h"
 #include "PropertyPanelBuilder.h"
 #include <wx/statline.h>
+#include <wx/artprov.h>
 
 SigFlowTreePanel::SigFlowTreePanel(wxWindow* parent, SigFlowTree* sfTree)
     : wxPanel(parent) {
@@ -26,18 +27,41 @@ SigFlowTreePanel::SigFlowTreePanel(wxWindow* parent, SigFlowTree* sfTree)
     addBtn->Bind(wxEVT_BUTTON, &SigFlowTreePanel::OnAdd, this);
     delBtn->Bind(wxEVT_BUTTON, &SigFlowTreePanel::OnDelete, this);
 
+    InitTreeIcons();
     Fresh();
 }
 
 void SigFlowTreePanel::BuildBranch(wxTreeItemId uiParent, SigTreeNode* logicParent) {
     for (auto* child : logicParent->GetChildren()) {
+        int iconId = -1;
+        switch (child->type) {
+        case SigTreeNodeType::File: {
+            iconId = 1;
+            break;
+        }
+        case SigTreeNodeType::Top: {
+            iconId = 2;
+            break;
+        }
+        case SigTreeNodeType::Second: {
+            iconId = 3;
+            break;
+        }
+        case SigTreeNodeType::Signal:
+            iconId = 4;
+            break;
+        }
+
         wxTreeItemId uiChild = tree->AppendItem(
             uiParent,
             child->GetName(),
-            -1, -1,
+            iconId, iconId,
             new SigTreeItemData(child)
         );
+        
         BuildBranch(uiChild, child);
+        tree->Expand(uiChild);
+        /*
         if (fn) {
             if (fn->GetName() == child->GetName()) {
                 tree->Expand(uiChild);
@@ -51,6 +75,17 @@ void SigFlowTreePanel::BuildBranch(wxTreeItemId uiParent, SigTreeNode* logicPare
         }
         else {
             tree->Expand(uiChild);
+        }*/
+    }
+    if (logicParent->type == SigTreeNodeType::Top) {
+        TopNode* tn = static_cast<TopNode*>(logicParent);
+        for (auto* child : tn->signals) {
+            wxTreeItemId uiChild = tree->AppendItem(
+                uiParent,
+                child->GetName(),
+                4, 4,
+                new SigTreeItemData(child)
+            );
         }
     }
 }
@@ -84,7 +119,7 @@ void SigFlowTreePanel::Fresh() {
     wxString rootLabel;
     if (sfTree->root->type == SigTreeNodeType::Project) {
         auto proj = static_cast<ProjectNode*>(sfTree->root);
-        rootLabel = wxString::FromUTF8(proj->projectPath);
+        rootLabel = proj->GetName();
     }
     else {
         rootLabel = "Unknown Project";
@@ -92,7 +127,7 @@ void SigFlowTreePanel::Fresh() {
 
     wxTreeItemId uiRoot = tree->AddRoot(
         rootLabel,
-        -1, -1,
+        0, 0,
         new SigTreeItemData(sfTree->root)
     );
 
@@ -178,6 +213,29 @@ void SigFlowTreePanel::OnAddMenu(wxCommandEvent& e) {
     Fresh();
 }
 
+void SigFlowTreePanel::InitTreeIcons() {
+    wxSize sz = wxSize(24, 24);
+    wxImageList* images = new wxImageList(sz.x, sz.y, true);
+
+    // 添加图标（可以从艺术资源、图标文件或位图加载）
+    // 这里的顺序要和上面的 enum 对应
+    auto GetIcon = [&](const wxString& path) {
+        wxBitmapBundle bundle = wxBitmapBundle::FromSVGFile(path, sz);
+        return bundle.GetBitmap(sz);
+        };
+
+    images->Add(GetIcon("res\\icons\\project.svg")); // Proj 0
+    images->Add(wxArtProvider::GetBitmap(wxART_FOLDER, wxART_OTHER, wxSize(24, 24))); // File 1
+    images->Add(GetIcon("res\\svg_icons\\module.svg")); // Module 2
+    images->Add(GetIcon("res\\svg_icons\\secondary.svg")); // Sec 3
+    images->Add(GetIcon("res\\svg\\wiring.svg")); // Sig 4
+    //images->Add(GetIcon("res\\svg_icons\\register.svg")); // Reg 5
+    //images->Add(GetIcon("res\\svg_icons\\register.svg")); // Logic 6
+
+    // 将图像列表交给树控件管理
+    tree->AssignImageList(images);
+}
+
 void SigFlowTreePanel::OnDelete(wxCommandEvent&) {
     wxTreeItemId sel = tree->GetSelection();
     if (!sel.IsOk()) return;
@@ -199,7 +257,7 @@ TopNode* SigFlowTreePanel::ShowCreateTopDialog(TopNodeType type, SigTreeNode* pa
     wxDialog dlg(this, wxID_ANY, "Create Module", wxDefaultPosition, wxDefaultSize,
         wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
 
-    std::vector<Port> in_ports, out_ports;
+    std::vector<SignalNode*> in_ports, out_ports;
 
     wxTextCtrl* idCtrl = nullptr;
     auto* topSizer = new wxBoxSizer(wxVERTICAL);
@@ -228,10 +286,10 @@ TopNode* SigFlowTreePanel::ShowCreateTopDialog(TopNodeType type, SigTreeNode* pa
             wxTextCtrl* nameCtrl = nullptr;
             wxButton* delBtn = nullptr;
             auto* rowWrapper = PropertyPanelBuilder::CreateTopPortRow(scrolled, "input",
-                wxString::FromUTF8(in_ports[i].identifier), &nameCtrl, &delBtn);
+                wxString::FromUTF8(in_ports[i]->identifier), &nameCtrl, &delBtn);
             if (nameCtrl) {
                 nameCtrl->Bind(wxEVT_TEXT, [&, i](wxCommandEvent&) {
-                    in_ports[i].identifier = nameCtrl->GetValue().ToStdString();
+                    in_ports[i]->identifier = nameCtrl->GetValue().ToStdString();
                     });
             }
             if (delBtn) {
@@ -246,10 +304,10 @@ TopNode* SigFlowTreePanel::ShowCreateTopDialog(TopNodeType type, SigTreeNode* pa
             wxTextCtrl* nameCtrl = nullptr;
             wxButton* delBtn = nullptr;
             auto* rowWrapper = PropertyPanelBuilder::CreateTopPortRow(scrolled, "output",
-                wxString::FromUTF8(out_ports[i].identifier), &nameCtrl, &delBtn);
+                wxString::FromUTF8(out_ports[i]->identifier), &nameCtrl, &delBtn);
             if (nameCtrl) {
                 nameCtrl->Bind(wxEVT_TEXT, [&, i](wxCommandEvent&) {
-                    out_ports[i].identifier = nameCtrl->GetValue().ToStdString();
+                    out_ports[i]->identifier = nameCtrl->GetValue().ToStdString();
                     });
             }
             if (delBtn) {
@@ -265,23 +323,19 @@ TopNode* SigFlowTreePanel::ShowCreateTopDialog(TopNodeType type, SigTreeNode* pa
         };
 
     addInBtn->Bind(wxEVT_BUTTON, [&](wxCommandEvent&) {
-        Port p;
-        p.identifier = "in" + std::to_string(in_ports.size() + 1);
-        p.direction = PortDirection::In;
+        SignalNode* p = new SignalNode("in" + std::to_string(in_ports.size() + 1), SignalType::Wire, PortDirection::In);
         in_ports.push_back(p);
         rebuild();
         });
     addOutBtn->Bind(wxEVT_BUTTON, [&](wxCommandEvent&) {
-        Port p;
-        p.identifier = "out" + std::to_string(out_ports.size() + 1);
-        p.direction = PortDirection::Out;
+        SignalNode* p = new SignalNode("out" + std::to_string(out_ports.size() + 1), SignalType::Wire, PortDirection::Out);
         out_ports.push_back(p);
         rebuild();
         });
 
     if (in_ports.empty() && out_ports.empty()) {
-        in_ports.push_back({ "in1", PortDirection::In });
-        out_ports.push_back({ "out1", PortDirection::Out });
+        in_ports.push_back(new SignalNode{ "in1", SignalType::Wire, PortDirection::In });
+        out_ports.push_back(new SignalNode{ "out1", SignalType::Wire, PortDirection::Out });
         rebuild();
     }
     else {
@@ -375,18 +429,31 @@ SecondNode* SigFlowTreePanel::CreateModuleInstDialog(SigTreeNode* parent) {
         TopNode* def = defPointers[sel];
 
         for (const auto& p : def->GetInPorts()) {
-            in_ports.push_back({ p.identifier, p.direction, "" });
+            in_ports.push_back({ p->identifier, p->direction, "" });
         }
         for (const auto& p : def->GetOutPorts()) {
-            out_ports.push_back({ p.identifier, p.direction, "" });
+            out_ports.push_back({ p->identifier, p->direction, "" });
+        }
+
+        wxArrayString choices;
+        choices.Add(""); // 允许空连接
+        for (auto& sig : def->signals) {
+            choices.Add(wxString::FromUTF8(sig->identifier));
+        }
+        for (auto& sig : def->in_ports) {
+            choices.Add(wxString::FromUTF8(sig->identifier));
+        }
+        for (auto& sig : def->out_ports) {
+            choices.Add(wxString::FromUTF8(sig->identifier));
         }
 
         for (size_t i = 0; i < in_ports.size(); ++i) {
-            wxTextCtrl* connCtrl = nullptr;
+            wxChoice* connCtrl = nullptr;
             auto* wrapper = PropertyPanelBuilder::CreateSecondPortRow(scrolled,
                 SigFlowTree::ToString(in_ports[i].direction),
                 wxString::FromUTF8(in_ports[i].identifier),
                 wxString::FromUTF8(in_ports[i].conn),
+                choices,
                 &connCtrl);
             if (connCtrl) {
                 connCtrl->Bind(wxEVT_TEXT, [&, i](wxCommandEvent& e) {
@@ -396,11 +463,12 @@ SecondNode* SigFlowTreePanel::CreateModuleInstDialog(SigTreeNode* parent) {
             portsSizer->Add(wrapper, 0, wxEXPAND);
         }
         for (size_t i = 0; i < out_ports.size(); ++i) {
-            wxTextCtrl* connCtrl = nullptr;
+            wxChoice* connCtrl = nullptr;
             auto* wrapper = PropertyPanelBuilder::CreateSecondPortRow(scrolled,
                 SigFlowTree::ToString(out_ports[i].direction),
                 wxString::FromUTF8(out_ports[i].identifier),
                 wxString::FromUTF8(out_ports[i].conn),
+                choices,
                 &connCtrl);
             if (connCtrl) {
                 connCtrl->Bind(wxEVT_TEXT, [&, i](wxCommandEvent& e) {
@@ -476,12 +544,27 @@ SecondNode* SigFlowTreePanel::CreateGateInstDialog(SigTreeNode* parent) {
     std::function<void()> rebuild = [&]() {
         portsSizer->Clear(true);
         ports = getPortDefs(gateChoice->GetStringSelection());
+        TopNode* def = static_cast<TopNode*>(parent);
+
+        wxArrayString choices;
+        choices.Add(""); // 允许空连接
+        for (auto& sig : def->signals) {
+            choices.Add(wxString::FromUTF8(sig->identifier));
+        }
+        for (auto& sig : def->in_ports) {
+            choices.Add(wxString::FromUTF8(sig->identifier));
+        }
+        for (auto& sig : def->out_ports) {
+            choices.Add(wxString::FromUTF8(sig->identifier));
+        }
+
         for (size_t i = 0; i < ports.size(); ++i) {
-            wxTextCtrl* connCtrl = nullptr;
+            wxChoice* connCtrl = nullptr;
             auto* wrapper = PropertyPanelBuilder::CreateSecondPortRow(scrolled,
                 SigFlowTree::ToString(ports[i].direction),
                 wxString::FromUTF8(ports[i].identifier),
                 wxString::FromUTF8(ports[i].conn),
+                choices,
                 &connCtrl);
             if (connCtrl) {
                 connCtrl->Bind(wxEVT_TEXT, [&, i](wxCommandEvent& e) {
@@ -546,12 +629,28 @@ SecondNode* SigFlowTreePanel::CreateContiniousAssignDialog(SigTreeNode* parent) 
 
     std::function<void()> rebuild = [&]() {
         portsSizer->Clear(true);
+        TopNode* def = static_cast<TopNode*>(parent);
+
+        wxArrayString choices;
+        choices.Add(""); // 允许空连接
+        for (auto& sig : def->signals) {
+            choices.Add(wxString::FromUTF8(sig->identifier));
+        }
+        for (auto& sig : def->in_ports) {
+            choices.Add(wxString::FromUTF8(sig->identifier));
+        }
+        for (auto& sig : def->out_ports) {
+            choices.Add(wxString::FromUTF8(sig->identifier));
+        }
+
+
         for (size_t i = 0; i < out_ports.size(); ++i) {
-            wxTextCtrl* connCtrl = nullptr;
+            wxChoice* connCtrl = nullptr;
             auto* wrapper = PropertyPanelBuilder::CreateSecondPortRow(scrolled,
                 SigFlowTree::ToString(out_ports[i].direction),
                 wxString::FromUTF8(out_ports[i].identifier),
                 wxString::FromUTF8(out_ports[i].conn),
+                choices,
                 &connCtrl);
             if (connCtrl) {
                 connCtrl->Bind(wxEVT_TEXT, [&, i](wxCommandEvent& e) {
@@ -561,11 +660,12 @@ SecondNode* SigFlowTreePanel::CreateContiniousAssignDialog(SigTreeNode* parent) 
             portsSizer->Add(wrapper, 0, wxEXPAND);
         }
         for (size_t i = 0; i < in_ports.size(); ++i) {
-            wxTextCtrl* connCtrl = nullptr;
+            wxChoice* connCtrl = nullptr;
             auto* wrapper = PropertyPanelBuilder::CreateSecondPortRow(scrolled,
                 SigFlowTree::ToString(in_ports[i].direction),
                 wxString::FromUTF8(in_ports[i].identifier),
                 wxString::FromUTF8(in_ports[i].conn),
+                choices,
                 &connCtrl);
             if (connCtrl) {
                 connCtrl->Bind(wxEVT_TEXT, [&, i](wxCommandEvent& e) {

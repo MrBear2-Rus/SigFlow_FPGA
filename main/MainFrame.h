@@ -2,6 +2,7 @@
 #pragma once
 #include <wx/wx.h>
 #include <wx/aui/aui.h>
+#include <wx/activityindicator.h>
 #include <wx/file.h>
 #include <wx/xml/xml.h>
 #include <wx/mstream.h>
@@ -84,7 +85,7 @@ public:
     void SetProjectDir(const wxString& projectDir);
     /* File 菜单业务接口 */
     void DoFileOpenProject();
-    void DoFileNew();
+    bool DoFileNew();
     void DoFileOpen(const wxString& path = {});
     void DoFileSave();
     void DoFileSaveAs();
@@ -164,7 +165,12 @@ public:
 
 private:
     wxAuiManager m_auiMgr;
+    wxActivityIndicator* m_busyIndicator = nullptr;
+    void LayoutBusyIndicator();
+
 public:
+    void ShowBusyIndicator(const wxString& text = wxEmptyString);
+    void HideBusyIndicator(const wxString& text = wxT("就绪"));
     //std::vector<CanvasPanel*> m_canvas;
     CanvasNoteBook* m_canvas;
 

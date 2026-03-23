@@ -1,4 +1,4 @@
-#include <wx/wx.h>
+﻿#include <wx/wx.h>
 #include "ProjectStartWindow.h"
 #include "MainFrame.h"
 
@@ -28,7 +28,7 @@ public:
         }
         else
         {
-            frame->DoFileNew();
+            if (!frame->DoFileNew()) return false;
         }
 
         SetTopWindow(frame);
