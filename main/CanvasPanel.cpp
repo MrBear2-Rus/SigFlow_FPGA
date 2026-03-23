@@ -473,6 +473,21 @@ void CanvasPanel::Save() {
     root["topbox"]["start"] = start;
     root["topbox"]["end"] = end;
 
+    root["wires"] = json::array();
+    for (const Wire& w : m_wires) {
+        json wire;
+        wire["pts"] = json::array();
+        for (auto pt : w.pts) {
+            json p;
+            wxPoint pos = pt.pos;
+            p["x"] = pos.x;
+            p["y"] = pos.y;
+            p["CPType"] = pt.type;
+            wire["pts"].push_back(p);
+        }
+        wire["wires"].push_back(wire);
+    }
+
     // 4. 将 JSON 写入文件
     std::ofstream file(filepath.GetFullPath().ToStdString());
     if (file.is_open()) {
@@ -542,6 +557,14 @@ bool CanvasPanel::Read() {
         wxPoint end(root["topbox"]["end"]["x"].get<int>(),
             root["topbox"]["end"]["y"].get<int>());
         m_tbox = TopModuleBox(start, end, tn);
+    }
+
+    if (root.contains("wires")) {
+        Wire w;
+        for (json pts : root["wires"]) {
+            ControlPoint cp = ControlPoint(wxPoint(pts["x"], pts["y"]), pts["type"]);
+            w.pts.push_back(cp);
+        }
     }
 
     Refresh(); // 重新绘制
@@ -983,13 +1006,14 @@ void CanvasPanel::SetTopNode(TopNode* node) {
     tn = node;
     UpdateCanvasElements();
     LoadLayout();
-    CompleteAutoWiring();
+    //CompleteAutoWiring();
     Refresh();
 }
 
 void CanvasPanel::LoadLayout() {
     if (Read()) return;
     CompleteAutoLayout();
+    CompleteAutoWiring();
 }
 
 void CanvasPanel::CompleteAutoWiring() {

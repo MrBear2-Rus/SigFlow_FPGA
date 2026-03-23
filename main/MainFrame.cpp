@@ -1,4 +1,4 @@
-#include <wx/msgdlg.h>
+﻿#include <wx/msgdlg.h>
 #include <wx/filename.h> 
 #include <wx/sstream.h>
 #include <wx/aui/aui.h>
