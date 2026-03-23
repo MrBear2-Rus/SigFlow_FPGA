@@ -134,7 +134,7 @@ public:
     void DoSimTicksEnabled(bool on);
     void DoSimSetTickFreq(int hz);
     void DoSimLogging();
-    
+    void OnSimWaveLoad();
     /* Verilator 仿真接口 */
     bool LoadProjectConfig(const wxString& projectPath, 
                            wxString& outTopModule,

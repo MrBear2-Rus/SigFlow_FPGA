@@ -967,6 +967,8 @@ void CanvasEventHandler::UpdateHoverInfo(HoverInfo hf) {
     m_hoverInfo.elementName = hf.elementName;
 
     m_hoverInfo.textIndex = hf.textIndex;
+
+    m_hoverInfo.isOverTopBox = hf.isOverTopBox;
 }
 
 

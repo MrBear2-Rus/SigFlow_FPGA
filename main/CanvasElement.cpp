@@ -634,6 +634,8 @@ TopModuleBox::TopModuleBox(wxPoint start, wxPoint end, TopNode* self) :
     SetPos(start);
 }
 
+wxString TopModuleBox::GetIdentifier() { return self->identifier; };
+
 void TopModuleBox::SetEnd(wxPoint end) {
     int width = end.x - m_pos.x;
     int height = end.y - m_pos.y;

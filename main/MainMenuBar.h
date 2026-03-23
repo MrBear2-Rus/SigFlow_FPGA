@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <wx/wx.h>
 #include <wx/filehistory.h>
 
@@ -103,6 +103,7 @@ private:
     void OnSimCompile(wxCommandEvent&);      // 编译仿真模型
     void OnSimRun(wxCommandEvent&);          // 运行仿真
     void OnSimClean(wxCommandEvent&);        // 清理仿真缓存
+    void OnSimWaveLoad(wxCommandEvent&);
 
     /* Window 菜单事件回调 */
     void OnMinimize(wxCommandEvent&);

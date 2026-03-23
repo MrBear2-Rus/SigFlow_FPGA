@@ -41,19 +41,23 @@ struct HoverInfo {
     // 4. 文本框 (Text Element) 悬停信息
     int textIndex = -1; // 悬停文本框的索引。-1 表示没有悬停在任何文本框上。
 
+    // 5. TopBox
+    bool isOverTopBox = false; // 是否悬停在TopBox上
+
     // 辅助函数，判断是否悬停在某个具体对象上
     bool IsOverPin() const { return pinIndex != -1; }
     bool IsOverCell() const { return cellIndex != -1; }
     bool IsOverElement() const { return elementIndex != -1; }
     bool IsOverText() const { return textIndex != -1; }
     bool IsOverMidCell() const { return cellIndex != -1 && isCellMiddle; }
+    bool IsOverTopBox() const { return isOverTopBox; }
     bool IsEmptyArea() const {
-        return pinIndex == -1 && cellIndex == -1 && elementIndex == -1 && textIndex == -1;
+        return pinIndex == -1 && cellIndex == -1 && elementIndex == -1 && textIndex == -1 && isOverTopBox == false;
     }
    
 
     // 构造函数
-    HoverInfo() : pinIndex(-1), isInputPin(false), cellIndex(-1), wireIndex(-1), elementIndex(-1), textIndex(-1), wireSectionIndex(-1){}
+    HoverInfo() : pinIndex(-1), isInputPin(false), cellIndex(-1), wireIndex(-1), elementIndex(-1), textIndex(-1), wireSectionIndex(-1),isOverTopBox(false){}
 };
 wxDECLARE_EVENT(wxEVT_CANVAS_MODIFIED, wxCommandEvent);
 
@@ -227,6 +231,7 @@ private:
 
     void UpdateHoverInfo(const wxPoint& screenPos);
     HoverInfo GetHoverInfo(HoverInfo& hoverInfo) const { hoverInfo = m_hoverInfo; }
+    std::tuple<bool, int> HitTopAndPinTest(const wxPoint& canvasPos, bool* isInput, wxPoint* worldPos);
     std::tuple<int, int> HitElementAndPinTest(const wxPoint& canvasPos, bool* isInput, wxPoint* worldPos);
     int HitTestText(wxPoint canvasPos);
     int HitWire(const wxPoint& canvasPos);

@@ -287,6 +287,36 @@ void CanvasPanel::OnPaint(wxPaintEvent&) {
 
     }
 }
+std::tuple<bool, int> CanvasPanel::HitTopAndPinTest(const wxPoint& canvasPos, bool* isInput, wxPoint* worldPos) {
+    bool over_top = false;
+    int pin_id = -1;
+    const auto& elem = m_tbox;
+
+    // 输入引脚尖端（突出 1 px）
+    for (size_t p = 0; p < elem.GetInputPins().size(); ++p) {
+        wxPoint tip = elem.GetPos() + wxPoint(elem.GetInputPins()[p].pos.x - 1,
+            elem.GetInputPins()[p].pos.y);
+        if (abs(canvasPos.x - tip.x) <= 4 && abs(canvasPos.y - tip.y) <= 4) {
+            *isInput = true;
+            *worldPos = tip;
+            over_top = true;
+            pin_id = p;
+        }
+    }
+    // 输出引脚尖端（突出 1 px）
+    for (size_t p = 0; p < elem.GetOutputPins().size(); ++p) {
+        wxPoint tip = elem.GetPos() + wxPoint(elem.GetOutputPins()[p].pos.x + 1,
+            elem.GetOutputPins()[p].pos.y);
+        if (abs(canvasPos.x - tip.x) <= 4 && abs(canvasPos.y - tip.y) <= 4) {
+            *isInput = false;
+            *worldPos = tip;
+            over_top = true;
+            pin_id = p;
+        }
+    }
+
+    return std::tie(over_top, pin_id);
+}
 
 std::tuple<int, int> CanvasPanel::HitElementAndPinTest(const wxPoint& canvasPos, bool* isInput, wxPoint* worldPos)
 {
@@ -612,6 +642,13 @@ void CanvasPanel::UpdateHoverInfo(const wxPoint& screenPos) {
     int elementIndex = -1;
     std::tie(elementIndex, pinIdx)= HitElementAndPinTest(m_hoverInfo.canvasPos, &isInput, &pinWorldPos);
 
+    bool overTop = false;
+    bool istopInput = false;
+    wxPoint pintopWorldPos;
+    int pintopIdx = -1;
+    std::tie(overTop, pintopIdx) = HitTopAndPinTest(m_hoverInfo.canvasPos, &istopInput, &pintopWorldPos);
+    if (pintopIdx != -1) { pinIdx = pintopIdx; isInput = istopInput; pinWorldPos = pintopWorldPos; };
+
     // 导线控制点信息检测
     int wireIdx = HitWire(m_hoverInfo.canvasPos);
     int wireSectionIdx = -1;
@@ -669,6 +706,10 @@ void CanvasPanel::UpdateHoverInfo(const wxPoint& screenPos) {
     else if (m_hoverInfo.IsOverText()) {
         hover = (wxString::Format("TextBox[%d]",
             m_hoverInfo.textIndex));
+    }
+    else if (m_hoverInfo.IsOverTopBox()) {
+        hover = (wxString::Format("TopBox[%s]",
+            m_tbox.GetIdentifier()));
     }
     else {
         hover = "Blank Space";
@@ -912,7 +953,7 @@ void CanvasPanel::WirePtsSetPos(int wireIndex, int controlPointIndex, const wxPo
 }
 
 
-void CanvasPanel::UpdateSelection(std::vector<int> m_elemIdx, std::vector<int> m_textIdx, std::vector<int> m_wireIdx ) {
+void CanvasPanel::UpdateSelection(std::vector<int> m_elemIdx, std::vector<int> m_textIdx, std::vector<int> m_wireIdx) {
     m_selTxtIdx = m_textIdx;
     m_selElemIdx = m_elemIdx;
     m_selWireIdx = m_wireIdx;
@@ -920,57 +961,95 @@ void CanvasPanel::UpdateSelection(std::vector<int> m_elemIdx, std::vector<int> m
 }
 
 void CanvasPanel::AddWire(const Wire& wire) {
-    m_wires.push_back(wire); 
+    m_wires.push_back(wire);
     m_wires.back().GenerateCells();
     auto& w = m_wires.back();
-    
+
     int from_id = w.Left.elemIdx;
     int from_pin = w.Left.PinIdx;
     bool is_input = w.Left.isInput;
-    while (from_id == -1) {
+    while (from_pin == -1) {
         from_id = m_wires[w.Left.wireIdx].Left.elemIdx;
         from_pin = m_wires[w.Left.wireIdx].Left.PinIdx;
         is_input = m_wires[w.Left.wireIdx].Left.isInput;
     }
-    SecondElement from = m_elems[from_id];
+
 
     int to_id = w.Right.elemIdx;
     int to_pin = w.Right.PinIdx;
-    while (to_id == -1) {
+    while (to_pin == -1) {
         to_id = m_wires[w.Right.wireIdx].Right.elemIdx;
         to_pin = m_wires[w.Right.wireIdx].Right.PinIdx;
     }
-    SecondElement to = m_elems[to_id];
 
-    SignalNode* sn = sftree->AddNewWire(tn);
-    wxCommandEvent evt2(EVT_SIGFLOWNODE_CHANGED);
-    evt2.SetClientData(sn);
-    m_parent->GetEventHandler()->ProcessEvent(evt2);
-    w.SetSelf(sn);
-
-    if (is_input) {
-
-        from.self->in_ports[from_pin].conn = sn->identifier;
-        wxCommandEvent evt0(EVT_SIGFLOWNODE_CHANGED);
-        evt0.SetClientData(from.self);
-        m_parent->GetEventHandler()->ProcessEvent(evt0);
-
-        to.self->out_ports[to_pin].conn = sn->identifier;
+    TopNode* tn = m_tbox.self;
+    if (from_id == -1 && to_id != -1) {
+        SecondElement to = m_elems[to_id];
+        tn->SetSecondPortConn(to.self, to.self->in_ports[to_pin].identifier, tn->in_ports[from_pin]->identifier);
+        w.SetSelf(tn->in_ports[from_pin]);
         wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
         evt.SetClientData(to.self);
         m_parent->GetEventHandler()->ProcessEvent(evt);
+    }
+    else if (from_id != -1 && to_id == -1) {
+        SecondElement from = m_elems[from_id];
+        tn->SetSecondPortConn(from.self, from.self->out_ports[from_pin].identifier, tn->out_ports[to_pin]->identifier);
+        w.SetSelf(tn->out_ports[to_pin]);
+        wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
+        evt.SetClientData(from.self);
+        m_parent->GetEventHandler()->ProcessEvent(evt);
+    }
+    else if (from_id == -1 && to_id == -1){
+
     }
     else {
-        from.self->out_ports[from_pin].conn = sn->identifier;
-        wxCommandEvent evt0(EVT_SIGFLOWNODE_CHANGED);
-        evt0.SetClientData(from.self);
-        m_parent->GetEventHandler()->ProcessEvent(evt0);
+        SecondElement from = m_elems[from_id];
+        SecondElement to = m_elems[to_id];
 
-        to.self->in_ports[to_pin].conn = sn->identifier;
-        wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
-        evt.SetClientData(to.self);
-        m_parent->GetEventHandler()->ProcessEvent(evt);
+        SignalNode* sn = nullptr;
+        if (!is_input) {
+            sn = from.self->out_ports[from_pin].signal;
+            if (!sn) sn =to.self->in_ports[to_pin].signal;
+        }
+        else {
+            sn = from.self->in_ports[from_pin].signal;
+            if (!sn) sn = to.self->out_ports[to_pin].signal;
+        }
+
+        if (!sn) sn = sftree->AddNewWire(tn);
+        wxCommandEvent evt2(EVT_SIGFLOWNODE_CHANGED);
+        evt2.SetClientData(sn);
+        m_parent->GetEventHandler()->ProcessEvent(evt2);
+        w.SetSelf(sn);
+
+        if (is_input) {
+            tn->SetSecondPortConn(from.self, from.self->in_ports[from_pin].identifier, sn->identifier);
+            //from.self->in_ports[from_pin].conn = sn->identifier;
+            wxCommandEvent evt0(EVT_SIGFLOWNODE_CHANGED);
+            evt0.SetClientData(from.self);
+            m_parent->GetEventHandler()->ProcessEvent(evt0);
+
+            tn->SetSecondPortConn(to.self, to.self->out_ports[to_pin].identifier, sn->identifier);
+            //to.self->out_ports[to_pin].conn = sn->identifier;
+            wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
+            evt.SetClientData(to.self);
+            m_parent->GetEventHandler()->ProcessEvent(evt);
+        }
+        else {
+            tn->SetSecondPortConn(from.self, from.self->out_ports[from_pin].identifier, sn->identifier);
+            //from.self->out_ports[from_pin].conn = sn->identifier;
+            wxCommandEvent evt0(EVT_SIGFLOWNODE_CHANGED);
+            evt0.SetClientData(from.self);
+            m_parent->GetEventHandler()->ProcessEvent(evt0);
+
+            tn->SetSecondPortConn(to.self, to.self->in_ports[to_pin].identifier, sn->identifier);
+            //to.self->in_ports[to_pin].conn = sn->identifier;
+            wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
+            evt.SetClientData(to.self);
+            m_parent->GetEventHandler()->ProcessEvent(evt);
+        }
     }
+    
 
 
     Refresh();
@@ -1204,6 +1283,8 @@ void CanvasPanel::CompleteAutoWiring() {
     // ═══════════════════════════════════════════════
     //  STEP 6  生成导线
     // ═══════════════════════════════════════════════
+
+    /*
     auto srcPinPos = [&](const Net& n) -> wxPoint {
         if (n.srcElem == -1) {
             auto& pins = m_tbox.GetInputPins();
@@ -1390,7 +1471,7 @@ void CanvasPanel::CompleteAutoWiring() {
             }
 
             // 移除零长线段
-            /*
+            
             std::vector<ControlPoint> clean;
             for (auto& p : pts)
                 if (clean.empty() || clean.back().pos != p.pos)
@@ -1401,16 +1482,16 @@ void CanvasPanel::CompleteAutoWiring() {
                 w.SetSelf(sn);
                 w.m_canvas = this;
                 m_wires.push_back(std::move(w));
-            }*/
+            }
             auto clean = cleanPath(pts);
             if (static_cast<int>(clean.size()) >= 2)
                 forwardPaths.push_back(std::move(clean));
         }
-
         addWiresForPaths(addWiresForPaths, forwardPaths);
     }
 
-    for (auto& w : m_wires) w.GenerateCells();
+    for (auto& w : m_wires) w.GenerateCells();*/
+
     Refresh();
 }
 

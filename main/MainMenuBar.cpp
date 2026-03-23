@@ -1,4 +1,4 @@
-#include "MainMenuBar.h"
+﻿#include "MainMenuBar.h"
 #include "MainFrame.h"  // 为了转发调用 DoFileXXX
 #include <wx/config.h>
 #include <windows.h>  // For OutputDebugStringA and MessageBoxA
@@ -77,6 +77,7 @@ EVT_MENU(wxID_HIGHEST + 213, MainMenuBar::OnLogging)
 EVT_MENU(wxID_HIGHEST + 220, MainMenuBar::OnSimCompile)
 EVT_MENU(wxID_HIGHEST + 221, MainMenuBar::OnSimRun)
 EVT_MENU(wxID_HIGHEST + 222, MainMenuBar::OnSimClean)
+EVT_MENU(wxID_HIGHEST + 223, MainMenuBar::OnSimWaveLoad)
 
 EVT_MENU(wxID_ICONIZE_FRAME, MainMenuBar::OnMinimize)
 EVT_MENU(wxID_MAXIMIZE_FRAME, MainMenuBar::OnMaximize)
@@ -252,6 +253,7 @@ wxMenu* MainMenuBar::CreateProjectMenu()
 wxMenu* MainMenuBar::CreateSimulateMenu()
 {
     wxMenu* m = new wxMenu;
+    m->Append(wxID_HIGHEST + 223, wxT("Open VCD"), wxT(""));
 
     /* Verilator 仿真 */
     m->Append(wxID_HIGHEST + 220, wxT("Compile Simulation Model\tF5"), wxT("使用Verilator编译当前Verilog文件"));
@@ -572,3 +574,10 @@ void MainMenuBar::OnSimClean(wxCommandEvent&)
 { 
     m_owner->DoSimClean(); 
 }
+
+void MainMenuBar::OnSimWaveLoad(wxCommandEvent&)
+{
+    m_owner->OnSimWaveLoad();
+}
+
+
