@@ -1,5 +1,7 @@
 #include "WavePanel.h"
-
+#include <wx/filename.h>
+#include <wx/app.h>  
+#include "MainFrame.h"
 WaveformPanel::WaveformPanel(wxWindow* parent)
     : wxPanel(parent), m_vcdData(nullptr), m_currentTimestamp(0),
     m_displayTimeRange(1000), m_maxTimestamp(1000)
@@ -179,6 +181,12 @@ WavePanel::WavePanel(wxWindow* parent) : wxPanel(parent, wxID_ANY)
     ctrlSizer->Add(zoomReset, 0, wxALL, 5);
 
     mainSizer->Add(ctrlSizer, 0, wxEXPAND | wxALL, 5);
+    auto autoBtn = new wxButton(this, wxID_ANY, "Auto Load");
+    ctrlSizer->Add(autoBtn, 0, wxALL, 5);
+
+    autoBtn->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
+        AutoLoadVcd();
+        });
     SetSizer(mainSizer);
 
     m_playBtn->Bind(wxEVT_BUTTON, &WavePanel::OnTogglePlay, this);
@@ -251,3 +259,45 @@ void WavePanel::ClearWavePanel()
     m_slider->SetRange(0, 1000);
 }
 
+void WavePanel::SetProjectPath(const wxString& path)
+{
+    m_projectPath = path;
+}
+
+// WavePanel.cpp
+void WavePanel::AutoLoadVcd()
+{
+    if (m_projectPath.IsEmpty()) {
+        wxMessageBox("No project loaded!");
+        return;
+    }
+
+    // 核心修改：获取主窗口 + 调用接口拿顶层模块
+    MainFrame* mainFrame = dynamic_cast<MainFrame*>(GetGrandParent());
+    if (!mainFrame) {
+        wxMessageBox("Failed to get main frame!");
+        return;
+    }
+
+
+    wxString topModule = mainFrame->GetTopModuleName();
+    if (topModule.IsEmpty()) { // 用户取消输入
+        return;
+    }
+
+    // 原有路径逻辑不变，仅替换硬编码的 "Complete"
+    wxFileName fn(m_projectPath, "");
+    fn.AppendDir(".sigflow");
+    fn.AppendDir("sim");
+    fn.AppendDir(topModule); // ✅ 动态顶层模块
+    fn.AppendDir("waveform");
+    fn.SetFullName("wave.vcd");
+
+    wxString fullPath = fn.GetFullPath();
+    if (!wxFileExists(fullPath)) {
+        wxMessageBox("VCD not found:\n" + fullPath);
+        return;
+    }
+
+    OpenVCDFile(fullPath);
+}

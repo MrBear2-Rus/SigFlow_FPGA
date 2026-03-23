@@ -45,10 +45,12 @@ public:
 class WavePanel : public wxPanel
 {
 public:
+    wxString m_projectPath;
     WavePanel(wxWindow* parent);
     void OpenVCDFile(wxString path);
-
+    void SetProjectPath(const wxString& path);
     void ClearWavePanel();
+    void AutoLoadVcd();
 private:
     void OnOpenVcd(wxCommandEvent&);
     void OnTogglePlay(wxCommandEvent&);

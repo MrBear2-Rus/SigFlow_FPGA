@@ -76,6 +76,8 @@ private:
 public:
     MainFrame();
     ~MainFrame();
+    //新增顶层模块获取方法
+    wxString GetTopModuleName();
 
     void OnUndoStackChanged();
     void OnOpenFileFromTree(wxCommandEvent& evt);
