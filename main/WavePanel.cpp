@@ -10,6 +10,7 @@ WaveformPanel::WaveformPanel(wxWindow* parent)
     SetDoubleBuffered(true);
     m_rng.seed(std::random_device{}());
     Bind(wxEVT_PAINT, &WaveformPanel::OnPaint, this);
+
 }
 
 void WaveformPanel::SetVcdData(vcd_t* vcdData)
@@ -184,6 +185,46 @@ WavePanel::WavePanel(wxWindow* parent) : wxPanel(parent, wxID_ANY)
     auto autoBtn = new wxButton(this, wxID_ANY, "Auto Load");
     ctrlSizer->Add(autoBtn, 0, wxALL, 5);
 
+    auto selectBtn = new wxButton(this, wxID_ANY, "Select Signals");
+    ctrlSizer->Add(selectBtn, 0, wxALL, 5);
+
+    selectBtn->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
+
+        wxTextEntryDialog dlg(
+            this,
+            "Input alias OR signal name (comma separated)\n"
+            "Example:\n"
+            "  #,$        (alias)\n"
+            "  sum,cout   (name)",
+            "Select Signals"
+        );
+
+        if (dlg.ShowModal() != wxID_OK)
+            return;
+
+        wxString text = dlg.GetValue();
+
+        std::vector<std::string> keys;
+        wxStringTokenizer tokenizer(text, ",");
+
+        while (tokenizer.HasMoreTokens())
+        {
+            wxString token = tokenizer.GetNextToken();
+            token.Trim(true);
+            token.Trim(false);
+
+            if (!token.IsEmpty())
+                keys.push_back(token.ToStdString());
+        }
+
+        // ✅ 正确调用
+        m_wavePanel->FilterSignalsSmart(keys);
+
+        // ✅ 正确更新 slider
+        m_slider->SetRange(0, m_wavePanel->m_maxTimestamp);
+        m_slider->SetValue(0);
+        });
+
     autoBtn->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
         AutoLoadVcd();
         });
@@ -300,4 +341,45 @@ void WavePanel::AutoLoadVcd()
     }
 
     OpenVCDFile(fullPath);
+}
+
+void WaveformPanel::FilterSignalsSmart(const std::vector<std::string>& keys)
+{
+    if (!m_vcdData) return;
+
+    m_allSignals.clear();
+
+    for (size_t i = 0; i < m_vcdData->signals_count; ++i)
+    {
+        signal_t* sig = &m_vcdData->signals[i];
+
+        if (keys.empty())
+        {
+            m_allSignals.push_back(sig);
+            continue;
+        }
+
+        std::string alias = sig->signal_id;   // VCD别名 (#,$...)
+        std::string name = sig->full_name;   // 完整名 TOP.uut.xxx
+
+        for (const auto& k : keys)
+        {
+            // 1️⃣ alias 精确匹配
+            if (alias == k)
+            {
+                m_allSignals.push_back(sig);
+                break;
+            }
+
+            // 2️⃣ 名字模糊匹配
+            if (name.find(k) != std::string::npos)
+            {
+                m_allSignals.push_back(sig);
+                break;
+            }
+        }
+    }
+
+    AssignSignalColors();
+    Refresh();
 }

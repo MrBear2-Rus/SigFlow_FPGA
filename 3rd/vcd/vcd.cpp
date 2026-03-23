@@ -1,4 +1,4 @@
-﻿#include <ctype.h>
+#include <ctype.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -232,9 +232,7 @@ bool parse_instruction(FILE* file, vcd_t* vcd, state_t* state) {
 
         int index = get_signal_index(signal_id);
         // 修复：别名信号处理（复用原信号的配置）
-        if (index >= 0 && index < VCD_SIGNAL_COUNT && vcd->signals[index].size != 0) {
-            memcpy(signal, &vcd->signals[index], sizeof(signal_t));
-        }
+        
 
         vcd->signals_count += 1;
         return true;
@@ -264,62 +262,73 @@ bool parse_timestamp(FILE* file, timestamp_t* timestamp) {
     return fscanf(file, " %u", timestamp) == 1;
 }
 
-bool parse_assignment(FILE* file, vcd_t* vcd, timestamp_t timestamp) {
+bool parse_assignment(FILE* file, vcd_t* vcd, timestamp_t timestamp)
+{
     char buffer[BUFFER_LENGTH];
-    if (fgets(buffer, BUFFER_LENGTH, file) == NULL) return false;
+
+    if (fgets(buffer, BUFFER_LENGTH, file) == NULL)
+        return false;
 
     char value[VCD_SIGNAL_SIZE] = { 0 };
     char signal_id[VCD_NAME_SIZE] = { 0 };
+
     bool is_vector = (strchr("01xXzZ", buffer[0]) == NULL);
 
-    // 修复：赋值格式解析（区分标量/向量）
     int parse_count = 0;
-    if (is_vector) {
-        // 向量格式：b<值> <ID> （如 b101 !）
+
+    // 解析赋值格式
+    if (is_vector)
+    {
+        // 向量：b101 !
         parse_count = sscanf(buffer, "%[^ ] %[^\n ]", value, signal_id);
     }
-    else {
-        // 标量格式：<值><ID> （如 1!）
+    else
+    {
+        // 标量：1!
         parse_count = sscanf(buffer, "%1s%[^\n ]", value, signal_id);
     }
 
-    if (parse_count != 2) return false;
+    if (parse_count != 2)
+        return false;
 
-    // 修复：取消长ID忽略（若需限制可改为截断，而非直接跳过）
-    if (strlen(signal_id) >= VCD_NAME_SIZE) {
-        signal_id[VCD_NAME_SIZE - 1] = '\0'; // 截断超长ID
+    // 防止 signal_id 溢出
+    if (strlen(signal_id) >= VCD_NAME_SIZE)
+        signal_id[VCD_NAME_SIZE - 1] = '\0';
+
+    bool found = false;
+
+    // 遍历所有信号，更新所有 alias
+    for (size_t i = 0; i < vcd->signals_count; ++i)
+    {
+        signal_t* signal = &vcd->signals[i];
+
+        if (strcmp(signal->signal_id, signal_id) != 0)
+            continue;
+
+        found = true;
+
+        if (signal->changes_count >= VCD_VALUE_CHANGE_COUNT)
+            continue;
+
+        value_change_t* change =
+            &signal->value_changes[signal->changes_count];
+
+        change->timestamp = timestamp;
+
+        strncpy(change->value, value, VCD_SIGNAL_SIZE - 1);
+        change->value[VCD_SIGNAL_SIZE - 1] = '\0';
+
+        signal->changes_count++;
+
+        // 调试输出
+        printf("赋值 -> ID:%s 完整名称:%s 时间戳:%u 值:%s\n",
+            signal_id, signal->full_name, timestamp, value);
     }
 
-    // 修改：按signal_id精准匹配信号（替代原get_signal_index）
-    int target_index = -1;
-    for (size_t i = 0; i < vcd->signals_count; ++i) {
-        if (strcmp(vcd->signals[i].signal_id, signal_id) == 0) {
-            target_index = (int)i;
-            break;
-        }
-    }
-
-    // 修复：索引合法性校验（包含信号数量上限）
-    if (target_index < 0 || target_index >= VCD_SIGNAL_COUNT || target_index >= vcd->signals_count) {
+    // 没找到 signal_id 也不算错误
+    if (!found)
         return true;
-    }
 
-    signal_t* signal = &vcd->signals[target_index];
-    // 保护：避免值变化数量超过上限
-    if (signal->changes_count >= VCD_VALUE_CHANGE_COUNT) {
-        return true;
-    }
-
-    // 赋值：存储时间戳和值
-    value_change_t* change = &signal->value_changes[signal->changes_count];
-    change->timestamp = timestamp;
-    strncpy(change->value, value, VCD_SIGNAL_SIZE - 1); // 留末尾'\0'
-    change->value[VCD_SIGNAL_SIZE - 1] = '\0'; // 确保字符串结束
-    signal->changes_count += 1;
-
-    // 调试：打印赋值信息（新增完整信号名）
-    printf("赋值 -> ID:%s 完整名称:%s 时间戳:%u 值:%s\n",
-        signal_id, signal->full_name, timestamp, value);
     return true;
 }
 

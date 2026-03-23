@@ -29,7 +29,7 @@ public:
     void ZoomOut();
     void ZoomReset();
     void ClearVcdData();
-
+    void FilterSignalsSmart(const std::vector<std::string>& keys);
 private:
     char ParseVcdValue(const char* v);
     void AssignSignalColors();
