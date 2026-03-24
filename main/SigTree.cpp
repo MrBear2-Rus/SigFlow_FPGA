@@ -1627,7 +1627,7 @@ std::string GateInstNode::ToVerilog() {
         if (i < in_ports.size()-1) v +=", ";
     }
 
-    v += ");\n\n";
+    v += ");\n";
     return v;
 }
 

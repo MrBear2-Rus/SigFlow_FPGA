@@ -85,8 +85,8 @@ public:
     LogicSignal status;
     static std::vector<ControlPoint> Route(const ControlPoint& start, const ControlPoint& end);
     void SetStatus(LogicSignal s) { status = s; };
-
+    wxString identifier;
 private :
     SignalNode* self = nullptr;  // 关联的信号节点指针
-    wxString identifier;
+   
 };

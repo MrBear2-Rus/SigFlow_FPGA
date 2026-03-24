@@ -515,7 +515,8 @@ void CanvasPanel::Save() {
             p["CPType"] = pt.type;
             wire["pts"].push_back(p);
         }
-        wire["wires"].push_back(wire);
+        wire["id"] = w.identifier.ToStdString();
+        root["wires"].push_back(wire);
     }
 
     // 4. 将 JSON 写入文件
@@ -590,10 +591,21 @@ bool CanvasPanel::Read() {
     }
 
     if (root.contains("wires")) {
-        Wire w;
-        for (json pts : root["wires"]) {
-            ControlPoint cp = ControlPoint(wxPoint(pts["x"], pts["y"]), pts["type"]);
-            w.pts.push_back(cp);
+        
+        for (json wire : root["wires"]) {
+            Wire w;
+            w.identifier = std::string(wire["id"]);
+            for (const auto& pt : wire["pts"]) {
+                // 使用 .at() 或 [] 访问键值，并通过 .get<type>() 显式转换
+                int x = pt.at("x").get<int>();
+                int y = pt.at("y").get<int>();
+                CPType type = CPType(pt.at("CPType").get<int>());
+
+                ControlPoint cp = ControlPoint(wxPoint(x, y), type);
+                w.pts.push_back(cp);
+            }
+            w.GenerateCells();
+            m_wires.push_back(w);
         }
     }
 
@@ -1091,7 +1103,7 @@ void CanvasPanel::SetTopNode(TopNode* node) {
 
 void CanvasPanel::LoadLayout() {
     if (Read()) return;
-    CompleteAutoLayout();
+    //CompleteAutoLayout();
     CompleteAutoWiring();
 }
 

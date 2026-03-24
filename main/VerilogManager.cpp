@@ -367,6 +367,49 @@ void VerilogManager::SigFlowNodeDeleted(SigTreeNode* node) {
 
 }
 
+void VerilogManager::SigFlowNodeChanged(SigTreeNode* node) {
+    for (auto& b : blocks) {
+        if (b.self == node) {
+            int startLine = GetSTCLine(b.startHandle);
+            int endLine = GetSTCLine(b.endHandle);
+            wxString text = node->ToVerilog();
+            m_stc->m_isLoading = true;
+            m_stc->SetTargetStart(m_stc->PositionFromLine(startLine));
+            m_stc->SetTargetEnd(m_stc->PositionFromLine(endLine + 1));
+            m_stc->ReplaceTarget(text);
+            int addedLines = text.Freq('\n');
+            int new_startline = startLine;
+            int new_endline = startLine + (addedLines > 0 ? addedLines - 1 : 0);
+            m_stc->MarkerDeleteHandle(b.startHandle);
+            m_stc->MarkerDeleteHandle(b.endHandle); // 销毁旧的
+            b.startHandle = m_stc->MarkerAdd(new_startline, BLOCK_MARKER_ID);
+            b.endHandle = m_stc->MarkerAdd(new_endline, BLOCK_MARKER_ID);
+            m_stc->m_isLoading = false;
+            break;
+        }
+    }
+    for (auto& b : break_blocks) {
+        if (b.self == node) {
+            int startLine = GetSTCLine(b.startHandle);
+            int endLine = GetSTCLine(b.endHandle);
+            wxString text = node->ToVerilog();
+            m_stc->m_isLoading = true;
+            m_stc->SetTargetStart(m_stc->PositionFromLine(startLine));
+            m_stc->SetTargetEnd(m_stc->PositionFromLine(endLine) + 1);
+            m_stc->ReplaceTarget(text);
+            int addedLines = text.Freq('\n');
+            int new_startline = startLine;
+            int new_endline = startLine + (addedLines > 0 ? addedLines - 1 : 0);
+            m_stc->MarkerDeleteHandle(b.startHandle);
+            m_stc->MarkerDeleteHandle(b.endHandle); // 销毁旧的
+            b.startHandle = m_stc->MarkerAdd(new_startline, BLOCK_MARKER_ID);
+            b.endHandle = m_stc->MarkerAdd(new_endline, BLOCK_MARKER_ID);
+            m_stc->m_isLoading = false;
+            break;
+        }
+    }
+}
+
 
 std::vector<Stability> VerilogManager::GetLineStatus() {
     std::vector<Stability> sta = std::vector<Stability>(m_stc->GetLineCount(), Stability::Stable);

@@ -63,6 +63,7 @@ public:
 
     void SigFlowNodeAdded(SigTreeNode* node);
     void SigFlowNodeDeleted(SigTreeNode* node);
+    void SigFlowNodeChanged(SigTreeNode* node);
 
     std::vector<Stability> GetLineStatus();
     void UpdateFolding();

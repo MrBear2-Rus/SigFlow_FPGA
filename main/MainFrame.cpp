@@ -1672,6 +1672,7 @@ void MainFrame::OnSFNodeDeleted(wxCommandEvent& event) {
 void MainFrame::OnSFNodeChanged(wxCommandEvent& event) {
     OnSFTreeChanged(event);
     m_canvas->SigFlowNodeChanged(static_cast<SigTreeNode*>(event.GetClientData()));
+    m_verilogMgr->SigFlowNodeChanged(static_cast<SigTreeNode*>(event.GetClientData()));
 }
 
 
