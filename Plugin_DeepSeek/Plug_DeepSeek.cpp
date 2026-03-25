@@ -19,6 +19,9 @@
 #include <atomic>
 #include <mutex>
 #include <wx/checklst.h>
+#include <regex> // <--- 新增正则表达式支持库
+#include <algorithm>
+#include <cctype>
 
 #pragma comment(lib, "winhttp.lib") // 告诉编译器自动链接 winhttp 库
 using json = nlohmann::json;
@@ -43,13 +46,12 @@ Plug_DeepSeek::Plug_DeepSeek() {
     // 这样无需管理员权限且对多用户环境友好。
     const char* localApp = std::getenv("LOCALAPPDATA");
     if (localApp && localApp[0] != '\0') {
-        m_dataDir = std::string(localApp) + "\\SuperEDA\\DeepSeekPlugin";
+        m_dataDir = (std::filesystem::path(localApp) / "SuperEDA" / ".sigflow" / ".pluginDeepSeek").string();
     }
     else {
-        // 回退到当前可写目录
-        m_dataDir = std::filesystem::current_path().string() + "\\DeepSeekPluginData";
+        m_dataDir = (std::filesystem::current_path() / ".sigflow" / ".pluginDeepSeek").string();
     }
-    m_historyFile = m_dataDir + "\\history.json";
+    m_historyFile = (std::filesystem::path(m_dataDir) / "history.json").string();
 
     // 尝试加载已有的历史对话
     try {
@@ -175,12 +177,13 @@ bool Plug_DeepSeek::LoadConversationIntoSession(const std::string& name) {
 
 // 接收宿主传入的项目根路径
 void Plug_DeepSeek::SetProjectRoot(const std::string& path) {
+
     if (path.empty()) return;
     // Save project root and prefer storing plugin data inside the project folder
     m_projectRoot = path;
     try {
         namespace fs = std::filesystem;
-        fs::path newDataDir = fs::path(m_projectRoot) / ".DeepSeekPlugin";
+        fs::path newDataDir = fs::path(m_projectRoot) / ".sigflow" / ".pluginDeepSeek";
         std::error_code ec;
         fs::create_directories(newDataDir, ec);
         std::string newHistory = (newDataDir / "history.json").string();
@@ -188,8 +191,16 @@ void Plug_DeepSeek::SetProjectRoot(const std::string& path) {
         // If we previously had a history file somewhere else and the new one doesn't exist,
         // try to copy it to the project folder so user history is preserved.
         try {
-            if (!m_historyFile.empty() && fs::exists(m_historyFile) && !fs::exists(newHistory)) {
-                fs::copy_file(m_historyFile, newHistory, fs::copy_options::skip_existing, ec);
+            if (!fs::exists(newHistory)) {
+                if (!m_historyFile.empty() && fs::exists(m_historyFile)) {
+                    fs::copy_file(m_historyFile, newHistory, fs::copy_options::skip_existing, ec);
+                }
+                else {
+                    fs::path legacyProjectHistory = fs::path(m_projectRoot) / ".DeepSeekPlugin" / "history.json";
+                    if (fs::exists(legacyProjectHistory)) {
+                        fs::copy_file(legacyProjectHistory, newHistory, fs::copy_options::skip_existing, ec);
+                    }
+                }
             }
         } catch (...) { /* ignore migration errors */ }
 
@@ -200,6 +211,132 @@ void Plug_DeepSeek::SetProjectRoot(const std::string& path) {
         SaveConversationsToDisk();
     }
     catch (...) { /* ignore errors */ }
+}
+
+static std::filesystem::path FindSigflowProjectFile(const std::filesystem::path& projectRoot) {
+	namespace fs = std::filesystem;
+
+	if (projectRoot.empty()) return {};
+
+	fs::path p1 = projectRoot / "sigflow.project";
+	if (fs::exists(p1) && fs::is_regular_file(p1)) return p1;
+
+	// 兜底：扫描项目根目录下的 *.project
+	std::error_code ec;
+	for (const auto& entry : fs::directory_iterator(projectRoot, ec)) {
+		if (ec) break;
+		if (!entry.is_regular_file()) continue;
+		if (entry.path().extension() == ".project") {
+			return entry.path();
+		}
+	}
+
+	return {};
+}
+static std::string ToProjectRelativePath(const std::filesystem::path& projectRoot,
+	const std::filesystem::path& filePath) {
+	namespace fs = std::filesystem;
+
+	std::error_code ec;
+	fs::path rel = fs::relative(filePath, projectRoot, ec);
+	fs::path out = ec ? filePath.filename() : rel;
+
+	std::string s = out.generic_string(); // 统一用 /
+	while (!s.empty() && (s.front() == '/' || s.front() == '\\')) {
+		s.erase(s.begin());
+	}
+	return s;
+}
+static bool IsLibraryFilePath(const std::string& relPath) {
+	std::filesystem::path p(relPath);
+	std::string ext = p.extension().generic_string();
+	for (auto& c : ext) c = (char)std::tolower((unsigned char)c);
+
+	// 规则可以后续按你们系统再收紧
+	if (relPath.rfind("lib/", 0) == 0) return true;
+	if (ext == ".vh" || ext == ".svh" || ext == ".lib") return true;
+
+	return false;
+}
+static bool UpdateProjectFileList(const std::filesystem::path& projectRoot,
+	const std::vector<std::string>& writtenFiles,
+	std::string* backupContent = nullptr,
+	std::string* projectFilePathOut = nullptr) {
+	namespace fs = std::filesystem;
+
+	fs::path projectFile = FindSigflowProjectFile(projectRoot);
+	if (projectFile.empty()) return false;
+
+	if (projectFilePathOut) {
+		*projectFilePathOut = projectFile.string();
+	}
+
+	json j;
+	{
+		std::ifstream ifs(projectFile, std::ios::binary);
+		if (!ifs) return false;
+
+		std::ostringstream oss;
+		oss << ifs.rdbuf();
+		if (backupContent) {
+			*backupContent = oss.str();
+		}
+
+		try {
+			j = json::parse(oss.str());
+		}
+		catch (...) {
+			return false;
+		}
+	}
+
+	if (!j.contains("paths") || !j["paths"].is_object()) {
+		j["paths"] = json::object();
+	}
+	if (!j["paths"].contains("source_files") || !j["paths"]["source_files"].is_array()) {
+		j["paths"]["source_files"] = json::array();
+	}
+	if (!j["paths"].contains("library_files") || !j["paths"]["library_files"].is_array()) {
+		j["paths"]["library_files"] = json::array();
+	}
+
+	auto& srcArr = j["paths"]["source_files"];
+	auto& libArr = j["paths"]["library_files"];
+
+	std::set<std::string> existingSrc;
+	std::set<std::string> existingLib;
+
+	for (const auto& v : srcArr) {
+		if (v.is_string()) existingSrc.insert(v.get<std::string>());
+	}
+	for (const auto& v : libArr) {
+		if (v.is_string()) existingLib.insert(v.get<std::string>());
+	}
+
+	for (const auto& absStr : writtenFiles) {
+		fs::path absPath(absStr);
+		std::string rel = ToProjectRelativePath(projectRoot, absPath);
+		if (rel.empty()) continue;
+
+		if (IsLibraryFilePath(rel)) {
+			if (!existingLib.count(rel)) {
+				libArr.push_back(rel);
+				existingLib.insert(rel);
+			}
+		}
+		else {
+			if (!existingSrc.count(rel)) {
+				srcArr.push_back(rel);
+				existingSrc.insert(rel);
+			}
+		}
+	}
+
+	std::ofstream ofs(projectFile, std::ios::binary | std::ios::trunc);
+	if (!ofs) return false;
+	ofs << j.dump(2);
+
+	return true;
 }
 
 Plug_DeepSeek::~Plug_DeepSeek() {}
@@ -226,6 +363,16 @@ std::string Plug_DeepSeek::ProcessCommand(const std::string& cmd) {
     // 修复编码隐患：必须用 ToUTF8() 转换为标准 UTF-8 字节流，切忌使用 ToStdString()
     std::string memStr = memory.IsEmpty() ? "" : memory.ToStdString(wxConvUTF8);
 
+    // ==== 新增：极度受限的 Verilog 门级语法约束 Prompt ====
+    const std::string STRICT_VERILOG_CONSTRAINTS =
+        "【最高优先级系统约束：严格受限的纯门级 Verilog 规范】\n"
+        "你必须且只能遵守以下绝对规则，不得有任何违反，否则生成的代码将被系统直接销毁：\n"
+        "1. 模块定义：在整个代码中【绝对禁止】使用 wire、reg、logic 等类型关键字。声明 module 的端口时也【绝对禁止】写任何类型关键字，端口统一使用默认形式。即使内部需要中间信号，也不允许显式写 wire/reg/logic。示例合法格式：module adder(a, b, sum);\n"
+        "2. 信号位宽：【绝对禁止】使用多位信号（代码中严禁出现 '[' 和 ']' 字符）。必须且只能使用 1-bit 的单根信号。如需多位必须展开为多个独立 1-bit 信号。\n"
+        "3. 门级例化：仅允许使用二输入一输出的基础门（仅限 and, or, xor, nand, nor, xnor）。【绝对禁止使用1输入门（如 not），如需反相器必须用 nand 或 nor 将两输入短接】。门原语及子模块例化【绝对禁止】使用命名映射（如 .a(a), .b(b)），必须且只能使用位置映射（第一位必须是输出），单行格式必须形如：and gate_name(out_sig, in_sig1, in_sig2);\n"
+        "4. 时序逻辑：Always 块仅限使用 `always @(posedge clk)` 和 `always @(negedge clk)`。内部【严禁】出现 if、else 或 case 语句。状态必须先通过组合逻辑算出次态，在 always 中只进行基础非阻塞赋值 (<=)。\n"
+        "5. 组合逻辑：仅允许使用上述的门级例化和连续赋值语句 (assign)。严禁使用 always @(*) 块，严禁使用加减乘除 (+-*/) 算术符。\n"
+        "6. 注释约束：代码中【绝对禁止】出现任何形式的注释文字（严禁使用 // 或 /* */）。\n\n";
     // 支持特殊命令：/scanproject 或 /scan 来收集本仓库/解决方案下的所有文本源码文件并发送给 AI
     // 新增命令：/autogen 用于自动生成单文件或多文件 Verilog/相关源码，并写入到 projectRoot/src/ 或 projectRoot/lib/
     // 兼容旧命令 /genfile
@@ -272,7 +419,7 @@ std::string Plug_DeepSeek::ProcessCommand(const std::string& cmd) {
         this->m_autoAllowMulti = true;
 
         // 构造提示，要求 AI 在需要多文件时使用可解析的分隔格式
-        fullPrompt = memStr +
+        fullPrompt = memStr + STRICT_VERILOG_CONSTRAINTS +
             "你是一个严格遵守格式的 Verilog/SystemVerilog 专家。无论用户问什么，你都必须且只能按以下格式回复，严禁任何前言和后语：\n"
             "## 1. 分析\n...\n"
             "## 2. 纯代码\n(如果需要多个文件，请在这里以以下格式输出多文件内容：\n"
@@ -294,29 +441,49 @@ std::string Plug_DeepSeek::ProcessCommand(const std::string& cmd) {
         this->m_autoFilename = "src/top.v"; // 默认首文件
 
         // 构造强制采用顶层向下设计的 Prompt (加强了对 top.v 和 module top 的强制约束)
-        fullPrompt = memStr +
+// 构造强制采用顶层向下设计的 Prompt
+        fullPrompt = memStr + STRICT_VERILOG_CONSTRAINTS +
             "你是一个严格遵守格式的架构级 Verilog/SystemVerilog 专家。\n"
-            "用户项目已初始化了默认的顶层文件 src/top.v。现在要求采用【顶层向下(Top-Down)】的设计方法。无论用户问什么，你都必须且只能按以下格式回复，严禁任何前言和后语：\n"
+            "用户项目已初始化了默认的顶层文件 src/top.v。现在要求采用【顶层向下(Top-Down)】的设计方法。无论用户问什么，你都必须且只能按以下格式回复，严禁任何前言、后语、解释性废话或额外提示：\n"
             "## 1. 分析\n"
-            "分析系统架构，明确顶层与子模块划分。\n"
+            "用精炼语言分析系统架构，明确顶层模块与子模块的划分、每个子模块的职责，以及它们之间的连接关系。\n"
+            "注意：分析部分只描述架构，不输出代码。\n"
+            "\n"
             "## 2. 纯代码\n"
-            "(必须按照以下步骤并在本段内以特定格式输出多个文件内容：\n"
-            "  第一步：首先输出顶层文件。文件名【必须且只能是】 src/top.v，并且模块名【必须命名为】 top （即 module top (...); ）。在此文件中仅进行子模块的例化和外设信号连线，严禁实现子模块的具体逻辑。\n"
-            "  第二步：然后，逐个实现 top 模块中例化使用到的每一个子模块，并将它们输出为独立的源文件。\n"
-            "多文件输出格式如下：\n"
+            "必须在本段内输出多个源文件，且严格遵守以下规则：\n"
+            "1. 第一份文件【必须且只能是】 src/top.v。\n"
+            "2. src/top.v 中的顶层模块名【必须且只能是】 top，即必须写成 module top(...); 或 module top(...)\n"
+            "3. top 模块中【只允许】做三件事：端口定义、子模块例化、模块间信号连接。严禁在 top 中实现子模块内部具体逻辑。\n"
+            "4. 从第二份文件开始，逐个输出 top 中例化到的每一个子模块，每个子模块都必须单独放在一个独立源文件中。\n"
+            "5. 所有文件都必须是可综合的 Verilog/SystemVerilog 代码。\n"
+            "6. 所有文件中【绝对禁止】出现 wire、reg、logic 关键字。\n"
+            "7. 如果需要中间连接信号，只能直接使用隐式 net 名称，严禁写任何显式声明语句。\n"
+            "8. 错误示例：wire t1; reg q; logic s;\n"
+            "9. 正确示例：xor u1(t1, a, b); and u2(y, t1, a);\n"
+            "10. 门原语或模块例化只能使用位置端口映射，例如 and u1(y, a, b); 或 submod u2(x, a, b);，严禁使用 .a(a), .b(b) 这种命名映射。\n"
+            "11. 严禁输出注释。\n"
+            "\n"
+            "多文件输出时，必须严格使用以下分隔格式，不能多字，不能少字：\n"
             "==== src/top.v ====\n"
-            "module top (\n"
-            "    // 端口定义\n"
-            ");\n"
-            "    // 子模块例化和连线\n"
-            "endmodule\n"
-            "==== src/sub_mod1.v ====\n"
-            "<子模块1的代码>\n"
-            "==== src/sub_mod2.v ====\n"
-            "<子模块2的代码>\n)\n"
-            "## 3. 简要总结\n...\n"
-            "## 4. 记忆存储\n...\n\n"
-            "现在开始！用户的系统需求是：" + userQuestion;
+            "<src/top.v 的完整代码>\n"
+            "==== src/子模块1名.v ====\n"
+            "<子模块1的完整代码>\n"
+            "==== src/子模块2名.v ====\n"
+            "<子模块2的完整代码>\n"
+            "\n"
+            "额外强制要求：\n"
+            "- 如果 top 中例化了 N 个子模块，就必须继续输出这 N 个子模块对应的独立源文件，不能省略。\n"
+            "- 所有输出文件必须前后自洽，模块名与例化名必须一致。\n"
+            "- 若系统较简单，也仍然必须保持 Top-Down 风格：先给出 src/top.v，再给出其子模块文件。\n"
+            "- 不要输出伪代码，不要输出占位符，不要输出“略”。\n"
+            "\n"
+            "## 3. 简要总结\n"
+            "用不超过3行总结本次 Top-Down 划分结果。\n"
+            "\n"
+            "## 4. 记忆存储\n"
+            "若本轮需求中有适合复用的用户偏好或工程约束，则写出可存储内容；若没有，则写“无”。\n"
+            "\n"
+            "现在开始。用户的系统需求是：" + userQuestion;
 
     }
     else if (cmd.rfind(scanCmd, 0) == 0 || cmd.rfind(scanCmd2, 0) == 0) {
@@ -364,12 +531,13 @@ std::string Plug_DeepSeek::ProcessCommand(const std::string& cmd) {
 
         std::string projectFiles = GatherProjectFiles(targetRoot);
 
-        fullPrompt = memStr + "下面是项目中收集到的文件内容（已做截断以避免过大）:\n" + projectFiles + "\n";
+        fullPrompt = memStr +
+            "下面是项目中收集到的文件内容（已做截断以避免过大）:\n" + projectFiles + "\n";
         fullPrompt += "你是一个项目分析专家。请基于上面提供的项目内容回答用户的问题（不要添加与项目无关的内容）。用户的问题：" + userQuestion;
     }
     else {
         // 只要配置了 /utf-8 编译项，这里的双引号中文就是安全的 UTF-8
-        fullPrompt = memStr +
+        fullPrompt = memStr + STRICT_VERILOG_CONSTRAINTS +
             "你是一个严格遵守格式的 Verilog 专家。无论用户问什么，你都必须且只能按以下格式回复，严禁任何前言和后语：\n"
             "## 1. 分析\n...\n"
             "## 2. 纯代码\n...\n"
@@ -1218,6 +1386,87 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
                 std::string cleanCode = std::string(res.code.ToUTF8().data());
                 auto files = ExtractFiles(cleanCode);
 
+                // ==== 新增：本地 C++ 正则拦截校验（严格卡死不合规输出） ====
+                bool validationFailed = false;
+                std::string validationError;
+
+                // 规则 1：绝对禁止出现方括号 '['（封杀任何多位宽和数组）
+                std::regex bracketRegex(R"(\[)");
+                // 规则 2：封杀所有控制流与非法块
+                std::regex controlFlowRegex(R"(\b(if|case|else|for|while|function|task|initial)\b)");
+                // 规则 3：封杀 always @(*)
+                std::regex invalidAlwaysRegex(R"(always\s+@\s*\(\s*\*\s*\))");
+                // 规则 4：封杀所有注释 (// 或 /*)
+                std::regex commentRegex(R"(//|/\*)");
+                // 规则 5：封杀命名映射（匹配类似 .a( 这种格式）
+                std::regex namedMapRegex(R"(\.\w+\s*\()");
+                // 规则 6：封杀端口声明中的类型关键字
+                std::regex portTypeRegex(R"(\b(input|output|inout)\s+(wire|reg|logic)\b)");
+                // 规则 7：封杀代码中任何位置出现 wire/reg/logic
+                std::regex anyTypeKeywordRegex(R"(\b(wire|reg|logic)\b)");
+
+                for (const auto& f : files) {
+                    const std::string& codeContent = f.second;
+
+                    if (std::regex_search(codeContent, bracketRegex)) {
+                        validationFailed = true; validationError = "文件 [" + f.first + "] 包含非法字符 '['，仅允许使用 1-bit 信号。"; break;
+                    }
+                    if (std::regex_search(codeContent, controlFlowRegex)) {
+                        validationFailed = true; validationError = "文件 [" + f.first + "] 包含非法的关键字 (if / case / for 等)。"; break;
+                    }
+                    if (std::regex_search(codeContent, invalidAlwaysRegex)) {
+                        validationFailed = true; validationError = "文件 [" + f.first + "] 包含非法的 always @(*) 组合逻辑块。"; break;
+                    }
+                    if (std::regex_search(codeContent, commentRegex)) {
+                        validationFailed = true; validationError = "文件 [" + f.first + "] 包含了非法的注释 (// 或 /*)，系统禁止生成任何注释。"; break;
+                    }
+                    if (std::regex_search(codeContent, namedMapRegex)) {
+                        validationFailed = true; validationError = "文件 [" + f.first + "] 包含了非法的命名映射（.port(sig)），系统仅允许位置映射。"; break;
+                    }
+                    if (std::regex_search(codeContent, portTypeRegex)) {
+                        validationFailed = true;
+                        validationError = "文件 [" + f.first + "] 的端口声明中包含了非法的类型关键字 (wire/reg/logic)。";
+                        break;
+                    }
+
+                    if (std::regex_search(codeContent, anyTypeKeywordRegex)) {
+                        validationFailed = true;
+                        validationError = "文件 [" + f.first + "] 包含了非法的类型关键字 (wire/reg/logic)。根据当前规则，整个代码中都不允许出现这些关键字。";
+                        break;
+                    }
+                }
+
+                if (validationFailed) {
+                    // 弹出错误提示并中止
+                    wxMessageBox(wxString::FromUTF8("生成的代码违反了极度受限的纯门级 Verilog 规范，已被系统拦截：\n\n") +
+                        wxString::FromUTF8(validationError) +
+                        wxString::FromUTF8("\n\n请修改提问并重试。"),
+                        wxString::FromUTF8("安全校验失败 (代码拦截)"), wxOK | wxICON_ERROR);
+
+                    historyCtrl->SetDefaultStyle(wxTextAttr(*wxRED));
+                    historyCtrl->AppendText(wxString::FromUTF8("\n系统拦截：AI 生成的代码未通过本地正则严格校验。\n拦截原因：") + wxString::FromUTF8(validationError) + wxString::FromUTF8("\n"));
+                    historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLACK));
+                    historyCtrl->ShowPosition(historyCtrl->GetLastPosition());
+
+                    // 清理并重置 Phase 2 状态
+                    std::lock_guard<std::mutex> glk(this->m_generationMutex);
+                    this->m_generationBackups.clear();
+                    this->m_generationCreatedFiles.clear();
+                    if (!this->m_generationTempPath.empty()) {
+                        std::error_code ec2; std::filesystem::remove(this->m_generationTempPath, ec2);
+                        this->m_generationTempPath.clear();
+                    }
+                    this->m_generationActive = false;
+                    this->m_aiPhase = 0;
+
+                    // 恢复按钮状态
+                    if (sendBtn) sendBtn->Enable();
+                    if (inputCtrl) inputCtrl->Enable();
+                    if (cancelBtn) cancelBtn->Disable();
+                    return; // 提前退出，拒绝执行后续渲染和写入流程
+                }
+                // ==== 本地正则校验结束 ====
+
                 // 2. 使用 wxDialog 模态弹窗，解决 UAF 崩溃与生命周期脱离问题
                 wxDialog previewDlg(panel, wxID_ANY, wxString::FromUTF8("生成预览 - 请检查并确认"), wxDefaultPosition, wxSize(900, 600), wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
                 wxBoxSizer* vs = new wxBoxSizer(wxVERTICAL);
@@ -1280,20 +1529,26 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
                 // ==== 核心阻塞点 ==== 
                 int userChoice = previewDlg.ShowModal(); // 主 UI 线程将阻塞在这里直到用户关闭窗口
 
-                if (userChoice == wxID_OK) {
-                    // 3. 执行写入并增加强原子回滚机制
-                    bool writeSuccess = true;
-                    namespace fs = std::filesystem;
-                    fs::path baseSrc = (!this->m_projectRoot.empty()) ? fs::path(this->m_projectRoot) : fs::current_path();
-                    fs::path srcDir = baseSrc / "src";
-                    fs::path libDir = baseSrc / "lib";
-                    std::error_code ec;
-                    fs::create_directories(srcDir, ec);
-                    fs::create_directories(libDir, ec);
+				if (userChoice == wxID_OK) {
+					bool writeSuccess = true;
+					namespace fs = std::filesystem;
+					fs::path baseSrc = (!this->m_projectRoot.empty()) ? fs::path(this->m_projectRoot) : fs::current_path();
+					fs::path srcDir = baseSrc / "src";
+					fs::path libDir = baseSrc / "lib";
+					std::error_code ec;
+					fs::create_directories(srcDir, ec);
+					fs::create_directories(libDir, ec);
 
-                    try {
-                        int currentFileIdx = 0; // 用于追踪当前处理的文件在列表中的索引
-                        bool hasFileWritten = false; // 记录是否有文件被写入
+					// 这些变量要放在 try 外面，catch 才能访问
+					std::string projectFileBackup;
+					std::string projectFilePath;
+					bool projectUpdated = false;
+
+					try {
+						int currentFileIdx = 0;
+						bool hasFileWritten = false;
+
+						std::vector<std::string> writtenFiles;
 
                         for (const auto& p : files) {
                             // 【修改点3】：检查用户是否在UI界面中勾选了此文件，未勾选则直接跳过
@@ -1336,21 +1591,36 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
                             }
 
                             // 写入文件
-                            std::ofstream ofs(outPath, std::ios::out | std::ios::binary);
-                            if (!ofs) throw std::runtime_error("无法打开文件进行写入: " + outPath.string());
-                            ofs << p.second;
+							std::ofstream ofs(outPath, std::ios::out | std::ios::binary);
+							if (!ofs) throw std::runtime_error("无法打开文件进行写入: " + outPath.string());
+							ofs << p.second;
+							if (!ofs.good()) {
+								throw std::runtime_error("写入文件失败: " + outPath.string());
+							}
 
-                            hasFileWritten = true;
-                            currentFileIdx++; // 记得在循环结束增加索引
+							// 只有真正写成功了，才记录
+							writtenFiles.push_back(outPath.string());
+
+							hasFileWritten = true;
+							currentFileIdx++; // 记得在循环结束增加索引
                         }
 
-                        // 给用户的反馈提示可以更精准一些
-                        if (hasFileWritten) {
-                            historyCtrl->AppendText(wxString::FromUTF8("系统: 选中的文件已成功写入项目并保存。\n"));
-                        }
-                        else {
-                            historyCtrl->AppendText(wxString::FromUTF8("系统: 用户取消了所有文件的勾选，未写入任何文件。\n"));
-                        }
+						// 所有文件写完后，再同步更新 .project
+						if (hasFileWritten) {
+							if (!UpdateProjectFileList(baseSrc, writtenFiles, &projectFileBackup, &projectFilePath)) {
+								throw std::runtime_error("文件已写入，但更新 .project 失败。");
+							}
+							projectUpdated = true;
+
+							historyCtrl->AppendText(
+								wxString::FromUTF8("系统: 选中的文件已成功写入项目，并已同步挂载到 .project。\n")
+							);
+						}
+						else {
+							historyCtrl->AppendText(
+								wxString::FromUTF8("系统: 用户取消了所有文件的勾选，未写入任何文件。\n")
+							);
+						}
                     }
                     catch (const std::exception& e) {
                         writeSuccess = false;
@@ -1358,14 +1628,23 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
                         historyCtrl->AppendText(wxString::FromUTF8("系统警告：写入失败，正在回滚项目至修改前状态...\n"));
 
                         // 触发回滚恢复！
-                        for (const auto& pathStr : this->m_generationCreatedFiles) {
-                            fs::remove(fs::path(pathStr), ec);
-                        }
-                        for (const auto& kv : this->m_generationBackups) {
-                            std::ofstream ofs(kv.first, std::ios::out | std::ios::binary);
-                            if (ofs) ofs << kv.second;
-                        }
-                        historyCtrl->AppendText(wxString::FromUTF8("系统: 项目已安全回滚。\n"));
+						for (const auto& pathStr : this->m_generationCreatedFiles) {
+							fs::remove(fs::path(pathStr), ec);
+						}
+						for (const auto& kv : this->m_generationBackups) {
+							std::ofstream ofs(kv.first, std::ios::out | std::ios::binary);
+							if (ofs) ofs << kv.second;
+						}
+
+						// 新增：如果 .project 已经被改过，也要回滚
+						if (projectUpdated && !projectFilePath.empty()) {
+							std::ofstream pofs(projectFilePath, std::ios::out | std::ios::binary | std::ios::trunc);
+							if (pofs) {
+								pofs << projectFileBackup;
+							}
+						}
+
+						historyCtrl->AppendText(wxString::FromUTF8("系统: 项目已安全回滚。\n"));
                     }
                 }
                 else {
