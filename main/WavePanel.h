@@ -35,6 +35,9 @@ private:
     void AssignSignalColors();
     void ComputeCommonPrefix();
     void OnPaint(wxPaintEvent& event);
+    void OnMouseMove(wxMouseEvent& event);
+    int  GetHeaderHeight() const;
+    int m_lastTooltipIdx = -1;
 public:
     vcd_t* m_vcdData;
     int m_currentTimestamp, m_displayTimeRange, m_maxTimestamp;

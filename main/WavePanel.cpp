@@ -7,11 +7,11 @@ WaveformPanel::WaveformPanel(wxWindow* parent)
     : wxPanel(parent), m_vcdData(nullptr), m_currentTimestamp(0),
     m_displayTimeRange(1000), m_maxTimestamp(1000)
 {
-    SetBackgroundColour(wxColour(240, 240, 240));  // 浅色背景
+    SetBackgroundColour(wxColour(240, 240, 240));
     SetDoubleBuffered(true);
     m_rng.seed(std::random_device{}());
     Bind(wxEVT_PAINT, &WaveformPanel::OnPaint, this);
-
+    Bind(wxEVT_MOTION, &WaveformPanel::OnMouseMove, this);
 }
 
 void WaveformPanel::SetVcdData(vcd_t* vcdData)
@@ -107,8 +107,8 @@ void WaveformPanel::OnPaint(wxPaintEvent& event)
     }
 
     // ---- 顶部模块信息栏 ----
-    int headerH = 20;
-    if (!m_commonPrefix.IsEmpty()) {
+    int headerH = GetHeaderHeight();
+    if (headerH > 0) {
         wxString moduleLabel = m_commonPrefix;
         if (moduleLabel.EndsWith("."))
             moduleLabel.RemoveLast();
@@ -121,8 +121,6 @@ void WaveformPanel::OnPaint(wxPaintEvent& event)
         dc.SetTextForeground(wxColour(40, 80, 140));
         dc.DrawText(wxT("Module: ") + moduleLabel, 10, 2);
         dc.SetFont(GetFont());
-    } else {
-        headerH = 0;
     }
 
     int viewW = size.x - LEFT_MARGIN - WAVE_PADDING;
@@ -212,8 +210,60 @@ void WaveformPanel::OnPaint(wxPaintEvent& event)
     }
 }
 
+int WaveformPanel::GetHeaderHeight() const
+{
+    return m_commonPrefix.IsEmpty() ? 0 : 20;
+}
 
-#include "WavePanel.h"
+void WaveformPanel::OnMouseMove(wxMouseEvent& event)
+{
+    event.Skip();
+
+    int mx = event.GetX(), my = event.GetY();
+
+    if (mx >= LEFT_MARGIN || !m_vcdData || m_allSignals.empty()) {
+        if (m_lastTooltipIdx != -1) {
+            UnsetToolTip();
+            m_lastTooltipIdx = -1;
+        }
+        return;
+    }
+
+    int headerH = GetHeaderHeight();
+    int timeAxisY = headerH + 25;
+    int firstRowTop = timeAxisY + 30 - 20;
+    int idx = (my - firstRowTop) / SIGNAL_ROW_HEIGHT;
+
+    if (idx < 0 || idx >= (int)m_allSignals.size()) {
+        if (m_lastTooltipIdx != -1) {
+            UnsetToolTip();
+            m_lastTooltipIdx = -1;
+        }
+        return;
+    }
+
+    if (idx == m_lastTooltipIdx) return;
+
+    // 检查该信号名是否被截断
+    wxString fullName(m_allSignals[idx]->full_name);
+    wxString shortName = fullName;
+    if (!m_commonPrefix.IsEmpty() && fullName.StartsWith(m_commonPrefix))
+        shortName = fullName.Mid(m_commonPrefix.length());
+    if (shortName.IsEmpty()) shortName = fullName;
+
+    wxClientDC dc(this);
+    wxString valPlaceholder("=X");
+    int valWidth = dc.GetTextExtent(valPlaceholder).GetWidth();
+    int nameMaxW = LEFT_MARGIN - valWidth - 14;
+    int nameW = dc.GetTextExtent(shortName).GetWidth();
+
+    if (nameW > nameMaxW) {
+        SetToolTip(fullName);
+    } else {
+        UnsetToolTip();
+    }
+    m_lastTooltipIdx = idx;
+}
 
 WavePanel::WavePanel(wxWindow* parent) : wxPanel(parent, wxID_ANY)
 {
