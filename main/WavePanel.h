@@ -33,6 +33,7 @@ public:
 private:
     char ParseVcdValue(const char* v);
     void AssignSignalColors();
+    void ComputeCommonPrefix();
     void OnPaint(wxPaintEvent& event);
 public:
     vcd_t* m_vcdData;
@@ -40,6 +41,7 @@ public:
     std::vector<signal_t*> m_allSignals;
     std::map<std::string, wxColour> m_signalColors;
     std::mt19937 m_rng;
+    wxString m_commonPrefix;
 };
 
 class WavePanel : public wxPanel

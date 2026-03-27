@@ -38,6 +38,7 @@ void WaveformPanel::SetVcdData(vcd_t* vcdData)
             return std::string(a->full_name) < std::string(b->full_name);
             });
         AssignSignalColors();
+        ComputeCommonPrefix();
     }
     Refresh();
 }
@@ -76,46 +77,77 @@ void WaveformPanel::AssignSignalColors() {
     }
 }
 
+void WaveformPanel::ComputeCommonPrefix() {
+    m_commonPrefix.clear();
+    if (m_allSignals.empty()) return;
+
+    std::string prefix = m_allSignals[0]->full_name;
+    for (size_t i = 1; i < m_allSignals.size(); ++i) {
+        std::string name = m_allSignals[i]->full_name;
+        size_t len = std::min(prefix.size(), name.size());
+        size_t j = 0;
+        while (j < len && prefix[j] == name[j]) ++j;
+        prefix = prefix.substr(0, j);
+    }
+
+    // 截断到最后一个 '.' 边界，不在名字中间断开
+    size_t lastDot = prefix.rfind('.');
+    if (lastDot != std::string::npos)
+        m_commonPrefix = wxString(prefix.substr(0, lastDot + 1));
+}
+
 void WaveformPanel::OnPaint(wxPaintEvent& event)
 {
     wxPaintDC dc(this);
     wxSize size = GetSize();
     if (!m_vcdData || m_allSignals.empty()) {
-        dc.SetTextForeground(*wxBLACK);  // 浅色主题的文本颜色
-        dc.DrawText("Please Start Simulation first", size.x / 2 - 100, size.y / 2);  // 修改提示文本
+        dc.SetTextForeground(*wxBLACK);
+        dc.DrawText("Please Start Simulation first", size.x / 2 - 100, size.y / 2);
         return;
+    }
+
+    // ---- 顶部模块信息栏 ----
+    int headerH = 20;
+    if (!m_commonPrefix.IsEmpty()) {
+        wxString moduleLabel = m_commonPrefix;
+        if (moduleLabel.EndsWith("."))
+            moduleLabel.RemoveLast();
+        dc.SetBrush(wxBrush(wxColour(230, 238, 248)));
+        dc.SetPen(*wxTRANSPARENT_PEN);
+        dc.DrawRectangle(0, 0, size.x, headerH);
+        wxFont boldFont = dc.GetFont();
+        boldFont.MakeBold();
+        dc.SetFont(boldFont);
+        dc.SetTextForeground(wxColour(40, 80, 140));
+        dc.DrawText(wxT("Module: ") + moduleLabel, 10, 2);
+        dc.SetFont(GetFont());
+    } else {
+        headerH = 0;
     }
 
     int viewW = size.x - LEFT_MARGIN - WAVE_PADDING;
     if (viewW < 100) viewW = 100;
 
-    // 比例尺：1 ps 对应多少像素
     double scale = (double)viewW / m_displayTimeRange;
-    int timeAxisY = 25;
+    int timeAxisY = headerH + 25;
 
-    // 绘制时间轴和网格
+    // ---- 时间轴和网格 ----
     dc.SetPen(wxPen(wxColour(60, 60, 60), 1, wxPENSTYLE_DOT));
     dc.SetTextForeground(wxColour(150, 150, 150));
     int step = std::max(1, m_displayTimeRange / 10);
     for (int ts = 0; ts <= m_displayTimeRange; ts += step) {
         int x = LEFT_MARGIN + (int)(ts * scale);
         dc.DrawLine(x, timeAxisY, x, size.y);
-        dc.DrawText(wxString::Format("%d", ts), x - 5, 5);
+        dc.DrawText(wxString::Format("%d", ts), x - 5, headerH + 5);
     }
 
-    // 遍历信号绘制波形
+    // ---- 信号波形 ----
     for (int i = 0; i < (int)m_allSignals.size(); ++i) {
         signal_t* sig = m_allSignals[i];
         int yBase = timeAxisY + i * SIGNAL_ROW_HEIGHT + 30;
         int yH = yBase - 15, yL = yBase + 15;
 
-        // 绘制标签
-        dc.SetTextForeground(*wxBLACK);  // 浅色主题文本颜色
-        dc.DrawText(sig->full_name, 10, yBase - 8);
-
-        // 获取当前时间戳的值（用于实时显示）
         char valAtCursor = '0';
-
         dc.SetPen(wxPen(m_signalColors[sig->full_name], 2));
         int lastX = LEFT_MARGIN;
         char lastVal = '0';
@@ -127,10 +159,8 @@ void WaveformPanel::OnPaint(wxPaintEvent& event)
             int currX = LEFT_MARGIN + (int)(ts * scale);
             char currVal = ParseVcdValue(sig->value_changes[c].value);
 
-            // 画水平线
             int drawY = (lastVal == '0') ? yL : yH;
             dc.DrawLine(lastX, drawY, currX, drawY);
-            // 画垂直跳变
             dc.SetPen(wxPen(wxColour(100, 100, 100), 1));
             dc.DrawLine(currX, yH, currX, yL);
             dc.SetPen(wxPen(m_signalColors[sig->full_name], 2));
@@ -140,16 +170,41 @@ void WaveformPanel::OnPaint(wxPaintEvent& event)
             lastX = currX;
             lastVal = currVal;
         }
-        // 补全最后一段
         int endX = LEFT_MARGIN + (int)(m_displayTimeRange * scale);
         dc.DrawLine(lastX, (lastVal == '0' ? yL : yH), endX, (lastVal == '0' ? yL : yH));
 
-        // 显示实时值
-        dc.SetTextForeground(wxColour(0, 255, 0));
-        dc.DrawText(wxString::Format("= %c", valAtCursor), 120, yBase - 8);
+        // ---- 左侧标签区 ----
+        dc.SetClippingRegion(0, yBase - 20, LEFT_MARGIN - 2, SIGNAL_ROW_HEIGHT);
+
+        // 去掉公共前缀，保留子模块层次
+        wxString fullName(sig->full_name);
+        wxString shortName = fullName;
+        if (!m_commonPrefix.IsEmpty() && fullName.StartsWith(m_commonPrefix))
+            shortName = fullName.Mid(m_commonPrefix.length());
+        if (shortName.IsEmpty()) shortName = fullName;
+
+        // 值文本右对齐紧贴 LEFT_MARGIN
+        wxString valStr = wxString::Format("=%c", valAtCursor);
+        int valWidth = dc.GetTextExtent(valStr).GetWidth();
+        dc.SetTextForeground(wxColour(0, 160, 0));
+        dc.DrawText(valStr, LEFT_MARGIN - valWidth - 4, yBase - 8);
+
+        // 信号名左对齐，超长则省略
+        int nameMaxW = LEFT_MARGIN - valWidth - 14;
+        wxString displayName = shortName;
+        int nameW = dc.GetTextExtent(displayName).GetWidth();
+        if (nameW > nameMaxW) {
+            while (displayName.length() > 1 && dc.GetTextExtent(displayName + "...").GetWidth() > nameMaxW)
+                displayName.RemoveLast();
+            displayName += "...";
+        }
+        dc.SetTextForeground(*wxBLACK);
+        dc.DrawText(displayName, 10, yBase - 8);
+
+        dc.DestroyClippingRegion();
     }
 
-    // 绘制红色播放头
+    // ---- 红色播放头 ----
     int cursorX = LEFT_MARGIN + (int)(m_currentTimestamp * scale);
     if (cursorX >= LEFT_MARGIN && cursorX <= LEFT_MARGIN + viewW) {
         dc.SetPen(wxPen(*wxRED, 2));
@@ -402,5 +457,6 @@ void WaveformPanel::FilterSignalsSmart(const std::vector<std::string>& keys)
     }
 
     AssignSignalColors();
+    ComputeCommonPrefix();
     Refresh();
 }
