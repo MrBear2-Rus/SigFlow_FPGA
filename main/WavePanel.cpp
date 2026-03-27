@@ -1,7 +1,8 @@
 #include "WavePanel.h"
 #include <wx/filename.h>
-#include <wx/app.h>  
-#include "MainFrame.h"
+#include <wx/dir.h>
+#include <wx/choicdlg.h>
+#include <wx/tokenzr.h>
 WaveformPanel::WaveformPanel(wxWindow* parent)
     : wxPanel(parent), m_vcdData(nullptr), m_currentTimestamp(0),
     m_displayTimeRange(1000), m_maxTimestamp(1000)
@@ -305,7 +306,6 @@ void WavePanel::SetProjectPath(const wxString& path)
     m_projectPath = path;
 }
 
-// WavePanel.cpp
 void WavePanel::AutoLoadVcd()
 {
     if (m_projectPath.IsEmpty()) {
@@ -313,34 +313,55 @@ void WavePanel::AutoLoadVcd()
         return;
     }
 
-    // 核心修改：获取主窗口 + 调用接口拿顶层模块
-    MainFrame* mainFrame = dynamic_cast<MainFrame*>(GetGrandParent());
-    if (!mainFrame) {
-        wxMessageBox("Failed to get main frame!");
+    // 扫描 <project>/.sigflow/sim/ 下所有 <topModule>/waveform/wave.vcd
+    wxFileName simDir(m_projectPath, "");
+    simDir.AppendDir(".sigflow");
+    simDir.AppendDir("sim");
+    wxString simDirPath = simDir.GetPath();
+
+    if (!wxDir::Exists(simDirPath)) {
+        wxMessageBox(wxT("尚未编译仿真，未找到 .sigflow/sim 目录"));
         return;
     }
 
+    wxDir dir(simDirPath);
+    if (!dir.IsOpened()) return;
 
-    wxString topModule = mainFrame->GetTopModuleName();
-    if (topModule.IsEmpty()) { // 用户取消输入
+    std::vector<std::pair<wxString, wxString>> found; // {topModule, fullPath}
+    wxString subDirName;
+    bool hasDir = dir.GetFirst(&subDirName, wxEmptyString, wxDIR_DIRS);
+    while (hasDir) {
+        wxFileName vcdPath(simDirPath, "");
+        vcdPath.AppendDir(subDirName);
+        vcdPath.AppendDir("waveform");
+        vcdPath.SetFullName("wave.vcd");
+        wxString full = vcdPath.GetFullPath();
+        if (wxFileExists(full)) {
+            found.push_back({ subDirName, full });
+        }
+        hasDir = dir.GetNext(&subDirName);
+    }
+
+    if (found.empty()) {
+        wxMessageBox(wxT("未找到任何 VCD 波形文件\n请先编译并运行仿真 (F5 → F6)"));
         return;
     }
 
-    // 原有路径逻辑不变，仅替换硬编码的 "Complete"
-    wxFileName fn(m_projectPath, "");
-    fn.AppendDir(".sigflow");
-    fn.AppendDir("sim");
-    fn.AppendDir(topModule); // ✅ 动态顶层模块
-    fn.AppendDir("waveform");
-    fn.SetFullName("wave.vcd");
-
-    wxString fullPath = fn.GetFullPath();
-    if (!wxFileExists(fullPath)) {
-        wxMessageBox("VCD not found:\n" + fullPath);
-        return;
+    wxString chosen;
+    if (found.size() == 1) {
+        chosen = found[0].second;
+    } else {
+        wxArrayString choices;
+        for (auto& [mod, path] : found)
+            choices.Add(mod);
+        int sel = wxGetSingleChoiceIndex(
+            wxT("检测到多个仿真结果，请选择要加载的顶层模块:"),
+            wxT("选择波形"), choices, this);
+        if (sel < 0) return;
+        chosen = found[sel].second;
     }
 
-    OpenVCDFile(fullPath);
+    OpenVCDFile(chosen);
 }
 
 void WaveformPanel::FilterSignalsSmart(const std::vector<std::string>& keys)
