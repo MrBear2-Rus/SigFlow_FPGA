@@ -157,7 +157,7 @@ MainFrame::MainFrame()
  
     // 终端
     m_terminalCtrl = new TerminalCtrl(this);
-    m_wavePanel = new WavePanel(this);
+    m_wavePanel = new WavePanel(this, m_canvas);
 
     auto GetIcon = [&](const wxString& path) {
         wxBitmapBundle bundle = wxBitmapBundle::FromSVGFile(path, wxSize(24, 24));
@@ -2002,6 +2002,9 @@ void MainFrame::DoSimRun()
         // 如果 WavePanel 存在，加载波形
         if (m_wavePanel) {
             // TODO: 自动加载 VCD 到波形面板
+            //std::vector<std::string> sigs = {"TOP.Complete.a"};
+            //m_wavePanel->OpenVCDFileWithFilter(result.vcdPath, );
+
         }
     } else {
         wxString msg = wxT("仿真失败!\n");
@@ -2011,6 +2014,8 @@ void MainFrame::DoSimRun()
 
     HideBusyIndicator(wxT("就绪"));
     menuBar->SetSimulationBusy(false);
+
+    
 }
 
 void MainFrame::DoSimClean()

@@ -10,6 +10,8 @@
 #include <map>
 #include <random>
 
+class CanvasNoteBook;
+
 extern "C" {
 #include "vcd.h"
 }
@@ -22,7 +24,7 @@ extern "C" {
 class WaveformPanel : public wxPanel
 {
 public:
-    WaveformPanel(wxWindow* parent);
+    WaveformPanel(wxWindow* parent, CanvasNoteBook* ca);
     void SetVcdData(vcd_t* vcdData);
     void SetCurrentTimestamp(int ts);
     void ZoomIn();
@@ -30,24 +32,34 @@ public:
     void ZoomReset();
     void ClearVcdData();
     void FilterSignalsSmart(const std::vector<std::string>& keys);
+
+    //void SetSignalVisiblity(std::vector<std::string> sigs);
+    //void SetSignalVisible();
 private:
     char ParseVcdValue(const char* v);
     void AssignSignalColors();
+
+    std::vector<char> GetSignalValuesAtTime(int timestamp);
+
     void OnPaint(wxPaintEvent& event);
 public:
     vcd_t* m_vcdData;
     int m_currentTimestamp, m_displayTimeRange, m_maxTimestamp;
     std::vector<signal_t*> m_allSignals;
     std::map<std::string, wxColour> m_signalColors;
+    //std::map<std::string, bool> isPaint;
     std::mt19937 m_rng;
+
+    CanvasNoteBook* canvas;
 };
 
 class WavePanel : public wxPanel
 {
 public:
     wxString m_projectPath;
-    WavePanel(wxWindow* parent);
+    WavePanel(wxWindow* parent, CanvasNoteBook* ca);
     void OpenVCDFile(wxString path);
+    void OpenVCDFileWithFilter(wxString path, std::vector<std::string> sigs);
     void OpenVcd();
 
     void SetProjectPath(const wxString& path);

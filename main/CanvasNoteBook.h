@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <wx/aui/auibook.h>
 #include <wx/wx.h>
 #include "CanvasPanel.h"
@@ -45,6 +45,7 @@ public:
     void OnCanvasModified(wxCommandEvent& evt);
     void SigFlowNodeChanged(SigTreeNode* n);
 
+    void SetSignalStatus(std::vector<std::string> ss, std::vector<char> c);
     wxDECLARE_EVENT_TABLE(); // 新增：事件表声明
 
 private:

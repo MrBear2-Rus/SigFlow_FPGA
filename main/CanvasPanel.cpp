@@ -1806,3 +1806,16 @@ void CanvasPanel::OnSFNodeActivated(wxCommandEvent& evt) {
     }
     evt.Skip(); // 允许事件继续传播
 }
+
+void CanvasPanel::SetSignalStatus(std::vector<std::string> ss, std::vector<char> c ) {
+    for (int i = 0; i < ss.size(); i++) {
+        for (Wire& w : m_wires) {
+            if (w.identifier == ss[i]) {
+                w.status = c[i] == '1' ? LogicSignal::ONE : LogicSignal::ZERO;
+                break;
+            }
+
+        }
+    }
+    Refresh();
+}

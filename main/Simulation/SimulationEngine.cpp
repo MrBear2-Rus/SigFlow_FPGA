@@ -1,4 +1,4 @@
-#include "SimulationEngine.h"
+﻿#include "SimulationEngine.h"
 #include "ProcessRunner.h"
 #include "StimulusParser.h"
 #include "TimelineGenerator.h"
@@ -100,6 +100,7 @@ wxString SimulationEngine::FindVerilatorPath() const
     // 注意：MSYS2 的 verilator 是脚本，实际可执行文件是 verilator_bin.exe
     const char* commonPaths[] = {
         // MSYS2 路径（优先检查 verilator_bin.exe）
+        "E:\\msys64\\mingw64\\bin\\verilator_bin.exe"
         "C:\\msys64\\mingw64\\bin\\verilator_bin.exe",
         "C:\\msys64\\usr\\bin\\verilator_bin.exe",
         "C:\\msys64\\mingw64\\bin\\verilator.exe",
@@ -499,13 +500,21 @@ bool SimulationEngine::CompileToDll(const wxString& topModule, wxString& errorMs
         // /Fo 路径不能以反斜杠结尾（否则会转义引号），且不要引号包裹
         batchContent += "/Fo" + objDir + "\\ ";
         batchContent += "\"" + objDir + "\\*.cpp\" ";
+        /*
         batchContent += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated.cpp\" ";
         batchContent += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated_vcd_c.cpp\" ";
         batchContent += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated_threads.cpp\" ";
         batchContent += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated_timing.cpp\" ";
         batchContent += "\"" + stubPath + "\" ";
         batchContent += "/I\"C:\\msys64\\mingw64\\share\\verilator\\include\" ";
-        batchContent += "/I\"C:\\msys64\\mingw64\\share\\verilator\\include\\vltstd\" ";
+        batchContent += "/I\"C:\\msys64\\mingw64\\share\\verilator\\include\\vltstd\" ";*/
+        batchContent += "\"E:\\msys64\\mingw64\\share\\verilator\\include\\verilated.cpp\" ";
+        batchContent += "\"E:\\msys64\\mingw64\\share\\verilator\\include\\verilated_vcd_c.cpp\" ";
+        batchContent += "\"E:\\msys64\\mingw64\\share\\verilator\\include\\verilated_threads.cpp\" ";
+        batchContent += "\"E:\\msys64\\mingw64\\share\\verilator\\include\\verilated_timing.cpp\" ";
+        batchContent += "\"" + stubPath + "\" ";
+        batchContent += "/I\"E:\\msys64\\mingw64\\share\\verilator\\include\" ";
+        batchContent += "/I\"E:\\msys64\\mingw64\\share\\verilator\\include\\vltstd\" ";
         batchContent += "/I\"" + objDir + "\" ";
         batchContent += "/link /DLL /MACHINE:X64 ws2_32.lib\n";
         batchContent += "exit /b %errorLevel%\n";
@@ -831,11 +840,15 @@ bool SimulationEngine::CompileSimRunner(const wxString& topModule, const wxStrin
         batchContent += "/Fo" + objDir + "\\ ";
         batchContent += "\"" + simMainPath + "\" ";
         batchContent += "\"" + objDir + "\\*.cpp\" ";
+        /*
         batchContent += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated.cpp\" ";
         batchContent += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated_vcd_c.cpp\" ";
         batchContent += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated_threads.cpp\" ";
-        batchContent += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated_timing.cpp\" ";
-
+        batchContent += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated_timing.cpp\" ";*/
+        batchContent += "\"E:\\msys64\\mingw64\\share\\verilator\\include\\verilated.cpp\" ";
+        batchContent += "\"E:\\msys64\\mingw64\\share\\verilator\\include\\verilated_vcd_c.cpp\" ";
+        batchContent += "\"E:\\msys64\\mingw64\\share\\verilator\\include\\verilated_threads.cpp\" ";
+        batchContent += "\"E:\\msys64\\mingw64\\share\\verilator\\include\\verilated_timing.cpp\" ";
         // sc_time_stub
         wxString stubPath = GetSoftwareDirectory() + "\\main\\Simulation\\sc_time_stub.cpp";
         if (!wxFileExists(stubPath)) {
@@ -844,8 +857,11 @@ bool SimulationEngine::CompileSimRunner(const wxString& topModule, const wxStrin
         }
         batchContent += "\"" + stubPath + "\" ";
 
+        /*
         batchContent += "/I\"C:\\msys64\\mingw64\\share\\verilator\\include\" ";
-        batchContent += "/I\"C:\\msys64\\mingw64\\share\\verilator\\include\\vltstd\" ";
+        batchContent += "/I\"C:\\msys64\\mingw64\\share\\verilator\\include\\vltstd\" ";*/
+        batchContent += "/I\"E:\\msys64\\mingw64\\share\\verilator\\include\" ";
+        batchContent += "/I\"E:\\msys64\\mingw64\\share\\verilator\\include\\vltstd\" ";
         batchContent += "/I\"" + objDir + "\" ";
         batchContent += "/link /MACHINE:X64 ws2_32.lib\n";
         batchContent += "exit /b %errorLevel%\n";

@@ -2,8 +2,10 @@
 #include <wx/filename.h>
 #include <wx/app.h>  
 #include "MainFrame.h"
-WaveformPanel::WaveformPanel(wxWindow* parent)
-    : wxPanel(parent), m_vcdData(nullptr), m_currentTimestamp(0),
+#include "CanvasNoteBook.h"
+
+WaveformPanel::WaveformPanel(wxWindow* parent, CanvasNoteBook* ca)
+    : wxPanel(parent), canvas(ca),m_vcdData(nullptr), m_currentTimestamp(0),
     m_displayTimeRange(1000), m_maxTimestamp(1000)
 {
     SetBackgroundColour(wxColour(240, 240, 240));  // 浅色背景
@@ -67,6 +69,7 @@ char WaveformPanel::ParseVcdValue(const char* v) {
     return (c == '1' || c == '0' || c == 'x' || c == 'z') ? c : '0';
 }
 
+
 void WaveformPanel::AssignSignalColors() {
     m_signalColors.clear();
     std::uniform_int_distribution<int> dist(100, 255);
@@ -74,6 +77,26 @@ void WaveformPanel::AssignSignalColors() {
         m_signalColors[sig->full_name] = wxColour(dist(m_rng), dist(m_rng), dist(m_rng));
     }
 }
+/*
+void WaveformPanel::SetSignalVisiblity(std::vector<std::string> sigs) {
+    isPaint.clear();
+    for (auto sig : m_allSignals) {
+        auto it = std::find(sigs.begin(), sigs.end(), sig->full_name);
+        if (it == sigs.end()) {
+            isPaint.emplace(sig->full_name, false);
+        }
+        else {
+            isPaint.emplace(sig->full_name, true);
+        }
+    }
+}
+
+void WaveformPanel::SetSignalVisible() {
+    isPaint.clear();
+    for (auto sig : m_allSignals) {
+        isPaint.emplace(sig->full_name, true); 
+    }
+}*/
 
 void WaveformPanel::OnPaint(wxPaintEvent& event)
 {
@@ -101,7 +124,8 @@ void WaveformPanel::OnPaint(wxPaintEvent& event)
         dc.DrawLine(x, timeAxisY, x, size.y);
         dc.DrawText(wxString::Format("%d", ts), x - 5, 5);
     }
-
+    std::vector<std::string> ss;
+    std::vector<char> signalValues = GetSignalValuesAtTime(m_currentTimestamp);
     // 遍历信号绘制波形
     for (int i = 0; i < (int)m_allSignals.size(); ++i) {
         signal_t* sig = m_allSignals[i];
@@ -110,15 +134,25 @@ void WaveformPanel::OnPaint(wxPaintEvent& event)
 
         // 绘制标签
         dc.SetTextForeground(*wxBLACK);  // 浅色主题文本颜色
-        dc.DrawText(sig->full_name, 10, yBase - 8);
+        char* dot = strrchr(sig->full_name, '.');
+        if (dot != NULL) {
+            char* extension = dot + 1;
+            dc.DrawText(extension, 10, yBase - 8);
+            ss.push_back(extension);
+        }
+        else {
+            dc.DrawText(sig->full_name, 10, yBase - 8);
+            ss.push_back(sig->full_name);
+        }
+        ;
 
-        // 获取当前时间戳的值（用于实时显示）
-        char valAtCursor = '0';
+
+       
 
         dc.SetPen(wxPen(m_signalColors[sig->full_name], 2));
         int lastX = LEFT_MARGIN;
         char lastVal = '0';
-
+        char valAtCursor = signalValues[i];
         for (size_t c = 0; c < sig->changes_count; ++c) {
             int ts = sig->value_changes[c].timestamp;
             if (ts > m_displayTimeRange) break;
@@ -134,8 +168,6 @@ void WaveformPanel::OnPaint(wxPaintEvent& event)
             dc.DrawLine(currX, yH, currX, yL);
             dc.SetPen(wxPen(m_signalColors[sig->full_name], 2));
 
-            if (ts <= m_currentTimestamp) valAtCursor = currVal;
-
             lastX = currX;
             lastVal = currVal;
         }
@@ -147,7 +179,7 @@ void WaveformPanel::OnPaint(wxPaintEvent& event)
         dc.SetTextForeground(wxColour(0, 255, 0));
         dc.DrawText(wxString::Format("= %c", valAtCursor), 120, yBase - 8);
     }
-
+    canvas->SetSignalStatus(ss, signalValues);
     // 绘制红色播放头
     int cursorX = LEFT_MARGIN + (int)(m_currentTimestamp * scale);
     if (cursorX >= LEFT_MARGIN && cursorX <= LEFT_MARGIN + viewW) {
@@ -156,14 +188,34 @@ void WaveformPanel::OnPaint(wxPaintEvent& event)
     }
 }
 
+std::vector<char> WaveformPanel::GetSignalValuesAtTime(int timestamp)
+{
+    std::vector<char> values;
+    values.reserve(m_allSignals.size());
+
+    for (auto* sig : m_allSignals) {
+        char value = '0'; // 默认值，可根据需求改为 'x'
+        // 由于信号的变化点通常按时间顺序存储，我们可以遍历到最后一个 <= timestamp 的项
+        for (size_t i = 0; i < sig->changes_count; ++i) {
+            if (sig->value_changes[i].timestamp <= timestamp) {
+                value = ParseVcdValue(sig->value_changes[i].value);
+            }
+            else {
+                break; // 后续时间更大，无需继续
+            }
+        }
+        values.push_back(value);
+    }
+    return values;
+}
 
 #include "WavePanel.h"
 
-WavePanel::WavePanel(wxWindow* parent) : wxPanel(parent, wxID_ANY)
+WavePanel::WavePanel(wxWindow* parent, CanvasNoteBook* ca) : wxPanel(parent, wxID_ANY)
 {
     // UI 布局
     auto mainSizer = new wxBoxSizer(wxVERTICAL);
-    m_wavePanel = new WaveformPanel(this);
+    m_wavePanel = new WaveformPanel(this, ca);
     mainSizer->Add(m_wavePanel, 1, wxEXPAND | wxALL, 0);
 
     auto ctrlSizer = new wxBoxSizer(wxHORIZONTAL);
@@ -293,6 +345,16 @@ void WavePanel::OpenVCDFile(wxString path)
     vcd_t* data = vcd_read_from_path(const_cast<char*>(path.ToStdString().c_str()));
     if (data) {
         m_wavePanel->SetVcdData(data);
+        m_slider->SetRange(0, m_wavePanel->m_maxTimestamp);
+        m_slider->SetValue(0);
+    }
+}
+
+void WavePanel::OpenVCDFileWithFilter(wxString path, std::vector<std::string> sigs) {
+    vcd_t* data = vcd_read_from_path(const_cast<char*>(path.ToStdString().c_str()));
+    if (data) {
+        m_wavePanel->SetVcdData(data);
+        m_wavePanel->FilterSignalsSmart(sigs);
         m_slider->SetRange(0, m_wavePanel->m_maxTimestamp);
         m_slider->SetValue(0);
     }

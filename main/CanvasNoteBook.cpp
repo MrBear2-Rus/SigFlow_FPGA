@@ -333,3 +333,8 @@ void CanvasNoteBook::OnPageClose(wxAuiNotebookEvent& evt) {
     // evt.Skip() 会允许默认的删除行为执行
     evt.Skip();
 }
+
+void CanvasNoteBook::SetSignalStatus(std::vector<std::string> ss, std::vector<char> c) {
+    CanvasPanel* ca = GetSelectedPage();
+    ca->SetSignalStatus(ss, c);
+}

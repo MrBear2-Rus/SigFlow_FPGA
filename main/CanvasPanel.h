@@ -194,6 +194,9 @@ public:
     const wxRect GetSelectionRect() const { return m_selectRect; };
     void SetSelectionRect(const wxRect& rect) { m_selectRect = rect; Refresh(); };
     void ClearSelectionRect() { m_selectRect = wxRect(); Refresh(); };
+
+
+    void SetSignalStatus(std::vector<std::string> ss, std::vector<char> c);
     // ==================== 画布本身的大小位置定义和坐标转换 ====================
 
 private:
