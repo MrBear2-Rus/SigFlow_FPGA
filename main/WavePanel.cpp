@@ -1,5 +1,7 @@
 ﻿#include "WavePanel.h"
-
+#include <wx/filename.h>
+#include <wx/app.h>  
+#include "MainFrame.h"
 WaveformPanel::WaveformPanel(wxWindow* parent)
     : wxPanel(parent), m_vcdData(nullptr), m_currentTimestamp(0),
     m_displayTimeRange(1000), m_maxTimestamp(1000)
@@ -8,6 +10,7 @@ WaveformPanel::WaveformPanel(wxWindow* parent)
     SetDoubleBuffered(true);
     m_rng.seed(std::random_device{}());
     Bind(wxEVT_PAINT, &WaveformPanel::OnPaint, this);
+
 }
 
 void WaveformPanel::SetVcdData(vcd_t* vcdData)
@@ -179,6 +182,52 @@ WavePanel::WavePanel(wxWindow* parent) : wxPanel(parent, wxID_ANY)
     ctrlSizer->Add(zoomReset, 0, wxALL, 5);
 
     mainSizer->Add(ctrlSizer, 0, wxEXPAND | wxALL, 5);
+    auto autoBtn = new wxButton(this, wxID_ANY, "Auto Load");
+    ctrlSizer->Add(autoBtn, 0, wxALL, 5);
+
+    auto selectBtn = new wxButton(this, wxID_ANY, "Select Signals");
+    ctrlSizer->Add(selectBtn, 0, wxALL, 5);
+
+    selectBtn->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
+
+        wxTextEntryDialog dlg(
+            this,
+            "Input alias OR signal name (comma separated)\n"
+            "Example:\n"
+            "  #,$        (alias)\n"
+            "  sum,cout   (name)",
+            "Select Signals"
+        );
+
+        if (dlg.ShowModal() != wxID_OK)
+            return;
+
+        wxString text = dlg.GetValue();
+
+        std::vector<std::string> keys;
+        wxStringTokenizer tokenizer(text, ",");
+
+        while (tokenizer.HasMoreTokens())
+        {
+            wxString token = tokenizer.GetNextToken();
+            token.Trim(true);
+            token.Trim(false);
+
+            if (!token.IsEmpty())
+                keys.push_back(token.ToStdString());
+        }
+
+        // ✅ 正确调用
+        m_wavePanel->FilterSignalsSmart(keys);
+
+        // ✅ 正确更新 slider
+        m_slider->SetRange(0, m_wavePanel->m_maxTimestamp);
+        m_slider->SetValue(0);
+        });
+
+    autoBtn->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
+        AutoLoadVcd();
+        });
     SetSizer(mainSizer);
 
     m_playBtn->Bind(wxEVT_BUTTON, &WavePanel::OnTogglePlay, this);
@@ -256,3 +305,86 @@ void WavePanel::ClearWavePanel()
     m_slider->SetRange(0, 1000);
 }
 
+void WavePanel::SetProjectPath(const wxString& path)
+{
+    m_projectPath = path;
+}
+
+// WavePanel.cpp
+void WavePanel::AutoLoadVcd()
+{
+    if (m_projectPath.IsEmpty()) {
+        wxMessageBox("No project loaded!");
+        return;
+    }
+
+    // 核心修改：获取主窗口 + 调用接口拿顶层模块
+    MainFrame* mainFrame = dynamic_cast<MainFrame*>(GetGrandParent());
+    if (!mainFrame) {
+        wxMessageBox("Failed to get main frame!");
+        return;
+    }
+
+
+    wxString topModule = mainFrame->GetTopModuleName();
+    if (topModule.IsEmpty()) { // 用户取消输入
+        return;
+    }
+
+    // 原有路径逻辑不变，仅替换硬编码的 "Complete"
+    wxFileName fn(m_projectPath, "");
+    fn.AppendDir(".sigflow");
+    fn.AppendDir("sim");
+    fn.AppendDir(topModule); // ✅ 动态顶层模块
+    fn.AppendDir("waveform");
+    fn.SetFullName("wave.vcd");
+
+    wxString fullPath = fn.GetFullPath();
+    if (!wxFileExists(fullPath)) {
+        wxMessageBox("VCD not found:\n" + fullPath);
+        return;
+    }
+
+    OpenVCDFile(fullPath);
+}
+
+void WaveformPanel::FilterSignalsSmart(const std::vector<std::string>& keys)
+{
+    if (!m_vcdData) return;
+
+    m_allSignals.clear();
+
+    for (size_t i = 0; i < m_vcdData->signals_count; ++i)
+    {
+        signal_t* sig = &m_vcdData->signals[i];
+
+        if (keys.empty())
+        {
+            m_allSignals.push_back(sig);
+            continue;
+        }
+
+        std::string alias = sig->signal_id;   // VCD别名 (#,$...)
+        std::string name = sig->full_name;   // 完整名 TOP.uut.xxx
+
+        for (const auto& k : keys)
+        {
+            // 1️⃣ alias 精确匹配
+            if (alias == k)
+            {
+                m_allSignals.push_back(sig);
+                break;
+            }
+
+            // 2️⃣ 名字模糊匹配
+            if (name.find(k) != std::string::npos)
+            {
+                m_allSignals.push_back(sig);
+                break;
+            }
+        }
+    }
+
+    AssignSignalColors();
+    Refresh();
+}

@@ -135,11 +135,19 @@ MainFrame::MainFrame()
     m_projectTreePanel = new ProjectTreePanel(this);
     // 监听项目加载事件，及时把路径传给插件
     this->Bind(EVT_PROJECT_LOADED, [this](wxCommandEvent& evt) {
+        wxString projectPath = evt.GetString();
+
+        // 原有逻辑（别动）
         ISigPlugin* p = m_pluginMgr->GetPlugin("DeepSeek_Assistant");
         if (p) {
-            p->SetProjectRoot(std::string(evt.GetString().ToUTF8().data()));
+            p->SetProjectRoot(std::string(projectPath.ToUTF8().data()));
         }
-    });
+
+        // ✅ 新增：传给 WavePanel
+        if (m_wavePanel) {
+            m_wavePanel->SetProjectPath(projectPath);
+        }
+        });
     this->Bind(wxEVT_MENU, &MainFrame::OnOpenFileFromTree, this, ID_OPEN_FILE_FROM_TREE);
 
     // 侧边工具栏
@@ -2035,5 +2043,32 @@ void MainFrame::DoSimClean()
         wxMessageBox(wxT("缓存清理完成"), wxT("清理完成"), wxOK | wxICON_INFORMATION);
     } else {
         wxMessageBox(wxT("缓存清理失败"), wxT("错误"), wxOK | wxICON_ERROR);
+    }
+}
+
+wxString MainFrame::GetTopModuleName()
+{
+    // 1. 先检查项目是否打开
+    if (m_currentProjectPath.IsEmpty()) return wxEmptyString;
+
+    // 2. 复用你已有的 LoadProjectConfig 函数读配置
+    wxString topModule;
+    std::vector<wxString> dummyFiles;
+    if (LoadProjectConfig(m_currentProjectPath, topModule, dummyFiles)) {
+        return topModule;
+    }
+
+    // 3. 配置读不到就弹窗让用户输入
+    wxTextEntryDialog dlg(this,
+        "未找到顶层模块配置，请手动输入:",
+        "顶层模块名称",
+        wxFileName(m_currentProjectPath).GetFullName()); // 默认值=项目名
+
+    
+    if (dlg.ShowModal() == wxID_OK) {
+        return dlg.GetValue(); // 返回 wxString
+    }
+    else {
+        return wxString(wxEmptyString); // 显式转为 wxString
     }
 }

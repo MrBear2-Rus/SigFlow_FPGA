@@ -29,7 +29,7 @@ public:
     void ZoomOut();
     void ZoomReset();
     void ClearVcdData();
-
+    void FilterSignalsSmart(const std::vector<std::string>& keys);
 private:
     char ParseVcdValue(const char* v);
     void AssignSignalColors();
@@ -45,12 +45,14 @@ public:
 class WavePanel : public wxPanel
 {
 public:
+    wxString m_projectPath;
     WavePanel(wxWindow* parent);
     void OpenVCDFile(wxString path);
     void OpenVcd();
 
+    void SetProjectPath(const wxString& path);
     void ClearWavePanel();
-    
+    void AutoLoadVcd();
 private:
     void OnOpenVcd(wxCommandEvent&);
     void OnTogglePlay(wxCommandEvent&);
