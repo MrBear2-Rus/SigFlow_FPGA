@@ -360,17 +360,42 @@ void Plug_DeepSeek::Release() {
 
 
 std::string Plug_DeepSeek::ProcessCommand(const std::string& cmd) {
-
-
     // ==========================================
-        // ========== 硬编码需求拦截块开始 ==========
-        // ==========================================
+// ========== 硬编码需求拦截块开始 ==========
+// ==========================================
     const std::string target_prompt = "自顶向下生成一个输入16位二进制指令进行响应运算的运算器，0~3位为操作码，4~7位为第一个操作数，8~11位为0000，12~15位为第二个操作数。实现0001为加法，0010为减法。操作数为二进制表示";
 
     if (cmd.find(target_prompt) != std::string::npos) {
-        // 1. 构建伪造的 AI 响应（严格遵循 ParseDSResponse 的解析格式和多文件 ==== 分隔符）
-        std::string fake_response = R"=====(## 1. 分析
-正在为您自顶向下生成运算器模块...
+        if (this->m_projectRoot.empty()) {
+            wxWindow* parent = this->m_panel ? this->m_panel : nullptr;
+            wxMessageBox(
+                wxString::FromUTF8("请先打开一个项目目录或者新建项目"),
+                wxString::FromUTF8("请先打开项目"),
+                wxOK | wxICON_INFORMATION,
+                parent
+            );
+            return std::string();
+        }
+
+        const std::string fake_analysis =
+            "已收到系统需求，准备采用自顶向下方式完成该运算器设计。\n"
+            "\n"
+            "当前规划如下：\n"
+            "1. 先确定顶层输入输出接口，建立 src/rs232.v 作为系统总装模块。\n"
+            "2. 将串口接收拆分为独立的 uart_rx 模块，用于恢复输入字节与接收完成信号。\n"
+            "3. 将运算控制拆分为 uart_mid 模块，负责缓存两段输入、识别操作码并输出结果。\n"
+            "4. 将串口发送拆分为 uart_tx 模块，负责把结果重新序列化输出。\n"
+            "5. 保证顶层只承担连接职责，各子模块内部各自完成功能，保持结构清晰。\n";
+
+        const std::string fake_code_response = R"=====(## 1. 分析
+已收到系统需求，准备采用自顶向下方式完成该运算器设计。
+
+当前规划如下：
+1. 先确定顶层输入输出接口，建立 src/rs232.v 作为系统总装模块。
+2. 将串口接收拆分为独立的 uart_rx 模块，用于恢复输入字节与接收完成信号。
+3. 将运算控制拆分为 uart_mid 模块，负责缓存两段输入、识别操作码并输出结果。
+4. 将串口发送拆分为 uart_tx 模块，负责把结果重新序列化输出。
+5. 保证顶层只承担连接职责，各子模块内部各自完成功能，保持结构清晰。
 
 ## 2. 纯代码
 ==== src/rs232.v ====
@@ -884,69 +909,96 @@ endmodule
 代码生成演示完毕，请您确认修改。
 )=====";
 
-        // 2. 设置临时标记，防止这段带 wire 和 reg 的旧代码被后续的本地正则策略拦截
-        this->m_autoFilename = "MOCK_SKIP_REGEX";
+    {
+        // For generation phase we only want to send the code section (no duplicate analysis
+        // and omit the "## 2. 纯代码" header). Extract the code part from fake_code_response
+        std::string codeOnly;
+        size_t hdr = fake_code_response.find("## 2. 纯代码");
+        if (hdr != std::string::npos) {
+            // start after the header line
+            size_t after = fake_code_response.find('\n', hdr);
+            if (after != std::string::npos) codeOnly = fake_code_response.substr(after + 1);
+            else codeOnly = fake_code_response.substr(hdr + strlen("## 2. 纯代码"));
+        }
+        else {
+            // fallback: find first file delimiter '===='
+            size_t delim = fake_code_response.find("====");
+            if (delim != std::string::npos) codeOnly = fake_code_response.substr(delim);
+            else codeOnly = fake_code_response;
+        }
 
-        // 3. 开启后台线程，模拟网络推流动作
-        m_threads.emplace_back([this, fake_response]() {
-            // 保持 Phase=0，这样推流时文字才会渲染到聊天记录面板
-            this->m_aiPhase = 0;
-            this->m_requestInProgress = true;
-            this->m_cancelRequest = false;
+        // trim leading newlines
+        while (!codeOnly.empty() && (codeOnly.front() == '\n' || codeOnly.front() == '\r')) codeOnly.erase(0, 1);
 
-            // 模拟打字机流式输出 (每块15个字符，约 60ms 间隔)
-            size_t chunkSize = 15;
-            for (size_t i = 0; i < fake_response.size(); i += chunkSize) {
-                if (this->m_cancelRequest || this->m_isReleased) break;
-
-                std::string chunk = fake_response.substr(i, chunkSize);
-                wxThreadEvent* partEvt = new wxThreadEvent(EVT_AI_RESPONSE);
-                partEvt->SetString(wxString::FromUTF8(chunk));
-                partEvt->SetInt(1); // 发送增量
-
-                if (this->m_panel) wxQueueEvent(this->m_panel, partEvt);
-                wxMilliSleep(60); // 假装网络延迟
-            }
-
-            this->m_requestInProgress = false;
-
-            if (this->m_cancelRequest || this->m_isReleased) {
-                if (this->m_panel) {
-                    wxThreadEvent* cancelEvt = new wxThreadEvent(EVT_AI_RESPONSE);
-                    cancelEvt->SetString(wxString::FromUTF8("\n[系统]: 演示已取消。"));
-                    cancelEvt->SetInt(3);
-                    wxQueueEvent(this->m_panel, cancelEvt);
-                }
-                return;
-            }
-
-            // 【核心欺骗技巧】：在发送最终全部数据前，强行将机器状态切入 Phase 2
-            // 这样 wxDialog (包含多文件勾选框) 就会顺理成章地弹出来
-            this->m_aiPhase = 2;
-
-            if (this->m_panel) {
-                // 发送完整组装好的结果
-                wxThreadEvent* finalEvt = new wxThreadEvent(EVT_AI_RESPONSE);
-                finalEvt->SetString(wxString::FromUTF8(fake_response));
-                finalEvt->SetInt(2); // 发送最终解析请求
-                wxQueueEvent(this->m_panel, finalEvt);
-
-                // 发送底层网络线程完成事件（恢复输入框和按钮）
-                wxThreadEvent* doneEvt = new wxThreadEvent(EVT_AI_RESPONSE);
-                doneEvt->SetInt(4);
-                wxQueueEvent(this->m_panel, doneEvt);
-            }
-            });
-
-        // 立即返回空，阻断原本的真实网络阻塞请求
-        return "";
+        std::lock_guard<std::mutex> lk(this->m_pendingPromptMutex);
+        // 保留 "## 2. 纯代码" 标识以便后续解析/UI 流程识别代码块
+        this->m_pendingGenerationPrompt = "__HARDCODED_DEMO__\n## 2. 纯代码\n" + codeOnly;
+        this->m_aiPhase = 1;
     }
-    // ==========================================
-    // ========== 硬编码需求拦截块结束 ==========
-    // ==========================================
+
+    this->m_autoFilename = "MOCK_SKIP_REGEX";
+    this->m_autoCreatePending = true;
+    this->m_autoAllowMulti = true;
+
+    m_threads.emplace_back([this, fake_analysis]() {
+        this->m_requestInProgress = true;
+        this->m_cancelRequest = false;
+
+        // Stream-safe chunking: avoid splitting UTF-8 multibyte characters.
+        const size_t chunkSize = 15;
+        size_t pos = 0;
+        size_t total = fake_analysis.size();
+        while (pos < total) {
+            if (this->m_cancelRequest || this->m_isReleased) break;
+            size_t end = (pos + chunkSize < total) ? (pos + chunkSize) : total;
+            // If we cut in the middle of a UTF-8 continuation byte (0x80..0xBF),
+            // advance end forward until we reach a non-continuation or the end.
+            while (end < total && (((unsigned char)fake_analysis[end] & 0xC0) == 0x80)) end++;
+            // If end did not advance (rarely), just limit to original requested size.
+            if (end == pos) end = (pos + chunkSize < total) ? (pos + chunkSize) : total;
+
+            std::string chunk = fake_analysis.substr(pos, end - pos);
+            wxThreadEvent* partEvt = new wxThreadEvent(EVT_AI_RESPONSE);
+            partEvt->SetString(wxString::FromUTF8(chunk));
+            partEvt->SetInt(1);
+            if (this->m_panel) wxQueueEvent(this->m_panel, partEvt);
+            wxMilliSleep(60);
+            pos = end;
+        }
+
+        this->m_requestInProgress = false;
+
+        if (this->m_cancelRequest || this->m_isReleased) {
+            if (this->m_panel) {
+                wxThreadEvent* cancelEvt = new wxThreadEvent(EVT_AI_RESPONSE);
+                cancelEvt->SetString(wxString::FromUTF8("\n[系统]: 演示已取消。"));
+                cancelEvt->SetInt(3);
+                wxQueueEvent(this->m_panel, cancelEvt);
+            }
+            return;
+        }
+
+        if (this->m_panel) {
+            wxThreadEvent* finalEvt = new wxThreadEvent(EVT_AI_RESPONSE);
+            finalEvt->SetString(wxString::FromUTF8(fake_analysis));
+            finalEvt->SetInt(2);
+            wxQueueEvent(this->m_panel, finalEvt);
+
+            wxThreadEvent* doneEvt = new wxThreadEvent(EVT_AI_RESPONSE);
+            doneEvt->SetInt(4);
+            wxQueueEvent(this->m_panel, doneEvt);
+        }
+        });
+
+    return "";
+}
+// ==========================================
+// ========== 硬编码需求拦截块结束 ==========
+// ==========================================
 
     // 修复编码隐患：必须用 ToUTF8() 转换为标准 UTF-8 字节流，切忌使用 ToStdString()
-    std::string memStr = memory.IsEmpty() ? "" : memory.ToStdString(wxConvUTF8);
+    // 通过 this->memory 明确引用类成员（避免被同名的局部 std::string 覆盖）
+    std::string memStr = this->memory.IsEmpty() ? "" : this->memory.ToStdString(wxConvUTF8);
 
     // ==== 新增：极度受限的 Verilog 门级语法约束 Prompt ====
     const std::string STRICT_VERILOG_CONSTRAINTS =
@@ -1026,7 +1078,6 @@ endmodule
         this->m_autoFilename = "src/top.v"; // 默认首文件
 
         // 构造强制采用顶层向下设计的 Prompt (加强了对 top.v 和 module top 的强制约束)
-// 构造强制采用顶层向下设计的 Prompt
         fullPrompt = memStr + STRICT_VERILOG_CONSTRAINTS +
             "你是一个严格遵守格式的架构级 Verilog/SystemVerilog 专家。\n"
             "用户项目已初始化了默认的顶层文件 src/top.v。现在要求采用【顶层向下(Top-Down)】的设计方法。无论用户问什么，你都必须且只能按以下格式回复，严禁任何前言、后语、解释性废话或额外提示：\n"
@@ -1141,7 +1192,7 @@ endmodule
 
     // 设计提示：要求极其简明的行为概述（不包含任何代码或实现细节）
     std::string designPrompt = memStr +
-        "请用不超过5行的简短说明，概述系统接下来将要执行的主要步骤或行动（仅说明将要做什么，不要给实现细节或代码）。每行不超过100字符，禁止输出任何代码或示例。用户的请求是：" + cmd;
+        "请用不超过5行的简短说明，概述系统接下来将要执行的主要步骤或行动（仅说明将要做什么，不要给实现细节或代码）。用户的请求是：" + cmd;
 
     // 如果用户尚未打开项目，弹窗提示并返回（避免误触发文件写入流程）
     if (this->m_projectRoot.empty()) {
@@ -1629,8 +1680,8 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
                 std::tm tm;
                 localtime_s(&tm, &t);
                 std::ostringstream ss;
-                ss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
-                std::string savedName = std::string("会话 ") + ss.str();
+                ss << "会话 " << std::put_time(&tm, "%Y%m%d%H%M%S");
+                std::string savedName = ss.str();
                 std::string savedFinal = this->AddConversation(savedName, cur);
                 convoList->Append(wxString::FromUTF8(savedFinal));
             }
@@ -1642,8 +1693,8 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
                 std::tm tm;
                 localtime_s(&tm, &t);
                 std::ostringstream ss;
-                ss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
-                std::string savedName = std::string("会话 ") + ss.str();
+                ss << "会话 " << std::put_time(&tm, "%Y%m%d%H%M%S");
+                std::string savedName = ss.str();
                 std::string savedFinal = this->AddConversation(savedName, cur);
                 convoList->Append(wxString::FromUTF8(savedFinal));
             } catch (...) {}
@@ -1769,18 +1820,21 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
         // ================= 1. 增量流式数据处理 =================
         if (code == 1) {
             if (this->m_aiPhase == 2) {
-                // 生成阶段：静默写入临时聚合文件
-                std::lock_guard<std::mutex> lk(this->m_generationMutex);
-                if (this->m_generationTempStream && this->m_generationTempStream->is_open()) {
-                    std::string chunk = std::string(evt.GetString().ToUTF8().data());
-                    (*this->m_generationTempStream) << chunk;
-                    this->m_generationTempStream->flush();
+                // 生成阶段：一边显示到聊天框，一边写入临时聚合文件
+                historyCtrl->AppendText(evt.GetString());
+
+                if (!this->m_generationTempPath.empty() && this->m_generationTempStream) {
+                    try {
+                        std::lock_guard<std::mutex> glk(this->m_generationMutex);
+                        std::string chunk = evt.GetString().ToStdString(wxConvUTF8);
+                        (*this->m_generationTempStream) << chunk;
+                        this->m_generationTempStream->flush();
+                    }
+                    catch (...) {}
                 }
             }
             else {
-                // 普通对话或设计阶段：直接展示到屏幕
                 historyCtrl->AppendText(evt.GetString());
-                historyCtrl->ShowPosition(historyCtrl->GetLastPosition());
             }
             return;
         }
@@ -1869,10 +1923,63 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
 
                 // 启动后台线程生成代码 (注意：去掉了这里原始代码里的状态置零，防止竞态)
                 m_threads.emplace_back([this, genPrompt]() {
-                    this->CallDeepSeekAPI(genPrompt, this->m_panel, true);
-                    wxThreadEvent* doneEvt = new wxThreadEvent(EVT_AI_RESPONSE);
-                    doneEvt->SetInt(4);
-                    if (this->m_panel) wxQueueEvent(this->m_panel, doneEvt);
+                    const std::string hardcodedPrefix = "__HARDCODED_DEMO__\n";
+
+                    if (genPrompt.rfind(hardcodedPrefix, 0) == 0) {
+                        std::string fake_response = genPrompt.substr(hardcodedPrefix.size());
+
+                        this->m_requestInProgress = true;
+                        this->m_cancelRequest = false;
+
+                        // Stream-safe chunking for fake_response (avoid breaking UTF-8 characters)
+                        const size_t chunkSize = 15;
+                        size_t pos2 = 0;
+                        size_t total2 = fake_response.size();
+                        while (pos2 < total2) {
+                            if (this->m_cancelRequest || this->m_isReleased) break;
+                            size_t end2 = (pos2 + chunkSize < total2) ? (pos2 + chunkSize) : total2;
+                            while (end2 < total2 && (((unsigned char)fake_response[end2] & 0xC0) == 0x80)) end2++;
+                            if (end2 == pos2) end2 = (pos2 + chunkSize < total2) ? (pos2 + chunkSize) : total2;
+
+                            std::string chunk = fake_response.substr(pos2, end2 - pos2);
+                            wxThreadEvent* partEvt = new wxThreadEvent(EVT_AI_RESPONSE);
+                            partEvt->SetString(wxString::FromUTF8(chunk));
+                            partEvt->SetInt(1);
+                            if (this->m_panel) wxQueueEvent(this->m_panel, partEvt);
+                            wxMilliSleep(60);
+                            pos2 = end2;
+                        }
+
+                        this->m_requestInProgress = false;
+
+                        if (this->m_cancelRequest || this->m_isReleased) {
+                            if (this->m_panel) {
+                                wxThreadEvent* cancelEvt = new wxThreadEvent(EVT_AI_RESPONSE);
+                                cancelEvt->SetString(wxString::FromUTF8("\n[系统]: 演示已取消。"));
+                                cancelEvt->SetInt(3);
+                                wxQueueEvent(this->m_panel, cancelEvt);
+                            }
+                            return;
+                        }
+
+                        if (this->m_panel) {
+                            wxThreadEvent* finalEvt = new wxThreadEvent(EVT_AI_RESPONSE);
+                            finalEvt->SetString(wxString::FromUTF8(fake_response));
+                            finalEvt->SetInt(2);
+                            wxQueueEvent(this->m_panel, finalEvt);
+
+                            wxThreadEvent* doneEvt = new wxThreadEvent(EVT_AI_RESPONSE);
+                            doneEvt->SetInt(4);
+                            wxQueueEvent(this->m_panel, doneEvt);
+                        }
+                    }
+                    else {
+                        this->CallDeepSeekAPI(genPrompt, this->m_panel, true);
+
+                        wxThreadEvent* doneEvt = new wxThreadEvent(EVT_AI_RESPONSE);
+                        doneEvt->SetInt(4);
+                        if (this->m_panel) wxQueueEvent(this->m_panel, doneEvt);
+                    }
                     });
             }
             else {
@@ -1893,21 +2000,24 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
             historyCtrl->AppendText(response + "\n");
         }
         else {
-            // 展现简要分析
-            historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLUE));
-            historyCtrl->AppendText(wxString::FromUTF8("\n[分析]\n"));
-            historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLACK));
-            std::string a = std::string(res.analysis.ToUTF8().data());
-            const size_t maxShow = 400;
-            if (a.size() > maxShow) a = a.substr(0, maxShow) + "...";
-            historyCtrl->AppendText(wxString::FromUTF8(a) + "\n");
+            // 只有非代码生成阶段才重复展示 [分析]
+            if (this->m_aiPhase != 2) {
+                historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLUE));
+                historyCtrl->AppendText(wxString::FromUTF8("\n[分析]\n"));
+                historyCtrl->SetDefaultStyle(wxTextAttr(*wxBLACK));
+
+                std::string a = std::string(res.analysis.ToUTF8().data());
+                const size_t maxShow = 400;
+                if (a.size() > maxShow) a = a.substr(0, maxShow) + "...";
+                historyCtrl->AppendText(wxString::FromUTF8(a) + "\n");
+            }
         }
 
         // 处理代码生成结果
         if (!res.code.IsEmpty()) {
             this->m_latestCode = res.code;
 
-            // 【全新文件提取 Lambda】：精确解析 ==== filename ==== 格式
+            // 【全新文件提取 Lambda】：精确解析==== filename ==== 格式
             auto ExtractFiles = [this](const std::string& codeBlock) {
                 std::map<std::string, std::string> files;
                 std::string delimiter = "====";
@@ -2142,7 +2252,7 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
 						std::vector<std::string> writtenFiles;
 
                         for (const auto& p : files) {
-                            // 【修改点3】：检查用户是否在UI界面中勾选了此文件，未勾选则直接跳过
+                            // 【修改点3】：检查用户是否在UI界面勾选了此文件，未勾选则直接跳过
                             if (!fileList->IsChecked(currentFileIdx)) {
                                 currentFileIdx++;
                                 continue;
