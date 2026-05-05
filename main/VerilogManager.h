@@ -1,5 +1,7 @@
 ﻿#pragma once
 #include <vector>
+#include <list>
+#include <memory>
 #include <unordered_map>
 #include <wx/stc/stc.h>
 #include <tree_sitter/api.h>
@@ -17,8 +19,10 @@ struct Block {
     int endHandle;
     SigTreeNode* self;
     Structuring* structure;
-    Block(int start, int end, SigTreeNode* node) : startHandle(start), endHandle(end), self(node) {};
-    bool isStable() { return self != nullptr; }
+    Block(int start, int end, SigTreeNode* node)
+        : startHandle(start), endHandle(end), self(node), structure(nullptr) {
+    };
+    bool isStable() const { return self != nullptr; }
 };
 
 class VerilogManager {
@@ -27,7 +31,8 @@ public:
     SigTextEditor* m_stc;
     std::vector<Block> blocks;
     std::vector<Block> break_blocks;
-    std::vector<Structuring> structures;
+    // 使用 std::list 保证 Structuring 节点地址稳定，避免 vector 重分配让 Block::structure 指针失效。
+    std::list<Structuring> structures;
     SigFlowTree* m_tree;
 
     //std::vector<Block*> highlighted_blocks;
@@ -70,4 +75,12 @@ public:
 
     void EditBlock(wxStyledTextEvent& event);
     void OnTimer(wxTimerEvent&);
+
+    // 异常块管控：在 EditBlock 触发时主动清理死亡块、修复半死亡块、
+    // 重建/迁移单行块的 endHandle 以保证 Scintilla marker 与 Block 语义一致。
+    void HousekeepBlocks(int eventType, int pos, int len, const wxString& text);
+    void HousekeepVector(std::vector<Block>& vec,
+                         int eventType, int pos, int len, int newlineCount);
+    // 销毁单个 Block：同步从 SFTree 删除节点、销毁双端 marker、释放 structure。
+    void DestroyBlock(Block& b);
 };
