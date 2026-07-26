@@ -1,4 +1,4 @@
-﻿#include "ProjectStartWindow.h"
+#include "ProjectStartWindow.h"
 #include "MainFrame.h"
 #include <wx/filedlg.h>
 #include <wx/msgdlg.h>
@@ -11,7 +11,8 @@ enum
     ID_BTN_NEW_PROJECT = wxID_HIGHEST + 100,
     ID_BTN_OPEN_PROJECT,
     ID_BTN_EXIT,
-    ID_LIST_RECENT_PROJECTS
+    ID_LIST_RECENT_PROJECTS,
+    ID_BTN_DELETE_PROJECT,
 };
 
 // 事件表
@@ -19,6 +20,7 @@ wxBEGIN_EVENT_TABLE(ProjectStartWindow, wxDialog)
 EVT_BUTTON(ID_BTN_NEW_PROJECT, ProjectStartWindow::OnNewProject)
 EVT_BUTTON(ID_BTN_OPEN_PROJECT, ProjectStartWindow::OnOpenProject)
 EVT_BUTTON(ID_BTN_EXIT, ProjectStartWindow::OnExit)
+EVT_BUTTON(ID_BTN_DELETE_PROJECT, ProjectStartWindow::OnDeleteProject)
 EVT_LIST_ITEM_ACTIVATED(ID_LIST_RECENT_PROJECTS, ProjectStartWindow::OnRecentProjectDblClick)
 wxEND_EVENT_TABLE()
 
@@ -31,9 +33,16 @@ ProjectStartWindow::ProjectStartWindow(wxWindow* parent, wxWindowID id, const wx
     wxConfig config("Sigflow");
     m_fileHistory.Load(config);
 
+   
+
     // 初始化界面 + 加载历史记录到列表
     InitUI();
+
+    LoadLogFromFile();
+
     LoadRecentProjects();
+
+    Log("Application started");
 
     // 窗口居中
     Centre(wxBOTH);
@@ -43,6 +52,23 @@ ProjectStartWindow::ProjectStartWindow(wxWindow* parent, wxWindowID id, const wx
     SetIcon(icon);
 }
 
+
+void ProjectStartWindow::LoadLogFromFile()
+{
+    if (!m_logCtrl) return;
+
+    if (!wxFileExists("sigflow.log")) return;
+
+    wxFile file("sigflow.log");
+
+    wxString content;
+    file.ReadAll(&content);
+
+    m_logCtrl->SetValue(content);  // 一次性加载全部日志
+
+    // 滚动到底部
+    m_logCtrl->ShowPosition(m_logCtrl->GetLastPosition());
+}
 // 析构函数
 ProjectStartWindow::~ProjectStartWindow()
 {
@@ -54,7 +80,8 @@ ProjectStartWindow::~ProjectStartWindow()
 void ProjectStartWindow::InitUI()
 {
     // 主容器：水平布局
-    wxBoxSizer* mainSizer = new wxBoxSizer(wxHORIZONTAL);
+    wxBoxSizer* rootSizer = new wxBoxSizer(wxVERTICAL);
+    wxBoxSizer* topSizer = new wxBoxSizer(wxHORIZONTAL);
 
     // 左侧区域：最近项目列表
     wxBoxSizer* leftSizer = new wxBoxSizer(wxVERTICAL);
@@ -69,7 +96,7 @@ void ProjectStartWindow::InitUI()
         wxLC_REPORT | wxLC_SINGLE_SEL | wxLC_HRULES | wxLC_VRULES);
     m_recentProjectsList->InsertColumn(0, "Project Path: ", wxLIST_FORMAT_LEFT, 500);
     leftSizer->Add(m_recentProjectsList, 1, wxALL | wxEXPAND, 10);
-    mainSizer->Add(leftSizer, 4, wxEXPAND | wxALL, 10);
+    topSizer->Add(leftSizer, 4, wxEXPAND | wxALL, 10);
 
     // 右侧区域：垂直按钮组
     wxBoxSizer* rightSizer = new wxBoxSizer(wxVERTICAL);
@@ -90,11 +117,63 @@ void ProjectStartWindow::InitUI()
     btnExit->SetMinSize(btnSize);
     rightSizer->Add(btnExit, 0, wxALL | wxALIGN_CENTER, 10);
 
-    mainSizer->Add(rightSizer, 1, wxALIGN_CENTER | wxALL, 20);
+    topSizer->Add(rightSizer, 1, wxALIGN_CENTER | wxALL, 20);
 
-    // 设置布局和窗口最小尺寸
-    SetSizer(mainSizer);
+    // 删除按钮
+    wxButton* btnDelete = new wxButton(this, ID_BTN_DELETE_PROJECT, "Remove Selected");
+    btnDelete->SetMinSize(btnSize);
+    rightSizer->Add(btnDelete, 0, wxALL | wxALIGN_CENTER, 10);
+
+    m_logCtrl = new wxTextCtrl(this, wxID_ANY, "",
+        wxDefaultPosition, wxSize(-1, 150),
+        wxTE_MULTILINE | wxTE_READONLY | wxTE_RICH2);
+
+    rootSizer->Add(topSizer, 1, wxEXPAND);
+    rootSizer->Add(m_logCtrl, 0, wxEXPAND | wxALL, 5);
+
+    SetSizer(rootSizer);
     SetMinSize(wxSize(800, 500));
+}
+
+void ProjectStartWindow::OnDeleteProject(wxCommandEvent& evt)
+{
+    long item = m_recentProjectsList->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+
+    if (item == -1)
+    {
+        wxMessageBox("Please select a project first!", "Prompt", wxOK);
+        return;
+    }
+
+    // 获取对应历史索引
+    size_t historyIdx = m_recentProjectsList->GetItemData(item);
+
+    wxString path = m_fileHistory.GetHistoryFile(historyIdx);
+
+    // 从历史记录删除
+    m_fileHistory.RemoveFileFromHistory(historyIdx);
+
+    Log("Removed from history: " + path);
+
+    // 刷新UI
+    LoadRecentProjects();
+
+    // 保存到配置文件（关键！）
+    SaveRecentProjects();
+}
+
+void ProjectStartWindow::Log(const wxString& msg, const wxString& level)
+{
+    wxString time = wxDateTime::Now().FormatISOTime();
+    wxString line = "[" + time + "][" + level + "] " + msg + "\n";
+
+    if (m_logCtrl)
+        m_logCtrl->AppendText(line);
+
+    // 写文件（可选但强烈建议）
+    wxFile file("sigflow.log", wxFile::write_append);
+    if (file.IsOpened())
+        file.Write(line);
 }
 
 // 加载历史记录到列表控件
@@ -123,6 +202,7 @@ void ProjectStartWindow::SaveRecentProjects()
 void ProjectStartWindow::AddProjectToHistory(const wxString& path)
 {
     m_fileHistory.AddFileToHistory(path); // 自动去重，最新在前
+    Log("Add to history: " + path);
     LoadRecentProjects(); // 刷新列表
     SaveRecentProjects(); // 立即保存
 }
@@ -144,9 +224,11 @@ void ProjectStartWindow::OpenProject(const wxString& projectDir)
 {
     if (!wxDir::Exists(projectDir))
     {
+        Log("Folder not exist: " + projectDir, "ERROR");
         wxMessageBox("Folder does not exist!", "Prompt", wxOK);
         return;
     }
+    Log("Opening project: " + projectDir);
 
     AddProjectToHistory(projectDir);
     m_selectedProjectDir = projectDir;

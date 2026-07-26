@@ -108,3 +108,37 @@ void TerminalCtrl::PrintError(const wxString& text)
     // 简单做法：加前缀
     AppendText("[ERROR] " + text + "\n");
 }
+
+void TerminalCtrl::BeginProcessOutput(const wxString& header)
+{
+    if (!GetText().EndsWith("\n")) {
+        AppendText("\n");
+    }
+    AppendText(header + "\n");
+    m_promptPos = GetTextLength();
+    SetCurrentPos(m_promptPos);
+    SetSelection(m_promptPos, m_promptPos);
+}
+
+void TerminalCtrl::AppendProcessOutput(const wxString& text)
+{
+    if (text.IsEmpty()) {
+        return;
+    }
+
+    AppendText(text);
+    m_promptPos = GetTextLength();
+    SetCurrentPos(m_promptPos);
+    SetSelection(m_promptPos, m_promptPos);
+}
+
+void TerminalCtrl::FinishProcessOutput(const wxString& summary)
+{
+    if (!GetText().EndsWith("\n")) {
+        AppendText("\n");
+    }
+    AppendText(summary + "\n> ");
+    m_promptPos = GetTextLength();
+    SetCurrentPos(m_promptPos);
+    SetSelection(m_promptPos, m_promptPos);
+}

@@ -361,3 +361,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Downloaded FPGA toolchain sources, Python packages, and build outputs.
+external/fpga-tools/

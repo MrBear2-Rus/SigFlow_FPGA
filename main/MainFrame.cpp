@@ -3,11 +3,18 @@
 #include <wx/sstream.h>
 #include <wx/aui/aui.h>
 #include <wx/progdlg.h>
+#include <wx/filedlg.h>
 #include <wx/stc/stc.h>
 #include <wx/stdpaths.h>
 #include <wx/aui/tabart.h>
 #include <wx/simplebook.h>
 #include <wx/splitter.h>
+#include <wx/utils.h>
+#include <wx/process.h>
+#include <wx/timer.h>
+#include <wx/weakref.h>
+
+#include <cstring>
 
 #include "MainFrame.h"
 #include "MainMenuBar.h"
@@ -21,6 +28,311 @@
 
 extern std::vector<SecondElement> g_elements;
 extern "C" TSLanguage* tree_sitter_verilog();
+
+namespace {
+
+struct FpgaProjectOptions {
+    wxString yosysPath;
+    wxString yosysSynthesisCommand;
+    wxString nextpnrPath;
+    std::vector<wxString> nextpnrArgs;
+    wxString openFpgaLoaderPath;
+    std::vector<wxString> openFpgaLoaderArgs;
+};
+
+bool IsValidVerilogIdentifier(const wxString& value)
+{
+    if (value.IsEmpty()) {
+        return false;
+    }
+
+    const wxChar first = value[0];
+    if (!(wxIsalpha(first) || first == '_')) {
+        return false;
+    }
+
+    for (const wxChar character : value) {
+        if (!(wxIsalnum(character) || character == '_' || character == '$')) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool EnsureDirectory(const wxString& path)
+{
+    return wxDirExists(path) || wxFileName::Mkdir(path, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
+}
+
+bool WriteUtf8File(const wxString& path, const wxString& content)
+{
+    wxFile file(path, wxFile::write);
+    if (!file.IsOpened()) {
+        return false;
+    }
+
+    const wxScopedCharBuffer utf8 = content.ToUTF8();
+    const char* data = utf8.data();
+    const size_t length = data ? std::strlen(data) : 0;
+    const bool written = file.Write(data, length) == static_cast<wxFileOffset>(length);
+    file.Close();
+    return written;
+}
+
+class FpgaToolProcess final : public wxProcess {
+public:
+    FpgaToolProcess(TerminalCtrl* terminal, const wxString& toolName)
+        : m_terminal(terminal), m_toolName(toolName)
+    {
+        Redirect();
+        m_outputTimer.SetOwner(this);
+        Bind(wxEVT_TIMER, &FpgaToolProcess::OnOutputTimer, this);
+    }
+
+    void StartOutputPump()
+    {
+        m_outputTimer.Start(75);
+    }
+
+    void OnTerminate(int pid, int status) override
+    {
+        m_outputTimer.Stop();
+        DrainOutput(true);
+        if (TerminalCtrl* terminal = m_terminal.get()) {
+            const wxString result = status == 0
+                ? "[" + m_toolName + "] completed successfully (PID " +
+                      wxString::Format("%d", pid) + ")."
+                : "[" + m_toolName + "] failed with exit code " +
+                      wxString::Format("%d", status) + " (PID " +
+                      wxString::Format("%d", pid) + ").";
+            terminal->FinishProcessOutput(result);
+        }
+        delete this;
+    }
+
+private:
+    void OnOutputTimer(wxTimerEvent&)
+    {
+        DrainOutput();
+    }
+
+    void DrainOutput(bool drainAll = false)
+    {
+        DrainStream(GetInputStream(), false, drainAll);
+        DrainStream(GetErrorStream(), true, drainAll);
+    }
+
+    void DrainStream(wxInputStream* stream, bool isErrorStream, bool drainAll)
+    {
+        constexpr size_t kMaxChunksPerTimerEvent = 64;
+        char buffer[4096];
+        size_t chunksRead = 0;
+        while (m_terminal && stream &&
+               (isErrorStream ? IsErrorAvailable() : IsInputAvailable()) &&
+               (drainAll || chunksRead < kMaxChunksPerTimerEvent)) {
+            stream->Read(buffer, sizeof(buffer));
+            const size_t bytesRead = stream->LastRead();
+            if (bytesRead == 0) {
+                break;
+            }
+            m_terminal->AppendProcessOutput(wxString::FromUTF8(buffer, bytesRead));
+            ++chunksRead;
+        }
+    }
+
+    wxWeakRef<TerminalCtrl> m_terminal;
+    wxString m_toolName;
+    wxTimer m_outputTimer;
+};
+
+wxString ToYosysPath(wxString path)
+{
+    path.Replace("\\", "/");
+    return path;
+}
+
+bool LoadFpgaProjectOptions(const wxString& projectPath, FpgaProjectOptions& options,
+                            wxString& errorMessage)
+{
+    const wxString configPath = projectPath + "\\sigflow.project";
+    wxFile file(configPath, wxFile::read);
+    if (!file.IsOpened()) {
+        errorMessage = "Unable to open sigflow.project.";
+        return false;
+    }
+
+    wxString jsonContent;
+    file.ReadAll(&jsonContent);
+    file.Close();
+
+    const wxScopedCharBuffer utf8 = jsonContent.ToUTF8();
+    Json::Value root;
+    Json::CharReaderBuilder builder;
+    std::string errors;
+    std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
+    const char* data = utf8.data();
+    if (!data || !reader->parse(data, data + std::strlen(data), &root, &errors)) {
+        errorMessage = "Unable to parse sigflow.project: " + wxString::FromUTF8(errors);
+        return false;
+    }
+
+    const Json::Value& fpga = root["fpga"];
+    if (!fpga.isObject()) {
+        return true;
+    }
+
+    if (fpga["yosys_path"].isString()) {
+        options.yosysPath = wxString::FromUTF8(fpga["yosys_path"].asString());
+    }
+    if (fpga["yosys_synthesis_command"].isString()) {
+        options.yosysSynthesisCommand =
+            wxString::FromUTF8(fpga["yosys_synthesis_command"].asString());
+    }
+    if (fpga["nextpnr_path"].isString()) {
+        options.nextpnrPath = wxString::FromUTF8(fpga["nextpnr_path"].asString());
+    }
+    if (fpga["nextpnr_args"].isArray()) {
+        for (const Json::Value& argument : fpga["nextpnr_args"]) {
+            if (argument.isString()) {
+                options.nextpnrArgs.push_back(wxString::FromUTF8(argument.asString()));
+            }
+        }
+    }
+    if (fpga["openfpgaloader_path"].isString()) {
+        options.openFpgaLoaderPath =
+            wxString::FromUTF8(fpga["openfpgaloader_path"].asString());
+    }
+    if (fpga["openfpgaloader_args"].isArray()) {
+        for (const Json::Value& argument : fpga["openfpgaloader_args"]) {
+            if (argument.isString()) {
+                options.openFpgaLoaderArgs.push_back(wxString::FromUTF8(argument.asString()));
+            }
+        }
+    }
+    return true;
+}
+
+wxString FindFpgaTool(const wxString& configuredPath, const wxString& environmentVariable,
+                      const wxString& executableName)
+{
+    if (!configuredPath.IsEmpty()) {
+        return wxFileExists(configuredPath) ? configuredPath : wxString();
+    }
+
+    // Support both IDE launches from the repository and direct launches from bin/x64/<config>.
+    const wxString executableDirectory =
+        wxFileName(wxStandardPaths::Get().GetExecutablePath()).GetPath();
+    for (const wxString& startDirectory : { wxGetCwd(), executableDirectory }) {
+        wxFileName directory = wxFileName::DirName(startDirectory);
+        for (int depth = 0; depth < 6; ++depth) {
+            const wxString bundledToolRoot =
+                directory.GetPath() + "\\external\\fpga-tools\\runtime";
+            const std::vector<wxString> bundledCandidates = {
+                bundledToolRoot + "\\yosys\\bin\\" + executableName,
+                bundledToolRoot + "\\nextpnr\\bin\\" + executableName,
+                bundledToolRoot + "\\openfpgaloader\\bin\\" + executableName,
+            };
+            for (const wxString& candidate : bundledCandidates) {
+                if (wxFileExists(candidate)) {
+                    return candidate;
+                }
+            }
+            directory.RemoveLastDir();
+        }
+    }
+
+    wxString environmentPath;
+    if (wxGetEnv(environmentVariable, &environmentPath) && !environmentPath.IsEmpty()) {
+        return wxFileExists(environmentPath) ? environmentPath : wxString();
+    }
+
+    wxString pathVariable;
+    if (!wxGetEnv("PATH", &pathVariable)) {
+        return wxString();
+    }
+
+    for (wxString directory : wxSplit(pathVariable, ';')) {
+        directory.Trim(true).Trim(false);
+        if (directory.StartsWith("\"") && directory.EndsWith("\"")) {
+            directory = directory.Mid(1, directory.length() - 2);
+        }
+        if (directory.IsEmpty()) {
+            continue;
+        }
+
+        const wxString candidate = directory + wxFileName::GetPathSeparator() + executableName;
+        if (wxFileExists(candidate)) {
+            return candidate;
+        }
+    }
+    return wxString();
+}
+
+long LaunchFpgaTool(const wxString& executable, const std::vector<wxString>& arguments,
+                    const wxString& workingDirectory, TerminalCtrl* terminal,
+                    const wxString& toolName)
+{
+    std::vector<wxString> commandLine;
+    commandLine.reserve(arguments.size() + 1);
+    commandLine.push_back(executable);
+    commandLine.insert(commandLine.end(), arguments.begin(), arguments.end());
+
+    std::vector<const wchar_t*> argv;
+    argv.reserve(commandLine.size() + 1);
+    for (const wxString& argument : commandLine) {
+        argv.push_back(argument.wc_str());
+    }
+    argv.push_back(nullptr);
+
+    wxExecuteEnv environment;
+    environment.cwd = workingDirectory;
+    FpgaToolProcess* process = new FpgaToolProcess(terminal, toolName);
+    const long processId = wxExecute(argv.data(), wxEXEC_ASYNC | wxEXEC_HIDE_CONSOLE, process, &environment);
+    if (processId == 0) {
+        delete process;
+        return 0;
+    }
+
+    if (terminal) {
+        wxString command = "[" + toolName + "] started (PID " +
+            wxString::Format("%ld", processId) + ")\nCommand: " + executable;
+        for (const wxString& argument : arguments) {
+            command += " \"" + argument + "\"";
+        }
+        terminal->BeginProcessOutput(command + "\nWorking directory: " + workingDirectory + "\n");
+    }
+    process->StartOutputPump();
+    return processId;
+}
+
+wxString BuildNextpnrReadme()
+{
+    return
+        "# nextpnr work directory\n\n"
+        "The default target is the Sipeed Tang Nano 9K: GW1NR-LV9QN88PC6/I5 (GW1N-9C).\n\n"
+        "```json\n"
+        "{\n"
+        "  \"fpga\": {\n"
+        "    \"yosys_path\": \"C:/tools/yosys/yosys.exe\",\n"
+        "    \"yosys_synthesis_command\": \"synth_gowin -top top\",\n"
+        "    \"nextpnr_path\": \"C:/tools/nextpnr/nextpnr-himbaechel.exe\",\n"
+        "    \"nextpnr_args\": [\n"
+        "      \"--device\", \"GW1NR-LV9QN88PC6/I5\",\n"
+        "      \"--vopt\", \"family=GW1N-9C\",\n"
+        "      \"--json\", \"${yosys_json}\",\n"
+        "      \"--write\", \"${nextpnr_dir}/top.pnr.json\"\n"
+        "    ],\n"
+        "    \"openfpgaloader_path\": \"C:/tools/openfpgaloader/openFPGALoader.exe\",\n"
+        "    \"openfpgaloader_args\": [\"-b\", \"tangnano9k\", \"${bitstream}\"]\n"
+        "  }\n"
+        "}\n"
+        "```\n\n"
+        "`${yosys_json}` and `${nextpnr_dir}` are replaced by SigFlow at launch. Add a `--vopt` "
+        "`cst=<constraints.cst>` argument when a board constraint file is available. Run Apicula "
+        "`gowin_pack -d GW1N-9C` on the PnR JSON to create a downloadable `.fs` bitstream.\n";
+}
+
+} // namespace
 
 wxDEFINE_EVENT(EVT_SFTREE_NODE_ACTIVATED, wxCommandEvent);
 wxDEFINE_EVENT(EVT_SIGFLOWNODE_ADD, wxCommandEvent);
@@ -819,7 +1131,19 @@ bool MainFrame::DoFileNew() {
     wxFileName::Mkdir(simDir, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
 
     // 5) Create a minimal sigflow.project JSON
-    wxString projectJson = "{\n  \"build\": { \"top_module\": [] },\n  \"paths\": { \"source_files\": [], \"library_files\": [] }\n}\n";
+    wxString projectJson =
+        "{\n"
+        "  \"build\": { \"top_module\": [] },\n"
+        "  \"paths\": { \"source_files\": [], \"library_files\": [] },\n"
+        "  \"fpga\": {\n"
+        "    \"yosys_path\": \"\",\n"
+        "    \"yosys_synthesis_command\": \"\",\n"
+        "    \"nextpnr_path\": \"\",\n"
+        "    \"nextpnr_args\": [],\n"
+        "    \"openfpgaloader_path\": \"\",\n"
+        "    \"openfpgaloader_args\": []\n"
+        "  }\n"
+        "}\n";
     wxString projFile = projPath + wxFileName::GetPathSeparator() + "sigflow.project";
     wxFile pfile;
     if (pfile.Open(projFile, wxFile::write)) {
@@ -1768,6 +2092,245 @@ bool MainFrame::LoadProjectConfig(const wxString& projectPath,
     }
     
     return !outTopModule.IsEmpty() && !outSourceFiles.empty();
+}
+
+void MainFrame::DoFpgaSynthesis()
+{
+    if (m_currentProjectPath.IsEmpty()) {
+        wxMessageBox("Open a project before running FPGA synthesis.", "FPGA Synthesis",
+                     wxOK | wxICON_WARNING, this);
+        return;
+    }
+
+    const wxString yosysDirectory = m_currentProjectPath + "\\yosys";
+    const wxString nextpnrDirectory = m_currentProjectPath + "\\nextpnr";
+    if (!EnsureDirectory(yosysDirectory) || !EnsureDirectory(nextpnrDirectory)) {
+        wxMessageBox("Unable to create the yosys and nextpnr work directories.",
+                     "FPGA Synthesis", wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    wxString topModule;
+    std::vector<wxString> sourceFiles;
+    if (!LoadProjectConfig(m_currentProjectPath, topModule, sourceFiles)) {
+        wxMessageBox("sigflow.project must define build.top_module and paths.source_files.",
+                     "FPGA Synthesis", wxOK | wxICON_WARNING, this);
+        return;
+    }
+    if (!IsValidVerilogIdentifier(topModule)) {
+        wxMessageBox("The configured top module is not a valid Verilog identifier.",
+                     "FPGA Synthesis", wxOK | wxICON_ERROR, this);
+        return;
+    }
+    for (const wxString& sourceFile : sourceFiles) {
+        if (!wxFileExists(sourceFile)) {
+            wxMessageBox("Configured source file does not exist:\n" + sourceFile,
+                         "FPGA Synthesis", wxOK | wxICON_ERROR, this);
+            return;
+        }
+    }
+
+    FpgaProjectOptions options;
+    wxString optionsError;
+    if (!LoadFpgaProjectOptions(m_currentProjectPath, options, optionsError)) {
+        wxMessageBox(optionsError, "FPGA Synthesis", wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    wxString script = "# Generated by SigFlow for the Tang Nano 9K default target.\n";
+    for (const wxString& sourceFile : sourceFiles) {
+        const bool isSystemVerilog = sourceFile.Lower().EndsWith(".sv");
+        script += "read_verilog";
+        if (isSystemVerilog) {
+            script += " -sv";
+        }
+        script += " \"" + ToYosysPath(sourceFile) + "\"\n";
+    }
+    script += "hierarchy -check -top " + topModule + "\n";
+    script += options.yosysSynthesisCommand.IsEmpty()
+        ? "synth_gowin -top " + topModule + "\n"
+        : options.yosysSynthesisCommand + "\n";
+    script += "write_json \"" + ToYosysPath(yosysDirectory + "\\" + topModule + ".json") + "\"\n";
+
+    const wxString scriptPath = yosysDirectory + "\\run_yosys.ys";
+    if (!WriteUtf8File(scriptPath, script)) {
+        wxMessageBox("Unable to write the Yosys script:\n" + scriptPath,
+                     "FPGA Synthesis", wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    const wxString yosysExecutable = FindFpgaTool(options.yosysPath, "SIGFLOW_YOSYS", "yosys.exe");
+    if (yosysExecutable.IsEmpty()) {
+        wxMessageBox("Yosys was not found. Set fpga.yosys_path in sigflow.project, "
+                     "set SIGFLOW_YOSYS, or add yosys.exe to PATH.\n\n"
+                     "The work directories and run_yosys.ys were created successfully.",
+                     "FPGA Synthesis", wxOK | wxICON_WARNING, this);
+        if (m_projectTreePanel) {
+            m_projectTreePanel->RefreshTree();
+        }
+        return;
+    }
+
+    const long processId =
+        LaunchFpgaTool(yosysExecutable, { "-s", scriptPath }, yosysDirectory, m_terminalCtrl, "Yosys");
+    if (processId == 0) {
+        wxMessageBox("Unable to start Yosys. Check the configured executable path.",
+                     "FPGA Synthesis", wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    SetStatusText("Yosys synthesis started");
+    if (m_projectTreePanel) {
+        m_projectTreePanel->RefreshTree();
+    }
+}
+
+void MainFrame::DoFpgaRoute()
+{
+    if (m_currentProjectPath.IsEmpty()) {
+        wxMessageBox("Open a project before running FPGA place and route.", "FPGA Place and Route",
+                     wxOK | wxICON_WARNING, this);
+        return;
+    }
+
+    const wxString yosysDirectory = m_currentProjectPath + "\\yosys";
+    const wxString nextpnrDirectory = m_currentProjectPath + "\\nextpnr";
+    if (!EnsureDirectory(yosysDirectory) || !EnsureDirectory(nextpnrDirectory)) {
+        wxMessageBox("Unable to create the yosys and nextpnr work directories.",
+                     "FPGA Place and Route", wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    wxString topModule;
+    std::vector<wxString> sourceFiles;
+    if (!LoadProjectConfig(m_currentProjectPath, topModule, sourceFiles) ||
+        !IsValidVerilogIdentifier(topModule)) {
+        wxMessageBox("sigflow.project must define a valid build.top_module before place and route.",
+                     "FPGA Place and Route", wxOK | wxICON_WARNING, this);
+        return;
+    }
+
+    const wxString readmePath = nextpnrDirectory + "\\README.md";
+    if (!wxFileExists(readmePath) && !WriteUtf8File(readmePath, BuildNextpnrReadme())) {
+        wxMessageBox("Unable to write nextpnr configuration instructions.",
+                     "FPGA Place and Route", wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    FpgaProjectOptions options;
+    wxString optionsError;
+    if (!LoadFpgaProjectOptions(m_currentProjectPath, options, optionsError)) {
+        wxMessageBox(optionsError, "FPGA Place and Route", wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    const wxString nextpnrExecutable =
+        FindFpgaTool(options.nextpnrPath, "SIGFLOW_NEXTPNR", "nextpnr-himbaechel.exe");
+    if (nextpnrExecutable.IsEmpty()) {
+        wxMessageBox("nextpnr was not found. Set fpga.nextpnr_path in sigflow.project, "
+                     "set SIGFLOW_NEXTPNR, or add the correct nextpnr executable to PATH.",
+                     "FPGA Place and Route", wxOK | wxICON_WARNING, this);
+        return;
+    }
+
+    const wxString yosysJson = yosysDirectory + "\\" + topModule + ".json";
+    if (!wxFileExists(yosysJson)) {
+        wxMessageBox("The Tang Nano 9K netlist was not found:\n" + yosysJson +
+                     "\n\nRun FPGA > Synthesis and wait for Yosys to finish before place and route.",
+                     "FPGA Place and Route", wxOK | wxICON_WARNING, this);
+        return;
+    }
+
+    const std::vector<wxString> defaultNextpnrArgs = {
+        "--json", "${yosys_json}",
+        "--write", "${nextpnr_dir}/" + topModule + ".pnr.json",
+        "--device", "GW1NR-LV9QN88PC6/I5",
+        "--vopt", "family=GW1N-9C",
+    };
+    const std::vector<wxString>& configuredArgs =
+        options.nextpnrArgs.empty() ? defaultNextpnrArgs : options.nextpnrArgs;
+    std::vector<wxString> arguments;
+    arguments.reserve(configuredArgs.size());
+    for (wxString argument : configuredArgs) {
+        argument.Replace("${yosys_json}", yosysJson);
+        argument.Replace("${nextpnr_dir}", nextpnrDirectory);
+        arguments.push_back(argument);
+    }
+
+    const long processId =
+        LaunchFpgaTool(nextpnrExecutable, arguments, nextpnrDirectory, m_terminalCtrl, "nextpnr");
+    if (processId == 0) {
+        wxMessageBox("Unable to start nextpnr. Check the configured executable path and arguments.",
+                     "FPGA Place and Route", wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    SetStatusText("nextpnr place and route started");
+    if (m_projectTreePanel) {
+        m_projectTreePanel->RefreshTree();
+    }
+}
+
+void MainFrame::DoFpgaProgram()
+{
+    if (m_currentProjectPath.IsEmpty()) {
+        wxMessageBox("Open a project before programming an FPGA board.", "FPGA Program Board",
+                     wxOK | wxICON_WARNING, this);
+        return;
+    }
+
+    FpgaProjectOptions options;
+    wxString optionsError;
+    if (!LoadFpgaProjectOptions(m_currentProjectPath, options, optionsError)) {
+        wxMessageBox(optionsError, "FPGA Program Board", wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    const wxString loaderExecutable = FindFpgaTool(
+        options.openFpgaLoaderPath, "SIGFLOW_OPENFPGALOADER", "openFPGALoader.exe");
+    if (loaderExecutable.IsEmpty()) {
+        wxMessageBox("openFPGALoader was not found. Set fpga.openfpgaloader_path in "
+                     "sigflow.project, set SIGFLOW_OPENFPGALOADER, install it under "
+                     "external/fpga-tools/runtime/openfpgaloader/bin, or add it to PATH.",
+                     "FPGA Program Board", wxOK | wxICON_WARNING, this);
+        return;
+    }
+
+    wxFileDialog bitstreamDialog(
+        this, "Select an Apicula bitstream", m_currentProjectPath, wxEmptyString,
+        "Gowin bitstream (*.fs)|*.fs|All files (*.*)|*.*", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+    if (bitstreamDialog.ShowModal() != wxID_OK) {
+        return;
+    }
+
+    const wxString bitstreamPath = bitstreamDialog.GetPath();
+    const std::vector<wxString> defaultLoaderArgs = { "-b", "tangnano9k", "${bitstream}" };
+    const std::vector<wxString>& configuredArgs =
+        options.openFpgaLoaderArgs.empty() ? defaultLoaderArgs : options.openFpgaLoaderArgs;
+    std::vector<wxString> arguments;
+    arguments.reserve(configuredArgs.size() + 1);
+    bool includesBitstream = false;
+    for (wxString argument : configuredArgs) {
+        if (argument.Contains("${bitstream}")) {
+            includesBitstream = true;
+            argument.Replace("${bitstream}", bitstreamPath);
+        }
+        arguments.push_back(argument);
+    }
+    if (!includesBitstream) {
+        arguments.push_back(bitstreamPath);
+    }
+
+    const wxString workingDirectory = wxFileName(bitstreamPath).GetPath();
+    const long processId = LaunchFpgaTool(
+        loaderExecutable, arguments, workingDirectory, m_terminalCtrl, "openFPGALoader");
+    if (processId == 0) {
+        wxMessageBox("Unable to start openFPGALoader. Check the configured executable path.",
+                     "FPGA Program Board", wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    SetStatusText("openFPGALoader programming started");
 }
 
 // ==================== 忙碌指示器 ====================

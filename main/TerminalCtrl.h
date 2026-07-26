@@ -13,6 +13,9 @@ public:
 
     void PrintOutput(const wxString& text);
     void PrintError(const wxString& text);
+    void BeginProcessOutput(const wxString& header);
+    void AppendProcessOutput(const wxString& text);
+    void FinishProcessOutput(const wxString& summary);
 
 private:
     TerminalController* m_controller;

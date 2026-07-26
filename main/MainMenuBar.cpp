@@ -78,6 +78,10 @@ EVT_MENU(wxID_HIGHEST + 220, MainMenuBar::OnSimCompile)
 EVT_MENU(wxID_HIGHEST + 221, MainMenuBar::OnSimRun)
 EVT_MENU(wxID_HIGHEST + 222, MainMenuBar::OnSimClean)
 
+EVT_MENU(wxID_HIGHEST + 230, MainMenuBar::OnFpgaSynthesis)
+EVT_MENU(wxID_HIGHEST + 231, MainMenuBar::OnFpgaRoute)
+EVT_MENU(wxID_HIGHEST + 232, MainMenuBar::OnFpgaProgram)
+
 EVT_MENU(wxID_ICONIZE_FRAME, MainMenuBar::OnMinimize)
 EVT_MENU(wxID_MAXIMIZE_FRAME, MainMenuBar::OnMaximize)
 EVT_MENU(wxID_CLOSE_FRAME, MainMenuBar::OnCloseWnd)
@@ -102,6 +106,7 @@ MainMenuBar::MainMenuBar(MainFrame* owner)
     Append(CreateEditMenu(), wxT("&Edit"));
     Append(CreateProjectMenu(), wxT("&Project"));
     Append(CreateSimulateMenu(), wxT("&Simulate"));
+    Append(CreateFpgaMenu(), wxT("&FPGA"));
     RebuildWindowMenu();  
     Append(CreateHelpMenu(), wxT("&Help"));
 
@@ -290,6 +295,19 @@ wxMenu* MainMenuBar::CreateSimulateMenu()
     return m;
 }
 
+wxMenu* MainMenuBar::CreateFpgaMenu()
+{
+    wxMenu* menu = new wxMenu;
+    menu->Append(wxID_HIGHEST + 230, wxT("Synthesis"),
+                 wxT("Create the yosys work directory and run yosys"));
+    menu->Append(wxID_HIGHEST + 231, wxT("Place and Route"),
+                 wxT("Create the nextpnr work directory and run nextpnr"));
+    menu->AppendSeparator();
+    menu->Append(wxID_HIGHEST + 232, wxT("Program Board"),
+                 wxT("Program a Tang Nano 9K with an Apicula .fs bitstream"));
+    return menu;
+}
+
 void MainMenuBar::RebuildWindowMenu() //这个版本会把window放在simulate前面
 {
     /* 如果已存在则先销毁旧项（重建用） */
@@ -424,6 +442,26 @@ void MainMenuBar::OnFileHistory(wxCommandEvent& evt)
     }
 }
 
+void MainMenuBar::OnFpgaSynthesis(wxCommandEvent&)
+{
+    if (m_owner) {
+        m_owner->DoFpgaSynthesis();
+    }
+}
+
+void MainMenuBar::OnFpgaRoute(wxCommandEvent&)
+{
+    if (m_owner) {
+        m_owner->DoFpgaRoute();
+    }
+}
+
+void MainMenuBar::OnFpgaProgram(wxCommandEvent&)
+{
+    if (m_owner) {
+        m_owner->DoFpgaProgram();
+    }
+}
 
 void MainMenuBar::OnUndo(wxCommandEvent&) { m_owner->DoEditUndo(); }
 void MainMenuBar::OnCut(wxCommandEvent&) { m_owner->DoEditCut(); }

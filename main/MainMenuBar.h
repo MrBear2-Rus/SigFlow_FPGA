@@ -40,6 +40,7 @@ private:
     wxMenu* CreateEditMenu();
     wxMenu* CreateProjectMenu();
     wxMenu* CreateSimulateMenu();
+    wxMenu* CreateFpgaMenu();
     wxMenu* CreateWindowMenu();
     wxMenu* CreateHelpMenu();
 
@@ -103,6 +104,11 @@ private:
     void OnSimCompile(wxCommandEvent&);      // 编译仿真模型
     void OnSimRun(wxCommandEvent&);          // 运行仿真
     void OnSimClean(wxCommandEvent&);        // 清理仿真缓存
+
+    /* FPGA 菜单事件回调 */
+    void OnFpgaSynthesis(wxCommandEvent&);
+    void OnFpgaRoute(wxCommandEvent&);
+    void OnFpgaProgram(wxCommandEvent&);
 
     /* Window 菜单事件回调 */
     void OnMinimize(wxCommandEvent&);

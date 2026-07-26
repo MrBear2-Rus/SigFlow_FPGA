@@ -145,6 +145,11 @@ public:
     void DoSimRun();          // 运行仿真
     void DoSimClean();        // 清理仿真缓存
 
+    /* FPGA 工具链接口 */
+    void DoFpgaSynthesis();
+    void DoFpgaRoute();
+    void DoFpgaProgram();
+
     /* Window 菜单业务接口 */
     void DoWindowCombinationalAnalysis();
     void DoWindowPreferences();

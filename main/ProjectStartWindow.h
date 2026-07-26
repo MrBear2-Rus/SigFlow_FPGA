@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <wx/wx.h>
 #include <wx/listctrl.h>
 #include <wx/filehistory.h>
@@ -26,18 +26,21 @@ private:
     wxFileHistory m_fileHistory{ 9 };
     MainFrame* m_mainFrame = nullptr;
 
+    wxTextCtrl* m_logCtrl = nullptr;
+
     // 核心函数
     void InitUI();                  // 初始化界面
     void LoadRecentProjects();      // 加载历史记录到列表
    
     void AddProjectToHistory(const wxString& path); // 添加路径到历史
-    
+    void Log(const wxString& msg, const wxString& level = "INFO");
     // 事件处理
     void OnOpenProject(wxCommandEvent& evt);
     void OnNewProject(wxCommandEvent& evt);
     void OnExit(wxCommandEvent& evt);
     void OnRecentProjectDblClick(wxListEvent& evt);
     void OpenProject(const wxString& projectDir);
-
+    void OnDeleteProject(wxCommandEvent& evt);
+    void LoadLogFromFile();
     DECLARE_EVENT_TABLE()
 };
