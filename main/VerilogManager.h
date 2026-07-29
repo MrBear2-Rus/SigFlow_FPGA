@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include <vector>
+#include <list>
 #include <unordered_map>
 #include <wx/stc/stc.h>
 #include <tree_sitter/api.h>
@@ -17,7 +18,8 @@ struct Block {
     int endHandle;
     SigTreeNode* self;
     Structuring* structure;
-    Block(int start, int end, SigTreeNode* node) : startHandle(start), endHandle(end), self(node) {};
+    Block(int start, int end, SigTreeNode* node)
+        : startHandle(start), endHandle(end), self(node), structure(nullptr) {};
     bool isStable() { return self != nullptr; }
 };
 
@@ -25,9 +27,9 @@ class VerilogManager {
 public:
     FileNode* fn;
     SigTextEditor* m_stc;
-    std::vector<Block> blocks;
-    std::vector<Block> break_blocks;
-    std::vector<Structuring> structures;
+    std::list<Block> blocks;
+    std::list<Block> break_blocks;
+    std::list<Structuring> structures;
     SigFlowTree* m_tree;
 
     //std::vector<Block*> highlighted_blocks;
@@ -42,6 +44,7 @@ public:
 
 
     VerilogManager(SigTextEditor* stc, SigFlowTree* tree, TSParser* parser);
+    ~VerilogManager();
     void SetFileNode(FileNode* n, std::unordered_map<SigTreeNode*, std::tuple<int, int>> map);
 
     void CollectBlocks(std::unordered_map<SigTreeNode*, std::tuple<int, int>>& map);
@@ -55,10 +58,11 @@ public:
     Block* FindBlock(int start, int end);
 
     
-    std::vector<Block>& GetBreakBlocks() {return break_blocks;};
+    std::list<Block>& GetBreakBlocks() { return break_blocks; };
     int GetLine(int handle);
     int GetSTCLine(int handle);
     wxString GetText(const Block& b);
+    wxString GetBlockText(const Block& b);
     void Print();
 
     void SigFlowNodeAdded(SigTreeNode* node);

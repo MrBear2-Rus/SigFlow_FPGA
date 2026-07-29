@@ -6,7 +6,10 @@
 
 CanvasEventHandler::CanvasEventHandler(CanvasPanel* canvas, ToolStateMachine* toolstate)
     : m_canvas(canvas), m_toolStateMachine(toolstate), m_isTemporaryAction(false), m_eventHandled(false),
-    m_editingWireIndex(-1), m_editingPointIndex(-1), m_draggingElementIndex(-1), m_editingTextIndex(-1){
+    m_editingWireIndex(-1), m_editingPointIndex(-1), m_draggingElementIndex(-1), m_editingTextIndex(-1),
+    lengthOfTempWire(0), tempWirePlus(0), m_isWireDraingCancel(false), preIn(false),
+    m_snapPosChanged(false), m_elementDragStartPos(0, 0), m_elementStartCanvasPos(0, 0),
+    m_erasingStartPos(0, 0){
 }
 
 void CanvasEventHandler::SetCurrentTool(ToolType tool) {
@@ -1095,6 +1098,9 @@ void CanvasEventHandler::FinishClickSelect(wxMouseEvent& evt) {
         }
         const SecondElement& selectedElem = m_canvas->GetSecond()[elemIdx];
         SigTreeNode* node = selectedElem.self;
+        if (!node) {
+            return;
+        }
 
         wxCommandEvent evt(EVT_SFTREE_NODE_ACTIVATED); // 事件已能识别
         evt.SetClientData(node); // 携带元件的 SigTreeNode* 指针

@@ -5,12 +5,139 @@
 #include "CanvasElement.h"
 #include <variant>
 #include <cmath>
+#include <cctype>
 #include <algorithm>
 #include <limits>
 #include <wx/dcgraph.h>
 #include <wx/graphics.h>
 #include <sstream>
 #include "SigTree.h"
+
+// ========== SVG Path 解析辅助函数 ==========
+// 解析 SVG path data 字符串，支持 M/m L/l H/h V/v C/c Q/q A/a Z/z 命令
+inline void ParseSvgPathToContext(const std::string& d, wxGraphicsPath& gPath)
+{
+    struct Parser {
+        std::string data;
+        size_t pos;
+        wxGraphicsPath& gPath;
+        double curX = 0, curY = 0; // 当前绝对坐标
+
+        Parser(const std::string& s, wxGraphicsPath& path) : data(s), pos(0), gPath(path) {}
+
+        void skipWhitespace() {
+            while (pos < data.size() && std::isspace(static_cast<unsigned char>(data[pos])))
+                ++pos;
+        }
+        void skipCommaWhitespace() {
+            skipWhitespace();
+            if (pos < data.size() && data[pos] == ',') { ++pos; skipWhitespace(); }
+        }
+
+        bool isCommandChar(char c) {
+            c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+            return c == 'M' || c == 'L' || c == 'H' || c == 'V'
+                || c == 'C' || c == 'Q' || c == 'A' || c == 'Z';
+        }
+
+        bool tryReadNumber(double& v) {
+            skipWhitespace();
+            if (pos >= data.size()) return false;
+            // 手动解析浮点数（兼容 1.5, -3.2, .5, 5e2 等）
+            size_t start = pos;
+            if (pos < data.size() && (data[pos] == '+' || data[pos] == '-'))
+                ++pos;
+            bool hasDigits = false;
+            while (pos < data.size() && std::isdigit(static_cast<unsigned char>(data[pos])))
+            { ++pos; hasDigits = true; }
+            if (pos < data.size() && data[pos] == '.')
+            { ++pos; while (pos < data.size() && std::isdigit(static_cast<unsigned char>(data[pos]))) { ++pos; hasDigits = true; } }
+            if (pos < data.size() && (data[pos] == 'e' || data[pos] == 'E')) {
+                ++pos;
+                if (pos < data.size() && (data[pos] == '+' || data[pos] == '-')) ++pos;
+                while (pos < data.size() && std::isdigit(static_cast<unsigned char>(data[pos]))) ++pos;
+            }
+            if (!hasDigits) return false;
+            v = std::stod(data.substr(start, pos - start));
+            return true;
+        }
+
+        void run() {
+            char cmd = 0;
+            while (pos < data.size()) {
+                skipWhitespace();
+                if (pos >= data.size()) break;
+                char c = data[pos];
+                if (isCommandChar(c)) {
+                    cmd = c;
+                    ++pos;
+                    skipWhitespace();
+                }
+                // 隐式重复命令：如果没有新命令字符，重复上一个命令
+                switch (static_cast<char>(std::toupper(static_cast<unsigned char>(cmd)))) {
+                case 'M': { double x, y; if (!tryReadNumber(x) || !tryReadNumber(y)) return;
+                    if (cmd == 'm') { x += curX; y += curY; }
+                    gPath.MoveToPoint(x, y); curX = x; curY = y; break; }
+                case 'L': { double x, y; if (!tryReadNumber(x) || !tryReadNumber(y)) return;
+                    if (cmd == 'l') { x += curX; y += curY; }
+                    gPath.AddLineToPoint(x, y); curX = x; curY = y; break; }
+                case 'H': { double x; if (!tryReadNumber(x)) return;
+                    if (cmd == 'h') x += curX;
+                    gPath.AddLineToPoint(x, curY); curX = x; break; }
+                case 'V': { double y; if (!tryReadNumber(y)) return;
+                    if (cmd == 'v') y += curY;
+                    gPath.AddLineToPoint(curX, y); curY = y; break; }
+                case 'C': { double x1,y1,x2,y2,x3,y3;
+                    if (!tryReadNumber(x1) || !tryReadNumber(y1) ||
+                        !tryReadNumber(x2) || !tryReadNumber(y2) ||
+                        !tryReadNumber(x3) || !tryReadNumber(y3)) return;
+                    if (cmd == 'c') { x1+=curX;y1+=curY; x2+=curX;y2+=curY; x3+=curX;y3+=curY; }
+                    gPath.AddCurveToPoint(x1,y1,x2,y2,x3,y3); curX=x3; curY=y3; break; }
+                case 'Q': { double x1,y1,x2,y2;
+                    if (!tryReadNumber(x1) || !tryReadNumber(y1) ||
+                        !tryReadNumber(x2) || !tryReadNumber(y2)) return;
+                    if (cmd == 'q') { x1+=curX;y1+=curY; x2+=curX;y2+=curY; }
+                    gPath.AddCurveToPoint(x1,y1,x1,y1,x2,y2); curX=x2; curY=y2; break; }
+                case 'A': {
+                    double rx, ry, rot, large, sweep, x, y;
+                    if (!tryReadNumber(rx) || !tryReadNumber(ry) ||
+                        !tryReadNumber(rot) || !tryReadNumber(large) ||
+                        !tryReadNumber(sweep) || !tryReadNumber(x) || !tryReadNumber(y)) return;
+                    if (cmd == 'a') { x += curX; y += curY; }
+                    // 简化处理：用直线近似弧线
+                    gPath.AddLineToPoint(x, y);
+                    curX = x; curY = y; break; }
+                case 'Z':
+                    gPath.CloseSubpath();
+                    break;
+                default:
+                    return; // 未知命令，停止解析
+                }
+                skipCommaWhitespace();
+            }
+        }
+    };
+
+    Parser parser(d, gPath);
+    parser.run();
+}
+// =====================================================
+
+namespace {
+class GraphicsTransformRestorer {
+public:
+    explicit GraphicsTransformRestorer(wxGraphicsContext* context)
+        : context_(context), transform_(context->GetTransform()) {}
+
+    ~GraphicsTransformRestorer() {
+        context_->SetTransform(transform_);
+    }
+
+private:
+    wxGraphicsContext* context_;
+    wxGraphicsMatrix transform_;
+};
+}
 
 std::vector<wxPoint> SecondElement::CalculateBezier(const Point& p0, const Point& p1, const Point& p2, int segments) const
 {
@@ -214,6 +341,7 @@ void SecondElement::Draw(wxGraphicsContext* gc) const
 {
     if (!gc) return;
 
+    GraphicsTransformRestorer transformRestorer(gc);
     wxGraphicsMatrix origMatrix = gc->GetTransform();
 
     // 2. 提取平移和缩放（和之前一样，只是用对象调用 Get()）
@@ -286,24 +414,12 @@ void SecondElement::Draw(wxGraphicsContext* gc) const
                 path.AddCurveToPoint(s.p1.x, s.p1.y, s.p2.x, s.p2.y, s.p3.x, s.p3.y);
                 gc->StrokePath(path);
             }
-            // 分支8：Path（补充完整，避免覆盖不全）
+            // 分支8：Path（使用 SVG Path 数据标准解析器）
             else if constexpr (std::is_same_v<T, Path>) {
                 gc->SetPen(wxPen(s.stroke, s.strokeWidth));
                 gc->SetBrush(s.fill ? wxBrush(s.stroke) : *wxTRANSPARENT_BRUSH);
-
                 wxGraphicsPath gPath = gc->CreatePath();
-
-                // 如果你的 d 字符串符合 SVG 标准，且你不想引入复杂的解析器
-                // 这里演示如何从字符串构建路径（假设格式为简单指令）
-                // 如果你有现成的解析函数，请替换此处逻辑
-                std::stringstream ss(s.d);
-                char cmd;
-                double x, y;
-                while (ss >> cmd >> x >> y) {
-                    if (cmd == 'M' || cmd == 'm') gPath.MoveToPoint(x, y);
-                    else if (cmd == 'L' || cmd == 'l') gPath.AddLineToPoint(x, y);
-                }
-
+                ParseSvgPathToContext(s.d, gPath);
                 if (s.fill) gPath.CloseSubpath();
                 gc->DrawPath(gPath);
             }
@@ -357,7 +473,6 @@ void SecondElement::Draw(wxGraphicsContext* gc) const
     }
 
     // -------------------------- 4. 恢复原始上下文变换 --------------------------
-    gc->SetTransform(origMatrix); // 这里不用 *，直接传对象
 }
 
 
@@ -429,6 +544,7 @@ void TopModuleBox::Draw(wxGraphicsContext* gc) const
 {
     if (!gc) return;
 
+    GraphicsTransformRestorer transformRestorer(gc);
     wxGraphicsMatrix origMatrix = gc->GetTransform();
 
     // 2. 提取平移和缩放（和之前一样，只是用对象调用 Get()）
@@ -501,24 +617,12 @@ void TopModuleBox::Draw(wxGraphicsContext* gc) const
                 path.AddCurveToPoint(s.p1.x, s.p1.y, s.p2.x, s.p2.y, s.p3.x, s.p3.y);
                 gc->StrokePath(path);
             }
-            // 分支8：Path（补充完整，避免覆盖不全）
+            // 分支8：Path（使用 SVG Path 数据标准解析器）
             else if constexpr (std::is_same_v<T, Path>) {
                 gc->SetPen(wxPen(s.stroke, s.strokeWidth));
                 gc->SetBrush(s.fill ? wxBrush(s.stroke) : *wxTRANSPARENT_BRUSH);
-
                 wxGraphicsPath gPath = gc->CreatePath();
-
-                // 如果你的 d 字符串符合 SVG 标准，且你不想引入复杂的解析器
-                // 这里演示如何从字符串构建路径（假设格式为简单指令）
-                // 如果你有现成的解析函数，请替换此处逻辑
-                std::stringstream ss(s.d);
-                char cmd;
-                double x, y;
-                while (ss >> cmd >> x >> y) {
-                    if (cmd == 'M' || cmd == 'm') gPath.MoveToPoint(x, y);
-                    else if (cmd == 'L' || cmd == 'l') gPath.AddLineToPoint(x, y);
-                }
-
+                ParseSvgPathToContext(s.d, gPath);
                 if (s.fill) gPath.CloseSubpath();
                 gc->DrawPath(gPath);
             }
@@ -561,7 +665,6 @@ void TopModuleBox::Draw(wxGraphicsContext* gc) const
 
 
     // -------------------------- 4. 恢复原始上下文变换 --------------------------
-    gc->SetTransform(origMatrix); // 这里不用 *，直接传对象
 }
 
 // 改进后的构造函数
@@ -637,6 +740,11 @@ TopModuleBox::TopModuleBox(wxPoint start, wxPoint end, TopNode* self) :
 void TopModuleBox::SetEnd(wxPoint end) {
     int width = end.x - m_pos.x;
     int height = end.y - m_pos.y;
+
+    // 清除旧形状和引脚，避免重复累加
+    m_shapes.clear();
+    m_inPins.clear();
+    m_outPins.clear();
 
     // 1. 绘制矩形边框 (相对坐标)
     m_shapes.push_back(Line(Point(0, 0), Point(0, height)));

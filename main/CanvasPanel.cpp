@@ -5,6 +5,7 @@
 #include <wx/file.h>
 #include <wx/stdpaths.h>
 #include <fstream>
+#include <unordered_set>
 
 
 
@@ -874,6 +875,7 @@ void CanvasPanel::SetPreviewElement(const wxString& name, wxPoint pos) {
 }
 
 void CanvasPanel::WireSetWholeOffSet(int index, const wxPoint& offset) {
+    if (index < 0 || index >= static_cast<int>(m_wires.size())) return;
     for (auto& cp : m_wires[index].pts) {
         cp.pos += offset;
     }
@@ -881,6 +883,8 @@ void CanvasPanel::WireSetWholeOffSet(int index, const wxPoint& offset) {
 }
 
 void CanvasPanel::WirePtsSetPos(int wireIndex, int controlPointIndex, const wxPoint& pos) {
+    if (wireIndex < 0 || wireIndex >= static_cast<int>(m_wires.size())) return;
+    if (controlPointIndex < 0 || controlPointIndex >= static_cast<int>(m_wires[wireIndex].pts.size())) return;
     m_wires[wireIndex].pts[controlPointIndex].pos = pos;
     m_wires[wireIndex].GenerateCells();
     Refresh();
@@ -900,24 +904,49 @@ void CanvasPanel::AddWire(const Wire& wire) {
     m_wires.push_back(wire); 
     m_wires.back().GenerateCells();
     auto& w = m_wires.back();
-    
-    int from_id = w.Left.elemIdx;
-    int from_pin = w.Left.PinIdx;
-    bool is_input = w.Left.isInput;
-    while (from_id == -1) {
-        from_id = m_wires[w.Left.wireIdx].Left.elemIdx;
-        from_pin = m_wires[w.Left.wireIdx].Left.PinIdx;
-        is_input = m_wires[w.Left.wireIdx].Left.isInput;
-    }
-    SecondElement from = m_elems[from_id];
 
-    int to_id = w.Right.elemIdx;
-    int to_pin = w.Right.PinIdx;
-    while (to_id == -1) {
-        to_id = m_wires[w.Right.wireIdx].Right.elemIdx;
-        to_pin = m_wires[w.Right.wireIdx].Right.PinIdx;
+    auto resolveEndpoint = [this](Endpoint endpoint, bool left, int& elemId,
+                                  int& pinId, bool& isInput) {
+        std::unordered_set<int> visited;
+        while (endpoint.elemIdx == -1) {
+            if (endpoint.wireIdx < 0 ||
+                endpoint.wireIdx >= static_cast<int>(m_wires.size()) ||
+                !visited.insert(endpoint.wireIdx).second) {
+                return false;
+            }
+            endpoint = left ? m_wires[endpoint.wireIdx].Left
+                            : m_wires[endpoint.wireIdx].Right;
+        }
+        elemId = endpoint.elemIdx;
+        pinId = endpoint.PinIdx;
+        isInput = endpoint.isInput;
+        return elemId >= 0 && elemId < static_cast<int>(m_elems.size()) && pinId >= 0;
+    };
+
+    int from_id = -1;
+    int from_pin = -1;
+    bool is_input = false;
+    int to_id = -1;
+    int to_pin = -1;
+    bool ignoredToIsInput = false;
+    if (!resolveEndpoint(w.Left, true, from_id, from_pin, is_input) ||
+        !resolveEndpoint(w.Right, false, to_id, to_pin, ignoredToIsInput)) {
+        m_wires.pop_back();
+        wxLogWarning("Ignoring wire with an invalid or cyclic endpoint reference.");
+        return;
     }
-    SecondElement to = m_elems[to_id];
+
+    SecondElement& from = m_elems[from_id];
+    SecondElement& to = m_elems[to_id];
+    if (!from.self || !to.self ||
+        (is_input && (from_pin >= static_cast<int>(from.self->in_ports.size()) ||
+                      to_pin >= static_cast<int>(to.self->out_ports.size()))) ||
+        (!is_input && (from_pin >= static_cast<int>(from.self->out_ports.size()) ||
+                       to_pin >= static_cast<int>(to.self->in_ports.size())))) {
+        m_wires.pop_back();
+        wxLogWarning("Ignoring wire with an invalid element pin reference.");
+        return;
+    }
 
     SignalNode* sn = sftree->AddNewWire(tn);
     wxCommandEvent evt2(EVT_SIGFLOWNODE_CHANGED);
@@ -1307,24 +1336,6 @@ void CanvasPanel::CompleteAutoWiring() {
         std::vector<std::vector<ControlPoint>> forwardPaths;
 
         for (auto& dest : net.dests) {
-            SignalNode* sn = new SignalNode("Unknows", SignalType::Wire);
-            if (dest.elemIdx != -1 && dest.pinIdx != -1) {
-
-                Pin p = m_elems[dest.elemIdx].GetInputPins()[dest.pinIdx];
-                
-                if (p.isOfTop()) {
-                    sn = p.GetSelfSignal();
-                }
-                else {
-                    SignalNode* n = p.GetSelfPort()->signal;
-                    if (n) sn = p.GetSelfPort()->signal;
-                }
-            }
-
-
-
-
-
             wxPoint dp = dstPinPos(dest);
             int dL = dest.layer;
             bool isSkip = (dL - net.srcLayer) > 1;
@@ -1516,16 +1527,15 @@ wxString CanvasPanel::GetNote() {
 void CanvasPanel::AddGateNode(GateType type, wxPoint pos) {
     extern std::vector<SecondElement> g_elements;
 
-    GateInstNode* gn = new GateInstNode("new_"+SigFlowTree::ToString(type), type);
-    gn = static_cast<GateInstNode*>(sftree->AddChild(tn, gn));
+    GateInstNode gn("new_"+SigFlowTree::ToString(type), type);
+    sftree->AddChild(tn, &gn);
     Refresh();
 }
 
 void CanvasPanel::AddModuleInstNode(wxString def, wxPoint pos) {
     extern std::vector<SecondElement> g_elements;
-    ModuleInstNode* mn = new ModuleInstNode("new_"+ def.ToStdString(), def.ToStdString());
-
-    mn = static_cast<ModuleInstNode*>(sftree->AddChild(tn, mn));
+    ModuleInstNode mn("new_"+ def.ToStdString(), def.ToStdString());
+    sftree->AddChild(tn, &mn);
     Refresh();
 }
 
@@ -1553,18 +1563,19 @@ void CanvasPanel::SetPreview(wxString type) {
     if (gt != GateType::Unknown) {
         extern std::vector<SecondElement> g_elements;
 
-        GateInstNode* gn = new GateInstNode("new_" + SigFlowTree::ToString(gt), gt);
-
-        SecondElement se = SecondElement(gn, g_elements);
+        m_previewNode = std::make_unique<GateInstNode>("new_" + SigFlowTree::ToString(gt), gt);
+        SecondElement se = SecondElement(m_previewNode.get(), g_elements);
         se.SetPos(wxPoint(0, 0));
         m_previewElement = se;
         RefreshRect(se.GetBounds());
     }
     else {
         extern std::vector<SecondElement> g_elements;
-        ModuleInstNode* mn = new ModuleInstNode("new_" + type.ToStdString(), type.ToStdString());
+        auto previewNode = std::make_unique<ModuleInstNode>("new_" + type.ToStdString(), type.ToStdString());
+        ModuleInstNode* mn = previewNode.get();
         sftree->LinkSingleInstWithDef(mn);
         if (mn->Definition) {
+            m_previewNode = std::move(previewNode);
             wxCommandEvent evt;
             ProcessWindowEvent(evt);
 

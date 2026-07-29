@@ -112,6 +112,7 @@ private:
 
     // 预览元素
     SecondElement m_previewElement;
+    std::unique_ptr<SecondNode> m_previewNode;
     Wire m_previewWire;
 
     // 文本编辑

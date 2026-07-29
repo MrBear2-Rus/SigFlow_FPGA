@@ -10,29 +10,8 @@ std::vector<SecondElement> g_elements;
 
 std::vector<SecondElement> LoadSecondElements(const wxString& jsonPath)
 {
-    /*std::ifstream f(jsonPath.ToStdString(), std::ios::binary);
-    if (!f) return {};*/
-
-    wxString absPath = wxFileName(jsonPath).GetFullPath();
-    //MyLog("LoadCanvas: absolute path [%s]\n", absPath.ToUTF8().data());
-    //MyLog("LoadCanvas: file exists = %d\n", wxFileName::FileExists(jsonPath));
-
-    std::ifstream test(jsonPath.ToStdString());
-    //MyLog("LoadCanvas: ifstream good = %d\n", test.good());
-
-
-    if (test.good()) {
-        test.seekg(0, std::ios::end);
-        size_t size = test.tellg();
-        //MyLog("LoadCanvas: file size = %zu bytes\n", size);
-        test.seekg(0, std::ios::beg);
-    }
-
     std::ifstream f(jsonPath.ToStdString(), std::ios::binary);
-    //MyLog("LoadCanvas: try open [%s]\n", jsonPath.ToUTF8().data());
-    if (!f) { MyLog("LoadCanvas: file not found!\n"); return {}; }
-
-
+    if (!f.is_open()) { MyLog("LoadCanvas: file not found!\n"); return {}; }
 
     Json::Value root;
     Json::CharReaderBuilder builder;

@@ -11,7 +11,7 @@
 #include <slang/ast/Compilation.h>
 #include <wx/event.h>
 
-#include "Statement.h"
+#include "StatementSequence.h"
 #include "CanvasElement.h"
 
 
@@ -125,38 +125,6 @@ struct Port {
     std::string GetConnectionName() { return conn; };
 };
 
-
-// ====================  StatementSequence 抽象类  ====================
-// 语句序列抽象基类，管理一组有序的 Statement
-class StatementSequence {
-protected:
-    std::vector<std::unique_ptr<Statement>> statements_;
-
-public:
-    virtual ~StatementSequence() = default;
-
-    // 在末尾添加一条语句
-    virtual void addStatement(std::unique_ptr<Statement> stmt) = 0;
-
-    // 在指定位置插入一条语句
-    virtual void insertStatement(size_t index, std::unique_ptr<Statement> stmt) = 0;
-
-    // 移除指定位置的语句
-    virtual void removeStatement(size_t index) = 0;
-
-    // 获取指定位置的语句（只读）
-    virtual const Statement* getStatement(size_t index) const = 0;
-
-    // 获取语句数量
-    virtual size_t getStatementCount() const = 0;
-
-    // 遍历所有语句，更新信号名
-    virtual void updateSignalName(const std::string& oldName, const std::string& newName) {
-        for (auto& stmt : statements_) {
-            stmt->updateSignalName(oldName, newName);
-        }
-    }
-};
 
 // ====================  SigTreeNode 基类  ====================
 class SigTreeNode {
@@ -454,6 +422,7 @@ public:
     std::map<std::string, ModuleInstNode*> InstanceTable;
 
     SigFlowTree(MainFrame* parent);
+    ~SigFlowTree();
     void LoadProject(std::string projectPath);
     void UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot, std::string& filePath, std::string& code, std::unordered_map<SigTreeNode*, std::tuple<int, int>>& outMap);
     void UpdateTreeFromSlang(slang::ast::Compilation* compilation);

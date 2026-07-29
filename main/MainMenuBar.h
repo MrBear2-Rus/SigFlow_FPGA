@@ -109,6 +109,7 @@ private:
     void OnFpgaSynthesis(wxCommandEvent&);
     void OnFpgaRoute(wxCommandEvent&);
     void OnFpgaProgram(wxCommandEvent&);
+    void OnFpgaPinBinding(wxCommandEvent&);
 
     /* Window 菜单事件回调 */
     void OnMinimize(wxCommandEvent&);

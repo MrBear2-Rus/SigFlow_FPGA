@@ -1,4 +1,4 @@
-﻿#include "SigTree.h"
+#include "SigTree.h"
 #include "MainFrame.h"
 
 #include <json/json.h>
@@ -22,7 +22,7 @@ SecondNodeType isTSNodeSecond(std::string node_type);
 bool isTSNodeNet(std::string node_type);
 void CollectSigTreeNodeInfoTS(SigTreeNode* node, TSNode& TSnode, std::string filepath, std::string code);
 
-SigFlowTree::SigFlowTree(MainFrame* parent) : m_parent(parent) {
+SigFlowTree::SigFlowTree(MainFrame* parent) : m_parent(parent), root(nullptr) {
     const char* top_temp = R"(
                 ;; 1. 模块定义捕获（独立，保证只要有模块名就能匹配）
                 (module_declaration
@@ -127,7 +127,40 @@ SigFlowTree::SigFlowTree(MainFrame* parent) : m_parent(parent) {
     net = ts_query_new(tree_sitter_verilog(), net_temp, strlen(net_temp), &net_error_offset, &net_error_type);
 }
 
+SigFlowTree::~SigFlowTree() {
+    ClearTree();
+    if (top) { ts_query_delete(top); top = nullptr; }
+    if (second) { ts_query_delete(second); second = nullptr; }
+    if (net) { ts_query_delete(net); net = nullptr; }
+}
+
+void SigFlowTree::ClearTree() {
+    auto notifyDeleted = [this](auto&& self, SigTreeNode* node) -> void {
+        if (!node) return;
+        for (SigTreeNode* child : node->GetChildren()) {
+            self(self, child);
+        }
+        if (m_parent) {
+            wxCommandEvent event(EVT_SIGFLOWNODE_DEL);
+            event.SetClientData(node);
+            m_parent->GetEventHandler()->ProcessEvent(event);
+        }
+    };
+
+    notifyDeleted(notifyDeleted, root);
+    DefinitionTable.clear();
+    InstanceTable.clear();
+    if (root) {
+        root->ClearNode();
+        root = nullptr;
+    }
+    arena.reset();
+}
+
 void SigFlowTree::LoadProject(std::string projectPath) {
+    if (root) {
+        ClearTree();
+    }
     this->root = arena.make<ProjectNode>(projectPath);
 }
 
@@ -255,7 +288,7 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
 
             TSQueryMatch match;
             while (ts_query_cursor_next_match(cursor, &match)) {
-                SignalNode* p = new SignalNode();
+                SignalNode* p = arena.make<SignalNode>();
                 
                 p->direction = PortDirection::InOut;
 
@@ -454,9 +487,16 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                     }
                 }
                 GateInstNode* gn = arena.make<GateInstNode>(id, gt);
-                tParent->SetSecondPortConn(gn, gn->in_ports[0].identifier, in_conn[0]);
-                tParent->SetSecondPortConn(gn, gn->in_ports[1].identifier, in_conn[1]);
-                tParent->SetSecondPortConn(gn, gn->out_ports[0].identifier, out_conn[0]);
+                // 安全访问：确保 TS 查询捕获了足够的数据
+                if (!in_conn.empty()) {
+                    tParent->SetSecondPortConn(gn, gn->in_ports[0].identifier, in_conn[0]);
+                }
+                if (in_conn.size() >= 2) {
+                    tParent->SetSecondPortConn(gn, gn->in_ports[1].identifier, in_conn[1]);
+                }
+                if (!out_conn.empty()) {
+                    tParent->SetSecondPortConn(gn, gn->out_ports[0].identifier, out_conn[0]);
+                }
                 gn = static_cast<GateInstNode*>(this->AddChild(newParent, gn));
                 outMap[gn] = std::make_tuple(ts_node_start_point(currentNode).row, ts_node_end_point(currentNode).row);
                 newParent = gn;
@@ -865,13 +905,17 @@ std::string FileNode::ToVerilog() {
 std::string TopNode::ToVerilog() {
     std::string v = std::format("module {}", identifier);
     v += "(";
-    for (auto port : in_ports) {
-        v += std::format("{} {},\n", Port::portDirectionToStr(port->direction), port->identifier);
+
+    // 收集所有端口（in + out），避免末尾逗号
+    std::vector<SignalNode*> allPorts;
+    allPorts.insert(allPorts.end(), in_ports.begin(), in_ports.end());
+    allPorts.insert(allPorts.end(), out_ports.begin(), out_ports.end());
+
+    for (size_t i = 0; i < allPorts.size(); ++i) {
+        v += std::format("{} {}", Port::portDirectionToStr(allPorts[i]->direction), allPorts[i]->identifier);
+        if (i < allPorts.size() - 1) v += ",\n";
     }
-    for (auto port : out_ports) {
-        v += std::format("{} {},\n", Port::portDirectionToStr(port->direction), port->identifier);
-    }
-    v += ")\n";
+    v += "\n);\n";
 
     for (auto* child : GetChildren()) {
         v += child->ToVerilog();
@@ -1164,13 +1208,6 @@ bool SigTreeNode::AddChild(SigTreeNode* child) {
     else return false;
 }
 
-void SigFlowTree::ClearTree() {
-    DefinitionTable.clear();
-    InstanceTable.clear();
-    root = nullptr;
-    arena.reset();
-}
-
 void SigFlowTree::RemoveChild(SigTreeNode* parent, SigTreeNode* child) {
     if (!parent || !child) return;
 
@@ -1243,8 +1280,8 @@ SignalNode* SigFlowTree::AddSignal(TopNode* parent, SignalNode* sn) {
 }
 
 SignalNode* SigFlowTree::AddNewWire(TopNode* parent) {
-    SignalNode* sn = new SignalNode("w" + std::to_string(parent->signals.size()+1), SignalType::Wire);
-    return AddSignal(parent, sn);
+    SignalNode sn("w" + std::to_string(parent->signals.size()+1), SignalType::Wire);
+    return AddSignal(parent, &sn);
 }
 
 
@@ -1280,7 +1317,7 @@ void SigFlowTree::AddOutPort(SecondNode* sn) {
 
 void SigFlowTree::AddInPort(TopNode* tn) {
     std::string name = "in" + std::to_string(tn->in_ports.size() + 1);
-    SignalNode* p = new SignalNode(name, SignalType::Wire, PortDirection::In);
+    SignalNode* p = arena.make<SignalNode>(name, SignalType::Wire, PortDirection::In);
     tn->in_ports.push_back(p);
     wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
     evt.SetClientData(tn);
@@ -1289,7 +1326,7 @@ void SigFlowTree::AddInPort(TopNode* tn) {
 
 void SigFlowTree::AddOutPort(TopNode* tn) {
     std::string name = "out" + std::to_string(tn->out_ports.size() + 1);
-    SignalNode* p = new SignalNode(name, SignalType::Wire, PortDirection::Out);
+    SignalNode* p = arena.make<SignalNode>(name, SignalType::Wire, PortDirection::Out);
     tn->out_ports.push_back(p);
     wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
     evt.SetClientData(tn);
@@ -1545,7 +1582,12 @@ void SigFlowTree::UnregisterNodeRecursive(SigTreeNode* node) {
 }
 
 FileNode* SigFlowTree::GetFileNode(std::string filePath) {
+    if(!root)
+        return nullptr;
     for (SigTreeNode* cld : root->GetChildren()) {
+        if (!cld || cld->type != SigTreeNodeType::File) {
+            continue;
+        }
         FileNode* fn = static_cast<FileNode*>(cld);
         if (fn->filePath == filePath) return fn;
     }
@@ -1683,11 +1725,17 @@ void ModuleInstNode::SetDefinition(TopNode* Definition) {
 std::string ModuleInstNode::ToVerilog() {
     std::string v = std::format("    {} {}", defIdentifier, identifier);
     v += "(\n";
+    // 合并 in/out 端口列表以正确处理末尾逗号
     for (auto port : in_ports) {
         v += std::format("        .{}({}),\n", port.identifier, port.conn);
     }
     for (auto port : out_ports) {
         v += std::format("        .{}({}),\n", port.identifier, port.conn);
+    }
+    // 删除末尾多余逗号：找到最后一个逗号并将其替换
+    if (v.ends_with(",\n")) {
+        v.erase(v.size() - 2); // 移除 ",\n"
+        v += "\n";
     }
     v += "    );\n\n";
 
@@ -1714,12 +1762,17 @@ ContinuousAssignNode::ContinuousAssignNode(std::string id, std::string raw_assig
 }
 
 std::string ContinuousAssignNode::ToVerilog() {
-    std::string v = std::format("assign ");
-    for (auto port : out_ports) {
-        v += port.conn + " = ";
+    if (out_ports.empty()) {
+        return "assign /* no output */ = 0;\n";
     }
-    for (auto port : in_ports) {
-        v += port.conn + " = ";
+    std::string v = "assign " + out_ports[0].conn + " = ";
+    if (!template_exp.empty()) {
+        v += template_exp;
+    } else {
+        // 回退：如果 template_exp 为空，尝试用 in_ports 连接名拼接
+        for (const auto& port : in_ports) {
+            v += port.conn + " ";
+        }
     }
     v += ";\n";
     return v;

@@ -81,6 +81,7 @@ EVT_MENU(wxID_HIGHEST + 222, MainMenuBar::OnSimClean)
 EVT_MENU(wxID_HIGHEST + 230, MainMenuBar::OnFpgaSynthesis)
 EVT_MENU(wxID_HIGHEST + 231, MainMenuBar::OnFpgaRoute)
 EVT_MENU(wxID_HIGHEST + 232, MainMenuBar::OnFpgaProgram)
+EVT_MENU(wxID_HIGHEST + 234, MainMenuBar::OnFpgaPinBinding)
 
 EVT_MENU(wxID_ICONIZE_FRAME, MainMenuBar::OnMinimize)
 EVT_MENU(wxID_MAXIMIZE_FRAME, MainMenuBar::OnMaximize)
@@ -302,6 +303,8 @@ wxMenu* MainMenuBar::CreateFpgaMenu()
                  wxT("Create the yosys work directory and run yosys"));
     menu->Append(wxID_HIGHEST + 231, wxT("Place and Route"),
                  wxT("Create the nextpnr work directory and run nextpnr"));
+    menu->Append(wxID_HIGHEST + 234, wxT("Pin Binding..."),
+                 wxT("Configure FPGA pin constraints for the target device"));
     menu->AppendSeparator();
     menu->Append(wxID_HIGHEST + 232, wxT("Program Board"),
                  wxT("Program a Tang Nano 9K with an Apicula .fs bitstream"));
@@ -460,6 +463,13 @@ void MainMenuBar::OnFpgaProgram(wxCommandEvent&)
 {
     if (m_owner) {
         m_owner->DoFpgaProgram();
+    }
+}
+
+void MainMenuBar::OnFpgaPinBinding(wxCommandEvent&)
+{
+    if (m_owner) {
+        m_owner->DoFpgaPinBinding();
     }
 }
 

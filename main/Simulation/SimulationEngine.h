@@ -119,6 +119,9 @@ private:
     // 查找Verilator安装路径
     wxString FindVerilatorPath() const;
 
+    // 查找 Verilator C++ 运行时头文件和实现目录
+    wxString FindVerilatorIncludePath() const;
+
     // 获取Visual Studio的VCVarsPath（用于设置编译环境）
     wxString FindVCVarsPath() const;
 

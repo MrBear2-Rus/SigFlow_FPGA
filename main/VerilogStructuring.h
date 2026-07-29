@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include <algorithm>
 #include <vector>
 #include <string>
 #include "TreeSitterLinter.h"
@@ -48,7 +49,7 @@ public:
         }
 
         // 假设：L_ ≤ pos ≤ R_
-        int offset = pos - L_;
+        int offset = std::clamp(pos - L_, 0, static_cast<int>(buffer_.size()));
         buffer_.insert(offset, text);
     }
 
@@ -67,9 +68,9 @@ public:
             return;
         }
 
-        // 删除完全在内部
-        int offset = pos - L_;
-        buffer_.erase(offset, len);
+        int offset = std::clamp(pos - L_, 0, static_cast<int>(buffer_.size()));
+        int eraseLength = std::clamp(len, 0, static_cast<int>(buffer_.size()) - offset);
+        buffer_.erase(offset, eraseLength);
     }
 
     bool IsEmpty() const { return buffer_.empty(); }

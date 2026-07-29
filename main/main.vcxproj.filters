@@ -84,6 +84,18 @@
     <ClCompile Include="MainFrame.cpp">
       <Filter>源文件\gui</Filter>
     </ClCompile>
+    <ClCompile Include="FpgaYosysRuntime.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="fpga\FpgaPinData.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="fpga\FpgaConstraint.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="fpga\FpgaPinBindingPanel.cpp">
+      <Filter>源文件\gui</Filter>
+    </ClCompile>
     <ClCompile Include="MainMenuBar.cpp">
       <Filter>源文件\gui</Filter>
     </ClCompile>
@@ -192,6 +204,18 @@
       <Filter>头文件\gui</Filter>
     </ClInclude>
     <ClInclude Include="MainFrame.h">
+      <Filter>头文件\gui</Filter>
+    </ClInclude>
+    <ClInclude Include="FpgaYosysRuntime.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="fpga\FpgaPinData.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="fpga\FpgaConstraint.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="fpga\FpgaPinBindingPanel.h">
       <Filter>头文件\gui</Filter>
     </ClInclude>
     <ClInclude Include="ProjectTreePanel.h">

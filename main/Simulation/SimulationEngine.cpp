@@ -94,29 +94,40 @@ int SimulationEngine::ExecuteCommand(const wxString& cmd, wxString& output, wxSt
 
 wxString SimulationEngine::FindVerilatorPath() const
 {
-    // 注意：VERILATOR_ROOT 是目录，不是可执行文件，所以不能直接返回
-    
-    // 检查常见安装路径（包括MSYS2）
-    // 注意：MSYS2 的 verilator 是脚本，实际可执行文件是 verilator_bin.exe
-    const char* commonPaths[] = {
-        // MSYS2 路径（优先检查 verilator_bin.exe）
+    wxString configuredPath;
+    if (wxGetEnv("VERILATOR_BIN", &configuredPath) && wxFileExists(configuredPath)) {
+        return configuredPath;
+    }
+
+    wxString verilatorRoot;
+    if (wxGetEnv("VERILATOR_ROOT", &verilatorRoot)) {
+        const wxString rootCandidates[] = {
+            verilatorRoot + "\\bin\\verilator_bin.exe",
+            verilatorRoot + "\\bin\\verilator.exe"
+        };
+        for (const auto& candidate : rootCandidates) {
+            if (wxFileExists(candidate)) {
+                return candidate;
+            }
+        }
+    }
+
+    const wxString defaultCandidates[] = {
         "C:\\msys64\\mingw64\\bin\\verilator_bin.exe",
         "C:\\msys64\\usr\\bin\\verilator_bin.exe",
         "C:\\msys64\\mingw64\\bin\\verilator.exe",
         "C:\\msys64\\usr\\bin\\verilator.exe",
-        // 标准安装路径
         "C:\\verilator\\bin\\verilator.exe",
         "C:\\Program Files\\verilator\\bin\\verilator.exe",
-        "C:\\ProgramData\\chocolatey\\bin\\verilator.exe",
+        "C:\\ProgramData\\chocolatey\\bin\\verilator.exe"
     };
-
-    for (const auto& path : commonPaths) {
-        if (wxFileExists(path)) {
-            return path;
+    for (const auto& candidate : defaultCandidates) {
+        if (wxFileExists(candidate)) {
+            return candidate;
         }
     }
 
-    // 尝试从PATH中查找（优先找 verilator_bin.exe，因为 MSYS2 的 verilator 是脚本）
+    // 尝试从 PATH 中查找（优先找 verilator_bin.exe，因为 MSYS2 的 verilator 是脚本）
     wxString pathEnv;
     if (wxGetEnv("PATH", &pathEnv)) {
         wxArrayString paths = wxSplit(pathEnv, ';');
@@ -138,6 +149,47 @@ wxString SimulationEngine::FindVerilatorPath() const
 
     // 默认返回 verilator_bin（优先使用 MSYS2 的版本）
     return "verilator_bin";
+}
+
+wxString SimulationEngine::FindVerilatorIncludePath() const
+{
+    wxString verilatorRoot;
+    if (wxGetEnv("VERILATOR_ROOT", &verilatorRoot)) {
+        wxString includePath = verilatorRoot + "\\include";
+        if (wxDirExists(includePath)) {
+            return includePath;
+        }
+    }
+
+    wxString verilatorPath = FindVerilatorPath();
+    if (wxFileExists(verilatorPath)) {
+        wxFileName prefix(verilatorPath);
+        prefix.SetFullName(wxEmptyString);
+        prefix.RemoveLastDir(); // bin
+        const wxString candidates[] = {
+            prefix.GetPath() + "\\share\\verilator\\include",
+            prefix.GetPath() + "\\include"
+        };
+        for (const auto& candidate : candidates) {
+            if (wxDirExists(candidate)) {
+                return candidate;
+            }
+        }
+    }
+
+    const wxString defaultCandidates[] = {
+        "C:\\msys64\\mingw64\\share\\verilator\\include",
+        "C:\\msys64\\usr\\share\\verilator\\include",
+        "C:\\verilator\\include",
+        "C:\\Program Files\\verilator\\include"
+    };
+    for (const auto& candidate : defaultCandidates) {
+        if (wxDirExists(candidate)) {
+            return candidate;
+        }
+    }
+
+    return wxEmptyString;
 }
 
 wxString SimulationEngine::FindVCVarsPath() const
@@ -477,6 +529,11 @@ bool SimulationEngine::CompileToDll(const wxString& topModule, wxString& errorMs
     // 创建临时批处理文件来执行编译
     OutputDebugStringA("Creating temp batch file...\n");
     wxString batchPath = cacheDir + "\\compile_dll.bat";
+    wxString verilatorIncludePath = FindVerilatorIncludePath();
+    if (verilatorIncludePath.IsEmpty()) {
+        errorMsg = wxT("无法定位 Verilator 运行时目录；请设置 VERILATOR_ROOT 或 VERILATOR_BIN。");
+        return false;
+    }
     {
         wxFile batchFile(batchPath, wxFile::write);
         if (!batchFile.IsOpened()) {
@@ -499,13 +556,13 @@ bool SimulationEngine::CompileToDll(const wxString& topModule, wxString& errorMs
         // /Fo 路径不能以反斜杠结尾（否则会转义引号），且不要引号包裹
         batchContent += "/Fo" + objDir + "\\ ";
         batchContent += "\"" + objDir + "\\*.cpp\" ";
-        batchContent += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated.cpp\" ";
-        batchContent += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated_vcd_c.cpp\" ";
-        batchContent += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated_threads.cpp\" ";
-        batchContent += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated_timing.cpp\" ";
+        batchContent += "\"" + verilatorIncludePath + "\\verilated.cpp\" ";
+        batchContent += "\"" + verilatorIncludePath + "\\verilated_vcd_c.cpp\" ";
+        batchContent += "\"" + verilatorIncludePath + "\\verilated_threads.cpp\" ";
+        batchContent += "\"" + verilatorIncludePath + "\\verilated_timing.cpp\" ";
         batchContent += "\"" + stubPath + "\" ";
-        batchContent += "/I\"C:\\msys64\\mingw64\\share\\verilator\\include\" ";
-        batchContent += "/I\"C:\\msys64\\mingw64\\share\\verilator\\include\\vltstd\" ";
+        batchContent += "/I\"" + verilatorIncludePath + "\" ";
+        batchContent += "/I\"" + verilatorIncludePath + "\\vltstd\" ";
         batchContent += "/I\"" + objDir + "\" ";
         batchContent += "/link /DLL /MACHINE:X64 ws2_32.lib\n";
         batchContent += "exit /b %errorLevel%\n";
@@ -518,10 +575,13 @@ bool SimulationEngine::CompileToDll(const wxString& topModule, wxString& errorMs
         OutputDebugStringA("\n");
     }
     
-    // 初始化编译状态
-    m_isCompiling = true;
-    m_dllCompileSuccess = false;
-    m_lastCompileLog.Clear();
+    // 初始化编译状态（加锁保护）
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_isCompiling = true;
+        m_dllCompileSuccess = false;
+        m_lastCompileLog.Clear();
+    }
     
     // 创建 ProcessRunner 并设置回调
     m_processRunner = std::make_unique<ProcessRunner>();
@@ -546,11 +606,14 @@ bool SimulationEngine::CompileToDll(const wxString& topModule, wxString& errorMs
     // 设置完成回调
     m_processRunner->SetCompletionCallback([this, dllPath, batchPath](int exitCode) {
         OutputDebugStringA(("Compile process finished with exit code: " + std::to_string(exitCode) + "\n").c_str());
-        
-        m_isCompiling = false;
-        m_dllCompileSuccess = (exitCode == 0 && wxFileExists(dllPath));
-        
-        if (m_dllCompileSuccess) {
+
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_isCompiling = false;
+            m_dllCompileSuccess = (exitCode == 0 && wxFileExists(dllPath));
+        }
+
+        if (exitCode == 0 && wxFileExists(dllPath)) {
             OutputDebugStringA("DLL compiled successfully!\n");
         } else {
             OutputDebugStringA("DLL compilation failed!\n");
@@ -568,7 +631,7 @@ bool SimulationEngine::CompileToDll(const wxString& topModule, wxString& errorMs
     OutputDebugStringA("Starting async compilation...\n");
     if (!m_processRunner->RunBatchFile(batchPath, projectRoot)) {
         errorMsg = wxT("启动编译进程失败");
-        m_isCompiling = false;
+        { std::lock_guard<std::mutex> lock(m_mutex); m_isCompiling = false; }
         return false;
     }
     
@@ -581,14 +644,17 @@ bool SimulationEngine::CompileToDll(const wxString& topModule, wxString& errorMs
     }
     
     OutputDebugStringA(("Compile returned: " + std::to_string(m_processRunner->GetExitCode()) + "\n").c_str());
-    
-    if (!m_dllCompileSuccess) {
-        OutputDebugStringA("Compile failed\n");
-        errorMsg = wxString::Format(wxT("DLL编译失败 (错误码: %d)"), m_processRunner->GetExitCode());
-        if (!m_lastCompileLog.IsEmpty()) {
-            errorMsg += wxT("\n\n编译日志:\n") + m_lastCompileLog.Left(2000);
+
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        if (!m_dllCompileSuccess) {
+            OutputDebugStringA("Compile failed\n");
+            errorMsg = wxString::Format(wxT("DLL编译失败 (错误码: %d)"), m_processRunner->GetExitCode());
+            if (!m_lastCompileLog.IsEmpty()) {
+                errorMsg += wxT("\n\n编译日志:\n") + m_lastCompileLog.Left(2000);
+            }
+            return false;
         }
-        return false;
     }
     
     // 验证 DLL 是否生成
@@ -808,6 +874,11 @@ bool SimulationEngine::CompileSimRunner(const wxString& topModule, const wxStrin
 
     wxString exePath = cacheDir + "\\sim_runner.exe";
     wxString batchPath = cacheDir + "\\compile_sim.bat";
+    wxString verilatorIncludePath = FindVerilatorIncludePath();
+    if (verilatorIncludePath.IsEmpty()) {
+        errorMsg = wxT("无法定位 Verilator 运行时目录；请设置 VERILATOR_ROOT 或 VERILATOR_BIN。");
+        return false;
+    }
 
     // 确保项目根目录是绝对路径
     wxFileName projectRootFn(m_projectRoot);
@@ -831,10 +902,10 @@ bool SimulationEngine::CompileSimRunner(const wxString& topModule, const wxStrin
         batchContent += "/Fo" + objDir + "\\ ";
         batchContent += "\"" + simMainPath + "\" ";
         batchContent += "\"" + objDir + "\\*.cpp\" ";
-        batchContent += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated.cpp\" ";
-        batchContent += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated_vcd_c.cpp\" ";
-        batchContent += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated_threads.cpp\" ";
-        batchContent += "\"C:\\msys64\\mingw64\\share\\verilator\\include\\verilated_timing.cpp\" ";
+        batchContent += "\"" + verilatorIncludePath + "\\verilated.cpp\" ";
+        batchContent += "\"" + verilatorIncludePath + "\\verilated_vcd_c.cpp\" ";
+        batchContent += "\"" + verilatorIncludePath + "\\verilated_threads.cpp\" ";
+        batchContent += "\"" + verilatorIncludePath + "\\verilated_timing.cpp\" ";
 
         // sc_time_stub
         wxString stubPath = GetSoftwareDirectory() + "\\main\\Simulation\\sc_time_stub.cpp";
@@ -844,8 +915,8 @@ bool SimulationEngine::CompileSimRunner(const wxString& topModule, const wxStrin
         }
         batchContent += "\"" + stubPath + "\" ";
 
-        batchContent += "/I\"C:\\msys64\\mingw64\\share\\verilator\\include\" ";
-        batchContent += "/I\"C:\\msys64\\mingw64\\share\\verilator\\include\\vltstd\" ";
+        batchContent += "/I\"" + verilatorIncludePath + "\" ";
+        batchContent += "/I\"" + verilatorIncludePath + "\\vltstd\" ";
         batchContent += "/I\"" + objDir + "\" ";
         batchContent += "/link /MACHINE:X64 ws2_32.lib\n";
         batchContent += "exit /b %errorLevel%\n";
@@ -970,11 +1041,13 @@ bool SimulationEngine::ExecuteSimRunner(const wxString& topModule, wxString& err
 
 bool SimulationEngine::IsCompiling() const
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
     return m_isCompiling;
 }
 
 void SimulationEngine::CancelCompile()
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
     if (m_processRunner && m_isCompiling) {
         OutputDebugStringA("Cancelling compilation...\n");
         m_processRunner->Terminate();

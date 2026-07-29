@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "target_profile": "tang-nano-9k",
+  "samples": [
+    {"id": "led_blink", "files": ["success/led_blink/top.v"], "top": "top", "expected": "success"},
+    {"id": "counter", "files": ["success/counter/top.v"], "top": "top", "expected": "success"},
+    {"id": "full_adder", "files": ["success/full_adder/top.v"], "top": "top", "expected": "success"},
+    {"id": "hierarchy", "files": ["success/hierarchy/top.v", "success/hierarchy/and_gate.v"], "top": "top", "expected": "success"},
+    {"id": "memory", "files": ["success/memory/top.v"], "top": "top", "expected": "success"},
+    {"id": "syntax_error", "files": ["failure/syntax_error/top.v"], "top": "top", "expected": "failure", "error_class": "VERILOG_SYNTAX_ERROR"},
+    {"id": "missing_top", "files": ["failure/missing_top/top.v"], "top": "missing_top", "expected": "failure", "error_class": "TOP_MODULE_NOT_FOUND"},
+    {"id": "missing_source", "files": ["failure/missing_source/not_present.v"], "top": "top", "expected": "failure", "error_class": "SOURCE_FILE_MISSING"},
+    {"id": "duplicate_module", "files": ["failure/duplicate_module/top.v", "failure/duplicate_module/duplicate.v"], "top": "top", "expected": "failure", "error_class": "DUPLICATE_MODULE"},
+    {"id": "invalid_top_identifier", "files": ["failure/invalid_top_identifier/top.v"], "top": "not-a-valid-module", "expected": "failure", "error_class": "INVALID_TOP_MODULE"}
+  ]
+}

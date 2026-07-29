@@ -1,10 +1,13 @@
-﻿#include "VerilogManager.h"
+#include "VerilogManager.h"
 #include "SigTree.h"
 #include "SigTextEditor.h"
 #include "VerilogStructuring.h"
+#include <algorithm>
 #include <wx/time.h>
 
-VerilogManager::VerilogManager(SigTextEditor* stc, SigFlowTree* tree, TSParser* parser) : m_stc(stc), m_tree(tree),m_ts_parser(parser) {
+VerilogManager::VerilogManager(SigTextEditor* stc, SigFlowTree* tree, TSParser* parser)
+    : fn(nullptr), m_stc(stc), m_tree(tree), editing_top_block(nullptr),
+      recovering_block(nullptr), m_timer(nullptr), m_ts_tree(nullptr), m_ts_parser(parser) {
     m_timer = new wxTimer();
     m_timer->Bind(
         wxEVT_TIMER,
@@ -38,61 +41,113 @@ VerilogManager::VerilogManager(SigTextEditor* stc, SigFlowTree* tree, TSParser* 
     m_stc->AnnotationSetVisible(0);
 }
 
+VerilogManager::~VerilogManager() {
+    if (m_timer) {
+        m_timer->Stop();
+        delete m_timer;
+        m_timer = nullptr;
+    }
+    if (m_ts_tree) {
+        ts_tree_delete(m_ts_tree);
+        m_ts_tree = nullptr;
+    }
+    // Note: m_ts_parser is owned externally, do not delete
+}
+
 void VerilogManager::OnTimer(wxTimerEvent&) {
+    if (!m_stc) {
+        return;
+    }
+
+    auto refreshEditorState = [this]() {
+        m_stc->RenderLineMarker(GetLineStatus());
+        UpdateFolding();
+        m_stc->DebugFoldLevels();
+        DrawBlockInfo();
+        Print();
+    };
+
+    if (!m_tree || !m_ts_parser || !editing_top_block) {
+        refreshEditorState();
+        return;
+    }
+
     for (Block& b : GetBreakBlocks()) {
-        Structuring* s = b.structure;
-        if (s->IsEmpty())
-            return;
+        if (!b.structure) {
+            continue;
+        }
 
-        int L = s->Start();
-        int R = s->End();
-
-        wxString delta = m_stc->GetTextRange(L, R);
+        wxString delta = GetBlockText(b);
 
         std::string x = "module _tmp;\n" + delta.ToStdString() + "\nendmodule\n";
-        AnaPac ap = StructuringX(x);
-        if (!ap.has_error) {
+        TSTree* fragmentTree = ts_parser_parse_string(m_ts_parser, nullptr, x.c_str(), x.length());
+        if (fragmentTree) {
+            TSNode fragmentRoot = ts_tree_root_node(fragmentTree);
+            if (ts_node_has_error(fragmentRoot)) {
+                ts_tree_delete(fragmentTree);
+                continue;
+            }
             // 1. 获取基础数据
             std::string fp = m_stc->m_currentFilePath.ToStdString();
             std::string fullCode = m_stc->GetText().ToStdString();
 
-            ts_tree_delete(m_ts_tree);
+            if (m_ts_tree) ts_tree_delete(m_ts_tree);
             m_ts_tree = ts_parser_parse_string(m_ts_parser, nullptr, fullCode.c_str(), fullCode.length());
+            if (!m_ts_tree) {
+                ts_tree_delete(fragmentTree);
+                refreshEditorState();
+                return;
+            }
 
-            TSTreeCursor cursor = ts_tree_cursor_new(ap.node);
+            TSTreeCursor cursor = ts_tree_cursor_new(fragmentRoot);
             std::unordered_map<SigTreeNode*, std::tuple<int, int>> map;
 
             // 找到该文件对应的根节点开始同步
             SigTreeNode* fileNode = m_tree->GetFileNode(fp);
             if (fileNode) {
-                if (b.self == nullptr) {
+                if (b.self == nullptr && editing_top_block->self) {
                     m_tree->UpdateTreeFromTS(&cursor, editing_top_block->self, fp, x, map);
                 }
             }
             ts_tree_cursor_delete(&cursor);
-            
-            s->Clear();
+            ts_tree_delete(fragmentTree);
+
+            refreshEditorState();
+            return;
         }
-    }   
-    m_stc->RenderLineMarker(GetLineStatus());
-    UpdateFolding();
-    m_stc->DebugFoldLevels();
-    DrawBlockInfo();
-    Print();
+    }
+    refreshEditorState();
 }
 
 void VerilogManager::SetFileNode(FileNode* n, std::unordered_map<SigTreeNode*, std::tuple<int, int>> map){
+    if (m_timer) m_timer->Stop();
+    blocks.clear();
+    break_blocks.clear();
+    structures.clear();
+    editing_top_block = nullptr;
+    recovering_block = nullptr;
+
+    if (!n || !m_stc || !m_ts_parser) {
+        fn = nullptr;
+        return;
+    }
+
     this->fn = n;
-    ProjectNode* pn = static_cast<ProjectNode*>(n->GetParent());
-    std::string path = n->filePath;
-    m_stc->OpenFile(n->filePath);
+    if (!m_stc->OpenFile(n->filePath)) {
+        fn = nullptr;
+        return;
+    }
+
     std::string text = m_stc->GetText().ToStdString();
     if (m_ts_tree) ts_tree_delete(m_ts_tree);
     m_ts_tree = ts_parser_parse_string(m_ts_parser, nullptr, text.c_str(), text.length());
-    TSNode root = ts_tree_root_node(m_ts_tree);
-    TSTreeCursor cursor = ts_tree_cursor_new(root);
+    if (!m_ts_tree) {
+        return;
+    }
     CollectBlocks(map);
-
+    m_stc->RenderLineMarker(GetLineStatus());
+    UpdateFolding();
+    DrawBlockInfo();
 }
 
 
@@ -100,6 +155,10 @@ void VerilogManager::CollectBlocks(std::unordered_map<SigTreeNode*, std::tuple<i
     // 1. 清理旧的标记，防止多次解析后句柄堆积
     m_stc->MarkerDeleteAll(BLOCK_MARKER_ID);
     blocks.clear();
+    break_blocks.clear();
+    structures.clear();
+    editing_top_block = nullptr;
+    recovering_block = nullptr;
 
     // 2. 为了保持 Print() 时的顺序性，建议先将 map 元素放入 vector 排序
     // 如果不关心顺序，可以直接执行第 3 步的循环
@@ -149,7 +208,7 @@ void VerilogManager::AppendBlocks(std::unordered_map<SigTreeNode*, std::tuple<in
 
     // 选做：如果需要保持全局块的有序性，可以在此处进行一次排序
     
-    std::sort(blocks.begin(), blocks.end(), [this](const Block& a, const Block& b) {
+    blocks.sort([this](const Block& a, const Block& b) {
         return m_stc->MarkerLineFromHandle(a.startHandle) < m_stc->MarkerLineFromHandle(b.startHandle);
     });
     
@@ -165,14 +224,15 @@ void VerilogManager::AddBlock(int startline, int endline, SigTreeNode* node) {
 Block* VerilogManager::AddBreakBlock(int startline, int endline) {
     int s = m_stc->MarkerAdd(startline, BLOCK_MARKER_ID);
     int e = m_stc->MarkerAdd(endline, BLOCK_MARKER_ID);
-    break_blocks.push_back({ s, e, nullptr });
-    Structuring st;
-    int pos = m_stc->PositionFromLine(startline);
-    wxString text = m_stc->GetTextRange(pos, m_stc->PositionFromLine(endline));
-    st.OnInsert(pos, text.ToStdString());
-    structures.push_back(st);
+    break_blocks.emplace_back(s, e, nullptr);
+    structures.emplace_back();
+    Structuring& structure = structures.back();
     Block* b = &break_blocks.back();
-    b->structure = &structures.back();
+    int blockStartLine = GetSTCLine(b->startHandle);
+    int pos = blockStartLine >= 0 ? m_stc->PositionFromLine(blockStartLine) : 0;
+    wxString text = GetBlockText(*b);
+    structure.OnInsert(pos, text.ToStdString());
+    b->structure = &structure;
     return b;
 }
 
@@ -183,14 +243,15 @@ void VerilogManager::RecoverBreakBlock(Block* b, SigTreeNode* n) {
         });
 
     if (it != break_blocks.end()) {
-        b->structure->Clear();
+        if (b->structure) {
+            b->structure->Clear();
+        }
         b->structure = nullptr;
         it->self = n; // 将解析出的新语义节点赋值给 self
 
         // 3. 将其移入稳定集合 blocks
-        blocks.push_back(std::move(*it));
+        blocks.splice(blocks.end(), break_blocks, it);
         //m_tree->AddChild(n->GetParent(), n); // 将新节点挂回树结构
-        break_blocks.erase(it);
     }
     recovering_block = nullptr;
     editing_top_block = nullptr;
@@ -249,8 +310,10 @@ Block* VerilogManager::FindBlock(int start, int end) {
     int start = m_stc->LineFromPosition(pos);
     int end = m_stc->LineFromPosition(pos + static_cast<int>(text.size()));
     Block* b = FindBlock(start, end);
+    bool initializedFromCurrentText = false;
     if (!b) {
         b = AddBreakBlock(start, end);
+        initializedFromCurrentText = true;
     }
 
     if (b->isStable()) {
@@ -261,34 +324,41 @@ Block* VerilogManager::FindBlock(int start, int end) {
         if (it != blocks.end()) {
             SigTreeNode* n = it->self;
             it->self = nullptr;
-            Structuring s;
-            int startPos = m_stc->PositionFromLine(GetLine(b->startHandle)- 1);
+            int startLine = GetSTCLine(it->startHandle);
+            int startPos = startLine >= 0 ? m_stc->PositionFromLine(startLine) : 0;
 
             // 2. 获取结束行的行尾位置
             // 注意：第 N 行的行尾，实际上就是第 N+1 行的行首
-            int endPos = m_stc->PositionFromLine(GetLine(b->endHandle));
 
             // 3. 此时获取的才是完整的跨行文本
-            wxString t = m_stc->GetTextRange(startPos, endPos);
-            s.OnInsert(startPos, t.ToStdString());
-            structures.push_back(s);
-            it->structure = &structures.back();
-            break_blocks.push_back(std::move(*it));
-            blocks.erase(it);
-            m_tree->RemoveChild(n->GetParent(), n);
+            wxString t = GetBlockText(*it);
+            structures.emplace_back();
+            Structuring& structure = structures.back();
+            structure.OnInsert(startPos, t.ToStdString());
+            it->structure = &structure;
+            break_blocks.splice(break_blocks.end(), blocks, it);
+            initializedFromCurrentText = true;
+            if (m_tree && n && n->GetParent()) {
+                m_tree->RemoveChild(n->GetParent(), n);
+            }
         }
     }
 
     Structuring* sp = b->structure;
-    recovering_block = b;
-    if (type & wxSTC_MOD_INSERTTEXT)
-    {
-        sp->OnInsert(pos, text.ToStdString());
+    if (!sp) {
+        return;
     }
+    recovering_block = b;
+    if (!initializedFromCurrentText) {
+        if (type & wxSTC_MOD_INSERTTEXT)
+        {
+            sp->OnInsert(pos, text.ToStdString());
+        }
 
-    if (type & wxSTC_MOD_DELETETEXT)
-    {
-        sp->OnDelete(pos, len);
+        if (type & wxSTC_MOD_DELETETEXT)
+        {
+            sp->OnDelete(pos, len);
+        }
     }
     m_timer->Start(300, wxTIMER_ONE_SHOT);
 }
@@ -306,7 +376,24 @@ int VerilogManager::GetSTCLine(int handle) {
 
 
 wxString VerilogManager::GetText(const Block& b) {
-   return m_stc->GetTextRange(m_stc->PositionFromLine(GetLine(b.startHandle)), m_stc->PositionFromLine(GetLine(b.endHandle)));
+   return GetBlockText(b);
+}
+
+wxString VerilogManager::GetBlockText(const Block& b) {
+    int startLine = GetSTCLine(b.startHandle);
+    int endLine = GetSTCLine(b.endHandle);
+    int lineCount = m_stc->GetLineCount();
+    if (startLine < 0 || endLine < startLine || lineCount <= 0) {
+        return wxEmptyString;
+    }
+
+    startLine = std::clamp(startLine, 0, lineCount - 1);
+    endLine = std::clamp(endLine, startLine, lineCount - 1);
+    int startPos = m_stc->PositionFromLine(startLine);
+    int endPos = endLine + 1 < lineCount
+        ? m_stc->PositionFromLine(endLine + 1)
+        : m_stc->GetTextLength();
+    return m_stc->GetTextRange(startPos, endPos);
 }
 
 void VerilogManager::Print() {
@@ -348,14 +435,15 @@ void VerilogManager::SigFlowNodeAdded(SigTreeNode* node) {
             });
 
         if (it != break_blocks.end()) {
-            recovering_block->structure->Clear();
+            if (recovering_block->structure) {
+                recovering_block->structure->Clear();
+            }
             recovering_block->structure = nullptr;
             it->self = node; // 将解析出的新语义节点赋值给 self
 
             // 3. 将其移入稳定集合 blocks
-            blocks.push_back(std::move(*it));
+            blocks.splice(blocks.end(), break_blocks, it);
             //m_tree->AddChild(n->GetParent(), n); // 将新节点挂回树结构
-            break_blocks.erase(it);
         }
         recovering_block = nullptr;
         editing_top_block = nullptr;
@@ -370,6 +458,10 @@ void VerilogManager::SigFlowNodeDeleted(SigTreeNode* node) {
 
 std::vector<Stability> VerilogManager::GetLineStatus() {
     std::vector<Stability> sta = std::vector<Stability>(m_stc->GetLineCount(), Stability::Stable);
+    if (StructureTest(m_stc->GetText().ToStdString())) {
+        return sta;
+    }
+
     for (Block& b : break_blocks) {
         int start_line = GetSTCLine(b.startHandle);
         int end_line = GetSTCLine(b.endHandle);

@@ -16,6 +16,7 @@
 #include "SigFlowTreePanel.h"
 #include "SFNPropertyPanel.h"
 #include "Simulation/SimulationEngine.h"
+#include "fpga/FpgaPinBindingPanel.h"
 
 #include "TerminalCtrl.h"
 
@@ -49,6 +50,7 @@ private:
     ToolboxPanel* m_toolbox;
     SigFlowTreePanel* m_sigFlowTreePanel;
     SFNPropertyPanel* m_sfnPropertyPanel;
+    FpgaPinBindingPanel* m_fpgaPinBindingPanel;
     TerminalCtrl* m_terminalCtrl;
     WavePanel* m_wavePanel;
 
@@ -149,6 +151,7 @@ public:
     void DoFpgaSynthesis();
     void DoFpgaRoute();
     void DoFpgaProgram();
+    void DoFpgaPinBinding();
 
     /* Window 菜单业务接口 */
     void DoWindowCombinationalAnalysis();
