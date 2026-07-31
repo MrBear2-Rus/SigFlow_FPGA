@@ -30,6 +30,7 @@
     <ClCompile Include="CanvasPanel.cpp" />
     <ClCompile Include="CanvasTextElement.cpp" />
     <ClCompile Include="cMain.cpp" />
+    <ClCompile Include="FpgaSynthesisJob.cpp" />
     <ClCompile Include="FpgaYosysRuntime.cpp" />
     <ClCompile Include="fpga\FpgaPinData.cpp" />
     <ClCompile Include="fpga\FpgaConstraint.cpp" />
@@ -73,6 +74,7 @@
     <ClInclude Include="CanvasNoteBook.h" />
     <ClInclude Include="CanvasPanel.h" />
     <ClInclude Include="CanvasTextElement.h" />
+    <ClInclude Include="FpgaSynthesisJob.h" />
     <ClInclude Include="FpgaYosysRuntime.h" />
     <ClInclude Include="fpga\FpgaPinData.h" />
     <ClInclude Include="fpga\FpgaConstraint.h" />
