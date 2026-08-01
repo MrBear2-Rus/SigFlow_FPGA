@@ -23,6 +23,7 @@ struct SynthesisJobRequest {
     wxString targetProfileId;
     wxString targetProfileVersion;
     wxString strategyId = "baseline";
+    wxString strategyVersion = "1.0";
     wxString operatorName = "local";
 };
 
