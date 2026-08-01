@@ -278,10 +278,7 @@ bool FpgaSynthesisJobService::Cancel(const wxString& projectPath, const wxString
 {
     SynthesisJob job;
     if (!Load(projectPath, jobId, job, errorMessage)) return false;
-    if (job.state == SynthesisJobState::Running) {
-        errorMessage = "Running jobs must be cancelled by the executor so the process tree is terminated first.";
-        return false;
-    }
+    // 将 Job 状态直接设为 Cancelled（前提：调用方已终止实际进程）
     return Transition(projectPath, jobId, SynthesisJobState::Cancelled, reason, job.exitCode, errorMessage);
 }
 
