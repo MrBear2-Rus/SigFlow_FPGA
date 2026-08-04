@@ -30,6 +30,9 @@
 #include "VerilogStructuring.h"
 #include "VerilogManager.h"
 #include "WavePanel.h"
+#include "Fpga/NextpnrLogParser.h"
+#include "Fpga/NextpnrReport.h"
+#include "Fpga/CstValidator.h"
 
 extern std::vector<SecondElement> g_elements;
 extern "C" TSLanguage* tree_sitter_verilog();
@@ -87,9 +90,14 @@ bool WriteUtf8File(const wxString& path, const wxString& content)
 
 class FpgaToolProcess final : public wxProcess {
 public:
+    using CompletionCallback = std::function<void(int exitCode, const wxString& fullOutput)>;
+
     FpgaToolProcess(TerminalCtrl* terminal, const wxString& toolName,
-                    std::function<void(int)> onTerminate)
-        : m_terminal(terminal), m_toolName(toolName), m_onTerminate(std::move(onTerminate))
+                    std::function<void(int)> onTerminate = nullptr,
+                    CompletionCallback onComplete = nullptr)
+        : m_terminal(terminal), m_toolName(toolName),
+          m_onTerminate(std::move(onTerminate)),
+          m_onComplete(std::move(onComplete))
     {
         Redirect();
         m_outputTimer.SetOwner(this);
@@ -116,6 +124,10 @@ public:
         }
         if (m_onTerminate) {
             m_onTerminate(status);
+        }
+        // Fire log-analysis callback so callers can parse the output
+        if (m_onComplete) {
+            m_onComplete(status, m_outputBuffer);
         }
         delete this;
     }
@@ -146,6 +158,7 @@ private:
                 break;
             }
             m_terminal->AppendProcessOutput(wxString::FromUTF8(buffer, bytesRead));
+            m_outputBuffer += wxString::FromUTF8(buffer, bytesRead);
             ++chunksRead;
         }
     }
@@ -153,6 +166,8 @@ private:
     wxWeakRef<TerminalCtrl> m_terminal;
     wxString m_toolName;
     std::function<void(int)> m_onTerminate;
+    wxString m_outputBuffer;            // 累积全部输出供回调解析
+    CompletionCallback m_onComplete;
     wxTimer m_outputTimer;
 };
 
@@ -277,7 +292,9 @@ wxString FindFpgaTool(const wxString& configuredPath, const wxString& environmen
 
 long LaunchFpgaTool(const wxString& executable, const std::vector<wxString>& arguments,
                     const wxString& workingDirectory, TerminalCtrl* terminal,
-                    const wxString& toolName, std::function<void(int)> onTerminate = {})
+                    const wxString& toolName,
+                    std::function<void(int)> onTerminate = {},
+                    FpgaToolProcess::CompletionCallback onComplete = nullptr)
 {
     std::vector<wxString> commandLine;
     commandLine.reserve(arguments.size() + 1);
@@ -293,7 +310,8 @@ long LaunchFpgaTool(const wxString& executable, const std::vector<wxString>& arg
 
     wxExecuteEnv environment;
     environment.cwd = workingDirectory;
-    FpgaToolProcess* process = new FpgaToolProcess(terminal, toolName, std::move(onTerminate));
+    FpgaToolProcess* process = new FpgaToolProcess(terminal, toolName,
+        std::move(onTerminate), std::move(onComplete));
     const long processId = wxExecute(argv.data(), wxEXEC_ASYNC | wxEXEC_HIDE_CONSOLE, process, &environment);
     if (processId == 0) {
         delete process;
@@ -2363,6 +2381,7 @@ void MainFrame::DoFpgaRoute()
         return;
     }
 
+    // ── 构建 nextpnr 参数（先做占位符替换）──
     const std::vector<wxString> defaultNextpnrArgs = {
         "--json", "${yosys_json}",
         "--write", "${nextpnr_dir}/" + topModule + ".pnr.json",
@@ -2372,41 +2391,71 @@ void MainFrame::DoFpgaRoute()
     const std::vector<wxString>& configuredArgs =
         options.nextpnrArgs.empty() ? defaultNextpnrArgs : options.nextpnrArgs;
     std::vector<wxString> arguments;
-    arguments.reserve(configuredArgs.size());
+    arguments.reserve(configuredArgs.size() + 2);
 
-    // 自动检测 CST 约束文件
-    wxString cstPath = m_currentProjectPath + "\\constraints\\" + topModule + ".cst";
-    bool hasCst = wxFileExists(cstPath);
-    bool hasCstInArgs = false;
-
-    for (wxString argument : configuredArgs) {
-        if (argument.Lower().Contains("cst=") || argument.Lower().Contains(".cst")) {
-            hasCstInArgs = true;
+    // ── CST 自动解析与校验 ──
+    wxString resolvedCst;
+    {
+        wxString configuredCstPath;
+        for (wxString argument : configuredArgs) {
+            argument.Replace("${yosys_json}", yosysJson);
+            argument.Replace("${nextpnr_dir}", nextpnrDirectory);
+            if (argument.StartsWith(wxT("cst="))) {
+                configuredCstPath = argument.Mid(4);
+            }
+            arguments.push_back(argument);
         }
-        argument.Replace("${yosys_json}", yosysJson);
-        argument.Replace("${nextpnr_dir}", nextpnrDirectory);
-        arguments.push_back(argument);
+        resolvedCst = CstValidator::AutoResolveCst(m_currentProjectPath, configuredCstPath);
     }
 
-    // 如果 CST 存在且未通过参数显式指定，自动附加
-    if (hasCst && !hasCstInArgs) {
-        arguments.push_back("--vopt");
-        arguments.push_back("cst=" + cstPath);
-    } else if (!hasCst) {
-        // 检查是否有 pin-bindings.json 但尚未生成 CST
-        if (!hasCstInArgs) {
-            // 如果有绑定但没生成CST，给出提示
-            wxString msg = "No CST pin-constraint file was found:\n" + cstPath +
-                "\n\nGowin place and route requires every top-level I/O to be assigned "
-                "to a package pin. Open FPGA > Pin Binding, bind all ports, then click "
-                "'Generate CST' before running place and route.";
-            wxMessageBox(msg, "FPGA Place and Route", wxOK | wxICON_WARNING, this);
-            return;
+    // 布线前 CST 校验
+    const CstValidationResult cstResult = CstValidator::Validate(resolvedCst);
+    if (!cstResult.valid) {
+        wxMessageBox(
+            wxT("CST 约束文件校验失败:\n\n") + cstResult.errorSummary +
+            wxT("\n请修复 CST 后重试，或运行 FPGA > Pin Constraints 生成约束文件。"),
+            wxT("FPGA Place and Route"), wxOK | wxICON_WARNING, this);
+        if (m_terminalCtrl) {
+            m_terminalCtrl->PrintOutput(
+                wxT("[nextpnr] Blocked: CST validation failed.\n") + cstResult.errorSummary + wxT("\n"));
+        }
+        return;
+    }
+
+    // 确保 CST 被注入参数列表
+    {
+        bool hasCst = false;
+        for (const auto& arg : arguments) {
+            if (arg.StartsWith(wxT("cst="))) { hasCst = true; break; }
+        }
+        if (!hasCst) {
+            arguments.push_back(wxT("--vopt"));
+            arguments.push_back(wxT("cst=") + resolvedCst);
         }
     }
 
+    // nextpnr 完成后的分析回调
+    TerminalCtrl* terminalPtr = m_terminalCtrl;
+    const wxString reportDir = nextpnrDirectory;
+    const wxString topModuleName = topModule;
+    FpgaToolProcess::CompletionCallback onComplete =
+        [terminalPtr, reportDir, topModuleName](int exitCode, const wxString& fullOutput) {
+            if (!terminalPtr) return;
+            NextpnrRunRecord record;
+            record.exitCode = exitCode;
+            record.toolName = wxT("nextpnr-himbaechel");
+            record.stdoutRaw = fullOutput;
+            NextpnrLogParser parser;
+            parser.Parse(fullOutput, wxEmptyString, record);
+            NextpnrReport report;
+            terminalPtr->PrintOutput(report.FormatSummary(record));
+            if (!reportDir.IsEmpty()) {
+                report.SaveReport(record, reportDir + wxT("\\") + topModuleName + wxT(".analysis.json"));
+            }
+        };
     const long processId =
-        LaunchFpgaTool(nextpnrExecutable, arguments, nextpnrDirectory, m_terminalCtrl, "nextpnr");
+        LaunchFpgaTool(nextpnrExecutable, arguments, nextpnrDirectory, m_terminalCtrl, "nextpnr",
+                       std::move(onComplete));
     if (processId == 0) {
         wxMessageBox("Unable to start nextpnr. Check the configured executable path and arguments.",
                      "FPGA Place and Route", wxOK | wxICON_ERROR, this);
