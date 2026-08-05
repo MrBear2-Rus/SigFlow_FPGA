@@ -1,0 +1,17 @@
+{
+  "modules": {
+    "top": {
+      "ports": {
+        "clk": {"direction": "input", "bits": [2]},
+        "led": {"direction": "output", "bits": [3]}
+      },
+      "cells": {
+        "$logic$1": {"type": "$not", "connections": {}}
+      },
+      "netnames": {
+        "clk": {"bits": [2]},
+        "led": {"bits": [3]}
+      }
+    }
+  }
+}

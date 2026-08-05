@@ -30,6 +30,7 @@
     <ClCompile Include="CanvasPanel.cpp" />
     <ClCompile Include="CanvasTextElement.cpp" />
     <ClCompile Include="cMain.cpp" />
+    <ClCompile Include="fpga\ArtifactValidator.cpp" />
     <ClCompile Include="FpgaSynthesisJob.cpp" />
     <ClCompile Include="FpgaYosysScriptGenerator.cpp" />
     <ClCompile Include="FpgaYosysRuntime.cpp" />
@@ -78,6 +79,7 @@
     <ClInclude Include="CanvasNoteBook.h" />
     <ClInclude Include="CanvasPanel.h" />
     <ClInclude Include="CanvasTextElement.h" />
+    <ClInclude Include="fpga\ArtifactValidator.h" />
     <ClInclude Include="FpgaSynthesisJob.h" />
     <ClInclude Include="FpgaYosysScriptGenerator.h" />
     <ClInclude Include="FpgaYosysRuntime.h" />
