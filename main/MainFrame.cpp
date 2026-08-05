@@ -19,6 +19,7 @@
 #include <functional>
 
 #include "MainFrame.h"
+#include "fpga/ArtifactValidator.h"
 #include "MainMenuBar.h"
 #include "FpgaYosysRuntime.h"
 #include "FpgaSynthesisJob.h"
@@ -2263,9 +2264,11 @@ void MainFrame::DoFpgaSynthesis()
 
     const wxString projectPath = m_currentProjectPath;
     const wxString jobId = job.id;
+    const wxString artifactManifestPath = jobPaths.artifacts + "\\" + topModule + ".manifest.json";
     const wxString legacyJsonPath = yosysDirectory + "\\" + topModule + ".json";
     const long processId = LaunchFpgaTool(yosysExecutable, { "-s", scriptPath }, jobPaths.root,
-        m_terminalCtrl, "Yosys", [projectPath, jobId, jobPaths, legacyJsonPath](int status) {
+        m_terminalCtrl, "Yosys", [projectPath, jobId, jobJsonPath, artifactManifestPath,
+                                    legacyJsonPath, topModule](int status) {
             FpgaSynthesisJobService completedJobService;
             wxString updateError;
             if (status != 0) {
@@ -2274,15 +2277,33 @@ void MainFrame::DoFpgaSynthesis()
                 return;
             }
             if (!completedJobService.Transition(projectPath, jobId, SynthesisJobState::ValidatingArtifact,
-                                                "Yosys completed; validating JSON artifact.", status, updateError) ||
-                !wxFileExists(jobPaths.artifacts + "\\" + wxFileName(legacyJsonPath).GetFullName()) ||
-                !wxCopyFile(jobPaths.artifacts + "\\" + wxFileName(legacyJsonPath).GetFullName(), legacyJsonPath, true)) {
+                                                "Yosys completed; validating JSON artifact.", status, updateError)) {
+                return;
+            }
+
+            ArtifactValidator validator;
+            NetlistArtifactReport artifactReport;
+            const bool isValid = validator.ValidateYosysJson(jobJsonPath, topModule, artifactReport);
+            wxString manifestError;
+            if (!validator.WriteManifest(artifactManifestPath, artifactReport, manifestError)) {
                 completedJobService.Transition(projectPath, jobId, SynthesisJobState::Failed,
-                    "Yosys completed but the JSON artifact is missing or could not be published.", -1, updateError);
+                    wxString("Unable to persist JSON artifact validation report: ") + manifestError,
+                    status, updateError);
+                return;
+            }
+            if (!isValid) {
+                completedJobService.Transition(projectPath, jobId, SynthesisJobState::Failed,
+                    artifactReport.message, status, updateError);
+                return;
+            }
+            if (!wxCopyFile(jobJsonPath, legacyJsonPath, true)) {
+                completedJobService.Transition(projectPath, jobId, SynthesisJobState::Failed,
+                    "Yosys JSON artifact was valid but could not be published to the compatibility path.",
+                    status, updateError);
                 return;
             }
             completedJobService.Transition(projectPath, jobId, SynthesisJobState::Succeeded,
-                "JSON artifact validated and published to the compatibility path.", 0, updateError);
+                "JSON artifact validated and published to the compatibility path.", status, updateError);
         });
     if (processId == 0) {
         jobService.Transition(m_currentProjectPath, job.id, SynthesisJobState::Failed,
@@ -2357,6 +2378,15 @@ void MainFrame::DoFpgaRoute()
         wxMessageBox("The Tang Nano 9K netlist was not found:\n" + yosysJson +
                      "\n\nRun FPGA > Synthesis and wait for Yosys to finish before place and route.",
                      "FPGA Place and Route", wxOK | wxICON_WARNING, this);
+        return;
+    }
+
+    ArtifactValidator artifactValidator;
+    NetlistArtifactReport artifactReport;
+    if (!artifactValidator.ValidateYosysJson(yosysJson, topModule, artifactReport)) {
+        wxMessageBox("The Yosys JSON netlist is not a valid artifact:\n" +
+                         artifactReport.message + "\n\n" + yosysJson,
+                     "FPGA Place and Route", wxOK | wxICON_ERROR, this);
         return;
     }
 

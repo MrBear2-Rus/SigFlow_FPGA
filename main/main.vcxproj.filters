@@ -81,6 +81,9 @@
     <ClCompile Include="cMain.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="fpga\ArtifactValidator.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="MainFrame.cpp">
       <Filter>源文件\gui</Filter>
     </ClCompile>
@@ -213,6 +216,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="FpgaSynthesisJob.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="fpga\ArtifactValidator.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="fpga\FpgaPinData.h">
