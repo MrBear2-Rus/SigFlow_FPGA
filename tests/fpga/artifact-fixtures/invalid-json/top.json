@@ -1,0 +1,1 @@
+This deliberately long text is not JSON and must be rejected by JsonCpp.

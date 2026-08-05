@@ -21,7 +21,6 @@
 #include "TerminalCtrl.h"
 
 #include "PluginManager.h"
-#include "FpgaYosysExecutor.h"
 
 class ToolBars;
 class CanvasNoteBook;
@@ -150,7 +149,6 @@ public:
 
     /* FPGA 工具链接口 */
     void DoFpgaSynthesis();
-    void DoFpgaCancelSynthesis();
     void DoFpgaRoute();
     void DoFpgaProgram();
     void DoFpgaPinBinding();
@@ -188,10 +186,6 @@ public:
 
     // 仿真引擎
     std::unique_ptr<SimulationEngine> m_simEngine;
-
-    // FPGA 综合执行器
-    std::unique_ptr<YosysExecutor> m_yosysExecutor;
-    int m_synthesisGeneration = 0;  // 综合代次号，用于 CallAfter 回调有效性校验
 
     void OnToolboxElement(wxCommandEvent& evt);
     

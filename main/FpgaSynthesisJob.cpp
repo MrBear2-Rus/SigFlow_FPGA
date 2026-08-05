@@ -80,6 +80,7 @@ Json::Value ToJson(const SynthesisJob& job)
     request["target_profile"] = job.request.targetProfileId.ToStdString();
     request["target_profile_version"] = job.request.targetProfileVersion.ToStdString();
     request["strategy"] = job.request.strategyId.ToStdString();
+    request["strategy_version"] = job.request.strategyVersion.ToStdString();
     request["operator"] = job.request.operatorName.ToStdString();
     Json::Value sourceFiles(Json::arrayValue);
     for (const wxString& sourceFile : job.request.sourceFiles) {
@@ -124,6 +125,9 @@ bool FromJson(const Json::Value& root, SynthesisJob& job, wxString& errorMessage
     job.request.targetProfileId = wxString::FromUTF8(request["target_profile"].asString());
     job.request.targetProfileVersion = wxString::FromUTF8(request["target_profile_version"].asString());
     job.request.strategyId = wxString::FromUTF8(request["strategy"].asString());
+    if (request["strategy_version"].isString()) {
+        job.request.strategyVersion = wxString::FromUTF8(request["strategy_version"].asString());
+    }
     job.request.operatorName = wxString::FromUTF8(request["operator"].asString());
     for (const Json::Value& sourceFile : request["source_files"]) {
         if (sourceFile.isString()) job.request.sourceFiles.push_back(wxString::FromUTF8(sourceFile.asString()));

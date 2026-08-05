@@ -21,8 +21,10 @@
 #include <functional>
 
 #include "MainFrame.h"
+#include "fpga/ArtifactValidator.h"
 #include "MainMenuBar.h"
 #include "FpgaYosysRuntime.h"
+#include "FpgaYosysScriptGenerator.h"
 #include "FpgaSynthesisJob.h"
 #include "ToolboxPanel.h"  
 #include "CanvasModel.h"
@@ -31,6 +33,9 @@
 #include "VerilogStructuring.h"
 #include "VerilogManager.h"
 #include "WavePanel.h"
+#include "Fpga/NextpnrLogParser.h"
+#include "Fpga/NextpnrReport.h"
+#include "Fpga/CstValidator.h"
 
 extern std::vector<SecondElement> g_elements;
 extern "C" TSLanguage* tree_sitter_verilog();
@@ -40,35 +45,12 @@ namespace {
 struct FpgaProjectOptions {
     wxString targetProfileId;
     wxString yosysPath;
-    wxString yosysSynthesisCommand;
+    wxString yosysStrategy = "baseline";
     wxString nextpnrPath;
     std::vector<wxString> nextpnrArgs;
     wxString openFpgaLoaderPath;
     std::vector<wxString> openFpgaLoaderArgs;
 };
-
-// 写入调试日志（同时输出到 OutputDebugString 和文件）
-#pragma warning(push)
-#pragma warning(disable: 4717)
-void AsyncDbgLog(const char* format, ...)
-{
-    va_list args;
-    va_start(args, format);
-    const wxString msg = wxString::FormatV(format, args);
-    va_end(args);
-
-    OutputDebugStringW(msg.wc_str());
-    static std::mutex s_mtx;
-    std::lock_guard<std::mutex> lock(s_mtx);
-    FILE* f = _wfopen(L"yosys_async_debug.log", L"ab");
-    if (f) {
-        const wxScopedCharBuffer utf8 = msg.ToUTF8();
-        fwrite(utf8.data(), 1, utf8.length(), f);
-        fwrite("\r\n", 1, 2, f);
-        fclose(f);
-    }
-}
-#pragma warning(pop)
 
 bool IsValidVerilogIdentifier(const wxString& value)
 {
@@ -111,9 +93,14 @@ bool WriteUtf8File(const wxString& path, const wxString& content)
 
 class FpgaToolProcess final : public wxProcess {
 public:
+    using CompletionCallback = std::function<void(int exitCode, const wxString& fullOutput)>;
+
     FpgaToolProcess(TerminalCtrl* terminal, const wxString& toolName,
-                    std::function<void(int)> onTerminate)
-        : m_terminal(terminal), m_toolName(toolName), m_onTerminate(std::move(onTerminate))
+                    std::function<void(int)> onTerminate = nullptr,
+                    CompletionCallback onComplete = nullptr)
+        : m_terminal(terminal), m_toolName(toolName),
+          m_onTerminate(std::move(onTerminate)),
+          m_onComplete(std::move(onComplete))
     {
         Redirect();
         m_outputTimer.SetOwner(this);
@@ -140,6 +127,10 @@ public:
         }
         if (m_onTerminate) {
             m_onTerminate(status);
+        }
+        // Fire log-analysis callback so callers can parse the output
+        if (m_onComplete) {
+            m_onComplete(status, m_outputBuffer);
         }
         delete this;
     }
@@ -170,6 +161,7 @@ private:
                 break;
             }
             m_terminal->AppendProcessOutput(wxString::FromUTF8(buffer, bytesRead));
+            m_outputBuffer += wxString::FromUTF8(buffer, bytesRead);
             ++chunksRead;
         }
     }
@@ -177,14 +169,10 @@ private:
     wxWeakRef<TerminalCtrl> m_terminal;
     wxString m_toolName;
     std::function<void(int)> m_onTerminate;
+    wxString m_outputBuffer;            // 累积全部输出供回调解析
+    CompletionCallback m_onComplete;
     wxTimer m_outputTimer;
 };
-
-wxString ToYosysPath(wxString path)
-{
-    path.Replace("\\", "/");
-    return path;
-}
 
 bool LoadFpgaProjectOptions(const wxString& projectPath, FpgaProjectOptions& options,
                             wxString& errorMessage)
@@ -222,9 +210,8 @@ bool LoadFpgaProjectOptions(const wxString& projectPath, FpgaProjectOptions& opt
     if (fpga["yosys_path"].isString()) {
         options.yosysPath = wxString::FromUTF8(fpga["yosys_path"].asString());
     }
-    if (fpga["yosys_synthesis_command"].isString()) {
-        options.yosysSynthesisCommand =
-            wxString::FromUTF8(fpga["yosys_synthesis_command"].asString());
+    if (fpga["yosys_strategy"].isString()) {
+        options.yosysStrategy = wxString::FromUTF8(fpga["yosys_strategy"].asString());
     }
     if (fpga["nextpnr_path"].isString()) {
         options.nextpnrPath = wxString::FromUTF8(fpga["nextpnr_path"].asString());
@@ -308,7 +295,9 @@ wxString FindFpgaTool(const wxString& configuredPath, const wxString& environmen
 
 long LaunchFpgaTool(const wxString& executable, const std::vector<wxString>& arguments,
                     const wxString& workingDirectory, TerminalCtrl* terminal,
-                    const wxString& toolName, std::function<void(int)> onTerminate = {})
+                    const wxString& toolName,
+                    std::function<void(int)> onTerminate = {},
+                    FpgaToolProcess::CompletionCallback onComplete = nullptr)
 {
     std::vector<wxString> commandLine;
     commandLine.reserve(arguments.size() + 1);
@@ -324,7 +313,8 @@ long LaunchFpgaTool(const wxString& executable, const std::vector<wxString>& arg
 
     wxExecuteEnv environment;
     environment.cwd = workingDirectory;
-    FpgaToolProcess* process = new FpgaToolProcess(terminal, toolName, std::move(onTerminate));
+    FpgaToolProcess* process = new FpgaToolProcess(terminal, toolName,
+        std::move(onTerminate), std::move(onComplete));
     const long processId = wxExecute(argv.data(), wxEXEC_ASYNC | wxEXEC_HIDE_CONSOLE, process, &environment);
     if (processId == 0) {
         delete process;
@@ -352,7 +342,7 @@ wxString BuildNextpnrReadme()
         "{\n"
         "  \"fpga\": {\n"
         "    \"yosys_path\": \"C:/tools/yosys/yosys.exe\",\n"
-        "    \"yosys_synthesis_command\": \"synth_gowin -top top\",\n"
+        "    \"yosys_strategy\": \"baseline\",\n"
         "    \"nextpnr_path\": \"C:/tools/nextpnr/nextpnr-himbaechel.exe\",\n"
         "    \"nextpnr_args\": [\n"
         "      \"--device\", \"GW1NR-LV9QN88PC6/I5\",\n"
@@ -867,7 +857,6 @@ void DumpTree(TSNode node, const wxString& src, int indent) {
             ts_node_end_byte(node) - ts_node_start_byte(node))
         << "\n";
 
-    AsyncDbgLog("%s", line.wc_str());
     //OutputDebugStringA(line);
 
     uint32_t n = ts_node_child_count(node);
@@ -1194,7 +1183,7 @@ bool MainFrame::DoFileNew() {
         "  \"fpga\": {\n"
         "    \"target_profile\": \"tang-nano-9k\",\n"
         "    \"yosys_path\": \"\",\n"
-        "    \"yosys_synthesis_command\": \"\",\n"
+        "    \"yosys_strategy\": \"baseline\",\n"
         "    \"nextpnr_path\": \"\",\n"
         "    \"nextpnr_args\": [],\n"
         "    \"openfpgaloader_path\": \"\",\n"
@@ -2170,12 +2159,6 @@ void MainFrame::DoFpgaSynthesis()
         return;
     }
 
-    if (m_yosysExecutor && m_yosysExecutor->GetState() == YosysExecutor::State::Running) {
-        wxMessageBox("A synthesis is already running. Cancel it before starting a new one.",
-                     "FPGA Synthesis", wxOK | wxICON_WARNING, this);
-        return;
-    }
-
     const wxString yosysDirectory = m_currentProjectPath + "\\yosys";
     const wxString nextpnrDirectory = m_currentProjectPath + "\\nextpnr";
     if (!EnsureDirectory(yosysDirectory) || !EnsureDirectory(nextpnrDirectory)) {
@@ -2217,12 +2200,22 @@ void MainFrame::DoFpgaSynthesis()
         return;
     }
 
+    FpgaYosysSynthesisStrategy strategy;
+    if (!ParseFpgaYosysSynthesisStrategy(options.yosysStrategy, strategy)) {
+        wxMessageBox("fpga.yosys_strategy must be one of: baseline, debug, resource_optimized.",
+                     "FPGA Synthesis", wxOK | wxICON_ERROR, this);
+        return;
+    }
+    const FpgaYosysStrategyInfo& strategyInfo = GetFpgaYosysStrategyInfo(strategy);
+
     SynthesisJobRequest jobRequest;
     jobRequest.projectPath = m_currentProjectPath;
     jobRequest.sourceFiles = sourceFiles;
     jobRequest.topModule = topModule;
     jobRequest.targetProfileId = targetProfile.id;
     jobRequest.targetProfileVersion = targetProfile.version;
+    jobRequest.strategyId = strategyInfo.id;
+    jobRequest.strategyVersion = strategyInfo.version;
     FpgaSynthesisJobService jobService;
     SynthesisJob job;
     if (!jobService.Create(jobRequest, job, optionsError) ||
@@ -2233,25 +2226,24 @@ void MainFrame::DoFpgaSynthesis()
     }
     const SynthesisJobPaths jobPaths = FpgaSynthesisJobService::GetPaths(m_currentProjectPath, job.id);
 
-    wxString script = "# Generated by SigFlow for " + targetProfile.displayName +
-                      " (profile " + targetProfile.id + "@" + targetProfile.version + ").\n";
-    for (const wxString& sourceFile : sourceFiles) {
-        const bool isSystemVerilog = sourceFile.Lower().EndsWith(".sv");
-        script += "read_verilog";
-        if (isSystemVerilog) {
-            script += " -sv";
-        }
-        script += " \"" + ToYosysPath(sourceFile) + "\"\n";
-    }
-    script += "hierarchy -check -top " + topModule + "\n";
-    script += options.yosysSynthesisCommand.IsEmpty()
-        ? "synth_gowin -family " + targetProfile.yosysFamily + " -top " + topModule + "\n"
-        : options.yosysSynthesisCommand + "\n";
     const wxString jobJsonPath = jobPaths.artifacts + "\\" + topModule + ".json";
-    script += "write_json \"" + ToYosysPath(jobJsonPath) + "\"\n";
+    FpgaYosysScriptRequest scriptRequest;
+    scriptRequest.sourceFiles = sourceFiles;
+    scriptRequest.topModule = topModule;
+    scriptRequest.targetProfile = targetProfile;
+    scriptRequest.strategy = strategy;
+    scriptRequest.outputJsonPath = jobJsonPath;
+    const FpgaYosysScriptResult scriptResult = FpgaYosysScriptGenerator().Generate(scriptRequest);
+    if (!scriptResult.success) {
+        jobService.Transition(m_currentProjectPath, job.id, SynthesisJobState::Failed,
+                              "Unable to generate the controlled Yosys script.", -1, optionsError);
+        wxMessageBox("Unable to generate the controlled Yosys script:\n" + scriptResult.errorMessage,
+                     "FPGA Synthesis", wxOK | wxICON_ERROR, this);
+        return;
+    }
 
     const wxString scriptPath = jobPaths.scripts + "\\run_yosys.ys";
-    if (!WriteUtf8File(scriptPath, script)) {
+    if (!WriteUtf8File(scriptPath, scriptResult.script)) {
         jobService.Transition(m_currentProjectPath, job.id, SynthesisJobState::Failed,
                               "Unable to write the Yosys script.", -1, optionsError);
         wxMessageBox("Unable to write the Yosys script:\n" + scriptPath,
@@ -2303,223 +2295,59 @@ void MainFrame::DoFpgaSynthesis()
 
     const wxString projectPath = m_currentProjectPath;
     const wxString jobId = job.id;
+    const wxString artifactManifestPath = jobPaths.artifacts + "\\" + topModule + ".manifest.json";
     const wxString legacyJsonPath = yosysDirectory + "\\" + topModule + ".json";
-
-    // 使用 YosysExecutor 异步执行 Yosys
-    YosysExecutor::Config executorConfig;
-    executorConfig.workingDirectory = jobPaths.root;
-    // executorConfig.timeLimitSec = 300;  // 可选：5分钟超时
-    // executorConfig.logSizeLimit = 10 * 1024 * 1024;  // 可选：10MB 日志上限
-
-    m_synthesisGeneration++;
-    m_yosysExecutor = std::make_unique<YosysExecutor>();
-
-    const int capturedGen = m_synthesisGeneration; // 快照代次号，用于回调有效性校验
-    wxWeakRef<MainFrame> weakThis(this);
-
-    AsyncDbgLog("[AsyncCheck] >>> Calling YosysExecutor::Execute()  %s", wxNow().wc_str());
-    const bool started = m_yosysExecutor->Execute(
-        yosysExecutable,
-        { "-s", scriptPath },
-        executorConfig,
-        // 输出回调：逐块追加到 Terminal（通过 CallAfter 回到 UI 线程）
-        [weakThis](const wxString& text) {
-            if (weakThis) {
-                weakThis->CallAfter([weakThis, text]() {
-                    if (weakThis && weakThis->m_terminalCtrl) {
-                        weakThis->m_terminalCtrl->AppendProcessOutput(text);
-                    }
-                });
+    const long processId = LaunchFpgaTool(yosysExecutable, { "-s", scriptPath }, jobPaths.root,
+        m_terminalCtrl, "Yosys", [projectPath, jobId, jobJsonPath, artifactManifestPath,
+                                    legacyJsonPath, topModule](int status) {
+            FpgaSynthesisJobService completedJobService;
+            wxString updateError;
+            if (status != 0) {
+                completedJobService.Transition(projectPath, jobId, SynthesisJobState::Failed,
+                    wxString::Format("Yosys exited with code %d.", status), status, updateError);
+                return;
             }
-        },
-        // 完成回调：根据结果更新 Job 状态机
-        [weakThis, projectPath, jobId, jobPaths, legacyJsonPath, capturedGen](
-            const YosysExecutor::Result& result) {
-            AsyncDbgLog("[AsyncCheck] <<< COMPLETION CALLBACK FIRED (reason=%d exitCode=%d)  %s",
-                       static_cast<int>(result.reason), result.exitCode, wxNow().wc_str());
-            if (weakThis) {
-                weakThis->CallAfter([weakThis, projectPath, jobId, jobPaths, legacyJsonPath, result, capturedGen]() {
-                // 窗口已销毁或执行器已被重建，忽略过期回调
-                if (!weakThis || capturedGen != weakThis->m_synthesisGeneration) {
-                    return;
-                }
-                AsyncDbgLog("[AsyncCheck] <<< COMPLETION CallAfter EXECUTING (UI thread)  %s",
-                           wxNow().wc_str());
-                FpgaSynthesisJobService completedJobService;
-                wxString updateError;
-                switch (result.reason) {
-                case YosysExecutor::CompletionReason::Success:
-                    if (!completedJobService.Transition(
-                            projectPath, jobId, SynthesisJobState::ValidatingArtifact,
-                            "Yosys completed; validating JSON artifact.", 0, updateError)) {
-                        wxMessageBox("Failed to update synthesis job state: " + updateError,
-                                     "State Transition Error", wxOK | wxICON_WARNING, weakThis);
-                        break;
-                    }
-                    if (!wxFileExists(jobPaths.artifacts + "\\" +
-                                      wxFileName(legacyJsonPath).GetFullName()) ||
-                        !wxCopyFile(jobPaths.artifacts + "\\" +
-                                        wxFileName(legacyJsonPath).GetFullName(),
-                                    legacyJsonPath, true)) {
-                        if (!completedJobService.Transition(
-                                projectPath, jobId, SynthesisJobState::Failed,
-                                "Yosys completed but the JSON artifact is missing "
-                                "or could not be published.",
-                                -1, updateError)) {
-                            wxMessageBox("Failed to update synthesis job state: " + updateError,
-                                         "State Transition Error", wxOK | wxICON_WARNING, weakThis);
-                        }
-                    } else {
-                        if (!completedJobService.Transition(
-                                projectPath, jobId, SynthesisJobState::Succeeded,
-                                "JSON artifact validated and published to the "
-                                "compatibility path.",
-                                0, updateError)) {
-                            wxMessageBox("Failed to update synthesis job state: " + updateError,
-                                         "State Transition Error", wxOK | wxICON_WARNING, weakThis);
-                        }
-                    }
-                    break;
-
-                case YosysExecutor::CompletionReason::NonZeroExit:
-                    if (!completedJobService.Transition(
-                            projectPath, jobId, SynthesisJobState::Failed,
-                            wxString::Format("Yosys exited with code %d.",
-                                             result.exitCode),
-                            result.exitCode, updateError)) {
-                        wxMessageBox("Failed to update synthesis job state: " + updateError,
-                                     "State Transition Error", wxOK | wxICON_WARNING, weakThis);
-                    }
-                    break;
-
-                case YosysExecutor::CompletionReason::Cancelled:
-                    if (!completedJobService.Transition(
-                            projectPath, jobId, SynthesisJobState::Cancelled,
-                            "Yosys was cancelled by the user.", result.exitCode,
-                            updateError)) {
-                        wxMessageBox("Failed to update synthesis job state: " + updateError,
-                                     "State Transition Error", wxOK | wxICON_WARNING, weakThis);
-                    }
-                    break;
-
-                case YosysExecutor::CompletionReason::TimedOut:
-                    if (!completedJobService.Transition(
-                            projectPath, jobId, SynthesisJobState::TimedOut,
-                            "Yosys exceeded the time limit.", result.exitCode,
-                            updateError)) {
-                        wxMessageBox("Failed to update synthesis job state: " + updateError,
-                                     "State Transition Error", wxOK | wxICON_WARNING, weakThis);
-                    }
-                    break;
-
-                case YosysExecutor::CompletionReason::LaunchFailed:
-                    if (!completedJobService.Transition(
-                            projectPath, jobId, SynthesisJobState::Failed,
-                            "Yosys process could not be started.", -1, updateError)) {
-                        wxMessageBox("Failed to update synthesis job state: " + updateError,
-                                     "State Transition Error", wxOK | wxICON_WARNING, weakThis);
-                    }
-                    break;
-                }
-
-                // 将 combined log 写入日志文件
-                if (!result.combinedLog.IsEmpty()) {
-                    const wxString logPath =
-                        jobPaths.logs + "\\yosys_combined.log";
-                    wxFile logFile(logPath, wxFile::write);
-                    if (logFile.IsOpened()) {
-                        const wxScopedCharBuffer utf8 =
-                            result.combinedLog.ToUTF8();
-                        logFile.Write(utf8.data(), utf8.length());
-                        logFile.Close();
-                    }
-                }
-
-                weakThis->SetStatusText(
-                    wxString("Yosys synthesis ") +
-                    (result.reason == YosysExecutor::CompletionReason::Success
-                         ? "completed"
-                         : "finished with status: ") +
-                    [&result]() -> wxString {
-                        switch (result.reason) {
-                        case YosysExecutor::CompletionReason::Success:
-                            return "success";
-                        case YosysExecutor::CompletionReason::NonZeroExit:
-                            return "exit code " + wxString::Format("%d", result.exitCode);
-                        case YosysExecutor::CompletionReason::Cancelled:
-                            return "cancelled";
-                        case YosysExecutor::CompletionReason::TimedOut:
-                            return "timed out";
-                        case YosysExecutor::CompletionReason::LaunchFailed:
-                            return "launch failed";
-                        }
-                        return "unknown";
-                    }());
-
-                if (weakThis->m_projectTreePanel) {
-                    weakThis->m_projectTreePanel->RefreshTree();
-                }
-
-                // 释放执行器
-                weakThis->m_yosysExecutor.reset();
-            });
+            if (!completedJobService.Transition(projectPath, jobId, SynthesisJobState::ValidatingArtifact,
+                                                "Yosys completed; validating JSON artifact.", status, updateError)) {
+                return;
             }
+
+            ArtifactValidator validator;
+            NetlistArtifactReport artifactReport;
+            const bool isValid = validator.ValidateYosysJson(jobJsonPath, topModule, artifactReport);
+            wxString manifestError;
+            if (!validator.WriteManifest(artifactManifestPath, artifactReport, manifestError)) {
+                completedJobService.Transition(projectPath, jobId, SynthesisJobState::Failed,
+                    wxString("Unable to persist JSON artifact validation report: ") + manifestError,
+                    status, updateError);
+                return;
+            }
+            if (!isValid) {
+                completedJobService.Transition(projectPath, jobId, SynthesisJobState::Failed,
+                    artifactReport.message, status, updateError);
+                return;
+            }
+            if (!wxCopyFile(jobJsonPath, legacyJsonPath, true)) {
+                completedJobService.Transition(projectPath, jobId, SynthesisJobState::Failed,
+                    "Yosys JSON artifact was valid but could not be published to the compatibility path.",
+                    status, updateError);
+                return;
+            }
+            completedJobService.Transition(projectPath, jobId, SynthesisJobState::Succeeded,
+                "JSON artifact validated and published to the compatibility path.", status, updateError);
         });
-
-    if (!started) {
-        AsyncDbgLog("[AsyncCheck] <<< Execute() returned false (LAUNCH FAILED)  %s", wxNow().wc_str());
-        jobService.Transition(m_currentProjectPath, job.id,
-                              SynthesisJobState::Failed,
+    if (processId == 0) {
+        jobService.Transition(m_currentProjectPath, job.id, SynthesisJobState::Failed,
                               "Unable to start Yosys process.", -1, optionsError);
         wxMessageBox("Unable to start Yosys. Check the configured executable path.",
                      "FPGA Synthesis", wxOK | wxICON_ERROR, this);
-        m_yosysExecutor.reset();
         return;
-    }
-
-    AsyncDbgLog("[AsyncCheck] <<< Execute() returned true (NON-BLOCKING)  %s", wxNow().wc_str());
-    AsyncDbgLog("[AsyncCheck] --- UI thread continues immediately after Execute() ---");
-
-    // 在终端打印启动信息
-    if (m_terminalCtrl) {
-        wxString launchInfo = "[Yosys] started\nCommand: " + yosysExecutable +
-                              " -s \"" + scriptPath +
-                              "\"\nWorking directory: " + jobPaths.root + "\n";
-        m_terminalCtrl->BeginProcessOutput(launchInfo);
     }
 
     SetStatusText("Yosys synthesis started");
     if (m_projectTreePanel) {
         m_projectTreePanel->RefreshTree();
     }
-    AsyncDbgLog("[AsyncCheck] --- DoFpgaSynthesis() returning (UI thread free)  %s", wxNow().wc_str());
-}
-
-void MainFrame::DoFpgaCancelSynthesis()
-{
-    AsyncDbgLog("[AsyncCheck] >>> DoFpgaCancelSynthesis() called  %s", wxNow().wc_str());
-
-    if (!m_yosysExecutor) {
-        AsyncDbgLog("[AsyncCheck] DoFpgaCancelSynthesis: m_yosysExecutor is null (nothing to cancel)");
-        wxMessageBox("No synthesis is currently running.", "FPGA Synthesis",
-                     wxOK | wxICON_INFORMATION, this);
-        return;
-    }
-
-    if (m_yosysExecutor->GetState() != YosysExecutor::State::Running) {
-        AsyncDbgLog("[AsyncCheck] DoFpgaCancelSynthesis: executor is not running (state=%d)",
-                   static_cast<int>(m_yosysExecutor->GetState()));
-        wxMessageBox("Synthesis is not currently running.", "FPGA Synthesis",
-                     wxOK | wxICON_INFORMATION, this);
-        return;
-    }
-
-    AsyncDbgLog("[AsyncCheck] DoFpgaCancelSynthesis: calling m_yosysExecutor->Cancel()  %s", wxNow().wc_str());
-    m_yosysExecutor->Cancel();
-    // Cancel() 完成后通过 CallAfter 触发完成回调，在 UI 线程释放 m_yosysExecutor
-    AsyncDbgLog("[AsyncCheck] DoFpgaCancelSynthesis: Cancel() returned  %s", wxNow().wc_str());
-    SetStatusText("Yosys synthesis cancelled");
-    AsyncDbgLog("[AsyncCheck] <<< DoFpgaCancelSynthesis() returning  %s", wxNow().wc_str());
 }
 
 void MainFrame::DoFpgaRoute()
@@ -2584,6 +2412,16 @@ void MainFrame::DoFpgaRoute()
         return;
     }
 
+    ArtifactValidator artifactValidator;
+    NetlistArtifactReport artifactReport;
+    if (!artifactValidator.ValidateYosysJson(yosysJson, topModule, artifactReport)) {
+        wxMessageBox("The Yosys JSON netlist is not a valid artifact:\n" +
+                         artifactReport.message + "\n\n" + yosysJson,
+                     "FPGA Place and Route", wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    // ── 构建 nextpnr 参数（先做占位符替换）──
     const std::vector<wxString> defaultNextpnrArgs = {
         "--json", "${yosys_json}",
         "--write", "${nextpnr_dir}/" + topModule + ".pnr.json",
@@ -2593,41 +2431,71 @@ void MainFrame::DoFpgaRoute()
     const std::vector<wxString>& configuredArgs =
         options.nextpnrArgs.empty() ? defaultNextpnrArgs : options.nextpnrArgs;
     std::vector<wxString> arguments;
-    arguments.reserve(configuredArgs.size());
+    arguments.reserve(configuredArgs.size() + 2);
 
-    // 自动检测 CST 约束文件
-    wxString cstPath = m_currentProjectPath + "\\constraints\\" + topModule + ".cst";
-    bool hasCst = wxFileExists(cstPath);
-    bool hasCstInArgs = false;
-
-    for (wxString argument : configuredArgs) {
-        if (argument.Lower().Contains("cst=") || argument.Lower().Contains(".cst")) {
-            hasCstInArgs = true;
+    // ── CST 自动解析与校验 ──
+    wxString resolvedCst;
+    {
+        wxString configuredCstPath;
+        for (wxString argument : configuredArgs) {
+            argument.Replace("${yosys_json}", yosysJson);
+            argument.Replace("${nextpnr_dir}", nextpnrDirectory);
+            if (argument.StartsWith(wxT("cst="))) {
+                configuredCstPath = argument.Mid(4);
+            }
+            arguments.push_back(argument);
         }
-        argument.Replace("${yosys_json}", yosysJson);
-        argument.Replace("${nextpnr_dir}", nextpnrDirectory);
-        arguments.push_back(argument);
+        resolvedCst = CstValidator::AutoResolveCst(m_currentProjectPath, configuredCstPath);
     }
 
-    // 如果 CST 存在且未通过参数显式指定，自动附加
-    if (hasCst && !hasCstInArgs) {
-        arguments.push_back("--vopt");
-        arguments.push_back("cst=" + cstPath);
-    } else if (!hasCst) {
-        // 检查是否有 pin-bindings.json 但尚未生成 CST
-        if (!hasCstInArgs) {
-            // 如果有绑定但没生成CST，给出提示
-            wxString msg = "No CST pin-constraint file was found:\n" + cstPath +
-                "\n\nGowin place and route requires every top-level I/O to be assigned "
-                "to a package pin. Open FPGA > Pin Binding, bind all ports, then click "
-                "'Generate CST' before running place and route.";
-            wxMessageBox(msg, "FPGA Place and Route", wxOK | wxICON_WARNING, this);
-            return;
+    // 布线前 CST 校验
+    const CstValidationResult cstResult = CstValidator::Validate(resolvedCst);
+    if (!cstResult.valid) {
+        wxMessageBox(
+            wxT("CST 约束文件校验失败:\n\n") + cstResult.errorSummary +
+            wxT("\n请修复 CST 后重试，或运行 FPGA > Pin Constraints 生成约束文件。"),
+            wxT("FPGA Place and Route"), wxOK | wxICON_WARNING, this);
+        if (m_terminalCtrl) {
+            m_terminalCtrl->PrintOutput(
+                wxT("[nextpnr] Blocked: CST validation failed.\n") + cstResult.errorSummary + wxT("\n"));
+        }
+        return;
+    }
+
+    // 确保 CST 被注入参数列表
+    {
+        bool hasCst = false;
+        for (const auto& arg : arguments) {
+            if (arg.StartsWith(wxT("cst="))) { hasCst = true; break; }
+        }
+        if (!hasCst) {
+            arguments.push_back(wxT("--vopt"));
+            arguments.push_back(wxT("cst=") + resolvedCst);
         }
     }
 
+    // nextpnr 完成后的分析回调
+    TerminalCtrl* terminalPtr = m_terminalCtrl;
+    const wxString reportDir = nextpnrDirectory;
+    const wxString topModuleName = topModule;
+    FpgaToolProcess::CompletionCallback onComplete =
+        [terminalPtr, reportDir, topModuleName](int exitCode, const wxString& fullOutput) {
+            if (!terminalPtr) return;
+            NextpnrRunRecord record;
+            record.exitCode = exitCode;
+            record.toolName = wxT("nextpnr-himbaechel");
+            record.stdoutRaw = fullOutput;
+            NextpnrLogParser parser;
+            parser.Parse(fullOutput, wxEmptyString, record);
+            NextpnrReport report;
+            terminalPtr->PrintOutput(report.FormatSummary(record));
+            if (!reportDir.IsEmpty()) {
+                report.SaveReport(record, reportDir + wxT("\\") + topModuleName + wxT(".analysis.json"));
+            }
+        };
     const long processId =
-        LaunchFpgaTool(nextpnrExecutable, arguments, nextpnrDirectory, m_terminalCtrl, "nextpnr");
+        LaunchFpgaTool(nextpnrExecutable, arguments, nextpnrDirectory, m_terminalCtrl, "nextpnr",
+                       std::move(onComplete));
     if (processId == 0) {
         wxMessageBox("Unable to start nextpnr. Check the configured executable path and arguments.",
                      "FPGA Place and Route", wxOK | wxICON_ERROR, this);
