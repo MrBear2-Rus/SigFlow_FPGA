@@ -22,6 +22,7 @@
 #include "fpga/ArtifactValidator.h"
 #include "MainMenuBar.h"
 #include "FpgaYosysRuntime.h"
+#include "FpgaYosysScriptGenerator.h"
 #include "FpgaSynthesisJob.h"
 #include "ToolboxPanel.h"  
 #include "CanvasModel.h"
@@ -30,6 +31,9 @@
 #include "VerilogStructuring.h"
 #include "VerilogManager.h"
 #include "WavePanel.h"
+#include "Fpga/NextpnrLogParser.h"
+#include "Fpga/NextpnrReport.h"
+#include "Fpga/CstValidator.h"
 
 extern std::vector<SecondElement> g_elements;
 extern "C" TSLanguage* tree_sitter_verilog();
@@ -39,7 +43,7 @@ namespace {
 struct FpgaProjectOptions {
     wxString targetProfileId;
     wxString yosysPath;
-    wxString yosysSynthesisCommand;
+    wxString yosysStrategy = "baseline";
     wxString nextpnrPath;
     std::vector<wxString> nextpnrArgs;
     wxString openFpgaLoaderPath;
@@ -87,9 +91,14 @@ bool WriteUtf8File(const wxString& path, const wxString& content)
 
 class FpgaToolProcess final : public wxProcess {
 public:
+    using CompletionCallback = std::function<void(int exitCode, const wxString& fullOutput)>;
+
     FpgaToolProcess(TerminalCtrl* terminal, const wxString& toolName,
-                    std::function<void(int)> onTerminate)
-        : m_terminal(terminal), m_toolName(toolName), m_onTerminate(std::move(onTerminate))
+                    std::function<void(int)> onTerminate = nullptr,
+                    CompletionCallback onComplete = nullptr)
+        : m_terminal(terminal), m_toolName(toolName),
+          m_onTerminate(std::move(onTerminate)),
+          m_onComplete(std::move(onComplete))
     {
         Redirect();
         m_outputTimer.SetOwner(this);
@@ -116,6 +125,10 @@ public:
         }
         if (m_onTerminate) {
             m_onTerminate(status);
+        }
+        // Fire log-analysis callback so callers can parse the output
+        if (m_onComplete) {
+            m_onComplete(status, m_outputBuffer);
         }
         delete this;
     }
@@ -146,6 +159,7 @@ private:
                 break;
             }
             m_terminal->AppendProcessOutput(wxString::FromUTF8(buffer, bytesRead));
+            m_outputBuffer += wxString::FromUTF8(buffer, bytesRead);
             ++chunksRead;
         }
     }
@@ -153,14 +167,10 @@ private:
     wxWeakRef<TerminalCtrl> m_terminal;
     wxString m_toolName;
     std::function<void(int)> m_onTerminate;
+    wxString m_outputBuffer;            // 累积全部输出供回调解析
+    CompletionCallback m_onComplete;
     wxTimer m_outputTimer;
 };
-
-wxString ToYosysPath(wxString path)
-{
-    path.Replace("\\", "/");
-    return path;
-}
 
 bool LoadFpgaProjectOptions(const wxString& projectPath, FpgaProjectOptions& options,
                             wxString& errorMessage)
@@ -198,9 +208,8 @@ bool LoadFpgaProjectOptions(const wxString& projectPath, FpgaProjectOptions& opt
     if (fpga["yosys_path"].isString()) {
         options.yosysPath = wxString::FromUTF8(fpga["yosys_path"].asString());
     }
-    if (fpga["yosys_synthesis_command"].isString()) {
-        options.yosysSynthesisCommand =
-            wxString::FromUTF8(fpga["yosys_synthesis_command"].asString());
+    if (fpga["yosys_strategy"].isString()) {
+        options.yosysStrategy = wxString::FromUTF8(fpga["yosys_strategy"].asString());
     }
     if (fpga["nextpnr_path"].isString()) {
         options.nextpnrPath = wxString::FromUTF8(fpga["nextpnr_path"].asString());
@@ -284,7 +293,9 @@ wxString FindFpgaTool(const wxString& configuredPath, const wxString& environmen
 
 long LaunchFpgaTool(const wxString& executable, const std::vector<wxString>& arguments,
                     const wxString& workingDirectory, TerminalCtrl* terminal,
-                    const wxString& toolName, std::function<void(int)> onTerminate = {})
+                    const wxString& toolName,
+                    std::function<void(int)> onTerminate = {},
+                    FpgaToolProcess::CompletionCallback onComplete = nullptr)
 {
     std::vector<wxString> commandLine;
     commandLine.reserve(arguments.size() + 1);
@@ -300,7 +311,8 @@ long LaunchFpgaTool(const wxString& executable, const std::vector<wxString>& arg
 
     wxExecuteEnv environment;
     environment.cwd = workingDirectory;
-    FpgaToolProcess* process = new FpgaToolProcess(terminal, toolName, std::move(onTerminate));
+    FpgaToolProcess* process = new FpgaToolProcess(terminal, toolName,
+        std::move(onTerminate), std::move(onComplete));
     const long processId = wxExecute(argv.data(), wxEXEC_ASYNC | wxEXEC_HIDE_CONSOLE, process, &environment);
     if (processId == 0) {
         delete process;
@@ -328,7 +340,7 @@ wxString BuildNextpnrReadme()
         "{\n"
         "  \"fpga\": {\n"
         "    \"yosys_path\": \"C:/tools/yosys/yosys.exe\",\n"
-        "    \"yosys_synthesis_command\": \"synth_gowin -top top\",\n"
+        "    \"yosys_strategy\": \"baseline\",\n"
         "    \"nextpnr_path\": \"C:/tools/nextpnr/nextpnr-himbaechel.exe\",\n"
         "    \"nextpnr_args\": [\n"
         "      \"--device\", \"GW1NR-LV9QN88PC6/I5\",\n"
@@ -1161,7 +1173,7 @@ bool MainFrame::DoFileNew() {
         "  \"fpga\": {\n"
         "    \"target_profile\": \"tang-nano-9k\",\n"
         "    \"yosys_path\": \"\",\n"
-        "    \"yosys_synthesis_command\": \"\",\n"
+        "    \"yosys_strategy\": \"baseline\",\n"
         "    \"nextpnr_path\": \"\",\n"
         "    \"nextpnr_args\": [],\n"
         "    \"openfpgaloader_path\": \"\",\n"
@@ -2178,12 +2190,22 @@ void MainFrame::DoFpgaSynthesis()
         return;
     }
 
+    FpgaYosysSynthesisStrategy strategy;
+    if (!ParseFpgaYosysSynthesisStrategy(options.yosysStrategy, strategy)) {
+        wxMessageBox("fpga.yosys_strategy must be one of: baseline, debug, resource_optimized.",
+                     "FPGA Synthesis", wxOK | wxICON_ERROR, this);
+        return;
+    }
+    const FpgaYosysStrategyInfo& strategyInfo = GetFpgaYosysStrategyInfo(strategy);
+
     SynthesisJobRequest jobRequest;
     jobRequest.projectPath = m_currentProjectPath;
     jobRequest.sourceFiles = sourceFiles;
     jobRequest.topModule = topModule;
     jobRequest.targetProfileId = targetProfile.id;
     jobRequest.targetProfileVersion = targetProfile.version;
+    jobRequest.strategyId = strategyInfo.id;
+    jobRequest.strategyVersion = strategyInfo.version;
     FpgaSynthesisJobService jobService;
     SynthesisJob job;
     if (!jobService.Create(jobRequest, job, optionsError) ||
@@ -2194,25 +2216,24 @@ void MainFrame::DoFpgaSynthesis()
     }
     const SynthesisJobPaths jobPaths = FpgaSynthesisJobService::GetPaths(m_currentProjectPath, job.id);
 
-    wxString script = "# Generated by SigFlow for " + targetProfile.displayName +
-                      " (profile " + targetProfile.id + "@" + targetProfile.version + ").\n";
-    for (const wxString& sourceFile : sourceFiles) {
-        const bool isSystemVerilog = sourceFile.Lower().EndsWith(".sv");
-        script += "read_verilog";
-        if (isSystemVerilog) {
-            script += " -sv";
-        }
-        script += " \"" + ToYosysPath(sourceFile) + "\"\n";
-    }
-    script += "hierarchy -check -top " + topModule + "\n";
-    script += options.yosysSynthesisCommand.IsEmpty()
-        ? "synth_gowin -family " + targetProfile.yosysFamily + " -top " + topModule + "\n"
-        : options.yosysSynthesisCommand + "\n";
     const wxString jobJsonPath = jobPaths.artifacts + "\\" + topModule + ".json";
-    script += "write_json \"" + ToYosysPath(jobJsonPath) + "\"\n";
+    FpgaYosysScriptRequest scriptRequest;
+    scriptRequest.sourceFiles = sourceFiles;
+    scriptRequest.topModule = topModule;
+    scriptRequest.targetProfile = targetProfile;
+    scriptRequest.strategy = strategy;
+    scriptRequest.outputJsonPath = jobJsonPath;
+    const FpgaYosysScriptResult scriptResult = FpgaYosysScriptGenerator().Generate(scriptRequest);
+    if (!scriptResult.success) {
+        jobService.Transition(m_currentProjectPath, job.id, SynthesisJobState::Failed,
+                              "Unable to generate the controlled Yosys script.", -1, optionsError);
+        wxMessageBox("Unable to generate the controlled Yosys script:\n" + scriptResult.errorMessage,
+                     "FPGA Synthesis", wxOK | wxICON_ERROR, this);
+        return;
+    }
 
     const wxString scriptPath = jobPaths.scripts + "\\run_yosys.ys";
-    if (!WriteUtf8File(scriptPath, script)) {
+    if (!WriteUtf8File(scriptPath, scriptResult.script)) {
         jobService.Transition(m_currentProjectPath, job.id, SynthesisJobState::Failed,
                               "Unable to write the Yosys script.", -1, optionsError);
         wxMessageBox("Unable to write the Yosys script:\n" + scriptPath,
@@ -2390,6 +2411,7 @@ void MainFrame::DoFpgaRoute()
         return;
     }
 
+    // ── 构建 nextpnr 参数（先做占位符替换）──
     const std::vector<wxString> defaultNextpnrArgs = {
         "--json", "${yosys_json}",
         "--write", "${nextpnr_dir}/" + topModule + ".pnr.json",
@@ -2399,41 +2421,71 @@ void MainFrame::DoFpgaRoute()
     const std::vector<wxString>& configuredArgs =
         options.nextpnrArgs.empty() ? defaultNextpnrArgs : options.nextpnrArgs;
     std::vector<wxString> arguments;
-    arguments.reserve(configuredArgs.size());
+    arguments.reserve(configuredArgs.size() + 2);
 
-    // 自动检测 CST 约束文件
-    wxString cstPath = m_currentProjectPath + "\\constraints\\" + topModule + ".cst";
-    bool hasCst = wxFileExists(cstPath);
-    bool hasCstInArgs = false;
-
-    for (wxString argument : configuredArgs) {
-        if (argument.Lower().Contains("cst=") || argument.Lower().Contains(".cst")) {
-            hasCstInArgs = true;
+    // ── CST 自动解析与校验 ──
+    wxString resolvedCst;
+    {
+        wxString configuredCstPath;
+        for (wxString argument : configuredArgs) {
+            argument.Replace("${yosys_json}", yosysJson);
+            argument.Replace("${nextpnr_dir}", nextpnrDirectory);
+            if (argument.StartsWith(wxT("cst="))) {
+                configuredCstPath = argument.Mid(4);
+            }
+            arguments.push_back(argument);
         }
-        argument.Replace("${yosys_json}", yosysJson);
-        argument.Replace("${nextpnr_dir}", nextpnrDirectory);
-        arguments.push_back(argument);
+        resolvedCst = CstValidator::AutoResolveCst(m_currentProjectPath, configuredCstPath);
     }
 
-    // 如果 CST 存在且未通过参数显式指定，自动附加
-    if (hasCst && !hasCstInArgs) {
-        arguments.push_back("--vopt");
-        arguments.push_back("cst=" + cstPath);
-    } else if (!hasCst) {
-        // 检查是否有 pin-bindings.json 但尚未生成 CST
-        if (!hasCstInArgs) {
-            // 如果有绑定但没生成CST，给出提示
-            wxString msg = "No CST pin-constraint file was found:\n" + cstPath +
-                "\n\nGowin place and route requires every top-level I/O to be assigned "
-                "to a package pin. Open FPGA > Pin Binding, bind all ports, then click "
-                "'Generate CST' before running place and route.";
-            wxMessageBox(msg, "FPGA Place and Route", wxOK | wxICON_WARNING, this);
-            return;
+    // 布线前 CST 校验
+    const CstValidationResult cstResult = CstValidator::Validate(resolvedCst);
+    if (!cstResult.valid) {
+        wxMessageBox(
+            wxT("CST 约束文件校验失败:\n\n") + cstResult.errorSummary +
+            wxT("\n请修复 CST 后重试，或运行 FPGA > Pin Constraints 生成约束文件。"),
+            wxT("FPGA Place and Route"), wxOK | wxICON_WARNING, this);
+        if (m_terminalCtrl) {
+            m_terminalCtrl->PrintOutput(
+                wxT("[nextpnr] Blocked: CST validation failed.\n") + cstResult.errorSummary + wxT("\n"));
+        }
+        return;
+    }
+
+    // 确保 CST 被注入参数列表
+    {
+        bool hasCst = false;
+        for (const auto& arg : arguments) {
+            if (arg.StartsWith(wxT("cst="))) { hasCst = true; break; }
+        }
+        if (!hasCst) {
+            arguments.push_back(wxT("--vopt"));
+            arguments.push_back(wxT("cst=") + resolvedCst);
         }
     }
 
+    // nextpnr 完成后的分析回调
+    TerminalCtrl* terminalPtr = m_terminalCtrl;
+    const wxString reportDir = nextpnrDirectory;
+    const wxString topModuleName = topModule;
+    FpgaToolProcess::CompletionCallback onComplete =
+        [terminalPtr, reportDir, topModuleName](int exitCode, const wxString& fullOutput) {
+            if (!terminalPtr) return;
+            NextpnrRunRecord record;
+            record.exitCode = exitCode;
+            record.toolName = wxT("nextpnr-himbaechel");
+            record.stdoutRaw = fullOutput;
+            NextpnrLogParser parser;
+            parser.Parse(fullOutput, wxEmptyString, record);
+            NextpnrReport report;
+            terminalPtr->PrintOutput(report.FormatSummary(record));
+            if (!reportDir.IsEmpty()) {
+                report.SaveReport(record, reportDir + wxT("\\") + topModuleName + wxT(".analysis.json"));
+            }
+        };
     const long processId =
-        LaunchFpgaTool(nextpnrExecutable, arguments, nextpnrDirectory, m_terminalCtrl, "nextpnr");
+        LaunchFpgaTool(nextpnrExecutable, arguments, nextpnrDirectory, m_terminalCtrl, "nextpnr",
+                       std::move(onComplete));
     if (processId == 0) {
         wxMessageBox("Unable to start nextpnr. Check the configured executable path and arguments.",
                      "FPGA Place and Route", wxOK | wxICON_ERROR, this);

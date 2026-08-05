@@ -32,6 +32,7 @@
     <ClCompile Include="cMain.cpp" />
     <ClCompile Include="fpga\ArtifactValidator.cpp" />
     <ClCompile Include="FpgaSynthesisJob.cpp" />
+    <ClCompile Include="FpgaYosysScriptGenerator.cpp" />
     <ClCompile Include="FpgaYosysRuntime.cpp" />
     <ClCompile Include="fpga\FpgaPinData.cpp" />
     <ClCompile Include="fpga\FpgaConstraint.cpp" />
@@ -66,6 +67,9 @@
     <ClCompile Include="Simulation\StimulusParser.cpp" />
     <ClCompile Include="Simulation\TimelineGenerator.cpp" />
     <ClCompile Include="Simulation\SimMainGenerator.cpp" />
+    <ClCompile Include="Fpga\NextpnrLogParser.cpp" />
+    <ClCompile Include="Fpga\NextpnrReport.cpp" />
+    <ClCompile Include="Fpga\CstValidator.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\3rd\nanosvg\nanosvg.h" />
@@ -77,6 +81,7 @@
     <ClInclude Include="CanvasTextElement.h" />
     <ClInclude Include="fpga\ArtifactValidator.h" />
     <ClInclude Include="FpgaSynthesisJob.h" />
+    <ClInclude Include="FpgaYosysScriptGenerator.h" />
     <ClInclude Include="FpgaYosysRuntime.h" />
     <ClInclude Include="fpga\FpgaPinData.h" />
     <ClInclude Include="fpga\FpgaConstraint.h" />
@@ -113,6 +118,9 @@
     <ClInclude Include="Simulation\StimulusParser.h" />
     <ClInclude Include="Simulation\TimelineGenerator.h" />
     <ClInclude Include="Simulation\SimMainGenerator.h" />
+    <ClInclude Include="Fpga\NextpnrLogParser.h" />
+    <ClInclude Include="Fpga\NextpnrReport.h" />
+    <ClInclude Include="Fpga\CstValidator.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

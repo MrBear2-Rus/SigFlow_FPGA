@@ -93,6 +93,9 @@
     <ClCompile Include="FpgaSynthesisJob.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="FpgaYosysScriptGenerator.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="fpga\FpgaPinData.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -219,6 +222,7 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="fpga\ArtifactValidator.h">
+    <ClInclude Include="FpgaYosysScriptGenerator.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="fpga\FpgaPinData.h">

@@ -335,6 +335,15 @@ SimulationCompileResult SimulationEngine::Compile(const wxString& topModule,
     }
     OutputDebugStringA("Directories created\n");
 
+    // 清理旧的 obj_dir（避免不同版本 Verilator 生成的文件混在一起导致编译错误）
+    OutputDebugStringA("Cleaning old obj_dir...\n");
+    {
+        std::error_code ec;
+        std::filesystem::remove_all(objDir.ToStdString(), ec);
+        std::filesystem::create_directories(objDir.ToStdString(), ec);
+    }
+    OutputDebugStringA("obj_dir cleaned\n");
+
     ReportProgress(10, wxString::Format("缓存目录: %s", cacheDir));
 
     OutputDebugStringA("Calling RunVerilator...\n");
@@ -384,14 +393,14 @@ bool SimulationEngine::RunVerilator(const wxString& topModule,
     // 注意：去掉 -Wall，避免把警告当作错误
     // 添加 --Wno-DECLFILENAME 忽略文件名不匹配警告
     // 注意：Verilator 5.x 不支持 --shared，只生成 C++ 代码
-    wxString cmd = verilatorPath;
+    wxString cmd = "\"" + verilatorPath + "\"";
     cmd += " -cc";
     cmd += " -O0";  // 禁用优化，保留完整电路结构
     cmd += " --Wno-DECLFILENAME";
     cmd += " --Wno-TIMESCALEMOD";  // 忽略 timescale 不一致警告
     cmd += " --timing";  // 支持时序控制（如 #1 延迟）
-    cmd += " --Mdir " + objDir;
-    cmd += " --top-module " + topModule;
+    cmd += " --Mdir \"" + objDir + "\"";
+    cmd += " --top-module \"" + topModule + "\"";
     cmd += " --trace --trace-underscore --trace-structs";  // 波形跟踪接口
     // 只生成 C++，不编译可执行文件（--exe 和 --build 也不需要）
     
@@ -551,7 +560,8 @@ bool SimulationEngine::CompileToDll(const wxString& topModule, wxString& errorMs
         batchContent += "chcp 65001 >nul\n";
         batchContent += "call \"" + vcvarsPath + "\"\n";
         batchContent += "if %errorLevel% neq 0 exit /b %errorLevel%\n";
-        batchContent += "cl /LD /O2 /MD /EHsc /W3 /std:c++20 ";  // C++20 标准协程
+        batchContent += "cd /d \"" + objDir + "\"\n";               // 切到 objDir，避免空格路径问题
+        batchContent += "cl /LD /O2 /MD /EHsc /W3 /std:c++20 ";     // C++20 标准协程
         batchContent += "/Fe\"" + dllPath + "\" ";
         // /Fo 路径不能以反斜杠结尾（否则会转义引号），且不要引号包裹
         batchContent += "/Fo" + objDir + "\\ ";
@@ -897,9 +907,9 @@ bool SimulationEngine::CompileSimRunner(const wxString& topModule, const wxStrin
         batchContent += "chcp 65001 >nul\n";
         batchContent += "call \"" + vcvarsPath + "\"\n";
         batchContent += "if %errorLevel% neq 0 exit /b %errorLevel%\n";
+        batchContent += "cd /d \"" + objDir + "\"\n";               // 切到 objDir，避免空格路径问题
         batchContent += "cl /O2 /MD /EHsc /W3 /std:c++20 ";
         batchContent += "/Fe\"" + exePath + "\" ";
-        batchContent += "/Fo" + objDir + "\\ ";
         batchContent += "\"" + simMainPath + "\" ";
         batchContent += "\"" + objDir + "\\*.cpp\" ";
         batchContent += "\"" + verilatorIncludePath + "\\verilated.cpp\" ";
