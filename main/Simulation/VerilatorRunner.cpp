@@ -112,7 +112,7 @@ bool VerilatorRunner::ValidateConfig(const VerilatorConfig& config, wxString& er
     // 检查所有源文件是否存在
     for (const auto& file : config.verilogFiles) {
         if (!wxFileExists(file)) {
-            error = wxString::Format("文件不存在: %s", file);
+            error = wxString::Format(wxT("文件不存在: %s"), file);
             return false;
         }
     }
@@ -203,7 +203,7 @@ VerilatorResult VerilatorRunner::Run(const VerilatorConfig& config)
 
     // 检查Verilator是否可用
     if (!IsVerilatorAvailable()) {
-        result.errorMessage = wxString::Format("Verilator不可用: %s", m_verilatorPath);
+        result.errorMessage = wxString::Format(wxT("Verilator不可用: %s"), m_verilatorPath);
         return result;
     }
 
@@ -215,7 +215,7 @@ VerilatorResult VerilatorRunner::Run(const VerilatorConfig& config)
     result.success = (result.exitCode == 0);
     
     if (!result.success) {
-        result.errorMessage = wxString::Format("Verilator执行失败 (退出码: %d)", 
+        result.errorMessage = wxString::Format(wxT("Verilator执行失败 (退出码: %d)"), 
                                                result.exitCode);
         if (!result.stderrOutput.IsEmpty()) {
             result.errorMessage += "\n错误输出:\n" + result.stderrOutput;

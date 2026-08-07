@@ -12,7 +12,7 @@ bool StimulusParser::Parse(const wxString& filePath, TestbenchInfo& result)
 {
     std::ifstream file(filePath.ToStdString());
     if (!file.is_open()) {
-        m_lastError = wxString::Format("无法打开文件: %s", filePath);
+        m_lastError = wxString::Format(wxT("无法打开文件: %s"), filePath);
         return false;
     }
 

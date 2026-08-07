@@ -3,13 +3,101 @@
 #include <wx/msgdlg.h>
 #include <wx/datetime.h>
 #include <wx/dcbuffer.h>
+#include <wx/dialog.h>
 #include <wx/file.h>
 #include <wx/filedlg.h>
 #include <wx/filename.h>
+#include <wx/notebook.h>
 #include <wx/sizer.h>
 #include <wx/statline.h>
+#include <wx/tokenzr.h>
 #include <wx/colour.h>
 #include <algorithm>
+
+namespace {
+
+std::vector<wxString> SplitLines(const wxString& content)
+{
+    std::vector<wxString> lines;
+    wxStringTokenizer tokenizer(content, "\n", wxTOKEN_RET_EMPTY_ALL);
+    while (tokenizer.HasMoreTokens()) lines.push_back(tokenizer.GetNextToken());
+    return lines;
+}
+
+wxString BuildCstDiff(const wxString& existing, const wxString& candidate)
+{
+    const std::vector<wxString> before = SplitLines(existing);
+    const std::vector<wxString> after = SplitLines(candidate);
+    std::vector<std::vector<int>> common(before.size() + 1,
+                                         std::vector<int>(after.size() + 1, 0));
+    for (size_t i = before.size(); i-- > 0;) {
+        for (size_t j = after.size(); j-- > 0;) {
+            common[i][j] = before[i] == after[j] ? common[i + 1][j + 1] + 1
+                                                   : std::max(common[i + 1][j], common[i][j + 1]);
+        }
+    }
+
+    wxString diff = "--- existing CST\n+++ candidate CST\n";
+    size_t i = 0;
+    size_t j = 0;
+    while (i < before.size() || j < after.size()) {
+        if (i < before.size() && j < after.size() && before[i] == after[j]) {
+            diff << "  " << before[i++] << "\n";
+        } else if (j < after.size() &&
+                   (i == before.size() || common[i][j + 1] >= common[i + 1][j])) {
+            diff << "+ " << after[j++] << "\n";
+        } else {
+            diff << "- " << before[i++] << "\n";
+        }
+    }
+    return diff;
+}
+
+bool ReadTextFile(const wxString& path, wxString& content)
+{
+    wxFile file(path, wxFile::read);
+    return file.IsOpened() && file.ReadAll(&content);
+}
+
+bool ConfirmCstChange(wxWindow* parent, const wxString& title, const wxString& actionLabel,
+                      const wxString& existing, const wxString& candidate,
+                      const wxString& notice)
+{
+    wxDialog dialog(parent, wxID_ANY, title, wxDefaultPosition, wxSize(900, 650),
+                    wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
+    auto* sizer = new wxBoxSizer(wxVERTICAL);
+    sizer->Add(new wxStaticText(&dialog, wxID_ANY, notice), 0, wxALL | wxEXPAND, 10);
+
+    auto* tabs = new wxNotebook(&dialog, wxID_ANY);
+    auto* previewPage = new wxPanel(tabs);
+    auto* previewSizer = new wxBoxSizer(wxVERTICAL);
+    previewSizer->Add(new wxTextCtrl(previewPage, wxID_ANY, candidate, wxDefaultPosition,
+                                     wxDefaultSize, wxTE_MULTILINE | wxTE_READONLY | wxHSCROLL),
+                      1, wxEXPAND | wxALL, 6);
+    previewPage->SetSizer(previewSizer);
+    tabs->AddPage(previewPage, "Candidate CST");
+
+    auto* diffPage = new wxPanel(tabs);
+    auto* diffSizer = new wxBoxSizer(wxVERTICAL);
+    diffSizer->Add(new wxTextCtrl(diffPage, wxID_ANY, BuildCstDiff(existing, candidate),
+                                  wxDefaultPosition, wxDefaultSize,
+                                  wxTE_MULTILINE | wxTE_READONLY | wxHSCROLL),
+                   1, wxEXPAND | wxALL, 6);
+    diffPage->SetSizer(diffSizer);
+    tabs->AddPage(diffPage, "Diff");
+    sizer->Add(tabs, 1, wxEXPAND | wxLEFT | wxRIGHT, 10);
+
+    auto* buttons = new wxStdDialogButtonSizer();
+    buttons->AddButton(new wxButton(&dialog, wxID_CANCEL));
+    buttons->AddButton(new wxButton(&dialog, wxID_OK, actionLabel));
+    buttons->Realize();
+    sizer->Add(buttons, 0, wxALL | wxALIGN_RIGHT, 10);
+    dialog.SetSizerAndFit(sizer);
+    dialog.SetMinSize(wxSize(720, 520));
+    return dialog.ShowModal() == wxID_OK;
+}
+
+} // namespace
 
 // ==================== PackageView ====================
 
@@ -794,6 +882,20 @@ void FpgaPinBindingPanel::OnGenerateCst(wxCommandEvent& evt) {
                      "CST Generation", wxOK | wxICON_ERROR, this);
         return;
     }
+    wxString existingContent;
+    const bool cstExists = wxFileExists(cstPath);
+    if (cstExists && !ReadTextFile(cstPath, existingContent)) {
+        wxMessageBox(wxString("Unable to read existing CST file: ") + cstPath,
+                     "CST Generation", wxOK | wxICON_ERROR, this);
+        return;
+    }
+    const wxString notice = cstExists
+        ? "Review the generated CST and its difference from the existing file. Confirm to overwrite it."
+        : "Review the generated CST before creating the constraint file.";
+    if (!ConfirmCstChange(this, "CST Preview", cstExists ? "Overwrite CST" : "Create CST",
+                          existingContent, result.cstContent, notice)) {
+        return;
+    }
     wxFile cstFile(cstPath, wxFile::write);
     if (!cstFile.IsOpened()) {
         wxMessageBox(wxString("Unable to write CST file: ") + cstPath, "CST Generation",
@@ -842,6 +944,17 @@ void FpgaPinBindingPanel::OnImportCst(wxCommandEvent& evt) {
     CstGenerator gen;
     auto imported = gen.ImportCst(content, unmanagedLines, importErr);
 
+    if (!importErr.IsEmpty()) {
+        wxMessageBox(wxString("CST import failed: ") + importErr, "Import CST",
+                     wxOK | wxICON_ERROR, this);
+        return;
+    }
+    if (imported.empty()) {
+        wxMessageBox("The selected CST does not contain any managed bindings.", "Import CST",
+                     wxOK | wxICON_WARNING, this);
+        return;
+    }
+
     if (!unmanagedLines.empty()) {
         wxString msg = wxString::Format("CST imported with %zu bindings.\n\n"
             "The following %zu lines could not be parsed:\n",
@@ -856,6 +969,24 @@ void FpgaPinBindingPanel::OnImportCst(wxCommandEvent& evt) {
         }
         wxMessageBox(msg, "CST Import — Unmanaged Lines",
             wxOK | wxICON_WARNING, this);
+    }
+
+    wxString existingContent;
+    const wxString managedCstPath = GetCstPath();
+    if (wxFileExists(managedCstPath) && !ReadTextFile(managedCstPath, existingContent)) {
+        wxMessageBox(wxString("Unable to read existing CST file: ") + managedCstPath,
+                     "Import CST", wxOK | wxICON_ERROR, this);
+        return;
+    }
+    wxString importNotice = wxString::Format(
+        "Review the imported CST before applying %zu bindings. Existing bindings with the same port and bit will be overwritten.",
+        imported.size());
+    if (!unmanagedLines.empty()) {
+        importNotice += wxString::Format(" %zu unmanaged lines will not be applied.", unmanagedLines.size());
+    }
+    if (!ConfirmCstChange(this, "CST Import Preview", "Apply Imported Bindings",
+                          existingContent, content, importNotice)) {
+        return;
     }
 
     // 合并到现有绑定

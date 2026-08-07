@@ -84,6 +84,14 @@
     <ClCompile Include="fpga\ArtifactValidator.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="fpga\FpgaYosysLogParser.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="fpga\FpgaYosysReport.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="fpga\FpgaSynthesisJobsPanel.cpp" />
+    <ClCompile Include="fpga\FpgaToolWindow.cpp" />
     <ClCompile Include="MainFrame.cpp">
       <Filter>源文件\gui</Filter>
     </ClCompile>
@@ -96,6 +104,7 @@
     <ClCompile Include="FpgaYosysScriptGenerator.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="FpgaYosysExecutor.cpp" />
     <ClCompile Include="fpga\FpgaPinData.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -224,9 +233,19 @@
     <ClInclude Include="fpga\ArtifactValidator.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="fpga\FpgaYosysLogParser.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="fpga\FpgaYosysReport.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="fpga\FpgaSynthesisJobsPanel.h" />
+    <ClInclude Include="fpga\FpgaToolWindow.h" />
+    <ClInclude Include="fpga\FpgaTheme.h" />
     <ClInclude Include="FpgaYosysScriptGenerator.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="FpgaYosysExecutor.h" />
     <ClInclude Include="fpga\FpgaPinData.h">
       <Filter>头文件</Filter>
     </ClInclude>

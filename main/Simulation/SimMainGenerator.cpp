@@ -11,7 +11,7 @@ bool SimMainGenerator::Generate(const Timeline& timeline, const wxString& output
 {
     std::ofstream file(outputPath.ToStdString());
     if (!file.is_open()) {
-        m_lastError = wxString::Format("无法创建文件: %s", outputPath);
+        m_lastError = wxString::Format(wxT("无法创建文件: %s"), outputPath);
         return false;
     }
 

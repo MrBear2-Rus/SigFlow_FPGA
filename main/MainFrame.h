@@ -7,6 +7,8 @@
 #include <wx/xml/xml.h>
 #include <wx/mstream.h>
 
+#include <memory>
+
 #include <json/json.h>
 #include <wx/stc/stc.h>
 #include "AsyncAnalysisCenter.h"
@@ -29,6 +31,9 @@ class ToolboxPanel;
 class Structuring;
 class VerilogManager;
 class WavePanel;
+class YosysExecutor;
+class FpgaToolWindow;
+enum class FpgaToolPage;
 
 wxDECLARE_EVENT(EVT_SFTREE_NODE_ACTIVATED, wxCommandEvent);
 
@@ -51,8 +56,12 @@ private:
     SigFlowTreePanel* m_sigFlowTreePanel;
     SFNPropertyPanel* m_sfnPropertyPanel;
     FpgaPinBindingPanel* m_fpgaPinBindingPanel;
+    FpgaToolWindow* m_fpgaToolWindow;
     TerminalCtrl* m_terminalCtrl;
     WavePanel* m_wavePanel;
+    std::unique_ptr<YosysExecutor> m_yosysExecutor;
+    wxString m_activeYosysJobId;
+    wxString m_pendingYosysRetryOf;
 
     PluginManager* m_pluginMgr;
 
@@ -61,6 +70,10 @@ private:
 
     std::map<wxString, std::unordered_map<SigTreeNode*, std::tuple<int, int>>> maps;
     void RefreshTitle();
+    void ShowFpgaToolWindow(FpgaToolPage page);
+    void RunFpgaSynthesis();
+    void RunFpgaRoute();
+    void RunFpgaProgram(const wxString& bitstreamPath);
     // 声明事件处理函数
     void OnAnalysisComplete(wxThreadEvent& event);
 
@@ -149,6 +162,10 @@ public:
 
     /* FPGA 工具链接口 */
     void DoFpgaSynthesis();
+    void DoFpgaCancelSynthesis();
+    void DoFpgaShowSynthesisJobs();
+    void DoFpgaOpenSynthesisReport();
+    void DoFpgaRetrySynthesis();
     void DoFpgaRoute();
     void DoFpgaProgram();
     void DoFpgaPinBinding();

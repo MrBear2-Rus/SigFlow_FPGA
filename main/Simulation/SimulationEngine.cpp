@@ -329,7 +329,7 @@ SimulationCompileResult SimulationEngine::Compile(const wxString& topModule,
     OutputDebugStringA("Creating directories...\n");
     if (!CreateDirectoryRecursive(objDir)) {
         OutputDebugStringA("ERROR: Failed to create directory\n");
-        result.errorMessage = wxString::Format("无法创建缓存目录: %s", cacheDir);
+        result.errorMessage = wxString::Format(wxT("无法创建缓存目录: %s"), cacheDir);
         ReportProgress(0, result.errorMessage);
         return result;
     }
@@ -344,7 +344,7 @@ SimulationCompileResult SimulationEngine::Compile(const wxString& topModule,
     }
     OutputDebugStringA("obj_dir cleaned\n");
 
-    ReportProgress(10, wxString::Format("缓存目录: %s", cacheDir));
+    ReportProgress(10, wxString::Format(wxT("缓存目录: %s"), cacheDir));
 
     OutputDebugStringA("Calling RunVerilator...\n");
     // 步骤1: 运行Verilator生成C++代码
@@ -675,7 +675,7 @@ bool SimulationEngine::CompileToDll(const wxString& topModule, wxString& errorMs
     }
     
     OutputDebugStringA("DLL compile success\n");
-    ReportProgress(90, wxString::Format("DLL生成成功: %s", dllPath));
+    ReportProgress(90, wxString::Format(wxT("DLL生成成功: %s"), dllPath));
     return true;
 }
 

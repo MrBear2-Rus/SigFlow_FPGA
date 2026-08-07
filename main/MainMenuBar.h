@@ -107,6 +107,10 @@ private:
 
     /* FPGA 菜单事件回调 */
     void OnFpgaSynthesis(wxCommandEvent&);
+    void OnFpgaCancelSynthesis(wxCommandEvent&);
+    void OnFpgaShowSynthesisJobs(wxCommandEvent&);
+    void OnFpgaOpenSynthesisReport(wxCommandEvent&);
+    void OnFpgaRetrySynthesis(wxCommandEvent&);
     void OnFpgaRoute(wxCommandEvent&);
     void OnFpgaProgram(wxCommandEvent&);
     void OnFpgaPinBinding(wxCommandEvent&);

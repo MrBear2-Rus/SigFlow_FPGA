@@ -25,6 +25,7 @@ struct SynthesisJobRequest {
     wxString strategyId = "baseline";
     wxString strategyVersion = "1.0";
     wxString operatorName = "local";
+    wxString retryOf;
 };
 
 struct SynthesisJobTransition {
@@ -62,6 +63,10 @@ bool IsTerminalSynthesisJobState(SynthesisJobState state);
 
 class FpgaSynthesisJobService {
 public:
+    // Public names used by GUI/CLI callers. The legacy CRUD methods remain
+    // available for source compatibility with the existing FPGA flow.
+    bool CreateSynthesisJob(const SynthesisJobRequest& request, SynthesisJob& job,
+                            wxString& errorMessage) const;
     bool Create(const SynthesisJobRequest& request, SynthesisJob& job, wxString& errorMessage) const;
     bool Load(const wxString& projectPath, const wxString& jobId, SynthesisJob& job,
               wxString& errorMessage) const;
@@ -73,6 +78,13 @@ public:
                 wxString& errorMessage) const;
     bool Retry(const wxString& projectPath, const wxString& jobId, SynthesisJob& retryJob,
                wxString& errorMessage) const;
+    bool GetSynthesisArtifacts(const wxString& projectPath, const wxString& jobId,
+                               std::vector<wxString>& artifactPaths, wxString& errorMessage) const;
+    bool GetSynthesisReport(const wxString& projectPath, const wxString& jobId,
+                            wxString& jsonReport, wxString& summaryReport,
+                            wxString& errorMessage) const;
+    bool RecoverStaleJobs(const wxString& projectPath, const wxString& activeJobId,
+                          wxString& errorMessage) const;
 
     static SynthesisJobPaths GetPaths(const wxString& projectPath, const wxString& jobId);
 

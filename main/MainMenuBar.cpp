@@ -81,7 +81,11 @@ EVT_MENU(wxID_HIGHEST + 222, MainMenuBar::OnSimClean)
 EVT_MENU(wxID_HIGHEST + 230, MainMenuBar::OnFpgaSynthesis)
 EVT_MENU(wxID_HIGHEST + 231, MainMenuBar::OnFpgaRoute)
 EVT_MENU(wxID_HIGHEST + 232, MainMenuBar::OnFpgaProgram)
+EVT_MENU(wxID_HIGHEST + 233, MainMenuBar::OnFpgaCancelSynthesis)
 EVT_MENU(wxID_HIGHEST + 234, MainMenuBar::OnFpgaPinBinding)
+EVT_MENU(wxID_HIGHEST + 235, MainMenuBar::OnFpgaShowSynthesisJobs)
+EVT_MENU(wxID_HIGHEST + 236, MainMenuBar::OnFpgaOpenSynthesisReport)
+EVT_MENU(wxID_HIGHEST + 237, MainMenuBar::OnFpgaRetrySynthesis)
 
 EVT_MENU(wxID_ICONIZE_FRAME, MainMenuBar::OnMinimize)
 EVT_MENU(wxID_MAXIMIZE_FRAME, MainMenuBar::OnMaximize)
@@ -299,15 +303,10 @@ wxMenu* MainMenuBar::CreateSimulateMenu()
 wxMenu* MainMenuBar::CreateFpgaMenu()
 {
     wxMenu* menu = new wxMenu;
-    menu->Append(wxID_HIGHEST + 230, wxT("Synthesis"),
-                 wxT("Create the yosys work directory and run yosys"));
-    menu->Append(wxID_HIGHEST + 231, wxT("Place and Route"),
-                 wxT("Create the nextpnr work directory and run nextpnr"));
+    menu->Append(wxID_HIGHEST + 230, wxT("FPGA Tools..."),
+                 wxT("Open Yosys, nextpnr, and openFPGALoader controls"));
     menu->Append(wxID_HIGHEST + 234, wxT("Pin Binding..."),
                  wxT("Configure FPGA pin constraints for the target device"));
-    menu->AppendSeparator();
-    menu->Append(wxID_HIGHEST + 232, wxT("Program Board"),
-                 wxT("Program a Tang Nano 9K with an Apicula .fs bitstream"));
     return menu;
 }
 
@@ -450,6 +449,28 @@ void MainMenuBar::OnFpgaSynthesis(wxCommandEvent&)
     if (m_owner) {
         m_owner->DoFpgaSynthesis();
     }
+}
+
+void MainMenuBar::OnFpgaCancelSynthesis(wxCommandEvent&)
+{
+    if (m_owner) {
+        m_owner->DoFpgaCancelSynthesis();
+    }
+}
+
+void MainMenuBar::OnFpgaShowSynthesisJobs(wxCommandEvent&)
+{
+    if (m_owner) m_owner->DoFpgaShowSynthesisJobs();
+}
+
+void MainMenuBar::OnFpgaOpenSynthesisReport(wxCommandEvent&)
+{
+    if (m_owner) m_owner->DoFpgaOpenSynthesisReport();
+}
+
+void MainMenuBar::OnFpgaRetrySynthesis(wxCommandEvent&)
+{
+    if (m_owner) m_owner->DoFpgaRetrySynthesis();
 }
 
 void MainMenuBar::OnFpgaRoute(wxCommandEvent&)
