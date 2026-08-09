@@ -34,6 +34,7 @@
 #include "fpga/FpgaYosysLogParser.h"
 #include "fpga/FpgaYosysReport.h"
 #include "fpga/FpgaToolWindow.h"
+#include "parse_progress.h"
 #include "ToolboxPanel.h"  
 #include "CanvasModel.h"
 #include "my_log.h"
@@ -41,9 +42,9 @@
 #include "VerilogStructuring.h"
 #include "VerilogManager.h"
 #include "WavePanel.h"
-#include "Fpga/NextpnrLogParser.h"
-#include "Fpga/NextpnrReport.h"
-#include "Fpga/CstValidator.h"
+#include "fpga/NextpnrLogParser.h"
+#include "fpga/NextpnrReport.h"
+#include "fpga/CstValidator.h"
 
 extern std::vector<SecondElement> g_elements;
 extern "C" TSLanguage* tree_sitter_verilog();
@@ -105,13 +106,17 @@ bool WriteUtf8File(const wxString& path, const wxString& content)
 class FpgaToolProcess final : public wxProcess {
 public:
     using CompletionCallback = std::function<void(int exitCode, const wxString& fullOutput)>;
+    // 每收到完整一行 stdout 文本时回调（用于实时进度解析）
+    using LineCallback = std::function<void(const wxString& line)>;
 
     FpgaToolProcess(TerminalCtrl* terminal, const wxString& toolName,
                     std::function<void(int)> onTerminate = nullptr,
-                    CompletionCallback onComplete = nullptr)
+                    CompletionCallback onComplete = nullptr,
+                    LineCallback onLine = nullptr)
         : m_terminal(terminal), m_toolName(toolName),
           m_onTerminate(std::move(onTerminate)),
-          m_onComplete(std::move(onComplete))
+          m_onComplete(std::move(onComplete)),
+          m_onLine(std::move(onLine))
     {
         Redirect();
         m_outputTimer.SetOwner(this);
@@ -171,8 +176,34 @@ private:
             if (bytesRead == 0) {
                 break;
             }
-            m_terminal->AppendProcessOutput(wxString::FromUTF8(buffer, bytesRead));
-            m_outputBuffer += wxString::FromUTF8(buffer, bytesRead);
+            const wxString chunk = wxString::FromUTF8(buffer, bytesRead);
+            m_terminal->AppendProcessOutput(chunk);
+            m_outputBuffer += chunk;
+
+            // 行切分：检测完整行并回调（用于实时进度解析）
+            if (m_onLine && !isErrorStream) {
+                m_lineBuffer += chunk;
+                size_t pos = 0;
+                while (true) {
+                    const size_t nl = m_lineBuffer.find(wxT('\n'), pos);
+                    if (nl == wxString::npos) break;
+                    const wxString line = m_lineBuffer.Mid(pos, nl - pos);
+                    if (!line.IsEmpty()) {
+                        m_onLine(line);
+                    }
+                    pos = nl + 1;
+                }
+                // 保留不完整的最后一行
+                if (pos > 0) {
+                    m_lineBuffer = m_lineBuffer.Mid(pos);
+                }
+                // 防止 lineBuffer 无限增长（无换行的长输出场景）
+                if (m_lineBuffer.length() > 8192) {
+                    m_onLine(m_lineBuffer);
+                    m_lineBuffer.clear();
+                }
+            }
+
             ++chunksRead;
         }
     }
@@ -182,6 +213,8 @@ private:
     std::function<void(int)> m_onTerminate;
     wxString m_outputBuffer;            // 累积全部输出供回调解析
     CompletionCallback m_onComplete;
+    LineCallback m_onLine;              // 逐行回调（实时进度）
+    wxString m_lineBuffer;              // 行缓冲区
     wxTimer m_outputTimer;
 };
 
@@ -332,7 +365,8 @@ long LaunchFpgaTool(const wxString& executable, const std::vector<wxString>& arg
                     const wxString& workingDirectory, TerminalCtrl* terminal,
                     const wxString& toolName,
                     std::function<void(int)> onTerminate = {},
-                    FpgaToolProcess::CompletionCallback onComplete = nullptr)
+                    FpgaToolProcess::CompletionCallback onComplete = nullptr,
+                    FpgaToolProcess::LineCallback onLine = nullptr)
 {
     std::vector<wxString> commandLine;
     commandLine.reserve(arguments.size() + 1);
@@ -349,7 +383,7 @@ long LaunchFpgaTool(const wxString& executable, const std::vector<wxString>& arg
     wxExecuteEnv environment;
     environment.cwd = workingDirectory;
     FpgaToolProcess* process = new FpgaToolProcess(terminal, toolName,
-        std::move(onTerminate), std::move(onComplete));
+        std::move(onTerminate), std::move(onComplete), std::move(onLine));
     const long processId = wxExecute(argv.data(), wxEXEC_ASYNC | wxEXEC_HIDE_CONSOLE, process, &environment);
     if (processId == 0) {
         delete process;
@@ -724,6 +758,10 @@ MainFrame::MainFrame()
     bottomNotebook->AddPage(m_terminalCtrl, "Terminal");
     bottomNotebook->AddPage(m_wavePanel, "Waveform");
 
+    // VS 风格编译进度条（底部薄条，默认隐藏）
+    m_buildProgressBar = new BuildProgressBar(this);
+    m_buildProgressBar->Hide();
+
 
     // 1. 先最大化窗口，确保尺寸基准正确
     this->Maximize(true);
@@ -788,6 +826,28 @@ MainFrame::MainFrame()
         .FloatingSize(800, bottomH)
         .MaximizeButton(true)
         .CloseButton(false));
+
+    // 进度条薄条（VS 风格，默认隐藏，Bottom-most layer）
+    m_auiMgr.AddPane(m_buildProgressBar, wxAuiPaneInfo()
+        .Name("build_progress")
+        .Bottom()
+        .Layer(9)                          // 高于 bottom_tabs，确保可见
+        .MinSize(-1, FromDIP(28))
+        .BestSize(-1, FromDIP(28))
+        .CaptionVisible(false)
+        .CloseButton(false)
+        .Gripper(false)
+        .PaneBorder(false)
+        .Fixed()
+        .Movable(false)
+        .Hide());                          // 默认隐藏
+
+    // 绑定 AUI 可见性：进度条 Show/Hide → AUI pane Show/Hide
+    m_buildProgressBar->SetVisibilityCallback([this](bool visible) {
+        wxAuiPaneInfo& pane = m_auiMgr.GetPane("build_progress");
+        if (visible) pane.Show(); else pane.Hide();
+        m_auiMgr.Update();
+    });
 
     m_auiMgr.AddPane(mainSplitter, wxAuiPaneInfo()
         .Name("center_area")
@@ -2401,6 +2461,13 @@ void MainFrame::RunFpgaSynthesis()
             "\nCombined log: " + executionConfig.combinedLogPath + "\n");
     }
 
+    // VS 风格进度条：Yosys 综合（6 阶段）
+    if (m_buildProgressBar) {
+        m_buildProgressBar->BeginOperation(wxT("Yosys Synthesis"), 6);
+    }
+    // 行缓冲区：OutputCallback 在 worker 线程中被调用，shared_ptr 保证生命周期
+    auto progressLineBuf = std::make_shared<wxString>();
+
     const wxWeakRef<MainFrame> frame(this);
     const auto synthesisStart = std::chrono::steady_clock::now();
     m_activeYosysJobId = jobId;
@@ -2411,7 +2478,8 @@ void MainFrame::RunFpgaSynthesis()
     m_yosysExecutor = std::make_unique<YosysExecutor>();
     const bool started = m_yosysExecutor->Execute(
         yosysExecutable, { "-s", scriptPath }, executionConfig,
-        [frame](YosysExecutor::OutputStream stream, const wxString& text) {
+        [frame, progressLineBuf](YosysExecutor::OutputStream stream, const wxString& text) {
+            // ── 终端输出（已有逻辑）──
             if (wxTheApp) {
                 wxTheApp->CallAfter([frame, stream, text] {
                     MainFrame* callbackFrame = frame.get();
@@ -2422,6 +2490,33 @@ void MainFrame::RunFpgaSynthesis()
                         ? wxString("[Yosys stderr] ") : wxString();
                     callbackFrame->m_terminalCtrl->AppendProcessOutput(prefix + text);
                 });
+            }
+            // ── 进度解析（stdout 行切分 + 阶段检测）──
+            if (stream == YosysExecutor::OutputStream::StdOut && wxTheApp) {
+                *progressLineBuf += text;
+                size_t pos = 0;
+                while (true) {
+                    const size_t nl = progressLineBuf->find(wxT('\n'), pos);
+                    if (nl == wxString::npos) break;
+                    const wxString line = progressLineBuf->Mid(pos, nl - pos);
+                    if (!line.IsEmpty()) {
+                        auto hint = ParseYosysProgress(line);
+                        if (hint) {
+                            wxString stageName = hint->stageName;
+                            int stageIndex = hint->stageIndex;
+                            wxTheApp->CallAfter([frame, stageName, stageIndex] {
+                                MainFrame* f = frame.get();
+                                if (f && f->m_buildProgressBar)
+                                    f->m_buildProgressBar->AdvanceStage(stageName, stageIndex);
+                            });
+                        }
+                    }
+                    pos = nl + 1;
+                }
+                if (pos > 0) *progressLineBuf = progressLineBuf->Mid(pos);
+                if (progressLineBuf->length() > 8192) {
+                    progressLineBuf->clear();
+                }
             }
         },
         [frame, projectPath, jobId, jobJsonPath, artifactManifestPath, legacyJsonPath, topModule,
@@ -2527,6 +2622,12 @@ void MainFrame::RunFpgaSynthesis()
                         callbackFrame->m_terminalCtrl->FinishProcessOutput(
                             FpgaYosysReport::GenerateSummary(report));
                     }
+                    // ── 进度条：完成 ──
+                    if (callbackFrame->m_buildProgressBar) {
+                        const bool success = (finalState == SynthesisJobState::Succeeded);
+                        callbackFrame->m_buildProgressBar->FinishOperation(success,
+                            success ? wxT("Synthesis completed") : wxT("Synthesis failed"));
+                    }
                     callbackFrame->SetStatusText(finalState == SynthesisJobState::Succeeded
                         ? "Yosys synthesis completed" : "Yosys synthesis did not complete");
                     if (callbackFrame->m_projectTreePanel) {
@@ -2559,6 +2660,8 @@ void MainFrame::RunFpgaSynthesis()
         }
         wxMessageBox("Unable to start Yosys. Check the configured executable path.",
                      "FPGA Synthesis", wxOK | wxICON_ERROR, this);
+        if (m_buildProgressBar)
+            m_buildProgressBar->FinishOperation(false, wxT("Synthesis failed"));
         return;
     }
 
@@ -2754,12 +2857,27 @@ void MainFrame::RunFpgaRoute()
         }
     }
 
+    // 进度条：nextpnr P&R
+    if (m_buildProgressBar) {
+        m_buildProgressBar->BeginOperation(wxT("nextpnr Place and Route"), 4);
+    }
+    auto onNextpnrLine = [this](const wxString& line) {
+        if (!m_buildProgressBar) return;
+        auto hint = ParseNextpnrProgress(line);
+        if (hint) {
+            m_buildProgressBar->AdvanceStage(hint->stageName, hint->stageIndex);
+        } else {
+            m_buildProgressBar->Pulse();
+        }
+    };
+
     // nextpnr 完成后的分析回调
     TerminalCtrl* terminalPtr = m_terminalCtrl;
     const wxString reportDir = nextpnrDirectory;
     const wxString topModuleName = topModule;
+    MainFrame* self = this;
     FpgaToolProcess::CompletionCallback onComplete =
-        [terminalPtr, reportDir, topModuleName](int exitCode, const wxString& fullOutput) {
+        [terminalPtr, reportDir, topModuleName, self](int exitCode, const wxString& fullOutput) {
             if (!terminalPtr) return;
             NextpnrRunRecord record;
             record.exitCode = exitCode;
@@ -2772,13 +2890,22 @@ void MainFrame::RunFpgaRoute()
             if (!reportDir.IsEmpty()) {
                 report.SaveReport(record, reportDir + wxT("\\") + topModuleName + wxT(".analysis.json"));
             }
+            // 通知进度条
+            self->CallAfter([self, exitCode] {
+                if (self->m_buildProgressBar)
+                    self->m_buildProgressBar->FinishOperation(exitCode == 0,
+                        exitCode == 0 ? wxT("Place and Route completed")
+                                      : wxT("Place and Route failed"));
+            });
         };
     const long processId =
         LaunchFpgaTool(nextpnrExecutable, arguments, nextpnrDirectory, m_terminalCtrl, "nextpnr",
-                       {}, std::move(onComplete));
+                       {}, std::move(onComplete), std::move(onNextpnrLine));
     if (processId == 0) {
         wxMessageBox("Unable to start nextpnr. Check the configured executable path and arguments.",
                      "FPGA Place and Route", wxOK | wxICON_ERROR, this);
+        if (m_buildProgressBar)
+            m_buildProgressBar->FinishOperation(false, wxT("Place and Route failed"));
         return;
     }
 
@@ -2847,11 +2974,26 @@ void MainFrame::RunFpgaProgram(const wxString& bitstreamPath)
     }
 
     const wxString workingDirectory = wxFileName(bitstreamPath).GetPath();
+    // 进度条：烧录（无阶段输出，脉冲模式）
+    if (m_buildProgressBar) {
+        m_buildProgressBar->BeginOperation(wxT("openFPGALoader"), 0);
+    }
+    MainFrame* self = this;
     const long processId = LaunchFpgaTool(
-        loaderExecutable, arguments, workingDirectory, m_terminalCtrl, "openFPGALoader");
+        loaderExecutable, arguments, workingDirectory, m_terminalCtrl, "openFPGALoader",
+        [self](int status) {
+            self->CallAfter([self, status] {
+                if (self->m_buildProgressBar)
+                    self->m_buildProgressBar->FinishOperation(status == 0,
+                        status == 0 ? wxT("Programming completed")
+                                    : wxT("Programming failed"));
+            });
+        });
     if (processId == 0) {
         wxMessageBox("Unable to start openFPGALoader. Check the configured executable path.",
                      "FPGA Program Board", wxOK | wxICON_ERROR, this);
+        if (m_buildProgressBar)
+            m_buildProgressBar->FinishOperation(false, wxT("Programming failed"));
         return;
     }
 
@@ -3038,6 +3180,21 @@ void MainFrame::DoSimCompile()
         OutputDebugStringA("\n");
     });
     
+
+    // VS cfg: Verilator build progress (3 stages: Verilator -> DLL -> Linking)
+    if (m_buildProgressBar) {
+        m_buildProgressBar->BeginOperation(wxT("Verilator Compilation"), 3);
+    }
+    m_simEngine->SetProgressCallback([this](int percent, const wxString&) {
+        if (!m_buildProgressBar) return;
+        if (percent < 55) {
+            m_buildProgressBar->AdvanceStage(wxT("Verilator Processing"), 0);
+        } else if (percent < 85) {
+            m_buildProgressBar->AdvanceStage(wxT("Compiling Module DLL"), 1);
+        } else {
+            m_buildProgressBar->AdvanceStage(wxT("Linking & Finalizing"), 2);
+        }
+    });
     // 6. 执行编译
     auto* menuBar = static_cast<MainMenuBar*>(GetMenuBar());
     menuBar->SetSimulationBusy(true);
@@ -3045,6 +3202,13 @@ void MainFrame::DoSimCompile()
     SimulationCompileResult result = m_simEngine->Compile(topModule, verilogFiles);
     HideBusyIndicator(result.success ? wxT("编译完成") : wxT("编译失败"));
     menuBar->SetSimulationBusy(false);
+
+    // Progress bar: finish
+    if (m_buildProgressBar) {
+        m_buildProgressBar->FinishOperation(result.success,
+            result.success ? wxT("Verilator compilation completed")
+                           : wxT("Verilator compilation failed"));
+    }
     
     // 7. 显示结果 - 使用字符串拼接避免 Printf 问题
     if (result.success) {

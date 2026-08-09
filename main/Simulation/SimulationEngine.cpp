@@ -153,11 +153,23 @@ wxString SimulationEngine::FindVerilatorPath() const
 
 wxString SimulationEngine::FindVerilatorIncludePath() const
 {
+    // 辅助 lambda：检查目录是否包含 Verilator 核心文件
+    auto isVerilatorDir = [](const wxString& dir) -> bool {
+        return wxFileExists(dir + "\\verilated.h") ||
+               wxFileExists(dir + "\\verilated_std_waiver.vlt");
+    };
+
     wxString verilatorRoot;
     if (wxGetEnv("VERILATOR_ROOT", &verilatorRoot)) {
-        wxString includePath = verilatorRoot + "\\include";
-        if (wxDirExists(includePath)) {
-            return includePath;
+        // MSYS2 安装的 Verilator 文件在 share/verilator/include 下
+        const wxString shareCandidates[] = {
+            verilatorRoot + "\\share\\verilator\\include",
+            verilatorRoot + "\\include"
+        };
+        for (const auto& candidate : shareCandidates) {
+            if (wxDirExists(candidate) && isVerilatorDir(candidate)) {
+                return candidate;
+            }
         }
     }
 
