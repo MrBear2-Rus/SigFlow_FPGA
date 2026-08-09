@@ -72,9 +72,11 @@
     <ClCompile Include="Simulation\StimulusParser.cpp" />
     <ClCompile Include="Simulation\TimelineGenerator.cpp" />
     <ClCompile Include="Simulation\SimMainGenerator.cpp" />
-    <ClCompile Include="Fpga\NextpnrLogParser.cpp" />
-    <ClCompile Include="Fpga\NextpnrReport.cpp" />
-    <ClCompile Include="Fpga\CstValidator.cpp" />
+    <ClCompile Include="fpga\NextpnrLogParser.cpp" />
+    <ClCompile Include="fpga\NextpnrReport.cpp" />
+    <ClCompile Include="fpga\CstValidator.cpp" />
+    <ClCompile Include="BuildProgressBar.cpp" />
+    <ClCompile Include="parse_progress.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\3rd\nanosvg\nanosvg.h" />
@@ -129,9 +131,11 @@
     <ClInclude Include="Simulation\StimulusParser.h" />
     <ClInclude Include="Simulation\TimelineGenerator.h" />
     <ClInclude Include="Simulation\SimMainGenerator.h" />
-    <ClInclude Include="Fpga\NextpnrLogParser.h" />
-    <ClInclude Include="Fpga\NextpnrReport.h" />
-    <ClInclude Include="Fpga\CstValidator.h" />
+    <ClInclude Include="fpga\NextpnrLogParser.h" />
+    <ClInclude Include="fpga\NextpnrReport.h" />
+    <ClInclude Include="fpga\CstValidator.h" />
+    <ClInclude Include="BuildProgressBar.h" />
+    <ClInclude Include="parse_progress.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

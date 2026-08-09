@@ -1,4 +1,4 @@
-﻿#include <wx/wx.h>
+#include <wx/wx.h>
 #include "ProjectStartWindow.h"
 #include "MainFrame.h"
 
@@ -38,3 +38,4 @@ public:
 };
 
 wxIMPLEMENT_APP(MyApp);
+

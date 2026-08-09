@@ -19,6 +19,7 @@
 #include "SFNPropertyPanel.h"
 #include "Simulation/SimulationEngine.h"
 #include "fpga/FpgaPinBindingPanel.h"
+#include "BuildProgressBar.h"
 
 #include "TerminalCtrl.h"
 
@@ -58,6 +59,7 @@ private:
     FpgaPinBindingPanel* m_fpgaPinBindingPanel;
     FpgaToolWindow* m_fpgaToolWindow;
     TerminalCtrl* m_terminalCtrl;
+    BuildProgressBar* m_buildProgressBar = nullptr;  // VS 风格编译进度条
     WavePanel* m_wavePanel;
     std::unique_ptr<YosysExecutor> m_yosysExecutor;
     wxString m_activeYosysJobId;
