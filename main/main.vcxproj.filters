@@ -92,6 +92,8 @@
     </ClCompile>
     <ClCompile Include="fpga\FpgaSynthesisJobsPanel.cpp" />
     <ClCompile Include="fpga\FpgaToolWindow.cpp" />
+    <ClCompile Include="BuildProgressBar.cpp" />
+    <ClCompile Include="parse_progress.cpp" />
     <ClCompile Include="MainFrame.cpp">
       <Filter>源文件\gui</Filter>
     </ClCompile>
@@ -246,6 +248,8 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="FpgaYosysExecutor.h" />
+    <ClInclude Include="BuildProgressBar.h" />
+    <ClInclude Include="parse_progress.h" />
     <ClInclude Include="fpga\FpgaPinData.h">
       <Filter>头文件</Filter>
     </ClInclude>

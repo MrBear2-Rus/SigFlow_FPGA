@@ -76,6 +76,8 @@ private:
     void RunFpgaSynthesis();
     void RunFpgaRoute();
     void RunFpgaProgram(const wxString& bitstreamPath);
+    // 终止由 LaunchFpgaTool 启动的异步工具进程（进度条取消用）
+    void KillAsyncToolProcess(long processId);
     // 声明事件处理函数
     void OnAnalysisComplete(wxThreadEvent& event);
 

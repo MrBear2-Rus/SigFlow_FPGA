@@ -2276,6 +2276,16 @@ void MainFrame::ShowFpgaToolWindow(FpgaToolPage page)
     m_fpgaToolWindow->ShowPage(page);
 }
 
+void MainFrame::KillAsyncToolProcess(long processId)
+{
+    if (processId <= 0) return;
+    HANDLE process = OpenProcess(PROCESS_TERMINATE, FALSE, static_cast<DWORD>(processId));
+    if (process) {
+        TerminateProcess(process, 1);
+        CloseHandle(process);
+    }
+}
+
 void MainFrame::DoFpgaSynthesis()
 {
     ShowFpgaToolWindow(FpgaToolPage::Yosys);
@@ -2464,6 +2474,16 @@ void MainFrame::RunFpgaSynthesis()
     // VS 风格进度条：Yosys 综合（6 阶段）
     if (m_buildProgressBar) {
         m_buildProgressBar->BeginOperation(wxT("Yosys Synthesis"), 6);
+        m_buildProgressBar->SetCancelCallback([this] {
+            if (m_yosysExecutor &&
+                m_yosysExecutor->GetState() == YosysExecutor::State::Running) {
+                m_yosysExecutor->Cancel();
+                if (m_terminalCtrl) {
+                    m_terminalCtrl->AppendProcessOutput("[Yosys] cancellation requested.\n");
+                }
+                SetStatusText("Yosys synthesis cancellation requested");
+            }
+        });
     }
     // 行缓冲区：OutputCallback 在 worker 线程中被调用，shared_ptr 保证生命周期
     auto progressLineBuf = std::make_shared<wxString>();
@@ -2908,6 +2928,11 @@ void MainFrame::RunFpgaRoute()
             m_buildProgressBar->FinishOperation(false, wxT("Place and Route failed"));
         return;
     }
+    if (m_buildProgressBar) {
+        m_buildProgressBar->SetCancelCallback([this, processId] {
+            KillAsyncToolProcess(processId);
+        });
+    }
 
     SetStatusText("nextpnr place and route started");
     if (m_projectTreePanel) {
@@ -2995,6 +3020,11 @@ void MainFrame::RunFpgaProgram(const wxString& bitstreamPath)
         if (m_buildProgressBar)
             m_buildProgressBar->FinishOperation(false, wxT("Programming failed"));
         return;
+    }
+    if (m_buildProgressBar) {
+        m_buildProgressBar->SetCancelCallback([this, processId] {
+            KillAsyncToolProcess(processId);
+        });
     }
 
     SetStatusText("openFPGALoader programming started");

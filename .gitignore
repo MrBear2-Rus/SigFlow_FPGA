@@ -18,6 +18,13 @@ mono_crash.*
 
 # Build results
 [Dd]ebug/
+# 例外：项目源码中的 debug 目录需要入库（VS 构建输出 Debug/ 仍被忽略）
+!main/debug/
+!main/debug/**
+!rtl/debug/
+!rtl/debug/**
+!tests/debug/
+!tests/debug/**
 [Dd]ebugPublic/
 [Rr]elease/
 [Rr]eleases/

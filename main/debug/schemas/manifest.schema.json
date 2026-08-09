@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SigFlow TraceBridge Session Manifest",
+  "type": "object",
+  "required": ["session_id", "state", "created_at", "updated_at"],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["1.0"] },
+    "session_id": { "type": "string", "minLength": 1 },
+    "retry_of": { "type": "string" },
+    "state": {
+      "type": "string",
+      "enum": ["Created", "Validating", "Building", "Programming", "Armed", "Captured", "Compared", "Failed", "TimedOut", "Cancelled"]
+    },
+    "created_at": { "type": "string" },
+    "updated_at": { "type": "string" },
+    "exit_code": { "type": "integer" },
+    "build_id": { "type": "string" },
+    "bitstream_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "tool_versions": { "type": "array", "items": { "type": "string" } },
+    "transitions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["state", "timestamp"],
+        "properties": {
+          "state": { "type": "string" },
+          "timestamp": { "type": "string" },
+          "operator": { "type": "string" },
+          "reason": { "type": "string" },
+          "exit_code": { "type": "integer" }
+        }
+      }
+    }
+  }
+}
