@@ -14,6 +14,7 @@
 
 #include "CstValidator.h"
 #include "FpgaSynthesisJobsPanel.h"
+#include "NextpnrJobsPanel.h"
 #include "FpgaTheme.h"
 #include "../FpgaYosysRuntime.h"
 
@@ -164,9 +165,19 @@ wxPanel* FpgaToolWindow::BuildNextpnrPage()
     m_routeStartButton = new wxButton(page, wxID_ANY, "Start Place and Route");
     FpgaTheme::StyleButton(m_routeStartButton, FpgaTheme::kBlue, *wxWHITE);
     header->Add(m_routeStartButton, 0, wxLEFT, page->FromDIP(6));
+
+    wxButton* routeCancelButton = new wxButton(page, wxID_ANY, "Cancel");
+    FpgaTheme::StyleButton(routeCancelButton, FpgaTheme::kRed, *wxWHITE);
+    header->Add(routeCancelButton, 0, wxLEFT, page->FromDIP(6));
     layout->Add(header, 0, wxEXPAND | wxALL, page->FromDIP(10));
 
     FpgaTheme::MakeDivider(page, layout, page->FromDIP(10));
+
+    // ── 任务列表面板 ──
+    m_routeJobsPanel = new NextpnrJobsPanel(page);
+    layout->Add(m_routeJobsPanel, 1, wxEXPAND | wxLEFT | wxRIGHT, page->FromDIP(8));
+
+    FpgaTheme::MakeDivider(page, layout, page->FromDIP(6));
 
     // ── 本次运行信息卡片 ──
     wxPanel* infoCard = MakeInfoCard(page, layout, "Run Summary");
@@ -202,6 +213,9 @@ wxPanel* FpgaToolWindow::BuildNextpnrPage()
 
     m_routeStartButton->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
         if (m_routeStartHandler) m_routeStartHandler();
+    });
+    routeCancelButton->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
+        if (m_routeCancelHandler) m_routeCancelHandler();
     });
     return page;
 }
@@ -291,6 +305,7 @@ void FpgaToolWindow::SetProjectContext(const wxString& projectPath,
     m_projectPath = projectPath;
     m_activeYosysJobId = activeYosysJobId;
     m_synthesisJobsPanel->SetProjectContext(projectPath, activeYosysJobId);
+    if (m_routeJobsPanel) m_routeJobsPanel->SetProjectContext(projectPath, wxEmptyString);
     UpdateProjectLabels();
 }
 
@@ -302,7 +317,8 @@ void FpgaToolWindow::RefreshSynthesisJobs()
 
 void FpgaToolWindow::SetOpenFileHandler(std::function<void(const wxString&, long)> handler)
 {
-    m_synthesisJobsPanel->SetOpenFileHandler(std::move(handler));
+    m_synthesisJobsPanel->SetOpenFileHandler(handler);
+    if (m_routeJobsPanel) m_routeJobsPanel->SetOpenFileHandler(handler);
 }
 
 void FpgaToolWindow::SetSynthesisStartHandler(std::function<void()> handler)
@@ -324,6 +340,34 @@ void FpgaToolWindow::SetSynthesisRetryHandler(std::function<void(const wxString&
 void FpgaToolWindow::SetRouteStartHandler(std::function<void()> handler)
 {
     m_routeStartHandler = std::move(handler);
+}
+
+void FpgaToolWindow::SetRouteCancelHandler(std::function<void()> handler)
+{
+    m_routeCancelHandler = std::move(handler);
+}
+
+void FpgaToolWindow::SetRouteRetryHandler(std::function<void(const wxString&)> handler)
+{
+    m_routeRetryHandler = std::move(handler);
+    if (m_routeJobsPanel) m_routeJobsPanel->SetRetryHandler(m_routeRetryHandler);
+}
+
+void FpgaToolWindow::SetRouteActiveJob(const wxString& jobId)
+{
+    m_activeNextpnrJobId = jobId;
+    // 立即同步到面板，防止定时器误将 running job 当做僵尸进程回收
+    if (m_routeJobsPanel) {
+        m_routeJobsPanel->SetProjectContext(m_projectPath, m_activeNextpnrJobId);
+    }
+}
+
+void FpgaToolWindow::RefreshRouteJobs()
+{
+    if (m_routeJobsPanel) {
+        m_routeJobsPanel->SetProjectContext(m_projectPath, m_activeNextpnrJobId);
+        m_routeJobsPanel->RefreshJobs();
+    }
 }
 
 void FpgaToolWindow::SetProgramStartHandler(std::function<void(const wxString&)> handler)
@@ -355,7 +399,9 @@ void FpgaToolWindow::UpdateNextpnrInfo()
             wxDir directory(yosysDirectory);
             wxString name;
             if (directory.GetFirst(&name, "*.json", wxDIR_FILES)) {
-                do { ++count; } while (directory.GetNext(&name));
+                do {
+                    if (!name.Lower().Contains("manifest")) ++count;
+                } while (directory.GetNext(&name));
             }
         }
         if (count > 0) {

@@ -92,8 +92,6 @@
     </ClCompile>
     <ClCompile Include="fpga\FpgaSynthesisJobsPanel.cpp" />
     <ClCompile Include="fpga\FpgaToolWindow.cpp" />
-    <ClCompile Include="BuildProgressBar.cpp" />
-    <ClCompile Include="parse_progress.cpp" />
     <ClCompile Include="MainFrame.cpp">
       <Filter>源文件\gui</Filter>
     </ClCompile>
@@ -215,6 +213,24 @@
     <ClCompile Include="ProjectStartWindow.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="Fpga\NextpnrLogParser.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Fpga\NextpnrReport.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="fpga\CstValidator.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="fpga\NextpnrExecutor.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="fpga\NextpnrJob.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="fpga\NextpnrJobsPanel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="my_log.h">
@@ -248,8 +264,6 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="FpgaYosysExecutor.h" />
-    <ClInclude Include="BuildProgressBar.h" />
-    <ClInclude Include="parse_progress.h" />
     <ClInclude Include="fpga\FpgaPinData.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -384,6 +398,24 @@
     </ClInclude>
     <ClInclude Include="ProjectStartWindow.h">
       <Filter>头文件\gui</Filter>
+    </ClInclude>
+    <ClInclude Include="Fpga\NextpnrLogParser.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Fpga\NextpnrReport.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="fpga\CstValidator.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="fpga\NextpnrExecutor.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="fpga\NextpnrJob.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="fpga\NextpnrJobsPanel.h">
+      <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

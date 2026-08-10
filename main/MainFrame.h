@@ -19,7 +19,6 @@
 #include "SFNPropertyPanel.h"
 #include "Simulation/SimulationEngine.h"
 #include "fpga/FpgaPinBindingPanel.h"
-#include "BuildProgressBar.h"
 
 #include "TerminalCtrl.h"
 
@@ -33,6 +32,7 @@ class Structuring;
 class VerilogManager;
 class WavePanel;
 class YosysExecutor;
+class NextpnrExecutor;
 class FpgaToolWindow;
 enum class FpgaToolPage;
 
@@ -59,9 +59,12 @@ private:
     FpgaPinBindingPanel* m_fpgaPinBindingPanel;
     FpgaToolWindow* m_fpgaToolWindow;
     TerminalCtrl* m_terminalCtrl;
-    BuildProgressBar* m_buildProgressBar = nullptr;  // VS 风格编译进度条
     WavePanel* m_wavePanel;
     std::unique_ptr<YosysExecutor> m_yosysExecutor;
+    std::unique_ptr<NextpnrExecutor> m_nextpnrExecutor;
+    wxString m_activeNextpnrJobId;
+    bool m_routeCancelRequested = false;
+    wxString m_pendingNextpnrRetryOf;
     wxString m_activeYosysJobId;
     wxString m_pendingYosysRetryOf;
 
@@ -76,8 +79,6 @@ private:
     void RunFpgaSynthesis();
     void RunFpgaRoute();
     void RunFpgaProgram(const wxString& bitstreamPath);
-    // 终止由 LaunchFpgaTool 启动的异步工具进程（进度条取消用）
-    void KillAsyncToolProcess(long processId);
     // 声明事件处理函数
     void OnAnalysisComplete(wxThreadEvent& event);
 
@@ -171,6 +172,7 @@ public:
     void DoFpgaOpenSynthesisReport();
     void DoFpgaRetrySynthesis();
     void DoFpgaRoute();
+    void DoFpgaCancelRoute();
     void DoFpgaProgram();
     void DoFpgaPinBinding();
 

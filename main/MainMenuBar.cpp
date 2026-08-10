@@ -86,6 +86,7 @@ EVT_MENU(wxID_HIGHEST + 234, MainMenuBar::OnFpgaPinBinding)
 EVT_MENU(wxID_HIGHEST + 235, MainMenuBar::OnFpgaShowSynthesisJobs)
 EVT_MENU(wxID_HIGHEST + 236, MainMenuBar::OnFpgaOpenSynthesisReport)
 EVT_MENU(wxID_HIGHEST + 237, MainMenuBar::OnFpgaRetrySynthesis)
+EVT_MENU(wxID_HIGHEST + 238, MainMenuBar::OnFpgaCancelRoute)
 
 EVT_MENU(wxID_ICONIZE_FRAME, MainMenuBar::OnMinimize)
 EVT_MENU(wxID_MAXIMIZE_FRAME, MainMenuBar::OnMaximize)
@@ -477,6 +478,13 @@ void MainMenuBar::OnFpgaRoute(wxCommandEvent&)
 {
     if (m_owner) {
         m_owner->DoFpgaRoute();
+    }
+}
+
+void MainMenuBar::OnFpgaCancelRoute(wxCommandEvent&)
+{
+    if (m_owner) {
+        m_owner->DoFpgaCancelRoute();
     }
 }
 

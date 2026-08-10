@@ -39,6 +39,9 @@
     <ClCompile Include="FpgaYosysScriptGenerator.cpp" />
     <ClCompile Include="FpgaYosysExecutor.cpp" />
     <ClCompile Include="FpgaYosysRuntime.cpp" />
+    <ClCompile Include="fpga\NextpnrExecutor.cpp" />
+    <ClCompile Include="fpga\NextpnrJob.cpp" />
+    <ClCompile Include="fpga\NextpnrJobsPanel.cpp" />
     <ClCompile Include="fpga\FpgaPinData.cpp" />
     <ClCompile Include="fpga\FpgaConstraint.cpp" />
     <ClCompile Include="fpga\FpgaPinBindingPanel.cpp" />
@@ -72,11 +75,9 @@
     <ClCompile Include="Simulation\StimulusParser.cpp" />
     <ClCompile Include="Simulation\TimelineGenerator.cpp" />
     <ClCompile Include="Simulation\SimMainGenerator.cpp" />
-    <ClCompile Include="fpga\NextpnrLogParser.cpp" />
-    <ClCompile Include="fpga\NextpnrReport.cpp" />
-    <ClCompile Include="fpga\CstValidator.cpp" />
-    <ClCompile Include="BuildProgressBar.cpp" />
-    <ClCompile Include="parse_progress.cpp" />
+    <ClCompile Include="Fpga\NextpnrLogParser.cpp" />
+    <ClCompile Include="Fpga\NextpnrReport.cpp" />
+    <ClCompile Include="Fpga\CstValidator.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\3rd\nanosvg\nanosvg.h" />
@@ -96,6 +97,9 @@
     <ClInclude Include="FpgaYosysScriptGenerator.h" />
     <ClInclude Include="FpgaYosysExecutor.h" />
     <ClInclude Include="FpgaYosysRuntime.h" />
+    <ClInclude Include="fpga\NextpnrExecutor.h" />
+    <ClInclude Include="fpga\NextpnrJob.h" />
+    <ClInclude Include="fpga\NextpnrJobsPanel.h" />
     <ClInclude Include="fpga\FpgaPinData.h" />
     <ClInclude Include="fpga\FpgaConstraint.h" />
     <ClInclude Include="fpga\FpgaPinBindingPanel.h" />
@@ -131,11 +135,9 @@
     <ClInclude Include="Simulation\StimulusParser.h" />
     <ClInclude Include="Simulation\TimelineGenerator.h" />
     <ClInclude Include="Simulation\SimMainGenerator.h" />
-    <ClInclude Include="fpga\NextpnrLogParser.h" />
-    <ClInclude Include="fpga\NextpnrReport.h" />
-    <ClInclude Include="fpga\CstValidator.h" />
-    <ClInclude Include="BuildProgressBar.h" />
-    <ClInclude Include="parse_progress.h" />
+    <ClInclude Include="Fpga\NextpnrLogParser.h" />
+    <ClInclude Include="Fpga\NextpnrReport.h" />
+    <ClInclude Include="Fpga\CstValidator.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

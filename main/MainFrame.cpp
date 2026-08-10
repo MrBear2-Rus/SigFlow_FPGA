@@ -34,7 +34,6 @@
 #include "fpga/FpgaYosysLogParser.h"
 #include "fpga/FpgaYosysReport.h"
 #include "fpga/FpgaToolWindow.h"
-#include "parse_progress.h"
 #include "ToolboxPanel.h"  
 #include "CanvasModel.h"
 #include "my_log.h"
@@ -42,9 +41,11 @@
 #include "VerilogStructuring.h"
 #include "VerilogManager.h"
 #include "WavePanel.h"
-#include "fpga/NextpnrLogParser.h"
-#include "fpga/NextpnrReport.h"
-#include "fpga/CstValidator.h"
+#include "Fpga/NextpnrLogParser.h"
+#include "Fpga/NextpnrReport.h"
+#include "Fpga/CstValidator.h"
+#include "fpga/NextpnrExecutor.h"
+#include "fpga/NextpnrJob.h"
 
 extern std::vector<SecondElement> g_elements;
 extern "C" TSLanguage* tree_sitter_verilog();
@@ -106,17 +107,13 @@ bool WriteUtf8File(const wxString& path, const wxString& content)
 class FpgaToolProcess final : public wxProcess {
 public:
     using CompletionCallback = std::function<void(int exitCode, const wxString& fullOutput)>;
-    // 每收到完整一行 stdout 文本时回调（用于实时进度解析）
-    using LineCallback = std::function<void(const wxString& line)>;
 
     FpgaToolProcess(TerminalCtrl* terminal, const wxString& toolName,
                     std::function<void(int)> onTerminate = nullptr,
-                    CompletionCallback onComplete = nullptr,
-                    LineCallback onLine = nullptr)
+                    CompletionCallback onComplete = nullptr)
         : m_terminal(terminal), m_toolName(toolName),
           m_onTerminate(std::move(onTerminate)),
-          m_onComplete(std::move(onComplete)),
-          m_onLine(std::move(onLine))
+          m_onComplete(std::move(onComplete))
     {
         Redirect();
         m_outputTimer.SetOwner(this);
@@ -176,34 +173,8 @@ private:
             if (bytesRead == 0) {
                 break;
             }
-            const wxString chunk = wxString::FromUTF8(buffer, bytesRead);
-            m_terminal->AppendProcessOutput(chunk);
-            m_outputBuffer += chunk;
-
-            // 行切分：检测完整行并回调（用于实时进度解析）
-            if (m_onLine && !isErrorStream) {
-                m_lineBuffer += chunk;
-                size_t pos = 0;
-                while (true) {
-                    const size_t nl = m_lineBuffer.find(wxT('\n'), pos);
-                    if (nl == wxString::npos) break;
-                    const wxString line = m_lineBuffer.Mid(pos, nl - pos);
-                    if (!line.IsEmpty()) {
-                        m_onLine(line);
-                    }
-                    pos = nl + 1;
-                }
-                // 保留不完整的最后一行
-                if (pos > 0) {
-                    m_lineBuffer = m_lineBuffer.Mid(pos);
-                }
-                // 防止 lineBuffer 无限增长（无换行的长输出场景）
-                if (m_lineBuffer.length() > 8192) {
-                    m_onLine(m_lineBuffer);
-                    m_lineBuffer.clear();
-                }
-            }
-
+            m_terminal->AppendProcessOutput(wxString::FromUTF8(buffer, bytesRead));
+            m_outputBuffer += wxString::FromUTF8(buffer, bytesRead);
             ++chunksRead;
         }
     }
@@ -213,8 +184,6 @@ private:
     std::function<void(int)> m_onTerminate;
     wxString m_outputBuffer;            // 累积全部输出供回调解析
     CompletionCallback m_onComplete;
-    LineCallback m_onLine;              // 逐行回调（实时进度）
-    wxString m_lineBuffer;              // 行缓冲区
     wxTimer m_outputTimer;
 };
 
@@ -365,8 +334,7 @@ long LaunchFpgaTool(const wxString& executable, const std::vector<wxString>& arg
                     const wxString& workingDirectory, TerminalCtrl* terminal,
                     const wxString& toolName,
                     std::function<void(int)> onTerminate = {},
-                    FpgaToolProcess::CompletionCallback onComplete = nullptr,
-                    FpgaToolProcess::LineCallback onLine = nullptr)
+                    FpgaToolProcess::CompletionCallback onComplete = nullptr)
 {
     std::vector<wxString> commandLine;
     commandLine.reserve(arguments.size() + 1);
@@ -383,7 +351,7 @@ long LaunchFpgaTool(const wxString& executable, const std::vector<wxString>& arg
     wxExecuteEnv environment;
     environment.cwd = workingDirectory;
     FpgaToolProcess* process = new FpgaToolProcess(terminal, toolName,
-        std::move(onTerminate), std::move(onComplete), std::move(onLine));
+        std::move(onTerminate), std::move(onComplete));
     const long processId = wxExecute(argv.data(), wxEXEC_ASYNC | wxEXEC_HIDE_CONSOLE, process, &environment);
     if (processId == 0) {
         delete process;
@@ -547,10 +515,16 @@ MainFrame::MainFrame()
     m_verilogMgr = new VerilogManager(m_verilogEditor, sigTree, m_parser);
     m_fpgaToolWindow = new FpgaToolWindow(this);
     m_fpgaToolWindow->SetOpenFileHandler([this](const wxString& path, long line) {
-        DoFileOpen(path);
-        if (line > 0 && m_verilogEditor) {
-            m_verilogEditor->GotoLine(line - 1);
-            m_verilogEditor->SetFocus();
+        wxFileName fn(path);
+        wxString ext = fn.GetExt().Lower();
+        if (ext == "log" || ext == "json" || ext == "analysis" || ext == "rpt" || ext == "txt") {
+            wxLaunchDefaultApplication(path);
+        } else {
+            DoFileOpen(path);
+            if (line > 0 && m_verilogEditor) {
+                m_verilogEditor->GotoLine(line - 1);
+                m_verilogEditor->SetFocus();
+            }
         }
     });
     m_fpgaToolWindow->SetSynthesisStartHandler([this]() { RunFpgaSynthesis(); });
@@ -560,6 +534,11 @@ MainFrame::MainFrame()
         RunFpgaSynthesis();
     });
     m_fpgaToolWindow->SetRouteStartHandler([this]() { RunFpgaRoute(); });
+    m_fpgaToolWindow->SetRouteCancelHandler([this]() { DoFpgaCancelRoute(); });
+    m_fpgaToolWindow->SetRouteRetryHandler([this](const wxString& jobId) {
+        m_pendingNextpnrRetryOf = jobId;
+        RunFpgaRoute();
+    });
     m_fpgaToolWindow->SetProgramStartHandler([this](const wxString& bitstreamPath) {
         RunFpgaProgram(bitstreamPath);
     });
@@ -758,10 +737,6 @@ MainFrame::MainFrame()
     bottomNotebook->AddPage(m_terminalCtrl, "Terminal");
     bottomNotebook->AddPage(m_wavePanel, "Waveform");
 
-    // VS 风格编译进度条（底部薄条，默认隐藏）
-    m_buildProgressBar = new BuildProgressBar(this);
-    m_buildProgressBar->Hide();
-
 
     // 1. 先最大化窗口，确保尺寸基准正确
     this->Maximize(true);
@@ -827,28 +802,6 @@ MainFrame::MainFrame()
         .MaximizeButton(true)
         .CloseButton(false));
 
-    // 进度条薄条（VS 风格，默认隐藏，Bottom-most layer）
-    m_auiMgr.AddPane(m_buildProgressBar, wxAuiPaneInfo()
-        .Name("build_progress")
-        .Bottom()
-        .Layer(9)                          // 高于 bottom_tabs，确保可见
-        .MinSize(-1, FromDIP(28))
-        .BestSize(-1, FromDIP(28))
-        .CaptionVisible(false)
-        .CloseButton(false)
-        .Gripper(false)
-        .PaneBorder(false)
-        .Fixed()
-        .Movable(false)
-        .Hide());                          // 默认隐藏
-
-    // 绑定 AUI 可见性：进度条 Show/Hide → AUI pane Show/Hide
-    m_buildProgressBar->SetVisibilityCallback([this](bool visible) {
-        wxAuiPaneInfo& pane = m_auiMgr.GetPane("build_progress");
-        if (visible) pane.Show(); else pane.Hide();
-        m_auiMgr.Update();
-    });
-
     m_auiMgr.AddPane(mainSplitter, wxAuiPaneInfo()
         .Name("center_area")
         .CenterPane()       // 设为中心区域
@@ -888,7 +841,6 @@ MainFrame::MainFrame()
         });
 
     m_auiMgr.Update();
-
 
 }
 
@@ -2276,16 +2228,6 @@ void MainFrame::ShowFpgaToolWindow(FpgaToolPage page)
     m_fpgaToolWindow->ShowPage(page);
 }
 
-void MainFrame::KillAsyncToolProcess(long processId)
-{
-    if (processId <= 0) return;
-    HANDLE process = OpenProcess(PROCESS_TERMINATE, FALSE, static_cast<DWORD>(processId));
-    if (process) {
-        TerminateProcess(process, 1);
-        CloseHandle(process);
-    }
-}
-
 void MainFrame::DoFpgaSynthesis()
 {
     ShowFpgaToolWindow(FpgaToolPage::Yosys);
@@ -2471,23 +2413,6 @@ void MainFrame::RunFpgaSynthesis()
             "\nCombined log: " + executionConfig.combinedLogPath + "\n");
     }
 
-    // VS 风格进度条：Yosys 综合（6 阶段）
-    if (m_buildProgressBar) {
-        m_buildProgressBar->BeginOperation(wxT("Yosys Synthesis"), 6);
-        m_buildProgressBar->SetCancelCallback([this] {
-            if (m_yosysExecutor &&
-                m_yosysExecutor->GetState() == YosysExecutor::State::Running) {
-                m_yosysExecutor->Cancel();
-                if (m_terminalCtrl) {
-                    m_terminalCtrl->AppendProcessOutput("[Yosys] cancellation requested.\n");
-                }
-                SetStatusText("Yosys synthesis cancellation requested");
-            }
-        });
-    }
-    // 行缓冲区：OutputCallback 在 worker 线程中被调用，shared_ptr 保证生命周期
-    auto progressLineBuf = std::make_shared<wxString>();
-
     const wxWeakRef<MainFrame> frame(this);
     const auto synthesisStart = std::chrono::steady_clock::now();
     m_activeYosysJobId = jobId;
@@ -2498,8 +2423,7 @@ void MainFrame::RunFpgaSynthesis()
     m_yosysExecutor = std::make_unique<YosysExecutor>();
     const bool started = m_yosysExecutor->Execute(
         yosysExecutable, { "-s", scriptPath }, executionConfig,
-        [frame, progressLineBuf](YosysExecutor::OutputStream stream, const wxString& text) {
-            // ── 终端输出（已有逻辑）──
+        [frame](YosysExecutor::OutputStream stream, const wxString& text) {
             if (wxTheApp) {
                 wxTheApp->CallAfter([frame, stream, text] {
                     MainFrame* callbackFrame = frame.get();
@@ -2510,33 +2434,6 @@ void MainFrame::RunFpgaSynthesis()
                         ? wxString("[Yosys stderr] ") : wxString();
                     callbackFrame->m_terminalCtrl->AppendProcessOutput(prefix + text);
                 });
-            }
-            // ── 进度解析（stdout 行切分 + 阶段检测）──
-            if (stream == YosysExecutor::OutputStream::StdOut && wxTheApp) {
-                *progressLineBuf += text;
-                size_t pos = 0;
-                while (true) {
-                    const size_t nl = progressLineBuf->find(wxT('\n'), pos);
-                    if (nl == wxString::npos) break;
-                    const wxString line = progressLineBuf->Mid(pos, nl - pos);
-                    if (!line.IsEmpty()) {
-                        auto hint = ParseYosysProgress(line);
-                        if (hint) {
-                            wxString stageName = hint->stageName;
-                            int stageIndex = hint->stageIndex;
-                            wxTheApp->CallAfter([frame, stageName, stageIndex] {
-                                MainFrame* f = frame.get();
-                                if (f && f->m_buildProgressBar)
-                                    f->m_buildProgressBar->AdvanceStage(stageName, stageIndex);
-                            });
-                        }
-                    }
-                    pos = nl + 1;
-                }
-                if (pos > 0) *progressLineBuf = progressLineBuf->Mid(pos);
-                if (progressLineBuf->length() > 8192) {
-                    progressLineBuf->clear();
-                }
             }
         },
         [frame, projectPath, jobId, jobJsonPath, artifactManifestPath, legacyJsonPath, topModule,
@@ -2642,12 +2539,6 @@ void MainFrame::RunFpgaSynthesis()
                         callbackFrame->m_terminalCtrl->FinishProcessOutput(
                             FpgaYosysReport::GenerateSummary(report));
                     }
-                    // ── 进度条：完成 ──
-                    if (callbackFrame->m_buildProgressBar) {
-                        const bool success = (finalState == SynthesisJobState::Succeeded);
-                        callbackFrame->m_buildProgressBar->FinishOperation(success,
-                            success ? wxT("Synthesis completed") : wxT("Synthesis failed"));
-                    }
                     callbackFrame->SetStatusText(finalState == SynthesisJobState::Succeeded
                         ? "Yosys synthesis completed" : "Yosys synthesis did not complete");
                     if (callbackFrame->m_projectTreePanel) {
@@ -2680,8 +2571,6 @@ void MainFrame::RunFpgaSynthesis()
         }
         wxMessageBox("Unable to start Yosys. Check the configured executable path.",
                      "FPGA Synthesis", wxOK | wxICON_ERROR, this);
-        if (m_buildProgressBar)
-            m_buildProgressBar->FinishOperation(false, wxT("Synthesis failed"));
         return;
     }
 
@@ -2716,6 +2605,42 @@ void SaveYosysDiagnosticReport(const SynthesisJobPaths& paths, const wxString& j
     wxString ignoredError;
     FpgaYosysReport::Save(report, paths.reports + "\\synthesis.analysis.json",
                           paths.reports + "\\synthesis.summary.md", ignoredError);
+}
+
+void SaveNextpnrDiagnosticReport(const wxString& projectPath, int exitCode,
+                                  const wxString& combinedLog,
+                                  const wxString& fallbackMessage,
+                                  const wxString& reportPath = wxEmptyString)
+{
+    const wxString reportDir = reportPath.IsEmpty()
+        ? projectPath + "\\nextpnr"
+        : reportPath.BeforeLast('\\');
+    if (!wxDir::Exists(reportDir)) {
+        wxFileName::Mkdir(reportDir, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
+    }
+
+    NextpnrRunRecord record;
+    record.exitCode = exitCode;
+    record.toolName = "nextpnr-himbaechel";
+    record.stdoutRaw = combinedLog;
+    record.workingDir = reportDir;
+
+    NextpnrLogParser parser;
+    parser.Parse(combinedLog, wxEmptyString, record);
+
+    if (!fallbackMessage.IsEmpty() && record.classifiedErrors.empty()) {
+        NextpnrLogEvent fallback;
+        fallback.rawLine = fallbackMessage;
+        fallback.category = "error";
+        fallback.chineseDesc = fallbackMessage;
+        record.classifiedErrors.push_back(fallback);
+    }
+
+    NextpnrReport report;
+    const wxString outputPath = reportPath.IsEmpty()
+        ? reportDir + "\\route.analysis.json"
+        : reportPath;
+    report.SaveReport(record, outputPath);
 }
 
 void MainFrame::DoFpgaCancelSynthesis()
@@ -2753,11 +2678,45 @@ void MainFrame::DoFpgaRoute()
     ShowFpgaToolWindow(FpgaToolPage::Nextpnr);
 }
 
+void MainFrame::DoFpgaCancelRoute()
+{
+    if (!m_nextpnrExecutor) {
+        wxMessageBox("There is no active nextpnr place and route job to cancel.",
+                     "FPGA Place and Route", wxOK | wxICON_INFORMATION, this);
+        return;
+    }
+    if (m_nextpnrExecutor->GetState() == NextpnrExecutor::State::Running) {
+        m_nextpnrExecutor->Cancel();
+        if (m_terminalCtrl) {
+            m_terminalCtrl->AppendProcessOutput("[nextpnr] cancellation requested.\n");
+        }
+        SetStatusText("nextpnr place and route cancellation requested");
+        return;
+    }
+    // 进程还没启动（Idle）：标记取消，RunFpgaRoute 会检查并中止
+    if (m_nextpnrExecutor->GetState() == NextpnrExecutor::State::Idle) {
+        m_routeCancelRequested = true;
+        SetStatusText("nextpnr place and route cancelled before start");
+        return;
+    }
+    // 进程已结束
+    wxMessageBox("The nextpnr process has already completed.",
+                 "FPGA Place and Route", wxOK | wxICON_INFORMATION, this);
+}
+
 void MainFrame::RunFpgaRoute()
 {
+    m_routeCancelRequested = false;
+
     if (m_currentProjectPath.IsEmpty()) {
         wxMessageBox("Open a project before running FPGA place and route.", "FPGA Place and Route",
                      wxOK | wxICON_WARNING, this);
+        return;
+    }
+
+    if (m_nextpnrExecutor && m_nextpnrExecutor->GetState() == NextpnrExecutor::State::Running) {
+        wxMessageBox("A nextpnr place and route job is already running.",
+                     "FPGA Place and Route", wxOK | wxICON_WARNING, this);
         return;
     }
 
@@ -2807,6 +2766,22 @@ void MainFrame::RunFpgaRoute()
         return;
     }
 
+    // ── nextpnr 运行时环境检查 ──
+    {
+        const wxString exeDir = wxFileName(nextpnrExecutable).GetPath();
+        const wxString shareDir = exeDir + "\\..\\share";
+        NextpnrRuntimeReport rtReport = ValidateNextpnrRuntime(nextpnrExecutable, shareDir);
+        if (m_terminalCtrl) {
+            m_terminalCtrl->PrintOutput(rtReport.FormatForTerminal());
+        }
+        if (!rtReport.valid) {
+            wxMessageBox(rtReport.FormatForTerminal(),
+                         "FPGA Place and Route",
+                         wxOK | wxICON_ERROR, this);
+            return;
+        }
+    }
+
     const wxString yosysJson = yosysDirectory + "\\" + topModule + ".json";
     if (!wxFileExists(yosysJson)) {
         wxMessageBox("The Tang Nano 9K netlist was not found:\n" + yosysJson +
@@ -2824,119 +2799,281 @@ void MainFrame::RunFpgaRoute()
         return;
     }
 
-    // ── 构建 nextpnr 参数（先做占位符替换）──
-    const std::vector<wxString> defaultNextpnrArgs = {
-        "--json", "${yosys_json}",
-        "--write", "${nextpnr_dir}/" + topModule + ".pnr.json",
-        "--device", targetProfile.device,
-        "--vopt", "family=" + targetProfile.family,
-    };
-    const std::vector<wxString>& configuredArgs =
-        options.nextpnrArgs.empty() ? defaultNextpnrArgs : options.nextpnrArgs;
-    std::vector<wxString> arguments;
-    arguments.reserve(configuredArgs.size() + 2);
-
-    // ── CST 自动解析与校验 ──
-    wxString resolvedCst;
-    {
-        wxString configuredCstPath;
-        for (wxString argument : configuredArgs) {
-            argument.Replace("${yosys_json}", yosysJson);
-            argument.Replace("${nextpnr_dir}", nextpnrDirectory);
-            if (argument.StartsWith(wxT("cst="))) {
-                configuredCstPath = argument.Mid(4);
+    // ── 提取用户配置的 CST 路径 ──
+    wxString configuredCstPath;
+    if (!options.nextpnrArgs.empty()) {
+        for (const auto& arg : options.nextpnrArgs) {
+            if (arg.StartsWith(wxT("cst="))) {
+                configuredCstPath = arg.Mid(4);
+                break;
             }
-            arguments.push_back(argument);
         }
-        resolvedCst = CstValidator::AutoResolveCst(m_currentProjectPath, configuredCstPath);
     }
 
-    // 布线前 CST 校验
-    const CstValidationResult cstResult = CstValidator::Validate(resolvedCst);
-    if (!cstResult.valid) {
-        wxMessageBox(
-            wxT("CST 约束文件校验失败:\n\n") + cstResult.errorSummary +
-            wxT("\n请修复 CST 后重试，或运行 FPGA > Pin Constraints 生成约束文件。"),
-            wxT("FPGA Place and Route"), wxOK | wxICON_WARNING, this);
+    // ── 创建 Nextpnr job ──
+    NextpnrJob routeJob;
+    wxString routeJobId;
+    {
+        NextpnrJobService jobService;
+        NextpnrJobRequest jobRequest;
+        jobRequest.projectPath = m_currentProjectPath;
+        jobRequest.topModule = topModule;
+        jobRequest.targetProfileId = options.targetProfileId;
+        jobRequest.retryOf = m_pendingNextpnrRetryOf;
+        jobRequest.jsonPath = yosysJson;
+        jobRequest.cstPath = configuredCstPath;
+        jobRequest.deviceName = targetProfile.device;
+        jobRequest.familyName = targetProfile.family;
+        m_pendingNextpnrRetryOf.clear();
+
+        wxString jobError;
+        if (jobService.Create(jobRequest, routeJob, jobError)) {
+            routeJobId = routeJob.id;
+            m_activeNextpnrJobId = routeJobId;
+            if (m_fpgaToolWindow) m_fpgaToolWindow->SetRouteActiveJob(routeJobId);
+            jobService.Transition(m_currentProjectPath, routeJobId, NextpnrJobState::Validating,
+                                  "Validating nextpnr inputs.", 0, jobError);
+        }
+    }
+
+    // ── 使用 NextpnrExecutor 做校验和参数构建 ──
+    m_nextpnrExecutor = std::make_unique<NextpnrExecutor>();
+    NextpnrExecuteRequest req;
+    req.projectPath = m_currentProjectPath;
+    req.topModule = topModule;
+    req.jsonPath = yosysJson;
+    req.configuredCstPath = configuredCstPath;
+    req.deviceName = targetProfile.device;
+    req.familyName = targetProfile.family;
+    req.executablePath = nextpnrExecutable;
+    req.outputDirectory = nextpnrDirectory;
+
+    wxString prepError;
+    if (!m_nextpnrExecutor->Prepare(req, prepError)) {
+        if (!routeJobId.IsEmpty()) {
+            wxString ignoreError;
+            NextpnrJobService().Transition(m_currentProjectPath, routeJobId,
+                NextpnrJobState::Failed, prepError, -1, ignoreError);
+        }
+        SaveNextpnrDiagnosticReport(m_currentProjectPath, -1, wxEmptyString, prepError);
+        wxMessageBox(prepError, wxT("FPGA Place and Route"), wxOK | wxICON_ERROR, this);
         if (m_terminalCtrl) {
-            m_terminalCtrl->PrintOutput(
-                wxT("[nextpnr] Blocked: CST validation failed.\n") + cstResult.errorSummary + wxT("\n"));
+            m_terminalCtrl->PrintOutput(wxT("[nextpnr] Blocked: ") + prepError + wxT("\n"));
+        }
+        m_nextpnrExecutor.reset();
+        m_activeNextpnrJobId.clear();
+        if (m_fpgaToolWindow && m_fpgaToolWindow->IsShown()) {
+            m_fpgaToolWindow->SetProjectContext(m_currentProjectPath, wxEmptyString);
         }
         return;
     }
 
-    // 确保 CST 被注入参数列表
-    {
+    // ── 构建最终参数列表 ──
+    std::vector<wxString> arguments;
+    if (options.nextpnrArgs.empty()) {
+        arguments = m_nextpnrExecutor->GetArguments();
+    } else {
+        // 用户自定义参数：做占位符替换，并确保 CST 在列表中
+        arguments.reserve(options.nextpnrArgs.size() + 2);
         bool hasCst = false;
-        for (const auto& arg : arguments) {
-            if (arg.StartsWith(wxT("cst="))) { hasCst = true; break; }
+        for (auto arg : options.nextpnrArgs) {
+            arg.Replace("${yosys_json}", yosysJson);
+            arg.Replace("${nextpnr_dir}", nextpnrDirectory);
+            if (arg.StartsWith(wxT("cst="))) { hasCst = true; }
+            arguments.push_back(arg);
         }
         if (!hasCst) {
             arguments.push_back(wxT("--vopt"));
-            arguments.push_back(wxT("cst=") + resolvedCst);
+            arguments.push_back(wxT("cst=") + req.configuredCstPath);
         }
     }
 
-    // 进度条：nextpnr P&R
-    if (m_buildProgressBar) {
-        m_buildProgressBar->BeginOperation(wxT("nextpnr Place and Route"), 4);
-    }
-    auto onNextpnrLine = [this](const wxString& line) {
-        if (!m_buildProgressBar) return;
-        auto hint = ParseNextpnrProgress(line);
-        if (hint) {
-            m_buildProgressBar->AdvanceStage(hint->stageName, hint->stageIndex);
-        } else {
-            m_buildProgressBar->Pulse();
-        }
-    };
+    // ── 配置执行参数 ──
+    NextpnrExecutor::Config execConfig;
+    execConfig.workingDirectory = nextpnrDirectory;
+    execConfig.combinedLogPath = nextpnrDirectory + "\\nextpnr.combined.log";
 
-    // nextpnr 完成后的分析回调
-    TerminalCtrl* terminalPtr = m_terminalCtrl;
-    const wxString reportDir = nextpnrDirectory;
-    const wxString topModuleName = topModule;
-    MainFrame* self = this;
-    FpgaToolProcess::CompletionCallback onComplete =
-        [terminalPtr, reportDir, topModuleName, self](int exitCode, const wxString& fullOutput) {
-            if (!terminalPtr) return;
-            NextpnrRunRecord record;
-            record.exitCode = exitCode;
-            record.toolName = wxT("nextpnr-himbaechel");
-            record.stdoutRaw = fullOutput;
-            NextpnrLogParser parser;
-            parser.Parse(fullOutput, wxEmptyString, record);
-            NextpnrReport report;
-            terminalPtr->PrintOutput(report.FormatSummary(record));
-            if (!reportDir.IsEmpty()) {
-                report.SaveReport(record, reportDir + wxT("\\") + topModuleName + wxT(".analysis.json"));
-            }
-            // 通知进度条
-            self->CallAfter([self, exitCode] {
-                if (self->m_buildProgressBar)
-                    self->m_buildProgressBar->FinishOperation(exitCode == 0,
-                        exitCode == 0 ? wxT("Place and Route completed")
-                                      : wxT("Place and Route failed"));
-            });
-        };
-    const long processId =
-        LaunchFpgaTool(nextpnrExecutable, arguments, nextpnrDirectory, m_terminalCtrl, "nextpnr",
-                       {}, std::move(onComplete), std::move(onNextpnrLine));
-    if (processId == 0) {
-        wxMessageBox("Unable to start nextpnr. Check the configured executable path and arguments.",
-                     "FPGA Place and Route", wxOK | wxICON_ERROR, this);
-        if (m_buildProgressBar)
-            m_buildProgressBar->FinishOperation(false, wxT("Place and Route failed"));
+    // Transition → Queued → Running
+    if (!routeJobId.IsEmpty()) {
+        wxString ignoreError;
+        NextpnrJobService().Transition(m_currentProjectPath, routeJobId,
+            NextpnrJobState::Queued, "Ready to launch.", 0, ignoreError);
+        NextpnrJobService().Transition(m_currentProjectPath, routeJobId,
+            NextpnrJobState::Running, "Process started.", 0, ignoreError);
+    }
+
+    // 在启动进程前先刷新面板，让用户看到 Running 状态
+    if (m_fpgaToolWindow && m_fpgaToolWindow->IsShown()) {
+        m_fpgaToolWindow->RefreshRouteJobs();
+    }
+
+    if (m_terminalCtrl) {
+        m_terminalCtrl->BeginProcessOutput("nextpnr-himbaechel place and route");
+    }
+
+    // 检查用户在初始化阶段是否点了 Cancel
+    if (m_routeCancelRequested) {
+        if (!routeJobId.IsEmpty()) {
+            wxString ignoreError;
+            NextpnrJobService().Transition(m_currentProjectPath, routeJobId,
+                NextpnrJobState::Cancelled, "Cancelled before process start.", -1, ignoreError);
+        }
+        m_nextpnrExecutor.reset();
+        m_activeNextpnrJobId.clear();
+        if (m_fpgaToolWindow && m_fpgaToolWindow->IsShown()) {
+            m_fpgaToolWindow->RefreshRouteJobs();
+        }
         return;
     }
-    if (m_buildProgressBar) {
-        m_buildProgressBar->SetCancelCallback([this, processId] {
-            KillAsyncToolProcess(processId);
+
+    wxWeakRef<MainFrame> weakSelf(this);
+    const wxString capturedJobId = routeJobId;
+
+    const bool started = m_nextpnrExecutor->Execute(
+        nextpnrExecutable, arguments, execConfig,
+        // OutputCallback — 实时输出到终端
+        [this](NextpnrExecutor::OutputStream stream, const wxString& text) {
+            wxMutexGuiEnter();
+            if (m_terminalCtrl) {
+                const wxString prefix =
+                    (stream == NextpnrExecutor::OutputStream::StdErr)
+                        ? "[nextpnr stderr] " : "";
+                m_terminalCtrl->AppendProcessOutput(prefix + text);
+            }
+            wxMutexGuiLeave();
+        },
+        // CompletionCallback — 进程结束后做分析（线程安全）
+        [weakSelf, capturedJobId](const NextpnrExecutor::Result& execResult) {
+            wxTheApp->CallAfter([weakSelf, capturedJobId, execResult] {
+                auto self = weakSelf.get();
+                if (!self) return;
+                if (!self->m_nextpnrExecutor) return;
+
+                // 根据 CompletionReason 确定 job 状态
+                NextpnrJobState finalState = NextpnrJobState::Failed;
+                wxString finalMessage;
+                switch (execResult.reason) {
+                case NextpnrExecutor::CompletionReason::Success:
+                    finalState = NextpnrJobState::ValidatingArtifact;
+                    finalMessage = "Nextpnr process completed.";
+                    break;
+                case NextpnrExecutor::CompletionReason::NonZeroExit:
+                    finalState = NextpnrJobState::Failed;
+                    finalMessage = "Nextpnr process exited with non-zero code.";
+                    break;
+                case NextpnrExecutor::CompletionReason::Cancelled:
+                    finalState = NextpnrJobState::Cancelled;
+                    finalMessage = "Nextpnr process was cancelled.";
+                    break;
+                case NextpnrExecutor::CompletionReason::TimedOut:
+                    finalState = NextpnrJobState::TimedOut;
+                    finalMessage = "Nextpnr process timed out.";
+                    break;
+                case NextpnrExecutor::CompletionReason::LaunchFailed:
+                    finalState = NextpnrJobState::Failed;
+                    finalMessage = "Nextpnr process could not be started.";
+                    break;
+                }
+
+                auto jobResult = self->m_nextpnrExecutor->Finalize(
+                    execResult.exitCode, execResult.combinedLog);
+
+                // 产物校验通过才算 Succeeded
+                if (finalState == NextpnrJobState::ValidatingArtifact) {
+                    finalState = jobResult.succeeded
+                        ? NextpnrJobState::Succeeded : NextpnrJobState::Failed;
+                }
+
+                // 保存诊断报告到 job 目录
+                if (finalState != NextpnrJobState::Succeeded || !jobResult.succeeded) {
+                    wxString diagReportPath;
+                    if (!capturedJobId.IsEmpty()) {
+                        diagReportPath = NextpnrJobService::GetPaths(
+                            self->m_currentProjectPath, capturedJobId)
+                            .reports + "\\route.analysis.json";
+                    }
+                    SaveNextpnrDiagnosticReport(self->m_currentProjectPath,
+                        execResult.exitCode, execResult.combinedLog,
+                        jobResult.terminalSummary, diagReportPath);
+                }
+
+                // 复制报告和日志到 job 目录，供面板打开
+                if (!capturedJobId.IsEmpty()) {
+                    NextpnrJobPaths jobPaths = NextpnrJobService::GetPaths(
+                        self->m_currentProjectPath, capturedJobId);
+                    if (wxFileExists(jobResult.analysisJsonPath)) {
+                        wxCopyFile(jobResult.analysisJsonPath,
+                            jobPaths.reports + "\\route.analysis.json");
+                    }
+                    const wxString combinedLogPath =
+                        self->m_currentProjectPath + "\\nextpnr\\nextpnr.combined.log";
+                    if (wxFileExists(combinedLogPath)) {
+                        wxCopyFile(combinedLogPath,
+                            jobPaths.logs + "\\nextpnr.combined.log");
+                    }
+                }
+
+                if (!capturedJobId.IsEmpty()) {
+                    wxString ignoreError;
+                    // 成功时走两步：Running → ValidatingArtifact → Succeeded
+                    // 取消/超时/失败直接一步到位
+                    if (finalState == NextpnrJobState::Succeeded) {
+                        NextpnrJobService().Transition(
+                            self->m_currentProjectPath, capturedJobId,
+                            NextpnrJobState::ValidatingArtifact,
+                            "Validating nextpnr artifact.", 0, ignoreError);
+                    }
+                    NextpnrJobService().Transition(
+                        self->m_currentProjectPath, capturedJobId, finalState,
+                        finalMessage, jobResult.exitCode, ignoreError);
+                }
+
+                if (self->m_terminalCtrl) {
+                    self->m_terminalCtrl->FinishProcessOutput(jobResult.terminalSummary);
+                }
+                self->m_nextpnrExecutor.reset();
+                self->m_activeNextpnrJobId.clear();
+                self->SetStatusText(finalState == NextpnrJobState::Succeeded
+                    ? "nextpnr place and route completed"
+                    : "nextpnr place and route did not complete");
+                if (self->m_projectTreePanel) {
+                    self->m_projectTreePanel->RefreshTree();
+                }
+                if (self->m_fpgaToolWindow && self->m_fpgaToolWindow->IsShown()) {
+                    self->m_fpgaToolWindow->RefreshRouteJobs();
+                }
+            });
         });
+
+    if (!started) {
+        if (m_terminalCtrl) {
+            m_terminalCtrl->FinishProcessOutput("[nextpnr] Failed to start.");
+        }
+        if (!routeJobId.IsEmpty()) {
+            wxString ignoreError;
+            NextpnrJobService().Transition(m_currentProjectPath, routeJobId,
+                NextpnrJobState::Failed, "Unable to start nextpnr.", -1, ignoreError);
+        }
+        SaveNextpnrDiagnosticReport(m_currentProjectPath, -1, wxEmptyString,
+                                     "Unable to start nextpnr-himbaechel.");
+        wxMessageBox("Unable to start nextpnr. Check the configured executable path and arguments.",
+                     "FPGA Place and Route", wxOK | wxICON_ERROR, this);
+        m_nextpnrExecutor.reset();
+        m_activeNextpnrJobId.clear();
+        wxTheApp->CallAfter([this]() {
+            if (m_fpgaToolWindow && m_fpgaToolWindow->IsShown()) {
+                m_fpgaToolWindow->RefreshRouteJobs();
+            }
+        });
+        return;
     }
 
     SetStatusText("nextpnr place and route started");
     if (m_projectTreePanel) {
         m_projectTreePanel->RefreshTree();
+    }
+    if (m_fpgaToolWindow && m_fpgaToolWindow->IsShown()) {
+        m_fpgaToolWindow->RefreshRouteJobs();
     }
 }
 
@@ -2999,32 +3136,12 @@ void MainFrame::RunFpgaProgram(const wxString& bitstreamPath)
     }
 
     const wxString workingDirectory = wxFileName(bitstreamPath).GetPath();
-    // 进度条：烧录（无阶段输出，脉冲模式）
-    if (m_buildProgressBar) {
-        m_buildProgressBar->BeginOperation(wxT("openFPGALoader"), 0);
-    }
-    MainFrame* self = this;
     const long processId = LaunchFpgaTool(
-        loaderExecutable, arguments, workingDirectory, m_terminalCtrl, "openFPGALoader",
-        [self](int status) {
-            self->CallAfter([self, status] {
-                if (self->m_buildProgressBar)
-                    self->m_buildProgressBar->FinishOperation(status == 0,
-                        status == 0 ? wxT("Programming completed")
-                                    : wxT("Programming failed"));
-            });
-        });
+        loaderExecutable, arguments, workingDirectory, m_terminalCtrl, "openFPGALoader");
     if (processId == 0) {
         wxMessageBox("Unable to start openFPGALoader. Check the configured executable path.",
                      "FPGA Program Board", wxOK | wxICON_ERROR, this);
-        if (m_buildProgressBar)
-            m_buildProgressBar->FinishOperation(false, wxT("Programming failed"));
         return;
-    }
-    if (m_buildProgressBar) {
-        m_buildProgressBar->SetCancelCallback([this, processId] {
-            KillAsyncToolProcess(processId);
-        });
     }
 
     SetStatusText("openFPGALoader programming started");
@@ -3210,21 +3327,6 @@ void MainFrame::DoSimCompile()
         OutputDebugStringA("\n");
     });
     
-
-    // VS cfg: Verilator build progress (3 stages: Verilator -> DLL -> Linking)
-    if (m_buildProgressBar) {
-        m_buildProgressBar->BeginOperation(wxT("Verilator Compilation"), 3);
-    }
-    m_simEngine->SetProgressCallback([this](int percent, const wxString&) {
-        if (!m_buildProgressBar) return;
-        if (percent < 55) {
-            m_buildProgressBar->AdvanceStage(wxT("Verilator Processing"), 0);
-        } else if (percent < 85) {
-            m_buildProgressBar->AdvanceStage(wxT("Compiling Module DLL"), 1);
-        } else {
-            m_buildProgressBar->AdvanceStage(wxT("Linking & Finalizing"), 2);
-        }
-    });
     // 6. 执行编译
     auto* menuBar = static_cast<MainMenuBar*>(GetMenuBar());
     menuBar->SetSimulationBusy(true);
@@ -3232,13 +3334,6 @@ void MainFrame::DoSimCompile()
     SimulationCompileResult result = m_simEngine->Compile(topModule, verilogFiles);
     HideBusyIndicator(result.success ? wxT("编译完成") : wxT("编译失败"));
     menuBar->SetSimulationBusy(false);
-
-    // Progress bar: finish
-    if (m_buildProgressBar) {
-        m_buildProgressBar->FinishOperation(result.success,
-            result.success ? wxT("Verilator compilation completed")
-                           : wxT("Verilator compilation failed"));
-    }
     
     // 7. 显示结果 - 使用字符串拼接避免 Printf 问题
     if (result.success) {
