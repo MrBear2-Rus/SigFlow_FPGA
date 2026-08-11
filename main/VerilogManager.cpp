@@ -258,6 +258,110 @@ void VerilogManager::RecoverBreakBlock(Block* b, SigTreeNode* n) {
 }
 
 
+// ============== 异常块管控（HousekeepBlocks 系列） ==============
+// 设计目标：在每次 EditBlock 进入归属判断之前，先把 blocks/break_blocks 中
+// 因 Scintilla marker 行级特性导致的边界异常修复到一致状态。涵盖三类异常：
+//   (1) 死亡：两端 handle 均失效 -> 整体销毁并从 SFTree 中删除节点
+//   (2) 半死亡：一端 handle 失效  -> 销毁失效端，用存活端行号重建，块缩为单行
+//   (3) 单行：startHandle 与 endHandle 同行 -> 销毁旧 endHandle，按事件语义重建
+//        - 若本次为 INSERT 且包含 \n，且修改起始行命中该单行块所在行，则把
+//          endHandle 迁移到 LineFromPosition(pos+len)（块扩展，吸纳新行）
+//        - 否则在同一行 MarkerAdd 一个新的独立 handle（仅 ID 唯一化）
+void VerilogManager::DestroyBlock(Block& b) {
+    // 1) 解除可能指向本块的"游标指针"，防止后续逻辑访问到已销毁块
+    if (recovering_block == &b)   recovering_block = nullptr;
+    if (editing_top_block == &b)  editing_top_block = nullptr;
+
+    // 2) 同步从 SFTree 删除节点（触发 EVT_SIGFLOWNODE_DEL，画布/属性面板/树同步）
+    if (b.self) {
+        SigTreeNode* parent = b.self->GetParent();
+        if (parent) m_tree->RemoveChild(parent, b.self);
+        b.self = nullptr;
+    }
+
+    // 3) 销毁 Scintilla marker handle（对已失效 handle 调用也是安全的）
+    m_stc->MarkerDeleteHandle(b.startHandle);
+    m_stc->MarkerDeleteHandle(b.endHandle);
+    b.startHandle = -1;
+    b.endHandle = -1;
+
+    // 4) 释放 Structuring 缓冲（不从 std::list<Structuring> structures 中 erase，
+    //    避免迭代器额外失效成本；Clear() 后该节点变为空缓冲不会影响其他块）
+    if (b.structure) {
+        b.structure->Clear();
+        b.structure = nullptr;
+    }
+}
+
+void VerilogManager::HousekeepVector(std::vector<Block>& vec,
+                                     int eventType, int pos, int len, int newlineCount) {
+    bool isInsert = (eventType & wxSTC_MOD_INSERTTEXT) != 0;
+    int maxLine = m_stc->GetLineCount() - 1;
+    if (maxLine < 0) maxLine = 0;
+
+    // 反向遍历：erase 当前下标不会让更小下标的元素地址漂移
+    for (int i = static_cast<int>(vec.size()) - 1; i >= 0; --i) {
+        Block& b = vec[i];
+        int s = m_stc->MarkerLineFromHandle(b.startHandle);
+        int e = m_stc->MarkerLineFromHandle(b.endHandle);
+
+        // ----- (1) 死亡：两端 handle 均失效 -----
+        if (s == -1 && e == -1) {
+            DestroyBlock(b);
+            vec.erase(vec.begin() + i);
+            continue;
+        }
+
+        // ----- (2) 半死亡：一端 handle 失效 -----
+        if (s == -1) {
+            m_stc->MarkerDeleteHandle(b.startHandle);
+            b.startHandle = m_stc->MarkerAdd(e, BLOCK_MARKER_ID);
+            s = e;
+        }
+        else if (e == -1) {
+            m_stc->MarkerDeleteHandle(b.endHandle);
+            b.endHandle = m_stc->MarkerAdd(s, BLOCK_MARKER_ID);
+            e = s;
+        }
+
+        // ----- (3) 单行：销毁旧 endHandle 并按事件语义重建 -----
+        if (s == e) {
+            m_stc->MarkerDeleteHandle(b.endHandle);
+
+            int newEndLine = s;
+            if (isInsert && newlineCount > 0) {
+                int evtStartLine = m_stc->LineFromPosition(pos);
+                int evtEndLine = m_stc->LineFromPosition(pos + len);
+                // 仅当本次插入起始行 == 该单行块所在行时，
+                // 才把 endHandle 迁移到新行（块扩展语义）。
+                if (evtStartLine == s) {
+                    newEndLine = evtEndLine;
+                }
+            }
+            if (newEndLine > maxLine) newEndLine = maxLine;
+            if (newEndLine < 0)       newEndLine = 0;
+
+            b.endHandle = m_stc->MarkerAdd(newEndLine, BLOCK_MARKER_ID);
+        }
+        // ----- (4) 多行：handles 自动跟踪，无需干预 -----
+    }
+}
+
+void VerilogManager::HousekeepBlocks(int eventType, int pos, int len, const wxString& text) {
+    // 计算插入/删除文本中的换行数量。仅 INSERT 事件才用于"行末换行扩展"判断；
+    // DELETE 事件下 newlineCount 保持 0，不会触发扩展逻辑。
+    int newlineCount = 0;
+    if (eventType & wxSTC_MOD_INSERTTEXT) {
+        for (size_t i = 0; i < text.size(); ++i) {
+            if (text[i] == wxT('\n')) ++newlineCount;
+        }
+    }
+
+    HousekeepVector(blocks,       eventType, pos, len, newlineCount);
+    HousekeepVector(break_blocks, eventType, pos, len, newlineCount);
+}
+
+
 Block* VerilogManager::FindBlock(int start, int end) {
     int offset = 1;
     // 1. 定义一个 lambda 用于检查行号覆盖逻辑
@@ -306,6 +410,10 @@ Block* VerilogManager::FindBlock(int start, int end) {
     int pos = event.GetPosition();
     int len = event.GetLength();
     wxString text = event.GetText();
+
+    // 先把所有块修复到一致状态：清理死亡块、修复半死亡块、重建/迁移单行块的 endHandle。
+    // 必须在 FindBlock 之前执行，确保归属判断与后续 Structuring 累积都基于干净状态。
+    HousekeepBlocks(type, pos, len, text);
 
     int start = m_stc->LineFromPosition(pos);
     int end = m_stc->LineFromPosition(pos + static_cast<int>(text.size()));
@@ -397,16 +505,44 @@ wxString VerilogManager::GetBlockText(const Block& b) {
 }
 
 void VerilogManager::Print() {
-    for (auto b : blocks) {
-        wxString info = wxString::Format("Block: %d - %d, Node: %s\n", GetLine(b.startHandle), GetLine(b.endHandle), b.self->GetName());
+    // 调试日志：输出每个 Block 的 handle ID + Scintilla 原始行号 + 状态标签，
+    // 便于回归 "Block 3 起始单行 / Block 2 编辑缩成单行 / 整块删除" 等用例。
+    auto stateTag = [](int s, int e) -> const char* {
+        if (s == -1 && e == -1) return "[DEAD]";
+        if (s == -1 || e == -1) return "[HALF]";
+        if (s == e)             return "[SINGLE]";
+        return "[MULTI]";
+    };
+
+    OutputDebugStringA("---- VerilogManager::Print ----\n");
+    for (auto& b : blocks) {
+        int s = m_stc->MarkerLineFromHandle(b.startHandle);
+        int e = m_stc->MarkerLineFromHandle(b.endHandle);
+        wxString info = wxString::Format(
+            "Block %s sH=%d (line=%d) eH=%d (line=%d) Node=%s\n",
+            stateTag(s, e),
+            b.startHandle, s,
+            b.endHandle,   e,
+            b.self ? b.self->GetName() : "<null>");
         OutputDebugStringA(info);
     }
 
-    for (auto b : break_blocks) {
-        wxString code = m_stc->GetTextRange(b.structure->Start(), b.structure->End());
-        wxString info = wxString::Format("Break_Block: %d - %d\n\tCode: %s\n", GetLine(b.startHandle), GetLine(b.endHandle), code);
+    for (auto& b : break_blocks) {
+        int s = m_stc->MarkerLineFromHandle(b.startHandle);
+        int e = m_stc->MarkerLineFromHandle(b.endHandle);
+        wxString code = b.structure
+            ? m_stc->GetTextRange(b.structure->Start(), b.structure->End())
+            : wxString("<no-structure>");
+        wxString info = wxString::Format(
+            "BreakBlock %s sH=%d (line=%d) eH=%d (line=%d)\n\tCode: %s\n",
+            stateTag(s, e),
+            b.startHandle, s,
+            b.endHandle,   e,
+            code);
         OutputDebugStringA(info);
     }
+    OutputDebugStringA(wxString::Format("blocks=%zu break_blocks=%zu structures=%zu\n",
+                                        blocks.size(), break_blocks.size(), structures.size()));
 }
 
 void VerilogManager::SigFlowNodeAdded(SigTreeNode* node) {
