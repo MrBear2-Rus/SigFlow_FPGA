@@ -91,6 +91,8 @@ private:
     void AddWireNode(wxXmlNode* parent, const wxString& from, const wxString& to);
     bool SaveAsNodeFile(const wxString& filePath);
     bool SaveAsNetFile(const wxString& filePath);
+    bool ConfirmCurrentWorkBeforeProjectSwitch();
+    void ResetCurrentDocumentForProjectSwitch();
     void OnClose(wxCloseEvent& event);
     void OnToolSelected(wxCommandEvent& evt);
 
@@ -107,11 +109,11 @@ public:
     void DoFileOpenProject();
     bool DoFileNew();
     void DoFileOpen(const wxString& path = {});
-    void DoFileSave();
-    void DoFileSaveAs();
+    bool DoFileSave();
+    bool DoFileSaveAs();
     void DoFileSaveAsNode();  // 另存为.node文件
     void DoFileSaveAsNet();   // 另存为.net文件
-    void OnQuit(wxCommandEvent&) { Close(true); }
+    void OnQuit(wxCommandEvent&) { Close(); }
     void OnAbout(wxCommandEvent&);
 
     /* Edit 菜单业务接口 */

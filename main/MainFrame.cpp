@@ -846,10 +846,17 @@ MainFrame::MainFrame()
 
 MainFrame::~MainFrame()
 {
+    // 管理器仍持有编辑器事件绑定，必须在窗口销毁前先解除并释放它。
+    delete m_verilogMgr;
+    m_verilogMgr = nullptr;
+    if (m_parser) {
+        ts_parser_delete(m_parser);
+        m_parser = nullptr;
+    }
+
     m_auiMgr.UnInit(); 
 
     m_verilogEditor = nullptr;
-    m_auiMgr.UnInit();
 }
 
 void MainFrame::OnToolboxElement(wxCommandEvent& evt)
@@ -871,19 +878,14 @@ bool MirrorDirectory(const wxString& source, const wxString& dest) {
     if (!dir.IsOpened()) return false;
 
     wxString filename;
-    // 1. 复制所有文件（先删除目标文件，防止只读属性导致 CopyFile 失败）
+    // 1. 复制所有文件。任何失败都必须向上传播。
     bool cont = dir.GetFirst(&filename, wxEmptyString, wxDIR_FILES);
     while (cont) {
         wxString srcFile = source + wxFileName::GetPathSeparator() + filename;
         wxString dstFile = dest + wxFileName::GetPathSeparator() + filename;
 
-        // 目标文件已存在时，先尝试删除（处理只读情况）
-        if (wxFile::Exists(dstFile)) {
-            wxRemoveFile(dstFile);
-        }
-
-        if (!wxCopyFile(srcFile, dstFile, false)) {
-            wxLogError("Failed to copy '%s' to '%s'", srcFile, dstFile);
+        if (!wxCopyFile(srcFile, dstFile, true)) {
+            return false;
         }
         cont = dir.GetNext(&filename);
     }
@@ -892,8 +894,10 @@ bool MirrorDirectory(const wxString& source, const wxString& dest) {
     cont = dir.GetFirst(&filename, wxEmptyString, wxDIR_DIRS);
     while (cont) {
         if (filename != ".sigflow" && filename != ".git" && filename != ".cache") {
-            MirrorDirectory(source + wxFileName::GetPathSeparator() + filename,
-                dest + wxFileName::GetPathSeparator() + filename);
+            if (!MirrorDirectory(source + wxFileName::GetPathSeparator() + filename,
+                                 dest + wxFileName::GetPathSeparator() + filename)) {
+                return false;
+            }
         }
         cont = dir.GetNext(&filename);
     }
@@ -946,6 +950,68 @@ void MainFrame::DoFileOpenProject() {
 
     if (dlg.ShowModal() == wxID_OK) {
         wxString path = dlg.GetPath();
+
+        // 在替换当前工程状态前先检查 manifest 和所有源文件，失败时保留旧工程。
+        const wxString manifestPath =
+            path + wxFileName::GetPathSeparator() + "sigflow.project";
+        wxFile manifestFile(manifestPath, wxFile::read);
+        wxString manifestContent;
+        if (!manifestFile.IsOpened() || !manifestFile.ReadAll(&manifestContent)) {
+            wxMessageBox("The selected folder does not contain a readable sigflow.project file.",
+                         "Open Project", wxOK | wxICON_ERROR, this);
+            return;
+        }
+        const wxScopedCharBuffer manifestUtf8 = manifestContent.ToUTF8();
+        Json::Value manifestRoot;
+        Json::CharReaderBuilder manifestBuilder;
+        std::string manifestErrors;
+        std::unique_ptr<Json::CharReader> manifestReader(manifestBuilder.newCharReader());
+        if (!manifestUtf8.data() ||
+            !manifestReader->parse(manifestUtf8.data(),
+                                   manifestUtf8.data() + manifestUtf8.length(),
+                                   &manifestRoot, &manifestErrors) ||
+            !manifestRoot.isObject()) {
+            wxMessageBox(wxString("Invalid sigflow.project: ") +
+                             wxString::FromUTF8(manifestErrors),
+                         "Open Project", wxOK | wxICON_ERROR, this);
+            return;
+        }
+
+        const Json::Value& sourceFiles = manifestRoot["paths"]["source_files"];
+        if (!sourceFiles.isArray()) {
+            wxMessageBox("sigflow.project must contain a paths.source_files array.\n\n"
+                         "The current project was not changed.",
+                         "Open Project", wxOK | wxICON_ERROR, this);
+            return;
+        }
+
+        for (const Json::Value& sourceEntry : sourceFiles) {
+            if (!sourceEntry.isString() || sourceEntry.asString().empty()) {
+                wxMessageBox("sigflow.project contains an invalid source file entry.\n\n"
+                             "The current project was not changed.",
+                             "Open Project", wxOK | wxICON_ERROR, this);
+                return;
+            }
+
+            wxFileName sourceFileName(wxString::FromUTF8(sourceEntry.asString()));
+            if (sourceFileName.IsRelative()) {
+                sourceFileName.MakeAbsolute(path);
+            }
+            const wxString sourcePath = sourceFileName.GetFullPath();
+            wxFile sourceFile(sourcePath, wxFile::read);
+            if (!sourceFile.IsOpened()) {
+                wxMessageBox("The project references a source file that cannot be read:\n" +
+                                 sourcePath +
+                                 "\n\nThe current project was not changed.",
+                             "Open Project", wxOK | wxICON_ERROR, this);
+                return;
+            }
+        }
+
+        if (!ConfirmCurrentWorkBeforeProjectSwitch()) {
+            return;
+        }
+        ResetCurrentDocumentForProjectSwitch();
 
         wxProgressDialog progress("Loading Project", "Initializing...",
             100, this,
@@ -1213,6 +1279,7 @@ bool MainFrame::DoFileNew() {
     // 3) Build project path and check
     wxFileName fn(parent, projName);
     wxString projPath = fn.GetFullPath();
+    const bool collidesWithFile = wxFileExists(projPath);
     if (wxDirExists(projPath)) {
         wxDir dir(projPath);
         wxString anyName;
@@ -1223,15 +1290,25 @@ bool MainFrame::DoFileNew() {
             if (res != wxYES) return false;
         }
     }
-    else if (wxFileExists(projPath)) {
+    else if (collidesWithFile) {
         int res = wxMessageBox("A file with the same name exists. Overwrite?", "Confirm",
             wxYES_NO | wxICON_QUESTION, this);
         if (res != wxYES) return false;
-        wxRemoveFile(projPath);
+    }
+
+    if (!ConfirmCurrentWorkBeforeProjectSwitch()) {
+        return false;
+    }
+
+    if (collidesWithFile && !wxRemoveFile(projPath)) {
+        wxMessageBox("Failed to remove the file that blocks the new project path.",
+                     "New Project", wxOK | wxICON_ERROR, this);
+        return false;
     }
 
     // 4) Create directory structure
-    if (!wxFileName::Mkdir(projPath, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL)) {
+    if (!wxDirExists(projPath) &&
+        !wxFileName::Mkdir(projPath, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL)) {
         wxMessageBox("Failed to create project folder", "Error", wxOK | wxICON_ERROR, this);
         return false;
     }
@@ -1240,10 +1317,14 @@ bool MainFrame::DoFileNew() {
     wxString sigflowDir = projPath + wxFileName::GetPathSeparator() + ".sigflow";
     wxString workspaceDir = sigflowDir + wxFileName::GetPathSeparator() + "workspace";
     wxString simDir = sigflowDir + wxFileName::GetPathSeparator() + "sim";
-    wxFileName::Mkdir(srcDir, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
-    wxFileName::Mkdir(libDir, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
-    wxFileName::Mkdir(workspaceDir, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
-    wxFileName::Mkdir(simDir, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
+    for (const wxString& directory : { srcDir, libDir, workspaceDir, simDir }) {
+        if (!wxDirExists(directory) &&
+            !wxFileName::Mkdir(directory, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL)) {
+            wxMessageBox(wxString("Failed to create project directory: ") + directory,
+                         "New Project", wxOK | wxICON_ERROR, this);
+            return false;
+        }
+    }
 
     // 5) Create a minimal sigflow.project JSON
     wxString projectJson =
@@ -1261,30 +1342,32 @@ bool MainFrame::DoFileNew() {
         "  }\n"
         "}\n";
     wxString projFile = projPath + wxFileName::GetPathSeparator() + "sigflow.project";
-    wxFile pfile;
-    if (pfile.Open(projFile, wxFile::write)) {
-        pfile.Write(projectJson);
-        pfile.Close();
+    if (!WriteUtf8File(projFile, projectJson)) {
+        wxMessageBox(wxString("Failed to write project configuration: ") + projFile,
+                     "New Project", wxOK | wxICON_ERROR, this);
+        return false;
     }
 
     // 6) Create a sample top Verilog file to get started
     wxString sampleTop = srcDir + wxFileName::GetPathSeparator() + "top.v";
-    wxFile sampleFile;
-    if (sampleFile.Open(sampleTop, wxFile::write)) {
-        wxString sampleCode = "module top();\n    // TODO: add signals and logic\nendmodule\n";
-        sampleFile.Write(sampleCode);
-        sampleFile.Close();
+    const wxString sampleCode = "module top();\n    // TODO: add signals and logic\nendmodule\n";
+    if (!WriteUtf8File(sampleTop, sampleCode)) {
+        wxMessageBox(wxString("Failed to write starter Verilog file: ") + sampleTop,
+                     "New Project", wxOK | wxICON_ERROR, this);
+        return false;
     }
 
     // 7) Create README
     wxString readmePath = projPath + wxFileName::GetPathSeparator() + "README.md";
-    wxFile rfile;
-    if (rfile.Open(readmePath, wxFile::write)) {
-        rfile.Write(wxString::Format("# %s\n\nThis is a new SigFlow project.", projName));
-        rfile.Close();
+    if (!WriteUtf8File(readmePath,
+                       wxString::Format("# %s\n\nThis is a new SigFlow project.", projName))) {
+        wxMessageBox(wxString("Failed to write README: ") + readmePath,
+                     "New Project", wxOK | wxICON_ERROR, this);
+        return false;
     }
 
     // 8) Use the standard project loading path so top.v is parsed into SigFlowTree.
+    ResetCurrentDocumentForProjectSwitch();
     SetProjectDir(projPath);
 
     // 9) Open the parsed sample file in the editor.
@@ -1294,8 +1377,35 @@ bool MainFrame::DoFileNew() {
     return true;
 }
 
+bool MainFrame::ConfirmCurrentWorkBeforeProjectSwitch()
+{
+    // 两个面板都可能有未保存内容；任一方取消都应中止这次工程切换。
+    if (m_canvas && !m_canvas->SaveOrNotWindow()) {
+        return false;
+    }
+    if (m_verilogEditor && !m_verilogEditor->SaveIfModified()) {
+        return false;
+    }
+    return true;
+}
+
+void MainFrame::ResetCurrentDocumentForProjectSwitch()
+{
+    // 清除旧文件的树、编辑器和画布关联，防止新工程复用旧节点指针。
+    if (m_canvas) {
+        m_canvas->SetFileNode(nullptr);
+    }
+    if (m_verilogMgr) {
+        m_verilogMgr->ClearFileNode();
+    }
+    if (m_verilogEditor) {
+        m_verilogEditor->ClearDocument();
+    }
+    m_currentFilePath.Clear();
+}
+
 //�����ļ���ʵ�֣����������ĸ�����
-void MainFrame::DoFileSave() {
+bool MainFrame::DoFileSave() {
     //// 1. �����ǰ�ĵ�û��·����δ��������������"����Ϊ"
     //if (m_currentFilePath.IsEmpty()) {
     //    // ����DoFileSaveAs()�����״α��棨��ʵ�ָ÷�����
@@ -1320,7 +1430,26 @@ void MainFrame::DoFileSave() {
     //        this
     //    );
     //}
-    m_verilogEditor->SaveFile();
+    if (!m_verilogEditor) {
+        return false;
+    }
+
+    // 尚无文件路径时不能直接覆盖保存，必须交给“另存为”取得目标路径。
+    if (m_currentFilePath.IsEmpty() || m_verilogEditor->GetCurrentPath().IsEmpty()) {
+        return DoFileSaveAs();
+    }
+
+    if (!m_verilogEditor->SaveFile()) {
+        wxMessageBox(wxString::Format("Failed to save: %s", m_verilogEditor->GetCurrentPath()),
+                     "Save File", wxOK | wxICON_ERROR, this);
+        return false;
+    }
+
+    m_currentFilePath = m_verilogEditor->GetCurrentPath();
+    m_isModified = false;
+    SetStatusText(wxString::Format("Saved: %s", m_currentFilePath));
+    RefreshTitle();
+    return true;
 }
 
 // ��������������ǰ�ĵ�����д��ָ��·�����޸�ΪXML��ʽ��
@@ -1856,7 +1985,7 @@ void MainFrame::AddWireNode(wxXmlNode* parent, const wxString& from, const wxStr
     parent->AddChild(wire);
 }
 // ������ʵ��"����Ϊ"�����������״α��棩
-void MainFrame::DoFileSaveAs() {
+bool MainFrame::DoFileSaveAs() {
     // �����ļ�ѡ��Ի���
     wxFileDialog saveDialog(
         this,
@@ -1869,18 +1998,28 @@ void MainFrame::DoFileSaveAs() {
 
     // �û�ȡ���򷵻�
     if (saveDialog.ShowModal() != wxID_OK) {
-        return;
+        return false;
     }
 
     // ��ȡ�û�ѡ���·��
     wxString newPath = saveDialog.GetPath();
+    if (!m_verilogEditor || !m_verilogEditor->SaveFileAs(newPath)) {
+        wxMessageBox(wxString::Format("Failed to save: %s", newPath),
+                     "Save File As", wxOK | wxICON_ERROR, this);
+        return false;
+    }
+
     m_currentFilePath = newPath;
+    m_isModified = false;
 
     // ִ�б���
-    DoFileSave();
+    // SaveFileAs above performs the write before committing the frame path.
 
     // ����ѡ�����ӵ�����ļ���ʷ
     static_cast<MainMenuBar*>(GetMenuBar())->AddFileToHistory(newPath);
+    SetStatusText(wxString::Format("Saved as: %s", newPath));
+    RefreshTitle();
+    return true;
 }
 
 
@@ -1992,14 +2131,20 @@ void MainFrame::OnOpenFileFromTree(wxCommandEvent& evt) {
         return;
     }
 
-    m_currentFilePath = path;
-    m_sigFlowTreePanel->SetFileNode(fn);
+    // 先保存或放弃当前画布；确认后才改变编辑器、树和画布的共同状态。
+    if (!m_canvas->SaveOrNotWindow()) {
+        return;
+    }
 
-    m_canvas->SaveOrNotWindow();
-    m_canvas->SetFileNode(fn);
     const auto mapIt = maps.find(path);
     const std::unordered_map<SigTreeNode*, std::tuple<int, int>> emptyMap;
-    m_verilogMgr->SetFileNode(fn, mapIt != maps.end() ? mapIt->second : emptyMap);
+    if (!m_verilogMgr->SetFileNode(fn, mapIt != maps.end() ? mapIt->second : emptyMap)) {
+        return;
+    }
+
+    m_currentFilePath = path;
+    m_sigFlowTreePanel->SetFileNode(fn);
+    m_canvas->SetFileNode(fn);
     
     RefreshTitle();
 }
@@ -2022,6 +2167,19 @@ void MainFrame::OnUndoStackChanged()
 }
 
 void MainFrame::OnClose(wxCloseEvent& event) {
+    if (!event.CanVeto()) {
+        event.Skip();
+        return;
+    }
+
+    // 同时考虑文本编辑器和画布，避免只保存其中一个就退出。
+    const bool editorModified = m_verilogEditor && m_verilogEditor->GetModify();
+    const bool canvasModified = m_canvas && m_canvas->HasUnsavedChanges();
+    if (!editorModified && !canvasModified) {
+        event.Skip();
+        return;
+    }
+
     // 1. �����ļ���
     wxString fileName = m_currentFilePath.IsEmpty()
         ? wxString("Untitled")
@@ -2038,11 +2196,14 @@ void MainFrame::OnClose(wxCloseEvent& event) {
     int result = dialog.ShowModal();
     switch (result) {
     case wxID_YES:
-        if (m_currentFilePath.IsEmpty()) {
-            DoFileSaveAs();
+        if (canvasModified && !m_canvas->SaveModifiedCanvases()) {
+            return;
         }
-        else {
-            DoFileSave();
+        if (editorModified) {
+            const bool saved = m_currentFilePath.IsEmpty() ? DoFileSaveAs() : DoFileSave();
+            if (!saved) {
+                return;
+            }
         }
         event.Skip(); // �����رմ���
         break;

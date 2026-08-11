@@ -3,6 +3,52 @@
 #include <wx/statline.h>
 #include <wx/artprov.h>
 
+namespace {
+
+// Create Module 对话框在真正创建树节点前复用的两项 Verilog 名称规则。
+bool IsSimpleVerilogIdentifier(const wxString& value)
+{
+    if (value.IsEmpty() || !(wxIsalpha(value[0]) || value[0] == '_')) {
+        return false;
+    }
+
+    for (const wxChar character : value) {
+        if (!(wxIsalnum(character) || character == '_' || character == '$')) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool HasTopIdentifier(const SigTreeNode* parent, const wxString& identifier)
+{
+    if (!parent) {
+        return false;
+    }
+
+    const std::string candidate = identifier.ToStdString();
+    for (const SigTreeNode* child : parent->GetChildren()) {
+        if (child && child->type == SigTreeNodeType::Top &&
+            static_cast<const TopNode*>(child)->identifier == candidate) {
+            return true;
+        }
+    }
+    return false;
+}
+
+wxString MakeUniqueTopIdentifier(const SigTreeNode* parent)
+{
+    wxString candidate = "module_name";
+    int suffix = 2;
+    while (HasTopIdentifier(parent, candidate)) {
+        // 保留默认名称的可读性，同时避免第二次 Add Node 产生重复模块。
+        candidate = wxString::Format("module_name_%d", suffix++);
+    }
+    return candidate;
+}
+
+} // namespace
+
 SigFlowTreePanel::SigFlowTreePanel(wxWindow* parent, SigFlowTree* sfTree)
     : wxPanel(parent) {
     this->sfTree = sfTree;
@@ -261,7 +307,8 @@ TopNode* SigFlowTreePanel::ShowCreateTopDialog(TopNodeType type, SigTreeNode* pa
 
     wxTextCtrl* idCtrl = nullptr;
     auto* topSizer = new wxBoxSizer(wxVERTICAL);
-    topSizer->Add(PropertyPanelBuilder::CreateIdentifierRow(&dlg, "Identifier:", "module_name", &idCtrl),
+    topSizer->Add(PropertyPanelBuilder::CreateIdentifierRow(
+                      &dlg, "Identifier:", MakeUniqueTopIdentifier(parent), &idCtrl),
         0, wxEXPAND | wxALL, 10);
 
     auto* scrolled = new wxScrolledWindow(&dlg, wxID_ANY, wxDefaultPosition, wxSize(400, 250));
@@ -342,10 +389,29 @@ TopNode* SigFlowTreePanel::ShowCreateTopDialog(TopNodeType type, SigTreeNode* pa
         rebuild();
     }
 
-    if (dlg.ShowModal() != wxID_OK) return nullptr;
+    wxString id;
+    while (true) {
+        if (dlg.ShowModal() != wxID_OK) return nullptr;
 
-    wxString id = idCtrl->GetValue();
-    if (id.empty()) return nullptr;
+        id = idCtrl->GetValue();
+        id.Trim(true).Trim(false);
+        if (!IsSimpleVerilogIdentifier(id)) {
+            wxMessageBox("Enter a valid Verilog identifier. It must start with a letter or '_' "
+                         "and contain only letters, digits, '_', or '$'.",
+                         "Create Module", wxOK | wxICON_ERROR, &dlg);
+            idCtrl->SetFocus();
+            idCtrl->SelectAll();
+            continue;
+        }
+        if (HasTopIdentifier(parent, id)) {
+            wxMessageBox("A top-level module with this identifier already exists in the file.",
+                         "Create Module", wxOK | wxICON_ERROR, &dlg);
+            idCtrl->SetFocus();
+            idCtrl->SelectAll();
+            continue;
+        }
+        break;
+    }
 
     auto* node = new TopNode(id.ToStdString(), type);
     node->UpdateInPorts(in_ports);

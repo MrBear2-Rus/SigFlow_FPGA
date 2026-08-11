@@ -423,15 +423,23 @@ void CanvasPanel::DeleteSelected() {
 
 using json = nlohmann::json;
 
-void CanvasPanel::Save() {
+bool CanvasPanel::Save() {
+    if (!tn || !tn->GetParent() || !tn->GetParent()->GetParent()) {
+        return false;
+    }
     auto* n = tn->GetParent()->GetParent();
+    if (n->type != SigTreeNodeType::Project) {
+        return false;
+    }
     ProjectNode* pn = static_cast<ProjectNode*>(n);
     wxString cwd = pn->projectPath;
     wxFileName targetDir;
     targetDir.AssignDir(cwd + "/.sigflow/canvas");
 
     if (!targetDir.DirExists()) {
-        targetDir.Mkdir(wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
+        if (!targetDir.Mkdir(wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL)) {
+            return false;
+        }
     }
 
     // 1. 修正文件名：加上 .json 后缀
@@ -475,12 +483,25 @@ void CanvasPanel::Save() {
     root["topbox"]["end"] = end;
 
     // 4. 将 JSON 写入文件
-    std::ofstream file(filepath.GetFullPath().ToStdString());
-    if (file.is_open()) {
-        // 设置缩进为 4 个空格，使 JSON 可读
-        file << root.dump(4);
-        file.close();
+    // 先写临时文件再原子替换，避免中途失败留下截断的画布 JSON。
+    const std::string serialized = root.dump(4);
+    const wxString temporaryPath = filepath.GetFullPath() + ".tmp";
+    wxFile file(temporaryPath, wxFile::write);
+    if (!file.IsOpened() ||
+        file.Write(serialized.data(), serialized.size()) !=
+            static_cast<wxFileOffset>(serialized.size())) {
+        file.Close();
+        wxRemoveFile(temporaryPath);
+        return false;
     }
+    file.Close();
+    if (!wxRenameFile(temporaryPath, filepath.GetFullPath(), true)) {
+        wxRemoveFile(temporaryPath);
+        return false;
+    }
+
+    ResetModified();
+    return true;
 }
 
 

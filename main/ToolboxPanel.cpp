@@ -598,7 +598,10 @@ void ToolboxPanel::OnItemActivated(wxTreeEvent& evt)
         wxString fileName = data->GetStr();
         wxCommandEvent cmdEvt(wxEVT_COMMAND_MENU_SELECTED, wxID_HIGHEST + 900);
         cmdEvt.SetString(fileName);
-        wxPostEvent(wxGetTopLevelParent(this), cmdEvt);
+        // 关闭期间顶层窗口可能已不存在，不能向空目标投递异步事件。
+        if (wxWindow* destination = wxGetTopLevelParent(this)) {
+            wxPostEvent(destination, cmdEvt);
+        }
     }
 }
 
@@ -623,12 +626,16 @@ void ToolboxPanel::OnToolSelected(wxTreeEvent& evt)
         wxString toolName = m_tree->GetItemText(selectedItem); // 显示名称
         wxCommandEvent propEvent(wxEVT_COMMAND_MENU_SELECTED, wxID_HIGHEST + 901);
         propEvent.SetString(toolName);
-        wxPostEvent(wxGetTopLevelParent(this), propEvent);
+        if (wxWindow* destination = wxGetTopLevelParent(this)) {
+            wxPostEvent(destination, propEvent);
+        }
     }
     else {
         wxCommandEvent propEvent(wxEVT_COMMAND_MENU_SELECTED, wxID_HIGHEST + 901);
         propEvent.SetString("");
-        wxPostEvent(wxGetTopLevelParent(this), propEvent);
+        if (wxWindow* destination = wxGetTopLevelParent(this)) {
+            wxPostEvent(destination, propEvent);
+        }
     }
 }
 

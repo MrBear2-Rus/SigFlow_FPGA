@@ -42,6 +42,9 @@ VerilogManager::VerilogManager(SigTextEditor* stc, SigFlowTree* tree, TSParser* 
 }
 
 VerilogManager::~VerilogManager() {
+    if (m_stc) {
+        m_stc->Unbind(wxEVT_STC_MODIFIED, &VerilogManager::EditBlock, this);
+    }
     if (m_timer) {
         m_timer->Stop();
         delete m_timer;
@@ -52,6 +55,23 @@ VerilogManager::~VerilogManager() {
         m_ts_tree = nullptr;
     }
     // Note: m_ts_parser is owned externally, do not delete
+}
+
+void VerilogManager::ClearFileNode()
+{
+    // 切换工程前丢弃旧文件的解析树、块范围和行标记，避免指向已释放的节点。
+    if (m_timer) m_timer->Stop();
+    if (m_stc) m_stc->MarkerDeleteAll(BLOCK_MARKER_ID);
+    blocks.clear();
+    break_blocks.clear();
+    structures.clear();
+    editing_top_block = nullptr;
+    recovering_block = nullptr;
+    fn = nullptr;
+    if (m_ts_tree) {
+        ts_tree_delete(m_ts_tree);
+        m_ts_tree = nullptr;
+    }
 }
 
 void VerilogManager::OnTimer(wxTimerEvent&) {
@@ -119,35 +139,37 @@ void VerilogManager::OnTimer(wxTimerEvent&) {
     refreshEditorState();
 }
 
-void VerilogManager::SetFileNode(FileNode* n, std::unordered_map<SigTreeNode*, std::tuple<int, int>> map){
+bool VerilogManager::SetFileNode(FileNode* n, std::unordered_map<SigTreeNode*, std::tuple<int, int>> map){
+    // 成功返回才允许调用者更新界面选择，防止打开失败时“树和编辑器不同步”。
+    if (!n || !m_stc || !m_ts_parser) {
+        return false;
+    }
+
+    if (!m_stc->OpenFile(n->filePath)) {
+        return false;
+    }
+
     if (m_timer) m_timer->Stop();
+    m_stc->MarkerDeleteAll(BLOCK_MARKER_ID);
     blocks.clear();
     break_blocks.clear();
     structures.clear();
     editing_top_block = nullptr;
     recovering_block = nullptr;
 
-    if (!n || !m_stc || !m_ts_parser) {
-        fn = nullptr;
-        return;
-    }
-
     this->fn = n;
-    if (!m_stc->OpenFile(n->filePath)) {
-        fn = nullptr;
-        return;
-    }
 
     std::string text = m_stc->GetText().ToStdString();
     if (m_ts_tree) ts_tree_delete(m_ts_tree);
     m_ts_tree = ts_parser_parse_string(m_ts_parser, nullptr, text.c_str(), text.length());
     if (!m_ts_tree) {
-        return;
+        return true;
     }
     CollectBlocks(map);
     m_stc->RenderLineMarker(GetLineStatus());
     UpdateFolding();
     DrawBlockInfo();
+    return true;
 }
 
 
@@ -398,7 +420,8 @@ wxString VerilogManager::GetBlockText(const Block& b) {
 
 void VerilogManager::Print() {
     for (auto b : blocks) {
-        wxString info = wxString::Format("Block: %d - %d, Node: %s\n", GetLine(b.startHandle), GetLine(b.endHandle), b.self->GetName());
+        wxString info = wxString::Format("Block: %d - %d, Node: %s\n", GetLine(b.startHandle),
+            GetLine(b.endHandle), wxString::FromUTF8(b.self->GetName().c_str()));
         OutputDebugStringA(info);
     }
 
@@ -410,8 +433,47 @@ void VerilogManager::Print() {
 }
 
 void VerilogManager::SigFlowNodeAdded(SigTreeNode* node) {
+    // Project parsing also emits node-added events.  Until SetFileNode() has
+    // bound an actual source file, those events must not mutate the editor.
+    if (!node || !m_stc || !fn) {
+        return;
+    }
+
     if (!recovering_block) {
         SigTreeNode* p = node->GetParent();
+        if (!p) {
+            return;
+        }
+
+        wxString text = node->ToVerilog();
+        if (text.IsEmpty()) {
+            return;
+        }
+
+        if (p->type == SigTreeNodeType::File) {
+            // A file-level module may only be appended to the file currently
+            // displayed by this manager.  Without this ownership check,
+            // loading a project dirties the pathless editor with parsed nodes.
+            if (p != fn || m_stc->GetCurrentPath().IsEmpty()) {
+                return;
+            }
+
+            const wxString currentText = m_stc->GetText();
+            const int startpos = m_stc->GetTextLength();
+            if (!currentText.IsEmpty() && !currentText.EndsWith("\n") && !currentText.EndsWith("\r")) {
+                text.Prepend("\n");
+            }
+
+            m_stc->m_isLoading = true;
+            m_stc->InsertText(startpos, text);
+            m_stc->m_isLoading = false;
+
+            const int startline = m_stc->LineFromPosition(startpos);
+            const int endline = m_stc->LineFromPosition(startpos + static_cast<int>(text.length()));
+            AddBlock(startline, std::max(startline, endline), node);
+            return;
+        }
+
         auto it = std::find_if(blocks.begin(), blocks.end(), [p](const Block& b) {
             return b.self == p; // 这里写你的匹配逻辑
             });
@@ -420,12 +482,11 @@ void VerilogManager::SigFlowNodeAdded(SigTreeNode* node) {
             int endLine = GetLine(parent->endHandle)-1;
             int startpos = m_stc->PositionFromLine(endLine);
             m_stc->m_isLoading = true;
-            wxString text = node->ToVerilog();
             m_stc->InsertText(startpos, text);
             m_stc->m_isLoading = false;
             int startline = m_stc->LineFromPosition(startpos);
-            int endline = m_stc->LineFromPosition(startpos + static_cast<int>(text.size()))-2;
-            AddBlock(startline, endline, node);
+            int endline = m_stc->LineFromPosition(startpos + static_cast<int>(text.length()));
+            AddBlock(startline, std::max(startline, endline), node);
         }
 
     }
@@ -452,7 +513,6 @@ void VerilogManager::SigFlowNodeAdded(SigTreeNode* node) {
 }
 
 void VerilogManager::SigFlowNodeDeleted(SigTreeNode* node) {
-
 }
 
 
@@ -524,7 +584,7 @@ void VerilogManager::DrawBlockInfo() {
         // 2. 准备要显示的信息（例如从 SigTreeNode 中获取）
         wxString info = "";
         if (b.self) {
-            info = wxString::Format("  [%s]", b.self->GetName());
+            info = wxString::Format("  [%s]", wxString::FromUTF8(b.self->GetName().c_str()));
         }
         else {
             info = "  [Analyzing...]";

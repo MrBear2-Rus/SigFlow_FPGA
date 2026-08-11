@@ -432,7 +432,9 @@ void MainMenuBar::OnExit(wxCommandEvent&)
     if (m_fileHistory.GetCount() != 0) {
         SaveHistory();
     }
-    m_owner->Close(true);
+    if (m_owner) {
+        m_owner->Close();
+    }
 }
 void MainMenuBar::OnFileHistory(wxCommandEvent& evt)
 {

@@ -20,6 +20,17 @@ ProjectTreePanel::ProjectTreePanel(wxWindow* parent)
     m_tree->Bind(wxEVT_TREE_ITEM_ACTIVATED, &ProjectTreePanel::OnItemActivated, this);
 }
 
+ProjectTreePanel::~ProjectTreePanel()
+{
+    if (watcher) {
+        // 先停止回调，再销毁 watcher，避免窗口关闭后事件投递到悬空面板。
+        watcher->Unbind(wxEVT_FSWATCHER, &ProjectTreePanel::OnFileSystemChanged, this);
+        watcher->RemoveAll();
+        delete watcher;
+        watcher = nullptr;
+    }
+}
+
 
 
 
@@ -31,6 +42,11 @@ bool IsValidSigFlowProject(const wxString& root)
 
 void ProjectTreePanel::AddWatchRecursive(const wxString& dir)
 {
+    // .sigflow 是程序生成目录；监听它会把构建和缓存变化误当成用户文件修改。
+    if (!watcher || !wxDirExists(dir) || IsGeneratedPath(dir)) {
+        return;
+    }
+
     watcher->Add(wxFileName(dir), wxFSW_EVENT_ALL);
 
     wxDir d(dir);
@@ -39,9 +55,30 @@ void ProjectTreePanel::AddWatchRecursive(const wxString& dir)
     wxString name;
     bool cont = d.GetFirst(&name, "", wxDIR_DIRS);
     while (cont) {
-        AddWatchRecursive(dir + "/" + name);
+        if (name.CmpNoCase(".sigflow") != 0) {
+            AddWatchRecursive(dir + "/" + name);
+        }
         cont = d.GetNext(&name);
     }
+}
+
+bool ProjectTreePanel::IsGeneratedPath(const wxString& path) const
+{
+    if (path.IsEmpty() || m_projectRoot.IsEmpty()) {
+        return false;
+    }
+
+    wxString normalizedPath = path;
+    normalizedPath.Replace("\\", "/");
+    normalizedPath.MakeLower();
+
+    wxString normalizedRoot = m_projectRoot;
+    normalizedRoot.Replace("\\", "/");
+    normalizedRoot.Trim(true);
+    normalizedRoot.MakeLower();
+
+    const wxString generatedRoot = normalizedRoot + "/.sigflow";
+    return normalizedPath == generatedRoot || normalizedPath.StartsWith(generatedRoot + "/");
 }
 
 
@@ -176,5 +213,9 @@ wxString ProjectTreePanel::ResolveItemPath(wxTreeItemId id)
 }
 
 void ProjectTreePanel::OnFileSystemChanged(wxFileSystemWatcherEvent& evt) {
+    if (IsGeneratedPath(evt.GetPath().GetFullPath()) ||
+        IsGeneratedPath(evt.GetNewPath().GetFullPath())) {
+        return;
+    }
     RefreshTree();
 }
