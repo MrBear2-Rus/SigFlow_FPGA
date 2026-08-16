@@ -31,6 +31,7 @@
     <ClCompile Include="CanvasTextElement.cpp" />
     <ClCompile Include="cMain.cpp" />
     <ClCompile Include="fpga\ArtifactValidator.cpp" />
+    <ClCompile Include="fpga\FpgaPackService.cpp" />
     <ClCompile Include="fpga\FpgaYosysLogParser.cpp" />
     <ClCompile Include="fpga\FpgaYosysReport.cpp" />
     <ClCompile Include="fpga\FpgaSynthesisJobsPanel.cpp" />
@@ -75,9 +76,36 @@
     <ClCompile Include="Simulation\StimulusParser.cpp" />
     <ClCompile Include="Simulation\TimelineGenerator.cpp" />
     <ClCompile Include="Simulation\SimMainGenerator.cpp" />
-    <ClCompile Include="Fpga\NextpnrLogParser.cpp" />
-    <ClCompile Include="Fpga\NextpnrReport.cpp" />
-    <ClCompile Include="Fpga\CstValidator.cpp" />
+    <ClCompile Include="fpga\NextpnrLogParser.cpp" />
+    <ClCompile Include="fpga\NextpnrReport.cpp" />
+    <ClCompile Include="fpga\CstValidator.cpp" />
+    <ClCompile Include="BuildProgressBar.cpp" />
+    <ClCompile Include="parse_progress.cpp" />
+    <ClCompile Include="trace\TraceCache.cpp" />
+    <ClCompile Include="trace\TraceMemoryBudget.cpp" />
+    <ClCompile Include="trace\TraceSidecarIndex.cpp" />
+    <ClCompile Include="trace\VcdLazyTraceSource.cpp" />
+    <ClCompile Include="wave\TraceViewPanel.cpp" />
+    <ClCompile Include="wave\WaveAnalysis.cpp" />
+    <ClCompile Include="wave\WaveCompareHub.cpp" />
+    <ClCompile Include="wave\WavePatternSearch.cpp" />
+    <ClCompile Include="wave\WaveSession.cpp" />
+    <ClCompile Include="wave\WaveformGLCanvas.cpp" />
+    <ClCompile Include="wave\WaveformGLRenderer.cpp" />
+    <ClCompile Include="wave\WaveformRenderData.cpp" />
+    <ClCompile Include="wave\WaveformTextLayer.cpp" />
+    <ClCompile Include="wave\WaveformView.cpp" />
+    <ClCompile Include="debug\DebugContract.cpp" />
+    <ClCompile Include="debug\DebugFingerprint.cpp" />
+    <ClCompile Include="debug\DebugSession.cpp" />
+    <ClCompile Include="debug\DebugNetlistValidator.cpp" />
+    <ClCompile Include="debug\DebugOverlayBuilder.cpp" />
+    <ClCompile Include="debug\DebugAcquisition.cpp" />
+    <ClCompile Include="debug\DebugProtocol.cpp" />
+    <ClCompile Include="debug\CaptureDecoder.cpp" />
+    <ClCompile Include="debug\PipeTransport.cpp" />
+    <ClCompile Include="debug\SerialPortEnumerator.cpp" />
+    <ClCompile Include="debug\SerialTransport.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\3rd\nanosvg\nanosvg.h" />
@@ -88,6 +116,7 @@
     <ClInclude Include="CanvasPanel.h" />
     <ClInclude Include="CanvasTextElement.h" />
     <ClInclude Include="fpga\ArtifactValidator.h" />
+    <ClInclude Include="fpga\FpgaPackService.h" />
     <ClInclude Include="fpga\FpgaYosysLogParser.h" />
     <ClInclude Include="fpga\FpgaYosysReport.h" />
     <ClInclude Include="fpga\FpgaSynthesisJobsPanel.h" />
@@ -135,9 +164,41 @@
     <ClInclude Include="Simulation\StimulusParser.h" />
     <ClInclude Include="Simulation\TimelineGenerator.h" />
     <ClInclude Include="Simulation\SimMainGenerator.h" />
-    <ClInclude Include="Fpga\NextpnrLogParser.h" />
-    <ClInclude Include="Fpga\NextpnrReport.h" />
-    <ClInclude Include="Fpga\CstValidator.h" />
+    <ClInclude Include="fpga\NextpnrLogParser.h" />
+    <ClInclude Include="fpga\NextpnrReport.h" />
+    <ClInclude Include="fpga\CstValidator.h" />
+    <ClInclude Include="BuildProgressBar.h" />
+    <ClInclude Include="parse_progress.h" />
+    <ClInclude Include="trace\TraceCache.h" />
+    <ClInclude Include="trace\TraceMemoryBudget.h" />
+    <ClInclude Include="trace\TraceSidecarIndex.h" />
+    <ClInclude Include="trace\TraceSource.h" />
+    <ClInclude Include="trace\TraceTypes.h" />
+    <ClInclude Include="trace\VcdLazyTraceSource.h" />
+    <ClInclude Include="wave\TraceViewPanel.h" />
+    <ClInclude Include="wave\WaveAnalysis.h" />
+    <ClInclude Include="wave\WaveCompareHub.h" />
+    <ClInclude Include="wave\WavePatternSearch.h" />
+    <ClInclude Include="wave\WaveSession.h" />
+    <ClInclude Include="wave\WaveViewState.h" />
+    <ClInclude Include="wave\WaveformGLCanvas.h" />
+    <ClInclude Include="wave\WaveformGLRenderer.h" />
+    <ClInclude Include="wave\WaveformRenderData.h" />
+    <ClInclude Include="wave\WaveformTextLayer.h" />
+    <ClInclude Include="wave\WaveformView.h" />
+    <ClInclude Include="debug\DebugContract.h" />
+    <ClInclude Include="debug\DebugFingerprint.h" />
+    <ClInclude Include="debug\DebugSession.h" />
+    <ClInclude Include="debug\DebugThresholds.h" />
+    <ClInclude Include="debug\DebugNetlistValidator.h" />
+    <ClInclude Include="debug\DebugOverlayBuilder.h" />
+    <ClInclude Include="debug\DebugAcquisition.h" />
+    <ClInclude Include="debug\DebugProtocol.h" />
+    <ClInclude Include="debug\CaptureDecoder.h" />
+    <ClInclude Include="debug\ITransport.h" />
+    <ClInclude Include="debug\PipeTransport.h" />
+    <ClInclude Include="debug\SerialPortEnumerator.h" />
+    <ClInclude Include="debug\SerialTransport.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
@@ -220,7 +281,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>svlang.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>svlang.lib;setupapi.lib;advapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -238,7 +299,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>svlang.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>svlang.lib;setupapi.lib;advapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -253,7 +314,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>svlang.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>svlang.lib;setupapi.lib;advapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <Manifest>
       <EnableDpiAwareness>PerMonitorHighDPIAware</EnableDpiAwareness>
@@ -286,7 +347,7 @@ mklink /H "$(OutDir)canvas_elements.json" "$(ProjectDir)canvas_elements.json"</C
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>svlang.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>svlang.lib;setupapi.lib;advapi32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

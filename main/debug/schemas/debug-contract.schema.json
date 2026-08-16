@@ -39,7 +39,9 @@
         "value": { "type": "string" },
         "intent": { "type": "string", "enum": ["state_stall", "handshake_timeout", "fifo_error", "illegal_state"] },
         "intent_params": { "type": "string" },
-        "expanded": { "type": "string" }
+        "expanded": { "type": "string" },
+        "hs_valid_path": { "type": "string", "description": "握手超时触发 valid 信号路径（空=不接线）" },
+        "hs_ready_path": { "type": "string", "description": "握手超时触发 ready 信号路径（空=不接线）" }
       }
     },
     "capture": {
@@ -55,10 +57,14 @@
       "required": ["tx_port", "rx_port"],
       "properties": {
         "kind": { "type": "string", "enum": ["uart"] },
+        "protocol": { "type": "string", "enum": ["minimal", "full"], "default": "minimal" },
         "tx_port": { "type": "string" },
         "rx_port": { "type": "string" },
         "baud": { "type": "integer", "enum": [115200, 460800, 921600, 1500000, 3000000] },
-        "sync_enabled": { "type": "boolean" }
+        "sync_enabled": { "type": "boolean" },
+        "tx_pin": { "type": "integer", "minimum": 0 },
+        "rx_pin": { "type": "integer", "minimum": 0 },
+        "rst_pin": { "type": "integer", "minimum": 0 }
       }
     },
     "fingerprints": {

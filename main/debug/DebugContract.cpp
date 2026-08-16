@@ -71,6 +71,33 @@ std::string NewDebugSessionId()
     return std::string(buffer);
 }
 
+bool ParseHexU32(const std::string& text, std::uint32_t& value)
+{
+    if (text.empty()) return false;
+    std::size_t offset = (text.size() >= 2 && text[0] == '0' &&
+                          (text[1] == 'x' || text[1] == 'X'))
+                             ? 2
+                             : 0;
+    if (offset >= text.size()) return false;
+    std::uint32_t result = 0;
+    for (std::size_t i = offset; i < text.size(); ++i) {
+        const char c = text[i];
+        unsigned digit = 0;
+        if (c >= '0' && c <= '9') {
+            digit = static_cast<unsigned>(c - '0');
+        } else if (c >= 'a' && c <= 'f') {
+            digit = static_cast<unsigned>(c - 'a') + 10;
+        } else if (c >= 'A' && c <= 'F') {
+            digit = static_cast<unsigned>(c - 'A') + 10;
+        } else {
+            return false;
+        }
+        result = (result << 4) | digit;
+    }
+    value = result;
+    return true;
+}
+
 void DebugContract::ApplyDefaults()
 {
     if (capture.depth == 0) capture.depth = DebugDefaults::kCaptureDepth;
@@ -80,6 +107,7 @@ void DebugContract::ApplyDefaults()
     if (capture.decimation == 0) capture.decimation = 1;
     if (transport.baud == 0) transport.baud = DebugDefaults::kUartBaud;
     if (transport.kind.empty()) transport.kind = "uart";
+    if (transport.protocol.empty()) transport.protocol = "minimal";
     if (trigger.kind.empty()) trigger.kind = "none";
 }
 
@@ -131,6 +159,8 @@ bool DebugContract::ParseJson(const std::string& json, std::string& error)
             trigger.intentParams = trig["intent_params"].asString();
         }
         trigger.expanded = trig.get("expanded", "").asString();
+        trigger.hsValidPath = trig.get("hs_valid_path", "").asString();
+        trigger.hsReadyPath = trig.get("hs_ready_path", "").asString();
     }
 
     const Json::Value& cap = root["capture"];
@@ -145,10 +175,14 @@ bool DebugContract::ParseJson(const std::string& json, std::string& error)
     const Json::Value& trans = root["transport"];
     if (trans.isObject()) {
         transport.kind = trans.get("kind", "uart").asString();
+        transport.protocol = trans.get("protocol", "minimal").asString();
         transport.txPort = trans.get("tx_port", "").asString();
         transport.rxPort = trans.get("rx_port", "").asString();
         transport.baud = static_cast<std::uint32_t>(trans.get("baud", 0).asUInt());
         transport.syncEnabled = trans.get("sync_enabled", true).asBool();
+        transport.txPin = trans.get("tx_pin", 0).asInt();
+        transport.rxPin = trans.get("rx_pin", 0).asInt();
+        transport.rstPin = trans.get("rst_pin", 0).asInt();
     }
 
     const Json::Value& fp = root["fingerprints"];
@@ -196,6 +230,8 @@ std::string DebugContract::ToJson() const
     trig["intent"] = trigger.intentKind;
     trig["intent_params"] = trigger.intentParams;
     trig["expanded"] = trigger.expanded;
+    trig["hs_valid_path"] = trigger.hsValidPath;
+    trig["hs_ready_path"] = trigger.hsReadyPath;
     root["trigger"] = trig;
 
     Json::Value cap(Json::objectValue);
@@ -206,10 +242,14 @@ std::string DebugContract::ToJson() const
 
     Json::Value trans(Json::objectValue);
     trans["kind"] = transport.kind;
+    trans["protocol"] = transport.protocol;
     trans["tx_port"] = transport.txPort;
     trans["rx_port"] = transport.rxPort;
     trans["baud"] = transport.baud;
     trans["sync_enabled"] = transport.syncEnabled;
+    trans["tx_pin"] = transport.txPin;
+    trans["rx_pin"] = transport.rxPin;
+    trans["rst_pin"] = transport.rstPin;
     root["transport"] = trans;
 
     Json::Value fp(Json::objectValue);
@@ -292,6 +332,10 @@ bool DebugContract::Validate(std::string& error) const
     }
     if (transport.kind != "uart") {
         error = "unsupported transport kind: " + transport.kind;
+        return false;
+    }
+    if (transport.protocol != "minimal" && transport.protocol != "full") {
+        error = "unsupported UART debug protocol: " + transport.protocol;
         return false;
     }
     if (transport.baud != 115200 && transport.baud != 460800 &&

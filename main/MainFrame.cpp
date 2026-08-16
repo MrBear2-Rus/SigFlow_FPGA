@@ -16,6 +16,8 @@
 #include <wx/timer.h>
 #include <wx/weakref.h>
 
+#include <windows.h>
+
 #include <cstring>
 #include <cstdarg>
 #include <algorithm>
@@ -26,6 +28,7 @@
 
 #include "MainFrame.h"
 #include "fpga/ArtifactValidator.h"
+#include "fpga/FpgaPackService.h"
 #include "MainMenuBar.h"
 #include "FpgaYosysRuntime.h"
 #include "FpgaYosysExecutor.h"
@@ -61,6 +64,8 @@ struct FpgaProjectOptions {
     size_t yosysLogLimitBytes = 0;
     wxString nextpnrPath;
     std::vector<wxString> nextpnrArgs;
+    wxString gowinPackPath;
+    std::vector<wxString> gowinPackArgs;
     wxString openFpgaLoaderPath;
     std::vector<wxString> openFpgaLoaderArgs;
 };
@@ -260,6 +265,16 @@ bool LoadFpgaProjectOptions(const wxString& projectPath, FpgaProjectOptions& opt
             }
         }
     }
+    if (fpga["gowin_pack_path"].isString()) {
+        options.gowinPackPath = wxString::FromUTF8(fpga["gowin_pack_path"].asString());
+    }
+    if (fpga["gowin_pack_args"].isArray()) {
+        for (const Json::Value& argument : fpga["gowin_pack_args"]) {
+            if (argument.isString()) {
+                options.gowinPackArgs.push_back(wxString::FromUTF8(argument.asString()));
+            }
+        }
+    }
     if (fpga["openfpgaloader_path"].isString()) {
         options.openFpgaLoaderPath =
             wxString::FromUTF8(fpga["openfpgaloader_path"].asString());
@@ -292,6 +307,7 @@ wxString FindFpgaTool(const wxString& configuredPath, const wxString& environmen
             const std::vector<wxString> bundledCandidates = {
                 bundledToolRoot + "\\yosys\\bin\\" + executableName,
                 bundledToolRoot + "\\nextpnr\\bin\\" + executableName,
+                bundledToolRoot + "\\apicula\\Scripts\\" + executableName,
                 bundledToolRoot + "\\openfpgaloader\\bin\\" + executableName,
             };
             for (const wxString& candidate : bundledCandidates) {
@@ -387,12 +403,15 @@ wxString BuildNextpnrReadme()
         "      \"--json\", \"${yosys_json}\",\n"
         "      \"--write\", \"${nextpnr_dir}/top.pnr.json\"\n"
         "    ],\n"
+        "    \"gowin_pack_path\": \"C:/tools/apicula/Scripts/gowin_pack.exe\",\n"
+        "    \"gowin_pack_args\": [\"-d\", \"${device}\", \"-o\", \"${fs_output}\", \"${pnr_json}\"],\n"
         "    \"openfpgaloader_path\": \"C:/tools/openfpgaloader/openFPGALoader.exe\",\n"
         "    \"openfpgaloader_args\": [\"-b\", \"tangnano9k\", \"${bitstream}\"]\n"
         "  }\n"
         "}\n"
         "```\n\n"
-        "`${yosys_json}` and `${nextpnr_dir}` are replaced by SigFlow at launch. Add a `--vopt` "
+        "`${yosys_json}`, `${nextpnr_dir}`, `${pnr_json}`, `${fs_output}` and `${device}` are "
+        "replaced by SigFlow at launch. Add a `--vopt` "
         "`cst=<constraints.cst>` argument when a board constraint file is available. Run Apicula "
         "`gowin_pack -d GW1N-9C` on the PnR JSON to create a downloadable `.fs` bitstream.\n";
 }
@@ -534,11 +553,6 @@ MainFrame::MainFrame()
         RunFpgaSynthesis();
     });
     m_fpgaToolWindow->SetRouteStartHandler([this]() { RunFpgaRoute(); });
-    m_fpgaToolWindow->SetRouteCancelHandler([this]() { DoFpgaCancelRoute(); });
-    m_fpgaToolWindow->SetRouteRetryHandler([this](const wxString& jobId) {
-        m_pendingNextpnrRetryOf = jobId;
-        RunFpgaRoute();
-    });
     m_fpgaToolWindow->SetProgramStartHandler([this](const wxString& bitstreamPath) {
         RunFpgaProgram(bitstreamPath);
     });
@@ -2389,6 +2403,16 @@ void MainFrame::ShowFpgaToolWindow(FpgaToolPage page)
     m_fpgaToolWindow->ShowPage(page);
 }
 
+void MainFrame::KillAsyncToolProcess(long processId)
+{
+    if (processId <= 0) return;
+    HANDLE process = OpenProcess(PROCESS_TERMINATE, FALSE, static_cast<DWORD>(processId));
+    if (process) {
+        TerminateProcess(process, 1);
+        CloseHandle(process);
+    }
+}
+
 void MainFrame::DoFpgaSynthesis()
 {
     ShowFpgaToolWindow(FpgaToolPage::Yosys);
@@ -3241,6 +3265,152 @@ void MainFrame::RunFpgaRoute()
 void MainFrame::DoFpgaProgram()
 {
     ShowFpgaToolWindow(FpgaToolPage::Programmer);
+}
+
+void MainFrame::RunFpgaPack()
+{
+    if (m_currentProjectPath.IsEmpty()) {
+        wxMessageBox("Open a project before building an FPGA bitstream.", "FPGA Build .fs",
+                     wxOK | wxICON_WARNING, this);
+        return;
+    }
+
+    wxString topModule;
+    std::vector<wxString> sourceFiles;
+    if (!LoadProjectConfig(m_currentProjectPath, topModule, sourceFiles)) {
+        wxMessageBox("sigflow.project must define build.top_module and paths.source_files.",
+                     "FPGA Build .fs", wxOK | wxICON_WARNING, this);
+        return;
+    }
+
+    FpgaProjectOptions options;
+    wxString optionsError;
+    if (!LoadFpgaProjectOptions(m_currentProjectPath, options, optionsError)) {
+        wxMessageBox(optionsError, "FPGA Build .fs", wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    FpgaTargetProfile targetProfile;
+    if (!ResolveFpgaTargetProfile(options.targetProfileId, targetProfile, optionsError)) {
+        wxMessageBox(optionsError, "FPGA Build .fs", wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    const wxString nextpnrDirectory = m_currentProjectPath + "\\nextpnr";
+    const wxString pnrJsonPath = nextpnrDirectory + "\\" + topModule + ".pnr.json";
+    const wxString bitstreamPath = nextpnrDirectory + "\\" + topModule + ".fs";
+    const wxString manifestPath = nextpnrDirectory + "\\" + topModule + ".pack.manifest.json";
+    FpgaPackService packService;
+    if (!packService.ValidateInput(pnrJsonPath, optionsError)) {
+        wxMessageBox(optionsError + "\n\nRun FPGA > Place and Route successfully before packing.",
+                     "FPGA Build .fs", wxOK | wxICON_WARNING, this);
+        return;
+    }
+
+    const wxString packExecutable =
+        FindFpgaTool(options.gowinPackPath, "SIGFLOW_GOWIN_PACK", "gowin_pack.exe");
+    if (packExecutable.IsEmpty()) {
+        wxMessageBox("gowin_pack was not found. Set fpga.gowin_pack_path in sigflow.project, "
+                     "set SIGFLOW_GOWIN_PACK, install it under "
+                     "external/fpga-tools/runtime/apicula/Scripts, or add it to PATH.",
+                     "FPGA Build .fs", wxOK | wxICON_WARNING, this);
+        return;
+    }
+
+    const std::vector<wxString> defaultPackArgs = {
+        "-d", "${device}", "-o", "${fs_output}", "${pnr_json}",
+    };
+    const std::vector<wxString>& configuredArgs =
+        options.gowinPackArgs.empty() ? defaultPackArgs : options.gowinPackArgs;
+    std::vector<wxString> arguments;
+    arguments.reserve(configuredArgs.size() + 5);
+    bool includesPnrJson = false;
+    bool includesBitstream = false;
+    bool includesDevice = false;
+    for (wxString argument : configuredArgs) {
+        if (argument.Contains("${pnr_json}")) {
+            includesPnrJson = true;
+            argument.Replace("${pnr_json}", pnrJsonPath);
+        }
+        if (argument.Contains("${fs_output}")) {
+            includesBitstream = true;
+            argument.Replace("${fs_output}", bitstreamPath);
+        }
+        if (argument.Contains("${device}")) {
+            includesDevice = true;
+            argument.Replace("${device}", targetProfile.family);
+        }
+        arguments.push_back(argument);
+    }
+    if (!includesDevice) {
+        arguments.insert(arguments.begin(), { "-d", targetProfile.family });
+    }
+    if (!includesBitstream) {
+        arguments.insert(arguments.end(), { "-o", bitstreamPath });
+    }
+    if (!includesPnrJson) {
+        arguments.push_back(pnrJsonPath);
+    }
+
+    FpgaPackRequest packRequest;
+    packRequest.pnrJsonPath = pnrJsonPath;
+    packRequest.bitstreamPath = bitstreamPath;
+    packRequest.executablePath = packExecutable;
+    packRequest.device = targetProfile.family;
+
+    if (m_buildProgressBar) {
+        m_buildProgressBar->BeginOperation(wxT("Apicula gowin_pack"), 0);
+    }
+    MainFrame* self = this;
+    const long processId = LaunchFpgaTool(
+        packExecutable, arguments, nextpnrDirectory, m_terminalCtrl, "gowin_pack", {},
+        [self, packRequest, manifestPath](int exitCode, const wxString&) {
+            FpgaPackService service;
+            FpgaPackReport report;
+            service.Finalize(packRequest, exitCode, report);
+            wxString manifestError;
+            const bool manifestWritten = service.WriteManifest(manifestPath, report, manifestError);
+
+            self->CallAfter([self, report, manifestPath, manifestWritten, manifestError] {
+                if (self->m_buildProgressBar) {
+                    self->m_buildProgressBar->FinishOperation(
+                        report.success,
+                        report.success ? wxT("Apicula packing completed")
+                                       : wxT("Apicula packing failed"));
+                }
+                if (self->m_fpgaToolWindow) {
+                    self->m_fpgaToolWindow->SetPackResult(
+                        report.bitstreamPath, report.success, report.message);
+                }
+                if (self->m_terminalCtrl) {
+                    wxString terminalMessage =
+                        "[gowin_pack] " + report.message + "\nManifest: " + manifestPath + "\n";
+                    if (!manifestWritten) {
+                        terminalMessage += "Manifest write failed: " + manifestError + "\n";
+                    }
+                    self->m_terminalCtrl->PrintOutput(terminalMessage);
+                }
+                self->SetStatusText(report.success ? "Apicula .fs bitstream created"
+                                                   : "Apicula packing failed");
+                if (self->m_projectTreePanel) {
+                    self->m_projectTreePanel->RefreshTree();
+                }
+            });
+        });
+    if (processId == 0) {
+        wxMessageBox("Unable to start gowin_pack. Check the configured executable path.",
+                     "FPGA Build .fs", wxOK | wxICON_ERROR, this);
+        if (m_buildProgressBar) {
+            m_buildProgressBar->FinishOperation(false, wxT("Apicula packing failed"));
+        }
+        return;
+    }
+    if (m_buildProgressBar) {
+        m_buildProgressBar->SetCancelCallback([this, processId] {
+            KillAsyncToolProcess(processId);
+        });
+    }
+    SetStatusText("Apicula gowin_pack started");
 }
 
 void MainFrame::RunFpgaProgram(const wxString& bitstreamPath)

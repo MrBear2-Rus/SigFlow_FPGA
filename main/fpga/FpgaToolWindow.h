@@ -33,9 +33,11 @@ public:
     void SetRouteStartHandler(std::function<void()> handler);
     void SetRouteCancelHandler(std::function<void()> handler);
     void SetRouteRetryHandler(std::function<void(const wxString&)> handler);
+    void SetPackStartHandler(std::function<void()> handler);
     void SetProgramStartHandler(std::function<void(const wxString&)> handler);
     void SetRouteActiveJob(const wxString& jobId);
     void RefreshRouteJobs();
+    void SetPackResult(const wxString& bitstreamPath, bool success, const wxString& message);
 
 private:
     wxString m_projectPath;
@@ -51,6 +53,7 @@ private:
     wxStaticText* m_nextpnrJsonLabel = nullptr;
     wxStaticText* m_nextpnrCstLabel = nullptr;
     wxButton* m_routeStartButton = nullptr;
+    wxButton* m_packButton = nullptr;
     wxButton* m_programButton = nullptr;
     wxTextCtrl* m_bitstreamPathText = nullptr;
     wxStaticText* m_programBoardLabel = nullptr;
@@ -63,6 +66,7 @@ private:
     std::function<void()> m_routeStartHandler;
     std::function<void()> m_routeCancelHandler;
     std::function<void(const wxString&)> m_routeRetryHandler;
+    std::function<void()> m_packStartHandler;
     std::function<void(const wxString&)> m_programStartHandler;
 
     void BuildUi();

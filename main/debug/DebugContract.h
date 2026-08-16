@@ -29,6 +29,9 @@ struct DebugTrigger {
     std::string intentKind;   // state_stall / handshake_timeout / fifo_error / illegal_state
     std::string intentParams; // 原始参数 JSON 串
     std::string expanded;     // 展开后的底层条件说明
+    // 握手超时触发的信号来源（空 = 不接线，核内默认 hs_valid=0 / hs_ready=1）
+    std::string hsValidPath;
+    std::string hsReadyPath;
 };
 
 struct DebugCapture {
@@ -39,10 +42,15 @@ struct DebugCapture {
 
 struct DebugTransport {
     std::string kind = "uart";
+    // minimal：专用固定帧 UART（默认）；full：COBS + CRC 通用协议。
+    std::string protocol = "minimal";
     std::string txPort;
     std::string rxPort;
     std::uint32_t baud = 0;             // 0 = 使用默认值
     bool syncEnabled = true;            // 0x55/0xAA 同步校准（T-P0-06）
+    int txPin = 0;                      // 0 = 未分配（由引脚面板/用户 CST 提供）
+    int rxPin = 0;
+    int rstPin = 0;
 };
 
 struct DebugFingerprints {
@@ -79,6 +87,9 @@ struct DebugContract {
 
 // 生成新会话 ID（时间戳 + 序号）。
 std::string NewDebugSessionId();
+
+// 解析十六进制（支持 0x 前缀），失败返回 false。
+bool ParseHexU32(const std::string& text, std::uint32_t& value);
 
 } // namespace debug
 } // namespace sigflow

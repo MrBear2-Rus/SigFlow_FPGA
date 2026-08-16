@@ -19,6 +19,7 @@
 #include "SFNPropertyPanel.h"
 #include "Simulation/SimulationEngine.h"
 #include "fpga/FpgaPinBindingPanel.h"
+#include "BuildProgressBar.h"
 
 #include "TerminalCtrl.h"
 
@@ -59,6 +60,7 @@ private:
     FpgaPinBindingPanel* m_fpgaPinBindingPanel;
     FpgaToolWindow* m_fpgaToolWindow;
     TerminalCtrl* m_terminalCtrl;
+    BuildProgressBar* m_buildProgressBar = nullptr;
     WavePanel* m_wavePanel;
     std::unique_ptr<YosysExecutor> m_yosysExecutor;
     std::unique_ptr<NextpnrExecutor> m_nextpnrExecutor;
@@ -78,7 +80,9 @@ private:
     void ShowFpgaToolWindow(FpgaToolPage page);
     void RunFpgaSynthesis();
     void RunFpgaRoute();
+    void RunFpgaPack();
     void RunFpgaProgram(const wxString& bitstreamPath);
+    void KillAsyncToolProcess(long processId);
     // 声明事件处理函数
     void OnAnalysisComplete(wxThreadEvent& event);
 

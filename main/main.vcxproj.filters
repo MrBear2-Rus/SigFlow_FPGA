@@ -84,6 +84,9 @@
     <ClCompile Include="fpga\ArtifactValidator.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="fpga\FpgaPackService.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="fpga\FpgaYosysLogParser.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -92,6 +95,83 @@
     </ClCompile>
     <ClCompile Include="fpga\FpgaSynthesisJobsPanel.cpp" />
     <ClCompile Include="fpga\FpgaToolWindow.cpp" />
+    <ClCompile Include="BuildProgressBar.cpp" />
+    <ClCompile Include="parse_progress.cpp" />
+    <ClCompile Include="trace\TraceCache.cpp">
+      <Filter>源代码\trace</Filter>
+    </ClCompile>
+    <ClCompile Include="trace\TraceMemoryBudget.cpp">
+      <Filter>源代码\trace</Filter>
+    </ClCompile>
+    <ClCompile Include="trace\TraceSidecarIndex.cpp">
+      <Filter>源代码\trace</Filter>
+    </ClCompile>
+    <ClCompile Include="trace\VcdLazyTraceSource.cpp">
+      <Filter>源代码\trace</Filter>
+    </ClCompile>
+    <ClCompile Include="wave\TraceViewPanel.cpp">
+      <Filter>源代码\trace</Filter>
+    </ClCompile>
+    <ClCompile Include="wave\WaveAnalysis.cpp">
+      <Filter>源代码\trace</Filter>
+    </ClCompile>
+    <ClCompile Include="wave\WaveCompareHub.cpp">
+      <Filter>源代码\trace</Filter>
+    </ClCompile>
+    <ClCompile Include="wave\WavePatternSearch.cpp">
+      <Filter>源代码\trace</Filter>
+    </ClCompile>
+    <ClCompile Include="wave\WaveSession.cpp">
+      <Filter>源代码\trace</Filter>
+    </ClCompile>
+    <ClCompile Include="wave\WaveformGLCanvas.cpp">
+      <Filter>源代码\trace</Filter>
+    </ClCompile>
+    <ClCompile Include="wave\WaveformGLRenderer.cpp">
+      <Filter>源代码\trace</Filter>
+    </ClCompile>
+    <ClCompile Include="wave\WaveformRenderData.cpp">
+      <Filter>源代码\trace</Filter>
+    </ClCompile>
+    <ClCompile Include="wave\WaveformTextLayer.cpp">
+      <Filter>源代码\trace</Filter>
+    </ClCompile>
+    <ClCompile Include="wave\WaveformView.cpp">
+      <Filter>源代码\trace</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\DebugContract.cpp">
+      <Filter>源代码\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\DebugFingerprint.cpp">
+      <Filter>源代码\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\DebugSession.cpp">
+      <Filter>源代码\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\DebugNetlistValidator.cpp">
+      <Filter>源代码\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\DebugOverlayBuilder.cpp">
+      <Filter>源代码\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\DebugAcquisition.cpp">
+      <Filter>源代码\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\DebugProtocol.cpp">
+      <Filter>源代码\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\CaptureDecoder.cpp">
+      <Filter>源代码\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\PipeTransport.cpp">
+      <Filter>源代码\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\SerialPortEnumerator.cpp">
+      <Filter>源代码\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\SerialTransport.cpp">
+      <Filter>源代码\debug</Filter>
+    </ClCompile>
     <ClCompile Include="MainFrame.cpp">
       <Filter>源文件\gui</Filter>
     </ClCompile>
@@ -251,6 +331,9 @@
     <ClInclude Include="fpga\ArtifactValidator.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="fpga\FpgaPackService.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="fpga\FpgaYosysLogParser.h">
       <Filter>头文件</Filter>
     </ClInclude>
@@ -264,6 +347,98 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="FpgaYosysExecutor.h" />
+    <ClInclude Include="BuildProgressBar.h" />
+    <ClInclude Include="parse_progress.h" />
+    <ClInclude Include="trace\TraceCache.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="trace\TraceMemoryBudget.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="trace\TraceSidecarIndex.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="trace\TraceSource.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="trace\TraceTypes.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="trace\VcdLazyTraceSource.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="wave\TraceViewPanel.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="wave\WaveAnalysis.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="wave\WaveCompareHub.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="wave\WavePatternSearch.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="wave\WaveSession.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="wave\WaveViewState.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="wave\WaveformGLCanvas.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="wave\WaveformGLRenderer.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="wave\WaveformRenderData.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="wave\WaveformTextLayer.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="wave\WaveformView.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\DebugContract.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\DebugFingerprint.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\DebugSession.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\DebugThresholds.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\DebugNetlistValidator.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\DebugOverlayBuilder.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\DebugAcquisition.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\DebugProtocol.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\CaptureDecoder.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\ITransport.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\PipeTransport.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\SerialPortEnumerator.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\SerialTransport.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
     <ClInclude Include="fpga\FpgaPinData.h">
       <Filter>头文件</Filter>
     </ClInclude>

@@ -236,6 +236,11 @@ wxPanel* FpgaToolWindow::BuildProgrammerPage()
         FpgaTheme::kTextSecondary));
     header->Add(titleColumn, 1, wxALIGN_CENTER_VERTICAL);
 
+    m_packButton = new wxButton(page, wxID_ANY, "Build .fs");
+    FpgaTheme::StyleButton(m_packButton, FpgaTheme::kBlue, *wxWHITE);
+    m_packButton->Enable(false);
+    header->Add(m_packButton, 0, wxLEFT, page->FromDIP(6));
+
     m_programButton = new wxButton(page, wxID_ANY, "Program Board");
     FpgaTheme::StyleButton(m_programButton, FpgaTheme::kAmber, *wxBLACK);
     m_programButton->Enable(false);
@@ -264,7 +269,7 @@ wxPanel* FpgaToolWindow::BuildProgrammerPage()
     layout->Add(picker, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, page->FromDIP(10));
 
     m_programStatusLabel = FpgaTheme::MakeLabel(page,
-        wxT("选择 .fs 位流后即可烧录。"), FpgaTheme::kTextMuted);
+        wxT("先构建 .fs，或手动选择已有位流后烧录。"), FpgaTheme::kTextMuted);
     layout->Add(m_programStatusLabel, 0, wxLEFT | wxRIGHT | wxBOTTOM, page->FromDIP(10));
 
     layout->AddStretchSpacer(1);
@@ -283,6 +288,12 @@ wxPanel* FpgaToolWindow::BuildProgrammerPage()
         if (m_programStartHandler && !m_bitstreamPath.IsEmpty()) {
             m_programStatusLabel->SetLabel("Programming started...");
             m_programStartHandler(m_bitstreamPath);
+        }
+    });
+    m_packButton->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
+        if (m_packStartHandler) {
+            m_programStatusLabel->SetLabel("Building Apicula .fs bitstream...");
+            m_packStartHandler();
         }
     });
     return page;
@@ -370,10 +381,31 @@ void FpgaToolWindow::RefreshRouteJobs()
     }
 }
 
+void FpgaToolWindow::SetPackStartHandler(std::function<void()> handler)
+{
+    m_packStartHandler = std::move(handler);
+    if (m_packButton) m_packButton->Enable(static_cast<bool>(m_packStartHandler));
+}
+
 void FpgaToolWindow::SetProgramStartHandler(std::function<void(const wxString&)> handler)
 {
     m_programStartHandler = std::move(handler);
     if (m_programButton && !m_bitstreamPath.IsEmpty()) m_programButton->Enable(true);
+}
+
+void FpgaToolWindow::SetPackResult(const wxString& bitstreamPath, bool success,
+                                   const wxString& message)
+{
+    if (!m_programStatusLabel) return;
+    if (!success) {
+        m_programStatusLabel->SetLabel("Build .fs failed: " + message);
+        return;
+    }
+
+    m_bitstreamPath = bitstreamPath;
+    if (m_bitstreamPathText) m_bitstreamPathText->SetValue(m_bitstreamPath);
+    m_programStatusLabel->SetLabel("Ready to program: " + m_bitstreamPath);
+    if (m_programButton) m_programButton->Enable(static_cast<bool>(m_programStartHandler));
 }
 
 void FpgaToolWindow::UpdateProjectLabels()
