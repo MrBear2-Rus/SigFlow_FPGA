@@ -360,7 +360,6 @@ bool SigTextEditor::SaveIfModified() {
 
     wxString msg = wxString::Format("File has been modified. Save changes?");
 
-    // 弹出标准对话框：是、否、取消
     wxMessageDialog dlg(this, msg, "Save Confirmation",
         wxYES_NO | wxCANCEL | wxICON_QUESTION);
 
@@ -408,7 +407,11 @@ bool SigTextEditor::OpenFile(wxString path) {
     m_isLoading = true;
 
     // 2. 加载文件内容
-    if (!this->LoadFile(path)) return false;
+    if (!this->LoadFile(path)) {
+        // OpenFile 失败也要退出加载模式，否则后续真实编辑会被当成加载过程忽略。
+        m_isLoading = false;
+        return false;
+    }
 
     // 3. 更新当前路径成员
     this->m_currentFilePath = path;
@@ -442,10 +445,27 @@ bool SigTextEditor::OpenFile(wxString path) {
     return true;
 }
 
+void SigTextEditor::ClearDocument()
+{
+    // 工程切换使用此函数建立“无文件、无修改”的干净编辑器状态。
+    m_isLoading = true;
+    ClearAll();
+    EmptyUndoBuffer();
+    SetSavePoint();
+    m_currentFilePath.Clear();
+    SetToolTip(wxEmptyString);
+    temp_version = 0;
+    m_isLoading = false;
+}
+
 
 bool SigTextEditor::SaveFile() {
+    // wxStyledTextCtrl 无路径保存会静默失败，因此先明确拒绝。
+    if (m_currentFilePath.IsEmpty()) return false;
+    if (!wxStyledTextCtrl::SaveFile(m_currentFilePath)) return false;
     temp_version = 0;
-    return wxStyledTextCtrl::SaveFile(m_currentFilePath);
+    SetSavePoint();
+    return true;
 }
 
 bool SigTextEditor::SaveFileAs(wxString path) {
@@ -462,6 +482,7 @@ bool SigTextEditor::SaveFileAs(wxString path) {
     }
 
     if (this->wxStyledTextCtrl::SaveFile(path)) {
+        m_currentFilePath = path;
         temp_version = 0;
         SetSavePoint();
         return true;

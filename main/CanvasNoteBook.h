@@ -10,7 +10,7 @@ public:
     bool m_isModified = false; // 新增：NoteBook 级修改标记
     MainFrame* mf;
     SigFlowTree* sftree;
-    FileNode* fn;
+    FileNode* fn = nullptr;
     std::vector<CanvasPanel*> cvses;
     size_t size_x, size_y;
 
@@ -33,7 +33,9 @@ public:
     void SetStatusText(const wxString& text, int number = 0);
 
     void AdjustScaleToFit();
-    void SaveOrNotWindow();
+    bool SaveOrNotWindow();
+    bool SaveModifiedCanvases();
+    bool HasUnsavedChanges() const { return m_isModified; }
 
     void SetCurrentComponent(wxString type);
     CanvasPanel* GetSelectedPage();
@@ -49,5 +51,6 @@ public:
 
 private:
     bool m_btnCreated = false;
-    wxButton* m_addBtn ;
+    wxButton* m_addBtn = nullptr;
+
 };

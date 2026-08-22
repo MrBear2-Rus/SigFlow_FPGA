@@ -63,6 +63,8 @@ void CanvasNoteBook::DeleteAll() {
 void CanvasNoteBook::UpdateNoteBook() {
     if (!fn) {
         DeleteAll(); // 既然没有数据节点，理应清空界面
+        // 切换到“无文件”状态时，旧文件的修改标记不能带到下一个文件。
+        m_isModified = false;
         // 还需要重置按钮或刷新布局，防止残留
         DeleteAddButton();
         this->Layout();
@@ -70,6 +72,7 @@ void CanvasNoteBook::UpdateNoteBook() {
         return;
     }
     DeleteAll();
+    m_isModified = false;
     bool sel = true;
     for (auto* cld : fn->GetChildren()) {
         TopNode* tn = static_cast<TopNode*>(cld);
@@ -99,34 +102,42 @@ void CanvasNoteBook::AdjustScaleToFit() {
 }
 
 //修改：保存后重置isModified
-void CanvasNoteBook::SaveOrNotWindow() {
+bool CanvasNoteBook::SaveModifiedCanvases() {
+    // 只有全部页面保存成功，才允许调用者继续切换文件或关闭窗口。
+    for (auto* canvas : cvses) {
+        if (canvas && canvas->IsModified() && !canvas->Save()) {
+            wxMessageBox("Unable to save canvas layout: " + canvas->GetNote(),
+                         "Canvas Save", wxOK | wxICON_ERROR, this);
+            return false;
+        }
+    }
+    m_isModified = false;
+    SetStatusText("已保存所有画布", 0);
+    return true;
+}
+
+bool CanvasNoteBook::SaveOrNotWindow() {
     // 2. 弹出提示框询问用户
-    if (!fn) return;
+    if (!fn || !m_isModified) return true;
     wxMessageDialog dial(this,
-        wxString::Format("save %s?", fn->GetName()),
+        wxString::Format("save %s?", wxString::FromUTF8(fn->GetName().c_str())),
         "save",
         wxYES_NO | wxCANCEL | wxICON_QUESTION);
 
     int result = dial.ShowModal();
 
     if (result == wxID_YES) {
-        
-        for (auto* c : cvses) {
-            c->Save(); // CanvasPanel::Save() 会重置自身 isModified
-        }
-        // 新增：重置 NoteBook 的修改标记
-        m_isModified = false;
-        SetStatusText("已保存所有画布", 0);
+        return SaveModifiedCanvases();
     }
     else if (result == wxID_NO) {
-        // 不保存，直接重置标记（可选，根据你的需求）
-        m_isModified = false;
+        // 调用者将继续切换文件或关闭窗口；当前函数只报告用户允许放弃修改。
+        return true;
     }
     else if (result == wxID_CANCEL) {
         // 取消操作，不修改标记
-        return;
+        return false;
     }
-
+    return false;
 }
 
 void CanvasNoteBook::SetCurrentComponent(wxString type) {
@@ -246,7 +257,7 @@ void CanvasNoteBook::AddCustomButton() {
                     if (m_addBtn) {
                         wxSize sz = this->GetClientSize();
                         m_addBtn->SetPosition(wxPoint(sz.x - 30, 3));
-                        m_addBtn->Raise();    // 确保在最上层
+                        m_addBtn->Raise();
                         m_addBtn->Refresh();  // 强制按钮自己重绘一次
                     }
                     });
@@ -287,9 +298,31 @@ void CanvasNoteBook::DeleteAddButton() {
 }
 
 void CanvasNoteBook::OnAddNewPageRequested() {
-    // 后台逻辑：具体添加什么由后台决定
-    TopNode* tn = new TopNode("new_module", TopNodeType::Module);
-    tn = static_cast<TopNode*>(sftree->AddChild(fn, tn));
+    if (!sftree || !fn) {
+        wxLogError("Cannot add a module without an active source file.");
+        return;
+    }
+
+    std::string identifier = "new_module";
+    int suffix = 2;
+    const auto alreadyExists = [this](const std::string& candidate) {
+        for (const auto* child : fn->GetChildren()) {
+            if (child && child->type == SigTreeNodeType::Top &&
+                static_cast<const TopNode*>(child)->identifier == candidate) {
+                return true;
+            }
+        }
+        return false;
+    };
+    while (alreadyExists(identifier)) {
+        // 同一 Verilog 文件中模块名必须唯一；依次尝试 new_module_2、_3……
+        identifier = "new_module_" + std::to_string(suffix++);
+    }
+
+    TopNode nodeTemplate(identifier, TopNodeType::Module);
+    if (!sftree->AddChild(fn, &nodeTemplate)) {
+        wxLogError("Unable to add module %s.", wxString::FromUTF8(identifier.c_str()));
+    }
 }
 
 void CanvasNoteBook::OnPageClose(wxAuiNotebookEvent& evt) {
@@ -310,7 +343,6 @@ void CanvasNoteBook::OnPageClose(wxAuiNotebookEvent& evt) {
     }
 
     sftree->RemoveChild(fn,tn);
-
 
     /*
     // 3. 自定义逻辑：检查是否有未保存的更改

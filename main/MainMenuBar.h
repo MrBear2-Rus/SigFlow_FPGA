@@ -112,6 +112,7 @@ private:
     void OnFpgaOpenSynthesisReport(wxCommandEvent&);
     void OnFpgaRetrySynthesis(wxCommandEvent&);
     void OnFpgaRoute(wxCommandEvent&);
+    void OnFpgaCancelRoute(wxCommandEvent&);
     void OnFpgaProgram(wxCommandEvent&);
     void OnFpgaPinBinding(wxCommandEvent&);
 

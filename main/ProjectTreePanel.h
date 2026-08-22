@@ -11,6 +11,7 @@ wxDECLARE_EVENT(EVT_PROJECT_LOADED, wxCommandEvent);
 class ProjectTreePanel : public wxPanel {
 public:
     ProjectTreePanel(wxWindow* parent);
+    ~ProjectTreePanel() override;
 
     void LoadProject(const wxString& projectRoot);
     void RefreshTree();
@@ -20,7 +21,7 @@ public:
 private:
     wxTreeCtrl* m_tree;
     wxString m_projectRoot;
-    wxFileSystemWatcher* watcher;
+    wxFileSystemWatcher* watcher = nullptr;
 
     void BuildTree(const wxString& path, wxTreeItemId parent);
     void OnItemActivated(wxTreeEvent& evt);
@@ -28,6 +29,7 @@ private:
 
     void OnFileSystemChanged(wxFileSystemWatcherEvent& evt);
     void AddWatchRecursive(const wxString& dir);
+    bool IsGeneratedPath(const wxString& path) const;
 
     void InitTreeIcons();
 };

@@ -65,8 +65,8 @@ public:
     int GetSnapVersion() { return temp_version; };
     void OnTextChanged(wxStyledTextEvent& event);
     bool OpenFile(wxString path);
+    void ClearDocument();
     bool SaveFile();
     bool SaveFileAs(wxString path);
     wxString GetCurrentPath() { return m_currentFilePath; }
-
 };

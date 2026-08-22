@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SigFlow TraceBridge Compare Result",
+  "type": "object",
+  "required": ["schema_version", "session_id"],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["1.0"] },
+    "session_id": { "type": "string", "minLength": 1 },
+    "aligned": { "type": "boolean" },
+    "quality": { "type": "number", "minimum": 0, "maximum": 1 },
+    "anchors": {
+      "type": "object",
+      "properties": {
+        "reset_release": { "type": "integer" },
+        "trigger_hit": { "type": "integer" },
+        "input_transaction": { "type": "integer" }
+      }
+    },
+    "first_difference": {
+      "type": "object",
+      "properties": {
+        "sample": { "type": "integer" },
+        "signal": { "type": "string" },
+        "expected": { "type": "string" },
+        "actual": { "type": "string" },
+        "upstream_candidates": { "type": "array", "items": { "type": "string" } },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "replay_consistency": {
+      "type": "object",
+      "properties": {
+        "score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "verified": { "type": "boolean" }
+      }
+    }
+  }
+}

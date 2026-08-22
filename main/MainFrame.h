@@ -33,6 +33,7 @@ class Structuring;
 class VerilogManager;
 class WavePanel;
 class YosysExecutor;
+class NextpnrExecutor;
 class FpgaToolWindow;
 enum class FpgaToolPage;
 
@@ -59,9 +60,13 @@ private:
     FpgaPinBindingPanel* m_fpgaPinBindingPanel;
     FpgaToolWindow* m_fpgaToolWindow;
     TerminalCtrl* m_terminalCtrl;
-    BuildProgressBar* m_buildProgressBar = nullptr;  // VS 风格编译进度条
+    BuildProgressBar* m_buildProgressBar = nullptr;
     WavePanel* m_wavePanel;
     std::unique_ptr<YosysExecutor> m_yosysExecutor;
+    std::unique_ptr<NextpnrExecutor> m_nextpnrExecutor;
+    wxString m_activeNextpnrJobId;
+    bool m_routeCancelRequested = false;
+    wxString m_pendingNextpnrRetryOf;
     wxString m_activeYosysJobId;
     wxString m_pendingYosysRetryOf;
 
@@ -75,7 +80,9 @@ private:
     void ShowFpgaToolWindow(FpgaToolPage page);
     void RunFpgaSynthesis();
     void RunFpgaRoute();
+    void RunFpgaPack();
     void RunFpgaProgram(const wxString& bitstreamPath);
+    void KillAsyncToolProcess(long processId);
     // 声明事件处理函数
     void OnAnalysisComplete(wxThreadEvent& event);
 
@@ -88,6 +95,8 @@ private:
     void AddWireNode(wxXmlNode* parent, const wxString& from, const wxString& to);
     bool SaveAsNodeFile(const wxString& filePath);
     bool SaveAsNetFile(const wxString& filePath);
+    bool ConfirmCurrentWorkBeforeProjectSwitch();
+    void ResetCurrentDocumentForProjectSwitch();
     void OnClose(wxCloseEvent& event);
     void OnToolSelected(wxCommandEvent& evt);
 
@@ -104,11 +113,11 @@ public:
     void DoFileOpenProject();
     bool DoFileNew();
     void DoFileOpen(const wxString& path = {});
-    void DoFileSave();
-    void DoFileSaveAs();
+    bool DoFileSave();
+    bool DoFileSaveAs();
     void DoFileSaveAsNode();  // 另存为.node文件
     void DoFileSaveAsNet();   // 另存为.net文件
-    void OnQuit(wxCommandEvent&) { Close(true); }
+    void OnQuit(wxCommandEvent&) { Close(); }
     void OnAbout(wxCommandEvent&);
 
     /* Edit 菜单业务接口 */
@@ -169,6 +178,7 @@ public:
     void DoFpgaOpenSynthesisReport();
     void DoFpgaRetrySynthesis();
     void DoFpgaRoute();
+    void DoFpgaCancelRoute();
     void DoFpgaProgram();
     void DoFpgaPinBinding();
 

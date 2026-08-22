@@ -125,7 +125,7 @@ public:
     //void ClearAll();
     void DeleteSelected();
 
-    void Save();
+    bool Save();
     bool Read();
 
 

@@ -14,6 +14,7 @@
 
 #include "CstValidator.h"
 #include "FpgaSynthesisJobsPanel.h"
+#include "NextpnrJobsPanel.h"
 #include "FpgaTheme.h"
 #include "../FpgaYosysRuntime.h"
 
@@ -164,9 +165,19 @@ wxPanel* FpgaToolWindow::BuildNextpnrPage()
     m_routeStartButton = new wxButton(page, wxID_ANY, "Start Place and Route");
     FpgaTheme::StyleButton(m_routeStartButton, FpgaTheme::kBlue, *wxWHITE);
     header->Add(m_routeStartButton, 0, wxLEFT, page->FromDIP(6));
+
+    wxButton* routeCancelButton = new wxButton(page, wxID_ANY, "Cancel");
+    FpgaTheme::StyleButton(routeCancelButton, FpgaTheme::kRed, *wxWHITE);
+    header->Add(routeCancelButton, 0, wxLEFT, page->FromDIP(6));
     layout->Add(header, 0, wxEXPAND | wxALL, page->FromDIP(10));
 
     FpgaTheme::MakeDivider(page, layout, page->FromDIP(10));
+
+    // ── 任务列表面板 ──
+    m_routeJobsPanel = new NextpnrJobsPanel(page);
+    layout->Add(m_routeJobsPanel, 1, wxEXPAND | wxLEFT | wxRIGHT, page->FromDIP(8));
+
+    FpgaTheme::MakeDivider(page, layout, page->FromDIP(6));
 
     // ── 本次运行信息卡片 ──
     wxPanel* infoCard = MakeInfoCard(page, layout, "Run Summary");
@@ -203,6 +214,9 @@ wxPanel* FpgaToolWindow::BuildNextpnrPage()
     m_routeStartButton->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
         if (m_routeStartHandler) m_routeStartHandler();
     });
+    routeCancelButton->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
+        if (m_routeCancelHandler) m_routeCancelHandler();
+    });
     return page;
 }
 
@@ -221,6 +235,11 @@ wxPanel* FpgaToolWindow::BuildProgrammerPage()
         wxT("选择 Apicula .fs 位流并下载到目标板卡。"),
         FpgaTheme::kTextSecondary));
     header->Add(titleColumn, 1, wxALIGN_CENTER_VERTICAL);
+
+    m_packButton = new wxButton(page, wxID_ANY, "Build .fs");
+    FpgaTheme::StyleButton(m_packButton, FpgaTheme::kBlue, *wxWHITE);
+    m_packButton->Enable(false);
+    header->Add(m_packButton, 0, wxLEFT, page->FromDIP(6));
 
     m_programButton = new wxButton(page, wxID_ANY, "Program Board");
     FpgaTheme::StyleButton(m_programButton, FpgaTheme::kAmber, *wxBLACK);
@@ -250,7 +269,7 @@ wxPanel* FpgaToolWindow::BuildProgrammerPage()
     layout->Add(picker, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, page->FromDIP(10));
 
     m_programStatusLabel = FpgaTheme::MakeLabel(page,
-        wxT("选择 .fs 位流后即可烧录。"), FpgaTheme::kTextMuted);
+        wxT("先构建 .fs，或手动选择已有位流后烧录。"), FpgaTheme::kTextMuted);
     layout->Add(m_programStatusLabel, 0, wxLEFT | wxRIGHT | wxBOTTOM, page->FromDIP(10));
 
     layout->AddStretchSpacer(1);
@@ -269,6 +288,12 @@ wxPanel* FpgaToolWindow::BuildProgrammerPage()
         if (m_programStartHandler && !m_bitstreamPath.IsEmpty()) {
             m_programStatusLabel->SetLabel("Programming started...");
             m_programStartHandler(m_bitstreamPath);
+        }
+    });
+    m_packButton->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
+        if (m_packStartHandler) {
+            m_programStatusLabel->SetLabel("Building Apicula .fs bitstream...");
+            m_packStartHandler();
         }
     });
     return page;
@@ -291,6 +316,7 @@ void FpgaToolWindow::SetProjectContext(const wxString& projectPath,
     m_projectPath = projectPath;
     m_activeYosysJobId = activeYosysJobId;
     m_synthesisJobsPanel->SetProjectContext(projectPath, activeYosysJobId);
+    if (m_routeJobsPanel) m_routeJobsPanel->SetProjectContext(projectPath, wxEmptyString);
     UpdateProjectLabels();
 }
 
@@ -302,7 +328,8 @@ void FpgaToolWindow::RefreshSynthesisJobs()
 
 void FpgaToolWindow::SetOpenFileHandler(std::function<void(const wxString&, long)> handler)
 {
-    m_synthesisJobsPanel->SetOpenFileHandler(std::move(handler));
+    m_synthesisJobsPanel->SetOpenFileHandler(handler);
+    if (m_routeJobsPanel) m_routeJobsPanel->SetOpenFileHandler(handler);
 }
 
 void FpgaToolWindow::SetSynthesisStartHandler(std::function<void()> handler)
@@ -326,10 +353,59 @@ void FpgaToolWindow::SetRouteStartHandler(std::function<void()> handler)
     m_routeStartHandler = std::move(handler);
 }
 
+void FpgaToolWindow::SetRouteCancelHandler(std::function<void()> handler)
+{
+    m_routeCancelHandler = std::move(handler);
+}
+
+void FpgaToolWindow::SetRouteRetryHandler(std::function<void(const wxString&)> handler)
+{
+    m_routeRetryHandler = std::move(handler);
+    if (m_routeJobsPanel) m_routeJobsPanel->SetRetryHandler(m_routeRetryHandler);
+}
+
+void FpgaToolWindow::SetRouteActiveJob(const wxString& jobId)
+{
+    m_activeNextpnrJobId = jobId;
+    // 立即同步到面板，防止定时器误将 running job 当做僵尸进程回收
+    if (m_routeJobsPanel) {
+        m_routeJobsPanel->SetProjectContext(m_projectPath, m_activeNextpnrJobId);
+    }
+}
+
+void FpgaToolWindow::RefreshRouteJobs()
+{
+    if (m_routeJobsPanel) {
+        m_routeJobsPanel->SetProjectContext(m_projectPath, m_activeNextpnrJobId);
+        m_routeJobsPanel->RefreshJobs();
+    }
+}
+
+void FpgaToolWindow::SetPackStartHandler(std::function<void()> handler)
+{
+    m_packStartHandler = std::move(handler);
+    if (m_packButton) m_packButton->Enable(static_cast<bool>(m_packStartHandler));
+}
+
 void FpgaToolWindow::SetProgramStartHandler(std::function<void(const wxString&)> handler)
 {
     m_programStartHandler = std::move(handler);
     if (m_programButton && !m_bitstreamPath.IsEmpty()) m_programButton->Enable(true);
+}
+
+void FpgaToolWindow::SetPackResult(const wxString& bitstreamPath, bool success,
+                                   const wxString& message)
+{
+    if (!m_programStatusLabel) return;
+    if (!success) {
+        m_programStatusLabel->SetLabel("Build .fs failed: " + message);
+        return;
+    }
+
+    m_bitstreamPath = bitstreamPath;
+    if (m_bitstreamPathText) m_bitstreamPathText->SetValue(m_bitstreamPath);
+    m_programStatusLabel->SetLabel("Ready to program: " + m_bitstreamPath);
+    if (m_programButton) m_programButton->Enable(static_cast<bool>(m_programStartHandler));
 }
 
 void FpgaToolWindow::UpdateProjectLabels()
@@ -355,7 +431,9 @@ void FpgaToolWindow::UpdateNextpnrInfo()
             wxDir directory(yosysDirectory);
             wxString name;
             if (directory.GetFirst(&name, "*.json", wxDIR_FILES)) {
-                do { ++count; } while (directory.GetNext(&name));
+                do {
+                    if (!name.Lower().Contains("manifest")) ++count;
+                } while (directory.GetNext(&name));
             }
         }
         if (count > 0) {
