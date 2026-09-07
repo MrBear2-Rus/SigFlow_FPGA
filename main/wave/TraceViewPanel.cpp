@@ -1,17 +1,22 @@
 #include "TraceViewPanel.h"
 
 #include "WaveAnalysis.h"
+#include "WaveCompareHub.h"
 #include "WavePatternSearch.h"
 #include "WaveSession.h"
 #include "../trace/TraceCache.h"
 #include "../trace/VcdLazyTraceSource.h"
 
 #include <wx/button.h>
+#include <wx/choicdlg.h>
+#include <wx/dir.h>
 #include <wx/filedlg.h>
+#include <wx/filename.h>
 #include <wx/menu.h>
 #include <wx/msgdlg.h>
 #include <wx/sizer.h>
 #include <wx/splitter.h>
+#include <wx/textdlg.h>
 
 #include <algorithm>
 #include <sstream>
@@ -25,6 +30,108 @@ TraceViewPanel::TraceViewPanel(wxWindow* parent)
     BuildUi();
 }
 
+void TraceViewPanel::InjectCompareEvents(const sigflow::debug::ComparisonResult& r,
+                                          bool isHwPanel)
+{
+    if (!m_view) return;
+    std::vector<WaveEvent> events;
+
+    // 对齐锚点事件（绿色）
+    if (r.aligned) {
+        const sigflow::trace::TimeValue anchorTime =
+            static_cast<sigflow::trace::TimeValue>(isHwPanel ? r.alignment.hwAnchorTime
+                                                              : r.alignment.simAnchorTime);
+        std::string anchorLabel = "Anchor: " + r.alignment.anchorSignal;
+        switch (r.alignment.anchorKind) {
+            case sigflow::debug::AnchorKind::ResetRelease:   anchorLabel += " (ResetRelease)"; break;
+            case sigflow::debug::AnchorKind::TriggerHit:     anchorLabel += " (Trigger)"; break;
+            case sigflow::debug::AnchorKind::InputTxn:       anchorLabel += " (InputTxn)"; break;
+        }
+        events.push_back(WaveEvent{anchorTime, anchorLabel, 0xFF10B981}); // 绿色
+    }
+
+    // 每个信号的首个差异（红色）
+    for (const sigflow::debug::WaveformDiff& diff : r.firstDiffs) {
+        const sigflow::trace::TimeValue t =
+            static_cast<sigflow::trace::TimeValue>(isHwPanel ? diff.hwTime : diff.simTime);
+        std::ostringstream oss;
+        oss << "DIFF " << diff.signalName << ": exp=" << diff.expectedValue
+            << " got=" << diff.actualValue
+            << " (" << static_cast<int>(diff.confidence * 100) << "%)";
+        WaveEvent event{t, oss.str(), 0xFFEF4444};
+        event.signalName = diff.signalName;
+        event.sourcePath = diff.location.sourcePath;
+        event.sourceLine = diff.location.sourceLine;
+        events.push_back(std::move(event)); // 红色
+    }
+
+    // 汇总差异（橙色，放在首差异时间）
+    if (!r.firstDiffs.empty()) {
+        const sigflow::debug::WaveformDiff& first = r.firstDiffs.front();
+        const sigflow::trace::TimeValue t =
+            static_cast<sigflow::trace::TimeValue>(isHwPanel ? first.hwTime : first.simTime);
+        std::ostringstream oss;
+        oss << "SUMMARY: " << r.totalDiffs << " diff(s) in " << r.totalSignalsCompared
+            << " signal(s) — first: " << first.signalName;
+        WaveEvent event{t, oss.str(), 0xFFF97316};
+        event.signalName = first.signalName;
+        events.push_back(std::move(event)); // 橙色
+    }
+
+    // 按时间排序
+    std::sort(events.begin(), events.end(),
+              [](const WaveEvent& a, const WaveEvent& b) { return a.time < b.time; });
+
+    m_view->SetEvents(events);
+    RefreshEvents();
+}
+
+void TraceViewPanel::InjectBehaviorEvents(
+    const std::vector<sigflow::debug::DebugBehaviorEvent>& behaviorEvents,
+    bool isHwPanel, std::int64_t timeOffset)
+{
+    if (!m_view) return;
+    std::vector<WaveEvent> events = m_view->Events();
+    for (const auto& behavior : behaviorEvents) {
+        WaveEvent event;
+        const std::int64_t translated = static_cast<std::int64_t>(behavior.time) +
+                                        (isHwPanel ? 0 : timeOffset);
+        event.time = static_cast<sigflow::trace::TimeValue>(translated < 0 ? 0 : translated);
+        event.signalName = behavior.signalName;
+        event.label = behavior.kind + (behavior.signalName.empty() ? "" : " " + behavior.signalName);
+        if (!behavior.message.empty()) event.label += ": " + behavior.message;
+        event.label += " [" + (isHwPanel ? std::string("HW") : std::string("Sim")) + "]";
+        if (behavior.kind == "first_difference") event.color = 0xFFEF4444;
+        else if (behavior.kind == "trigger_hit") event.color = 0xFFF97316;
+        else if (behavior.kind == "reset_release") event.color = 0xFF10B981;
+        else event.color = 0xFF60A5FA;
+        events.push_back(std::move(event));
+    }
+    std::sort(events.begin(), events.end(),
+              [](const WaveEvent& left, const WaveEvent& right) {
+                  if (left.time != right.time) return left.time < right.time;
+                  return left.label < right.label;
+              });
+    m_view->SetEvents(events);
+    RefreshEvents();
+}
+
+void TraceViewPanel::RegisterCompareHub()
+{
+    if (!m_view || m_compareRegistered) return;
+    WaveCompareHub::Register(m_view);
+    WaveCompareHub::SetLinkTimeView(true);
+    WaveCompareHub::SetLinkPlayheads(true);
+    m_compareRegistered = true;
+}
+
+void TraceViewPanel::UnregisterCompareHub()
+{
+    if (!m_view || !m_compareRegistered) return;
+    WaveCompareHub::Unregister(m_view);
+    m_compareRegistered = false;
+}
+
 void TraceViewPanel::BuildUi()
 {
     wxBoxSizer* root = new wxBoxSizer(wxVERTICAL);
@@ -32,6 +139,7 @@ void TraceViewPanel::BuildUi()
     // 工具栏
     wxBoxSizer* toolbar = new wxBoxSizer(wxHORIZONTAL);
     wxButton* open = new wxButton(this, wxID_ANY, "Open VCD");
+    wxButton* autoLoad = new wxButton(this, wxID_ANY, "Auto Load");
     wxButton* save = new wxButton(this, wxID_ANY, "Save Session");
     wxButton* load = new wxButton(this, wxID_ANY, "Load Session");
     wxButton* zoomIn = new wxButton(this, wxID_ANY, "Zoom+");
@@ -39,8 +147,10 @@ void TraceViewPanel::BuildUi()
     wxButton* zoomReset = new wxButton(this, wxID_ANY, "Fit");
     wxButton* clearMarkers = new wxButton(this, wxID_ANY, "Clear Markers");
     wxButton* clearAB = new wxButton(this, wxID_ANY, "Clear A-B");
-    for (wxButton* button : { open, save, load, zoomIn, zoomOut, zoomReset,
-                              clearMarkers, clearAB }) {
+    wxButton* uart = new wxButton(this, wxID_ANY, "Load UART lane");
+    m_themeButton = new wxButton(this, wxID_ANY, "Theme: Dark");
+    for (wxButton* button : { open, autoLoad, save, load, zoomIn, zoomOut, zoomReset,
+                              clearMarkers, clearAB, uart, m_themeButton }) {
         toolbar->Add(button, 0, wxALL, 2);
     }
     toolbar->AddStretchSpacer();
@@ -57,13 +167,14 @@ void TraceViewPanel::BuildUi()
     m_searchBox = new wxTextCtrl(left, wxID_ANY, wxEmptyString, wxDefaultPosition,
                                  wxDefaultSize, wxTE_PROCESS_ENTER);
     leftLayout->Add(m_searchBox, 0, wxEXPAND | wxALL, 2);
-    m_tree = new wxTreeCtrl(left, wxID_ANY, wxDefaultPosition, wxDefaultSize,
-                            wxTR_HIDE_ROOT | wxTR_DEFAULT_STYLE);
+    m_tree = new wxTreeListCtrl(left, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+                            wxTL_CHECKBOX | wxTL_NO_HEADER);
+    m_tree->AppendColumn("Signal");
     leftLayout->Add(m_tree, 1, wxEXPAND | wxALL, 2);
     left->SetSizer(leftLayout);
     left->SetMinSize(wxSize(220, -1));
 
-    m_view = new WaveformView(splitter);
+    m_view = new WaveformView(splitter, true);
     splitter->SplitVertically(left, m_view, 220);
     splitter->SetMinimumPaneSize(160);
     root->Add(splitter, 1, wxEXPAND);
@@ -74,7 +185,14 @@ void TraceViewPanel::BuildUi()
                                  wxLC_REPORT | wxLC_SINGLE_SEL | wxBORDER_SIMPLE);
     m_eventList->AppendColumn("Time", wxLIST_FORMAT_LEFT, 90);
     m_eventList->AppendColumn("Event", wxLIST_FORMAT_LEFT, 240);
-    bottom->Add(m_eventList, 0, wxALL, 2);
+    bottom->Add(m_eventList, 1, wxEXPAND | wxALL, 2);
+
+    m_uartList = new wxListCtrl(this, wxID_ANY, wxDefaultPosition, wxSize(360, 110),
+                                wxLC_REPORT | wxLC_SINGLE_SEL | wxBORDER_SIMPLE);
+    m_uartList->AppendColumn("Offset", wxLIST_FORMAT_LEFT, 70);
+    m_uartList->AppendColumn("Frame", wxLIST_FORMAT_LEFT, 90);
+    m_uartList->AppendColumn("Details", wxLIST_FORMAT_LEFT, 220);
+    bottom->Add(m_uartList, 1, wxEXPAND | wxALL, 2);
 
     wxBoxSizer* searchCol = new wxBoxSizer(wxVERTICAL);
     searchCol->Add(new wxStaticText(this, wxID_ANY, "Pattern (name:kind[:value], e.g. clk:rise,cnt:0010)"),
@@ -94,6 +212,7 @@ void TraceViewPanel::BuildUi()
     SetSizer(root);
 
     open->Bind(wxEVT_BUTTON, &TraceViewPanel::OnOpenTrace, this);
+    autoLoad->Bind(wxEVT_BUTTON, &TraceViewPanel::OnAutoLoadTrace, this);
     save->Bind(wxEVT_BUTTON, &TraceViewPanel::OnSaveSession, this);
     load->Bind(wxEVT_BUTTON, &TraceViewPanel::OnLoadSession, this);
     zoomIn->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { m_view->ZoomIn(); });
@@ -102,9 +221,18 @@ void TraceViewPanel::BuildUi()
     clearMarkers->Bind(wxEVT_BUTTON,
                        [this](wxCommandEvent&) { m_view->ClearMarkers(); });
     clearAB->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { m_view->ClearAB(); });
-    m_tree->Bind(wxEVT_TREE_ITEM_ACTIVATED, &TraceViewPanel::OnTreeActivated, this);
+    uart->Bind(wxEVT_BUTTON, &TraceViewPanel::OnLoadUart, this);
+    m_themeButton->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
+        m_view->SetTheme(m_view->Theme() == WaveTheme::Dark ? WaveTheme::Light : WaveTheme::Dark);
+        m_themeButton->SetLabel(m_view->Theme() == WaveTheme::Dark ? "Theme: Dark" : "Theme: Light");
+    });
+    m_tree->Bind(wxEVT_TREELIST_ITEM_CHECKED, &TraceViewPanel::OnTreeItemChecked, this);
+    m_tree->Bind(wxEVT_TREELIST_ITEM_ACTIVATED, &TraceViewPanel::OnTreeItemActivated, this);
+    m_tree->Bind(wxEVT_TREELIST_ITEM_CONTEXT_MENU,
+                 &TraceViewPanel::OnTreeContextMenu, this);
     m_searchBox->Bind(wxEVT_TEXT, &TraceViewPanel::OnSearchChanged, this);
     m_eventList->Bind(wxEVT_LIST_ITEM_ACTIVATED, &TraceViewPanel::OnEventActivated, this);
+    m_uartList->Bind(wxEVT_LIST_ITEM_ACTIVATED, &TraceViewPanel::OnUartActivated, this);
     prev->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { RunPatternSearch(false); });
     next->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { RunPatternSearch(true); });
     m_patternBox->Bind(wxEVT_TEXT_ENTER, [this](wxCommandEvent&) { RunPatternSearch(true); });
@@ -127,16 +255,65 @@ bool TraceViewPanel::OpenTrace(const std::string& path)
     }
     m_source = source;
     m_view->SetTraceSource(m_source);
+    m_view->SetVisibleSignals({});
     PopulateTree();
     RefreshEvents();
-    RefreshMeasurement();
+    RefreshUartLane();
+    m_measureLabel->SetLabel(
+        "Loaded " + std::to_string(m_source->Signals().size()) +
+        " signal(s), range 0.." + std::to_string(m_source->TimeRange().end));
     return true;
+}
+
+bool TraceViewPanel::LoadUartCapture(const std::string& path)
+{
+    std::string error;
+    m_uartFrames = WaveUartLane::DecodeFile(path, error);
+    if (!error.empty()) {
+        wxMessageBox(error, "UART Lane", wxOK | wxICON_ERROR, this);
+        return false;
+    }
+    m_uartCapturePath = path;
+    RefreshUartLane();
+    return true;
+}
+
+void TraceViewPanel::RefreshUartLane()
+{
+    if (!m_uartList) return;
+    m_uartList->DeleteAllItems();
+    for (const WaveUartFrame& frame : m_uartFrames) {
+        const long row = m_uartList->InsertItem(m_uartList->GetItemCount(),
+                                                std::to_string(frame.offset));
+        m_uartList->SetItem(row, 1, frame.label);
+        m_uartList->SetItem(row, 2, frame.detail);
+        if (!frame.valid) m_uartList->SetItemTextColour(row, wxColour(220, 38, 38));
+    }
+}
+
+void TraceViewPanel::OnLoadUart(wxCommandEvent&)
+{
+    wxFileDialog dialog(this, "Load UART Capture", m_sessionDir, wxEmptyString,
+                        "Binary captures (*.raw;*.bin)|*.raw;*.bin|All files (*.*)|*.*",
+                        wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+    if (dialog.ShowModal() == wxID_OK) LoadUartCapture(dialog.GetPath().ToStdString());
+}
+
+void TraceViewPanel::OnUartActivated(wxListEvent& event)
+{
+    const long index = event.GetIndex();
+    if (index < 0 || static_cast<std::size_t>(index) >= m_uartFrames.size()) return;
+    const auto& frame = m_uartFrames[static_cast<std::size_t>(index)];
+    if (!m_source || !frame.valid) return;
+    const auto time = static_cast<sigflow::trace::TimeValue>(frame.offset);
+    m_view->JumpToTime(time);
+    m_view->SetPlayhead(time);
 }
 
 void TraceViewPanel::PopulateTree()
 {
     m_tree->DeleteAllItems();
-    const wxTreeItemId root = m_tree->AddRoot("Signals");
+    const wxTreeListItem root = m_tree->GetRootItem();
     if (!m_source) return;
 
     const std::string filter = m_searchBox->GetValue().Lower().ToStdString();
@@ -147,43 +324,55 @@ void TraceViewPanel::PopulateTree()
             continue;
         }
         // 按 scope 分段建模块节点
-        wxTreeItemId parent = root;
+        wxTreeListItem parent = root;
         std::string scope = signal.scope;
         while (!scope.empty()) {
             const std::size_t slash = scope.find('/');
             const std::string part = scope.substr(0, slash);
-            wxTreeItemIdValue cookie = nullptr;
-            wxTreeItemId child = m_tree->GetFirstChild(parent, cookie);
-            wxTreeItemId match;
+            wxTreeListItem child = m_tree->GetFirstChild(parent);
+            wxTreeListItem match;
             while (child.IsOk()) {
-                if (m_tree->GetItemText(child) == part) {
+                if (m_tree->GetItemText(child) == wxString::FromUTF8(part)) {
                     match = child;
                     break;
                 }
                 child = m_tree->GetNextSibling(child);
             }
             if (!match.IsOk()) {
-                match = m_tree->AppendItem(parent, part);
+                match = m_tree->AppendItem(parent, wxString::FromUTF8(part));
             }
             parent = match;
             scope = (slash == std::string::npos) ? std::string() : scope.substr(slash + 1);
         }
-        wxTreeItemId leaf = m_tree->AppendItem(parent, signal.name);
+        std::string displayName = signal.name;
+        const auto alias = m_signalAliases.find(signal.id);
+        if (alias != m_signalAliases.end() && !alias->second.empty()) {
+            displayName += " [" + alias->second + "]";
+        }
+        wxTreeListItem leaf = m_tree->AppendItem(parent, wxString::FromUTF8(displayName));
         m_tree->SetItemData(leaf, new SignalTreeData(signal.id));
+        const WaveViewState& state = m_view->State();
+        if (std::find(state.visibleSignalIds.begin(), state.visibleSignalIds.end(), signal.id) !=
+            state.visibleSignalIds.end()) {
+            m_tree->CheckItem(leaf);
+        }
     }
-    m_tree->ExpandAllChildren(root);
+    for (wxTreeListItem item = m_tree->GetFirstItem(); item.IsOk();
+         item = m_tree->GetNextItem(item)) {
+        if (m_tree->GetFirstChild(item).IsOk()) m_tree->Expand(item);
+    }
 }
 
-void TraceViewPanel::ToggleSignal(int signalId)
+void TraceViewPanel::SetSignalChecked(int signalId, bool checked)
 {
     if (!m_view) return;
     WaveViewState state = m_view->State();
     const auto it = std::find(state.visibleSignalIds.begin(),
                               state.visibleSignalIds.end(), signalId);
-    if (it != state.visibleSignalIds.end()) {
-        state.visibleSignalIds.erase(it);
-    } else {
+    if (checked && it == state.visibleSignalIds.end()) {
         state.visibleSignalIds.push_back(signalId);
+    } else if (!checked && it != state.visibleSignalIds.end()) {
+        state.visibleSignalIds.erase(it);
     }
     m_view->SetVisibleSignals(state.visibleSignalIds);
 }
@@ -201,7 +390,19 @@ void TraceViewPanel::RefreshEvents()
 void TraceViewPanel::RefreshMeasurement()
 {
     const std::string text = m_view->MeasurementText();
-    m_measureLabel->SetLabel(text);
+    if (!text.empty()) {
+        m_measureLabel->SetLabel(text);
+        return;
+    }
+    if (!m_source) {
+        m_measureLabel->SetLabel(wxEmptyString);
+        return;
+    }
+    const WaveViewState& state = m_view->State();
+    m_measureLabel->SetLabel(
+        "Loaded " + std::to_string(m_source->Signals().size()) +
+        " signal(s), view " + std::to_string(state.timeOffset) +
+        ".." + std::to_string(state.EndTime()));
 }
 
 void TraceViewPanel::HighlightNearestEvent()
@@ -310,6 +511,62 @@ void TraceViewPanel::OnOpenTrace(wxCommandEvent&)
     OpenTrace(dialog.GetPath().ToStdString());
 }
 
+void TraceViewPanel::OnAutoLoadTrace(wxCommandEvent&)
+{
+    AutoLoadTrace();
+}
+
+void TraceViewPanel::AutoLoadTrace()
+{
+    if (m_projectPath.empty()) {
+        wxMessageBox("No project loaded.", "Auto Load", wxOK | wxICON_WARNING, this);
+        return;
+    }
+
+    const wxString simRoot = wxString::FromUTF8(m_projectPath) +
+                             wxFileName::GetPathSeparator() + ".sigflow" +
+                             wxFileName::GetPathSeparator() + "sim";
+    if (!wxDirExists(simRoot)) {
+        wxMessageBox("No .sigflow/sim directory was found. Run simulation first.",
+                     "Auto Load", wxOK | wxICON_INFORMATION, this);
+        return;
+    }
+
+    std::vector<std::pair<wxString, wxString>> candidates;
+    wxDir simDir(simRoot);
+    wxString module;
+    bool hasModule = simDir.GetFirst(&module, wxEmptyString, wxDIR_DIRS);
+    while (hasModule) {
+        wxFileName vcd(simRoot, wxEmptyString);
+        vcd.AppendDir(module);
+        vcd.AppendDir("waveform");
+        vcd.SetFullName("wave.vcd");
+        if (vcd.FileExists()) {
+            candidates.emplace_back(module, vcd.GetFullPath());
+        }
+        hasModule = simDir.GetNext(&module);
+    }
+
+    if (candidates.empty()) {
+        wxMessageBox("No .sigflow/sim/<module>/waveform/wave.vcd was found.",
+                     "Auto Load", wxOK | wxICON_INFORMATION, this);
+        return;
+    }
+
+    wxString selectedPath;
+    if (candidates.size() == 1) {
+        selectedPath = candidates.front().second;
+    } else {
+        wxArrayString choices;
+        for (const auto& candidate : candidates) choices.Add(candidate.first);
+        const int selected = wxGetSingleChoiceIndex(
+            "Select a simulation waveform to load.", "Auto Load", choices, this);
+        if (selected < 0) return;
+        selectedPath = candidates[static_cast<std::size_t>(selected)].second;
+    }
+    OpenTrace(selectedPath.ToStdString());
+}
+
 void TraceViewPanel::OnSaveSession(wxCommandEvent&)
 {
     wxFileDialog dialog(this, "Save Session", m_sessionDir, "wave.bws",
@@ -326,10 +583,85 @@ void TraceViewPanel::OnLoadSession(wxCommandEvent&)
     LoadSession(dialog.GetPath().ToStdString());
 }
 
-void TraceViewPanel::OnTreeActivated(wxTreeEvent& event)
+void TraceViewPanel::OnTreeItemChecked(wxTreeListEvent& event)
 {
     const auto* data = dynamic_cast<SignalTreeData*>(m_tree->GetItemData(event.GetItem()));
-    if (data) ToggleSignal(data->signalId);
+    if (data) {
+        const bool checked = m_tree->GetCheckedState(event.GetItem()) == wxCHK_CHECKED;
+        SetSignalChecked(data->signalId, checked);
+    }
+}
+
+void TraceViewPanel::OnTreeItemActivated(wxTreeListEvent& event)
+{
+    const auto* data = dynamic_cast<SignalTreeData*>(m_tree->GetItemData(event.GetItem()));
+    if (data) SetSignalChecked(data->signalId, true);
+}
+
+bool TraceViewPanel::AddSignalByName(const std::string& name)
+{
+    if (!m_source || name.empty()) return false;
+    const std::size_t separator = name.find_last_of("./");
+    const std::string leaf = separator == std::string::npos ? name : name.substr(separator + 1);
+    for (const auto& signal : m_source->Signals()) {
+        if (signal.name == name || signal.fullName == name || signal.name == leaf ||
+            signal.fullName == leaf) {
+            SetSignalChecked(signal.id, true);
+            PopulateTree();
+            return true;
+        }
+    }
+    return false;
+}
+
+void TraceViewPanel::OnTreeContextMenu(wxTreeListEvent& event)
+{
+    const auto* data = dynamic_cast<SignalTreeData*>(m_tree->GetItemData(event.GetItem()));
+    if (!data || !m_source) return;
+    const int signalId = data->signalId;
+    const auto* signal = m_source->SignalById(signalId);
+    if (!signal) return;
+
+    wxMenu menu;
+    const int add = wxID_HIGHEST + 301;
+    const int remove = wxID_HIGHEST + 302;
+    const int alias = wxID_HIGHEST + 303;
+    const int comment = wxID_HIGHEST + 304;
+    menu.Append(add, "Add to waveform");
+    menu.Append(remove, "Remove from waveform");
+    menu.AppendSeparator();
+    menu.Append(alias, "Set signal alias...");
+    menu.Append(comment, "Set signal comment...");
+    menu.Bind(wxEVT_MENU, [this, signalId](wxCommandEvent&) {
+        SetSignalChecked(signalId, true);
+    }, add);
+    menu.Bind(wxEVT_MENU, [this, signalId](wxCommandEvent&) {
+        SetSignalChecked(signalId, false);
+    }, remove);
+    menu.Bind(wxEVT_MENU, [this, signalId, signal](wxCommandEvent&) {
+        const auto it = m_signalAliases.find(signalId);
+        const wxString current = it == m_signalAliases.end()
+            ? wxString() : wxString::FromUTF8(it->second);
+        wxTextEntryDialog dialog(this, "Alias (empty clears it):", "Signal Alias", current);
+        if (dialog.ShowModal() != wxID_OK) return;
+        const std::string value = dialog.GetValue().ToStdString();
+        if (value.empty()) m_signalAliases.erase(signalId);
+        else m_signalAliases[signalId] = value;
+        PopulateTree();
+    }, alias);
+    menu.Bind(wxEVT_MENU, [this, signalId, signal](wxCommandEvent&) {
+        const auto it = m_signalComments.find(signalId);
+        const wxString current = it == m_signalComments.end()
+            ? wxString() : wxString::FromUTF8(it->second);
+        wxTextEntryDialog dialog(this, "Comment (empty clears it):", "Signal Comment", current);
+        if (dialog.ShowModal() != wxID_OK) return;
+        const std::string value = dialog.GetValue().ToStdString();
+        if (value.empty()) m_signalComments.erase(signalId);
+        else m_signalComments[signalId] = value;
+        wxMessageBox(value.empty() ? "Comment cleared." : value,
+                     signal->fullName, wxOK | wxICON_INFORMATION, this);
+    }, comment);
+    m_tree->PopupMenu(&menu);
 }
 
 void TraceViewPanel::OnSearchChanged(wxCommandEvent&)
@@ -344,12 +676,20 @@ void TraceViewPanel::OnEventActivated(wxListEvent& event)
     if (index >= 0 && static_cast<std::size_t>(index) < events.size()) {
         m_view->JumpToTime(events[static_cast<std::size_t>(index)].time);
         m_view->SetPlayhead(events[static_cast<std::size_t>(index)].time);
+        const WaveEvent& selected = events[static_cast<std::size_t>(index)];
+        if (m_navigationCallback && !selected.signalName.empty()) {
+            m_navigationCallback(selected.signalName, selected.sourcePath,
+                                 selected.sourceLine, selected.time);
+        }
     }
 }
 
 void TraceViewPanel::SaveSession(const std::string& path)
 {
     WaveSessionData session = m_view->CaptureSession();
+    session.uartCapturePath = m_uartCapturePath;
+    session.signalAliases = m_signalAliases;
+    session.signalComments = m_signalComments;
     std::string error;
     if (!WaveSessionSave(session, path, error)) {
         wxMessageBox(error, "Save Session", wxOK | wxICON_ERROR, this);
@@ -368,6 +708,13 @@ bool TraceViewPanel::LoadSession(const std::string& path)
         if (!OpenTrace(session.sourcePath)) return false;
     }
     m_view->ApplySession(session);
+    if (!session.uartCapturePath.empty()) LoadUartCapture(session.uartCapturePath);
+    if (m_themeButton) {
+        m_themeButton->SetLabel(m_view->Theme() == WaveTheme::Dark
+                                    ? "Theme: Dark" : "Theme: Light");
+    }
+    m_signalAliases = std::move(session.signalAliases);
+    m_signalComments = std::move(session.signalComments);
     PopulateTree();
     RefreshEvents();
     RefreshMeasurement();

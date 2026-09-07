@@ -37,6 +37,7 @@ public:
                          const std::string& device,
                          const std::string& family,
                          bool stubLink,
+                         const std::string& configuredCstPath,
                          DebugOverlayResult& result,
                          std::string& error) const;
 
@@ -50,7 +51,11 @@ public:
 private:
     std::string BuildWrapper(const DebugContract& contract,
                              const std::vector<DebugPortInfo>& userTopPorts) const;
-    std::string BuildCstPatch(const DebugContract& contract) const;
+    std::string BuildMergedCst(const DebugContract& contract,
+                                const std::string& projectPath,
+                                const std::string& configuredCstPath,
+                                const std::vector<DebugPortInfo>& userTopPorts,
+                                std::string& error) const;
     std::string BuildYosysScript(const DebugContract& contract,
                                  const std::vector<std::string>& userSourceFiles,
                                  const std::string& debugRtlDir,

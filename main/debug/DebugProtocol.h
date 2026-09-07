@@ -3,11 +3,16 @@
 #include "ITransport.h"
 
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <vector>
 
 namespace sigflow {
 namespace debug {
+
+// 分块读回采集样本的进度回调（got 已读，total 总量；可能在 I/O 线程被调用）。
+using ReadProgressCb = std::function<void(std::uint32_t got, std::uint32_t total)>;
+
 namespace proto {
 
 // TraceBridge 链路协议（与 rtl/debug/sf_debug_link.sv 及 C++ 行为基准对齐）：
@@ -160,6 +165,10 @@ public:
     bool ReadCapture(std::uint16_t start, std::uint16_t count,
                      std::vector<std::uint32_t>& samples, std::string& error,
                      int timeoutMs = 1000, int attempts = 3);
+    // 带进度回调的 ReadCapture（progressCb 为 nullptr 时等价于上一版）。
+    bool ReadCapture(std::uint16_t start, std::uint16_t count,
+                     std::vector<std::uint32_t>& samples, std::string& error,
+                     int timeoutMs, int attempts, const ReadProgressCb& progressCb);
     bool Reset(std::string& error, int timeoutMs = 1000, int attempts = 3);
     // 同步校准：0x55/0xAA 前导 + PING 校验链路就绪（T-P3-01 剩项）。
     bool SyncCalibrate(std::string& error, int timeoutMs = 1000, int attempts = 2);
@@ -194,6 +203,9 @@ public:
     bool ReadCapture(std::uint16_t start, std::uint16_t count,
                      std::vector<std::uint32_t>& samples, std::string& error,
                      int timeoutMs = 1000, int attempts = 3);
+    bool ReadCapture(std::uint16_t start, std::uint16_t count,
+                     std::vector<std::uint32_t>& samples, std::string& error,
+                     int timeoutMs, int attempts, const ReadProgressCb& progressCb);
     bool Reset(std::string& error, int timeoutMs = 1000, int attempts = 3);
     void SetAutoReconnect(bool enabled) { autoReconnect_ = enabled; }
 

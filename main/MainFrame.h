@@ -8,6 +8,7 @@
 #include <wx/mstream.h>
 
 #include <memory>
+#include <functional>
 
 #include <json/json.h>
 #include <wx/stc/stc.h>
@@ -21,6 +22,8 @@
 #include "fpga/FpgaPinBindingPanel.h"
 #include "BuildProgressBar.h"
 
+#include "wave/TraceViewPanel.h"
+
 #include "TerminalCtrl.h"
 
 #include "PluginManager.h"
@@ -31,11 +34,14 @@ class HandyToolKit;
 class ToolboxPanel;
 class Structuring;
 class VerilogManager;
-class WavePanel;
 class YosysExecutor;
 class NextpnrExecutor;
 class FpgaToolWindow;
+class TraceBridgeWindow;
+class DebugContractConfigWindow;
 enum class FpgaToolPage;
+struct TraceBridgeCaptureRequest;
+struct TraceBridgeDebugBuildRequest;
 
 wxDECLARE_EVENT(EVT_SFTREE_NODE_ACTIVATED, wxCommandEvent);
 
@@ -59,12 +65,15 @@ private:
     SFNPropertyPanel* m_sfnPropertyPanel;
     FpgaPinBindingPanel* m_fpgaPinBindingPanel;
     FpgaToolWindow* m_fpgaToolWindow;
+    TraceBridgeWindow* m_traceBridgeWindow;
+    DebugContractConfigWindow* m_debugContractConfigWindow;
     TerminalCtrl* m_terminalCtrl;
     BuildProgressBar* m_buildProgressBar = nullptr;
-    WavePanel* m_wavePanel;
+    sigflow::wave::TraceViewPanel* m_wavePanel;
     std::unique_ptr<YosysExecutor> m_yosysExecutor;
     std::unique_ptr<NextpnrExecutor> m_nextpnrExecutor;
     wxString m_activeNextpnrJobId;
+    wxString m_activeDebugSessionId;
     bool m_routeCancelRequested = false;
     wxString m_pendingNextpnrRetryOf;
     wxString m_activeYosysJobId;
@@ -81,7 +90,13 @@ private:
     void RunFpgaSynthesis();
     void RunFpgaRoute();
     void RunFpgaPack();
-    void RunFpgaProgram(const wxString& bitstreamPath);
+    void RunFpgaProgram(const wxString& bitstreamPath,
+                        std::function<void(bool, const wxString&)> completion = {},
+                        bool confirmProgramming = false);
+    void RunTraceBridgeCapture(
+        const TraceBridgeCaptureRequest& request,
+        std::function<void(bool, const wxString&)> completion = {});
+    void RunTraceBridgeDebugBuild(const TraceBridgeDebugBuildRequest& request);
     void KillAsyncToolProcess(long processId);
     // 声明事件处理函数
     void OnAnalysisComplete(wxThreadEvent& event);
@@ -181,6 +196,8 @@ public:
     void DoFpgaCancelRoute();
     void DoFpgaProgram();
     void DoFpgaPinBinding();
+    void DoTraceBridge();
+    void DoDebugContract();
 
     /* Window 菜单业务接口 */
     void DoWindowCombinationalAnalysis();

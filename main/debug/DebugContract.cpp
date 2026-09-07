@@ -5,10 +5,12 @@
 #include <json/json.h>
 
 #include <atomic>
+#include <algorithm>
 #include <chrono>
 #include <cstdio>
 #include <ctime>
 #include <memory>
+#include <set>
 
 namespace sigflow {
 namespace debug {
@@ -108,6 +110,8 @@ void DebugContract::ApplyDefaults()
     if (transport.baud == 0) transport.baud = DebugDefaults::kUartBaud;
     if (transport.kind.empty()) transport.kind = "uart";
     if (transport.protocol.empty()) transport.protocol = "minimal";
+    if (transport.txPin == 0) transport.txPin = DebugDefaults::kUartTxPin;
+    if (transport.rxPin == 0) transport.rxPin = DebugDefaults::kUartRxPin;
     if (trigger.kind.empty()) trigger.kind = "none";
 }
 
@@ -146,7 +150,17 @@ bool DebugContract::ParseJson(const std::string& json, std::string& error)
         probe.width = static_cast<unsigned>(item.get("width", 1).asUInt());
         probe.bitOffset = static_cast<unsigned>(item.get("bit_offset", 0).asUInt());
         probe.clockDomain = item.get("clock_domain", "").asString();
+        probe.asynchronous = item.get("asynchronous", false).asBool();
         probes.push_back(std::move(probe));
+    }
+
+    for (const Json::Value& item : root["clock_domains"]) {
+        if (!item.isObject()) continue;
+        DebugClockDomain domain;
+        domain.id = item.get("id", "").asString();
+        domain.signal = item.get("signal", "").asString();
+        domain.frequencyHz = item.get("frequency_hz", 0).asUInt64();
+        clockDomains.push_back(std::move(domain));
     }
 
     const Json::Value& trig = root["trigger"];
@@ -211,6 +225,16 @@ std::string DebugContract::ToJson() const
     clock["frequency_hz"] = static_cast<Json::UInt64>(sampleClock.frequencyHz);
     root["sample_clock"] = clock;
 
+    Json::Value domains(Json::arrayValue);
+    for (const DebugClockDomain& domain : clockDomains) {
+        Json::Value item(Json::objectValue);
+        item["id"] = domain.id;
+        item["signal"] = domain.signal;
+        item["frequency_hz"] = static_cast<Json::UInt64>(domain.frequencyHz);
+        domains.append(item);
+    }
+    root["clock_domains"] = domains;
+
     Json::Value probesArray(Json::arrayValue);
     for (const DebugProbe& probe : probes) {
         Json::Value item(Json::objectValue);
@@ -219,6 +243,7 @@ std::string DebugContract::ToJson() const
         item["width"] = probe.width;
         item["bit_offset"] = probe.bitOffset;
         item["clock_domain"] = probe.clockDomain;
+        item["asynchronous"] = probe.asynchronous;
         probesArray.append(item);
     }
     root["probes"] = probesArray;
@@ -279,6 +304,23 @@ bool DebugContract::AssignProbeBitOffsets(std::string& error)
     return true;
 }
 
+std::vector<std::string> DebugContract::EffectiveProbeClockDomains() const
+{
+    std::vector<std::string> result;
+    for (const DebugProbe& probe : probes) {
+        const std::string domain = probe.clockDomain.empty() ? "sample" : probe.clockDomain;
+        if (std::find(result.begin(), result.end(), domain) == result.end()) {
+            result.push_back(domain);
+        }
+    }
+    return result;
+}
+
+bool DebugContract::UsesMultipleClockDomains() const
+{
+    return EffectiveProbeClockDomains().size() > 1;
+}
+
 bool DebugContract::Validate(std::string& error) const
 {
     if (schemaVersion != "1.0") {
@@ -297,6 +339,17 @@ bool DebugContract::Validate(std::string& error) const
         error = "contract requires sample_clock.signal and frequency_hz";
         return false;
     }
+    std::set<std::string> domainIds;
+    for (const DebugClockDomain& domain : clockDomains) {
+        if (domain.id.empty() || domain.signal.empty() || domain.frequencyHz == 0) {
+            error = "each clock_domains entry requires id, signal and frequency_hz";
+            return false;
+        }
+        if (!domainIds.insert(domain.id).second) {
+            error = "duplicate clock domain: " + domain.id;
+            return false;
+        }
+    }
     if (probes.empty()) {
         error = "contract requires at least one probe";
         return false;
@@ -309,6 +362,15 @@ bool DebugContract::Validate(std::string& error) const
         }
         if (probe.width == 0) {
             error = "probe width must be positive: " + probe.id;
+            return false;
+        }
+        if (UsesMultipleClockDomains() && probe.clockDomain.empty() && !probe.asynchronous) {
+            error = "multi-clock contract requires clock_domain for probe: " + probe.id;
+            return false;
+        }
+        if (!probe.clockDomain.empty() && !clockDomains.empty() &&
+            domainIds.count(probe.clockDomain) == 0) {
+            error = "probe references unknown clock domain: " + probe.clockDomain;
             return false;
         }
         totalBits += probe.width;

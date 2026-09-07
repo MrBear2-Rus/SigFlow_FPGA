@@ -12,8 +12,9 @@ std::wstring ToWide(const std::string& utf8)
     if (utf8.empty()) return {};
     const int len = MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), -1, nullptr, 0);
     if (len <= 0) return {};
-    std::wstring wide(static_cast<std::size_t>(len - 1), L'\0');
+    std::wstring wide(static_cast<std::size_t>(len), L'\0');
     MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), -1, wide.data(), len);
+    wide.resize(static_cast<std::size_t>(len - 1));
     return wide;
 }
 
@@ -80,10 +81,22 @@ std::size_t SerialTransport::Read(std::uint8_t* data, std::size_t size, int time
 
     HANDLE event = CreateEventW(nullptr, TRUE, FALSE, nullptr);
     if (!event) return 0;
+
+    DWORD commErrors = 0;
+    COMSTAT commStatus = {};
+    if (!ClearCommError(hCom_, &commErrors, &commStatus)) {
+        CloseHandle(event);
+        Close();
+        return 0;
+    }
+    const std::size_t queued = static_cast<std::size_t>(commStatus.cbInQue);
+    const std::size_t requestSize = std::max<std::size_t>(
+        1, std::min<std::size_t>(size, queued));
+
     OVERLAPPED ov = {};
     ov.hEvent = event;
     DWORD got = 0;
-    BOOL ok = ReadFile(hCom_, data, static_cast<DWORD>(size), &got, &ov);
+    BOOL ok = ReadFile(hCom_, data, static_cast<DWORD>(requestSize), &got, &ov);
     DWORD error = ok ? ERROR_SUCCESS : GetLastError();
     if (!ok && error == ERROR_IO_PENDING) {
         const DWORD wait = WaitForSingleObject(event, static_cast<DWORD>(timeoutMs));
@@ -135,6 +148,13 @@ bool SerialTransport::Write(const std::uint8_t* data, std::size_t size, int time
     }
     CloseHandle(event);
     return ok && written == static_cast<DWORD>(size);
+}
+
+void SerialTransport::DiscardInput()
+{
+    if (hCom_ != INVALID_HANDLE_VALUE) {
+        PurgeComm(hCom_, PURGE_RXCLEAR);
+    }
 }
 
 bool SerialTransport::SetBaudRate(std::uint32_t baud)

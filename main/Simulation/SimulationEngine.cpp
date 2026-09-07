@@ -102,6 +102,7 @@ wxString SimulationEngine::FindVerilatorPath() const
     wxString verilatorRoot;
     if (wxGetEnv("VERILATOR_ROOT", &verilatorRoot)) {
         const wxString rootCandidates[] = {
+            verilatorRoot + "\\bin\\verilator_bin_dbg.exe",
             verilatorRoot + "\\bin\\verilator_bin.exe",
             verilatorRoot + "\\bin\\verilator.exe"
         };
@@ -109,6 +110,18 @@ wxString SimulationEngine::FindVerilatorPath() const
             if (wxFileExists(candidate)) {
                 return candidate;
             }
+        }
+    }
+
+    const wxString bundledCandidates[] = {
+        GetSoftwareDirectory() + "\\tools\\verilator\\verilator-install\\bin\\verilator_bin_dbg.exe",
+        GetSoftwareDirectory() + "\\tools\\verilator\\bin\\verilator_bin_dbg.exe",
+        m_projectRoot + "\\tools\\verilator\\verilator-install\\bin\\verilator_bin_dbg.exe",
+        m_projectRoot + "\\tools\\verilator\\bin\\verilator_bin_dbg.exe"
+    };
+    for (const auto& candidate : bundledCandidates) {
+        if (wxFileExists(candidate)) {
+            return candidate;
         }
     }
 

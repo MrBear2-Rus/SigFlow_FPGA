@@ -1,8 +1,6 @@
 #include "WaveformTextLayer.h"
 
 #include <wx/dcmemory.h>
-#include <wx/file.h>
-#include <wx/filename.h>
 #include <wx/font.h>
 
 #include <algorithm>
@@ -11,29 +9,13 @@
 namespace sigflow {
 namespace wave {
 
-bool BuildTextLayerBitmap(wxWindow* win, const WaveformFrame& frame,
-                          const WaveViewState& state, int width, int height,
-                          wxBitmap& outBitmap)
+void DrawTextLayer(wxDC& dc, const WaveformFrame& frame,
+                   const WaveViewState& state, int width, int height)
 {
-    {
-        wxFile file(wxFileName::GetTempDir() + "\\waveview_paint_trace.txt", wxFile::write_append);
-        if (file.IsOpened()) file.Write("text enter\n");
-    }
-    if (width <= 0 || height <= 0) return false;
-    outBitmap = wxBitmap(width, height, 32);
-    if (!outBitmap.IsOk()) return false;
-    {
-        wxFile file(wxFileName::GetTempDir() + "\\waveview_paint_trace.txt", wxFile::write_append);
-        if (file.IsOpened()) file.Write("text bitmap ok\n");
-    }
-
-    wxMemoryDC dc(outBitmap);
-    dc.SetBackground(wxBrush(wxColour(0, 0, 0, 0)));
-    dc.Clear();
-
     const wxFont font(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
     dc.SetFont(font);
-    dc.SetTextForeground(wxColour(203, 213, 225));
+    dc.SetBackgroundMode(wxTRANSPARENT);
+    dc.SetTextForeground(ColorsFor(state.theme).text);
 
     // 时间轴刻度
     for (const WaveformTick& tick : frame.ticks) {
@@ -106,11 +88,21 @@ bool BuildTextLayerBitmap(wxWindow* win, const WaveformFrame& frame,
         dc.DrawText(event.label, x + 2, 28);
     }
 
+}
+
+bool BuildTextLayerBitmap(wxWindow* win, const WaveformFrame& frame,
+                          const WaveViewState& state, int width, int height,
+                          wxBitmap& outBitmap)
+{
+    if (width <= 0 || height <= 0) return false;
+    outBitmap = wxBitmap(width, height, 32);
+    if (!outBitmap.IsOk()) return false;
+
+    wxMemoryDC dc(outBitmap);
+    dc.SetBackground(wxBrush(wxColour(0, 0, 0, 0)));
+    dc.Clear();
+    DrawTextLayer(dc, frame, state, width, height);
     dc.SelectObject(wxNullBitmap);
-    {
-        wxFile file(wxFileName::GetTempDir() + "\\waveview_paint_trace.txt", wxFile::write_append);
-        if (file.IsOpened()) file.Write("text exit\n");
-    }
     return true;
 }
 

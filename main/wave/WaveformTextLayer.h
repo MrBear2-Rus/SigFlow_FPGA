@@ -4,6 +4,7 @@
 #include "WaveformRenderData.h"
 
 #include <wx/bitmap.h>
+#include <wx/dc.h>
 #include <wx/window.h>
 
 namespace sigflow {
@@ -14,6 +15,10 @@ namespace wave {
 bool BuildTextLayerBitmap(wxWindow* win, const WaveformFrame& frame,
                           const WaveViewState& state, int width, int height,
                           wxBitmap& outBitmap);
+
+// 软件后端直接绘制文字，避免平台相关的 alpha 位图覆盖波形内容。
+void DrawTextLayer(wxDC& dc, const WaveformFrame& frame,
+                   const WaveViewState& state, int width, int height);
 
 } // namespace wave
 } // namespace sigflow

@@ -67,7 +67,7 @@ void WaveformGLRenderer::SetupOrtho(int width, int height)
     glLoadIdentity();
 }
 
-void WaveformGLRenderer::BeginFrame(int width, int height)
+void WaveformGLRenderer::BeginFrame(int width, int height, const WaveColor& background)
 {
     m_frameWidth = width;
     m_frameHeight = height;
@@ -75,7 +75,7 @@ void WaveformGLRenderer::BeginFrame(int width, int height)
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
     glDisable(GL_TEXTURE_2D);
-    glClearColor(30.0f / 255.0f, 30.0f / 255.0f, 32.0f / 255.0f, 1.0f);
+    glClearColor(background.r, background.g, background.b, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 }
 

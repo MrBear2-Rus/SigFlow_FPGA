@@ -18,6 +18,12 @@ mono_crash.*
 
 # Build results
 [Dd]ebug/
+!main/debug/
+!main/debug/*.cpp
+!main/debug/*.h
+!rtl/debug/
+!rtl/debug/examples/
+!rtl/debug/examples/min_led_uart_17_18_full_16x256_debug_top.sv
 [Dd]ebugPublic/
 [Rr]elease/
 [Rr]eleases/
@@ -364,3 +370,17 @@ FodyWeavers.xsd
 
 # Downloaded FPGA toolchain sources, Python packages, and build outputs.
 external/fpga-tools/
+tools/verilator/verilator-install/include/gtkwave/fstapi.h
+tools/verilator/verilator-install/include/gtkwave/lz4.c
+tools/verilator/verilator-install/include/gtkwave/lz4.h
+tools/verilator/verilator-install/include/verilated.cpp
+tools/verilator/verilator-install/include/verilated.h
+tools/verilator/verilator-install/include/verilated.mk
+tools/verilator/verilator-install/include/verilated.v
+tools/verilator/verilator-install/include/verilated_config.h
+tools/verilator/verilator-install/include/verilated_cov.cpp
+tools/verilator/verilator-install/include/verilated_cov.h
+tools/verilator/verilator-install/include/verilated_cov_key.h
+tools/verilator/verilator-install/include/verilated_dpi.cpp
+tools/verilator/verilator-install/include/verilated_dpi.h
+tools/verilator/verilator-install/include/verilated_force.h

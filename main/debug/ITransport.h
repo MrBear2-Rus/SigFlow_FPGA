@@ -22,6 +22,8 @@ public:
 
     // 写 size 字节；超时或断连返回 false。
     virtual bool Write(const std::uint8_t* data, std::size_t size, int timeoutMs) = 0;
+
+    virtual void DiscardInput() {}
 };
 
 } // namespace debug

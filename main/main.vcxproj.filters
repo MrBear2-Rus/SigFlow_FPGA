@@ -124,9 +124,12 @@
     <ClCompile Include="wave\WaveSession.cpp">
       <Filter>源代码\trace</Filter>
     </ClCompile>
-    <ClCompile Include="wave\WaveformGLCanvas.cpp">
-      <Filter>源代码\trace</Filter>
-    </ClCompile>
+      <ClCompile Include="wave\WaveformGLCanvas.cpp">
+        <Filter>源代码\trace</Filter>
+      </ClCompile>
+      <ClCompile Include="wave\WaveformMiniMap.cpp">
+        <Filter>源代码\trace</Filter>
+      </ClCompile>
     <ClCompile Include="wave\WaveformGLRenderer.cpp">
       <Filter>源代码\trace</Filter>
     </ClCompile>
@@ -139,6 +142,9 @@
     <ClCompile Include="wave\WaveformView.cpp">
       <Filter>源代码\trace</Filter>
     </ClCompile>
+    <ClCompile Include="wave\WaveUartLane.cpp">
+      <Filter>源代码\trace</Filter>
+    </ClCompile>
     <ClCompile Include="debug\DebugContract.cpp">
       <Filter>源代码\debug</Filter>
     </ClCompile>
@@ -149,6 +155,9 @@
       <Filter>源代码\debug</Filter>
     </ClCompile>
     <ClCompile Include="debug\DebugNetlistValidator.cpp">
+      <Filter>源代码\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\DebugBehaviorSummary.cpp">
       <Filter>源代码\debug</Filter>
     </ClCompile>
     <ClCompile Include="debug\DebugOverlayBuilder.cpp">
@@ -170,6 +179,21 @@
       <Filter>源代码\debug</Filter>
     </ClCompile>
     <ClCompile Include="debug\SerialTransport.cpp">
+      <Filter>源代码\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\TraceBridgeWindow.cpp">
+      <Filter>源代码\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\DebugContractConfigWindow.cpp">
+      <Filter>源代码\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\ReplayScenario.cpp">
+      <Filter>源代码\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\RootCauseGraph.cpp">
+      <Filter>源代码\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\DebugMappingBuilder.cpp">
       <Filter>源代码\debug</Filter>
     </ClCompile>
     <ClCompile Include="MainFrame.cpp">
@@ -284,9 +308,6 @@
     <ClCompile Include="VerilogManager.cpp">
       <Filter>源文件\text_analysis</Filter>
     </ClCompile>
-    <ClCompile Include="WavePanel.cpp">
-      <Filter>源文件\gui</Filter>
-    </ClCompile>
     <ClCompile Include="..\3rd\vcd\vcd.cpp">
       <Filter>源文件\3rd</Filter>
     </ClCompile>
@@ -385,9 +406,12 @@
     <ClInclude Include="wave\WaveViewState.h">
       <Filter>头文件\trace</Filter>
     </ClInclude>
-    <ClInclude Include="wave\WaveformGLCanvas.h">
-      <Filter>头文件\trace</Filter>
-    </ClInclude>
+      <ClInclude Include="wave\WaveformGLCanvas.h">
+        <Filter>头文件\trace</Filter>
+      </ClInclude>
+      <ClInclude Include="wave\WaveformMiniMap.h">
+        <Filter>头文件\trace</Filter>
+      </ClInclude>
     <ClInclude Include="wave\WaveformGLRenderer.h">
       <Filter>头文件\trace</Filter>
     </ClInclude>
@@ -398,6 +422,12 @@
       <Filter>头文件\trace</Filter>
     </ClInclude>
     <ClInclude Include="wave\WaveformView.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="wave\WaveTheme.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="wave\WaveUartLane.h">
       <Filter>头文件\trace</Filter>
     </ClInclude>
     <ClInclude Include="debug\DebugContract.h">
@@ -413,6 +443,9 @@
       <Filter>头文件\debug</Filter>
     </ClInclude>
     <ClInclude Include="debug\DebugNetlistValidator.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\DebugBehaviorSummary.h">
       <Filter>头文件\debug</Filter>
     </ClInclude>
     <ClInclude Include="debug\DebugOverlayBuilder.h">
@@ -437,6 +470,27 @@
       <Filter>头文件\debug</Filter>
     </ClInclude>
     <ClInclude Include="debug\SerialTransport.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\TraceBridgeWindow.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\DebugContractConfigWindow.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\WaveformComparator.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\WaveformAligner.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\ReplayScenario.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\RootCauseGraph.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\DebugMappingBuilder.h">
       <Filter>头文件\debug</Filter>
     </ClInclude>
     <ClInclude Include="fpga\FpgaPinData.h">
@@ -567,9 +621,6 @@
     </ClInclude>
     <ClInclude Include="VerilogManager.h">
       <Filter>头文件\text_analysis</Filter>
-    </ClInclude>
-    <ClInclude Include="WavePanel.h">
-      <Filter>头文件\gui</Filter>
     </ClInclude>
     <ClInclude Include="ProjectStartWindow.h">
       <Filter>头文件\gui</Filter>

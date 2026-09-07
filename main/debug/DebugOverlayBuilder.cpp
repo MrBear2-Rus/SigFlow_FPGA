@@ -6,6 +6,8 @@
 #include <filesystem>
 #include <fstream>
 #include <cstdio>
+#include <cmath>
+#include <regex>
 #include <sstream>
 #include <system_error>
 
@@ -36,6 +38,55 @@ std::string Hex64(uint64_t value)
     std::snprintf(buffer, sizeof(buffer), "%016llx",
                   static_cast<unsigned long long>(value));
     return std::string(buffer);
+}
+
+std::string ReadTextFile(const std::filesystem::path& path)
+{
+    std::ifstream input(path, std::ios::binary);
+    if (!input) return {};
+    return std::string((std::istreambuf_iterator<char>(input)),
+                       std::istreambuf_iterator<char>());
+}
+
+std::filesystem::path FindUserCst(const std::string& projectPath,
+                                  const std::string& topModule,
+                                  const std::string& configuredCstPath)
+{
+    const std::filesystem::path root(projectPath);
+    if (!configuredCstPath.empty()) {
+        const std::filesystem::path configured(configuredCstPath);
+        return configured.is_absolute() ? configured : root / configured;
+    }
+    const std::vector<std::filesystem::path> preferred = {
+        root / "constraints" / (topModule + ".cst"),
+        root / "constraints" / "tangnano9k.cst",
+        root / "nextpnr" / (topModule + ".cst")
+    };
+    for (const auto& path : preferred) {
+        if (std::filesystem::is_regular_file(path)) return path;
+    }
+    for (const auto& directory : { root / "constraints", root / "nextpnr" }) {
+        if (!std::filesystem::is_directory(directory)) continue;
+        for (const auto& entry : std::filesystem::directory_iterator(directory)) {
+            if (entry.is_regular_file() && entry.path().extension() == ".cst") {
+                return entry.path();
+            }
+        }
+    }
+    return {};
+}
+
+bool IsUartClockAccurate(std::uint64_t clockHz, std::uint32_t baud,
+                         std::uint64_t& divider, double& errorPercent)
+{
+    if (clockHz == 0 || baud == 0) return false;
+    divider = (clockHz + baud / 2) / baud;
+    if (divider == 0) divider = 1;
+    const double actualBaud = static_cast<double>(clockHz) /
+                              static_cast<double>(divider);
+    errorPercent = std::abs(actualBaud - static_cast<double>(baud)) * 100.0 /
+                   static_cast<double>(baud);
+    return errorPercent <= 2.5;
 }
 
 int Clog2(int value)
@@ -96,7 +147,8 @@ std::string DebugOverlayBuilder::BuildWrapper(
     out << "module sf_debug_top(\n";
     out << "    input  wire dbg_rx,\n";
     out << "    output wire dbg_tx,\n";
-    out << "    input  wire dbg_rst_n,\n";
+    const bool hasDebugResetPin = contract.transport.rstPin > 0;
+    if (hasDebugResetPin) out << "    input  wire dbg_rst_n,\n";
     for (const DebugPortInfo& port : userTopPorts) {
         if (port.name == clkName) continue;  // 时钟端口最后单独声明
         const char* dir = port.direction == "input" ? "input "
@@ -108,10 +160,12 @@ std::string DebugOverlayBuilder::BuildWrapper(
     }
     out << "    input  wire " << clkName << "\n";
     out << ");\n";
+    if (!hasDebugResetPin) out << "    wire dbg_rst_n = 1'b1;\n";
 
     // 用户 DUT 例化
     out << "    " << topName << " u_dut (\n";
     for (const DebugPortInfo& port : userTopPorts) {
+        if (port.name == clkName) continue;
         out << "        ." << port.name << "(" << port.name << "),\n";
     }
     out << "        ." << clkName << "(" << clkName << ")\n";
@@ -153,7 +207,7 @@ std::string DebugOverlayBuilder::BuildWrapper(
     out << "    wire [" << (aw - 1) << ":0] trigger_index;\n";
     out << "    wire [" << (aw - 1) << ":0] rd_addr;\n";
     out << "    wire [31:0] rd_data;\n\n";
-    out << "    wire [1:0] trigger_mode;\n";
+    out << "    wire [2:0] trigger_mode;\n";
     out << "    wire [15:0] trigger_count;\n";
     out << "    wire sample_en;\n";
     out << "    wire hs_valid, hs_ready;\n\n";
@@ -179,6 +233,7 @@ std::string DebugOverlayBuilder::BuildWrapper(
     out << "        .arm(arm),\n";
     out << "        .trigger_mask(trigger_mask), .trigger_value(trigger_value),\n";
     out << "        .trigger_mode(trigger_mode), .trigger_count(trigger_count),\n";
+    out << "        .decimation(decimation),\n";
     out << "        .sample_en(sample_en), .hs_valid(hs_valid), .hs_ready(hs_ready),\n";
     out << "        .busy(busy), .done(done), .triggered(triggered),\n";
     out << "        .rd_addr(rd_addr), .rd_data(rd_data),\n";
@@ -187,7 +242,7 @@ std::string DebugOverlayBuilder::BuildWrapper(
 
     // UART 调试链路：默认最小固定帧档，full 档保留 COBS/CRC。
     out << "    " << linkModule << " #(\n";
-    out << "        .CLK_HZ(27000000),\n";
+    out << "        .CLK_HZ(" << contract.sampleClock.frequencyHz << "),\n";
     out << "        .BAUD(" << contract.transport.baud << "),\n";
     out << "        .WIDTH(32),\n";
     out << "        .DEPTH(" << contract.capture.depth << "),\n";
@@ -210,21 +265,85 @@ std::string DebugOverlayBuilder::BuildWrapper(
     return out.str();
 }
 
-std::string DebugOverlayBuilder::BuildCstPatch(const DebugContract& contract) const
+std::string DebugOverlayBuilder::BuildMergedCst(
+    const DebugContract& contract, const std::string& projectPath,
+    const std::string& configuredCstPath,
+    const std::vector<DebugPortInfo>& userTopPorts, std::string& error) const
 {
-    std::ostringstream out;
-    out << "// Generated by SigFlow DebugOverlayBuilder — debug pins patch.\n";
-    auto addPin = [&out](const char* port, int pin) {
-        if (pin > 0) {
-            out << "IO_LOC \"" << port << "\" " << pin << ";\n";
-            out << "IO_PORT \"" << port << "\" IO_TYPE=LVCMOS33;\n";
-        } else {
-            out << "// " << port << ": pin unassigned (set fpga transport tx_pin/rx_pin/rst_pin)\n";
+    const std::filesystem::path userCstPath =
+        FindUserCst(projectPath, contract.topModule, configuredCstPath);
+    if (userCstPath.empty()) {
+        error = "找不到用户工程 CST 约束文件；调试构建不能丢失 clk 和普通 IO 约束。";
+        return {};
+    }
+    const std::string userCst = ReadTextFile(userCstPath);
+    if (userCst.empty()) {
+        error = "无法读取用户工程 CST 约束文件: " + userCstPath.string();
+        return {};
+    }
+
+    for (const auto& port : userTopPorts) {
+        if (port.name == "dbg_rx" || port.name == "dbg_tx" || port.name == "dbg_rst_n") {
+            error = "用户顶层端口与 TraceBridge 调试端口重名: " + port.name;
+            return {};
         }
+    }
+
+    std::map<int, std::string> usedPins;
+    std::map<std::string, int> usedPorts;
+    const std::regex location(R"re(IO_LOC\s+"([^"]+)"\s+([0-9]+)\s*;)re");
+    for (std::sregex_iterator it(userCst.begin(), userCst.end(), location), end;
+         it != end; ++it) {
+        const std::string port = (*it)[1].str();
+        const int pin = std::stoi((*it)[2].str());
+        if (usedPorts.find(port) != usedPorts.end()) {
+            error = "用户 CST 内部端口重复约束: " + port;
+            return {};
+        }
+        const auto [pinIt, inserted] = usedPins.emplace(pin, port);
+        if (!inserted) {
+            error = "用户 CST 内部管脚冲突: " + std::to_string(pin) + " 已被 " +
+                    pinIt->second + " 和 " + port + " 使用";
+            return {};
+        }
+        usedPorts.emplace(port, pin);
+    }
+    const std::pair<const char*, int> debugPins[] = {
+        {"dbg_rx", contract.transport.rxPin},
+        {"dbg_tx", contract.transport.txPin},
+        {"dbg_rst_n", contract.transport.rstPin}
     };
-    addPin("dbg_rx", contract.transport.rxPin);
-    addPin("dbg_tx", contract.transport.txPin);
-    addPin("dbg_rst_n", contract.transport.rstPin);
+    for (const auto& [port, pin] : debugPins) {
+        if (pin <= 0) {
+            if (std::string(port) != "dbg_rst_n") {
+                error = std::string("TraceBridge UART ") + port + " 未分配管脚";
+                return {};
+            }
+            continue;
+        }
+        const auto existing = usedPins.find(pin);
+        if (existing != usedPins.end()) {
+            error = std::string("TraceBridge UART 管脚冲突: ") + port + "=" +
+                    std::to_string(pin) + ", 已被 " + existing->second + " 使用";
+            return {};
+        }
+        usedPins.emplace(pin, port);
+    }
+
+    std::ostringstream out;
+    out << "// Generated by SigFlow DebugOverlayBuilder — merged user/debug constraints.\n";
+    out << "// User CST: " << userCstPath.string() << "\n";
+    out << userCst;
+    if (userCst.back() != '\n') out << '\n';
+    out << "\n// TraceBridge debug pins\n";
+    out << "IO_LOC \"dbg_rx\" " << contract.transport.rxPin << ";\n";
+    out << "IO_PORT \"dbg_rx\" IO_TYPE=LVCMOS33;\n";
+    out << "IO_LOC \"dbg_tx\" " << contract.transport.txPin << ";\n";
+    out << "IO_PORT \"dbg_tx\" IO_TYPE=LVCMOS33;\n";
+    if (contract.transport.rstPin > 0) {
+        out << "IO_LOC \"dbg_rst_n\" " << contract.transport.rstPin << ";\n";
+        out << "IO_PORT \"dbg_rst_n\" IO_TYPE=LVCMOS33;\n";
+    }
     return out.str();
 }
 
@@ -277,7 +396,7 @@ std::string DebugOverlayBuilder::BuildLinkStub(const DebugContract& contract) co
     out << "// Generated by SigFlow DebugOverlayBuilder — UART 调试链路占位实现\n";
     out << "// （真实链路模块由 C++ 行为模型验证，待接入仿真器后替换）\n";
     out << "module " << linkModule << " #(\n";
-    out << "    parameter int CLK_HZ = 27000000,\n";
+    out << "    parameter int CLK_HZ = " << contract.sampleClock.frequencyHz << ",\n";
     out << "    parameter int BAUD = " << contract.transport.baud << ",\n";
     out << "    parameter int WIDTH = 32,\n";
     out << "    parameter int DEPTH = " << contract.capture.depth << ",\n";
@@ -291,7 +410,7 @@ std::string DebugOverlayBuilder::BuildLinkStub(const DebugContract& contract) co
     out << "    output logic arm_pulse, output logic reset_pulse,\n";
     out << "    output logic [31:0] trigger_mask, output logic [31:0] trigger_value,\n";
     out << "    output logic [7:0] decimation,\n";
-    out << "    output logic [1:0] trigger_mode, output logic [15:0] trigger_count,\n";
+    out << "    output logic [2:0] trigger_mode, output logic [15:0] trigger_count,\n";
     out << "    output logic sample_en,\n";
     out << "    input logic busy, input logic done, input logic triggered,\n";
     out << "    input logic [$clog2(DEPTH)-1:0] trigger_index,\n";
@@ -303,7 +422,7 @@ std::string DebugOverlayBuilder::BuildLinkStub(const DebugContract& contract) co
     out << "    assign trigger_mask = 32'hFFFFFFFF;\n";
     out << "    assign trigger_value = 32'h0;\n";
     out << "    assign decimation = 8'd1;\n";
-    out << "    assign trigger_mode = 2'd0;\n";
+    out << "    assign trigger_mode = 3'd0;\n";
     out << "    assign trigger_count = 16'd1;\n";
     out << "    assign sample_en = 1'b1;\n";
     out << "    assign rd_addr = '0;\n";
@@ -317,11 +436,26 @@ bool DebugOverlayBuilder::GenerateOverlay(
     const std::vector<std::string>& userSourceFiles,
     const std::vector<DebugPortInfo>& userTopPorts, const std::string& debugRtlDir,
     const std::string& device, const std::string& family, bool stubLink,
+    const std::string& configuredCstPath,
     DebugOverlayResult& result, std::string& error) const
 {
     if (!contract.Validate(error)) return false;
     if (userTopPorts.empty()) {
         error = "no user top ports provided";
+        return false;
+    }
+    if (contract.UsesMultipleClockDomains()) {
+        error = "多时钟 Overlay/分域回读尚未启用；请先选择单一采样时钟，或等待多时钟 TraceBridge 支持。";
+        return false;
+    }
+
+    std::uint64_t uartDivider = 0;
+    double uartErrorPercent = 0.0;
+    if (!IsUartClockAccurate(contract.sampleClock.frequencyHz, contract.transport.baud,
+                             uartDivider, uartErrorPercent)) {
+        error = "UART 时钟/波特率误差超过 2.5%：clk=" +
+                std::to_string(contract.sampleClock.frequencyHz) + ", baud=" +
+                std::to_string(contract.transport.baud);
         return false;
     }
 
@@ -341,8 +475,12 @@ bool DebugOverlayBuilder::GenerateOverlay(
 
     std::filesystem::create_directories(sessionDir + "\\scripts", ec);
 
+    const std::string mergedCst =
+        BuildMergedCst(contract, projectPath, configuredCstPath, userTopPorts, error);
+    if (mergedCst.empty()) return false;
+
     if (!WriteFile(result.wrapperPath, BuildWrapper(contract, userTopPorts), error) ||
-        !WriteFile(result.cstPath, BuildCstPatch(contract), error) ||
+        !WriteFile(result.cstPath, mergedCst, error) ||
         !WriteFile(result.yosysScriptPath,
                    BuildYosysScript(contract, userSourceFiles, debugRtlDir, overlayDir,
                                     artifactsDir, result.wrapperPath, stubLink),

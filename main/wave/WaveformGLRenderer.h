@@ -21,7 +21,7 @@ public:
     void Shutdown();
     bool IsInitialized() const { return m_initialized; }
 
-    void BeginFrame(int width, int height);
+    void BeginFrame(int width, int height, const WaveColor& background);
     void EndFrame();
 
     void DrawPolyline(const std::vector<WaveformPoint>& points,

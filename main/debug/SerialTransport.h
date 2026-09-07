@@ -29,6 +29,7 @@ public:
 
     std::size_t Read(std::uint8_t* data, std::size_t size, int timeoutMs) override;
     bool Write(const std::uint8_t* data, std::size_t size, int timeoutMs) override;
+    void DiscardInput() override;
 
     bool SetBaudRate(std::uint32_t baud);
     std::string PortName() const { return portName_; }

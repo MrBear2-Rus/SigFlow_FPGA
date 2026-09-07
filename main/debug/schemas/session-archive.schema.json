@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sigflow.local/schemas/session-archive.schema.json",
+  "title": "SigFlow TraceBridge session archive manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "session_id", "files"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "kind": { "const": "sigflow-tracebridge-session" },
+    "session_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._-]+$"
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "size", "sha256"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*(^|/)\\.\\.?(/|$))[A-Za-z0-9._/-]+$"
+          },
+          "size": { "type": "integer", "minimum": 0 },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{64}$"
+          }
+        }
+      }
+    }
+  }
+}

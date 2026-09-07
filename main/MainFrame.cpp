@@ -25,6 +25,7 @@
 #include <mutex>
 #include <functional>
 #include <chrono>
+#include <thread>
 
 #include "MainFrame.h"
 #include "fpga/ArtifactValidator.h"
@@ -37,13 +38,21 @@
 #include "fpga/FpgaYosysLogParser.h"
 #include "fpga/FpgaYosysReport.h"
 #include "fpga/FpgaToolWindow.h"
+#include "debug/TraceBridgeWindow.h"
+#include "debug/DebugContractConfigWindow.h"
+#include "debug/DebugAcquisition.h"
+#include "debug/DebugSession.h"
+#include "debug/DebugOverlayBuilder.h"
+#include "debug/DebugNetlistValidator.h"
+#include "debug/DebugFingerprint.h"
+#include "debug/DebugMappingBuilder.h"
+#include "debug/SerialTransport.h"
 #include "ToolboxPanel.h"  
 #include "CanvasModel.h"
 #include "my_log.h"
 #include "CanvasNoteBook.h"
 #include "VerilogStructuring.h"
 #include "VerilogManager.h"
-#include "WavePanel.h"
 #include "Fpga/NextpnrLogParser.h"
 #include "Fpga/NextpnrReport.h"
 #include "Fpga/CstValidator.h"
@@ -69,6 +78,14 @@ struct FpgaProjectOptions {
     wxString openFpgaLoaderPath;
     std::vector<wxString> openFpgaLoaderArgs;
 };
+
+wxString NormalizeProjectDirectoryPath(const wxString& value)
+{
+    if (value.IsEmpty()) return value;
+    wxFileName path(value);
+    if (path.GetFullName().Lower() == wxT("sigflow.project")) return path.GetPath();
+    return value;
+}
 
 bool IsValidVerilogIdentifier(const wxString& value)
 {
@@ -195,7 +212,7 @@ private:
 bool LoadFpgaProjectOptions(const wxString& projectPath, FpgaProjectOptions& options,
                             wxString& errorMessage)
 {
-    const wxString configPath = projectPath + "\\sigflow.project";
+    const wxString configPath = NormalizeProjectDirectoryPath(projectPath) + "\\sigflow.project";
     wxFile file(configPath, wxFile::read);
     if (!file.IsOpened()) {
         errorMessage = "Unable to open sigflow.project.";
@@ -346,6 +363,32 @@ wxString FindFpgaTool(const wxString& configuredPath, const wxString& environmen
     return wxString();
 }
 
+wxString FindTraceBridgeDebugRtl(const wxString& projectPath)
+{
+    const wxString executableDirectory =
+        wxFileName(wxStandardPaths::Get().GetExecutablePath()).GetPath();
+    const std::vector<wxString> startDirectories = {
+        projectPath, wxGetCwd(), executableDirectory
+    };
+    for (const wxString& startDirectory : startDirectories) {
+        if (startDirectory.IsEmpty()) continue;
+        wxFileName directory = wxFileName::DirName(startDirectory);
+        for (int depth = 0; depth < 10; ++depth) {
+            const wxString candidate = directory.GetPath() + "\\rtl\\debug";
+            if (wxDirExists(candidate) &&
+                wxFileExists(candidate + "\\sf_micro_ila.sv") &&
+                wxFileExists(candidate + "\\sf_uart_link.sv") &&
+                wxFileExists(candidate + "\\sf_debug_link.sv")) {
+                return candidate;
+            }
+            const wxString previousDirectory = directory.GetPath();
+            directory.RemoveLastDir();
+            if (directory.GetPath() == previousDirectory) break;
+        }
+    }
+    return wxString();
+}
+
 long LaunchFpgaTool(const wxString& executable, const std::vector<wxString>& arguments,
                     const wxString& workingDirectory, TerminalCtrl* terminal,
                     const wxString& toolName,
@@ -465,6 +508,8 @@ MainFrame::MainFrame()
     m_sfnPropertyPanel(nullptr),
     m_fpgaPinBindingPanel(nullptr),
     m_fpgaToolWindow(nullptr),
+    m_traceBridgeWindow(nullptr),
+    m_debugContractConfigWindow(nullptr),
     m_terminalCtrl(nullptr),
     m_pluginMgr(nullptr)
 {
@@ -553,8 +598,26 @@ MainFrame::MainFrame()
         RunFpgaSynthesis();
     });
     m_fpgaToolWindow->SetRouteStartHandler([this]() { RunFpgaRoute(); });
+    m_fpgaToolWindow->SetPackStartHandler([this]() { RunFpgaPack(); });
     m_fpgaToolWindow->SetProgramStartHandler([this](const wxString& bitstreamPath) {
         RunFpgaProgram(bitstreamPath);
+    });
+    m_traceBridgeWindow = new TraceBridgeWindow(this);
+    m_traceBridgeWindow->SetCaptureStartHandler(
+        [this](const TraceBridgeCaptureRequest& request) { RunTraceBridgeCapture(request); });
+    m_traceBridgeWindow->SetDebugBuildStartHandler(
+        [this](const TraceBridgeDebugBuildRequest& request) { RunTraceBridgeDebugBuild(request); });
+    m_traceBridgeWindow->SetOpenVcdHandler([this](const wxString& path) {
+        if (!m_wavePanel) return;
+        m_wavePanel->OpenTrace(std::string(path.ToUTF8().data()));
+        if (auto* notebook = dynamic_cast<wxAuiNotebook*>(m_wavePanel->GetParent())) {
+            const size_t page = notebook->GetPageIndex(m_wavePanel);
+            if (page != wxNOT_FOUND) notebook->SetSelection(page);
+        }
+    });
+    m_debugContractConfigWindow = new DebugContractConfigWindow(this);
+    m_debugContractConfigWindow->SetSavedHandler([this](const wxString&) {
+        if (m_traceBridgeWindow) m_traceBridgeWindow->ReloadContract();
     });
 
     // 异步IDE分析
@@ -575,7 +638,11 @@ MainFrame::MainFrame()
 
         // ✅ 新增：传给 WavePanel
         if (m_wavePanel) {
-            m_wavePanel->SetProjectPath(projectPath);
+            m_wavePanel->SetProjectPath(std::string(projectPath.ToUTF8().data()));
+            m_wavePanel->SetSessionDir(std::string(projectPath.ToUTF8().data()) + "\\.sigflow\\wave");
+        }
+        if (m_debugContractConfigWindow) {
+            m_debugContractConfigWindow->SetProjectContext(projectPath);
         }
         });
     this->Bind(wxEVT_MENU, &MainFrame::OnOpenFileFromTree, this, ID_OPEN_FILE_FROM_TREE);
@@ -587,7 +654,81 @@ MainFrame::MainFrame()
  
     // 终端
     m_terminalCtrl = new TerminalCtrl(this);
-    m_wavePanel = new WavePanel(this);
+    m_wavePanel = new sigflow::wave::TraceViewPanel(this);
+    auto navigateTrace = [this](const std::string& signalName,
+                                               const std::string& sourcePath,
+                                               int sourceLine,
+                                               sigflow::trace::TimeValue) {
+        bool treeFound = false;
+        if (m_sigFlowTreePanel && m_sigFlowTreePanel->tree) {
+            std::function<void(const wxTreeItemId&)> visit =
+                [&](const wxTreeItemId& item) {
+                    if (!item.IsOk() || treeFound) return;
+                    auto* data = dynamic_cast<SigTreeItemData*>(
+                        m_sigFlowTreePanel->tree->GetItemData(item));
+                    if (data && data->node) {
+                        const std::string name = data->node->GetName();
+                        const std::size_t dot = signalName.find_last_of("./");
+                        const std::string leaf = dot == std::string::npos
+                            ? signalName : signalName.substr(dot + 1);
+                        if (name == signalName || name == leaf) {
+                            m_sigFlowTreePanel->tree->SelectItem(item);
+                            m_sigFlowTreePanel->tree->EnsureVisible(item);
+                            if (m_sfnPropertyPanel) m_sfnPropertyPanel->LoadNode(data->node);
+                            treeFound = true;
+                            return;
+                        }
+                    }
+                    wxTreeItemIdValue cookie;
+                    wxTreeItemId child = m_sigFlowTreePanel->tree->GetFirstChild(item, cookie);
+                    while (child.IsOk() && !treeFound) {
+                        visit(child);
+                        child = m_sigFlowTreePanel->tree->GetNextChild(item, cookie);
+                    }
+                };
+            visit(m_sigFlowTreePanel->tree->GetRootItem());
+        }
+
+        bool canvasFound = false;
+        if (m_canvas) {
+            const std::size_t pageCount = m_canvas->cvses.size();
+            for (std::size_t page = 0; page < pageCount && !canvasFound; ++page) {
+                CanvasPanel* panel = m_canvas->cvses[page];
+                if (!panel) continue;
+                const auto& elements = panel->GetSecond();
+                for (std::size_t element = 0; element < elements.size(); ++element) {
+                    const std::string name = elements[element].GetIdentifier().ToStdString();
+                    if (name == signalName || name == signalName.substr(signalName.find_last_of("./") + 1)) {
+                        m_canvas->SetSelection(static_cast<int>(page));
+                        panel->UpdateSelection({}, {static_cast<int>(element)}, {});
+                        panel->Refresh();
+                        canvasFound = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (!sourcePath.empty() && sourceLine > 0) {
+            DoFileOpen(wxString::FromUTF8(sourcePath.c_str()));
+            if (m_verilogEditor) {
+                m_verilogEditor->GotoLine(sourceLine - 1);
+                m_verilogEditor->SetFocus();
+            }
+        }
+        wxString status = wxString::Format("Trace navigation: %s", signalName);
+        if (!treeFound) status += " (SFTree not found)";
+        if (!canvasFound) status += " (canvas element not found)";
+        if (sourceLine <= 0) status += " (RTL source line unavailable)";
+        SetStatusText(status, 0);
+    };
+    m_wavePanel->SetNavigationCallback(navigateTrace);
+    m_traceBridgeWindow->SetNavigationCallback(navigateTrace);
+    if (!m_currentProjectPath.IsEmpty()) {
+        m_wavePanel->SetProjectPath(std::string(m_currentProjectPath.ToUTF8().data()));
+        m_wavePanel->SetSessionDir(
+            std::string(m_currentProjectPath.ToUTF8().data()) + "\\.sigflow\\wave");
+    }
 
     auto GetIcon = [&](const wxString& path) {
         wxBitmapBundle bundle = wxBitmapBundle::FromSVGFile(path, wxSize(24, 24));
@@ -1034,6 +1175,10 @@ void MainFrame::DoFileOpenProject() {
 
         m_projectTreePanel->LoadProject(path);
         m_currentProjectPath = path;
+        if (m_wavePanel) {
+            m_wavePanel->SetProjectPath(std::string(path.ToUTF8().data()));
+            m_wavePanel->SetSessionDir(std::string(path.ToUTF8().data()) + "\\.sigflow\\wave");
+        }
 
         maps.clear();
         sigTree->LoadProject(path.ToStdString());
@@ -1159,6 +1304,11 @@ void MainFrame::SetProjectDir(const wxString& projectDir)
 
     m_projectTreePanel->LoadProject(projectDir);
     m_currentProjectPath = projectDir;
+    if (m_wavePanel) {
+        m_wavePanel->SetProjectPath(std::string(projectDir.ToUTF8().data()));
+        m_wavePanel->SetSessionDir(
+            std::string(projectDir.ToUTF8().data()) + "\\.sigflow\\wave");
+    }
 
     maps.clear();
     sigTree->LoadProject(projectDir.ToStdString());
@@ -2281,6 +2431,13 @@ void MainFrame::OnSFNodeActivated(wxCommandEvent& event) {
     if (node && m_sfnPropertyPanel) {
         m_sfnPropertyPanel->LoadNode(node);
     }
+    if (node && node->type == SigTreeNodeType::Signal && m_wavePanel) {
+        const auto* signal = static_cast<const SignalNode*>(node);
+        if (!m_wavePanel->AddSignalByName(signal->identifier)) {
+            SetStatusText(wxString::Format("Waveform signal not found: %s",
+                                           wxString::FromUTF8(signal->identifier.c_str())), 0);
+        }
+    }
 }
 void MainFrame:: OnSFTreeChanged(wxCommandEvent& event) {
     m_sigFlowTreePanel->Fresh();
@@ -2322,7 +2479,8 @@ bool MainFrame::LoadProjectConfig(const wxString& projectPath,
                                    wxString& outTopModule,
                                    std::vector<wxString>& outSourceFiles)
 {
-    wxString configPath = projectPath + "\\sigflow.project";
+    const wxString projectDirectory = NormalizeProjectDirectoryPath(projectPath);
+    wxString configPath = projectDirectory + "\\sigflow.project";
     
     if (!wxFileExists(configPath)) {
         OutputDebugStringA("sigflow.project not found\n");
@@ -2368,7 +2526,7 @@ bool MainFrame::LoadProjectConfig(const wxString& projectPath,
         if (sources.isArray()) {
             for (const auto& src : sources) {
                 wxString relPath = wxString::FromUTF8(src.asString());
-                wxString fullPath = projectPath + "\\" + relPath;
+                wxString fullPath = projectDirectory + "\\" + relPath;
                 // 将正斜杠转换为反斜杠
                 fullPath.Replace("/", "\\");
                 outSourceFiles.push_back(fullPath);
@@ -2384,7 +2542,7 @@ bool MainFrame::LoadProjectConfig(const wxString& projectPath,
             for (const auto& lib : libs) {
                 wxString relPath = wxString::FromUTF8(lib.asString());
                 if (!relPath.IsEmpty()) {
-                    wxString fullPath = projectPath + "\\" + relPath;
+                    wxString fullPath = projectDirectory + "\\" + relPath;
                     fullPath.Replace("/", "\\");
                     outSourceFiles.push_back(fullPath);
                     OutputDebugStringA(("Library file: " + fullPath.ToStdString() + "\n").c_str());
@@ -2416,6 +2574,482 @@ void MainFrame::KillAsyncToolProcess(long processId)
 void MainFrame::DoFpgaSynthesis()
 {
     ShowFpgaToolWindow(FpgaToolPage::Yosys);
+}
+
+void MainFrame::DoTraceBridge()
+{
+    if (!m_traceBridgeWindow) return;
+    m_traceBridgeWindow->SetProjectContext(m_currentProjectPath);
+    m_traceBridgeWindow->Show();
+    m_traceBridgeWindow->Raise();
+    // AUI Dock：在右侧 notebook 中查找或创建 "TraceBridge" Tab
+    wxAuiPaneInfoArray& panes = m_auiMgr.GetAllPanes();
+    for (size_t i = 0; i < panes.GetCount(); ++i) {
+        wxWindow* w = panes[i].window;
+        wxAuiNotebook* nb = dynamic_cast<wxAuiNotebook*>(w);
+        if (!nb) continue;
+        for (size_t j = 0; j < nb->GetPageCount(); ++j) {
+            if (nb->GetPageText(j) == wxT("TraceBridge")) {
+                nb->SetSelection(j);
+                return;
+            }
+        }
+        break; // 用第一个找到的 wxAuiNotebook
+    }
+}
+
+void MainFrame::DoDebugContract()
+{
+    if (m_currentProjectPath.IsEmpty()) {
+        wxMessageBox(wxT("请先打开一个 SigFlow 项目。"), wxT("debug_contract"),
+                     wxOK | wxICON_WARNING, this);
+        return;
+    }
+    if (!m_debugContractConfigWindow) return;
+    m_debugContractConfigWindow->SetProjectContext(m_currentProjectPath);
+    m_debugContractConfigWindow->Show();
+    m_debugContractConfigWindow->Raise();
+}
+
+void MainFrame::RunTraceBridgeCapture(
+    const TraceBridgeCaptureRequest& request,
+    std::function<void(bool, const wxString&)> completion)
+{
+    const wxWeakRef<MainFrame> weakFrame(this);
+    std::vector<std::string> mappingSources;
+    wxString mappingTop;
+    std::vector<wxString> sourceFiles;
+    if (LoadProjectConfig(wxString::FromUTF8(request.projectPath), mappingTop, sourceFiles)) {
+        for (const auto& source : sourceFiles) mappingSources.push_back(source.ToStdString());
+    }
+    const std::string mappingTopModule = request.contract.topModule.empty()
+        ? mappingTop.ToStdString() : request.contract.topModule;
+    std::thread([weakFrame, request, mappingSources, mappingTopModule,
+                 completion = std::move(completion)]() mutable {
+        std::string error;
+        std::string vcdPath;
+        bool success = false;
+        auto postStatus = [weakFrame](const wxString& message) {
+            if (!wxTheApp) return;
+            wxTheApp->CallAfter([weakFrame, message]() {
+                if (weakFrame && weakFrame->m_traceBridgeWindow) {
+                    weakFrame->m_traceBridgeWindow->SetCaptureStatus(message);
+                }
+            });
+        };
+
+        try {
+            sigflow::debug::DebugSessionService sessionService;
+            sigflow::debug::DebugSessionInfo session;
+            postStatus("Creating TraceBridge debug session...");
+            if (!sessionService.Create(request.projectPath, request.contract, session, error)) {
+                error = "Unable to create TraceBridge session: " + error;
+            } else {
+                const auto paths = sigflow::debug::DebugSessionService::GetPaths(
+                    request.projectPath, session.id);
+                sigflow::debug::DebugMappingBuildResult mappingResult;
+                std::string mappingError;
+                const std::string topModule = mappingTopModule.empty()
+                    ? request.contract.topModule : mappingTopModule;
+                if (!sigflow::debug::DebugMappingBuilder::Generate(
+                        topModule, mappingSources, request.contract, paths.root,
+                        mappingResult, mappingError)) {
+                    postStatus(wxT("Warning: source mapping sidecar generation failed: ") +
+                               wxString::FromUTF8(mappingError));
+                } else {
+                    postStatus(wxString::Format(
+                        "Generated signal map (%zu signals, %zu upstream edges).",
+                        mappingResult.mappedSignals, mappingResult.graphEdges));
+                }
+                const auto transition = [&sessionService, &request, &session, &error, &postStatus](
+                    sigflow::debug::DebugSessionState state, const char* reason, const wxString& progress) {
+                    postStatus(progress);
+                    return sessionService.Transition(request.projectPath, session.id, state, reason, 0, error);
+                };
+                if (!transition(sigflow::debug::DebugSessionState::Validating,
+                                "TraceBridge GUI validated contract.", "Validating debug contract...") ||
+                    !transition(sigflow::debug::DebugSessionState::Building,
+                                "Using externally prepared debug bitstream.",
+                                "Using the externally prepared debug bitstream...") ||
+                    !transition(sigflow::debug::DebugSessionState::Programming,
+                                "Using user-programmed debug bitstream.",
+                                "Checking programmed debug-bitstream session...") ||
+                    !transition(sigflow::debug::DebugSessionState::Armed,
+                                "Opening TraceBridge UART capture.", "Opening TraceBridge UART...")) {
+                    error = "Unable to arm TraceBridge session: " + error;
+                } else {
+                    sigflow::debug::SerialTransport transport(request.serialPort,
+                                                               request.contract.transport.baud);
+                    if (!transport.Open()) {
+                        error = "Unable to open serial port " + request.serialPort + ".";
+                        std::string transitionError;
+                        sessionService.Transition(request.projectPath, session.id,
+                                                  sigflow::debug::DebugSessionState::Failed,
+                                                  error, -1, transitionError);
+                    } else {
+                        postStatus("Armed. Waiting for trigger and reading samples...");
+                        const sigflow::debug::DebugSessionPaths paths =
+                            sigflow::debug::DebugSessionService::GetPaths(request.projectPath, session.id);
+                        sigflow::debug::DebugAcquisition acquisition(transport, request.contract);
+                        success = acquisition.AcquireWithSession(request.projectPath, session.id,
+                                                                 paths.artifacts, error, request.options);
+                        if (success) vcdPath = acquisition.Result().vcdPath;
+                        transport.Close();
+                    }
+                }
+            }
+        } catch (const std::exception& exception) {
+            error = "TraceBridge acquisition exception: " + std::string(exception.what());
+        } catch (...) {
+            error = "TraceBridge acquisition failed with an unknown exception.";
+        }
+
+        if (!wxTheApp) return;
+        wxTheApp->CallAfter([weakFrame, success, error, vcdPath, completion]() {
+            if (!weakFrame || !weakFrame->m_traceBridgeWindow) return;
+            wxString completionMessage;
+            if (success) {
+                const wxString captureVcd = wxString::FromUTF8(vcdPath);
+                if (weakFrame->m_wavePanel) {
+                    weakFrame->m_wavePanel->OpenTrace(std::string(captureVcd.ToUTF8().data()));
+                    if (auto* notebook = dynamic_cast<wxAuiNotebook*>(
+                            weakFrame->m_wavePanel->GetParent())) {
+                        const size_t page = notebook->GetPageIndex(weakFrame->m_wavePanel);
+                        if (page != wxNOT_FOUND) notebook->SetSelection(page);
+                    }
+                }
+                weakFrame->m_traceBridgeWindow->SetCaptureResult(
+                    true, "Capture completed and loaded into WavePanel.", captureVcd);
+                completionMessage = wxT("采集完成：") + captureVcd;
+            } else {
+                weakFrame->m_traceBridgeWindow->SetCaptureResult(
+                    false, "Capture failed: " + wxString::FromUTF8(error));
+                completionMessage = wxT("采集失败：") + wxString::FromUTF8(error);
+            }
+            if (completion) completion(success, completionMessage);
+        });
+    }).detach();
+}
+
+void MainFrame::RunTraceBridgeDebugBuild(const TraceBridgeDebugBuildRequest& request)
+{
+    const auto workflowCompletion = request.completion;
+    const auto finishWorkflow = [workflowCompletion](bool success, const wxString& message) {
+        if (workflowCompletion) workflowCompletion(success, message);
+    };
+    if (m_currentProjectPath.IsEmpty() || request.projectPath.empty()) {
+        finishWorkflow(false, wxT("未打开 SigFlow 项目，无法开始一键流程。"));
+        return;
+    }
+    if ((m_yosysExecutor && m_yosysExecutor->GetState() == YosysExecutor::State::Running) ||
+        (m_nextpnrExecutor && m_nextpnrExecutor->GetState() == NextpnrExecutor::State::Running)) {
+        wxMessageBox(wxT("已有 FPGA 构建任务运行，请等待完成后再构建调试位流。"),
+                     wxT("TraceBridge 调试构建"), wxOK | wxICON_WARNING, this);
+        finishWorkflow(false, wxT("已有 FPGA 构建任务运行。"));
+        return;
+    }
+
+    wxString projectPath = wxString::FromUTF8(request.projectPath);
+    wxString topModule;
+    std::vector<wxString> sourceFiles;
+    if (!LoadProjectConfig(projectPath, topModule, sourceFiles)) {
+        wxMessageBox(wxT("无法从 sigflow.project 读取顶层模块和源文件。"),
+                     wxT("TraceBridge 调试构建"), wxOK | wxICON_ERROR, this);
+        finishWorkflow(false, wxT("无法读取 sigflow.project。"));
+        return;
+    }
+    FpgaProjectOptions options;
+    wxString error;
+    FpgaTargetProfile targetProfile;
+    if (!LoadFpgaProjectOptions(projectPath, options, error) ||
+        !ResolveFpgaTargetProfile(options.targetProfileId, targetProfile, error)) {
+        wxMessageBox(error, wxT("TraceBridge 调试构建"), wxOK | wxICON_ERROR, this);
+        finishWorkflow(false, error);
+        return;
+    }
+    wxString configuredCstPath;
+    for (const auto& arg : options.nextpnrArgs) {
+        if (arg.StartsWith(wxT("cst="))) {
+            configuredCstPath = arg.Mid(4);
+            break;
+        }
+    }
+    const wxString yosysExecutable = FindFpgaTool(options.yosysPath, "SIGFLOW_YOSYS", "yosys.exe");
+    const wxString nextpnrExecutable = FindFpgaTool(options.nextpnrPath, "SIGFLOW_NEXTPNR", "nextpnr-himbaechel.exe");
+    const wxString packExecutable = FindFpgaTool(options.gowinPackPath, "SIGFLOW_GOWIN_PACK", "gowin_pack.exe");
+    if (yosysExecutable.IsEmpty() || nextpnrExecutable.IsEmpty() || packExecutable.IsEmpty()) {
+        wxMessageBox(wxT("调试构建需要 yosys.exe、nextpnr-himbaechel.exe 和 gowin_pack.exe。"),
+                     wxT("TraceBridge 调试构建"), wxOK | wxICON_ERROR, this);
+        finishWorkflow(false, wxT("调试构建工具链不完整。"));
+        return;
+    }
+
+    sigflow::debug::DebugContract contract = request.contract;
+    contract.topModule = std::string(topModule.ToUTF8().data());
+    if (contract.sessionId.empty()) contract.sessionId = sigflow::debug::NewDebugSessionId();
+    contract.ApplyDefaults();
+    std::string contractError;
+    if (!contract.AssignProbeBitOffsets(contractError) || !contract.Validate(contractError)) {
+        wxMessageBox(wxString::FromUTF8(contractError), wxT("TraceBridge 调试构建"),
+                     wxOK | wxICON_ERROR, this);
+        finishWorkflow(false, wxString::FromUTF8(contractError));
+        return;
+    }
+
+    const wxString legacyJson = projectPath + wxT("\\yosys\\") + topModule + wxT(".json");
+    wxFile jsonFile(legacyJson, wxFile::read);
+    wxString jsonText;
+    if (!jsonFile.IsOpened() || !jsonFile.ReadAll(&jsonText)) {
+        wxMessageBox(wxT("找不到已完成的 Yosys JSON：") + legacyJson +
+                     wxT("\n请先完成普通综合。"), wxT("TraceBridge 调试构建"),
+                     wxOK | wxICON_WARNING, this);
+        finishWorkflow(false, wxT("找不到已完成的 Yosys JSON，请先完成普通综合。"));
+        return;
+    }
+    std::vector<sigflow::debug::DebugPortInfo> ports;
+    if (!sigflow::debug::DebugNetlistValidator::ParseTopPorts(
+            std::string(jsonText.ToUTF8().data()), std::string(topModule.ToUTF8().data()),
+            ports, contractError)) {
+        wxMessageBox(wxString::FromUTF8(contractError), wxT("TraceBridge 调试构建"),
+                     wxOK | wxICON_ERROR, this);
+        finishWorkflow(false, wxString::FromUTF8(contractError));
+        return;
+    }
+
+    sigflow::debug::DebugSessionService sessionService;
+    sigflow::debug::DebugSessionInfo session;
+    if (!sessionService.Create(request.projectPath, contract, session, contractError)) {
+        wxMessageBox(wxString::FromUTF8(contractError), wxT("TraceBridge 调试构建"),
+                     wxOK | wxICON_ERROR, this);
+        finishWorkflow(false, wxString::FromUTF8(contractError));
+        return;
+    }
+    const auto paths = sigflow::debug::DebugSessionService::GetPaths(request.projectPath, session.id);
+    sigflow::debug::DebugOverlayResult overlay;
+    sigflow::debug::DebugOverlayBuilder builder;
+    const wxString debugRtlDirectory = FindTraceBridgeDebugRtl(projectPath);
+    if (debugRtlDirectory.IsEmpty()) {
+        const wxString message =
+            wxT("找不到 TraceBridge 调试 RTL（rtl\\debug）。请确认程序从 SigFlow 仓库运行，"
+                "或将 rtl\\debug 放在工程目录/安装目录下。\n"
+                "需要 sf_micro_ila.sv、sf_uart_link.sv 和 sf_debug_link.sv。\n"
+                "Debug session: ") + wxString::FromUTF8(session.id);
+        sessionService.Transition(request.projectPath, session.id,
+                                   sigflow::debug::DebugSessionState::Failed,
+                                   std::string(message.ToUTF8().data()), -1, contractError);
+        wxMessageBox(message, wxT("TraceBridge 调试构建"), wxOK | wxICON_ERROR, this);
+        finishWorkflow(false, message);
+        return;
+    }
+    std::map<std::string, std::string> sourceSnapshot;
+    if (!builder.SnapshotUserSources(
+            [&sourceFiles] { std::vector<std::string> result; for (const auto& f : sourceFiles) result.push_back(std::string(f.ToUTF8().data())); return result; }(),
+            sourceSnapshot, contractError) ||
+        !builder.GenerateOverlay(contract, request.projectPath, paths.root, paths.artifacts,
+                                 [&sourceFiles] { std::vector<std::string> result; for (const auto& f : sourceFiles) result.push_back(std::string(f.ToUTF8().data())); return result; }(),
+                                 ports, std::string(debugRtlDirectory.ToUTF8().data()),
+                                 std::string(targetProfile.device.ToUTF8().data()),
+                                 std::string(targetProfile.family.ToUTF8().data()), false,
+                                 std::string(configuredCstPath.ToUTF8().data()),
+                                 overlay, contractError)) {
+        sessionService.Transition(request.projectPath, session.id,
+                                  sigflow::debug::DebugSessionState::Failed,
+                                  contractError, -1, contractError);
+        wxMessageBox(wxString::FromUTF8(contractError), wxT("TraceBridge 调试构建"),
+                     wxOK | wxICON_ERROR, this);
+        finishWorkflow(false, wxString::FromUTF8(contractError));
+        return;
+    }
+    sessionService.Transition(request.projectPath, session.id,
+                              sigflow::debug::DebugSessionState::Validating,
+                              "TraceBridge debug contract validated.", 0, contractError);
+    sessionService.Transition(request.projectPath, session.id,
+                              sigflow::debug::DebugSessionState::Building,
+                              "Debug overlay generated; starting Yosys.", 0, contractError);
+
+    const wxWeakRef<MainFrame> weakSelf(this);
+    const wxString sessionRoot = wxString::FromUTF8(paths.root);
+    const wxString jsonPath = wxString::FromUTF8(overlay.netlistJsonPath);
+    const wxString pnrPath = wxString::FromUTF8(paths.artifacts + "\\sf_debug_top.pnr.json");
+    const wxString fsPath = wxString::FromUTF8(overlay.fsPath);
+    const wxString buildSessionId = wxString::FromUTF8(session.id);
+    const bool programAndCapture = request.programAndCapture;
+    const TraceBridgeCaptureRequest captureRequest = request.captureRequest;
+    m_activeDebugSessionId = buildSessionId;
+    if (m_terminalCtrl) m_terminalCtrl->BeginProcessOutput(wxT("[TraceBridge] debug Yosys started\n"));
+    m_yosysExecutor = std::make_unique<YosysExecutor>();
+    YosysExecutor::Config yosysConfig;
+    yosysConfig.workingDirectory = sessionRoot;
+    yosysConfig.combinedLogPath = sessionRoot + wxT("\\logs\\debug-yosys.combined.log");
+    const bool started = m_yosysExecutor->Execute(
+        yosysExecutable, { wxT("-s"), wxString::FromUTF8(overlay.yosysScriptPath) }, yosysConfig,
+        [weakSelf](YosysExecutor::OutputStream stream, const wxString& text) {
+            if (!wxTheApp) return;
+            wxTheApp->CallAfter([weakSelf, stream, text] {
+                auto* self = weakSelf.get();
+                if (self && self->m_terminalCtrl) self->m_terminalCtrl->AppendProcessOutput(
+                    (stream == YosysExecutor::OutputStream::StdErr ? wxT("[debug yosys stderr] ") : wxEmptyString) + text);
+            });
+        },
+        [weakSelf, projectPath, buildSessionId, jsonPath, pnrPath, fsPath, overlay,
+         targetProfile, nextpnrExecutable, packExecutable, sourceSnapshot,
+         workflowCompletion, programAndCapture, captureRequest](const YosysExecutor::Result& result) {
+            if (!wxTheApp) return;
+            wxTheApp->CallAfter([weakSelf, projectPath, buildSessionId, jsonPath, pnrPath, fsPath,
+                                 overlay, targetProfile, nextpnrExecutable, packExecutable,
+                                 sourceSnapshot, workflowCompletion, programAndCapture,
+                                 captureRequest, result] {
+                auto* self = weakSelf.get();
+                if (!self) return;
+                if (result.reason != YosysExecutor::CompletionReason::Success) {
+                    std::string ignored;
+                    sigflow::debug::DebugSessionService().Transition(
+                        std::string(projectPath.ToUTF8().data()), std::string(buildSessionId.ToUTF8().data()),
+                        sigflow::debug::DebugSessionState::Failed, "Debug Yosys failed.", result.exitCode, ignored);
+                    self->m_yosysExecutor.reset();
+                    self->SetStatusText(wxT("TraceBridge 调试 Yosys 失败"));
+                    if (workflowCompletion) workflowCompletion(false, wxT("TraceBridge 调试 Yosys 失败。"));
+                    return;
+                }
+                std::string sourceError;
+                if (!sigflow::debug::DebugOverlayBuilder().VerifyUserSourcesUntouched(
+                        sourceSnapshot, sourceError)) {
+                    std::string ignored;
+                    sigflow::debug::DebugSessionService().Transition(
+                        std::string(projectPath.ToUTF8().data()), std::string(buildSessionId.ToUTF8().data()),
+                        sigflow::debug::DebugSessionState::Failed, sourceError, -1, ignored);
+                    self->m_yosysExecutor.reset();
+                    wxMessageBox(wxString::FromUTF8(sourceError), wxT("TraceBridge 调试构建"),
+                                 wxOK | wxICON_ERROR, self);
+                    if (workflowCompletion) workflowCompletion(false, wxString::FromUTF8(sourceError));
+                    return;
+                }
+                self->m_yosysExecutor.reset();
+                NextpnrExecuteRequest request;
+                request.projectPath = projectPath;
+                request.topModule = wxT("sf_debug_top");
+                request.jsonPath = jsonPath;
+                request.configuredCstPath = wxString::FromUTF8(overlay.cstPath);
+                request.deviceName = targetProfile.device;
+                request.familyName = targetProfile.family;
+                request.executablePath = nextpnrExecutable;
+                request.outputDirectory = wxFileName(jsonPath).GetPath();
+                self->m_nextpnrExecutor = std::make_unique<NextpnrExecutor>();
+                wxString prepError;
+                if (!self->m_nextpnrExecutor->Prepare(request, prepError)) {
+                    std::string ignored;
+                    sigflow::debug::DebugSessionService().Transition(
+                        std::string(projectPath.ToUTF8().data()), std::string(buildSessionId.ToUTF8().data()),
+                        sigflow::debug::DebugSessionState::Failed, std::string(prepError.ToUTF8().data()), -1, ignored);
+                    self->m_nextpnrExecutor.reset();
+                    wxMessageBox(prepError, wxT("TraceBridge 调试构建"), wxOK | wxICON_ERROR, self);
+                    if (workflowCompletion) workflowCompletion(false, prepError);
+                    return;
+                }
+                NextpnrExecutor::Config config;
+                config.workingDirectory = request.outputDirectory;
+                config.combinedLogPath = wxFileName(request.outputDirectory, wxT("debug-nextpnr.combined.log")).GetFullPath();
+                self->m_nextpnrExecutor->Execute(
+                    nextpnrExecutable, self->m_nextpnrExecutor->GetArguments(), config,
+                    [weakSelf](NextpnrExecutor::OutputStream stream, const wxString& text) {
+                        if (!wxTheApp) return;
+                        wxTheApp->CallAfter([weakSelf, stream, text] {
+                            auto* frame = weakSelf.get();
+                            if (frame && frame->m_terminalCtrl) frame->m_terminalCtrl->AppendProcessOutput(
+                                (stream == NextpnrExecutor::OutputStream::StdErr ? wxT("[debug nextpnr stderr] ") : wxEmptyString) + text);
+                        });
+                    },
+                    [weakSelf, projectPath, buildSessionId, pnrPath, fsPath, overlay, targetProfile,
+                     packExecutable, sourceSnapshot, workflowCompletion, programAndCapture, captureRequest]
+                    (const NextpnrExecutor::Result& pnrResult) {
+                        if (!wxTheApp) return;
+                        wxTheApp->CallAfter([weakSelf, projectPath, buildSessionId, pnrPath, fsPath,
+                                             overlay, targetProfile, packExecutable, sourceSnapshot,
+                                             workflowCompletion, programAndCapture, captureRequest,
+                                             pnrResult] {
+                            auto* self = weakSelf.get();
+                            if (!self) return;
+                            const wxString pnrDir = wxFileName(pnrPath).GetPath();
+                            const NextpnrJobResult report = self->m_nextpnrExecutor->Finalize(
+                                pnrResult.exitCode, pnrResult.combinedLog);
+                                self->m_nextpnrExecutor.reset();
+                            if (!report.succeeded) {
+                                std::string ignored;
+                                sigflow::debug::DebugSessionService().Transition(
+                                    std::string(projectPath.ToUTF8().data()), std::string(buildSessionId.ToUTF8().data()),
+                                    sigflow::debug::DebugSessionState::Failed, "Debug nextpnr failed.", pnrResult.exitCode, ignored);
+                                self->SetStatusText(wxT("TraceBridge 调试 nextpnr 失败"));
+                                if (workflowCompletion) workflowCompletion(false, wxT("TraceBridge 调试 nextpnr 失败。"));
+                                return;
+                            }
+                            const std::vector<wxString> args = { wxT("-d"), targetProfile.family, wxT("-o"), fsPath, pnrPath };
+                            LaunchFpgaTool(packExecutable, args, pnrDir, self->m_terminalCtrl, wxT("debug gowin_pack"), {},
+                                [weakSelf, projectPath, buildSessionId, overlay, fsPath, pnrPath,
+                                 workflowCompletion, programAndCapture, captureRequest]
+                                (int exitCode, const wxString&) {
+                                    if (!wxTheApp) return;
+                                    wxTheApp->CallAfter([weakSelf, projectPath, buildSessionId, overlay,
+                                                         fsPath, pnrPath, workflowCompletion,
+                                                         programAndCapture, captureRequest, exitCode] {
+                                        auto* self = weakSelf.get();
+                                        if (!self) return;
+                                        std::string ignored;
+                                        sigflow::debug::DebugSessionInfo metadata;
+                                        metadata.overlayPath = overlay.wrapperPath;
+                                        metadata.mergedCstPath = overlay.cstPath;
+                                        metadata.netlistJsonPath = overlay.netlistJsonPath;
+                                        metadata.pnrJsonPath = std::string(pnrPath.ToUTF8().data());
+                                        metadata.bitstreamPath = std::string(fsPath.ToUTF8().data());
+                                        metadata.bitstreamSha256 = sigflow::debug::Sha256File(metadata.bitstreamPath);
+                                        metadata.resourceReportPath = metadata.pnrJsonPath;
+                                        metadata.timingReportPath = metadata.pnrJsonPath;
+                                        sigflow::debug::DebugSessionService service;
+                                        service.UpdateBuildMetadata(std::string(projectPath.ToUTF8().data()), std::string(buildSessionId.ToUTF8().data()), metadata, ignored);
+                                        service.Transition(std::string(projectPath.ToUTF8().data()), std::string(buildSessionId.ToUTF8().data()),
+                                            exitCode == 0 ? sigflow::debug::DebugSessionState::Programming : sigflow::debug::DebugSessionState::Failed,
+                                            exitCode == 0 ? "Debug bitstream ready for programming." : "gowin_pack failed.", exitCode, ignored);
+                                        self->SetStatusText(exitCode == 0 ? wxT("TraceBridge 调试位流已生成") : wxT("TraceBridge 调试打包失败"));
+                                        if (exitCode != 0) {
+                                            if (workflowCompletion) workflowCompletion(false, wxT("TraceBridge 调试打包失败。"));
+                                            return;
+                                        }
+                                        if (!programAndCapture) return;
+
+                                        if (self->m_traceBridgeWindow) {
+                                            self->m_traceBridgeWindow->SetCaptureStatus(
+                                                wxT("调试位流已生成，准备下载 FPGA…"));
+                                        }
+                                        self->RunFpgaProgram(
+                                            fsPath,
+                                            [weakSelf, captureRequest, workflowCompletion](
+                                                bool programmed, const wxString& message) {
+                                                auto* frame = weakSelf.get();
+                                                if (!frame) return;
+                                                if (!programmed) {
+                                                    if (workflowCompletion) workflowCompletion(false, message);
+                                                    return;
+                                                }
+                                                if (frame->m_traceBridgeWindow) {
+                                                    frame->m_traceBridgeWindow->SetCaptureStatus(
+                                                        wxT("FPGA 下载完成，开始采集…"));
+                                                }
+                                                frame->RunTraceBridgeCapture(captureRequest,
+                                                                              workflowCompletion);
+                                            },
+                                            true);
+                                    });
+                                });
+                        });
+                    });
+            });
+        });
+    if (!started) {
+        m_yosysExecutor.reset();
+        wxMessageBox(wxT("无法启动调试 Yosys。"), wxT("TraceBridge 调试构建"), wxOK | wxICON_ERROR, this);
+        finishWorkflow(false, wxT("无法启动调试 Yosys。"));
+        return;
+    }
+    SetStatusText(wxT("TraceBridge 调试构建已启动"));
 }
 
 void MainFrame::RunFpgaSynthesis()
@@ -3413,11 +4047,18 @@ void MainFrame::RunFpgaPack()
     SetStatusText("Apicula gowin_pack started");
 }
 
-void MainFrame::RunFpgaProgram(const wxString& bitstreamPath)
+void MainFrame::RunFpgaProgram(
+    const wxString& bitstreamPath,
+    std::function<void(bool, const wxString&)> completion,
+    bool confirmProgramming)
 {
+    const auto finish = [&completion](bool success, const wxString& message) {
+        if (completion) completion(success, message);
+    };
     if (m_currentProjectPath.IsEmpty()) {
         wxMessageBox("Open a project before programming an FPGA board.", "FPGA Program Board",
                      wxOK | wxICON_WARNING, this);
+        finish(false, wxT("未打开 SigFlow 项目。"));
         return;
     }
 
@@ -3425,12 +4066,14 @@ void MainFrame::RunFpgaProgram(const wxString& bitstreamPath)
     wxString optionsError;
     if (!LoadFpgaProjectOptions(m_currentProjectPath, options, optionsError)) {
         wxMessageBox(optionsError, "FPGA Program Board", wxOK | wxICON_ERROR, this);
+        finish(false, optionsError);
         return;
     }
 
     FpgaTargetProfile targetProfile;
     if (!ResolveFpgaTargetProfile(options.targetProfileId, targetProfile, optionsError)) {
         wxMessageBox(optionsError, "FPGA Program Board", wxOK | wxICON_ERROR, this);
+        finish(false, optionsError);
         return;
     }
 
@@ -3441,12 +4084,38 @@ void MainFrame::RunFpgaProgram(const wxString& bitstreamPath)
                      "sigflow.project, set SIGFLOW_OPENFPGALOADER, install it under "
                      "external/fpga-tools/runtime/openfpgaloader/bin, or add it to PATH.",
                      "FPGA Program Board", wxOK | wxICON_WARNING, this);
+        finish(false, wxT("找不到 openFPGALoader。"));
         return;
     }
 
     if (bitstreamPath.IsEmpty() || !wxFileExists(bitstreamPath)) {
         wxMessageBox("Select an existing Apicula .fs bitstream before programming.",
                      "FPGA Program Board", wxOK | wxICON_WARNING, this);
+        finish(false, wxT("调试位流不存在。"));
+        return;
+    }
+    if (!m_activeDebugSessionId.IsEmpty()) {
+        std::string validationError;
+        if (!sigflow::debug::DebugSessionService().ValidateBitstreamForProgramming(
+                std::string(m_currentProjectPath.ToUTF8().data()),
+                std::string(m_activeDebugSessionId.ToUTF8().data()),
+                std::string(bitstreamPath.ToUTF8().data()), validationError)) {
+            wxMessageBox(wxString::FromUTF8(
+                              ("Refusing to program: " + validationError).c_str()),
+                          "TraceBridge bitstream validation",
+                          wxOK | wxICON_ERROR, this);
+            finish(false, wxString::FromUTF8(
+                              ("位流校验失败：" + validationError).c_str()));
+            return;
+        }
+    }
+
+    if (confirmProgramming &&
+        wxMessageBox(wxT("即将把当前 TraceBridge 调试位流下载到 FPGA。\n"
+                         "这会覆盖板上的现有 SRAM 镜像，确认继续吗？"),
+                     wxT("确认下载调试位流"), wxYES_NO | wxICON_WARNING, this) != wxYES) {
+        SetStatusText(wxT("用户取消 FPGA 下载"));
+        finish(false, wxT("用户取消 FPGA 下载。"));
         return;
     }
     const std::vector<wxString> defaultLoaderArgs = { "-b", targetProfile.programmerBoard, "${bitstream}" };
@@ -3467,11 +4136,40 @@ void MainFrame::RunFpgaProgram(const wxString& bitstreamPath)
     }
 
     const wxString workingDirectory = wxFileName(bitstreamPath).GetPath();
+    const wxWeakRef<MainFrame> weakSelf(this);
+    const wxString programmingProjectPath = m_currentProjectPath;
+    const wxString programmingSessionId = m_activeDebugSessionId;
     const long processId = LaunchFpgaTool(
-        loaderExecutable, arguments, workingDirectory, m_terminalCtrl, "openFPGALoader");
+        loaderExecutable, arguments, workingDirectory, m_terminalCtrl, "openFPGALoader", {},
+        [weakSelf, programmingProjectPath, programmingSessionId, completion]
+        (int exitCode, const wxString&) {
+            if (!wxTheApp) return;
+            wxTheApp->CallAfter([weakSelf, programmingProjectPath, programmingSessionId,
+                                 completion, exitCode] {
+                auto* self = weakSelf.get();
+                if (!self) return;
+                if (!programmingProjectPath.IsEmpty() && !programmingSessionId.IsEmpty()) {
+                    std::string ignored;
+                    sigflow::debug::DebugSessionService().Transition(
+                        std::string(programmingProjectPath.ToUTF8().data()),
+                        std::string(programmingSessionId.ToUTF8().data()),
+                        exitCode == 0 ? sigflow::debug::DebugSessionState::Armed
+                                      : sigflow::debug::DebugSessionState::Failed,
+                        exitCode == 0 ? "openFPGALoader programming completed."
+                                      : "openFPGALoader programming failed.",
+                        exitCode, ignored);
+                }
+                const wxString message = exitCode == 0
+                    ? wxT("openFPGALoader programming completed")
+                    : wxT("openFPGALoader programming failed");
+                self->SetStatusText(message);
+                if (completion) completion(exitCode == 0, message);
+            });
+        });
     if (processId == 0) {
         wxMessageBox("Unable to start openFPGALoader. Check the configured executable path.",
                      "FPGA Program Board", wxOK | wxICON_ERROR, this);
+        finish(false, wxT("无法启动 openFPGALoader。"));
         return;
     }
 

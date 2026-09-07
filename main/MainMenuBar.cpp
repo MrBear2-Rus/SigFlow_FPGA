@@ -87,6 +87,8 @@ EVT_MENU(wxID_HIGHEST + 235, MainMenuBar::OnFpgaShowSynthesisJobs)
 EVT_MENU(wxID_HIGHEST + 236, MainMenuBar::OnFpgaOpenSynthesisReport)
 EVT_MENU(wxID_HIGHEST + 237, MainMenuBar::OnFpgaRetrySynthesis)
 EVT_MENU(wxID_HIGHEST + 238, MainMenuBar::OnFpgaCancelRoute)
+EVT_MENU(wxID_HIGHEST + 239, MainMenuBar::OnTraceBridge)
+EVT_MENU(wxID_HIGHEST + 240, MainMenuBar::OnDebugContract)
 
 EVT_MENU(wxID_ICONIZE_FRAME, MainMenuBar::OnMinimize)
 EVT_MENU(wxID_MAXIMIZE_FRAME, MainMenuBar::OnMaximize)
@@ -308,6 +310,11 @@ wxMenu* MainMenuBar::CreateFpgaMenu()
                  wxT("Open Yosys, nextpnr, and openFPGALoader controls"));
     menu->Append(wxID_HIGHEST + 234, wxT("Pin Binding..."),
                  wxT("Configure FPGA pin constraints for the target device"));
+    menu->Append(wxID_HIGHEST + 240, wxT("debug_contract..."),
+                 wxT("Create and edit the project debug-contract.json"));
+    menu->AppendSeparator();
+    menu->Append(wxID_HIGHEST + 239, wxT("TraceBridge Hardware Capture..."),
+                 wxT("Capture a programmed debug bitstream through UART"));
     return menu;
 }
 
@@ -502,6 +509,18 @@ void MainMenuBar::OnFpgaPinBinding(wxCommandEvent&)
     if (m_owner) {
         m_owner->DoFpgaPinBinding();
     }
+}
+
+void MainMenuBar::OnTraceBridge(wxCommandEvent&)
+{
+    if (m_owner) {
+        m_owner->DoTraceBridge();
+    }
+}
+
+void MainMenuBar::OnDebugContract(wxCommandEvent&)
+{
+    if (m_owner) m_owner->DoDebugContract();
 }
 
 void MainMenuBar::OnUndo(wxCommandEvent&) { m_owner->DoEditUndo(); }

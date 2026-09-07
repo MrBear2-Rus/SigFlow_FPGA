@@ -1,7 +1,9 @@
 #pragma once
 
 #include "../trace/TraceTypes.h"
+#include "WaveTheme.h"
 
+#include <limits>
 #include <vector>
 
 namespace sigflow {
@@ -19,6 +21,9 @@ struct WaveEvent {
     sigflow::trace::TimeValue time = 0;
     std::string label;
     std::uint32_t color = 0xFFF59E0B;
+    std::string signalName;
+    std::string sourcePath;
+    int sourceLine = 0;
 };
 
 // 波形视图状态（软件/GL 后端共享）。
@@ -41,18 +46,31 @@ struct WaveViewState {
     sigflow::trace::TimeValue abA = 0;
     sigflow::trace::TimeValue abB = 0;
     bool hasAB = false;
+    WaveTheme theme = WaveTheme::Dark;
 
     sigflow::trace::TimeValue EndTime() const { return timeOffset + timeSpan; }
 
     void Clamp()
     {
         if (timeSpan < 1) timeSpan = 1;
-        if (timeSpan > maxTime + 1) timeSpan = maxTime + 1;
+        const sigflow::trace::TimeValue maxValue =
+            std::numeric_limits<sigflow::trace::TimeValue>::max();
+        const sigflow::trace::TimeValue fullSpan =
+            (maxTime == maxValue) ? maxValue : maxTime + 1;
+        if (timeSpan > fullSpan) timeSpan = fullSpan;
         if (timeOffset > maxTime) timeOffset = maxTime;
         const sigflow::trace::TimeValue maxOffset =
             (maxTime > timeSpan) ? (maxTime - timeSpan) : 0;
         if (timeOffset > maxOffset) timeOffset = maxOffset;
         valid = maxTime > 0 || !visibleSignalIds.empty();
+    }
+
+    void SetRange(sigflow::trace::TimeValue a, sigflow::trace::TimeValue b)
+    {
+        if (a > b) std::swap(a, b);
+        abA = a;
+        abB = b;
+        hasAB = true;
     }
 };
 
@@ -72,6 +90,10 @@ inline void ZoomAt(WaveViewState& state, double mouseXFrac, double factor)
         static_cast<sigflow::trace::TimeValue>(
             static_cast<double>(state.timeSpan) * factor);
     if (newSpan < 1) newSpan = 1;
+    if (factor > 1.0 && newSpan <= state.timeSpan &&
+        state.timeSpan < std::numeric_limits<sigflow::trace::TimeValue>::max()) {
+        newSpan = state.timeSpan + 1;
+    }
     const sigflow::trace::TimeValue newOffset =
         (anchor > newSpan) ? (anchor - newSpan) : 0;
     state.timeSpan = newSpan;

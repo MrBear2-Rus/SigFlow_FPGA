@@ -14,6 +14,7 @@ namespace sigflow {
 namespace wave {
 
 class WaveformGLCanvas;
+class WaveformMiniMap;
 
 // 波形视图控件（T-W2）：
 // - GL 可用时由 WaveformGLCanvas 渲染，否则软件渲染回退（T-W2-04）；
@@ -58,8 +59,14 @@ public:
     WaveSessionData CaptureSession() const;
     void ApplySession(const WaveSessionData& session);
 
+    void SetTheme(WaveTheme theme);
+    WaveTheme Theme() const { return m_state.theme; }
+
     bool UsingOpenGL() const;
     const WaveViewState& State() const { return m_state; }
+    void ShowContextMenu(const wxPoint& point,
+                         sigflow::trace::TimeValue a,
+                         sigflow::trace::TimeValue b);
 
 private:
     void OnPaint(wxPaintEvent& event);
@@ -68,12 +75,16 @@ private:
     void OnMouseDown(wxMouseEvent& event);
     void OnMouseMove(wxMouseEvent& event);
     void OnMouseUp(wxMouseEvent& event);
+    void OnRightDown(wxMouseEvent& event);
+    void OnRightUp(wxMouseEvent& event);
     void OnKeyDown(wxKeyEvent& event);
     void OnGlFailed();
 
     void RebuildGlCanvas();
     void RenderSoftware(wxDC& dc);
     void AutoSelectSignals();
+    int ContentHeight() const;
+    void RefreshMiniMap();
 
     WaveViewState m_state;
     std::shared_ptr<sigflow::trace::TraceSource> m_source;
@@ -81,11 +92,14 @@ private:
     bool m_forceSoftware;
     bool m_dragging = false;
     bool m_ctrlDrag = false;
+    bool m_rightDragging = false;
     int m_lastMouseX = 0;
     int m_dragStartX = 0;
+    int m_rightStartX = 0;
     bool m_suppressNotify = false;
     std::function<void()> m_onViewChanged;
     sigflow::trace::TimeValue m_glitchThreshold = 2;
+    WaveformMiniMap* m_miniMap = nullptr;
 };
 
 } // namespace wave

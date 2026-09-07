@@ -115,6 +115,8 @@ private:
     void OnFpgaCancelRoute(wxCommandEvent&);
     void OnFpgaProgram(wxCommandEvent&);
     void OnFpgaPinBinding(wxCommandEvent&);
+    void OnTraceBridge(wxCommandEvent&);
+    void OnDebugContract(wxCommandEvent&);
 
     /* Window 菜单事件回调 */
     void OnMinimize(wxCommandEvent&);

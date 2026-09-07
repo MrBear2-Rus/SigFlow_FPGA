@@ -2,36 +2,58 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "SigFlow TraceBridge Compare Result",
   "type": "object",
-  "required": ["schema_version", "session_id"],
+  "required": ["schema_version", "session_id", "aligned", "quality", "anchors", "first_differences"],
   "properties": {
     "schema_version": { "type": "string", "enum": ["1.0"] },
     "session_id": { "type": "string", "minLength": 1 },
     "aligned": { "type": "boolean" },
     "quality": { "type": "number", "minimum": 0, "maximum": 1 },
-    "anchors": {
-      "type": "object",
-      "properties": {
-        "reset_release": { "type": "integer" },
-        "trigger_hit": { "type": "integer" },
-        "input_transaction": { "type": "integer" }
-      }
-    },
-    "first_difference": {
-      "type": "object",
-      "properties": {
-        "sample": { "type": "integer" },
-        "signal": { "type": "string" },
-        "expected": { "type": "string" },
-        "actual": { "type": "string" },
-        "upstream_candidates": { "type": "array", "items": { "type": "string" } },
-        "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
-      }
-    },
+    "total_signals_compared": { "type": "integer", "minimum": 0 },
+    "total_diffs": { "type": "integer", "minimum": 0 },
+    "summary": { "type": "string" },
+    "reference_kind": { "type": "string" },
     "replay_consistency": {
       "type": "object",
       "properties": {
-        "score": { "type": "number", "minimum": 0, "maximum": 1 },
-        "verified": { "type": "boolean" }
+        "verified": { "type": "boolean" },
+        "score": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "anchors": {
+      "type": "object",
+      "required": ["kind", "hw_time", "sim_time"],
+      "properties": {
+        "kind": { "type": "string" },
+        "hw_time": { "type": "integer", "minimum": 0 },
+        "sim_time": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "alignment": { "type": "object" },
+    "first_difference": { "$ref": "#/definitions/difference" },
+    "first_differences": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/difference" }
+    }
+  },
+  "definitions": {
+    "difference": {
+      "type": "object",
+      "required": ["signal", "hw_time", "sim_time", "expected", "actual", "confidence"],
+      "properties": {
+        "signal": { "type": "string", "minLength": 1 },
+        "hw_time": { "type": "integer", "minimum": 0 },
+        "sim_time": { "type": "integer", "minimum": 0 },
+        "expected": { "type": "string" },
+        "actual": { "type": "string" },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "source_path": { "type": "string" },
+        "source_line": { "type": "integer", "minimum": 0 },
+        "sftree_path": { "type": "string" },
+        "canvas_id": { "type": "string" },
+        "upstream_candidates": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
       }
     }
   }

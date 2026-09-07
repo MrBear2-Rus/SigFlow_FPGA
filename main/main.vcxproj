@@ -68,7 +68,6 @@
     <ClCompile Include="ToolStateMachine.cpp" />
     <ClCompile Include="VerilogManager.cpp" />
     <ClCompile Include="VerilogStructuring.cpp" />
-    <ClCompile Include="WavePanel.cpp" />
     <ClCompile Include="Wire.cpp" />
     <ClCompile Include="Simulation\SimulationEngine.cpp" />
     <ClCompile Include="Simulation\VerilatorRunner.cpp" />
@@ -91,14 +90,17 @@
     <ClCompile Include="wave\WavePatternSearch.cpp" />
     <ClCompile Include="wave\WaveSession.cpp" />
     <ClCompile Include="wave\WaveformGLCanvas.cpp" />
+    <ClCompile Include="wave\WaveformMiniMap.cpp" />
     <ClCompile Include="wave\WaveformGLRenderer.cpp" />
     <ClCompile Include="wave\WaveformRenderData.cpp" />
     <ClCompile Include="wave\WaveformTextLayer.cpp" />
     <ClCompile Include="wave\WaveformView.cpp" />
+    <ClCompile Include="wave\WaveUartLane.cpp" />
     <ClCompile Include="debug\DebugContract.cpp" />
     <ClCompile Include="debug\DebugFingerprint.cpp" />
     <ClCompile Include="debug\DebugSession.cpp" />
     <ClCompile Include="debug\DebugNetlistValidator.cpp" />
+    <ClCompile Include="debug\DebugBehaviorSummary.cpp" />
     <ClCompile Include="debug\DebugOverlayBuilder.cpp" />
     <ClCompile Include="debug\DebugAcquisition.cpp" />
     <ClCompile Include="debug\DebugProtocol.cpp" />
@@ -106,6 +108,13 @@
     <ClCompile Include="debug\PipeTransport.cpp" />
     <ClCompile Include="debug\SerialPortEnumerator.cpp" />
     <ClCompile Include="debug\SerialTransport.cpp" />
+    <ClCompile Include="debug\TraceBridgeWindow.cpp" />
+    <ClCompile Include="debug\DebugContractConfigWindow.cpp" />
+    <ClCompile Include="debug\WaveformAligner.cpp" />
+    <ClCompile Include="debug\WaveformComparator.cpp" />
+    <ClCompile Include="debug\ReplayScenario.cpp" />
+    <ClCompile Include="debug\RootCauseGraph.cpp" />
+    <ClCompile Include="debug\DebugMappingBuilder.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\3rd\nanosvg\nanosvg.h" />
@@ -156,7 +165,6 @@
     <ClInclude Include="TreeSitterLinter.h" />
     <ClInclude Include="VerilogManager.h" />
     <ClInclude Include="VerilogStructuring.h" />
-    <ClInclude Include="WavePanel.h" />
     <ClInclude Include="Wire.h" />
     <ClInclude Include="Simulation\SimulationEngine.h" />
     <ClInclude Include="Simulation\VerilatorRunner.h" />
@@ -182,15 +190,19 @@
     <ClInclude Include="wave\WaveSession.h" />
     <ClInclude Include="wave\WaveViewState.h" />
     <ClInclude Include="wave\WaveformGLCanvas.h" />
+    <ClInclude Include="wave\WaveformMiniMap.h" />
     <ClInclude Include="wave\WaveformGLRenderer.h" />
     <ClInclude Include="wave\WaveformRenderData.h" />
     <ClInclude Include="wave\WaveformTextLayer.h" />
     <ClInclude Include="wave\WaveformView.h" />
+    <ClInclude Include="wave\WaveTheme.h" />
+    <ClInclude Include="wave\WaveUartLane.h" />
     <ClInclude Include="debug\DebugContract.h" />
     <ClInclude Include="debug\DebugFingerprint.h" />
     <ClInclude Include="debug\DebugSession.h" />
     <ClInclude Include="debug\DebugThresholds.h" />
     <ClInclude Include="debug\DebugNetlistValidator.h" />
+    <ClInclude Include="debug\DebugBehaviorSummary.h" />
     <ClInclude Include="debug\DebugOverlayBuilder.h" />
     <ClInclude Include="debug\DebugAcquisition.h" />
     <ClInclude Include="debug\DebugProtocol.h" />
@@ -199,6 +211,13 @@
     <ClInclude Include="debug\PipeTransport.h" />
     <ClInclude Include="debug\SerialPortEnumerator.h" />
     <ClInclude Include="debug\SerialTransport.h" />
+    <ClInclude Include="debug\TraceBridgeWindow.h" />
+    <ClInclude Include="debug\DebugContractConfigWindow.h" />
+    <ClInclude Include="debug\WaveformAligner.h" />
+    <ClInclude Include="debug\WaveformComparator.h" />
+    <ClInclude Include="debug\ReplayScenario.h" />
+    <ClInclude Include="debug\RootCauseGraph.h" />
+    <ClInclude Include="debug\DebugMappingBuilder.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
@@ -309,6 +328,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;WIN32;__WXMSW__;_WINDOWS;NOPCH;_CRT_SECURE_NO_WARNINGS;SLANG_DEBUG;_ITERATOR_DEBUG_LEVEL=2;WXUSINGDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>

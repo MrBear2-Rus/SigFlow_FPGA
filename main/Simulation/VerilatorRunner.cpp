@@ -3,6 +3,8 @@
 #include <wx/txtstrm.h>
 #include <wx/utils.h>
 #include <wx/filefn.h>
+#include <wx/filename.h>
+#include <wx/stdpaths.h>
 
 VerilatorRunner::VerilatorRunner()
     : m_verilatorPath(FindSystemVerilator())
@@ -28,10 +30,35 @@ wxString VerilatorRunner::FindSystemVerilator()
     // 检查环境变量
     wxString verilatorRoot;
     if (wxGetEnv("VERILATOR_ROOT", &verilatorRoot) && !verilatorRoot.IsEmpty()) {
-        wxString path = verilatorRoot + "\\bin\\verilator.exe";
-        if (wxFileExists(path)) {
-            return path;
+        const wxString candidates[] = {
+            verilatorRoot + "\\bin\\verilator_bin_dbg.exe",
+            verilatorRoot + "\\bin\\verilator_bin.exe",
+            verilatorRoot + "\\bin\\verilator.exe"
+        };
+        for (const auto& path : candidates) {
+            if (wxFileExists(path)) return path;
         }
+    }
+
+    const wxString currentDirectoryCandidates[] = {
+        wxGetCwd() + "\\tools\\verilator\\verilator-install\\bin\\verilator_bin_dbg.exe",
+        wxGetCwd() + "\\tools\\verilator\\bin\\verilator_bin_dbg.exe"
+    };
+    for (const auto& path : currentDirectoryCandidates) {
+        if (wxFileExists(path)) return path;
+    }
+
+    wxFileName executable(wxStandardPaths::Get().GetExecutablePath());
+    executable.RemoveLastDir();
+    executable.RemoveLastDir();
+    executable.RemoveLastDir();
+    const wxString bundledRoot = executable.GetPath();
+    const wxString bundledCandidates[] = {
+        bundledRoot + "\\tools\\verilator\\verilator-install\\bin\\verilator_bin_dbg.exe",
+        bundledRoot + "\\tools\\verilator\\bin\\verilator_bin_dbg.exe"
+    };
+    for (const auto& path : bundledCandidates) {
+        if (wxFileExists(path)) return path;
     }
 
     // 检查PATH
@@ -48,6 +75,7 @@ wxString VerilatorRunner::FindSystemVerilator()
 
     // 检查常见安装位置
     const wxString commonPaths[] = {
+        "C:\\verilator\\bin\\verilator_bin_dbg.exe",
         "C:\\verilator\\bin\\verilator.exe",
         "C:\\Program Files\\verilator\\bin\\verilator.exe",
         "C:\\ProgramData\\chocolatey\\bin\\verilator.exe",

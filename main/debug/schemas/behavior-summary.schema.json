@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SigFlow TraceBridge Hardware Behavior Summary",
+  "type": "object",
+  "required": ["schema_version", "deterministic", "event_count", "events"],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["1.0"] },
+    "deterministic": { "type": "boolean" },
+    "event_count": { "type": "integer", "minimum": 0 },
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind", "time", "message"],
+        "properties": {
+          "kind": { "type": "string" },
+          "time": { "type": "integer", "minimum": 0 },
+          "signal": { "type": "string" },
+          "value": { "type": "string" },
+          "message": { "type": "string" }
+        }
+      }
+    }
+  }
+}

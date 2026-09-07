@@ -41,6 +41,7 @@ const WaveColor& WavePalette(int index)
 float WaveformTimeToX(const WaveViewState& state, int width,
                       sigflow::trace::TimeValue t)
 {
+    if (state.timeSpan == 0) return static_cast<float>(state.leftMargin);
     const double ratio = static_cast<double>(t - state.timeOffset) /
                          static_cast<double>(state.timeSpan);
     return static_cast<float>(state.leftMargin +
@@ -55,7 +56,8 @@ bool BuildWaveformFrame(sigflow::trace::TraceSource& source,
     out.signals.clear();
     out.ticks.clear();
     out.error.clear();
-    if (!state.valid || width <= state.leftMargin + state.rightMargin) {
+    if (!state.valid || state.timeSpan == 0 ||
+        width <= state.leftMargin + state.rightMargin) {
         out.error = "invalid view state or window too small";
         return false;
     }
@@ -74,7 +76,11 @@ bool BuildWaveformFrame(sigflow::trace::TraceSource& source,
         for (double candidate : { step / 2.0, step / 5.0, step }) {
             if (candidate >= target) { step = candidate; break; }
         }
-        const sigflow::trace::TimeValue stepT = static_cast<sigflow::trace::TimeValue>(step);
+        // VCD timestamps are integral.  A sub-unit tick step would truncate to zero
+        // and make the alignment calculation below divide/modulo by zero.
+        sigflow::trace::TimeValue stepT =
+            static_cast<sigflow::trace::TimeValue>(std::ceil(step));
+        if (stepT == 0) stepT = 1;
         sigflow::trace::TimeValue tick =
             (t0 / stepT) * stepT + ((t0 % stepT == 0) ? 0 : stepT);
         for (; tick <= t1; tick += stepT) {

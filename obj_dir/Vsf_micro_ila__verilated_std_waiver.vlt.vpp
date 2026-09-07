@@ -1,0 +1,86 @@
+`begin_keywords "1800-2023"
+`line 1 "E:\\FPGAProject\\CNN\\tools\\verilator-install\\include\\verilated_std_waiver.vlt" 1
+ 
+
+`line 3 "E:\\FPGAProject\\CNN\\tools\\verilator-install\\include\\verilated_std_waiver.vlt" 0
+ 
+
+`line 5 "E:\\FPGAProject\\CNN\\tools\\verilator-install\\include\\verilated_std_waiver.vlt" 0
+ 
+
+`line 7 "E:\\FPGAProject\\CNN\\tools\\verilator-install\\include\\verilated_std_waiver.vlt" 0
+ 
+ 
+ 
+ 
+ 
+
+`line 13 "E:\\FPGAProject\\CNN\\tools\\verilator-install\\include\\verilated_std_waiver.vlt" 0
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+`line 26 "E:\\FPGAProject\\CNN\\tools\\verilator-install\\include\\verilated_std_waiver.vlt" 0
+ 
+ 
+
+`line 29 "E:\\FPGAProject\\CNN\\tools\\verilator-install\\include\\verilated_std_waiver.vlt" 0
+`verilator_config
+
+`line 31 "E:\\FPGAProject\\CNN\\tools\\verilator-install\\include\\verilated_std_waiver.vlt" 0
+ 
+ 
+
+`line 34 "E:\\FPGAProject\\CNN\\tools\\verilator-install\\include\\verilated_std_waiver.vlt" 0
+ 
+ 
+
+`line 37 "E:\\FPGAProject\\CNN\\tools\\verilator-install\\include\\verilated_std_waiver.vlt" 0
+ 
+lint_off -rule DECLFILENAME -file "*/uvm_*.svh" -contents "*UVM_VERSION_STRING*"
+lint_off -rule UNDRIVEN -file "*/uvm_*.svh" -contents "*UVM_VERSION_STRING*"
+lint_off -rule UNUSED -file "*/uvm_*.svh" -contents "*UVM_VERSION_STRING*"
+lint_off -rule VARHIDDEN -file "*/uvm_*.svh" -contents "*UVM_VERSION_STRING*"
+lint_off -rule WIDTHEXPAND -file "*/uvm_*.svh" -contents "*UVM_VERSION_STRING*"
+lint_off -rule WIDTHTRUNC -file "*/uvm_*.svh" -contents "*UVM_VERSION_STRING*"
+
+`line 45 "E:\\FPGAProject\\CNN\\tools\\verilator-install\\include\\verilated_std_waiver.vlt" 0
+ 
+lint_off -rule CASEINCOMPLETE -file "*/uvm_*.svh" -contents "*UVM_VERSION_STRING*" -match "* case ({is_R, is_W})*"
+lint_off -rule CASEINCOMPLETE -file "*/uvm_*.svh" -contents "*UVM_VERSION_STRING*" -match "* case(orig_severity)*"
+lint_off -rule CASTCONST -file "*/uvm_*.svh" -contents "*UVM_VERSION_STRING*" -match "*class{}uvm_callback*"
+lint_off -rule CASTCONST -file "*/uvm_*.svh" -contents "*UVM_VERSION_STRING*" -match "*class{}uvm_component*"
+lint_off -rule CASTCONST -file "*/uvm_*.svh" -contents "*UVM_VERSION_STRING*" -match "*class{}uvm_event*"
+lint_off -rule CASTCONST -file "*/uvm_*.svh" -contents "*UVM_VERSION_STRING*" -match "*class{}uvm_report_object*"
+lint_off -rule CASTCONST -file "*/uvm_*.svh" -contents "*UVM_VERSION_STRING*" -match "*class{}uvm_sequence_item*"
+lint_off -rule IGNOREDRETURN -file "*/uvm_*.svh" -contents "*UVM_VERSION_STRING*" -match "* uvm_core_state_callback::add*"
+lint_off -rule MISINDENT -file "*/uvm_*.svh" -contents "*UVM_VERSION_STRING*" -match "* foreach (abstractions[i])*"
+lint_off -rule MISINDENT -file "*/uvm_*.svh" -contents "*UVM_VERSION_STRING*" -match "* foreach (lock_list[i])*"
+lint_off -rule MISINDENT -file "*/uvm_*.svh" -contents "*UVM_VERSION_STRING*" -match "* foreach (m_fields[i])*"   
+lint_off -rule MISINDENT -file "*/uvm_*.svh" -contents "*UVM_VERSION_STRING*" -match "* if (rw.get_status()*"   
+lint_off -rule MISINDENT -file "*/uvm_*.svh" -contents "*UVM_VERSION_STRING*" -match "* rw_access.data=*"
+lint_off -rule MISINDENT -file "*/uvm_*.svh" -contents "*UVM_VERSION_STRING*" -match "* uvm_cmdline_proc =*"
+lint_off -rule REALCVT -file "*/uvm_*.svh" -contents "*UVM_VERSION_STRING*" -match "* m_time *"
+lint_off -rule REALCVT -file "*/uvm_*.svh" -contents "*UVM_VERSION_STRING*" -match "*$realtime*"
+lint_off -rule SIDEEFFECT -file "*/uvm_*.svh" -contents "*UVM_VERSION_STRING*" -match "*foreach (blks[blk_].reg_files[blk_rf])*"
+lint_off -rule SYMRSVDWORD -file "*/uvm_*.svh" -contents "*UVM_VERSION_STRING*" -match "*'delete'*"
+lint_off -rule SYMRSVDWORD -file "*/uvm_*.svh" -contents "*UVM_VERSION_STRING*" -match "*'list'*"
+lint_off -rule SYMRSVDWORD -file "*/uvm_*.svh" -contents "*UVM_VERSION_STRING*" -match "*'map'*"
+lint_off -rule SYMRSVDWORD -file "*/uvm_*.svh" -contents "*UVM_VERSION_STRING*" -match "*'override'*"
+lint_off -rule SYMRSVDWORD -file "*/uvm_*.svh" -contents "*UVM_VERSION_STRING*" -match "*'volatile'*"
+
+`line 69 "E:\\FPGAProject\\CNN\\tools\\verilator-install\\include\\verilated_std_waiver.vlt" 0
+ 
+ 
+   
+
+`line 73 "E:\\FPGAProject\\CNN\\tools\\verilator-install\\include\\verilated_std_waiver.vlt" 0

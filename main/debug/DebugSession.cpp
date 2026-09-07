@@ -1,10 +1,12 @@
 #include "DebugSession.h"
 
+#include "DebugFingerprint.h"
 #include "DebugThresholds.h"
 
 #include <json/json.h>
 
 #include <algorithm>
+#include <cmath>
 #include <chrono>
 #include <cstdio>
 #include <ctime>
@@ -55,6 +57,21 @@ bool EnsureDirectory(const std::string& path)
            std::filesystem::create_directories(path, ec);
 }
 
+void CalculateUartDivider(std::uint64_t clockHz, std::uint32_t baud,
+                         std::uint64_t& divider, double& errorPercent)
+{
+    divider = (clockHz == 0 || baud == 0) ? 0 : (clockHz + baud / 2) / baud;
+    if (divider == 0 && clockHz != 0 && baud != 0) divider = 1;
+    if (divider == 0) {
+        errorPercent = 0.0;
+        return;
+    }
+    const double actualBaud = static_cast<double>(clockHz) /
+                              static_cast<double>(divider);
+    errorPercent = std::abs(actualBaud - static_cast<double>(baud)) * 100.0 /
+                   static_cast<double>(baud);
+}
+
 std::string ReadFile(const std::string& path)
 {
     std::ifstream in(path);
@@ -86,7 +103,24 @@ Json::Value ToJson(const DebugSessionInfo& session)
     root["updated_at"] = session.updatedAt;
     root["exit_code"] = session.exitCode;
     root["build_id"] = session.buildId;
+    root["protocol"] = session.protocol;
+    root["clk_hz"] = static_cast<Json::UInt64>(session.clockHz);
+    root["baud"] = session.baud;
+    root["uart_divider"] = static_cast<Json::UInt64>(session.uartDivider);
+    root["uart_error_percent"] = session.uartErrorPercent;
+    root["tx_pin"] = session.txPin;
+    root["rx_pin"] = session.rxPin;
+    root["capture_depth"] = session.captureDepth;
+    root["capture_width"] = session.captureWidth;
     root["bitstream_sha256"] = session.bitstreamSha256;
+    root["overlay_path"] = session.overlayPath;
+    root["merged_cst_path"] = session.mergedCstPath;
+    root["netlist_json_path"] = session.netlistJsonPath;
+    root["pnr_json_path"] = session.pnrJsonPath;
+    root["bitstream_path"] = session.bitstreamPath;
+    root["resource_report_path"] = session.resourceReportPath;
+    root["timing_report_path"] = session.timingReportPath;
+    root["build_fingerprint"] = session.buildFingerprint;
     Json::Value versions(Json::arrayValue);
     for (const std::string& version : session.toolVersions) {
         versions.append(version);
@@ -124,7 +158,24 @@ bool FromJson(const Json::Value& root, DebugSessionInfo& session, std::string& e
     session.updatedAt = root.get("updated_at", "").asString();
     session.exitCode = root.get("exit_code", 0).asInt();
     session.buildId = root.get("build_id", "").asString();
+    session.protocol = root.get("protocol", "").asString();
+    session.clockHz = root.get("clk_hz", 0).asUInt64();
+    session.baud = root.get("baud", 0).asUInt();
+    session.uartDivider = root.get("uart_divider", 0).asUInt64();
+    session.uartErrorPercent = root.get("uart_error_percent", 0.0).asDouble();
+    session.txPin = root.get("tx_pin", 0).asInt();
+    session.rxPin = root.get("rx_pin", 0).asInt();
+    session.captureDepth = root.get("capture_depth", 0).asUInt();
+    session.captureWidth = root.get("capture_width", 0).asUInt();
     session.bitstreamSha256 = root.get("bitstream_sha256", "").asString();
+    session.overlayPath = root.get("overlay_path", "").asString();
+    session.mergedCstPath = root.get("merged_cst_path", "").asString();
+    session.netlistJsonPath = root.get("netlist_json_path", "").asString();
+    session.pnrJsonPath = root.get("pnr_json_path", "").asString();
+    session.bitstreamPath = root.get("bitstream_path", "").asString();
+    session.resourceReportPath = root.get("resource_report_path", "").asString();
+    session.timingReportPath = root.get("timing_report_path", "").asString();
+    session.buildFingerprint = root.get("build_fingerprint", "").asString();
     for (const Json::Value& item : root["tool_versions"]) {
         if (item.isString()) session.toolVersions.push_back(item.asString());
     }
@@ -286,6 +337,16 @@ bool DebugSessionService::Create(const std::string& projectPath,
         error = "invalid session id";
         return false;
     }
+    session.buildId = session.id;
+    session.protocol = contract.transport.protocol;
+    session.clockHz = contract.sampleClock.frequencyHz;
+    session.baud = contract.transport.baud;
+    CalculateUartDivider(session.clockHz, session.baud,
+                         session.uartDivider, session.uartErrorPercent);
+    session.txPin = contract.transport.txPin;
+    session.rxPin = contract.transport.rxPin;
+    session.captureDepth = contract.capture.depth;
+    session.captureWidth = 32;
     session.state = DebugSessionState::Created;
     session.createdAt = NowUtc();
     session.updatedAt = session.createdAt;
@@ -352,6 +413,74 @@ bool DebugSessionService::Cancel(const std::string& projectPath,
     }
     return Transition(projectPath, sessionId, DebugSessionState::Cancelled,
                       reason, -1, error);
+}
+
+bool DebugSessionService::UpdateBuildMetadata(const std::string& projectPath,
+                                              const std::string& sessionId,
+                                              const DebugSessionInfo& metadata,
+                                              std::string& error) const
+{
+    DebugSessionInfo session;
+    if (!Load(projectPath, sessionId, session, error)) return false;
+    session.overlayPath = metadata.overlayPath;
+    session.mergedCstPath = metadata.mergedCstPath;
+    session.netlistJsonPath = metadata.netlistJsonPath;
+    session.pnrJsonPath = metadata.pnrJsonPath;
+    session.bitstreamPath = metadata.bitstreamPath;
+    session.bitstreamSha256 = metadata.bitstreamSha256;
+    session.resourceReportPath = metadata.resourceReportPath;
+    session.timingReportPath = metadata.timingReportPath;
+    session.buildFingerprint = metadata.buildFingerprint;
+    if (!metadata.buildId.empty()) session.buildId = metadata.buildId;
+    session.updatedAt = NowUtc();
+    return WriteJsonFile(ManifestPathFor(projectPath, sessionId), ToJson(session));
+}
+
+bool DebugSessionService::ValidateBitstreamForProgramming(
+    const std::string& projectPath, const std::string& sessionId,
+    const std::string& bitstreamPath, std::string& error) const
+{
+    DebugSessionInfo session;
+    if (!Load(projectPath, sessionId, session, error)) return false;
+    if (session.buildId.empty() || session.buildId != session.id) {
+        error = "debug session has no valid build_id";
+        return false;
+    }
+    if (session.state != DebugSessionState::Programming &&
+        session.state != DebugSessionState::Armed) {
+        error = "debug session is not ready for programming: " +
+                std::string(ToString(session.state));
+        return false;
+    }
+    if (session.bitstreamPath.empty() || bitstreamPath.empty()) {
+        error = "debug session has no recorded bitstream";
+        return false;
+    }
+
+    std::error_code ec;
+    const std::filesystem::path expected =
+        std::filesystem::weakly_canonical(session.bitstreamPath, ec);
+    if (ec) {
+        error = "unable to resolve recorded debug bitstream path";
+        return false;
+    }
+    ec.clear();
+    const std::filesystem::path selected =
+        std::filesystem::weakly_canonical(bitstreamPath, ec);
+    if (ec || expected != selected) {
+        error = "selected bitstream does not belong to debug build " + session.buildId;
+        return false;
+    }
+    if (session.bitstreamSha256.empty()) {
+        error = "debug session has no bitstream SHA-256";
+        return false;
+    }
+    const std::string actualHash = Sha256File(bitstreamPath);
+    if (actualHash.empty() || actualHash != session.bitstreamSha256) {
+        error = "debug bitstream SHA-256 mismatch for build " + session.buildId;
+        return false;
+    }
+    return true;
 }
 
 bool DebugSessionService::List(const std::string& projectPath,

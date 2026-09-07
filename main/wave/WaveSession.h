@@ -3,6 +3,7 @@
 #include "WaveViewState.h"
 
 #include <string>
+#include <unordered_map>
 
 namespace sigflow {
 namespace wave {
@@ -20,6 +21,10 @@ struct WaveSessionData {
     sigflow::trace::TimeValue abA = 0;
     sigflow::trace::TimeValue abB = 0;
     bool hasAB = false;
+    WaveTheme theme = WaveTheme::Dark;
+    std::unordered_map<int, std::string> signalAliases;
+    std::unordered_map<int, std::string> signalComments;
+    std::string uartCapturePath;
 };
 
 bool WaveSessionSave(const WaveSessionData& session, const std::string& path,

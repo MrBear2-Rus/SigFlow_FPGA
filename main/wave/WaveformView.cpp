@@ -4,12 +4,14 @@
 #include "WaveCompareHub.h"
 #include "WaveformGLCanvas.h"
 #include "WaveformTextLayer.h"
+#include "WaveformMiniMap.h"
 
 #include <wx/bitmap.h>
 #include <wx/brush.h>
 #include <wx/dcbuffer.h>
 #include <wx/dcclient.h>
 #include <wx/pen.h>
+#include <wx/menu.h>
 
 #include <algorithm>
 #include <cstdlib>
@@ -37,18 +39,26 @@ WaveformView::WaveformView(wxWindow* parent, bool forceSoftware)
       m_forceSoftware(forceSoftware)
 {
     WaveCompareHub::Register(this);
-    SetBackgroundColour(wxColour(30, 30, 32));
+    SetBackgroundColour(ColorsFor(m_state.theme).background);
     Bind(wxEVT_PAINT, &WaveformView::OnPaint, this);
     Bind(wxEVT_SIZE, &WaveformView::OnSize, this);
     Bind(wxEVT_MOUSEWHEEL, &WaveformView::OnMouseWheel, this);
     Bind(wxEVT_LEFT_DOWN, &WaveformView::OnMouseDown, this);
     Bind(wxEVT_MOTION, &WaveformView::OnMouseMove, this);
     Bind(wxEVT_LEFT_UP, &WaveformView::OnMouseUp, this);
+    Bind(wxEVT_RIGHT_DOWN, &WaveformView::OnRightDown, this);
+    Bind(wxEVT_RIGHT_UP, &WaveformView::OnRightUp, this);
     Bind(wxEVT_KEY_DOWN, &WaveformView::OnKeyDown, this);
 
     if (!m_forceSoftware) {
         RebuildGlCanvas();
     }
+    m_miniMap = new WaveformMiniMap(this, m_state, m_source,
+                                    [this]() {
+                                        if (m_glCanvas) m_glCanvas->Refresh();
+                                        Refresh();
+                                        NotifyViewChanged();
+                                    });
 }
 
 WaveformView::~WaveformView()
@@ -67,7 +77,11 @@ void WaveformView::RebuildGlCanvas()
                     wxTheApp->CallAfter([this]() { OnGlFailed(); });
                 }
             },
-            [this]() { NotifyViewChanged(); });
+            [this]() { NotifyViewChanged(); },
+            [this](const wxPoint& point, sigflow::trace::TimeValue a,
+                   sigflow::trace::TimeValue b) {
+                ShowContextMenu(m_glCanvas->GetPosition() + point, a, b);
+            });
     } catch (...) {
         m_glCanvas = nullptr;
     }
@@ -95,9 +109,9 @@ void WaveformView::SetTraceSource(std::shared_ptr<sigflow::trace::TraceSource> s
     if (m_source) {
         const sigflow::trace::TraceTimeRange range = m_source->TimeRange();
         m_state.maxTime = range.valid ? range.end : 0;
-        AutoSelectSignals();
         WaveViewInteraction::Reset(m_state);
     }
+    RefreshMiniMap();
     if (m_glCanvas) {
         // GL 画布引用 m_state / m_source，无需重建；仅需刷新
         m_glCanvas->Refresh();
@@ -110,6 +124,67 @@ void WaveformView::SetEvents(const std::vector<WaveEvent>& events)
     m_state.events = events;
     if (m_glCanvas) m_glCanvas->Refresh();
     Refresh();
+}
+
+void WaveformView::SetTheme(WaveTheme theme)
+{
+    m_state.theme = theme;
+    const WaveThemeColors colors = ColorsFor(theme);
+    SetBackgroundColour(colors.background);
+    if (m_miniMap) m_miniMap->SetBackgroundColour(colors.miniMapBackground);
+    if (m_glCanvas) m_glCanvas->Refresh();
+    Refresh();
+    RefreshMiniMap();
+    NotifyViewChanged();
+}
+
+void WaveformView::RefreshMiniMap()
+{
+    if (m_miniMap) m_miniMap->RefreshOverview();
+}
+
+int WaveformView::ContentHeight() const
+{
+    constexpr int kMiniMapHeight = 34;
+    return std::max(1, GetClientSize().GetHeight() - kMiniMapHeight);
+}
+
+void WaveformView::ShowContextMenu(const wxPoint& point,
+                                   sigflow::trace::TimeValue a,
+                                   sigflow::trace::TimeValue b)
+{
+    if (a > b) std::swap(a, b);
+    wxMenu menu;
+    const int setRange = wxID_HIGHEST + 201;
+    const int zoomRange = wxID_HIGHEST + 202;
+    const int marker = wxID_HIGHEST + 203;
+    const int playhead = wxID_HIGHEST + 204;
+    const int clearRange = wxID_HIGHEST + 205;
+    menu.Append(setRange, "Set A-B to selected range");
+    menu.Append(zoomRange, "Zoom to selected range");
+    menu.AppendSeparator();
+    menu.Append(marker, "Add marker at start");
+    menu.Append(playhead, "Set playhead at start");
+    menu.AppendSeparator();
+    menu.Append(clearRange, "Clear A-B");
+    menu.Bind(wxEVT_MENU, [this, a, b](wxCommandEvent&) {
+        m_state.SetRange(a, b);
+        Refresh();
+        RefreshMiniMap();
+        NotifyViewChanged();
+    }, setRange);
+    menu.Bind(wxEVT_MENU, [this, a, b](wxCommandEvent&) {
+        m_state.timeOffset = a;
+        m_state.timeSpan = b > a ? b - a : 1;
+        m_state.Clamp();
+        Refresh();
+        RefreshMiniMap();
+        NotifyViewChanged();
+    }, zoomRange);
+    menu.Bind(wxEVT_MENU, [this, a](wxCommandEvent&) { AddMarkerAt(a); }, marker);
+    menu.Bind(wxEVT_MENU, [this, a](wxCommandEvent&) { SetPlayhead(a); }, playhead);
+    menu.Bind(wxEVT_MENU, [this](wxCommandEvent&) { ClearAB(); }, clearRange);
+    PopupMenu(&menu, point);
 }
 
 void WaveformView::AddMarkerAt(sigflow::trace::TimeValue t)
@@ -241,6 +316,7 @@ WaveSessionData WaveformView::CaptureSession() const
     session.abA = m_state.abA;
     session.abB = m_state.abB;
     session.hasAB = m_state.hasAB;
+    session.theme = m_state.theme;
     return session;
 }
 
@@ -255,9 +331,10 @@ void WaveformView::ApplySession(const WaveSessionData& session)
     m_state.abA = session.abA;
     m_state.abB = session.abB;
     m_state.hasAB = session.hasAB;
-    if (!session.visibleSignalIds.empty()) {
-        m_state.visibleSignalIds = session.visibleSignalIds;
-    }
+    m_state.theme = session.theme;
+    SetBackgroundColour(ColorsFor(m_state.theme).background);
+    if (m_miniMap) m_miniMap->SetBackgroundColour(ColorsFor(m_state.theme).miniMapBackground);
+    m_state.visibleSignalIds = session.visibleSignalIds;
     m_state.Clamp();
     if (m_glCanvas) m_glCanvas->Refresh();
     Refresh();
@@ -289,6 +366,8 @@ void WaveformView::ZoomIn()
     WaveViewInteraction::ZoomStep(m_state, true);
     if (m_glCanvas) m_glCanvas->Refresh();
     Refresh();
+    RefreshMiniMap();
+    NotifyViewChanged();
 }
 
 void WaveformView::ZoomOut()
@@ -296,6 +375,8 @@ void WaveformView::ZoomOut()
     WaveViewInteraction::ZoomStep(m_state, false);
     if (m_glCanvas) m_glCanvas->Refresh();
     Refresh();
+    RefreshMiniMap();
+    NotifyViewChanged();
 }
 
 void WaveformView::ZoomReset()
@@ -303,6 +384,8 @@ void WaveformView::ZoomReset()
     WaveViewInteraction::Reset(m_state);
     if (m_glCanvas) m_glCanvas->Refresh();
     Refresh();
+    RefreshMiniMap();
+    NotifyViewChanged();
 }
 
 void WaveformView::PanTime(double viewportFrac)
@@ -310,6 +393,7 @@ void WaveformView::PanTime(double viewportFrac)
     WaveViewInteraction::PanBy(m_state, viewportFrac);
     if (m_glCanvas) m_glCanvas->Refresh();
     Refresh();
+    RefreshMiniMap();
 }
 
 void WaveformView::JumpToEdge(bool forward)
@@ -342,13 +426,19 @@ void WaveformView::JumpToTime(sigflow::trace::TimeValue t)
     WaveViewInteraction::JumpToTime(m_state, t);
     if (m_glCanvas) m_glCanvas->Refresh();
     Refresh();
+    RefreshMiniMap();
     NotifyViewChanged();
 }
 
 void WaveformView::OnSize(wxSizeEvent& event)
 {
+    constexpr int kMiniMapHeight = 34;
+    if (m_miniMap) {
+        m_miniMap->SetSize(0, std::max(0, GetClientSize().GetHeight() - kMiniMapHeight),
+                           GetClientSize().GetWidth(), kMiniMapHeight);
+    }
     if (m_glCanvas) {
-        m_glCanvas->SetSize(GetClientSize());
+        m_glCanvas->SetSize(0, 0, GetClientSize().GetWidth(), ContentHeight());
     }
     event.Skip();
 }
@@ -362,11 +452,13 @@ void WaveformView::OnPaint(wxPaintEvent&)
 
 void WaveformView::RenderSoftware(wxDC& dc)
 {
-    const wxSize size = GetClientSize();
-    dc.SetBackground(wxBrush(wxColour(30, 30, 32)));
+    wxSize size = GetClientSize();
+    size.SetHeight(ContentHeight());
+    const WaveThemeColors colors = ColorsFor(m_state.theme);
+    dc.SetBackground(wxBrush(colors.background));
     dc.Clear();
     if (!m_source) {
-        dc.SetTextForeground(wxColour(148, 163, 184));
+        dc.SetTextForeground(colors.text);
         dc.DrawText("Open a trace file to view waveforms.", 12, 12);
         return;
     }
@@ -377,12 +469,12 @@ void WaveformView::RenderSoftware(wxDC& dc)
     std::string error;
     if (!BuildWaveformFrame(*m_source, m_state, size.GetWidth(), size.GetHeight(), frame)) {
         dc.SetTextForeground(wxColour(239, 68, 68));
-        dc.DrawText(error, 12, 12);
+        dc.DrawText(frame.error.empty() ? "Unable to build waveform data." : frame.error, 12, 12);
         return;
     }
 
     // 网格
-    dc.SetPen(wxPen(wxColour(45, 45, 50)));
+    dc.SetPen(wxPen(colors.grid));
     for (const WaveformTick& tick : frame.ticks) {
         const int x = static_cast<int>(
             WaveformTimeToX(m_state, size.GetWidth(), tick.time));
@@ -437,13 +529,7 @@ void WaveformView::RenderSoftware(wxDC& dc)
         dc.DrawLine(x, m_state.headerHeight, x, size.GetHeight());
     }
 
-    // 文字层
-    wxBitmap textBitmap;
-    if (BuildTextLayerBitmap(this, frame, m_state, size.GetWidth(), size.GetHeight(),
-                             textBitmap) &&
-        textBitmap.IsOk()) {
-        dc.DrawBitmap(textBitmap, 0, 0, true);
-    }
+    DrawTextLayer(dc, frame, m_state, size.GetWidth(), size.GetHeight());
 }
 
 void WaveformView::OnMouseWheel(wxMouseEvent& event)
@@ -456,6 +542,7 @@ void WaveformView::OnMouseWheel(wxMouseEvent& event)
     WaveViewInteraction::ZoomAt(m_state, frac, event.GetWheelRotation() > 0 ? 0.7 : 1.45);
     if (m_glCanvas) m_glCanvas->Refresh();
     Refresh();
+    RefreshMiniMap();
 }
 
 void WaveformView::OnMouseDown(wxMouseEvent& event)
@@ -469,6 +556,7 @@ void WaveformView::OnMouseDown(wxMouseEvent& event)
 
 void WaveformView::OnMouseMove(wxMouseEvent& event)
 {
+    if (m_rightDragging && event.RightIsDown()) return;
     const wxSize size = GetClientSize();
     const int plotWidth = size.GetWidth() - m_state.leftMargin - m_state.rightMargin;
     if (plotWidth <= 0) return;
@@ -511,6 +599,7 @@ void WaveformView::OnMouseUp(wxMouseEvent&)
         return;
     }
     if (moved) {
+        RefreshMiniMap();
         NotifyViewChanged();
         return;
     }
@@ -522,6 +611,25 @@ void WaveformView::OnMouseUp(wxMouseEvent&)
     } else {
         SetPlayhead(t);
     }
+}
+
+void WaveformView::OnRightDown(wxMouseEvent& event)
+{
+    m_rightDragging = true;
+    m_rightStartX = event.GetX();
+    CaptureMouse();
+}
+
+void WaveformView::OnRightUp(wxMouseEvent& event)
+{
+    if (!m_rightDragging) return;
+    m_rightDragging = false;
+    if (HasCapture()) ReleaseMouse();
+    const auto a = WaveViewInteraction::TimeAtX(m_state, GetClientSize().GetWidth(),
+                                                 m_rightStartX);
+    const auto b = WaveViewInteraction::TimeAtX(m_state, GetClientSize().GetWidth(),
+                                                 event.GetX());
+    ShowContextMenu(event.GetPosition(), a, b);
 }
 
 void WaveformView::OnKeyDown(wxKeyEvent& event)

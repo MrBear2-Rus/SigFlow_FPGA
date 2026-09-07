@@ -43,13 +43,16 @@ WaveformGLCanvas::WaveformGLCanvas(
     wxWindow* parent, WaveViewState& state,
     std::shared_ptr<sigflow::trace::TraceSource>& source,
     std::function<void()> onGlFailed,
-    std::function<void()> onViewChanged)
+    std::function<void()> onViewChanged,
+    std::function<void(const wxPoint&, sigflow::trace::TimeValue,
+                       sigflow::trace::TimeValue)> onContextMenu)
     : wxGLCanvas(parent, wxID_ANY, nullptr, wxDefaultPosition, wxDefaultSize,
                  wxFULL_REPAINT_ON_RESIZE | wxWANTS_CHARS, wxGLCanvasName),
       m_state(state),
       m_source(source),
       m_onGlFailed(std::move(onGlFailed)),
-      m_onViewChanged(std::move(onViewChanged))
+      m_onViewChanged(std::move(onViewChanged)),
+      m_onContextMenu(std::move(onContextMenu))
 {
     Bind(wxEVT_PAINT, &WaveformGLCanvas::OnPaint, this);
     Bind(wxEVT_SIZE, &WaveformGLCanvas::OnSize, this);
@@ -57,6 +60,8 @@ WaveformGLCanvas::WaveformGLCanvas(
     Bind(wxEVT_LEFT_DOWN, &WaveformGLCanvas::OnMouseDown, this);
     Bind(wxEVT_MOTION, &WaveformGLCanvas::OnMouseMove, this);
     Bind(wxEVT_LEFT_UP, &WaveformGLCanvas::OnMouseUp, this);
+    Bind(wxEVT_RIGHT_DOWN, &WaveformGLCanvas::OnMouseDown, this);
+    Bind(wxEVT_RIGHT_UP, &WaveformGLCanvas::OnMouseUp, this);
     Bind(wxEVT_KEY_DOWN, &WaveformGLCanvas::OnKeyDown, this);
     SetFocus();
 }
@@ -112,6 +117,15 @@ void WaveformGLCanvas::RenderFrame()
 {
     const wxSize size = GetClientSize();
     if (size.GetWidth() <= 0 || size.GetHeight() <= 0) return;
+    if (!m_source) {
+        const wxColour bg = ColorsFor(m_state.theme).background;
+        m_renderer.BeginFrame(size.GetWidth(), size.GetHeight(),
+                              { bg.Red() / 255.0f, bg.Green() / 255.0f,
+                                bg.Blue() / 255.0f });
+        m_renderer.EndFrame();
+        SwapBuffers();
+        return;
+    }
 
     m_state.Clamp();
     WaveformFrame frame;
@@ -120,9 +134,14 @@ void WaveformGLCanvas::RenderFrame()
         return;
     }
 
-    m_renderer.BeginFrame(size.GetWidth(), size.GetHeight());
+    const wxColour bg = ColorsFor(m_state.theme).background;
+    m_renderer.BeginFrame(size.GetWidth(), size.GetHeight(),
+                          { bg.Red() / 255.0f, bg.Green() / 255.0f,
+                            bg.Blue() / 255.0f });
 
-    const WaveColor gridColor{ 45.0f / 255.0f, 45.0f / 255.0f, 50.0f / 255.0f };
+    const wxColour grid = ColorsFor(m_state.theme).grid;
+    const WaveColor gridColor{ grid.Red() / 255.0f, grid.Green() / 255.0f,
+                               grid.Blue() / 255.0f };
     for (const WaveformTick& tick : frame.ticks) {
         const float x = WaveformTimeToX(m_state, size.GetWidth(), tick.time);
         m_renderer.DrawGridLine(x, static_cast<float>(m_state.headerHeight),
@@ -197,6 +216,13 @@ void WaveformGLCanvas::OnMouseWheel(wxMouseEvent& event)
 
 void WaveformGLCanvas::OnMouseDown(wxMouseEvent& event)
 {
+    if (event.RightDown()) {
+        m_rightDragging = true;
+        m_rightStartX = event.GetX();
+        m_lastMouseX = event.GetX();
+        CaptureMouse();
+        return;
+    }
     m_dragging = true;
     m_lastMouseX = event.GetX();
     m_dragStartX = event.GetX();
@@ -206,6 +232,10 @@ void WaveformGLCanvas::OnMouseDown(wxMouseEvent& event)
 
 void WaveformGLCanvas::OnMouseMove(wxMouseEvent& event)
 {
+    if (m_rightDragging && event.RightIsDown()) {
+        m_lastMouseX = event.GetX();
+        return;
+    }
     const wxSize size = GetClientSize();
     const int plotWidth = size.GetWidth() - m_state.leftMargin - m_state.rightMargin;
     if (plotWidth <= 0) return;
@@ -228,8 +258,19 @@ void WaveformGLCanvas::OnMouseMove(wxMouseEvent& event)
     Refresh();
 }
 
-void WaveformGLCanvas::OnMouseUp(wxMouseEvent&)
+void WaveformGLCanvas::OnMouseUp(wxMouseEvent& event)
 {
+    if (event.RightUp() && m_rightDragging) {
+        m_rightDragging = false;
+        if (HasCapture()) ReleaseMouse();
+        const wxPoint point(event.GetX(), event.GetY());
+        const auto a = WaveViewInteraction::TimeAtX(m_state, GetClientSize().GetWidth(),
+                                                     m_rightStartX);
+        const auto b = WaveViewInteraction::TimeAtX(m_state, GetClientSize().GetWidth(),
+                                                     event.GetX());
+        if (m_onContextMenu) m_onContextMenu(point, a, b);
+        return;
+    }
     const wxSize size = GetClientSize();
     const bool wasCtrl = m_ctrlDrag;
     const bool wasDrag = m_dragging;

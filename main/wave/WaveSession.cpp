@@ -47,6 +47,9 @@ bool WaveSessionSave(const WaveSessionData& session, const std::string& path,
         item["time"] = static_cast<Json::UInt64>(event.time);
         item["label"] = event.label;
         item["color"] = event.color;
+        item["signal_name"] = event.signalName;
+        item["source_path"] = event.sourcePath;
+        item["source_line"] = event.sourceLine;
         events.append(item);
     }
     root["events"] = events;
@@ -56,6 +59,18 @@ bool WaveSessionSave(const WaveSessionData& session, const std::string& path,
     root["ab_a"] = static_cast<Json::UInt64>(session.abA);
     root["ab_b"] = static_cast<Json::UInt64>(session.abB);
     root["has_ab"] = session.hasAB;
+    root["theme"] = ThemeName(session.theme);
+    root["uart_capture_path"] = session.uartCapturePath;
+    Json::Value aliases(Json::objectValue);
+    for (const auto& item : session.signalAliases) {
+        aliases[std::to_string(item.first)] = item.second;
+    }
+    root["signal_aliases"] = aliases;
+    Json::Value comments(Json::objectValue);
+    for (const auto& item : session.signalComments) {
+        comments[std::to_string(item.first)] = item.second;
+    }
+    root["signal_comments"] = comments;
 
     Json::StreamWriterBuilder writer;
     writer["indentation"] = "  ";
@@ -117,6 +132,9 @@ bool WaveSessionLoad(const std::string& path, WaveSessionData& session,
         event.time = item.get("time", 0).asUInt64();
         event.label = item.get("label", "").asString();
         event.color = static_cast<std::uint32_t>(item.get("color", 0xFFF59E0B).asUInt());
+        event.signalName = item.get("signal_name", "").asString();
+        event.sourcePath = item.get("source_path", "").asString();
+        event.sourceLine = item.get("source_line", 0).asInt();
         session.events.push_back(event);
     }
     session.playhead = root.get("playhead", 0).asUInt64();
@@ -124,6 +142,14 @@ bool WaveSessionLoad(const std::string& path, WaveSessionData& session,
     session.abA = root.get("ab_a", 0).asUInt64();
     session.abB = root.get("ab_b", 0).asUInt64();
     session.hasAB = root.get("has_ab", false).asBool();
+    session.theme = ThemeFromName(root.get("theme", "dark").asString());
+    session.uartCapturePath = root.get("uart_capture_path", "").asString();
+    for (const std::string& key : root["signal_aliases"].getMemberNames()) {
+        session.signalAliases[std::stoi(key)] = root["signal_aliases"][key].asString();
+    }
+    for (const std::string& key : root["signal_comments"].getMemberNames()) {
+        session.signalComments[std::stoi(key)] = root["signal_comments"][key].asString();
+    }
     return true;
 }
 

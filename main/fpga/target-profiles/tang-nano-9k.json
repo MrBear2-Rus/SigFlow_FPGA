@@ -13,5 +13,11 @@
   },
   "openfpgaloader": {
     "board": "tangnano9k"
+  },
+  "tracebridge": {
+    "uart_tx_pin": 17,
+    "uart_rx_pin": 18,
+    "debug_reset": "fixed_high",
+    "default_baud": 921600
   }
 }

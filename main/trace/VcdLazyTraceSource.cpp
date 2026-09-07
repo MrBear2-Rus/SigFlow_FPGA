@@ -28,6 +28,12 @@ std::int64_t FileMtime(const std::string& path)
 
 void VcdLazyTraceSource::TrimLine(std::string& line)
 {
+    const std::size_t first = line.find_first_not_of(" \t\r\n");
+    if (first == std::string::npos) {
+        line.clear();
+        return;
+    }
+    if (first > 0) line.erase(0, first);
     while (!line.empty() && (line.back() == '\r' || line.back() == '\n' ||
                              line.back() == ' ' || line.back() == '\t')) {
         line.pop_back();
@@ -79,7 +85,18 @@ bool VcdLazyTraceSource::ScanHeader(std::ifstream& in, std::string& error)
         } else if (line.rfind("$upscope", 0) == 0) {
             if (!scopeStack.empty()) scopeStack.pop_back();
         } else if (line.rfind("$var", 0) == 0) {
-            std::istringstream stream(line);
+            std::string declaration = line;
+            while (declaration.find("$end") == std::string::npos) {
+                std::string continuation;
+                if (!std::getline(in, continuation)) {
+                    error = "unterminated $var declaration: " + m_path;
+                    return false;
+                }
+                TrimLine(continuation);
+                if (!continuation.empty()) declaration += " " + continuation;
+            }
+
+            std::istringstream stream(declaration);
             std::string token;
             std::string kind;
             std::string idCode;
@@ -178,6 +195,10 @@ bool VcdLazyTraceSource::Open(const std::string& path, std::string& error)
         return false;
     }
     if (!ScanHeader(in, error)) return false;
+    if (m_signals.empty()) {
+        error = "VCD declares no signals: " + path;
+        return false;
+    }
 
     const std::string sidecarPath = TraceSidecarIndex::SidecarPathFor(path);
     TraceSidecarIndex sidecar;

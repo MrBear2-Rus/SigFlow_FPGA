@@ -151,14 +151,21 @@ bool DebugProtocol::RoundTripInternal(std::uint8_t type,
 
 bool DebugProtocol::SyncCalibrate(std::string& error, int timeoutMs, int attempts)
 {
-    // 0x55/0xAA 前导：RTL RX_IDLE 忽略非 0x00 字节，模型同样丢弃，随后 PING 验证链路。
+    transport_.DiscardInput();
     const std::vector<std::uint8_t> preamble = { 0x55, 0xAA, 0x55, 0xAA };
     if (!transport_.Write(preamble.data(), preamble.size(), timeoutMs)) {
         error = transport_.IsOpen() ? "sync preamble write failed" : "link lost";
         return false;
     }
     std::uint8_t version = 0;
-    return Ping(version, error, timeoutMs, attempts);
+    if (Ping(version, error, timeoutMs, attempts)) return true;
+
+    transport_.DiscardInput();
+    const std::string preambleError = error;
+    error.clear();
+    if (Ping(version, error, timeoutMs, attempts)) return true;
+    if (error.empty()) error = preambleError;
+    return false;
 }
 
 bool DebugProtocol::Reconnect(std::string& error)
@@ -220,7 +227,7 @@ bool DebugProtocol::Configure(std::uint32_t mask, std::uint32_t value,
         data.push_back(static_cast<std::uint8_t>((value >> (b * 8)) & 0xFF));
     }
     data.push_back(decimation);
-    data.push_back(triggerMode & 0x03);
+    data.push_back(triggerMode & 0x07);
     AppendU16LE(data, triggerCount);
 
     std::uint8_t respType = 0;
@@ -307,9 +314,18 @@ bool DebugProtocol::ReadCapture(std::uint16_t start, std::uint16_t count,
                                 std::vector<std::uint32_t>& samples, std::string& error,
                                 int timeoutMs, int attempts)
 {
+    return ReadCapture(start, count, samples, error, timeoutMs, attempts, nullptr);
+}
+
+bool DebugProtocol::ReadCapture(std::uint16_t start, std::uint16_t count,
+                                std::vector<std::uint32_t>& samples, std::string& error,
+                                int timeoutMs, int attempts, const ReadProgressCb& progressCb)
+{
     samples.clear();
     samples.reserve(count);
+    const std::uint32_t total = count;
     std::uint16_t pos = start;
+    if (progressCb) { try { progressCb(0, total); } catch (...) {} }
     while (pos < start + count) {
         const std::uint16_t chunk =
             static_cast<std::uint16_t>(std::min<std::size_t>(proto::kMaxSamples,
@@ -322,6 +338,10 @@ bool DebugProtocol::ReadCapture(std::uint16_t start, std::uint16_t count,
         }
         samples.insert(samples.end(), part.begin(), part.end());
         pos = static_cast<std::uint16_t>(pos + chunk);
+        if (progressCb) {
+            const std::uint32_t got = static_cast<std::uint32_t>(samples.size());
+            try { progressCb(got, total); } catch (...) {}
+        }
     }
     return true;
 }
@@ -430,8 +450,18 @@ bool MinimalDebugProtocol::ReadCapture(std::uint16_t start, std::uint16_t count,
                                        std::vector<std::uint32_t>& samples,
                                        std::string& error, int timeoutMs, int attempts)
 {
+    return ReadCapture(start, count, samples, error, timeoutMs, attempts, nullptr);
+}
+
+bool MinimalDebugProtocol::ReadCapture(std::uint16_t start, std::uint16_t count,
+                                       std::vector<std::uint32_t>& samples,
+                                       std::string& error, int timeoutMs, int attempts,
+                                       const ReadProgressCb& progressCb)
+{
     samples.clear();
     samples.reserve(count);
+    const std::uint32_t total = count;
+    if (progressCb) { try { progressCb(0, total); } catch (...) {} }
     for (std::uint32_t address = start; address < static_cast<std::uint32_t>(start) + count;
          ++address) {
         std::vector<std::uint8_t> request;
@@ -445,6 +475,11 @@ bool MinimalDebugProtocol::ReadCapture(std::uint16_t start, std::uint16_t count,
         for (int b = 0; b < 4; ++b)
             sample |= static_cast<std::uint32_t>(response[b]) << (b * 8);
         samples.push_back(sample);
+        // minimal 协议是单样本读，每 16 样本 or 完成时回调，回调率限制 <= 128 次
+        const std::uint32_t got = static_cast<std::uint32_t>(samples.size());
+        if (progressCb && ((got == total) || ((got & 0xFu) == 0u))) {
+            try { progressCb(got, total); } catch (...) {}
+        }
     }
     return true;
 }

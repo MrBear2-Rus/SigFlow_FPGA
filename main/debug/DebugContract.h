@@ -14,6 +14,13 @@ struct DebugProbe {
     unsigned width = 1;
     unsigned bitOffset = 0;
     std::string clockDomain;  // 空 = 未推断
+    bool asynchronous = false; // 明确标记为异步观察时允许跨域，但结果降低置信度
+};
+
+struct DebugClockDomain {
+    std::string id;
+    std::string signal;
+    std::uint64_t frequencyHz = 0;
 };
 
 struct DebugSampleClock {
@@ -67,6 +74,7 @@ struct DebugContract {
     std::string targetProfile;
     std::string topModule;
     DebugSampleClock sampleClock;
+    std::vector<DebugClockDomain> clockDomains;
     std::vector<DebugProbe> probes;
     DebugTrigger trigger;
     DebugCapture capture;
@@ -83,6 +91,8 @@ struct DebugContract {
     void ApplyDefaults();
     // 自动分配 bit_offset 并检查总宽度（P0-05 探针分组）。
     bool AssignProbeBitOffsets(std::string& error);
+    std::vector<std::string> EffectiveProbeClockDomains() const;
+    bool UsesMultipleClockDomains() const;
 };
 
 // 生成新会话 ID（时间戳 + 序号）。

@@ -45,7 +45,24 @@ struct DebugSessionInfo {
     std::string updatedAt;
     int exitCode = 0;
     std::string buildId;
+    std::string protocol;
+    std::uint64_t clockHz = 0;
+    std::uint32_t baud = 0;
+    std::uint64_t uartDivider = 0;
+    double uartErrorPercent = 0.0;
+    int txPin = 0;
+    int rxPin = 0;
+    std::uint32_t captureDepth = 0;
+    std::uint32_t captureWidth = 0;
     std::string bitstreamSha256;
+    std::string overlayPath;
+    std::string mergedCstPath;
+    std::string netlistJsonPath;
+    std::string pnrJsonPath;
+    std::string bitstreamPath;
+    std::string resourceReportPath;
+    std::string timingReportPath;
+    std::string buildFingerprint;
     std::vector<std::string> toolVersions;
     std::vector<DebugSessionTransition> transitions;
 };
@@ -70,6 +87,12 @@ public:
     bool Transition(const std::string& projectPath, const std::string& sessionId,
                     DebugSessionState target, const std::string& reason,
                     int exitCode, std::string& error) const;
+    bool UpdateBuildMetadata(const std::string& projectPath, const std::string& sessionId,
+                             const DebugSessionInfo& metadata, std::string& error) const;
+    bool ValidateBitstreamForProgramming(const std::string& projectPath,
+                                         const std::string& sessionId,
+                                         const std::string& bitstreamPath,
+                                         std::string& error) const;
     bool Cancel(const std::string& projectPath, const std::string& sessionId,
                 const std::string& reason, std::string& error) const;
     bool List(const std::string& projectPath, std::vector<DebugSessionInfo>& sessions,

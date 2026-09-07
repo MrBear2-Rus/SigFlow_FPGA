@@ -18,7 +18,9 @@ public:
     WaveformGLCanvas(wxWindow* parent, WaveViewState& state,
                      std::shared_ptr<sigflow::trace::TraceSource>& source,
                      std::function<void()> onGlFailed,
-                     std::function<void()> onViewChanged);
+                     std::function<void()> onViewChanged,
+                     std::function<void(const wxPoint&, sigflow::trace::TimeValue,
+                                        sigflow::trace::TimeValue)> onContextMenu);
     ~WaveformGLCanvas() override;
 
     bool Ready() const { return m_glReady; }
@@ -40,13 +42,17 @@ private:
     std::shared_ptr<sigflow::trace::TraceSource>& m_source;
     std::function<void()> m_onGlFailed;
     std::function<void()> m_onViewChanged;
+    std::function<void(const wxPoint&, sigflow::trace::TimeValue,
+                       sigflow::trace::TimeValue)> m_onContextMenu;
     wxGLContext* m_glContext = nullptr;
     WaveformGLRenderer m_renderer;
     bool m_glReady = false;
     bool m_dragging = false;
     bool m_ctrlDrag = false;
+    bool m_rightDragging = false;
     int m_lastMouseX = 0;
     int m_dragStartX = 0;
+    int m_rightStartX = 0;
 };
 
 } // namespace wave
