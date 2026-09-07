@@ -13,6 +13,11 @@ module sf_micro_ila_tb;
     logic arm = 0;
     logic [WIDTH-1:0] trigger_mask = 8'hFF;
     logic [WIDTH-1:0] trigger_value = 8'h0A;
+    logic [2:0] trigger_mode = 3'd0;
+    logic [15:0] trigger_count = 16'd1;
+    logic sample_en = 1'b1;
+    logic hs_valid = 1'b0;
+    logic hs_ready = 1'b1;
     logic busy;
     logic done;
     logic triggered;
@@ -30,6 +35,11 @@ module sf_micro_ila_tb;
         .arm(arm),
         .trigger_mask(trigger_mask),
         .trigger_value(trigger_value),
+        .trigger_mode(trigger_mode),
+        .trigger_count(trigger_count),
+        .sample_en(sample_en),
+        .hs_valid(hs_valid),
+        .hs_ready(hs_ready),
         .busy(busy),
         .done(done),
         .triggered(triggered),
@@ -92,7 +102,27 @@ module sf_micro_ila_tb;
         #1;
         check(rd_data == 8'd9, "reordered sample at rel -1");
 
+        // ── 场景 1.5：第 N 次匹配触发（N=3）──
+        trigger_mask = 8'h01;
+        trigger_value = 8'h01;
+        trigger_mode = 2'd0;
+        trigger_count = 16'd3;
+        probe = 0;
+        arm_and_run();
+        for (cycle = 0; cycle < DEPTH + 2; cycle = cycle + 1) begin
+            @(posedge clk);
+            probe = probe + 1;
+        end
+        // probe 每周期递增：奇数 1,3,5 连续命中三次，第 3 次在 cycle 5。
+        check(done && triggered, "nth-match done+triggered");
+        check(trigger_index == 4'd5, "3rd match at cycle 5");
+        rd_addr = trigger_index;
+        #1;
+        check(rd_data == 8'd5, "nth trigger sample value 5");
+
         // ── 场景 2：mask=0 立即触发 ──
+        trigger_mode = 2'd0;
+        trigger_count = 16'd1;
         trigger_mask = 0;
         trigger_value = 0;
         arm_and_run();

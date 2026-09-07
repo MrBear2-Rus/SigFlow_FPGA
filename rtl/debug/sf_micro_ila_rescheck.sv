@@ -1,6 +1,8 @@
 // sf_micro_ila_rescheck.sv — 资源检查 wrapper（非交付 RTL）
 // probe 用内部计数器、触发条件用常量，仅暴露真实外部引脚，
 // 供 nextpnr 布局布线评估采集核的实际 LUT/DFF 占用。
+// 增强触发输入（mode/count/sample_en/hs_*）由 probe 位动态驱动，
+// 防止综合常量折叠，从而如实测量触发引擎的资源与时序成本。
 module sf_micro_ila_rescheck #(
     parameter int DEPTH = 1024,
     parameter int WIDTH = 32
@@ -34,6 +36,11 @@ module sf_micro_ila_rescheck #(
         .arm(arm),
         .trigger_mask(kTriggerMask),
         .trigger_value(kTriggerValue),
+        .trigger_mode(probe[1:0]),
+        .trigger_count({12'h000, probe[15:12]}),
+        .sample_en(probe[2]),
+        .hs_valid(probe[3]),
+        .hs_ready(~probe[4]),
         .busy(busy),
         .done(done),
         .triggered(triggered),
