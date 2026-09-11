@@ -14,6 +14,7 @@ CachingTraceSource::CachingTraceSource(std::unique_ptr<TraceSource> inner,
 
 bool CachingTraceSource::Open(const std::string& path, std::string& error)
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
     m_cache.clear();
     m_budget.Clear();
     return m_inner->Open(path, error);
@@ -72,22 +73,32 @@ bool CachingTraceSource::Query(const SignalInfo& signal, TimeValue t0, TimeValue
                                std::vector<Transition>& out, std::string& error)
 {
     const std::string key = QueryKey(signal.id, t0, t1);
-    const auto hit = m_cache.find(key);
-    if (hit != m_cache.end() && hit->second.isQuery) {
-        m_budget.Touch(key);
-        out = hit->second.transitions;
-        return true;
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        const auto hit = m_cache.find(key);
+        if (hit != m_cache.end() && hit->second.isQuery) {
+            m_budget.Touch(key);
+            out = hit->second.transitions;
+            return true;
+        }
     }
 
     std::vector<Transition> fetched;
     if (!m_inner->Query(signal, t0, t1, fetched, error)) return false;
 
-    CacheEntry entry;
-    entry.isQuery = true;
-    entry.transitions = fetched;
-    const std::vector<std::string> evicted = m_budget.Insert(key, EstimateQueryBytes(fetched));
-    for (const std::string& victim : evicted) m_cache.erase(victim);
-    m_cache[key] = std::move(entry);
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        const auto hit = m_cache.find(key);
+        if (hit == m_cache.end()) {
+            CacheEntry entry;
+            entry.isQuery = true;
+            entry.transitions = fetched;
+            const std::vector<std::string> evicted =
+                m_budget.Insert(key, EstimateQueryBytes(fetched));
+            for (const std::string& victim : evicted) m_cache.erase(victim);
+            m_cache[key] = std::move(entry);
+        }
+    }
     out = std::move(fetched);
     return true;
 }
@@ -96,24 +107,44 @@ bool CachingTraceSource::ValueAt(const SignalInfo& signal, TimeValue t,
                                  std::string& value, std::string& error)
 {
     const std::string key = ValueKey(signal.id, t);
-    const auto hit = m_cache.find(key);
-    if (hit != m_cache.end() && !hit->second.isQuery) {
-        m_budget.Touch(key);
-        value = hit->second.value;
-        return true;
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        const auto hit = m_cache.find(key);
+        if (hit != m_cache.end() && !hit->second.isQuery) {
+            m_budget.Touch(key);
+            value = hit->second.value;
+            return true;
+        }
     }
 
     std::string fetched;
     if (!m_inner->ValueAt(signal, t, fetched, error)) return false;
 
-    CacheEntry entry;
-    entry.isQuery = false;
-    entry.value = fetched;
-    const std::vector<std::string> evicted = m_budget.Insert(key, fetched.size() + 32);
-    for (const std::string& victim : evicted) m_cache.erase(victim);
-    m_cache[key] = std::move(entry);
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        if (m_cache.find(key) == m_cache.end()) {
+            CacheEntry entry;
+            entry.isQuery = false;
+            entry.value = fetched;
+            const std::vector<std::string> evicted = m_budget.Insert(key, fetched.size() + 32);
+            for (const std::string& victim : evicted) m_cache.erase(victim);
+            m_cache[key] = std::move(entry);
+        }
+    }
     value = std::move(fetched);
     return true;
+}
+
+std::size_t CachingTraceSource::CacheBytes() const
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_budget.UsedBytes();
+}
+
+std::size_t CachingTraceSource::CacheEntries() const
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_cache.size();
 }
 
 } // namespace trace

@@ -9,6 +9,7 @@
 
 #include <memory>
 #include <functional>
+#include <vector>
 
 #include <json/json.h>
 #include <wx/stc/stc.h>
@@ -39,6 +40,7 @@ class NextpnrExecutor;
 class FpgaToolWindow;
 class TraceBridgeWindow;
 class DebugContractConfigWindow;
+class JobRunHandle;
 enum class FpgaToolPage;
 struct TraceBridgeCaptureRequest;
 struct TraceBridgeDebugBuildRequest;
@@ -78,6 +80,7 @@ private:
     wxString m_pendingNextpnrRetryOf;
     wxString m_activeYosysJobId;
     wxString m_pendingYosysRetryOf;
+    std::vector<std::shared_ptr<JobRunHandle>> m_jobRuns;
 
     PluginManager* m_pluginMgr;
 
@@ -92,7 +95,7 @@ private:
     void RunFpgaPack();
     void RunFpgaProgram(const wxString& bitstreamPath,
                         std::function<void(bool, const wxString&)> completion = {},
-                        bool confirmProgramming = false);
+                        bool confirmProgramming = true);
     void RunTraceBridgeCapture(
         const TraceBridgeCaptureRequest& request,
         std::function<void(bool, const wxString&)> completion = {});
@@ -114,6 +117,7 @@ private:
     void ResetCurrentDocumentForProjectSwitch();
     void OnClose(wxCloseEvent& event);
     void OnToolSelected(wxCommandEvent& evt);
+    void ReapJobRuns();
 
 public:
     MainFrame();
@@ -231,7 +235,7 @@ public:
     void UpdateCursor();        // 根据 m_pendingTool 更新十字/箭头
 
     // 仿真引擎
-    std::unique_ptr<SimulationEngine> m_simEngine;
+    std::shared_ptr<SimulationEngine> m_simEngine;
 
     void OnToolboxElement(wxCommandEvent& evt);
     

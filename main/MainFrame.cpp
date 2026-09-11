@@ -30,6 +30,7 @@
 #include "MainFrame.h"
 #include "fpga/ArtifactValidator.h"
 #include "fpga/FpgaPackService.h"
+#include "jobs/JobRunner.h"
 #include "MainMenuBar.h"
 #include "FpgaYosysRuntime.h"
 #include "FpgaYosysExecutor.h"
@@ -1001,6 +1002,11 @@ MainFrame::MainFrame()
 
 MainFrame::~MainFrame()
 {
+    for (const std::shared_ptr<JobRunHandle>& handle : m_jobRuns) {
+        if (handle) handle->Join();
+    }
+    m_jobRuns.clear();
+
     // 管理器仍持有编辑器事件绑定，必须在窗口销毁前先解除并释放它。
     delete m_verilogMgr;
     m_verilogMgr = nullptr;
@@ -1012,6 +1018,16 @@ MainFrame::~MainFrame()
     m_auiMgr.UnInit(); 
 
     m_verilogEditor = nullptr;
+}
+
+void MainFrame::ReapJobRuns()
+{
+    m_jobRuns.erase(std::remove_if(m_jobRuns.begin(), m_jobRuns.end(),
+        [](const std::shared_ptr<JobRunHandle>& handle) {
+            if (!handle || !handle->IsFinished()) return false;
+            handle->Join();
+            return true;
+        }), m_jobRuns.end());
 }
 
 void MainFrame::OnToolboxElement(wxCommandEvent& evt)
@@ -3992,56 +4008,89 @@ void MainFrame::RunFpgaPack()
     packRequest.executablePath = packExecutable;
     packRequest.device = targetProfile.family;
 
+    PackJobRequest jobRequest;
+    jobRequest.projectPath = m_currentProjectPath;
+    jobRequest.pnrJsonPath = pnrJsonPath;
+    jobRequest.bitstreamPath = bitstreamPath;
+    jobRequest.executable = packExecutable;
+    jobRequest.device = targetProfile.family;
+    jobRequest.arguments = arguments;
+    jobRequest.workingDirectory = nextpnrDirectory;
+
+    ToolJob packJob;
+    wxString jobError;
+    if (!PackJob().Submit(jobRequest, packJob, jobError)) {
+        wxMessageBox(jobError, "FPGA Build .fs", wxOK | wxICON_ERROR, this);
+        return;
+    }
+
     if (m_buildProgressBar) {
         m_buildProgressBar->BeginOperation(wxT("Apicula gowin_pack"), 0);
     }
-    MainFrame* self = this;
-    const long processId = LaunchFpgaTool(
-        packExecutable, arguments, nextpnrDirectory, m_terminalCtrl, "gowin_pack", {},
-        [self, packRequest, manifestPath](int exitCode, const wxString&) {
+    if (m_terminalCtrl) {
+        wxString command = "[gowin_pack] Job " + packJob.id + "\nCommand: " + packExecutable;
+        for (const wxString& argument : arguments) command += " \"" + argument + "\"";
+        m_terminalCtrl->BeginProcessOutput(
+            command + "\nWorking directory: " + nextpnrDirectory + "\n");
+    }
+    const std::shared_ptr<JobOutputPump> packOutput =
+        std::make_shared<JobOutputPump>(m_terminalCtrl);
+    JobExecutionOptions jobOptions;
+    jobOptions.output = [packOutput](const wxString& chunk, bool isError) {
+        packOutput->Push(chunk, isError);
+    };
+
+    const wxWeakRef<MainFrame> weakSelf(this);
+    m_jobRuns.push_back(RunJobAsync(packJob,
+        [jobRequest](const ToolJob& job, const JobExecutionOptions& options, JobReport& report,
+                     wxString& error) {
+            return PackJob().Execute(jobRequest, job, options, report, error);
+        },
+        jobOptions,
+        [weakSelf, packRequest, manifestPath, packOutput](const JobRunOutcome& outcome) {
+            auto* self = weakSelf.get();
+            if (!self) return;
+            self->ReapJobRuns();
+            packOutput->Flush();
             FpgaPackService service;
             FpgaPackReport report;
-            service.Finalize(packRequest, exitCode, report);
+            service.Finalize(packRequest, outcome.report.exitCode, report);
             wxString manifestError;
             const bool manifestWritten = service.WriteManifest(manifestPath, report, manifestError);
 
-            self->CallAfter([self, report, manifestPath, manifestWritten, manifestError] {
-                if (self->m_buildProgressBar) {
-                    self->m_buildProgressBar->FinishOperation(
-                        report.success,
-                        report.success ? wxT("Apicula packing completed")
-                                       : wxT("Apicula packing failed"));
+            if (self->m_buildProgressBar) {
+                self->m_buildProgressBar->FinishOperation(
+                    report.success,
+                    report.success ? wxT("Apicula packing completed")
+                                   : wxT("Apicula packing failed"));
+            }
+            if (self->m_fpgaToolWindow) {
+                self->m_fpgaToolWindow->SetPackResult(
+                    report.bitstreamPath, report.success, report.message);
+            }
+            if (self->m_terminalCtrl) {
+                wxString terminalMessage = "[gowin_pack] " + report.message +
+                    "\nJob report: " + JobService::GetPaths(outcome.job.request.projectPath,
+                        ToolJobType::Pack, outcome.job.id).jobReport +
+                    "\nManifest: " + manifestPath + "\n";
+                if (!manifestWritten) {
+                    terminalMessage += "Manifest write failed: " + manifestError + "\n";
                 }
-                if (self->m_fpgaToolWindow) {
-                    self->m_fpgaToolWindow->SetPackResult(
-                        report.bitstreamPath, report.success, report.message);
-                }
-                if (self->m_terminalCtrl) {
-                    wxString terminalMessage =
-                        "[gowin_pack] " + report.message + "\nManifest: " + manifestPath + "\n";
-                    if (!manifestWritten) {
-                        terminalMessage += "Manifest write failed: " + manifestError + "\n";
-                    }
-                    self->m_terminalCtrl->PrintOutput(terminalMessage);
-                }
-                self->SetStatusText(report.success ? "Apicula .fs bitstream created"
-                                                   : "Apicula packing failed");
-                if (self->m_projectTreePanel) {
-                    self->m_projectTreePanel->RefreshTree();
-                }
-            });
-        });
-    if (processId == 0) {
-        wxMessageBox("Unable to start gowin_pack. Check the configured executable path.",
-                     "FPGA Build .fs", wxOK | wxICON_ERROR, this);
-        if (m_buildProgressBar) {
-            m_buildProgressBar->FinishOperation(false, wxT("Apicula packing failed"));
-        }
-        return;
-    }
+                self->m_terminalCtrl->FinishProcessOutput(terminalMessage);
+            }
+            self->SetStatusText(report.success ? "Apicula .fs bitstream created"
+                                               : "Apicula packing failed");
+            if (self->m_projectTreePanel) {
+                self->m_projectTreePanel->RefreshTree();
+            }
+        }));
+
     if (m_buildProgressBar) {
-        m_buildProgressBar->SetCancelCallback([this, processId] {
-            KillAsyncToolProcess(processId);
+        const wxString projectPath = m_currentProjectPath;
+        const wxString jobId = packJob.id;
+        m_buildProgressBar->SetCancelCallback([projectPath, jobId] {
+            wxString ignored;
+            JobService().Cancel(projectPath, jobId, "User cancelled packing.", ignored);
         });
     }
     SetStatusText("Apicula gowin_pack started");
@@ -4139,39 +4188,76 @@ void MainFrame::RunFpgaProgram(
     const wxWeakRef<MainFrame> weakSelf(this);
     const wxString programmingProjectPath = m_currentProjectPath;
     const wxString programmingSessionId = m_activeDebugSessionId;
-    const long processId = LaunchFpgaTool(
-        loaderExecutable, arguments, workingDirectory, m_terminalCtrl, "openFPGALoader", {},
-        [weakSelf, programmingProjectPath, programmingSessionId, completion]
-        (int exitCode, const wxString&) {
+
+    FlashJobRequest jobRequest;
+    jobRequest.projectPath = m_currentProjectPath;
+    jobRequest.bitstreamPath = bitstreamPath;
+    jobRequest.executable = loaderExecutable;
+    jobRequest.arguments = arguments;
+    jobRequest.workingDirectory = workingDirectory;
+    // UI 确认通过后，Job 层仍保留同一确认门；默认调用路径必须经过上面的对话框。
+    jobRequest.requireConfirm = confirmProgramming;
+
+    ToolJob flashJob;
+    wxString jobError;
+    if (!FlashJob().Submit(jobRequest, flashJob, jobError)) {
+        wxMessageBox(jobError, "FPGA Program Board", wxOK | wxICON_ERROR, this);
+        finish(false, jobError);
+        return;
+    }
+
+    if (m_terminalCtrl) {
+        wxString command = "[openFPGALoader] Job " + flashJob.id + "\nCommand: " + loaderExecutable;
+        for (const wxString& argument : arguments) command += " \"" + argument + "\"";
+        m_terminalCtrl->BeginProcessOutput(
+            command + "\nWorking directory: " + workingDirectory + "\n");
+    }
+    const std::shared_ptr<JobOutputPump> flashOutput =
+        std::make_shared<JobOutputPump>(m_terminalCtrl);
+    JobExecutionOptions jobOptions;
+    jobOptions.requireConfirm = confirmProgramming;
+    jobOptions.confirm = []() { return true; };
+    jobOptions.output = [flashOutput](const wxString& chunk, bool isError) {
+        flashOutput->Push(chunk, isError);
+    };
+
+    m_jobRuns.push_back(RunJobAsync(flashJob,
+        [jobRequest](const ToolJob& job, const JobExecutionOptions& options, JobReport& report,
+                     wxString& error) {
+            return FlashJob().Execute(jobRequest, job, options, report, error);
+        },
+        jobOptions,
+        [weakSelf, programmingProjectPath, programmingSessionId, completion, flashOutput]
+        (const JobRunOutcome& outcome) {
             if (!wxTheApp) return;
             wxTheApp->CallAfter([weakSelf, programmingProjectPath, programmingSessionId,
-                                 completion, exitCode] {
+                                 completion, outcome, flashOutput] {
                 auto* self = weakSelf.get();
                 if (!self) return;
+                self->ReapJobRuns();
+                flashOutput->Flush();
+                const bool success = outcome.success;
                 if (!programmingProjectPath.IsEmpty() && !programmingSessionId.IsEmpty()) {
                     std::string ignored;
                     sigflow::debug::DebugSessionService().Transition(
                         std::string(programmingProjectPath.ToUTF8().data()),
                         std::string(programmingSessionId.ToUTF8().data()),
-                        exitCode == 0 ? sigflow::debug::DebugSessionState::Armed
-                                      : sigflow::debug::DebugSessionState::Failed,
-                        exitCode == 0 ? "openFPGALoader programming completed."
-                                      : "openFPGALoader programming failed.",
-                        exitCode, ignored);
+                        success ? sigflow::debug::DebugSessionState::Armed
+                                : sigflow::debug::DebugSessionState::Failed,
+                        success ? "openFPGALoader programming completed."
+                                : "openFPGALoader programming failed.",
+                        outcome.report.exitCode, ignored);
                 }
-                const wxString message = exitCode == 0
+                const wxString message = success
                     ? wxT("openFPGALoader programming completed")
                     : wxT("openFPGALoader programming failed");
+                if (self->m_terminalCtrl) {
+                    self->m_terminalCtrl->FinishProcessOutput("[openFPGALoader] " + message + "\n");
+                }
                 self->SetStatusText(message);
-                if (completion) completion(exitCode == 0, message);
+                if (completion) completion(success, message);
             });
-        });
-    if (processId == 0) {
-        wxMessageBox("Unable to start openFPGALoader. Check the configured executable path.",
-                     "FPGA Program Board", wxOK | wxICON_ERROR, this);
-        finish(false, wxT("无法启动 openFPGALoader。"));
-        return;
-    }
+        }));
 
     SetStatusText("openFPGALoader programming started");
 }
@@ -4249,32 +4335,19 @@ void MainFrame::HideBusyIndicator(const wxString& text)
 void MainFrame::DoSimCompile()
 {
     OutputDebugStringA("=== DoSimCompile ENTER ===\n");
-    
-    // 安全检查
-    if (!this) {
-        OutputDebugStringA("ERROR: this is NULL\n");
-        return;
-    }
-    
-    // 1. 检查项目是否打开 - 使用临时变量避免多次访问
-    wxString projectPath = m_currentProjectPath;
+
+    const wxString projectPath = m_currentProjectPath;
     if (projectPath.IsEmpty()) {
         wxMessageBox(wxT("请先打开项目"), wxT("编译仿真"), wxOK | wxICON_WARNING);
         return;
     }
-    
-    // 2. 从 sigflow.project 读取配置
+
     wxString topModule;
     std::vector<wxString> verilogFiles;
-    
     if (!LoadProjectConfig(projectPath, topModule, verilogFiles)) {
-        // 配置文件读取失败，回退到手动收集和输入
         OutputDebugStringA("Failed to load project config, falling back to manual mode\n");
-        
-        // 手动收集 src/*.v 和 lib/*.v
         wxString srcDir = projectPath + "\\src";
         wxString libDir = projectPath + "\\lib";
-        
         if (wxDir::Exists(srcDir)) {
             wxDir dir;
             if (dir.Open(srcDir)) {
@@ -4286,7 +4359,6 @@ void MainFrame::DoSimCompile()
                 }
             }
         }
-        
         if (wxDir::Exists(libDir)) {
             wxDir dir;
             if (dir.Open(libDir)) {
@@ -4298,32 +4370,23 @@ void MainFrame::DoSimCompile()
                 }
             }
         }
-        
         if (verilogFiles.empty()) {
-            wxMessageBox(wxT("项目中没有找到 Verilog 文件\n请确保项目包含 src/ 或 lib/ 目录"), 
+            wxMessageBox(wxT("项目中没有找到 Verilog 文件\n请确保项目包含 src/ 或 lib/ 目录"),
                          wxT("编译仿真"), wxOK | wxICON_WARNING);
             return;
         }
-        
-        // 询问顶层模块名
         wxFileName projectFn(projectPath);
         wxString defaultTopModule = projectFn.GetFullName();
-        
         wxString prompt;
         prompt.Printf("找到 %u 个 Verilog 文件\n请输入顶层模块名称:", (unsigned)verilogFiles.size());
-        
         wxTextEntryDialog dialog(NULL, prompt, "编译仿真", defaultTopModule);
-        if (dialog.ShowModal() != wxID_OK) {
-            return;
-        }
-        
+        if (dialog.ShowModal() != wxID_OK) return;
         topModule = dialog.GetValue();
         if (topModule.IsEmpty()) {
             wxMessageBox(wxT("顶层模块名称不能为空"), wxT("编译仿真"), wxOK | wxICON_WARNING);
             return;
         }
     } else {
-        // 配置读取成功，询问用户确认
         wxString confirmMsg = wxT("从 sigflow.project 读取的配置:\n顶层模块: ");
         confirmMsg += topModule;
         confirmMsg += wxT("\n源文件数: ");
@@ -4339,51 +4402,77 @@ void MainFrame::DoSimCompile()
         wxMessageBox(wxT("顶层模块名称不能为空"), wxT("编译仿真"), wxOK | wxICON_WARNING);
         return;
     }
-    
-    // 4. 初始化仿真引擎
+
     if (!m_simEngine) {
-        m_simEngine = std::make_unique<SimulationEngine>();
+        m_simEngine = std::make_shared<SimulationEngine>();
     }
-    
-    // 关键：设置项目根目录（用于确定.sigflow缓存位置）
-    m_simEngine->SetProjectRoot(projectPath);
-    
-    // 5. 设置编译输出回调（显示编译日志）
-    m_simEngine->SetCompileOutputCallback([this](const wxString& line, bool isError) {
-        // 可以在这里输出到日志窗口
+    const std::shared_ptr<SimulationEngine> engine = m_simEngine;
+    engine->SetProjectRoot(projectPath);
+    engine->SetCompileOutputCallback([](const wxString& line, bool isError) {
         OutputDebugStringA(isError ? "[ERR] " : "[OUT] ");
         OutputDebugStringA(line.ToUTF8());
         OutputDebugStringA("\n");
     });
-    
-    // 6. 执行编译
+
     auto* menuBar = static_cast<MainMenuBar*>(GetMenuBar());
     menuBar->SetSimulationBusy(true);
     ShowBusyIndicator(wxT("正在编译仿真模型..."));
-    SimulationCompileResult result = m_simEngine->Compile(topModule, verilogFiles);
-    HideBusyIndicator(result.success ? wxT("编译完成") : wxT("编译失败"));
-    menuBar->SetSimulationBusy(false);
-    
-    // 7. 显示结果 - 使用字符串拼接避免 Printf 问题
-    if (result.success) {
-        wxString successMsg = wxT("编译成功!\nDLL路径: ");
-        successMsg += result.dllPath;
-        wxMessageBox(successMsg, wxT("编译完成"), wxOK | wxICON_INFORMATION);
-    } else {
-        wxString errorMsg = wxT("编译失败\n\n");
-        if (result.errorMessage.Contains(wxT("Verilator"))) {
-            errorMsg += wxT("Verilator 阶段失败，请检查代码语法\n");
-        } else if (result.errorMessage.Contains(wxT("DLL"))) {
-            errorMsg += wxT("DLL 编译失败\n");
-            errorMsg += wxT("建议：检查 .sigflow\\sim\\");
-            errorMsg += topModule;
-            errorMsg += wxT("\\compile_dll.bat 手动调试");
+
+    SimulationJobRequest simRequest;
+    simRequest.projectPath = projectPath;
+    simRequest.topModule = topModule;
+    simRequest.sourceFiles = verilogFiles;
+    simRequest.requireVcd = false;
+    simRequest.runner = [engine, topModule, verilogFiles](JobReport&, wxString& runnerError) {
+        engine->SetCompileOutputCallback([](const wxString& line, bool isError) {
+            OutputDebugStringA(isError ? "[ERR] " : "[OUT] ");
+            OutputDebugStringA(line.ToUTF8());
+            OutputDebugStringA("\n");
+        });
+        const SimulationCompileResult compiled = engine->Compile(topModule, verilogFiles);
+        if (!compiled.success) {
+            runnerError = compiled.errorMessage;
+            return false;
         }
-        errorMsg += wxT("\n\n详细错误：\n") + result.errorMessage;
-        wxMessageBox(errorMsg, wxT("编译失败"), wxOK | wxICON_ERROR);
+        return true;
+    };
+
+    ToolJob simJob;
+    wxString jobError;
+    if (!SimulationJob().Submit(simRequest, simJob, jobError)) {
+        HideBusyIndicator(wxT("编译失败"));
+        menuBar->SetSimulationBusy(false);
+        wxMessageBox("Simulation Job 提交失败：" + jobError, wxT("编译失败"),
+                     wxOK | wxICON_ERROR);
+        return;
     }
-    
-    OutputDebugStringA("=== DoSimCompile EXIT ===\n");
+
+    const wxWeakRef<MainFrame> weakSelf(this);
+    m_jobRuns.push_back(RunJobAsync(simJob,
+        [simRequest](const ToolJob& job, const JobExecutionOptions& options,
+                     JobReport& report, wxString& error) {
+            return SimulationJob().Execute(simRequest, job, options, report, error);
+        },
+        {},
+        [weakSelf, engine, projectPath](const JobRunOutcome& outcome) {
+            auto* self = weakSelf.get();
+            if (!self) return;
+            self->ReapJobRuns();
+            auto* menuBar = static_cast<MainMenuBar*>(self->GetMenuBar());
+            self->HideBusyIndicator(outcome.success ? wxT("编译完成") : wxT("编译失败"));
+            if (menuBar) menuBar->SetSimulationBusy(false);
+            if (outcome.success) {
+                const SimulationCompileResult result = engine->GetLastCompileResult();
+                wxString message = wxT("编译成功!\nDLL路径: ") + result.dllPath;
+                message += wxT("\nJob 报告: ") + JobService::GetPaths(
+                    projectPath, ToolJobType::Simulation, outcome.job.id).jobReport;
+                wxMessageBox(message, wxT("编译完成"), wxOK | wxICON_INFORMATION, self);
+            } else {
+                wxString message = wxT("编译失败\n\n") + outcome.message;
+                wxMessageBox(message, wxT("编译失败"), wxOK | wxICON_ERROR, self);
+            }
+            OutputDebugStringA("=== DoSimCompile EXIT ===\n");
+        }));
 }
 
 void MainFrame::DoSimRun()
@@ -4396,55 +4485,93 @@ void MainFrame::DoSimRun()
 
     // 2. 初始化仿真引擎（如果尚未初始化）
     if (!m_simEngine) {
-        m_simEngine = std::make_unique<SimulationEngine>();
+        m_simEngine = std::make_shared<SimulationEngine>();
     }
-    m_simEngine->SetProjectRoot(m_currentProjectPath);
+    const std::shared_ptr<SimulationEngine> engine = m_simEngine;
+    const wxString projectPath = m_currentProjectPath;
+    engine->SetProjectRoot(projectPath);
 
     // 3. 读取配置获取顶层模块名
     wxString topModule;
     std::vector<wxString> verilogFiles;
-    if (!LoadProjectConfig(m_currentProjectPath, topModule, verilogFiles)) {
+    if (!LoadProjectConfig(projectPath, topModule, verilogFiles)) {
         wxMessageBox(wxT("无法读取项目配置"), wxT("运行仿真"), wxOK | wxICON_WARNING);
         return;
     }
 
     // 4. 设置顶层模块名并检查 DLL 是否存在
-    m_simEngine->SetTopModule(topModule);
-    if (!m_simEngine->IsCompiled(topModule)) {
+    engine->SetTopModule(topModule);
+    if (!engine->IsCompiled(topModule)) {
         wxMessageBox(wxT("没有可用的编译结果，请先编译"), wxT("运行仿真"), wxOK | wxICON_WARNING);
         return;
     }
 
     // 5. 设置编译输出回调
-    m_simEngine->SetCompileOutputCallback([this](const wxString& line, bool isError) {
+    engine->SetCompileOutputCallback([](const wxString& line, bool isError) {
         OutputDebugStringA(isError ? "[SIM-ERR] " : "[SIM-OUT] ");
         OutputDebugStringA(line.ToUTF8());
         OutputDebugStringA("\n");
     });
 
-    // 6. 运行仿真（VCD 自动输出到 .sigflow/sim/<top>/waveform/wave.vcd）
+    // 6. 运行仿真（走 SimJob：VCD 产物登记 + manifest + 报告）
     auto* menuBar = static_cast<MainMenuBar*>(GetMenuBar());
     menuBar->SetSimulationBusy(true);
     ShowBusyIndicator(wxT("正在运行仿真..."));
-    SimulationRunResult result = m_simEngine->RunSimulation(wxEmptyString);
 
-    if (result.success) {
-        wxString msg = wxT("仿真完成!\n波形文件: ");
-        msg += result.vcdPath;
-        wxMessageBox(msg, wxT("仿真完成"), wxOK | wxICON_INFORMATION);
-
-        // 如果 WavePanel 存在，加载波形
-        if (m_wavePanel) {
-            // TODO: 自动加载 VCD 到波形面板
+    const wxString vcdPath = projectPath + "\\" + ".sigflow" + "\\" + "sim" + "\\" +
+        topModule + "\\waveform\\wave.vcd";
+    SimulationJobRequest simRequest;
+    simRequest.projectPath = projectPath;
+    simRequest.topModule = topModule;
+    simRequest.sourceFiles = verilogFiles;
+    simRequest.outputVcdPath = vcdPath;
+    simRequest.runner = [engine, vcdPath](JobReport&, wxString& runnerError) {
+        const SimulationRunResult runResult = engine->RunSimulation(vcdPath);
+        if (!runResult.success) {
+            runnerError = runResult.errorMessage;
+            return false;
         }
-    } else {
-        wxString msg = wxT("仿真失败!\n");
-        msg += result.errorMessage;
-        wxMessageBox(msg, wxT("仿真错误"), wxOK | wxICON_ERROR);
+        return true;
+    };
+
+    ToolJob simJob;
+    wxString jobError;
+    if (!SimulationJob().Submit(simRequest, simJob, jobError)) {
+        HideBusyIndicator(wxT("就绪"));
+        menuBar->SetSimulationBusy(false);
+        wxMessageBox("Simulation Job 提交失败：" + jobError, wxT("仿真错误"),
+                     wxOK | wxICON_ERROR, this);
+        return;
     }
 
-    HideBusyIndicator(wxT("就绪"));
-    menuBar->SetSimulationBusy(false);
+    const wxWeakRef<MainFrame> weakSelf(this);
+    m_jobRuns.push_back(RunJobAsync(simJob,
+        [simRequest](const ToolJob& job, const JobExecutionOptions& options,
+                     JobReport& report, wxString& error) {
+            return SimulationJob().Execute(simRequest, job, options, report, error);
+        },
+        {},
+        [weakSelf, projectPath, vcdPath](const JobRunOutcome& outcome) {
+            auto* self = weakSelf.get();
+            if (!self) return;
+            self->ReapJobRuns();
+            auto* menuBar = static_cast<MainMenuBar*>(self->GetMenuBar());
+            self->HideBusyIndicator(outcome.success ? wxT("就绪") : wxT("仿真失败"));
+            if (menuBar) menuBar->SetSimulationBusy(false);
+            if (outcome.success) {
+                wxString message = wxT("仿真完成!\n波形文件: ") + vcdPath;
+                message += wxT("\nJob 报告: ") + JobService::GetPaths(
+                    projectPath, ToolJobType::Simulation, outcome.job.id).jobReport;
+                if (self->m_wavePanel && !self->m_wavePanel->OpenTrace(
+                        std::string(vcdPath.ToUTF8().data()))) {
+                    message += wxT("\n波形面板加载失败，请检查 VCD 文件。");
+                }
+                wxMessageBox(message, wxT("仿真完成"), wxOK | wxICON_INFORMATION, self);
+            } else {
+                wxMessageBox(wxT("仿真失败!\n") + outcome.message, wxT("仿真错误"),
+                             wxOK | wxICON_ERROR, self);
+            }
+        }));
 }
 
 void MainFrame::DoSimClean()

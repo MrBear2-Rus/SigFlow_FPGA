@@ -4,6 +4,7 @@
 #include "TraceSource.h"
 
 #include <memory>
+#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -31,8 +32,8 @@ public:
     bool ValueAt(const SignalInfo& signal, TimeValue t,
                  std::string& value, std::string& error) override;
 
-    std::size_t CacheBytes() const { return m_budget.UsedBytes(); }
-    std::size_t CacheEntries() const { return m_cache.size(); }
+    std::size_t CacheBytes() const;
+    std::size_t CacheEntries() const;
 
 private:
     struct CacheEntry {
@@ -48,6 +49,7 @@ private:
     std::unique_ptr<TraceSource> m_inner;
     TraceMemoryBudget m_budget;
     std::unordered_map<std::string, CacheEntry> m_cache;
+    mutable std::mutex m_mutex;
 };
 
 } // namespace trace

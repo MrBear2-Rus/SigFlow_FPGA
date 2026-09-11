@@ -6,12 +6,14 @@
 #include "WavePatternSearch.h"
 #include "WaveformView.h"
 #include "WaveUartLane.h"
+#include "../trace/TraceQueryService.h"
 
 #include <functional>
 #include <cstdint>
 #include <memory>
 #include <unordered_map>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <wx/listctrl.h>
@@ -68,8 +70,20 @@ private:
         int signalId = -1;
     };
 
+    struct ModuleTreeData : public wxClientData {
+        explicit ModuleTreeData(std::string value) : scope(std::move(value)) {}
+        std::string scope;
+        bool populated = false;
+    };
+
+    struct TreePlaceholderData : public wxClientData {};
+
     void BuildUi();
     void PopulateTree();
+    void PopulateModule(const wxTreeListItem& item);
+    void AddTreePlaceholder(const wxTreeListItem& item);
+    void ScheduleVisiblePrefetch();
+    static std::string ModuleLabel(const std::string& scope);
     void SetSignalChecked(int signalId, bool checked);
     void RefreshEvents();
     void RefreshMeasurement();
@@ -87,6 +101,7 @@ private:
     void OnClearMarkers(wxCommandEvent& event);
     void OnClearAB(wxCommandEvent& event);
     void OnTreeItemChecked(wxTreeListEvent& event);
+    void OnTreeItemExpanding(wxTreeListEvent& event);
     void OnTreeItemActivated(wxTreeListEvent& event);
     void OnTreeContextMenu(wxTreeListEvent& event);
     void OnSearchChanged(wxCommandEvent& event);
@@ -98,6 +113,8 @@ private:
     void RefreshUartLane();
 
     std::shared_ptr<sigflow::trace::TraceSource> m_source;
+    sigflow::trace::TraceQueryService m_queryService;
+    std::uint64_t m_prefetchJobId = 0;
     WaveformView* m_view = nullptr;
     wxTreeListCtrl* m_tree = nullptr;
     wxTextCtrl* m_searchBox = nullptr;

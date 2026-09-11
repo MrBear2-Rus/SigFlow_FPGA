@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" role="img" aria-labelledby="title desc">
+  <title id="title">Pelican riding a bicycle</title>
+  <desc id="desc">A cheerful pelican balances on a red bicycle against a pale blue sky.</desc>
+  <rect width="800" height="500" fill="#dff3ff"/>
+  <circle cx="665" cy="92" r="48" fill="#fff4b8"/>
+  <path d="M0 395 Q180 360 350 395 T800 385 V500 H0Z" fill="#b9e3a2"/>
+  <path d="M0 430 Q200 395 400 430 T800 420" fill="none" stroke="#79b86b" stroke-width="8" opacity=".65"/>
+
+  <!-- bicycle -->
+  <g fill="none" stroke="#d84d3f" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="205" cy="382" r="70" stroke="#34495e" stroke-width="7"/>
+    <circle cx="575" cy="382" r="70" stroke="#34495e" stroke-width="7"/>
+    <path d="M205 382 L315 245 L410 382 L205 382 L365 382 L575 382 L410 382 L365 288"/>
+    <path d="M315 245 L295 218"/>
+    <path d="M282 218 H326"/>
+    <path d="M365 288 L347 262"/>
+    <path d="M334 260 H365"/>
+  </g>
+  <circle cx="365" cy="382" r="16" fill="#f4c542" stroke="#34495e" stroke-width="6"/>
+  <path d="M365 382 l38 -20 M365 382 l-34 22" stroke="#34495e" stroke-width="6"/>
+
+  <!-- pelican body -->
+  <g stroke="#3b4a59" stroke-width="6" stroke-linejoin="round">
+    <ellipse cx="405" cy="190" rx="91" ry="116" fill="#f7f8f5"/>
+    <path d="M349 157 Q315 210 343 268 Q373 291 402 257 Q378 210 395 165Z" fill="#d9e1e5"/>
+    <path d="M461 159 Q515 206 478 264 Q450 281 426 249 Q454 207 438 166Z" fill="#d9e1e5"/>
+    <path d="M350 247 Q404 281 466 245 L452 300 Q405 327 359 299Z" fill="#f0a83b"/>
+    <!-- neck and head -->
+    <path d="M371 125 Q355 67 409 42 Q471 19 507 72 Q533 111 500 151 Q465 177 415 151Z" fill="#f7f8f5"/>
+    <path d="M500 103 Q575 112 655 150 Q575 177 493 143Z" fill="#f0a83b"/>
+    <path d="M493 143 Q570 174 651 151 Q601 201 508 174Z" fill="#e58e2c"/>
+    <circle cx="461" cy="88" r="10" fill="#263746" stroke="none"/>
+    <path d="M390 45 Q408 21 436 30" fill="none" stroke="#d9e1e5" stroke-width="11"/>
+    <!-- legs -->
+    <path d="M382 285 L357 350 M443 286 L469 350" fill="none" stroke="#e58e2c" stroke-width="12"/>
+    <path d="M350 350 q-18 7-25 20 M469 350 q18 7 25 20" fill="none" stroke="#e58e2c" stroke-width="9"/>
+    <!-- wings gripping bars -->
+    <path d="M348 177 Q304 207 326 238 Q349 250 370 217" fill="#c8d4da"/>
+    <path d="M457 178 Q493 213 474 242 Q451 253 433 218" fill="#c8d4da"/>
+  </g>
+  <path d="M526 118 Q555 130 577 143" fill="none" stroke="#fff4d6" stroke-width="5" opacity=".7"/>
+</svg>

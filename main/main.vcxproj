@@ -46,6 +46,11 @@
     <ClCompile Include="fpga\FpgaPinData.cpp" />
     <ClCompile Include="fpga\FpgaConstraint.cpp" />
     <ClCompile Include="fpga\FpgaPinBindingPanel.cpp" />
+    <ClCompile Include="jobs\JobRegistry.cpp" />
+    <ClCompile Include="jobs\JobService.cpp" />
+    <ClCompile Include="jobs\PlatformProcess.cpp" />
+    <ClCompile Include="jobs\Sha256.cpp" />
+    <ClCompile Include="jobs\ToolJobs.cpp" />
     <ClCompile Include="MainFrame.cpp" />
     <ClCompile Include="MainMenuBar.cpp" />
     <ClCompile Include="PluginManager.cpp" />
@@ -84,6 +89,7 @@
     <ClCompile Include="trace\TraceMemoryBudget.cpp" />
     <ClCompile Include="trace\TraceSidecarIndex.cpp" />
     <ClCompile Include="trace\VcdLazyTraceSource.cpp" />
+    <ClCompile Include="trace\TraceQueryService.cpp" />
     <ClCompile Include="wave\TraceViewPanel.cpp" />
     <ClCompile Include="wave\WaveAnalysis.cpp" />
     <ClCompile Include="wave\WaveCompareHub.cpp" />
@@ -141,6 +147,11 @@
     <ClInclude Include="fpga\FpgaPinData.h" />
     <ClInclude Include="fpga\FpgaConstraint.h" />
     <ClInclude Include="fpga\FpgaPinBindingPanel.h" />
+    <ClInclude Include="jobs\JobRunner.h" />
+    <ClInclude Include="jobs\JobService.h" />
+    <ClInclude Include="jobs\PlatformProcess.h" />
+    <ClInclude Include="jobs\Sha256.h" />
+    <ClInclude Include="jobs\ToolJobs.h" />
     <ClInclude Include="MainFrame.h" />
     <ClInclude Include="MainMenuBar.h" />
     <ClInclude Include="my_log.h" />
@@ -183,6 +194,7 @@
     <ClInclude Include="trace\TraceSource.h" />
     <ClInclude Include="trace\TraceTypes.h" />
     <ClInclude Include="trace\VcdLazyTraceSource.h" />
+    <ClInclude Include="trace\TraceQueryService.h" />
     <ClInclude Include="wave\TraceViewPanel.h" />
     <ClInclude Include="wave\WaveAnalysis.h" />
     <ClInclude Include="wave\WaveCompareHub.h" />

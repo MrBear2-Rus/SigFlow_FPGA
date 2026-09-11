@@ -76,6 +76,12 @@
     <Filter Include="源文件\plugin">
       <UniqueIdentifier>{deded1a5-91dd-4aad-9366-8226f65c7a88}</UniqueIdentifier>
     </Filter>
+    <Filter Include="源文件\jobs">
+      <UniqueIdentifier>{6e2d7aa0-2f71-4e7d-bf7e-4b4cc4d4d901}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\jobs">
+      <UniqueIdentifier>{7f3c5bb1-5f7e-47f5-b3f1-2d3c7b7b6a02}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cMain.cpp">
@@ -107,6 +113,9 @@
       <Filter>源代码\trace</Filter>
     </ClCompile>
     <ClCompile Include="trace\VcdLazyTraceSource.cpp">
+      <Filter>源代码\trace</Filter>
+    </ClCompile>
+    <ClCompile Include="trace\TraceQueryService.cpp">
       <Filter>源代码\trace</Filter>
     </ClCompile>
     <ClCompile Include="wave\TraceViewPanel.cpp">
@@ -196,7 +205,21 @@
     <ClCompile Include="debug\DebugMappingBuilder.cpp">
       <Filter>源代码\debug</Filter>
     </ClCompile>
-    <ClCompile Include="MainFrame.cpp">
+    <ClCompile Include="jobs\JobRegistry.cpp">
+      <Filter>源文件\jobs</Filter>
+    </ClCompile>
+    <ClCompile Include="jobs\JobService.cpp">
+      <Filter>源文件\jobs</Filter>
+    </ClCompile>
+    <ClCompile Include="jobs\PlatformProcess.cpp">
+      <Filter>源文件\jobs</Filter>
+    </ClCompile>
+    <ClCompile Include="jobs\Sha256.cpp">
+      <Filter>源文件\jobs</Filter>
+    </ClCompile>
+    <ClCompile Include="jobs\ToolJobs.cpp">
+      <Filter>源文件\jobs</Filter>
+    </ClCompile>    <ClCompile Include="MainFrame.cpp">
       <Filter>源文件\gui</Filter>
     </ClCompile>
     <ClCompile Include="FpgaYosysRuntime.cpp">
@@ -340,7 +363,20 @@
     <ClInclude Include="SigTextEditor.h">
       <Filter>头文件\gui</Filter>
     </ClInclude>
-    <ClInclude Include="MainFrame.h">
+    <ClInclude Include="jobs\JobRunner.h">
+      <Filter>头文件\jobs</Filter>
+    </ClInclude>    <ClInclude Include="jobs\JobService.h">
+      <Filter>头文件\jobs</Filter>
+    </ClInclude>
+    <ClInclude Include="jobs\PlatformProcess.h">
+      <Filter>头文件\jobs</Filter>
+    </ClInclude>
+    <ClInclude Include="jobs\Sha256.h">
+      <Filter>头文件\jobs</Filter>
+    </ClInclude>
+    <ClInclude Include="jobs\ToolJobs.h">
+      <Filter>头文件\jobs</Filter>
+    </ClInclude>    <ClInclude Include="MainFrame.h">
       <Filter>头文件\gui</Filter>
     </ClInclude>
     <ClInclude Include="FpgaYosysRuntime.h">
@@ -386,6 +422,9 @@
       <Filter>头文件\trace</Filter>
     </ClInclude>
     <ClInclude Include="trace\VcdLazyTraceSource.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="trace\TraceQueryService.h">
       <Filter>头文件\trace</Filter>
     </ClInclude>
     <ClInclude Include="wave\TraceViewPanel.h">

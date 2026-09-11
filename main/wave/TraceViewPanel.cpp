@@ -227,6 +227,7 @@ void TraceViewPanel::BuildUi()
         m_themeButton->SetLabel(m_view->Theme() == WaveTheme::Dark ? "Theme: Dark" : "Theme: Light");
     });
     m_tree->Bind(wxEVT_TREELIST_ITEM_CHECKED, &TraceViewPanel::OnTreeItemChecked, this);
+    m_tree->Bind(wxEVT_TREELIST_ITEM_EXPANDING, &TraceViewPanel::OnTreeItemExpanding, this);
     m_tree->Bind(wxEVT_TREELIST_ITEM_ACTIVATED, &TraceViewPanel::OnTreeItemActivated, this);
     m_tree->Bind(wxEVT_TREELIST_ITEM_CONTEXT_MENU,
                  &TraceViewPanel::OnTreeContextMenu, this);
@@ -240,6 +241,7 @@ void TraceViewPanel::BuildUi()
     m_view->SetOnViewChanged([this]() {
         RefreshMeasurement();
         HighlightNearestEvent();
+        ScheduleVisiblePrefetch();
     });
 }
 
@@ -254,6 +256,8 @@ bool TraceViewPanel::OpenTrace(const std::string& path)
         return false;
     }
     m_source = source;
+    m_queryService.Cancel(m_prefetchJobId);
+    m_prefetchJobId = 0;
     m_view->SetTraceSource(m_source);
     m_view->SetVisibleSignals({});
     PopulateTree();
@@ -262,6 +266,7 @@ bool TraceViewPanel::OpenTrace(const std::string& path)
     m_measureLabel->SetLabel(
         "Loaded " + std::to_string(m_source->Signals().size()) +
         " signal(s), range 0.." + std::to_string(m_source->TimeRange().end));
+    ScheduleVisiblePrefetch();
     return true;
 }
 
@@ -313,10 +318,47 @@ void TraceViewPanel::OnUartActivated(wxListEvent& event)
 void TraceViewPanel::PopulateTree()
 {
     m_tree->DeleteAllItems();
-    const wxTreeListItem root = m_tree->GetRootItem();
     if (!m_source) return;
 
     const std::string filter = m_searchBox->GetValue().Lower().ToStdString();
+
+    if (filter.empty()) {
+        const wxTreeListItem root = m_tree->GetRootItem();
+        std::vector<std::string> topScopes;
+        for (const sigflow::trace::SignalInfo& signal : m_source->Signals()) {
+            if (signal.scope.empty()) continue;
+            const std::size_t slash = signal.scope.find('/');
+            const std::string top = signal.scope.substr(0, slash);
+            if (std::find(topScopes.begin(), topScopes.end(), top) == topScopes.end()) {
+                topScopes.push_back(top);
+            }
+        }
+        for (const std::string& scope : topScopes) {
+            const wxTreeListItem module = m_tree->AppendItem(
+                root, wxString::FromUTF8(ModuleLabel(scope)), wxTreeListCtrl::NO_IMAGE,
+                wxTreeListCtrl::NO_IMAGE, new ModuleTreeData(scope));
+            AddTreePlaceholder(module);
+        }
+        for (const sigflow::trace::SignalInfo& signal : m_source->Signals()) {
+            if (!signal.scope.empty()) continue;
+            std::string displayName = signal.name;
+            const auto alias = m_signalAliases.find(signal.id);
+            if (alias != m_signalAliases.end() && !alias->second.empty()) {
+                displayName += " [" + alias->second + "]";
+            }
+            const wxTreeListItem leaf = m_tree->AppendItem(
+                root, wxString::FromUTF8(displayName), wxTreeListCtrl::NO_IMAGE,
+                wxTreeListCtrl::NO_IMAGE, new SignalTreeData(signal.id));
+            const WaveViewState& state = m_view->State();
+            if (std::find(state.visibleSignalIds.begin(), state.visibleSignalIds.end(), signal.id) !=
+                state.visibleSignalIds.end()) {
+                m_tree->CheckItem(leaf);
+            }
+        }
+        return;
+    }
+
+    const wxTreeListItem root = m_tree->GetRootItem();
     for (const sigflow::trace::SignalInfo& signal : m_source->Signals()) {
         if (!filter.empty() &&
             signal.name.find(filter) == std::string::npos &&
@@ -339,7 +381,15 @@ void TraceViewPanel::PopulateTree()
                 child = m_tree->GetNextSibling(child);
             }
             if (!match.IsOk()) {
-                match = m_tree->AppendItem(parent, wxString::FromUTF8(part));
+                std::string parentScope;
+                const auto* parentData = dynamic_cast<ModuleTreeData*>(m_tree->GetItemData(parent));
+                if (parentData) parentScope = parentData->scope + "/";
+                parentScope += part;
+                auto* moduleData = new ModuleTreeData(parentScope);
+                moduleData->populated = true;
+                match = m_tree->AppendItem(parent, wxString::FromUTF8(part),
+                                            wxTreeListCtrl::NO_IMAGE, wxTreeListCtrl::NO_IMAGE,
+                                            moduleData);
             }
             parent = match;
             scope = (slash == std::string::npos) ? std::string() : scope.substr(slash + 1);
@@ -359,8 +409,89 @@ void TraceViewPanel::PopulateTree()
     }
     for (wxTreeListItem item = m_tree->GetFirstItem(); item.IsOk();
          item = m_tree->GetNextItem(item)) {
-        if (m_tree->GetFirstChild(item).IsOk()) m_tree->Expand(item);
+        if (dynamic_cast<ModuleTreeData*>(m_tree->GetItemData(item))) m_tree->Expand(item);
     }
+}
+
+std::string TraceViewPanel::ModuleLabel(const std::string& scope)
+{
+    const std::size_t slash = scope.find_last_of('/');
+    return slash == std::string::npos ? scope : scope.substr(slash + 1);
+}
+
+void TraceViewPanel::AddTreePlaceholder(const wxTreeListItem& item)
+{
+    m_tree->AppendItem(item, wxString(), wxTreeListCtrl::NO_IMAGE,
+                       wxTreeListCtrl::NO_IMAGE, new TreePlaceholderData());
+}
+
+void TraceViewPanel::PopulateModule(const wxTreeListItem& item)
+{
+    auto* module = dynamic_cast<ModuleTreeData*>(m_tree->GetItemData(item));
+    if (!module || module->populated || !m_source) return;
+    module->populated = true;
+    for (wxTreeListItem child = m_tree->GetFirstChild(item); child.IsOk();) {
+        const wxTreeListItem next = m_tree->GetNextSibling(child);
+        m_tree->DeleteItem(child);
+        child = next;
+    }
+
+    const std::string prefix = module->scope + "/";
+    std::vector<std::string> childScopes;
+    for (const auto& signal : m_source->Signals()) {
+        if (signal.scope.rfind(prefix, 0) != 0) continue;
+        const std::string rest = signal.scope.substr(prefix.size());
+        const std::size_t slash = rest.find('/');
+        const std::string childScope = prefix +
+            (slash == std::string::npos ? rest : rest.substr(0, slash));
+        if (std::find(childScopes.begin(), childScopes.end(), childScope) == childScopes.end()) {
+            childScopes.push_back(childScope);
+        }
+    }
+    for (const std::string& scope : childScopes) {
+        const wxTreeListItem child = m_tree->AppendItem(
+            item, wxString::FromUTF8(ModuleLabel(scope)), wxTreeListCtrl::NO_IMAGE,
+            wxTreeListCtrl::NO_IMAGE, new ModuleTreeData(scope));
+        AddTreePlaceholder(child);
+    }
+    for (const auto& signal : m_source->Signals()) {
+        if (signal.scope != module->scope) continue;
+        std::string displayName = signal.name;
+        const auto alias = m_signalAliases.find(signal.id);
+        if (alias != m_signalAliases.end() && !alias->second.empty()) {
+            displayName += " [" + alias->second + "]";
+        }
+        const wxTreeListItem leaf = m_tree->AppendItem(
+            item, wxString::FromUTF8(displayName), wxTreeListCtrl::NO_IMAGE,
+            wxTreeListCtrl::NO_IMAGE, new SignalTreeData(signal.id));
+        const auto& visible = m_view->State().visibleSignalIds;
+        if (std::find(visible.begin(), visible.end(), signal.id) != visible.end()) {
+            m_tree->CheckItem(leaf);
+        }
+    }
+}
+
+void TraceViewPanel::OnTreeItemExpanding(wxTreeListEvent& event)
+{
+    PopulateModule(event.GetItem());
+    event.Skip();
+}
+
+void TraceViewPanel::ScheduleVisiblePrefetch()
+{
+    if (!m_source || !m_view) return;
+    m_queryService.Cancel(m_prefetchJobId);
+    m_prefetchJobId = 0;
+    const auto& visible = m_view->State().visibleSignalIds;
+    if (visible.empty()) return;
+    sigflow::trace::TraceQueryRequest request;
+    request.source = m_source;
+    request.signalIds = visible;
+    request.begin = m_view->State().timeOffset;
+    request.end = m_view->State().EndTime();
+    request.margin = m_view->State().timeSpan / 4;
+    request.completed = [](const sigflow::trace::TraceQueryResult&) {};
+    m_prefetchJobId = m_queryService.Submit(std::move(request));
 }
 
 void TraceViewPanel::SetSignalChecked(int signalId, bool checked)
@@ -375,6 +506,7 @@ void TraceViewPanel::SetSignalChecked(int signalId, bool checked)
         state.visibleSignalIds.erase(it);
     }
     m_view->SetVisibleSignals(state.visibleSignalIds);
+    ScheduleVisiblePrefetch();
 }
 
 void TraceViewPanel::RefreshEvents()

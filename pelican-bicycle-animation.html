@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>鹈鹕骑自行车</title>
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; overflow: hidden; background: #cfeeff; }
+    svg { width: min(100vw, 900px); height: auto; display: block; }
+    .wheel { transform-box: fill-box; transform-origin: center; animation: spin 1.15s linear infinite; }
+    .pelican { transform-box: fill-box; transform-origin: center bottom; animation: bob .58s ease-in-out infinite alternate; }
+    .leg-a { transform-box: fill-box; transform-origin: top center; animation: pedal-a .58s linear infinite; }
+    .leg-b { transform-box: fill-box; transform-origin: top center; animation: pedal-b .58s linear infinite; }
+    .cloud { animation: drift 18s linear infinite; }
+    .cloud.slow { animation-duration: 26s; animation-delay: -9s; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes bob { from { transform: translateY(0) rotate(-1deg); } to { transform: translateY(-7px) rotate(1deg); } }
+    @keyframes pedal-a { from { transform: rotate(32deg); } to { transform: rotate(-32deg); } }
+    @keyframes pedal-b { from { transform: rotate(-32deg); } to { transform: rotate(32deg); } }
+    @keyframes drift { from { transform: translateX(-180px); } to { transform: translateX(900px); } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-play-state: paused !important; } }
+  </style>
+</head>
+<body>
+<svg viewBox="0 0 800 500" role="img" aria-labelledby="title desc">
+  <title id="title">鹈鹕骑自行车</title>
+  <desc id="desc">一只鹈鹕踩着红色自行车前进，车轮和双腿持续运动。</desc>
+  <rect width="800" height="500" fill="#dff3ff"/>
+  <circle cx="665" cy="92" r="48" fill="#fff4b8"/>
+  <g class="cloud" fill="#fff" opacity=".75"><ellipse cx="90" cy="90" rx="56" ry="18"/><ellipse cx="145" cy="85" rx="38" ry="24"/><ellipse cx="190" cy="94" rx="50" ry="16"/></g>
+  <g class="cloud slow" fill="#fff" opacity=".62"><ellipse cx="-20" cy="170" rx="58" ry="17"/><ellipse cx="38" cy="164" rx="35" ry="22"/><ellipse cx="78" cy="174" rx="48" ry="15"/></g>
+  <path d="M0 395 Q180 360 350 395 T800 385 V500 H0Z" fill="#b9e3a2"/>
+  <path d="M0 430 Q200 395 400 430 T800 420" fill="none" stroke="#79b86b" stroke-width="8" opacity=".65"/>
+  <g fill="none" stroke="#d84d3f" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
+    <g class="wheel"><circle cx="205" cy="382" r="70" stroke="#34495e" stroke-width="7"/><path d="M205 312v140M135 382h140M156 333l98 98M254 333l-98 98" stroke="#7990a0" stroke-width="3"/></g>
+    <g class="wheel"><circle cx="575" cy="382" r="70" stroke="#34495e" stroke-width="7"/><path d="M575 312v140M505 382h140M526 333l98 98M624 333l-98 98" stroke="#7990a0" stroke-width="3"/></g>
+    <path d="M205 382 L315 245 L410 382 L205 382 L365 382 L575 382 L410 382 L365 288 M315 245 L295 218 M282 218 H326 M365 288 L347 262 M334 260 H365"/>
+  </g>
+  <circle cx="365" cy="382" r="16" fill="#f4c542" stroke="#34495e" stroke-width="6"/>
+  <g class="pelican" stroke="#3b4a59" stroke-width="6" stroke-linejoin="round">
+    <ellipse cx="405" cy="190" rx="91" ry="116" fill="#f7f8f5"/>
+    <path d="M349 157 Q315 210 343 268 Q373 291 402 257 Q378 210 395 165Z" fill="#d9e1e5"/><path d="M461 159 Q515 206 478 264 Q450 281 426 249 Q454 207 438 166Z" fill="#d9e1e5"/>
+    <path d="M350 247 Q404 281 466 245 L452 300 Q405 327 359 299Z" fill="#f0a83b"/>
+    <path d="M371 125 Q355 67 409 42 Q471 19 507 72 Q533 111 500 151 Q465 177 415 151Z" fill="#f7f8f5"/>
+    <path d="M500 103 Q575 112 655 150 Q575 177 493 143Z" fill="#f0a83b"/><path d="M493 143 Q570 174 651 151 Q601 201 508 174Z" fill="#e58e2c"/>
+    <circle cx="461" cy="88" r="10" fill="#263746" stroke="none"/>
+    <path d="M348 177 Q304 207 326 238 Q349 250 370 217 M457 178 Q493 213 474 242 Q451 253 433 218" fill="#c8d4da"/>
+    <g class="leg-a" fill="none" stroke="#e58e2c" stroke-width="11" stroke-linecap="round"><path d="M382 285 L357 350"/><path d="M350 350 q-18 7-25 20"/></g>
+    <g class="leg-b" fill="none" stroke="#e58e2c" stroke-width="11" stroke-linecap="round"><path d="M443 286 L469 350"/><path d="M469 350 q18 7 25 20"/></g>
+  </g>
+  <text x="400" y="475" text-anchor="middle" font-family="sans-serif" font-size="20" fill="#47705a">快乐出发！</text>
+</svg>
+</body>
+</html>
