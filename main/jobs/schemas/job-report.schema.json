@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sigflow.dev/schema/job-report-1.0.json",
+  "type": "object",
+  "required": ["schema_version", "job_type", "job_id", "state", "exit_code", "artifacts", "errors"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "job_type": { "enum": ["simulation", "synthesis", "pnr", "pack", "flash"] },
+    "job_id": { "type": "string", "minLength": 1 },
+    "state": { "enum": ["Created", "Validating", "Queued", "Running", "ValidatingArtifact", "Succeeded", "Failed", "Cancelled", "TimedOut"] },
+    "started_at": { "type": "string" },
+    "completed_at": { "type": "string" },
+    "duration_ms": { "type": "integer", "minimum": 0 },
+    "exit_code": { "type": "integer" },
+    "summary": { "type": "string" },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "kind", "size_bytes", "sha256"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "kind": { "type": "string", "minLength": 1 },
+          "size_bytes": { "type": "integer", "minimum": 0 },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        }
+      }
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "severity", "stage", "summary"],
+        "properties": {
+          "code": { "type": "string" },
+          "severity": { "enum": ["info", "warning", "error"] },
+          "stage": { "type": "string" },
+          "ir_coordinate": { "type": "string" },
+          "summary": { "type": "string" },
+          "log_line": { "type": "integer", "minimum": 0 }
+        }
+      }
+    }
+  }
+}

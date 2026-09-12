@@ -1,0 +1,8 @@
+/build/
+/build-*/
+/external/slang-build-gcc/
+/external/slang-src/
+/external/slang-gcc/
+/external/fpga-tools/
+/tools/verilator/
+/sigflow.log

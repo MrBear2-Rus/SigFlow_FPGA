@@ -1,0 +1,93 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SigFlow TraceBridge Debug Contract",
+  "type": "object",
+  "required": ["session_id", "top_module", "sample_clock", "probes", "transport"],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["1.0"] },
+    "session_id": { "type": "string", "minLength": 1 },
+    "target_profile": { "type": "string" },
+    "top_module": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_$]*$" },
+    "sample_clock": {
+      "type": "object",
+      "required": ["signal", "frequency_hz"],
+      "properties": {
+        "signal": { "type": "string" },
+        "frequency_hz": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "clock_domains": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "signal", "frequency_hz"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "signal": { "type": "string", "minLength": 1 },
+          "frequency_hz": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "probes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "path", "width"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "path": { "type": "string", "minLength": 1 },
+          "width": { "type": "integer", "minimum": 1 },
+          "bit_offset": { "type": "integer", "minimum": 0 },
+          "clock_domain": { "type": "string" },
+          "asynchronous": { "type": "boolean" }
+        }
+      }
+    },
+    "trigger": {
+      "type": "object",
+      "properties": {
+        "kind": { "type": "string", "enum": ["none", "mask_equal", "edge_rising", "edge_falling", "comb_and"] },
+        "mask": { "type": "string" },
+        "value": { "type": "string" },
+        "intent": { "type": "string", "enum": ["state_stall", "handshake_timeout", "fifo_error", "illegal_state"] },
+        "intent_params": { "type": "string" },
+        "expanded": { "type": "string" },
+        "hs_valid_path": { "type": "string", "description": "握手超时触发 valid 信号路径（空=不接线）" },
+        "hs_ready_path": { "type": "string", "description": "握手超时触发 ready 信号路径（空=不接线）" }
+      }
+    },
+    "capture": {
+      "type": "object",
+      "properties": {
+        "depth": { "type": "integer", "minimum": 1 },
+        "pretrigger_samples": { "type": "integer", "minimum": 0 },
+        "decimation": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "transport": {
+      "type": "object",
+      "required": ["tx_port", "rx_port"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["uart"] },
+        "protocol": { "type": "string", "enum": ["minimal", "full"], "default": "minimal" },
+        "tx_port": { "type": "string" },
+        "rx_port": { "type": "string" },
+        "baud": { "type": "integer", "enum": [115200, 460800, 921600, 1500000, 3000000] },
+        "sync_enabled": { "type": "boolean" },
+        "tx_pin": { "type": "integer", "minimum": 0 },
+        "rx_pin": { "type": "integer", "minimum": 0 },
+        "rst_pin": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "fingerprints": {
+      "type": "object",
+      "properties": {
+        "source": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "toolchain": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "bitstream": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "fingerprint64": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

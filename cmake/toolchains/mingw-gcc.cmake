@@ -1,0 +1,15 @@
+set(CMAKE_SYSTEM_NAME Windows)
+
+set(MINGW_ROOT "" CACHE PATH "MinGW-w64 installation root")
+if(NOT MINGW_ROOT AND CMAKE_C_COMPILER_INIT)
+    get_filename_component(MINGW_BIN "${CMAKE_C_COMPILER_INIT}" DIRECTORY)
+    get_filename_component(MINGW_ROOT "${MINGW_BIN}" DIRECTORY)
+    set(MINGW_ROOT "${MINGW_ROOT}" CACHE PATH "MinGW-w64 installation root" FORCE)
+endif()
+
+if(MINGW_ROOT)
+    set(CMAKE_C_COMPILER "${MINGW_ROOT}/bin/gcc.exe" CACHE FILEPATH "MinGW C compiler")
+    set(CMAKE_CXX_COMPILER "${MINGW_ROOT}/bin/g++.exe" CACHE FILEPATH "MinGW C++ compiler")
+    set(CMAKE_RC_COMPILER "${MINGW_ROOT}/bin/windres.exe" CACHE FILEPATH "MinGW resource compiler")
+    set(CMAKE_MAKE_PROGRAM "${MINGW_ROOT}/bin/make.exe" CACHE FILEPATH "GNU Make")
+endif()

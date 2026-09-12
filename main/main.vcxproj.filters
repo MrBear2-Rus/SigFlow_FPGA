@@ -1,0 +1,686 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="源文件">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="头文件">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="资源文件">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="源文件\3rd">
+      <UniqueIdentifier>{1222eda3-bd45-4b2e-8819-f7a29c9d3e88}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\gui">
+      <UniqueIdentifier>{d4ed1daf-4eea-4293-b01c-3c8b839e91db}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\canvas_core">
+      <UniqueIdentifier>{4ac8f9d5-bcb7-4a5f-bca8-93e0373fc5e7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\text_analysis">
+      <UniqueIdentifier>{e5c19a15-6f96-496b-9bc9-7fd495434b83}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\gui">
+      <UniqueIdentifier>{9225b880-c0c9-4e2f-bf09-8a63969e9b67}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\canvas_core">
+      <UniqueIdentifier>{e7c82d33-8312-4b6d-9647-4accad8d8dd2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\text_analysis">
+      <UniqueIdentifier>{a815a929-4d7f-48ec-a8a7-73c41bf96404}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\toolbox_core">
+      <UniqueIdentifier>{88f8167c-b6d2-4c56-b749-ad8edc1030c5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\toolbox_core">
+      <UniqueIdentifier>{5bd72766-d70a-45d7-876c-fa3fe8d1c193}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\gui\canvas">
+      <UniqueIdentifier>{92290ef0-4797-457a-a49f-d15c94b4e1f0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\gui\canvas">
+      <UniqueIdentifier>{b32f01bd-c5de-4ef7-a20f-c582a0e31da2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\sigtree">
+      <UniqueIdentifier>{1999574b-24a3-4c59-8d4c-dae9057bc333}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\sigtree">
+      <UniqueIdentifier>{eed0e8e2-fd3d-439c-8bf8-7f38ab0b77f9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\gui\propertyPanel">
+      <UniqueIdentifier>{8bf2fadf-a1e8-48e9-bc29-f93353d13260}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\gui\propertyPanel">
+      <UniqueIdentifier>{9ba870a6-00d2-463e-9492-46ecf278f079}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\simulation">
+      <UniqueIdentifier>{a1b2c3d4-e5f6-7890-abcd-ef1234567890}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\simulation">
+      <UniqueIdentifier>{b2c3d4e5-f6a7-8901-bcde-f23456789012}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\gui\terminal">
+      <UniqueIdentifier>{3074e575-5bc7-4f7f-97b0-aab4ab67a80c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\gui\terminal">
+      <UniqueIdentifier>{76683726-d924-4444-8f82-da1426516998}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\plugin">
+      <UniqueIdentifier>{01d55f79-143f-4786-af11-22ca509d694c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\plugin">
+      <UniqueIdentifier>{deded1a5-91dd-4aad-9366-8226f65c7a88}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="源文件\jobs">
+      <UniqueIdentifier>{6e2d7aa0-2f71-4e7d-bf7e-4b4cc4d4d901}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="头文件\jobs">
+      <UniqueIdentifier>{7f3c5bb1-5f7e-47f5-b3f1-2d3c7b7b6a02}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="cMain.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="fpga\ArtifactValidator.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="fpga\FpgaPackService.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="fpga\FpgaYosysLogParser.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="fpga\FpgaYosysReport.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="fpga\FpgaSynthesisJobsPanel.cpp" />
+    <ClCompile Include="fpga\FpgaToolWindow.cpp" />
+    <ClCompile Include="BuildProgressBar.cpp" />
+    <ClCompile Include="parse_progress.cpp" />
+    <ClCompile Include="trace\TraceCache.cpp">
+      <Filter>源代码\trace</Filter>
+    </ClCompile>
+    <ClCompile Include="trace\TraceMemoryBudget.cpp">
+      <Filter>源代码\trace</Filter>
+    </ClCompile>
+    <ClCompile Include="trace\TraceSidecarIndex.cpp">
+      <Filter>源代码\trace</Filter>
+    </ClCompile>
+    <ClCompile Include="trace\VcdLazyTraceSource.cpp">
+      <Filter>源代码\trace</Filter>
+    </ClCompile>
+    <ClCompile Include="trace\TraceQueryService.cpp">
+      <Filter>源代码\trace</Filter>
+    </ClCompile>
+    <ClCompile Include="wave\TraceViewPanel.cpp">
+      <Filter>源代码\trace</Filter>
+    </ClCompile>
+    <ClCompile Include="wave\WaveAnalysis.cpp">
+      <Filter>源代码\trace</Filter>
+    </ClCompile>
+    <ClCompile Include="wave\WaveCompareHub.cpp">
+      <Filter>源代码\trace</Filter>
+    </ClCompile>
+    <ClCompile Include="wave\WavePatternSearch.cpp">
+      <Filter>源代码\trace</Filter>
+    </ClCompile>
+    <ClCompile Include="wave\WaveSession.cpp">
+      <Filter>源代码\trace</Filter>
+    </ClCompile>
+      <ClCompile Include="wave\WaveformGLCanvas.cpp">
+        <Filter>源代码\trace</Filter>
+      </ClCompile>
+      <ClCompile Include="wave\WaveformMiniMap.cpp">
+        <Filter>源代码\trace</Filter>
+      </ClCompile>
+    <ClCompile Include="wave\WaveformGLRenderer.cpp">
+      <Filter>源代码\trace</Filter>
+    </ClCompile>
+    <ClCompile Include="wave\WaveformRenderData.cpp">
+      <Filter>源代码\trace</Filter>
+    </ClCompile>
+    <ClCompile Include="wave\WaveformTextLayer.cpp">
+      <Filter>源代码\trace</Filter>
+    </ClCompile>
+    <ClCompile Include="wave\WaveformView.cpp">
+      <Filter>源代码\trace</Filter>
+    </ClCompile>
+    <ClCompile Include="wave\WaveUartLane.cpp">
+      <Filter>源代码\trace</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\DebugContract.cpp">
+      <Filter>源代码\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\DebugFingerprint.cpp">
+      <Filter>源代码\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\DebugSession.cpp">
+      <Filter>源代码\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\DebugNetlistValidator.cpp">
+      <Filter>源代码\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\DebugBehaviorSummary.cpp">
+      <Filter>源代码\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\DebugOverlayBuilder.cpp">
+      <Filter>源代码\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\DebugAcquisition.cpp">
+      <Filter>源代码\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\DebugProtocol.cpp">
+      <Filter>源代码\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\CaptureDecoder.cpp">
+      <Filter>源代码\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\PipeTransport.cpp">
+      <Filter>源代码\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\SerialPortEnumerator.cpp">
+      <Filter>源代码\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\SerialTransport.cpp">
+      <Filter>源代码\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\TraceBridgeWindow.cpp">
+      <Filter>源代码\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\DebugContractConfigWindow.cpp">
+      <Filter>源代码\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\ReplayScenario.cpp">
+      <Filter>源代码\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\RootCauseGraph.cpp">
+      <Filter>源代码\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="debug\DebugMappingBuilder.cpp">
+      <Filter>源代码\debug</Filter>
+    </ClCompile>
+    <ClCompile Include="jobs\JobRegistry.cpp">
+      <Filter>源文件\jobs</Filter>
+    </ClCompile>
+    <ClCompile Include="jobs\JobService.cpp">
+      <Filter>源文件\jobs</Filter>
+    </ClCompile>
+    <ClCompile Include="jobs\PlatformProcess.cpp">
+      <Filter>源文件\jobs</Filter>
+    </ClCompile>
+    <ClCompile Include="jobs\Sha256.cpp">
+      <Filter>源文件\jobs</Filter>
+    </ClCompile>
+    <ClCompile Include="jobs\ToolJobs.cpp">
+      <Filter>源文件\jobs</Filter>
+    </ClCompile>    <ClCompile Include="MainFrame.cpp">
+      <Filter>源文件\gui</Filter>
+    </ClCompile>
+    <ClCompile Include="FpgaYosysRuntime.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FpgaSynthesisJob.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FpgaYosysScriptGenerator.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="FpgaYosysExecutor.cpp" />
+    <ClCompile Include="fpga\FpgaPinData.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="fpga\FpgaConstraint.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="fpga\FpgaPinBindingPanel.cpp">
+      <Filter>源文件\gui</Filter>
+    </ClCompile>
+    <ClCompile Include="MainMenuBar.cpp">
+      <Filter>源文件\gui</Filter>
+    </ClCompile>
+    <ClCompile Include="ProjectTreePanel.cpp">
+      <Filter>源文件\gui</Filter>
+    </ClCompile>
+    <ClCompile Include="SigTextEditor.cpp">
+      <Filter>源文件\gui</Filter>
+    </ClCompile>
+    <ClCompile Include="ToolboxPanel.cpp">
+      <Filter>源文件\gui</Filter>
+    </ClCompile>
+    <ClCompile Include="AsyncAnalysisCenter.cpp">
+      <Filter>源文件\text_analysis</Filter>
+    </ClCompile>
+    <ClCompile Include="Wire.cpp">
+      <Filter>源文件\canvas_core</Filter>
+    </ClCompile>
+    <ClCompile Include="CanvasModel.cpp">
+      <Filter>源文件\canvas_core</Filter>
+    </ClCompile>
+    <ClCompile Include="CanvasElement.cpp">
+      <Filter>源文件\canvas_core</Filter>
+    </ClCompile>
+    <ClCompile Include="ToolboxModel.cpp">
+      <Filter>源文件\toolbox_core</Filter>
+    </ClCompile>
+    <ClCompile Include="CanvasEventHandler.cpp">
+      <Filter>源文件\gui\canvas</Filter>
+    </ClCompile>
+    <ClCompile Include="CanvasPanel.cpp">
+      <Filter>源文件\gui\canvas</Filter>
+    </ClCompile>
+    <ClCompile Include="HandyToolKit.cpp">
+      <Filter>源文件\gui\canvas</Filter>
+    </ClCompile>
+    <ClCompile Include="ToolStateMachine.cpp">
+      <Filter>源文件\gui\canvas</Filter>
+    </ClCompile>
+    <ClCompile Include="CanvasTextElement.cpp">
+      <Filter>源文件\canvas_core</Filter>
+    </ClCompile>
+    <ClCompile Include="TreeSitterLinter.cpp">
+      <Filter>源文件\text_analysis</Filter>
+    </ClCompile>
+    <ClCompile Include="SigTree.cpp">
+      <Filter>源文件\sigtree</Filter>
+    </ClCompile>
+    <ClCompile Include="VerilogStructuring.cpp">
+      <Filter>源文件\text_analysis</Filter>
+    </ClCompile>
+    <ClCompile Include="SigFlowTreePanel.cpp">
+      <Filter>源文件\gui</Filter>
+    </ClCompile>
+    <ClCompile Include="SFNPropertyPanel.cpp">
+      <Filter>源文件\gui\propertyPanel</Filter>
+    </ClCompile>
+    <ClCompile Include="TerminalController.cpp">
+      <Filter>源文件\gui\terminal</Filter>
+    </ClCompile>
+    <ClCompile Include="TerminalCtrl.cpp">
+      <Filter>源文件\gui\terminal</Filter>
+    </ClCompile>
+    <ClCompile Include="PluginManager.cpp">
+      <Filter>源文件\plugin</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rd\json\jsoncpp.cpp">
+      <Filter>源文件\3rd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rd\tree-sitter\lib\src\lib.c">
+      <Filter>源文件\3rd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rd\tree-sitter-verilog\src\parser.c">
+      <Filter>源文件\3rd</Filter>
+    </ClCompile>
+    <ClCompile Include="PluginStore.cpp">
+      <Filter>源文件\gui</Filter>
+    </ClCompile>
+    <ClCompile Include="SVGParser.cpp">
+      <Filter>源文件\gui</Filter>
+    </ClCompile>
+    <ClCompile Include="CanvasNoteBook.cpp">
+      <Filter>源文件\gui\canvas</Filter>
+    </ClCompile>
+    <ClCompile Include="PropertyPanelBuilder.cpp">
+      <Filter>源文件\gui\propertyPanel</Filter>
+    </ClCompile>
+    <ClCompile Include="VerilogManager.cpp">
+      <Filter>源文件\text_analysis</Filter>
+    </ClCompile>
+    <ClCompile Include="..\3rd\vcd\vcd.cpp">
+      <Filter>源文件\3rd</Filter>
+    </ClCompile>
+    <ClCompile Include="ProjectStartWindow.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Fpga\NextpnrLogParser.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Fpga\NextpnrReport.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="fpga\CstValidator.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="fpga\NextpnrExecutor.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="fpga\NextpnrJob.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="fpga\NextpnrJobsPanel.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="my_log.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="SigTextEditor.h">
+      <Filter>头文件\gui</Filter>
+    </ClInclude>
+    <ClInclude Include="jobs\JobRunner.h">
+      <Filter>头文件\jobs</Filter>
+    </ClInclude>    <ClInclude Include="jobs\JobService.h">
+      <Filter>头文件\jobs</Filter>
+    </ClInclude>
+    <ClInclude Include="jobs\PlatformProcess.h">
+      <Filter>头文件\jobs</Filter>
+    </ClInclude>
+    <ClInclude Include="jobs\Sha256.h">
+      <Filter>头文件\jobs</Filter>
+    </ClInclude>
+    <ClInclude Include="jobs\ToolJobs.h">
+      <Filter>头文件\jobs</Filter>
+    </ClInclude>    <ClInclude Include="MainFrame.h">
+      <Filter>头文件\gui</Filter>
+    </ClInclude>
+    <ClInclude Include="FpgaYosysRuntime.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FpgaSynthesisJob.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="fpga\ArtifactValidator.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="fpga\FpgaPackService.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="fpga\FpgaYosysLogParser.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="fpga\FpgaYosysReport.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="fpga\FpgaSynthesisJobsPanel.h" />
+    <ClInclude Include="fpga\FpgaToolWindow.h" />
+    <ClInclude Include="fpga\FpgaTheme.h" />
+    <ClInclude Include="FpgaYosysScriptGenerator.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="FpgaYosysExecutor.h" />
+    <ClInclude Include="BuildProgressBar.h" />
+    <ClInclude Include="parse_progress.h" />
+    <ClInclude Include="trace\TraceCache.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="trace\TraceMemoryBudget.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="trace\TraceSidecarIndex.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="trace\TraceSource.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="trace\TraceTypes.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="trace\VcdLazyTraceSource.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="trace\TraceQueryService.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="wave\TraceViewPanel.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="wave\WaveAnalysis.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="wave\WaveCompareHub.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="wave\WavePatternSearch.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="wave\WaveSession.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="wave\WaveViewState.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+      <ClInclude Include="wave\WaveformGLCanvas.h">
+        <Filter>头文件\trace</Filter>
+      </ClInclude>
+      <ClInclude Include="wave\WaveformMiniMap.h">
+        <Filter>头文件\trace</Filter>
+      </ClInclude>
+    <ClInclude Include="wave\WaveformGLRenderer.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="wave\WaveformRenderData.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="wave\WaveformTextLayer.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="wave\WaveformView.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="wave\WaveTheme.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="wave\WaveUartLane.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\DebugContract.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\DebugFingerprint.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\DebugSession.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\DebugThresholds.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\DebugNetlistValidator.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\DebugBehaviorSummary.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\DebugOverlayBuilder.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\DebugAcquisition.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\DebugProtocol.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\CaptureDecoder.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\ITransport.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\PipeTransport.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\SerialPortEnumerator.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\SerialTransport.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\TraceBridgeWindow.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\DebugContractConfigWindow.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\WaveformComparator.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\WaveformAligner.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\ReplayScenario.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\RootCauseGraph.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="debug\DebugMappingBuilder.h">
+      <Filter>头文件\debug</Filter>
+    </ClInclude>
+    <ClInclude Include="fpga\FpgaPinData.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="fpga\FpgaConstraint.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="fpga\FpgaPinBindingPanel.h">
+      <Filter>头文件\gui</Filter>
+    </ClInclude>
+    <ClInclude Include="ProjectTreePanel.h">
+      <Filter>头文件\gui</Filter>
+    </ClInclude>
+    <ClInclude Include="ToolboxPanel.h">
+      <Filter>头文件\gui</Filter>
+    </ClInclude>
+    <ClInclude Include="CanvasModel.h">
+      <Filter>头文件\canvas_core</Filter>
+    </ClInclude>
+    <ClInclude Include="CanvasElement.h">
+      <Filter>头文件\canvas_core</Filter>
+    </ClInclude>
+    <ClInclude Include="Wire.h">
+      <Filter>头文件\canvas_core</Filter>
+    </ClInclude>
+    <ClInclude Include="AsyncAnalysisCenter.h">
+      <Filter>头文件\text_analysis</Filter>
+    </ClInclude>
+    <ClInclude Include="CanvasTextElement.h">
+      <Filter>头文件\canvas_core</Filter>
+    </ClInclude>
+    <ClInclude Include="MainMenuBar.h">
+      <Filter>头文件\gui</Filter>
+    </ClInclude>
+    <ClInclude Include="ToolboxModel.h">
+      <Filter>头文件\toolbox_core</Filter>
+    </ClInclude>
+    <ClInclude Include="CanvasEventHandler.h">
+      <Filter>头文件\gui\canvas</Filter>
+    </ClInclude>
+    <ClInclude Include="CanvasPanel.h">
+      <Filter>头文件\gui\canvas</Filter>
+    </ClInclude>
+    <ClInclude Include="ToolStateMachine.h">
+      <Filter>头文件\gui\canvas</Filter>
+    </ClInclude>
+    <ClInclude Include="HandyToolKit.h">
+      <Filter>头文件\gui\canvas</Filter>
+    </ClInclude>
+    <ClInclude Include="TreeSitterLinter.h">
+      <Filter>头文件\text_analysis</Filter>
+    </ClInclude>
+    <ClInclude Include="SigTree.h">
+      <Filter>头文件\sigtree</Filter>
+    </ClInclude>
+    <ClInclude Include="VerilogStructuring.h">
+      <Filter>头文件\text_analysis</Filter>
+    </ClInclude>
+    <ClInclude Include="SigFlowTreePanel.h">
+      <Filter>头文件\gui</Filter>
+    </ClInclude>
+    <ClInclude Include="SFNPropertyPanel.h">
+      <Filter>头文件\gui\propertyPanel</Filter>
+    </ClInclude>
+    <ClCompile Include="Simulation\SimulationEngine.cpp">
+      <Filter>源文件\simulation</Filter>
+    </ClCompile>
+    <ClCompile Include="Simulation\VerilatorRunner.cpp">
+      <Filter>源文件\simulation</Filter>
+    </ClCompile>
+    <ClCompile Include="Simulation\ProcessRunner.cpp">
+      <Filter>源文件\simulation</Filter>
+    </ClCompile>
+    <ClCompile Include="Simulation\StimulusParser.cpp">
+      <Filter>源文件\simulation</Filter>
+    </ClCompile>
+    <ClCompile Include="Simulation\TimelineGenerator.cpp">
+      <Filter>源文件\simulation</Filter>
+    </ClCompile>
+    <ClCompile Include="Simulation\SimMainGenerator.cpp">
+      <Filter>源文件\simulation</Filter>
+    </ClCompile>
+    <ClInclude Include="Simulation\SimulationEngine.h">
+      <Filter>头文件\simulation</Filter>
+    </ClInclude>
+    <ClInclude Include="Simulation\VerilatorRunner.h">
+      <Filter>头文件\simulation</Filter>
+    </ClInclude>
+    <ClInclude Include="Simulation\ProcessRunner.h">
+      <Filter>头文件\simulation</Filter>
+    </ClInclude>
+    <ClInclude Include="Simulation\StimulusParser.h">
+      <Filter>头文件\simulation</Filter>
+    </ClInclude>
+    <ClInclude Include="Simulation\TimelineGenerator.h">
+      <Filter>头文件\simulation</Filter>
+    </ClInclude>
+    <ClInclude Include="Simulation\SimMainGenerator.h">
+      <Filter>头文件\simulation</Filter>
+    </ClInclude>
+    <ClInclude Include="TerminalCtrl.h">
+      <Filter>头文件\gui\terminal</Filter>
+    </ClInclude>
+    <ClInclude Include="TerminalController.h">
+      <Filter>头文件\gui\terminal</Filter>
+    </ClInclude>
+    <ClInclude Include="PluginManager.h">
+      <Filter>头文件\plugin</Filter>
+    </ClInclude>
+    <ClInclude Include="PluginStore.h">
+      <Filter>头文件\gui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\3rd\nanosvg\nanosvg.h">
+      <Filter>源文件\3rd</Filter>
+    </ClInclude>
+    <ClInclude Include="CanvasNoteBook.h">
+      <Filter>头文件\gui\canvas</Filter>
+    </ClInclude>
+    <ClInclude Include="PropertyPanelBuilder.h">
+      <Filter>头文件\gui\propertyPanel</Filter>
+    </ClInclude>
+    <ClInclude Include="Statement.h">
+      <Filter>头文件\gui</Filter>
+    </ClInclude>
+    <ClInclude Include="StatementSequence.h">
+      <Filter>头文件\gui</Filter>
+    </ClInclude>
+    <ClInclude Include="VerilogManager.h">
+      <Filter>头文件\text_analysis</Filter>
+    </ClInclude>
+    <ClInclude Include="ProjectStartWindow.h">
+      <Filter>头文件\gui</Filter>
+    </ClInclude>
+    <ClInclude Include="Fpga\NextpnrLogParser.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Fpga\NextpnrReport.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="fpga\CstValidator.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="fpga\NextpnrExecutor.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="fpga\NextpnrJob.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="fpga\NextpnrJobsPanel.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "id": "tang-nano-9k",
+  "version": "1.0.0",
+  "display_name": "Sipeed Tang Nano 9K",
+  "yosys": {
+    "family": "gw1n",
+    "synthesis_command": "synth_gowin -family gw1n -top ${top}"
+  },
+  "nextpnr": {
+    "device": "GW1NR-LV9QN88PC6/I5",
+    "family": "GW1N-9C"
+  },
+  "openfpgaloader": {
+    "board": "tangnano9k"
+  },
+  "tracebridge": {
+    "uart_tx_pin": 17,
+    "uart_rx_pin": 18,
+    "debug_reset": "fixed_high",
+    "default_baud": 921600
+  }
+}

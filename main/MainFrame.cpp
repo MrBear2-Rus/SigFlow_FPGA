@@ -1,0 +1,4635 @@
+#include <wx/msgdlg.h>
+#include <wx/filename.h> 
+#include <wx/sstream.h>
+#include <wx/aui/aui.h>
+#include <wx/progdlg.h>
+#include <wx/filedlg.h>
+#include <wx/filefn.h>
+#include <wx/stc/stc.h>
+#include <wx/stdpaths.h>
+#include <wx/aui/tabart.h>
+#include <wx/app.h>
+#include <wx/simplebook.h>
+#include <wx/splitter.h>
+#include <wx/utils.h>
+#include <wx/process.h>
+#include <wx/timer.h>
+#include <wx/weakref.h>
+
+#include <windows.h>
+
+#include <cstring>
+#include <cstdarg>
+#include <algorithm>
+#include <limits>
+#include <mutex>
+#include <functional>
+#include <chrono>
+#include <thread>
+
+#include "MainFrame.h"
+#include "fpga/ArtifactValidator.h"
+#include "fpga/FpgaPackService.h"
+#include "jobs/JobRunner.h"
+#include "MainMenuBar.h"
+#include "FpgaYosysRuntime.h"
+#include "FpgaYosysExecutor.h"
+#include "FpgaYosysScriptGenerator.h"
+#include "FpgaSynthesisJob.h"
+#include "fpga/FpgaYosysLogParser.h"
+#include "fpga/FpgaYosysReport.h"
+#include "fpga/FpgaToolWindow.h"
+#include "debug/TraceBridgeWindow.h"
+#include "debug/DebugContractConfigWindow.h"
+#include "debug/DebugAcquisition.h"
+#include "debug/DebugSession.h"
+#include "debug/DebugOverlayBuilder.h"
+#include "debug/DebugNetlistValidator.h"
+#include "debug/DebugFingerprint.h"
+#include "debug/DebugMappingBuilder.h"
+#include "debug/SerialTransport.h"
+#include "ToolboxPanel.h"  
+#include "CanvasModel.h"
+#include "my_log.h"
+#include "CanvasNoteBook.h"
+#include "VerilogStructuring.h"
+#include "VerilogManager.h"
+#include "Fpga/NextpnrLogParser.h"
+#include "Fpga/NextpnrReport.h"
+#include "Fpga/CstValidator.h"
+#include "fpga/NextpnrExecutor.h"
+#include "fpga/NextpnrJob.h"
+
+extern std::vector<SecondElement> g_elements;
+extern "C" TSLanguage* tree_sitter_verilog();
+
+namespace {
+
+struct FpgaProjectOptions {
+    wxString targetProfileId;
+    wxString yosysPath;
+    wxString yosysStrategy = "baseline";
+    int yosysTimeLimitSec = 0;
+    size_t yosysMemoryLimitBytes = 0;
+    size_t yosysLogLimitBytes = 0;
+    wxString nextpnrPath;
+    std::vector<wxString> nextpnrArgs;
+    wxString gowinPackPath;
+    std::vector<wxString> gowinPackArgs;
+    wxString openFpgaLoaderPath;
+    std::vector<wxString> openFpgaLoaderArgs;
+};
+
+wxString NormalizeProjectDirectoryPath(const wxString& value)
+{
+    if (value.IsEmpty()) return value;
+    wxFileName path(value);
+    if (path.GetFullName().Lower() == wxT("sigflow.project")) return path.GetPath();
+    return value;
+}
+
+bool IsValidVerilogIdentifier(const wxString& value)
+{
+    if (value.IsEmpty()) {
+        return false;
+    }
+
+    const wxChar first = value[0];
+    if (!(wxIsalpha(first) || first == '_')) {
+        return false;
+    }
+
+    for (const wxChar character : value) {
+        if (!(wxIsalnum(character) || character == '_' || character == '$')) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool EnsureDirectory(const wxString& path)
+{
+    return wxDirExists(path) || wxFileName::Mkdir(path, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
+}
+
+bool WriteUtf8File(const wxString& path, const wxString& content)
+{
+    wxFile file(path, wxFile::write);
+    if (!file.IsOpened()) {
+        return false;
+    }
+
+    const wxScopedCharBuffer utf8 = content.ToUTF8();
+    const char* data = utf8.data();
+    const size_t length = data ? std::strlen(data) : 0;
+    const bool written = file.Write(data, length) == static_cast<wxFileOffset>(length);
+    file.Close();
+    return written;
+}
+
+class FpgaToolProcess final : public wxProcess {
+public:
+    using CompletionCallback = std::function<void(int exitCode, const wxString& fullOutput)>;
+
+    FpgaToolProcess(TerminalCtrl* terminal, const wxString& toolName,
+                    std::function<void(int)> onTerminate = nullptr,
+                    CompletionCallback onComplete = nullptr)
+        : m_terminal(terminal), m_toolName(toolName),
+          m_onTerminate(std::move(onTerminate)),
+          m_onComplete(std::move(onComplete))
+    {
+        Redirect();
+        m_outputTimer.SetOwner(this);
+        Bind(wxEVT_TIMER, &FpgaToolProcess::OnOutputTimer, this);
+    }
+
+    void StartOutputPump()
+    {
+        m_outputTimer.Start(75);
+    }
+
+    void OnTerminate(int pid, int status) override
+    {
+        m_outputTimer.Stop();
+        DrainOutput(true);
+        if (TerminalCtrl* terminal = m_terminal.get()) {
+            const wxString result = status == 0
+                ? "[" + m_toolName + "] completed successfully (PID " +
+                      wxString::Format("%d", pid) + ")."
+                : "[" + m_toolName + "] failed with exit code " +
+                      wxString::Format("%d", status) + " (PID " +
+                      wxString::Format("%d", pid) + ").";
+            terminal->FinishProcessOutput(result);
+        }
+        if (m_onTerminate) {
+            m_onTerminate(status);
+        }
+        // Fire log-analysis callback so callers can parse the output
+        if (m_onComplete) {
+            m_onComplete(status, m_outputBuffer);
+        }
+        delete this;
+    }
+
+private:
+    void OnOutputTimer(wxTimerEvent&)
+    {
+        DrainOutput();
+    }
+
+    void DrainOutput(bool drainAll = false)
+    {
+        DrainStream(GetInputStream(), false, drainAll);
+        DrainStream(GetErrorStream(), true, drainAll);
+    }
+
+    void DrainStream(wxInputStream* stream, bool isErrorStream, bool drainAll)
+    {
+        constexpr size_t kMaxChunksPerTimerEvent = 64;
+        char buffer[4096];
+        size_t chunksRead = 0;
+        while (m_terminal && stream &&
+               (isErrorStream ? IsErrorAvailable() : IsInputAvailable()) &&
+               (drainAll || chunksRead < kMaxChunksPerTimerEvent)) {
+            stream->Read(buffer, sizeof(buffer));
+            const size_t bytesRead = stream->LastRead();
+            if (bytesRead == 0) {
+                break;
+            }
+            m_terminal->AppendProcessOutput(wxString::FromUTF8(buffer, bytesRead));
+            m_outputBuffer += wxString::FromUTF8(buffer, bytesRead);
+            ++chunksRead;
+        }
+    }
+
+    wxWeakRef<TerminalCtrl> m_terminal;
+    wxString m_toolName;
+    std::function<void(int)> m_onTerminate;
+    wxString m_outputBuffer;            // 累积全部输出供回调解析
+    CompletionCallback m_onComplete;
+    wxTimer m_outputTimer;
+};
+
+bool LoadFpgaProjectOptions(const wxString& projectPath, FpgaProjectOptions& options,
+                            wxString& errorMessage)
+{
+    const wxString configPath = NormalizeProjectDirectoryPath(projectPath) + "\\sigflow.project";
+    wxFile file(configPath, wxFile::read);
+    if (!file.IsOpened()) {
+        errorMessage = "Unable to open sigflow.project.";
+        return false;
+    }
+
+    wxString jsonContent;
+    file.ReadAll(&jsonContent);
+    file.Close();
+
+    const wxScopedCharBuffer utf8 = jsonContent.ToUTF8();
+    Json::Value root;
+    Json::CharReaderBuilder builder;
+    std::string errors;
+    std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
+    const char* data = utf8.data();
+    if (!data || !reader->parse(data, data + std::strlen(data), &root, &errors)) {
+        errorMessage = "Unable to parse sigflow.project: " + wxString::FromUTF8(errors);
+        return false;
+    }
+
+    const Json::Value& fpga = root["fpga"];
+    if (!fpga.isObject()) {
+        return true;
+    }
+
+    if (fpga["target_profile"].isString()) {
+        options.targetProfileId = wxString::FromUTF8(fpga["target_profile"].asString());
+    }
+    if (fpga["yosys_path"].isString()) {
+        options.yosysPath = wxString::FromUTF8(fpga["yosys_path"].asString());
+    }
+    if (fpga["yosys_strategy"].isString()) {
+        options.yosysStrategy = wxString::FromUTF8(fpga["yosys_strategy"].asString());
+    }
+    const auto readYosysLimit = [&fpga, &errorMessage](const char* name, size_t multiplier,
+                                                        size_t maximum, size_t& destination) {
+        const Json::Value& value = fpga[name];
+        if (value.isNull()) {
+            return true;
+        }
+        if (!value.isUInt64() || value.asUInt64() > maximum / multiplier) {
+            errorMessage = "fpga." + wxString::FromUTF8(name) +
+                           " must be a non-negative integer in range.";
+            return false;
+        }
+        destination = static_cast<size_t>(value.asUInt64()) * multiplier;
+        return true;
+    };
+    size_t yosysTimeLimit = 0;
+    if (!readYosysLimit("yosys_time_limit_sec", 1, static_cast<size_t>((std::numeric_limits<int>::max)()),
+                        yosysTimeLimit) ||
+        !readYosysLimit("yosys_memory_limit_mib", 1024U * 1024U,
+                        (std::numeric_limits<size_t>::max)(), options.yosysMemoryLimitBytes) ||
+        !readYosysLimit("yosys_log_limit_kib", 1024U,
+                        (std::numeric_limits<size_t>::max)(), options.yosysLogLimitBytes)) {
+        return false;
+    }
+    options.yosysTimeLimitSec = static_cast<int>(yosysTimeLimit);
+    if (fpga["nextpnr_path"].isString()) {
+        options.nextpnrPath = wxString::FromUTF8(fpga["nextpnr_path"].asString());
+    }
+    if (fpga["nextpnr_args"].isArray()) {
+        for (const Json::Value& argument : fpga["nextpnr_args"]) {
+            if (argument.isString()) {
+                options.nextpnrArgs.push_back(wxString::FromUTF8(argument.asString()));
+            }
+        }
+    }
+    if (fpga["gowin_pack_path"].isString()) {
+        options.gowinPackPath = wxString::FromUTF8(fpga["gowin_pack_path"].asString());
+    }
+    if (fpga["gowin_pack_args"].isArray()) {
+        for (const Json::Value& argument : fpga["gowin_pack_args"]) {
+            if (argument.isString()) {
+                options.gowinPackArgs.push_back(wxString::FromUTF8(argument.asString()));
+            }
+        }
+    }
+    if (fpga["openfpgaloader_path"].isString()) {
+        options.openFpgaLoaderPath =
+            wxString::FromUTF8(fpga["openfpgaloader_path"].asString());
+    }
+    if (fpga["openfpgaloader_args"].isArray()) {
+        for (const Json::Value& argument : fpga["openfpgaloader_args"]) {
+            if (argument.isString()) {
+                options.openFpgaLoaderArgs.push_back(wxString::FromUTF8(argument.asString()));
+            }
+        }
+    }
+    return true;
+}
+
+wxString FindFpgaTool(const wxString& configuredPath, const wxString& environmentVariable,
+                      const wxString& executableName)
+{
+    if (!configuredPath.IsEmpty()) {
+        return wxFileExists(configuredPath) ? configuredPath : wxString();
+    }
+
+    // Support both IDE launches from the repository and direct launches from bin/x64/<config>.
+    const wxString executableDirectory =
+        wxFileName(wxStandardPaths::Get().GetExecutablePath()).GetPath();
+    for (const wxString& startDirectory : { wxGetCwd(), executableDirectory }) {
+        wxFileName directory = wxFileName::DirName(startDirectory);
+        for (int depth = 0; depth < 6; ++depth) {
+            const wxString bundledToolRoot =
+                directory.GetPath() + "\\external\\fpga-tools\\runtime";
+            const std::vector<wxString> bundledCandidates = {
+                bundledToolRoot + "\\yosys\\bin\\" + executableName,
+                bundledToolRoot + "\\nextpnr\\bin\\" + executableName,
+                bundledToolRoot + "\\apicula\\Scripts\\" + executableName,
+                bundledToolRoot + "\\openfpgaloader\\bin\\" + executableName,
+            };
+            for (const wxString& candidate : bundledCandidates) {
+                if (wxFileExists(candidate)) {
+                    return candidate;
+                }
+            }
+            directory.RemoveLastDir();
+        }
+    }
+
+    wxString environmentPath;
+    if (wxGetEnv(environmentVariable, &environmentPath) && !environmentPath.IsEmpty()) {
+        return wxFileExists(environmentPath) ? environmentPath : wxString();
+    }
+
+    wxString pathVariable;
+    if (!wxGetEnv("PATH", &pathVariable)) {
+        return wxString();
+    }
+
+    for (wxString directory : wxSplit(pathVariable, ';')) {
+        directory.Trim(true).Trim(false);
+        if (directory.StartsWith("\"") && directory.EndsWith("\"")) {
+            directory = directory.Mid(1, directory.length() - 2);
+        }
+        if (directory.IsEmpty()) {
+            continue;
+        }
+
+        const wxString candidate = directory + wxFileName::GetPathSeparator() + executableName;
+        if (wxFileExists(candidate)) {
+            return candidate;
+        }
+    }
+    return wxString();
+}
+
+wxString FindTraceBridgeDebugRtl(const wxString& projectPath)
+{
+    const wxString executableDirectory =
+        wxFileName(wxStandardPaths::Get().GetExecutablePath()).GetPath();
+    const std::vector<wxString> startDirectories = {
+        projectPath, wxGetCwd(), executableDirectory
+    };
+    for (const wxString& startDirectory : startDirectories) {
+        if (startDirectory.IsEmpty()) continue;
+        wxFileName directory = wxFileName::DirName(startDirectory);
+        for (int depth = 0; depth < 10; ++depth) {
+            const wxString candidate = directory.GetPath() + "\\rtl\\debug";
+            if (wxDirExists(candidate) &&
+                wxFileExists(candidate + "\\sf_micro_ila.sv") &&
+                wxFileExists(candidate + "\\sf_uart_link.sv") &&
+                wxFileExists(candidate + "\\sf_debug_link.sv")) {
+                return candidate;
+            }
+            const wxString previousDirectory = directory.GetPath();
+            directory.RemoveLastDir();
+            if (directory.GetPath() == previousDirectory) break;
+        }
+    }
+    return wxString();
+}
+
+long LaunchFpgaTool(const wxString& executable, const std::vector<wxString>& arguments,
+                    const wxString& workingDirectory, TerminalCtrl* terminal,
+                    const wxString& toolName,
+                    std::function<void(int)> onTerminate = {},
+                    FpgaToolProcess::CompletionCallback onComplete = nullptr)
+{
+    std::vector<wxString> commandLine;
+    commandLine.reserve(arguments.size() + 1);
+    commandLine.push_back(executable);
+    commandLine.insert(commandLine.end(), arguments.begin(), arguments.end());
+
+    std::vector<const wchar_t*> argv;
+    argv.reserve(commandLine.size() + 1);
+    for (const wxString& argument : commandLine) {
+        argv.push_back(argument.wc_str());
+    }
+    argv.push_back(nullptr);
+
+    wxExecuteEnv environment;
+    environment.cwd = workingDirectory;
+    FpgaToolProcess* process = new FpgaToolProcess(terminal, toolName,
+        std::move(onTerminate), std::move(onComplete));
+    const long processId = wxExecute(argv.data(), wxEXEC_ASYNC | wxEXEC_HIDE_CONSOLE, process, &environment);
+    if (processId == 0) {
+        delete process;
+        return 0;
+    }
+
+    if (terminal) {
+        wxString command = "[" + toolName + "] started (PID " +
+            wxString::Format("%ld", processId) + ")\nCommand: " + executable;
+        for (const wxString& argument : arguments) {
+            command += " \"" + argument + "\"";
+        }
+        terminal->BeginProcessOutput(command + "\nWorking directory: " + workingDirectory + "\n");
+    }
+    process->StartOutputPump();
+    return processId;
+}
+
+wxString BuildNextpnrReadme()
+{
+    return
+        "# nextpnr work directory\n\n"
+        "The default target is the Sipeed Tang Nano 9K: GW1NR-LV9QN88PC6/I5 (GW1N-9C).\n\n"
+        "```json\n"
+        "{\n"
+        "  \"fpga\": {\n"
+        "    \"yosys_path\": \"C:/tools/yosys/yosys.exe\",\n"
+        "    \"yosys_strategy\": \"baseline\",\n"
+        "    \"nextpnr_path\": \"C:/tools/nextpnr/nextpnr-himbaechel.exe\",\n"
+        "    \"nextpnr_args\": [\n"
+        "      \"--device\", \"GW1NR-LV9QN88PC6/I5\",\n"
+        "      \"--vopt\", \"family=GW1N-9C\",\n"
+        "      \"--json\", \"${yosys_json}\",\n"
+        "      \"--write\", \"${nextpnr_dir}/top.pnr.json\"\n"
+        "    ],\n"
+        "    \"gowin_pack_path\": \"C:/tools/apicula/Scripts/gowin_pack.exe\",\n"
+        "    \"gowin_pack_args\": [\"-d\", \"${device}\", \"-o\", \"${fs_output}\", \"${pnr_json}\"],\n"
+        "    \"openfpgaloader_path\": \"C:/tools/openfpgaloader/openFPGALoader.exe\",\n"
+        "    \"openfpgaloader_args\": [\"-b\", \"tangnano9k\", \"${bitstream}\"]\n"
+        "  }\n"
+        "}\n"
+        "```\n\n"
+        "`${yosys_json}`, `${nextpnr_dir}`, `${pnr_json}`, `${fs_output}` and `${device}` are "
+        "replaced by SigFlow at launch. Add a `--vopt` "
+        "`cst=<constraints.cst>` argument when a board constraint file is available. Run Apicula "
+        "`gowin_pack -d GW1N-9C` on the PnR JSON to create a downloadable `.fs` bitstream.\n";
+}
+
+} // namespace
+
+void SaveYosysDiagnosticReport(const SynthesisJobPaths& paths, const wxString& jobId,
+                               const wxString& status, const wxString& strategy,
+                               const wxString& combinedLog, const wxString& artifactPath,
+                               int durationMs, const wxString& fallbackMessage);
+
+wxDEFINE_EVENT(EVT_SFTREE_NODE_ACTIVATED, wxCommandEvent);
+wxDEFINE_EVENT(EVT_SIGFLOWNODE_ADD, wxCommandEvent);
+wxDEFINE_EVENT(EVT_SIGFLOWNODE_DEL, wxCommandEvent);
+wxDEFINE_EVENT(EVT_SIGFLOWNODE_CHANGED, wxCommandEvent);
+
+wxBEGIN_EVENT_TABLE(MainFrame, wxFrame)
+EVT_MENU(wxID_ABOUT, MainFrame::OnAbout)
+EVT_MENU(wxID_EXIT, MainFrame::OnQuit)
+EVT_MENU(wxID_HIGHEST + 900, MainFrame::OnToolboxElement)
+EVT_MENU(wxID_HIGHEST + 901, MainFrame::OnToolSelected)
+wxEND_EVENT_TABLE()
+
+enum {
+    ID_SIDEBAR_START = wxID_HIGHEST + 1000, // 从一个安全的数字开始
+
+
+    ID_PROJ,
+    ID_FLOW,
+    ID_TBOX,
+    ID_OTHER_TOOL,
+
+    ID_TB_NEW,
+    ID_TB_OPEN,
+    ID_TB_SAVE,
+    ID_TB_RECLAIM,
+    ID_TB_START,
+    ID_TB_STOP,
+};
+
+MainFrame::MainFrame()
+    : wxFrame(nullptr, wxID_ANY, "SigFlow"),
+    snap_version(0),               // 初始化
+    m_isModified(false),
+    m_verilogEditor(nullptr),       // 先置空
+    m_analysisCenter(nullptr),
+    m_projectTreePanel(nullptr),
+    sigTree(nullptr),
+    m_toolbox(nullptr),
+    m_sigFlowTreePanel(nullptr),
+    m_sfnPropertyPanel(nullptr),
+    m_fpgaPinBindingPanel(nullptr),
+    m_fpgaToolWindow(nullptr),
+    m_traceBridgeWindow(nullptr),
+    m_debugContractConfigWindow(nullptr),
+    m_terminalCtrl(nullptr),
+    m_pluginMgr(nullptr)
+{
+    // 图标
+    wxInitAllImageHandlers();
+    wxBitmapBundle svgIcon = wxBitmapBundle::FromSVGFile("res\\svg_icons\\icon.svg", wxSize(24, 24));
+    wxIcon icon = svgIcon.GetIconFor(this);
+    SetIcon(icon);
+
+    wxSize tbIconSize = FromDIP(wxSize(12, 12));
+    // 标题
+    SetTitle("SigFlow [no project]");
+
+    // 元件模型库
+    wxString jsonPath = wxFileName(wxGetCwd(), "canvas_elements.json").GetFullPath();
+    MyLog("MainFrame: JSON full path = [%s]\n", jsonPath.ToUTF8().data());
+    g_elements = LoadSecondElements(jsonPath);
+
+
+    Bind(wxEVT_CLOSE_WINDOW, &MainFrame::OnClose, this);
+
+    // 构造SigTree
+    sigTree = new SigFlowTree(this);
+    this->Bind(EVT_SIGFLOWNODE_ADD, &MainFrame::OnSFNodeAdded, this);
+    this->Bind(EVT_SIGFLOWNODE_DEL, &MainFrame::OnSFNodeDeleted, this);
+    this->Bind(EVT_SIGFLOWNODE_CHANGED, &MainFrame::OnSFNodeChanged, this);
+
+    /* 面板加载 */
+    m_auiMgr.SetManagedWindow(this);
+
+    /* 菜单栏*/
+    SetMenuBar(new MainMenuBar(this));
+    CreateStatusBar(1);
+    int widths[] = { -4, -2, FromDIP(100), FromDIP(100) };
+    int style[] = { wxSB_NORMAL, wxSB_NORMAL, wxSB_NORMAL, wxSB_NORMAL };
+    GetStatusBar()->SetFieldsCount(4, widths);
+    GetStatusBar()->SetStatusStyles(4, style);
+
+    m_busyIndicator = new wxActivityIndicator(GetStatusBar(), wxID_ANY);
+    m_busyIndicator->Hide();
+    GetStatusBar()->Bind(wxEVT_SIZE, [this](wxSizeEvent& evt) {
+        evt.Skip();
+        LayoutBusyIndicator();
+    });
+
+
+    // 画布
+    m_canvas = new CanvasNoteBook(this, sigTree, wxID_ANY, FromDIP(1123), FromDIP(794));
+
+
+    // 元件库
+    m_toolbox = new ToolboxPanel(this);
+    // 构造树面板
+    m_sigFlowTreePanel = new SigFlowTreePanel(this, sigTree);
+
+    // SigTreeNode属性栏
+    m_sfnPropertyPanel = new SFNPropertyPanel(this, sigTree);
+
+    // FPGA引脚绑定面板
+    m_fpgaPinBindingPanel = new FpgaPinBindingPanel(this, this);
+    this->Bind(EVT_SFTREE_NODE_ACTIVATED, &MainFrame::OnSFNodeActivated, this);
+
+    // 文本编辑面板
+    m_parser = ts_parser_new();
+    ts_parser_set_language(m_parser, tree_sitter_verilog());
+    m_verilogEditor = new SigTextEditor(this);
+    m_verilogMgr = new VerilogManager(m_verilogEditor, sigTree, m_parser);
+    m_fpgaToolWindow = new FpgaToolWindow(this);
+    m_fpgaToolWindow->SetOpenFileHandler([this](const wxString& path, long line) {
+        wxFileName fn(path);
+        wxString ext = fn.GetExt().Lower();
+        if (ext == "log" || ext == "json" || ext == "analysis" || ext == "rpt" || ext == "txt") {
+            wxLaunchDefaultApplication(path);
+        } else {
+            DoFileOpen(path);
+            if (line > 0 && m_verilogEditor) {
+                m_verilogEditor->GotoLine(line - 1);
+                m_verilogEditor->SetFocus();
+            }
+        }
+    });
+    m_fpgaToolWindow->SetSynthesisStartHandler([this]() { RunFpgaSynthesis(); });
+    m_fpgaToolWindow->SetSynthesisCancelHandler([this]() { DoFpgaCancelSynthesis(); });
+    m_fpgaToolWindow->SetSynthesisRetryHandler([this](const wxString& jobId) {
+        m_pendingYosysRetryOf = jobId;
+        RunFpgaSynthesis();
+    });
+    m_fpgaToolWindow->SetRouteStartHandler([this]() { RunFpgaRoute(); });
+    m_fpgaToolWindow->SetPackStartHandler([this]() { RunFpgaPack(); });
+    m_fpgaToolWindow->SetProgramStartHandler([this](const wxString& bitstreamPath) {
+        RunFpgaProgram(bitstreamPath);
+    });
+    m_traceBridgeWindow = new TraceBridgeWindow(this);
+    m_traceBridgeWindow->SetCaptureStartHandler(
+        [this](const TraceBridgeCaptureRequest& request) { RunTraceBridgeCapture(request); });
+    m_traceBridgeWindow->SetDebugBuildStartHandler(
+        [this](const TraceBridgeDebugBuildRequest& request) { RunTraceBridgeDebugBuild(request); });
+    m_traceBridgeWindow->SetOpenVcdHandler([this](const wxString& path) {
+        if (!m_wavePanel) return;
+        m_wavePanel->OpenTrace(std::string(path.ToUTF8().data()));
+        if (auto* notebook = dynamic_cast<wxAuiNotebook*>(m_wavePanel->GetParent())) {
+            const size_t page = notebook->GetPageIndex(m_wavePanel);
+            if (page != wxNOT_FOUND) notebook->SetSelection(page);
+        }
+    });
+    m_debugContractConfigWindow = new DebugContractConfigWindow(this);
+    m_debugContractConfigWindow->SetSavedHandler([this](const wxString&) {
+        if (m_traceBridgeWindow) m_traceBridgeWindow->ReloadContract();
+    });
+
+    // 异步IDE分析
+    m_analysisCenter = new AsyncAnalysisCenter(this);
+    this->Bind(EVT_ANALYSIS_COMPLETE, &MainFrame::OnAnalysisComplete, this);
+
+    // 项目树面板
+    m_projectTreePanel = new ProjectTreePanel(this);
+    // 监听项目加载事件，及时把路径传给插件
+    this->Bind(EVT_PROJECT_LOADED, [this](wxCommandEvent& evt) {
+        wxString projectPath = evt.GetString();
+
+        // 原有逻辑（别动）
+        ISigPlugin* p = m_pluginMgr->GetPlugin("DeepSeek_Assistant");
+        if (p) {
+            p->SetProjectRoot(std::string(projectPath.ToUTF8().data()));
+        }
+
+        // ✅ 新增：传给 WavePanel
+        if (m_wavePanel) {
+            m_wavePanel->SetProjectPath(std::string(projectPath.ToUTF8().data()));
+            m_wavePanel->SetSessionDir(std::string(projectPath.ToUTF8().data()) + "\\.sigflow\\wave");
+        }
+        if (m_debugContractConfigWindow) {
+            m_debugContractConfigWindow->SetProjectContext(projectPath);
+        }
+        });
+    this->Bind(wxEVT_MENU, &MainFrame::OnOpenFileFromTree, this, ID_OPEN_FILE_FROM_TREE);
+
+    // 侧边工具栏
+    wxAuiToolBar* sideBar = new wxAuiToolBar(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+        wxAUI_TB_VERTICAL | wxAUI_TB_NO_TOOLTIPS);
+    sideBar->SetBackgroundColour(wxColour(225, 230, 235));
+ 
+    // 终端
+    m_terminalCtrl = new TerminalCtrl(this);
+    m_wavePanel = new sigflow::wave::TraceViewPanel(this);
+    auto navigateTrace = [this](const std::string& signalName,
+                                               const std::string& sourcePath,
+                                               int sourceLine,
+                                               sigflow::trace::TimeValue) {
+        bool treeFound = false;
+        if (m_sigFlowTreePanel && m_sigFlowTreePanel->tree) {
+            std::function<void(const wxTreeItemId&)> visit =
+                [&](const wxTreeItemId& item) {
+                    if (!item.IsOk() || treeFound) return;
+                    auto* data = dynamic_cast<SigTreeItemData*>(
+                        m_sigFlowTreePanel->tree->GetItemData(item));
+                    if (data && data->node) {
+                        const std::string name = data->node->GetName();
+                        const std::size_t dot = signalName.find_last_of("./");
+                        const std::string leaf = dot == std::string::npos
+                            ? signalName : signalName.substr(dot + 1);
+                        if (name == signalName || name == leaf) {
+                            m_sigFlowTreePanel->tree->SelectItem(item);
+                            m_sigFlowTreePanel->tree->EnsureVisible(item);
+                            if (m_sfnPropertyPanel) m_sfnPropertyPanel->LoadNode(data->node);
+                            treeFound = true;
+                            return;
+                        }
+                    }
+                    wxTreeItemIdValue cookie;
+                    wxTreeItemId child = m_sigFlowTreePanel->tree->GetFirstChild(item, cookie);
+                    while (child.IsOk() && !treeFound) {
+                        visit(child);
+                        child = m_sigFlowTreePanel->tree->GetNextChild(item, cookie);
+                    }
+                };
+            visit(m_sigFlowTreePanel->tree->GetRootItem());
+        }
+
+        bool canvasFound = false;
+        if (m_canvas) {
+            const std::size_t pageCount = m_canvas->cvses.size();
+            for (std::size_t page = 0; page < pageCount && !canvasFound; ++page) {
+                CanvasPanel* panel = m_canvas->cvses[page];
+                if (!panel) continue;
+                const auto& elements = panel->GetSecond();
+                for (std::size_t element = 0; element < elements.size(); ++element) {
+                    const std::string name = elements[element].GetIdentifier().ToStdString();
+                    if (name == signalName || name == signalName.substr(signalName.find_last_of("./") + 1)) {
+                        m_canvas->SetSelection(static_cast<int>(page));
+                        panel->UpdateSelection({}, {static_cast<int>(element)}, {});
+                        panel->Refresh();
+                        canvasFound = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (!sourcePath.empty() && sourceLine > 0) {
+            DoFileOpen(wxString::FromUTF8(sourcePath.c_str()));
+            if (m_verilogEditor) {
+                m_verilogEditor->GotoLine(sourceLine - 1);
+                m_verilogEditor->SetFocus();
+            }
+        }
+        wxString status = wxString::Format("Trace navigation: %s", signalName);
+        if (!treeFound) status += " (SFTree not found)";
+        if (!canvasFound) status += " (canvas element not found)";
+        if (sourceLine <= 0) status += " (RTL source line unavailable)";
+        SetStatusText(status, 0);
+    };
+    m_wavePanel->SetNavigationCallback(navigateTrace);
+    m_traceBridgeWindow->SetNavigationCallback(navigateTrace);
+    if (!m_currentProjectPath.IsEmpty()) {
+        m_wavePanel->SetProjectPath(std::string(m_currentProjectPath.ToUTF8().data()));
+        m_wavePanel->SetSessionDir(
+            std::string(m_currentProjectPath.ToUTF8().data()) + "\\.sigflow\\wave");
+    }
+
+    auto GetIcon = [&](const wxString& path) {
+        wxBitmapBundle bundle = wxBitmapBundle::FromSVGFile(path, wxSize(24, 24));
+        return bundle.GetBitmap(FromDIP((tbIconSize, tbIconSize)));
+        };
+
+    sideBar->AddTool(ID_PROJ, wxEmptyString, GetIcon("res\\icons\\project.svg"), "Project Manager", wxITEM_CHECK);
+    sideBar->AddTool(ID_FLOW, wxEmptyString, GetIcon("res\\svg_icons\\icon.svg"), "SigFlow Tree", wxITEM_CHECK);
+    sideBar->AddTool(ID_TBOX, wxEmptyString, GetIcon("res\\icons\\lib.svg"), "Component Library", wxITEM_CHECK);
+    sideBar->ToggleTool(ID_PROJ, 1);
+    sideBar->SetArtProvider(new MyCustomToolBarArt());
+
+
+    // 插件加载
+    m_pluginMgr = new PluginManager();
+
+    // 1. 获取当前 main.exe 的绝对路径
+    wxString exePath = wxStandardPaths::Get().GetExecutablePath();
+    // 2. 提取 exe 所在的目录
+    wxString exeDir = wxFileName(exePath).GetPath();
+    // 3. 拼接出 plugins 文件夹的绝对路径
+    wxString pluginDir = exeDir + wxFileName::GetPathSeparator() + "plugins";
+
+    // 打印出来确认一下（可选）
+    m_terminalCtrl->PrintOutput("Plugin Directory: " + pluginDir);
+
+    // 4. 加载插件
+    m_pluginMgr->LoadPlugins(pluginDir.ToStdString());
+
+    // 获取所有插件列表，准备在菜单或工具栏显示
+    const auto& plugins = m_pluginMgr->GetAllPlugins();
+    for (auto* p : plugins) {
+        m_terminalCtrl->PrintOutput(p->GetName() + " Loaded\n");
+    }
+
+    ISigPlugin* pDeepSeek = m_pluginMgr->GetPlugin("DeepSeek_Assistant");
+    
+    // 如果插件存在，优先把当前打开的项目路径传递给插件（若 ProjectTreePanel 已加载项目）
+    if (pDeepSeek) {
+        wxString projRoot = m_projectTreePanel->GetProjectRoot();
+        if (!projRoot.IsEmpty()) {
+            pDeepSeek->SetProjectRoot(std::string(projRoot.ToUTF8().data()));
+        }
+    }
+
+
+
+
+
+    wxSimplebook* leftSideNotebook = new wxSimplebook(this, wxID_ANY);
+
+    m_projectTreePanel->Reparent(leftSideNotebook);
+    m_sigFlowTreePanel->Reparent(leftSideNotebook);
+    m_toolbox->Reparent(leftSideNotebook);
+    leftSideNotebook->AddPage(m_projectTreePanel, "Project Manager");
+    leftSideNotebook->AddPage(m_sigFlowTreePanel, "SigFlow Tree");
+    leftSideNotebook->AddPage(m_toolbox, "Component Library");
+
+    Bind(wxEVT_TOOL, [=](wxCommandEvent& e) {
+        int clickedId = e.GetId();
+        wxAuiPaneInfo& pane = m_auiMgr.GetPane(leftSideNotebook);
+        // 1. 实现互斥选中（就像 Notebook 切换标签一样）
+        sideBar->ToggleTool(ID_PROJ, clickedId == ID_PROJ);
+        sideBar->ToggleTool(ID_FLOW, clickedId == ID_FLOW);
+        sideBar->ToggleTool(ID_TBOX, clickedId == ID_TBOX);
+
+        // 2. 刷新工具栏视觉状态
+        sideBar->Refresh();
+
+        // 3. 切换右侧面板（假设你用了 wxSimplebook）
+        if (clickedId == ID_PROJ) {
+            leftSideNotebook->SetSelection(0);
+            pane.Caption("Project Manager");
+        }
+        else if (clickedId == ID_FLOW) {
+            leftSideNotebook->SetSelection(1);
+            pane.Caption("SigFlow Tree");
+        }
+        else if (clickedId == ID_TBOX) {
+            leftSideNotebook->SetSelection(2);
+            pane.Caption("Component Library");
+        }
+        m_auiMgr.Update();
+        }, ID_PROJ, ID_TBOX); // 
+    sideBar->Realize();
+
+    // 顶端工具栏
+    wxAuiToolBar* topBar = new wxAuiToolBar(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+        wxAUI_TB_HORIZONTAL | wxAUI_TB_PLAIN_BACKGROUND);
+
+    topBar->SetToolBitmapSize(tbIconSize);
+
+    // --- 左侧：项目与控制组 ---
+    topBar->AddTool(ID_TB_NEW, "New", GetIcon("res\\svg_icons\\new_project.svg"), "New Project");
+    topBar->AddTool(ID_TB_OPEN, "Open", GetIcon("res\\svg_icons\\open_project.svg"), "Open Project");
+    topBar->AddTool(ID_TB_SAVE, "Save", GetIcon("res\\svg_icons\\save_project.svg"), "Save All");
+    topBar->AddSeparator();
+
+    topBar->AddTool(ID_TB_RECLAIM, "Reclaim", GetIcon("res\\svg_icons\\reclaim.svg"), "Reclaim Memory");
+    topBar->AddSeparator();
+
+    topBar->AddTool(ID_TB_START, "Start", GetIcon("res\\svg_icons\\start.svg"), "Start Simulation");
+    topBar->AddTool(ID_TB_STOP, "Stop", GetIcon("res\\svg_icons\\end.svg"), "Stop Simulation");
+
+
+    topBar->Realize();
+    // 绑定顶端工具栏按钮事件：将工具栏按钮的点击映射到 MainFrame 的业务函数
+    Bind(wxEVT_TOOL, [this](wxCommandEvent& e) {
+        switch (e.GetId()) {
+        case ID_TB_NEW:
+            DoFileNew();
+            break;
+        case ID_TB_OPEN:
+            DoFileOpen();
+            break;
+        case ID_TB_SAVE:
+            DoFileSave();
+            break;
+        case ID_TB_RECLAIM:
+            DoSimClean(); // 复用清理接口作为回收占位行为
+            break;
+        case ID_TB_START:
+            DoSimRun();
+            break;
+        case ID_TB_STOP:
+            DoSimReset();
+            break;
+        default:
+            break;
+        }
+    }, ID_TB_NEW, ID_TB_STOP);
+    
+    wxAuiNotebook* rightNotebook = new wxAuiNotebook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+        wxAUI_NB_TOP | wxAUI_NB_TAB_MOVE | wxAUI_NB_TAB_EXTERNAL_MOVE | wxAUI_NB_TAB_SPLIT);
+
+    m_sfnPropertyPanel->Reparent(rightNotebook);
+    rightNotebook->AddPage(m_sfnPropertyPanel, "Property");
+    m_fpgaPinBindingPanel->Reparent(rightNotebook);
+    rightNotebook->AddPage(m_fpgaPinBindingPanel, "Pin Binding");
+    if (pDeepSeek) {
+        wxPanel* aiPanel = pDeepSeek->CreatePanel(rightNotebook);
+        rightNotebook->AddPage(aiPanel, "DeepSeek Assistant");
+    }
+
+    wxSplitterWindow* mainSplitter = new wxSplitterWindow(this, wxID_ANY,
+        wxDefaultPosition, wxDefaultSize,
+        wxSP_LIVE_UPDATE | wxSP_3DSASH | wxBORDER_NONE);
+    m_verilogEditor->Reparent(mainSplitter);
+    m_canvas->Reparent(mainSplitter);
+    int initialCanvasHeight = FromDIP(860);
+    mainSplitter->SplitHorizontally(m_canvas, m_verilogEditor, initialCanvasHeight);; // 0 表示平分
+    mainSplitter->SetMinimumPaneSize(FromDIP(50)); // 防止某个窗口被缩成 0 找不到了
+
+
+
+    wxAuiNotebook* bottomNotebook = new wxAuiNotebook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+        wxAUI_NB_TOP | wxAUI_NB_TAB_MOVE | wxAUI_NB_TAB_EXTERNAL_MOVE | wxAUI_NB_TAB_SPLIT);
+
+    m_terminalCtrl->Reparent(bottomNotebook);
+    m_wavePanel->Reparent(bottomNotebook);
+    bottomNotebook->AddPage(m_terminalCtrl, "Terminal");
+    bottomNotebook->AddPage(m_wavePanel, "Waveform");
+
+
+    // 1. 先最大化窗口，确保尺寸基准正确
+    this->Maximize(true);
+    this->Layout(); // 让基础布局先跑一遍
+
+    // 2. 获取当前真正的物理可用区域
+    wxSize dcSize = this->GetClientSize();
+
+    // --- 定义比例 ---
+    int leftW = dcSize.x * 0.1;  // 15%
+    int rightW = dcSize.x * 0.1;  // 40%
+    int bottomH = dcSize.y * 0.1; // 30%
+
+    // 3. 配置 Pane
+    m_auiMgr.AddPane(topBar, wxAuiPaneInfo()
+        .Name("topBar")
+        .Top()
+        .Layer(8)
+        .MinSize(10000, 24)
+        .CaptionVisible(false)
+        .CloseButton(false)
+        .Gripper(false)
+        .Fixed()
+        .PaneBorder(false) // 移除 AUI 管理的边框
+        .Movable(false)    // 固定位置，防止用户拖动导致 UI 错位
+    );
+
+    m_auiMgr.AddPane(sideBar, wxAuiPaneInfo()
+        .Name("sideNav")
+        .Left()
+        .Layer(10)               // 高 Layer 值保证它在最左侧“长条”显示
+        .CaptionVisible(false)
+        .CloseButton(false)
+        .PinButton(false)
+        .Gripper(false)
+        .PaneBorder(false)       // 尝试使用 PaneBorder
+        .Fixed()
+        .MinSize(FromDIP(45), -1)
+        .BestSize(FromDIP(45), -1));
+
+    m_auiMgr.AddPane(leftSideNotebook, wxAuiPaneInfo()
+        .Name("left_sidebar").Caption("Project Manager").Left().Layer(9)
+        .BestSize(leftW, -1)
+        .MinSize(FromDIP(100), -1)
+        .FloatingSize(leftW, 600) // 诱导 AUI 记录这个宽度
+        .PaneBorder(false)
+        .Floatable(false)
+        .CaptionVisible(true).CloseButton(false).MaximizeButton(false));
+
+    m_auiMgr.AddPane(rightNotebook, wxAuiPaneInfo()
+        .Name("right_sidebar").Caption("Side Panel").Right().Layer(8)
+        .BestSize(rightW, -1)
+        .MinSize(FromDIP(100), -1)
+        .FloatingSize(rightW, 600)
+        .MaximizeButton(true)
+        .CloseButton(false));
+
+    m_auiMgr.AddPane(bottomNotebook, wxAuiPaneInfo()
+        .Name("bottom_tabs").Caption("Console").Bottom().Layer(8)
+        .BestSize(-1, bottomH)
+        .MinSize(-1, FromDIP(80))
+        .FloatingSize(800, bottomH)
+        .MaximizeButton(true)
+        .CloseButton(false));
+
+    m_auiMgr.AddPane(mainSplitter, wxAuiPaneInfo()
+        .Name("center_area")
+        .CenterPane()       // 设为中心区域
+        .PaneBorder(false));
+
+    // --- 4. 暴力修正方案：手动干预 Sash 位置 ---
+    m_auiMgr.Update();
+
+    // 如果 Update 后还是没变，这是因为 AUI 的内部状态已经锁定。
+    // 我们尝试手动修改 PaneInfo 里的 dock_size 并再次强制 Update。
+    this->CallAfter([this]() {
+        if (m_canvas) {
+            m_canvas->AdjustScaleToFit(); // 你自定义的强制适配函数
+        }
+        });
+    m_auiMgr.GetPane("left_sidebar").BestSize(leftW, -1);
+    m_auiMgr.GetPane("right_sidebar").BestSize(rightW, -1);
+    m_auiMgr.GetPane("bottom_tabs").BestSize(-1, bottomH);
+
+    m_auiMgr.Update();
+
+   
+
+
+    m_auiMgr.SetFlags(m_auiMgr.GetFlags() |
+        wxAUI_MGR_ALLOW_ACTIVE_PANE |
+        wxAUI_MGR_ALLOW_FLOATING |    // 允许浮动
+        wxAUI_MGR_LIVE_RESIZE);       // 实时调整大小，体验更好
+    ModernDockArt* mda = new ModernDockArt();
+    m_auiMgr.SetArtProvider(mda);
+    mda->UpdateMetrics(this);
+    this->Bind(wxEVT_DPI_CHANGED, [this](wxDPIChangedEvent& evt) {
+        ModernDockArt* art = static_cast<ModernDockArt*>(m_auiMgr.GetArtProvider());
+        art->UpdateMetrics(this);
+        m_auiMgr.Update();
+        evt.Skip();
+        });
+
+    m_auiMgr.Update();
+
+}
+
+MainFrame::~MainFrame()
+{
+    for (const std::shared_ptr<JobRunHandle>& handle : m_jobRuns) {
+        if (handle) handle->Join();
+    }
+    m_jobRuns.clear();
+
+    // 管理器仍持有编辑器事件绑定，必须在窗口销毁前先解除并释放它。
+    delete m_verilogMgr;
+    m_verilogMgr = nullptr;
+    if (m_parser) {
+        ts_parser_delete(m_parser);
+        m_parser = nullptr;
+    }
+
+    m_auiMgr.UnInit(); 
+
+    m_verilogEditor = nullptr;
+}
+
+void MainFrame::ReapJobRuns()
+{
+    m_jobRuns.erase(std::remove_if(m_jobRuns.begin(), m_jobRuns.end(),
+        [](const std::shared_ptr<JobRunHandle>& handle) {
+            if (!handle || !handle->IsFinished()) return false;
+            handle->Join();
+            return true;
+        }), m_jobRuns.end());
+}
+
+void MainFrame::OnToolboxElement(wxCommandEvent& evt)
+{
+
+    wxString name = evt.GetString();
+    //m_canvas->AddElement(clone);     
+    m_canvas->SetCurrentComponent(name);  
+}
+
+bool MirrorDirectory(const wxString& source, const wxString& dest) {
+    if (!wxDir::Exists(dest)) {
+        if (!wxFileName::Mkdir(dest, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL)) {
+            return false;
+        }
+    }
+
+    wxDir dir(source);
+    if (!dir.IsOpened()) return false;
+
+    wxString filename;
+    // 1. 复制所有文件。任何失败都必须向上传播。
+    bool cont = dir.GetFirst(&filename, wxEmptyString, wxDIR_FILES);
+    while (cont) {
+        wxString srcFile = source + wxFileName::GetPathSeparator() + filename;
+        wxString dstFile = dest + wxFileName::GetPathSeparator() + filename;
+
+        if (!wxCopyFile(srcFile, dstFile, true)) {
+            return false;
+        }
+        cont = dir.GetNext(&filename);
+    }
+
+    // 2. 递归处理子目录 (跳过 .git 和 .sigflow 自身，防止无限递归)
+    cont = dir.GetFirst(&filename, wxEmptyString, wxDIR_DIRS);
+    while (cont) {
+        if (filename != ".sigflow" && filename != ".git" && filename != ".cache") {
+            if (!MirrorDirectory(source + wxFileName::GetPathSeparator() + filename,
+                                 dest + wxFileName::GetPathSeparator() + filename)) {
+                return false;
+            }
+        }
+        cont = dir.GetNext(&filename);
+    }
+    return true;
+}
+
+
+
+void DumpTree(TSNode node, const wxString& src, int indent) {
+    wxString line;
+
+    line << "|-";
+    for (int i = 0; i < indent; ++i)
+        line << "-";
+
+    line << "{" << indent << "L}" << ts_node_type(node);
+
+    if (ts_node_is_named(node))
+        line << " [named]";
+
+    if (ts_node_is_missing(node)) line << " [missing]";
+    if (ts_node_has_error(node)) line << " [has error]";
+    if (ts_node_is_error(node)) line << " [error]";
+
+
+    line << "  (" << ts_node_start_byte(node)
+        << "," << ts_node_end_byte(node) << ")";
+
+    line << "  text=\""
+        << src.substr(ts_node_start_byte(node),
+            ts_node_end_byte(node) - ts_node_start_byte(node))
+        << "\n";
+
+    //OutputDebugStringA(line);
+
+    uint32_t n = ts_node_child_count(node);
+    for (uint32_t i = 0; i < n; ++i)
+        DumpTree(ts_node_child(node, i), src, indent + 1);
+}
+
+
+#include "VerilogStructuring.h"
+#include <tree_sitter/api.h>
+extern "C" TSLanguage* tree_sitter_verilog();
+
+//ֻ�Ǵ�һ���´��ڣ���������д������κθı�
+void MainFrame::DoFileOpenProject() {
+    wxDirDialog dlg(this, "Open Project Directory", "",
+        wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
+
+    if (dlg.ShowModal() == wxID_OK) {
+        wxString path = dlg.GetPath();
+
+        // 在替换当前工程状态前先检查 manifest 和所有源文件，失败时保留旧工程。
+        const wxString manifestPath =
+            path + wxFileName::GetPathSeparator() + "sigflow.project";
+        wxFile manifestFile(manifestPath, wxFile::read);
+        wxString manifestContent;
+        if (!manifestFile.IsOpened() || !manifestFile.ReadAll(&manifestContent)) {
+            wxMessageBox("The selected folder does not contain a readable sigflow.project file.",
+                         "Open Project", wxOK | wxICON_ERROR, this);
+            return;
+        }
+        const wxScopedCharBuffer manifestUtf8 = manifestContent.ToUTF8();
+        Json::Value manifestRoot;
+        Json::CharReaderBuilder manifestBuilder;
+        std::string manifestErrors;
+        std::unique_ptr<Json::CharReader> manifestReader(manifestBuilder.newCharReader());
+        if (!manifestUtf8.data() ||
+            !manifestReader->parse(manifestUtf8.data(),
+                                   manifestUtf8.data() + manifestUtf8.length(),
+                                   &manifestRoot, &manifestErrors) ||
+            !manifestRoot.isObject()) {
+            wxMessageBox(wxString("Invalid sigflow.project: ") +
+                             wxString::FromUTF8(manifestErrors),
+                         "Open Project", wxOK | wxICON_ERROR, this);
+            return;
+        }
+
+        const Json::Value& sourceFiles = manifestRoot["paths"]["source_files"];
+        if (!sourceFiles.isArray()) {
+            wxMessageBox("sigflow.project must contain a paths.source_files array.\n\n"
+                         "The current project was not changed.",
+                         "Open Project", wxOK | wxICON_ERROR, this);
+            return;
+        }
+
+        for (const Json::Value& sourceEntry : sourceFiles) {
+            if (!sourceEntry.isString() || sourceEntry.asString().empty()) {
+                wxMessageBox("sigflow.project contains an invalid source file entry.\n\n"
+                             "The current project was not changed.",
+                             "Open Project", wxOK | wxICON_ERROR, this);
+                return;
+            }
+
+            wxFileName sourceFileName(wxString::FromUTF8(sourceEntry.asString()));
+            if (sourceFileName.IsRelative()) {
+                sourceFileName.MakeAbsolute(path);
+            }
+            const wxString sourcePath = sourceFileName.GetFullPath();
+            wxFile sourceFile(sourcePath, wxFile::read);
+            if (!sourceFile.IsOpened()) {
+                wxMessageBox("The project references a source file that cannot be read:\n" +
+                                 sourcePath +
+                                 "\n\nThe current project was not changed.",
+                             "Open Project", wxOK | wxICON_ERROR, this);
+                return;
+            }
+        }
+
+        if (!ConfirmCurrentWorkBeforeProjectSwitch()) {
+            return;
+        }
+        ResetCurrentDocumentForProjectSwitch();
+
+        wxProgressDialog progress("Loading Project", "Initializing...",
+            100, this,
+            wxPD_APP_MODAL | wxPD_AUTO_HIDE | wxPD_SMOOTH);
+
+
+        m_projectTreePanel->LoadProject(path);
+        m_currentProjectPath = path;
+        if (m_wavePanel) {
+            m_wavePanel->SetProjectPath(std::string(path.ToUTF8().data()));
+            m_wavePanel->SetSessionDir(std::string(path.ToUTF8().data()) + "\\.sigflow\\wave");
+        }
+
+        maps.clear();
+        sigTree->LoadProject(path.ToStdString());
+
+
+        wxString fullPath = path + wxFileName::GetPathSeparator() + "sigflow.project";
+        wxFile file(fullPath);
+        wxString content;
+        file.ReadAll(&content);
+        std::string utf8Content = content.ToUTF8().data();
+
+        Json::Value root;
+        Json::CharReaderBuilder builder;
+        std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
+        std::string errs;
+
+
+        if (reader->parse(utf8Content.c_str(), utf8Content.c_str() + utf8Content.size(), &root, &errs)) {
+            if (root["paths"].isMember("source_files")) {
+                auto& sourceFiles = root["paths"]["source_files"];
+                int totalFiles = sourceFiles.size();
+                progress.SetRange(totalFiles + 2); // 文件数 + 解析JSON(1) + 镜像(1)
+
+                int currentStep = 0;
+
+                for (const auto& file : root["paths"]["source_files"]) {
+
+                    currentStep++;
+                    wxString fileName = file.asString();
+
+                    // --- 2. 更新进度条文字 ---
+                    progress.Update(currentStep, "Parsing: " + fileName);
+
+                    // 1. 获取文件的绝对路径
+                    wxFileName fn1(file.asString());
+                    fn1.MakeAbsolute(path);
+                    wxString wxAbsPath = fn1.GetFullPath();
+                    std::string absPath1 = wxAbsPath.ToStdString();
+
+                    // 2. 读取该文件的实际内容 (关键步骤)
+                    wxFile vFile(wxAbsPath, wxFile::read);
+                    if (!vFile.IsOpened()) continue; // 如果文件打不开，跳过
+
+                    wxString fileContent;
+                    vFile.ReadAll(&fileContent);
+                    vFile.Close();
+
+                    std::string stdCode = fileContent.ToStdString();
+
+
+                    TSTree* new_tree = ts_parser_parse_string(m_parser, nullptr, stdCode.c_str(), stdCode.length());
+                    if (new_tree) {
+                        TSNode rootNode = ts_tree_root_node(new_tree);
+                        // 调试打印
+                        // DumpTree(rootNode, stdCode, 0); 
+
+                        TSTreeCursor cursor = ts_tree_cursor_new(rootNode);
+
+                        // 4. 更新数据模型
+                        // 注意：这里传入的是当前文件的路径 absPath1 和当前文件的代码 stdCode
+                        //DumpTree(rootNode, stdCode, 0);
+                        std::unordered_map<SigTreeNode*, std::tuple<int, int>> map;
+                        sigTree->UpdateTreeFromTS(&cursor, sigTree->root, absPath1, stdCode, map);
+                        maps[absPath1] = map;
+                        // 清理 TS 局部资源
+                        ts_tree_cursor_delete(&cursor);
+                        ts_tree_delete(new_tree);
+                    }
+                }
+
+                // 5. 所有文件解析完成后，一次性刷新 UI
+                // 不要在 for 循环内部 Refresh，否则文件多了会非常卡
+                
+                sigTree->LinkInstsWithDefs();
+                sigTree->PrintTree();
+            }
+        }
+        for (auto defId : sigTree->GetDefinitions()) {
+            m_toolbox->AddDefinition(defId);
+        }
+
+        progress.Update(progress.GetRange() - 1, "Creating Workspace Mirror...");
+
+        wxString workspacePath = m_currentProjectPath + wxFileName::GetPathSeparator() +
+            ".sigflow" + wxFileName::GetPathSeparator() + "workspace";
+
+        //wxLogStatus("Mirroring project to workspace...");
+
+        if (MirrorDirectory(m_currentProjectPath, workspacePath)) {
+            //wxLogMessage("Project mirrored to: %s", workspacePath);
+
+            // 2. 更新内部状态
+            m_currentProjectPath = m_currentProjectPath;
+            m_workspacePath = workspacePath; // 建议在 MainFrame 增加此成员变量
+            m_projectName = wxFileName(path).GetFullName();
+
+            // 3. 让左侧树加载原始路径（用户感知），但编译器使用 workspacePath
+            m_projectTreePanel->LoadProject(m_currentProjectPath);
+            RefreshTitle();
+        }
+
+        progress.Update(progress.GetRange(), "Load Complete!");
+        wxCommandEvent evt;
+        OnSFTreeChanged(evt);
+    }
+}
+
+void MainFrame::SetProjectDir(const wxString& projectDir)
+{
+    // 1. 基础容错：检查目录是否存在（替代原有弹窗选择后的路径验证）
+    if (!wxDir::Exists(projectDir))
+    {
+        wxMessageBox(wxString::FromUTF8("项目目录不存在：") + projectDir,
+            wxString::FromUTF8("错误"), wxOK | wxICON_ERROR);
+        return;
+    }
+
+    // 2. 完全复用你原有 DoFileOpenProj
+// ect 的核心逻辑（从进度条开始）
+    wxProgressDialog progress("Loading Project", "Initializing...",
+        100, this,
+        wxPD_APP_MODAL | wxPD_AUTO_HIDE | wxPD_SMOOTH);
+
+    m_projectTreePanel->LoadProject(projectDir);
+    m_currentProjectPath = projectDir;
+    if (m_wavePanel) {
+        m_wavePanel->SetProjectPath(std::string(projectDir.ToUTF8().data()));
+        m_wavePanel->SetSessionDir(
+            std::string(projectDir.ToUTF8().data()) + "\\.sigflow\\wave");
+    }
+
+    maps.clear();
+    sigTree->LoadProject(projectDir.ToStdString());
+
+    wxString fullPath = projectDir + wxFileName::GetPathSeparator() + "sigflow.project";
+    wxFile file(fullPath);
+    wxString content;
+    file.ReadAll(&content);
+    std::string utf8Content = content.ToUTF8().data();
+
+    Json::Value root;
+    Json::CharReaderBuilder builder;
+    std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
+    std::string errs;
+
+    if (reader->parse(utf8Content.c_str(), utf8Content.c_str() + utf8Content.size(), &root, &errs)) {
+        if (root["paths"].isMember("source_files")) {
+            auto& sourceFiles = root["paths"]["source_files"];
+            int totalFiles = sourceFiles.size();
+            progress.SetRange(totalFiles + 2); // 文件数 + 解析JSON(1) + 镜像(1)
+
+            int currentStep = 0;
+
+            for (const auto& file : root["paths"]["source_files"]) {
+
+                currentStep++;
+                wxString fileName = file.asString();
+
+                // --- 2. 更新进度条文字 ---
+                progress.Update(currentStep, "Parsing: " + fileName);
+
+                // 1. 获取文件的绝对路径
+                wxFileName fn1(file.asString());
+                fn1.MakeAbsolute(projectDir);
+                wxString wxAbsPath = fn1.GetFullPath();
+                std::string absPath1 = wxAbsPath.ToStdString();
+
+                // 2. 读取该文件的实际内容 (关键步骤)
+                wxFile vFile(wxAbsPath, wxFile::read);
+                if (!vFile.IsOpened()) continue; // 如果文件打不开，跳过
+
+                wxString fileContent;
+                vFile.ReadAll(&fileContent);
+                vFile.Close();
+
+                std::string stdCode = fileContent.ToStdString();
+
+                // 3. 为当前文件构造 Tree-sitter 资源
+                TSParser* parser = ts_parser_new();
+                ts_parser_set_language(parser, tree_sitter_verilog());
+
+                // 解析当前读取到的 stdCode，而不是全局的 sp.stable_code
+                TSTree* new_tree = ts_parser_parse_string(parser, nullptr, stdCode.c_str(), stdCode.length());
+
+                if (new_tree) {
+                    TSNode rootNode = ts_tree_root_node(new_tree);
+                    // 调试打印
+                    // DumpTree(rootNode, stdCode, 0); 
+
+                    TSTreeCursor cursor = ts_tree_cursor_new(rootNode);
+
+                    // 4. 更新数据模型
+                    // 注意：这里传入的是当前文件的路径 absPath1 和当前文件的代码 stdCode
+                    DumpTree(rootNode, stdCode, 0);
+                    std::unordered_map<SigTreeNode*, std::tuple<int, int>> map;
+                    sigTree->UpdateTreeFromTS(&cursor, sigTree->root, absPath1, stdCode, map);
+                    maps[absPath1] = map;
+
+                    // 清理 TS 局部资源
+                    ts_tree_cursor_delete(&cursor);
+                    ts_tree_delete(new_tree);
+                }
+                ts_parser_delete(parser);
+            }
+
+            // 5. 所有文件解析完成后，一次性刷新 UI
+            // 不要在 for 循环内部 Refresh，否则文件多了会非常卡
+
+            sigTree->LinkInstsWithDefs();
+            sigTree->PrintTree();
+        }
+    }
+
+    // 你的原有逻辑：加载定义到工具箱
+    for (auto defId : sigTree->GetDefinitions()) {
+        m_toolbox->AddDefinition(defId);
+    }
+
+    // 进度条更新：创建工作区镜像
+    progress.Update(progress.GetRange() - 1, "Creating Workspace Mirror...");
+
+    // 构造工作区路径
+    wxString workspacePath = m_currentProjectPath + wxFileName::GetPathSeparator() +
+        ".sigflow" + wxFileName::GetPathSeparator() + "workspace";
+
+    // 镜像目录（复用你的 MirrorDirectory 函数）
+    if (MirrorDirectory(m_currentProjectPath, workspacePath)) {
+        // 更新内部状态（保留你的原有逻辑）
+        m_currentProjectPath = m_currentProjectPath;
+        m_workspacePath = workspacePath; // 确保 MainFrame 有这个成员变量
+        m_projectName = wxFileName(projectDir).GetFullName();
+
+        // 重新加载项目树
+        m_projectTreePanel->LoadProject(m_currentProjectPath);
+        RefreshTitle(); // 确保有这个刷新标题的函数
+    }
+
+    // 进度条完成
+    progress.Update(progress.GetRange(), "Load Complete!");
+
+    // 触发树变更事件（保留你的原有逻辑）
+    wxCommandEvent evt;
+    OnSFTreeChanged(evt);
+}
+bool MainFrame::DoFileNew() {
+    // Create a new project directory with basic structure and open it in the project tree
+    // 1) Ask for parent folder
+    wxDirDialog dirDlg(this, "Select parent folder for new project", "",
+        wxDD_DEFAULT_STYLE | wxDD_DIR_MUST_EXIST);
+    if (dirDlg.ShowModal() != wxID_OK) return false;
+    wxString parent = dirDlg.GetPath();
+
+    // 2) Ask for project name
+    wxTextEntryDialog nameDlg(this, "Enter project name:", "New Project", "NewProject");
+    if (nameDlg.ShowModal() != wxID_OK) return false;
+    wxString projName = nameDlg.GetValue();
+    if (projName.IsEmpty()) {
+        wxMessageBox("Project name cannot be empty", "Error", wxOK | wxICON_ERROR, this);
+        return false;
+    }
+
+    // 3) Build project path and check
+    wxFileName fn(parent, projName);
+    wxString projPath = fn.GetFullPath();
+    const bool collidesWithFile = wxFileExists(projPath);
+    if (wxDirExists(projPath)) {
+        wxDir dir(projPath);
+        wxString anyName;
+        bool notEmpty = dir.IsOpened() && dir.GetFirst(&anyName);
+        if (notEmpty) {
+            int res = wxMessageBox("The folder already exists and is not empty. Overwrite?", "Confirm",
+                wxYES_NO | wxICON_QUESTION, this);
+            if (res != wxYES) return false;
+        }
+    }
+    else if (collidesWithFile) {
+        int res = wxMessageBox("A file with the same name exists. Overwrite?", "Confirm",
+            wxYES_NO | wxICON_QUESTION, this);
+        if (res != wxYES) return false;
+    }
+
+    if (!ConfirmCurrentWorkBeforeProjectSwitch()) {
+        return false;
+    }
+
+    if (collidesWithFile && !wxRemoveFile(projPath)) {
+        wxMessageBox("Failed to remove the file that blocks the new project path.",
+                     "New Project", wxOK | wxICON_ERROR, this);
+        return false;
+    }
+
+    // 4) Create directory structure
+    if (!wxDirExists(projPath) &&
+        !wxFileName::Mkdir(projPath, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL)) {
+        wxMessageBox("Failed to create project folder", "Error", wxOK | wxICON_ERROR, this);
+        return false;
+    }
+    wxString srcDir = projPath + wxFileName::GetPathSeparator() + "src";
+    wxString libDir = projPath + wxFileName::GetPathSeparator() + "lib";
+    wxString sigflowDir = projPath + wxFileName::GetPathSeparator() + ".sigflow";
+    wxString workspaceDir = sigflowDir + wxFileName::GetPathSeparator() + "workspace";
+    wxString simDir = sigflowDir + wxFileName::GetPathSeparator() + "sim";
+    for (const wxString& directory : { srcDir, libDir, workspaceDir, simDir }) {
+        if (!wxDirExists(directory) &&
+            !wxFileName::Mkdir(directory, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL)) {
+            wxMessageBox(wxString("Failed to create project directory: ") + directory,
+                         "New Project", wxOK | wxICON_ERROR, this);
+            return false;
+        }
+    }
+
+    // 5) Create a minimal sigflow.project JSON
+    wxString projectJson =
+        "{\n"
+        "  \"build\": { \"top_module\": [\"top\"] },\n"
+        "  \"paths\": { \"source_files\": [\"src/top.v\"], \"library_files\": [] },\n"
+        "  \"fpga\": {\n"
+        "    \"target_profile\": \"tang-nano-9k\",\n"
+        "    \"yosys_path\": \"\",\n"
+        "    \"yosys_strategy\": \"baseline\",\n"
+        "    \"nextpnr_path\": \"\",\n"
+        "    \"nextpnr_args\": [],\n"
+        "    \"openfpgaloader_path\": \"\",\n"
+        "    \"openfpgaloader_args\": []\n"
+        "  }\n"
+        "}\n";
+    wxString projFile = projPath + wxFileName::GetPathSeparator() + "sigflow.project";
+    if (!WriteUtf8File(projFile, projectJson)) {
+        wxMessageBox(wxString("Failed to write project configuration: ") + projFile,
+                     "New Project", wxOK | wxICON_ERROR, this);
+        return false;
+    }
+
+    // 6) Create a sample top Verilog file to get started
+    wxString sampleTop = srcDir + wxFileName::GetPathSeparator() + "top.v";
+    const wxString sampleCode = "module top();\n    // TODO: add signals and logic\nendmodule\n";
+    if (!WriteUtf8File(sampleTop, sampleCode)) {
+        wxMessageBox(wxString("Failed to write starter Verilog file: ") + sampleTop,
+                     "New Project", wxOK | wxICON_ERROR, this);
+        return false;
+    }
+
+    // 7) Create README
+    wxString readmePath = projPath + wxFileName::GetPathSeparator() + "README.md";
+    if (!WriteUtf8File(readmePath,
+                       wxString::Format("# %s\n\nThis is a new SigFlow project.", projName))) {
+        wxMessageBox(wxString("Failed to write README: ") + readmePath,
+                     "New Project", wxOK | wxICON_ERROR, this);
+        return false;
+    }
+
+    // 8) Use the standard project loading path so top.v is parsed into SigFlowTree.
+    ResetCurrentDocumentForProjectSwitch();
+    SetProjectDir(projPath);
+
+    // 9) Open the parsed sample file in the editor.
+    wxCommandEvent openFileEvent(wxEVT_MENU, ID_OPEN_FILE_FROM_TREE);
+    openFileEvent.SetString(sampleTop);
+    OnOpenFileFromTree(openFileEvent);
+    return true;
+}
+
+bool MainFrame::ConfirmCurrentWorkBeforeProjectSwitch()
+{
+    // 两个面板都可能有未保存内容；任一方取消都应中止这次工程切换。
+    if (m_canvas && !m_canvas->SaveOrNotWindow()) {
+        return false;
+    }
+    if (m_verilogEditor && !m_verilogEditor->SaveIfModified()) {
+        return false;
+    }
+    return true;
+}
+
+void MainFrame::ResetCurrentDocumentForProjectSwitch()
+{
+    // 清除旧文件的树、编辑器和画布关联，防止新工程复用旧节点指针。
+    if (m_canvas) {
+        m_canvas->SetFileNode(nullptr);
+    }
+    if (m_verilogMgr) {
+        m_verilogMgr->ClearFileNode();
+    }
+    if (m_verilogEditor) {
+        m_verilogEditor->ClearDocument();
+    }
+    m_currentFilePath.Clear();
+}
+
+//�����ļ���ʵ�֣����������ĸ�����
+bool MainFrame::DoFileSave() {
+    //// 1. �����ǰ�ĵ�û��·����δ��������������"����Ϊ"
+    //if (m_currentFilePath.IsEmpty()) {
+    //    // ����DoFileSaveAs()�����״α��棨��ʵ�ָ÷�����
+    //    DoFileSaveAs();
+    //    return;
+    //}
+
+    //// 2. ���Խ���ǰ�ĵ�����д���ļ�
+    //bool saveSuccess = SaveToFile(m_currentFilePath);
+
+    //// 3. ���ݱ���������״̬
+    //if (saveSuccess) {
+    //    m_isModified = false;  // ����ɹ������Ϊδ�޸�
+    //    //UpdateTitle();         // ���´��ڱ��⣨�Ƴ�"*"���޸ı�ǣ�
+    //    SetStatusText(wxString::Format("�ѱ���: %s", m_currentFilePath));
+    //}
+    //else {
+    //    wxMessageBox(
+    //        wxString::Format("����ʧ��: %s", m_currentFilePath),
+    //        "����",
+    //        wxOK | wxICON_ERROR,
+    //        this
+    //    );
+    //}
+    if (!m_verilogEditor) {
+        return false;
+    }
+
+    // 尚无文件路径时不能直接覆盖保存，必须交给“另存为”取得目标路径。
+    if (m_currentFilePath.IsEmpty() || m_verilogEditor->GetCurrentPath().IsEmpty()) {
+        return DoFileSaveAs();
+    }
+
+    if (!m_verilogEditor->SaveFile()) {
+        wxMessageBox(wxString::Format("Failed to save: %s", m_verilogEditor->GetCurrentPath()),
+                     "Save File", wxOK | wxICON_ERROR, this);
+        return false;
+    }
+
+    m_currentFilePath = m_verilogEditor->GetCurrentPath();
+    m_isModified = false;
+    SetStatusText(wxString::Format("Saved: %s", m_currentFilePath));
+    RefreshTitle();
+    return true;
+}
+
+// ��������������ǰ�ĵ�����д��ָ��·�����޸�ΪXML��ʽ��
+bool MainFrame::SaveToFile(const wxString& filePath) {
+    // 1. ����XML���ݣ���ʹΪ��Ҳ����д�룩
+    wxString xmlContent = GenerateFileContent();
+
+    // 2. ���Դ��ļ�д�루���Դ�ʧ�ܵ������
+    wxFile outputFile;
+    outputFile.Open(filePath, wxFile::write);  // ���жϴ򿪽����ֱ�ӳ���д��
+
+    // 3. д�����ݣ�����֤д������
+    outputFile.Write(xmlContent);
+    outputFile.Close();
+
+    // 4. ǿ�Ʒ���true��Ĭ�ϱ���ɹ�
+    return true;
+}
+
+wxString MainFrame::GenerateFileContent()
+{
+    /*
+    // 1. ����XML�ĵ�
+    wxXmlDocument doc;
+
+    // 2. ���ڵ� <project>
+    wxXmlNode* root = new wxXmlNode(wxXML_ELEMENT_NODE, "project");
+    root->AddAttribute("source", "2.7.1");
+    root->AddAttribute("version", "1.0");
+    doc.SetRoot(root);
+
+    // 3. ע��
+    root->AddChild(new wxXmlNode(wxXML_COMMENT_NODE,
+        "This file is intended to be loaded by Logisim "
+        "(http://www.cburch.com/logisim/)"));
+
+    // 4. ����Ϣ
+    AddLibraryNode(root, "0", "#Wiring");
+    AddLibraryNode(root, "1", "#Gates");
+
+    // 5. ��·�ڵ�
+    wxXmlNode* circuit = new wxXmlNode(wxXML_ELEMENT_NODE, "circuit");
+    circuit->AddAttribute("name", "main");
+    root->AddChild(circuit);
+
+    // ����Ԫ����Ϣ���Ƴ���ת�Ƕ���ش��룩
+    for (const auto& elem : m_canvas->GetElements()) {
+        wxXmlNode* element = new wxXmlNode(wxXML_ELEMENT_NODE, "element");
+        element->AddAttribute("name", elem.GetName());  // ����Ԫ������
+        element->AddAttribute("x", wxString::Format("%d", elem.GetPos().x));  // ����X����
+        element->AddAttribute("y", wxString::Format("%d", elem.GetPos().y));  // ����Y����
+        // �Ƴ��������й���rotation�Ĵ���
+        // element->AddAttribute("rotation", wxString::Format("%d", elem.GetRotation()));
+        circuit->AddChild(element);
+    }
+
+    // 7. ����������Ϣ
+    for (const auto& wire : m_canvas->GetWires()) {
+        // ֱ�ӷ���Wire���pts��Ա������ȡ�㼯��
+        const auto& pts = wire.pts;  // �ؼ��޸ģ�ʹ��wire.pts���wire.GetPoints()
+        if (pts.size() < 2) continue;
+
+        wxXmlNode* wireNode = new wxXmlNode(wxXML_ELEMENT_NODE, "wire");
+        // ������㣨��һ���㣩���յ㣨���һ���㣩
+        wireNode->AddAttribute("from", wxString::Format("(%d,%d)", pts[0].pos.x, pts[0].pos.y));
+        wireNode->AddAttribute("to", wxString::Format("(%d,%d)", pts.back().pos.x, pts.back().pos.y));
+
+        // �����м�㣨�����ڣ�
+        if (pts.size() > 2) {
+            wxString midPoints;
+            for (size_t i = 1; i < pts.size() - 1; ++i) {
+                midPoints += wxString::Format("(%d,%d);", pts[i].pos.x, pts[i].pos.y);
+            }
+            wireNode->AddAttribute("midpoints", midPoints);
+        }
+        circuit->AddChild(wireNode);
+    }
+
+    // 8. ���XML����
+    wxStringOutputStream strStream;
+    doc.Save(strStream, wxXML_DOCUMENT_TYPE_NODE);
+    return strStream.GetString();*/
+    return "";
+}
+
+void MainFrame::DoFileOpen(const wxString& path)
+{
+    /*
+    wxString filePath = path;
+
+    // 如果用户没有提供路径，显示文件选择对话框
+    if (filePath.IsEmpty()) {
+        wxFileDialog openDialog(
+            this,
+            wxT("打开文件"),
+            wxT(""),
+            wxT(""),
+            wxT("电路文件 (*.circ)|*.circ|所有文件 (*.*)|*.*"),
+            wxFD_OPEN | wxFD_FILE_MUST_EXIST
+        );
+
+        if (openDialog.ShowModal() != wxID_OK) {
+            return;
+        }
+        filePath = openDialog.GetPath();
+    }
+
+    // 检查文件扩展名
+    wxFileName fn(filePath);
+    wxString ext = fn.GetExt().Lower();
+
+    // 注：不再支持直接打开单个 .v 文件，必须通过项目方式打开
+
+    // 尝试读取文件内容
+    wxFile file;
+    if (!file.Open(filePath, wxFile::read)) {
+        wxMessageBox(wxT("无法打开文件: ") + filePath, wxT("错误"), wxOK | wxICON_ERROR);
+        return;
+    }
+
+    // ��ȡXML����
+    wxString xmlContent;
+    file.ReadAll(&xmlContent);
+    file.Close();
+
+    // ����XML
+    wxXmlDocument doc;
+    wxStringInputStream stream(xmlContent);
+    if (!doc.Load(stream)) {
+        wxMessageBox("�ļ���ʽ����: " + filePath, "����", wxOK | wxICON_ERROR);
+        return;
+    }
+
+    // ��յ�ǰ����
+    //m_canvas->ClearAll();
+
+    // �������ڵ�
+    wxXmlNode* root = doc.GetRoot();
+    if (!root || root->GetName() != "project") {
+        wxMessageBox("��Ч�ĵ�·�ļ�", "����", wxOK | wxICON_ERROR);
+        return;
+    }
+
+    // ���ҵ�·�ڵ�
+    wxXmlNode* circuit = root->GetChildren();
+    while (circuit) {
+        if (circuit->GetName() == "circuit") {
+            break;
+        }
+        circuit = circuit->GetNext();
+    }
+
+    if (!circuit) {
+        wxMessageBox("�ļ���δ�ҵ���·��Ϣ", "����", wxOK | wxICON_ERROR);
+        return;
+    }
+
+    // ����Ԫ��������
+    wxXmlNode* child = circuit->GetChildren();
+    while (child) {
+        // ����Ԫ�����Ƴ���ת�Ƕ���ش��룩
+        if (child->GetName() == "element") {
+            wxString name = child->GetAttribute("name");
+            int x = wxAtoi(child->GetAttribute("x", "0"));
+            int y = wxAtoi(child->GetAttribute("y", "0"));
+            // �Ƴ��������й���rotation�Ķ�ȡ
+            // int rotation = wxAtoi(child->GetAttribute("rotation", "0"));
+
+            //m_canvas->AddElement(name, wxPoint(x, y));
+            // 同时移除设置旋转角度的逻辑（如果有的话）
+        }
+
+        // �������ߣ���DoFileOpen�����У�
+        else if (child->GetName() == "wire") {
+            wxString fromStr = child->GetAttribute("from");
+            wxString toStr = child->GetAttribute("to");
+            wxString midPointsStr = child->GetAttribute("midpoints", "");
+
+            // ��������� (x,y)
+            auto parsePoint = [](const wxString& str) -> wxPoint {
+                int x = 0, y = 0;
+                if (sscanf(str.ToUTF8().data(), "(%d,%d)", &x, &y) == 2) {
+                    return wxPoint(x, y);
+                }
+                return wxPoint(0, 0);
+                };
+
+            // �ؽ�pts����
+            std::vector<ControlPoint> pts;
+            pts.push_back({ parsePoint(fromStr), CPType::Pin });  // ��㣨Pin���ͣ�
+
+            // �����м��
+            if (!midPointsStr.IsEmpty()) {
+                wxArrayString midPoints = wxSplit(midPointsStr, ';');
+                for (const auto& ptStr : midPoints) {
+                    if (ptStr.IsEmpty()) continue;
+                    pts.push_back({ parsePoint(ptStr), CPType::Bend });  // �м��Ϊ�۵�
+                }
+            }
+
+            pts.push_back({ parsePoint(toStr), CPType::Free });  // �յ㣨Free���ͣ�
+
+            // ����Wire�����ӵ�����
+            Wire wire;
+            wire.pts = pts;  // ֱ�Ӹ�ֵ��Wire��pts��Ա
+            wire.GenerateCells();  // ��������㣨������ʾһ���ԣ�
+            m_canvas->AddWire(wire);
+        }
+
+        child = child->GetNext();
+    }
+
+    // 更新状态
+    m_currentFilePath = filePath;
+    m_isModified = false;
+    SetTitle(wxFileName(filePath).GetFullName());
+    static_cast<MainMenuBar*>(GetMenuBar())->AddFileToHistory(filePath);
+    SetStatusText("�Ѵ�: " + filePath);*/
+}
+
+
+void MainFrame::OnToolSelected(wxCommandEvent& evt) {
+  wxString toolName = evt.GetString();
+    std::map<wxString, wxVariant> currentProps;
+   
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// 1. ����ΪBookShelf�淶��.node�ļ�
+bool MainFrame::SaveAsNodeFile(const wxString& filePath)
+{
+    /*
+    wxFile file;
+    // ���Դ��ļ�����ʧ�ܷ���false
+    if (!file.Exists(filePath)) {
+        if (!file.Create(filePath))
+            return false;
+    }
+    if (!file.Open(filePath, wxFile::write))
+        return false;
+
+    wxString content;
+    const auto& elements = m_canvas->GetElements();
+    int numTotalNodes = elements.size();  // �ܵ�Ԫ�������л���Ԫ����
+    int numTerminals = 0;                 // �ն˵�Ԫ������ͳ�ƴ�I/O���ŵ�Ԫ����
+
+    // ��һ����ͳ���ն˵�Ԫ����������/������ŵ�Ԫ����Ϊ�նˣ�
+    for (const auto& elem : elements)
+    {
+        if (!elem.GetInputPins().empty() || !elem.GetOutputPins().empty())
+            numTerminals++;
+    }
+
+    // �ڶ�����д��.node�ļ�ͷ����NumNodes + NumTerminals��
+    content += wxString::Format("NumNodes %d\n", numTotalNodes);
+    content += wxString::Format("NumTerminals %d\n", numTerminals);
+
+    // ��������д��ÿ����Ԫ����ϸ��Ϣ����Ԫ�� + ���� + �߶� + �ն˱�ǣ�
+    for (const auto& elem : elements)
+    {
+        // ��ȡ��Ԫ������Ϣ�����ơ�λ�ã����ڼ�����ߣ�
+        wxString nodeName = elem.GetName();
+        wxRect bounds = elem.GetBounds();  // ͨ��Ԫ���߽�������
+        int width = bounds.GetWidth();     // ��Ԫ���ȣ����أ��ɰ����ջ���Ϊ��m���˴��������ص�λ��
+        int height = bounds.GetHeight();   // ��Ԫ�߶ȣ�����site�߶ȣ��ĵ�Ĭ��12���˴���ʵ�ʱ߽�ȡ����
+
+        // �ж��Ƿ�Ϊ�ն˵�Ԫ����I/O���ţ�
+        bool isTerminal = (!elem.GetInputPins().empty() || !elem.GetOutputPins().empty());
+
+        // ƴ�ӵ�Ԫ�У��ն˵�Ԫ���"terminal"��ǣ���ͨ��Ԫ�����������Ϣ
+        if (isTerminal)
+        {
+            content += wxString::Format("%s %d %d terminal\n",
+                nodeName, width, height);
+        }
+        else
+        {
+            content += wxString::Format("%s %d %d\n",
+                nodeName, width, height);
+        }
+    }
+
+    // д���ļ����ر�
+    file.Write(content);
+    file.Close();*/
+    return true;
+}
+
+bool MainFrame::SaveAsNetFile(const wxString& filePath)
+{
+    /*
+    // ���Դ��������ļ�
+    wxFile file;
+    if (!file.Exists(filePath))
+    {
+        if (!file.Create(filePath))
+        {
+            wxMessageBox("�޷�����.net�ļ���", "����", wxOK | wxICON_ERROR);
+            return false;
+        }
+    }
+    if (!file.Open(filePath, wxFile::write))
+    {
+        wxMessageBox("�޷���.net�ļ�����д�룡", "����", wxOK | wxICON_ERROR);
+        return false;
+    }
+
+    // �ռ������еĵ��ߺ�Ԫ������
+    const auto& wires = m_canvas->GetWires();       // ���軭����GetWires()�������ص����б�
+    const auto& elements = m_canvas->GetElements(); // ���軭����GetElements()��������Ԫ���б�
+    int numTotalNets = wires.size();
+    int numTotalPins = 0;
+
+    // �ṹ�壺�洢���Źؼ���Ϣ������ƥ�䣩
+    struct PinInfo {
+        wxString cellName;    // ����Ԫ������
+        wxString pinType;     // �������ͣ�I/O��
+        wxPoint absPos;       // ���ž������꣨��������ϵ��
+        wxPoint offset;       // �������Ԫ����ƫ������
+    };
+    std::vector<PinInfo> allPins;
+
+    // 1. Ԥ��������Ԫ����������Ϣ����������+���ͣ�
+    for (const auto& elem : elements)
+    {
+        wxPoint elemPos = elem.GetPos();          // ��ȡԪ���ڻ����ľ���λ��
+        wxString cellName = elem.GetName();
+
+        // ������������
+        for (const auto& pin : elem.GetInputPins())
+        {
+            // �������ž������� = Ԫ��λ�� + �������ƫ��
+            wxPoint pinAbsPos(
+                elemPos.x + pin.pos.x,
+                elemPos.y + pin.pos.y
+            );
+            allPins.push_back({
+                cellName,
+                "I",  // �������ű��
+                pinAbsPos,
+                wxPoint(pin.pos.x, pin.pos.y)  // ���ƫ��
+                });
+        }
+
+        // �����������
+        for (const auto& pin : elem.GetOutputPins())
+        {
+            wxPoint pinAbsPos(
+                elemPos.x + pin.pos.x,
+                elemPos.y + pin.pos.y
+            );
+            allPins.push_back({
+                cellName,
+                "O",  // ������ű��
+                pinAbsPos,
+                wxPoint(pin.pos.x, pin.pos.y)
+                });
+        }
+
+        // ���⴦��"Pin (Output)"��Ԫ����������Ϊ������ţ�
+        if (cellName == "Pin (Output)")
+        {
+            allPins.push_back({
+                cellName,
+                "O",  // ��ȷΪ�������
+                elemPos,  // ����λ�ü�Ϊ����λ��
+                wxPoint(0, 0)  // �������ƫ��Ϊ(0,0)
+                });
+        }
+    }
+
+    // 2. �������е��ߣ�����������Ϣ
+    wxString content;
+    for (int netIdx = 0; netIdx < numTotalNets; ++netIdx)
+    {
+        const auto& wire = wires[netIdx];
+        if (wire.pts.size() < 2)  // ������Ч���ߣ�������Ҫ�����յ㣩
+            continue;
+
+        // ���������ߵ������յ���Ϊ��Ч���ţ������м���Ƶ㣩
+        std::vector<wxPoint> validPinPositions;
+        validPinPositions.push_back(wire.pts[0].pos);                // ���
+        validPinPositions.push_back(wire.pts[wire.pts.size() - 1].pos);  // �յ�
+        int netDegree = validPinPositions.size();  // �̶�Ϊ2����Ч���ߣ�
+        numTotalPins += netDegree;
+
+        // д������ͷ����Ϣ���������+��������
+        wxString netName = wxString::Format("n%d", netIdx);
+        content += wxString::Format("NetDegree %d %s\n", netDegree, netName);
+
+        // 3. ƥ��ÿ����Ч���ŵ���Ӧ��Ԫ��
+        const int COORD_TOLERANCE = 3;  // ����������̣�3��������Ϊƥ�䣩
+        for (const auto& pinPos : validPinPositions)
+        {
+            wxString cellName = "unknown_cell";
+            wxString pinType = "I";
+            wxPoint offset(0, 0);
+
+            // ����Ԥ����������б�����������ƥ�������
+            for (const auto& pinInfo : allPins)
+            {
+                int dx = abs(pinPos.x - pinInfo.absPos.x);
+                int dy = abs(pinPos.y - pinInfo.absPos.y);
+                if (dx <= COORD_TOLERANCE && dy <= COORD_TOLERANCE)
+                {
+                    cellName = pinInfo.cellName;
+                    pinType = pinInfo.pinType;
+                    offset = pinInfo.offset;
+                    break;  // �ҵ�ƥ������ź��˳�ѭ��
+                }
+            }
+
+            // д��������Ϣ����ʽ��Ԫ���� ����:Xƫ�� Yƫ�ƣ�
+            content += wxString::Format("%s %s:%d %d\n",
+                cellName, pinType, offset.x, offset.y);
+        }
+    }
+
+    // 4. д���ļ�ͷ������������������������
+    wxString header;
+    header += wxString::Format("NumNets %d\n", numTotalNets);
+    header += wxString::Format("NumPins %d\n", numTotalPins);
+    content = header + content;
+
+    // д���ļ����ر�
+    file.Write(content);
+    file.Close();*/
+    return true;
+}
+
+// 3. �������޸ģ�.node�ļ����津������������ԭ�߼���
+void MainFrame::DoFileSaveAsNode()
+{
+    wxFileDialog saveDialog(this,
+        "Save as BookShelf .node File",
+        "",
+        "circuit.node",  // Ĭ���ļ���
+        "BookShelf Node Files (*.node)|*.node",
+        wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
+
+    if (saveDialog.ShowModal() == wxID_CANCEL)
+        return;
+
+    wxString filePath = saveDialog.GetPath();
+    bool success = SaveAsNodeFile(filePath);
+    if (success)
+    {
+        SetStatusText(wxString::Format("Saved BookShelf .node file: %s", filePath));
+    }
+    else
+    {
+        wxMessageBox("Failed to save .node file (check file permissions)", "Error", wxOK | wxICON_ERROR);
+    }
+}
+
+// 4. �������޸ģ�.net�ļ����津������������ԭ�߼���
+void MainFrame::DoFileSaveAsNet()
+{
+    wxFileDialog saveDialog(this,
+        "Save as BookShelf .net File",
+        "",
+        "circuit.net",  // Ĭ���ļ���
+        "BookShelf Net Files (*.net)|*.net",
+        wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
+
+    if (saveDialog.ShowModal() == wxID_CANCEL)
+        return;
+
+    wxString filePath = saveDialog.GetPath();
+    bool success = SaveAsNetFile(filePath);
+    if (success)
+    {
+        SetStatusText(wxString::Format("Saved BookShelf .net file: %s", filePath));
+    }
+    else
+    {
+        wxMessageBox("Failed to save .net file (check file permissions)", "Error", wxOK | wxICON_ERROR);
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ��������������Ԫ����ڵ�
+void MainFrame::AddLibraryNode(wxXmlNode* parent, const wxString& name, const wxString& desc) {
+    wxXmlNode* lib = new wxXmlNode(wxXML_ELEMENT_NODE, wxT("lib"));
+    lib->AddAttribute(wxT("name"), name);
+    lib->AddAttribute(wxT("desc"), desc);
+    parent->AddChild(lib);
+}
+
+// �������������ӵ��߽ڵ�
+void MainFrame::AddWireNode(wxXmlNode* parent, const wxString& from, const wxString& to) {
+    wxXmlNode* wire = new wxXmlNode(wxXML_ELEMENT_NODE, wxT("wire"));
+    wire->AddAttribute(wxT("from"), from);
+    wire->AddAttribute(wxT("to"), to);
+    parent->AddChild(wire);
+}
+// ������ʵ��"����Ϊ"�����������״α��棩
+bool MainFrame::DoFileSaveAs() {
+    // �����ļ�ѡ��Ի���
+    wxFileDialog saveDialog(
+        this,
+        "����Ϊ",
+        "",
+        "Untitled.circ",  // Ĭ���ļ���
+        "��·�ļ� (*.circ)|*.circ|�����ļ� (*.*)|*.*",
+        wxFD_SAVE | wxFD_OVERWRITE_PROMPT  // ��ʾ���������ļ�
+    );
+
+    // �û�ȡ���򷵻�
+    if (saveDialog.ShowModal() != wxID_OK) {
+        return false;
+    }
+
+    // ��ȡ�û�ѡ���·��
+    wxString newPath = saveDialog.GetPath();
+    if (!m_verilogEditor || !m_verilogEditor->SaveFileAs(newPath)) {
+        wxMessageBox(wxString::Format("Failed to save: %s", newPath),
+                     "Save File As", wxOK | wxICON_ERROR, this);
+        return false;
+    }
+
+    m_currentFilePath = newPath;
+    m_isModified = false;
+
+    // ִ�б���
+    // SaveFileAs above performs the write before committing the frame path.
+
+    // ����ѡ�����ӵ�����ļ���ʷ
+    static_cast<MainMenuBar*>(GetMenuBar())->AddFileToHistory(newPath);
+    SetStatusText(wxString::Format("Saved as: %s", newPath));
+    RefreshTitle();
+    return true;
+}
+
+
+
+
+void MainFrame::OnAbout(wxCommandEvent&)
+{
+    wxMessageBox(wxString::Format(wxT("MyLogisim\n%s"), wxVERSION_STRING),
+        wxT("About"), wxOK | wxICON_INFORMATION, this);
+}
+
+void MainFrame::DoEditUndo()
+{
+}
+
+void MainFrame::DoEditCut() { wxMessageBox("Edit->Cut"); }
+void MainFrame::DoEditCopy() { wxMessageBox("Edit->Copy"); }
+void MainFrame::DoEditPaste() { wxMessageBox("Edit->Paste"); }
+void MainFrame::DoEditDelete() { 
+}
+void MainFrame::DoEditDuplicate() { wxMessageBox("Edit->Duplicate"); }
+void MainFrame::DoEditSelectAll() { wxMessageBox("Edit->SelectAll"); }
+void MainFrame::DoEditRaiseSel() { wxMessageBox("Edit->Raise Selection"); }
+void MainFrame::DoEditLowerSel() { wxMessageBox("Edit->Lower Selection"); }
+void MainFrame::DoEditRaiseTop() { wxMessageBox("Edit->Raise to Top"); }
+void MainFrame::DoEditLowerBottom() { wxMessageBox("Edit->Lower to Bottom"); }
+void MainFrame::DoEditAddVertex() { wxMessageBox("Edit->Add Vertex"); }
+void MainFrame::DoEditRemoveVertex() { wxMessageBox("Edit->Remove Vertex"); }
+
+void MainFrame::DoProjectAddCircuit() { wxMessageBox("Project->Add Circuit"); }
+void MainFrame::DoProjectLoadLibrary() { wxMessageBox("Project->Load Library"); }
+void MainFrame::DoProjectUnloadLibraries() { wxMessageBox("Project->Unload Libraries"); }
+void MainFrame::DoProjectMoveCircuitUp() { wxMessageBox("Project->Move Circuit Up"); }
+void MainFrame::DoProjectMoveCircuitDown() { wxMessageBox("Project->Move Circuit Down"); }
+void MainFrame::DoProjectSetAsMain() { wxMessageBox("Project->Set As Main Circuit"); }
+void MainFrame::DoProjectRemoveCircuit() { wxMessageBox("Project->Remove Circuit"); }
+void MainFrame::DoProjectRevertAppearance() { wxMessageBox("Project->Revert Appearance"); }
+void MainFrame::DoProjectViewToolbox() { wxMessageBox("Project->View Toolbox"); }
+void MainFrame::DoProjectViewSimTree() { wxMessageBox("Project->View Simulation Tree"); }
+void MainFrame::DoProjectEditLayout() { wxMessageBox("Project->Edit Circuit Layout"); }
+void MainFrame::DoProjectEditAppearance() { wxMessageBox("Project->Edit Circuit Appearance"); }
+void MainFrame::DoProjectAnalyzeCircuit() { wxMessageBox("Project->Analyze Circuit"); }
+void MainFrame::DoProjectGetStats() { wxMessageBox("Project->Get Circuit Statistics"); }
+void MainFrame::DoProjectOptions() { wxMessageBox("Project->Options"); }
+
+void MainFrame::DoSimSetEnabled(bool on)
+{
+    wxMessageBox(wxString::Format("Simulation %s", on ? "enabled" : "disabled"));
+}
+void MainFrame::DoSimReset() { wxMessageBox("Simulation reset"); }
+void MainFrame::DoSimStep() { wxMessageBox("Simulation step"); }
+void MainFrame::DoSimGoOut() { wxMessageBox("Go Out To State"); }
+void MainFrame::DoSimGoIn() { wxMessageBox("Go In To State"); }
+void MainFrame::DoSimTickOnce() { wxMessageBox("Tick Once"); }
+void MainFrame::DoSimTicksEnabled(bool on)
+{
+    wxMessageBox(wxString::Format("Ticks %s", on ? "enabled" : "disabled"));
+}
+void MainFrame::DoSimSetTickFreq(int hz)
+{
+    wxMessageBox(wxString::Format("Tick frequency set to %d Hz", hz));
+}
+void MainFrame::DoSimLogging() { wxMessageBox("Logging dialog"); }
+
+void MainFrame::DoWindowCombinationalAnalysis()
+{
+    wxMessageBox("Window->Combinational Analysis");
+}
+void MainFrame::DoWindowPreferences()
+{
+    wxMessageBox("Window->Preferences");
+}
+void MainFrame::DoWindowSwitchToDoc(const wxString& title)
+{
+    wxMessageBox("Switch to document: " + title);
+    // �����߼�����������л�����Ӧ�Ӵ��ڻ���ͼ
+}
+
+void MainFrame::DoHelpTutorial()
+{
+    wxMessageBox("Help->Tutorial");
+}
+void MainFrame::DoHelpUserGuide()
+{
+    wxMessageBox("Help->User's Guide");
+}
+void MainFrame::DoHelpLibraryRef()
+{
+    wxMessageBox("Help->Library Reference");
+}
+void MainFrame::DoHelpAbout()
+{
+    wxMessageBox(wxString::Format("MyLogisim\n%s", wxVERSION_STRING),
+        wxT("About"), wxOK | wxICON_INFORMATION, this);
+}
+
+
+void MainFrame::OnOpenFileFromTree(wxCommandEvent& evt) {
+    wxString path = evt.GetString();
+    if (!wxFileExists(path)) {
+        wxMessageBox("The selected file no longer exists.", "Open File", wxOK | wxICON_WARNING, this);
+        return;
+    }
+
+    FileNode* fn = sigTree->GetFileNode(path.ToStdString());
+    if (!fn) {
+        wxMessageBox("The selected file is not a parsed Verilog source in this project.",
+                     "Open File", wxOK | wxICON_WARNING, this);
+        return;
+    }
+
+    // 先保存或放弃当前画布；确认后才改变编辑器、树和画布的共同状态。
+    if (!m_canvas->SaveOrNotWindow()) {
+        return;
+    }
+
+    const auto mapIt = maps.find(path);
+    const std::unordered_map<SigTreeNode*, std::tuple<int, int>> emptyMap;
+    if (!m_verilogMgr->SetFileNode(fn, mapIt != maps.end() ? mapIt->second : emptyMap)) {
+        return;
+    }
+
+    m_currentFilePath = path;
+    m_sigFlowTreePanel->SetFileNode(fn);
+    m_canvas->SetFileNode(fn);
+    
+    RefreshTitle();
+}
+
+
+void MainFrame::OnUndoStackChanged()
+{
+    wxMenuBar* bar = GetMenuBar();
+    if (!bar) return;
+
+    wxMenu* editMenu = bar->GetMenu(1);      // Edit �˵�
+    if (!editMenu) return;
+
+    wxMenuItem* undoItem = editMenu->FindItem(wxID_UNDO);
+    if (undoItem)
+    {
+
+    }
+
+}
+
+void MainFrame::OnClose(wxCloseEvent& event) {
+    if (!event.CanVeto()) {
+        event.Skip();
+        return;
+    }
+
+    // 同时考虑文本编辑器和画布，避免只保存其中一个就退出。
+    const bool editorModified = m_verilogEditor && m_verilogEditor->GetModify();
+    const bool canvasModified = m_canvas && m_canvas->HasUnsavedChanges();
+    if (!editorModified && !canvasModified) {
+        event.Skip();
+        return;
+    }
+
+    // 1. �����ļ���
+    wxString fileName = m_currentFilePath.IsEmpty()
+        ? wxString("Untitled")
+        : wxFileName(m_currentFilePath).GetFullName();
+
+    // 2. ʹ�� wxMessageDialog ԭ���Ի��򣨽�����������ť��
+    // ȥ��ͼ����ز���������Ĭ�ϵ� wxICON_QUESTION����ѡ��
+    wxMessageDialog dialog(this,
+        wxString::Format("What should happen to your unsaved changes to %s?", fileName),
+        "Confirm Close",
+        wxYES_NO | wxCANCEL | wxYES_DEFAULT); // ������������ť������
+
+    // 3. ������ť�߼�
+    int result = dialog.ShowModal();
+    switch (result) {
+    case wxID_YES:
+        if (canvasModified && !m_canvas->SaveModifiedCanvases()) {
+            return;
+        }
+        if (editorModified) {
+            const bool saved = m_currentFilePath.IsEmpty() ? DoFileSaveAs() : DoFileSave();
+            if (!saved) {
+                return;
+            }
+        }
+        event.Skip(); // �����رմ���
+        break;
+    case wxID_NO:
+        event.Skip(); // �����رմ��ڣ������棩
+        break;
+    case wxID_CANCEL:
+        // ��ִ�� Skip()����ֹ���ڹر�
+        break;
+    }
+}
+
+wxString MainFrame::GetWorkspaceCopyPath(const wxString& m_currentFilePath) {
+    // 1. 创建文件对象
+    wxFileName fileObj(m_currentFilePath);
+
+    // 2. 计算相对于项目根目录的相对路径
+    // 执行后，fileObj 将不再存有绝对路径，而是变为 "src/top.v" 这种形式
+    if (fileObj.MakeRelativeTo(m_currentProjectPath)) {
+
+        // 3. 将相对路径拼接到工作区根目录下
+        // 这里的路径加法会自动处理反斜杠
+        wxString targetPath = m_workspacePath + wxFileName::GetPathSeparator() + fileObj.GetFullPath();
+
+        return targetPath;
+    }
+
+    return wxEmptyString; // 如果不在项目内，返回空
+}
+
+void MainFrame::OnAnalysisComplete(wxThreadEvent& event) {
+    AnalysisResult result = event.GetPayload<AnalysisResult>();
+
+    
+    // 交给分析模块
+    //AnalyzeDelta(L, delta.ToStdString());
+
+    if (result.linted) m_verilogEditor->VisualFeedBack(result.lint);
+}
+
+
+// 在 MainFrame 中实现
+void MainFrame::RefreshTitle() {
+    wxString title = "SigFlow";
+    wxFileName fileObj(m_currentFilePath);
+    if (fileObj.MakeRelativeTo(m_currentProjectPath)) {
+        if (!m_projectName.IsEmpty()) {
+            title += " [" + m_projectName  + wxFileName::GetPathSeparator() + fileObj.GetFullPath() + "]";
+        }
+
+    }
+    else {
+        title += " [" + m_projectName + wxFileName::GetPathSeparator() + "]";
+    }
+    this->SetTitle(title);
+}
+
+
+void MainFrame::OnSFNodeActivated(wxCommandEvent& event) {
+    SigTreeNode* node = static_cast<SigTreeNode*>(event.GetClientData());
+    if (node && m_sfnPropertyPanel) {
+        m_sfnPropertyPanel->LoadNode(node);
+    }
+    if (node && node->type == SigTreeNodeType::Signal && m_wavePanel) {
+        const auto* signal = static_cast<const SignalNode*>(node);
+        if (!m_wavePanel->AddSignalByName(signal->identifier)) {
+            SetStatusText(wxString::Format("Waveform signal not found: %s",
+                                           wxString::FromUTF8(signal->identifier.c_str())), 0);
+        }
+    }
+}
+void MainFrame:: OnSFTreeChanged(wxCommandEvent& event) {
+    m_sigFlowTreePanel->Fresh();
+    m_sfnPropertyPanel->Fresh();
+    m_canvas->Refresh();
+}
+
+void MainFrame::OnSFNodeAdded(wxCommandEvent& event) {
+    OnSFTreeChanged(event);
+    m_canvas->SigFlowNodeAdded(static_cast<SigTreeNode*>(event.GetClientData()));
+    m_verilogMgr->SigFlowNodeAdded(static_cast<SigTreeNode*>(event.GetClientData()));
+}
+
+void MainFrame::OnSFNodeDeleted(wxCommandEvent& event) {
+    OnSFTreeChanged(event);
+    m_canvas->SigFlowNodeDeleted(static_cast<SigTreeNode*>(event.GetClientData()));
+}
+
+void MainFrame::OnSFNodeChanged(wxCommandEvent& event) {
+    OnSFTreeChanged(event);
+    m_canvas->SigFlowNodeChanged(static_cast<SigTreeNode*>(event.GetClientData()));
+}
+
+
+
+void MainFrame::PropertyLoadNode(SigTreeNode* node) {
+    m_sfnPropertyPanel->LoadNode(node);
+}
+
+
+
+
+// ============================================================================
+// Verilator 仿真接口实现
+// ============================================================================
+
+// 从 sigflow.project 读取编译配置
+bool MainFrame::LoadProjectConfig(const wxString& projectPath, 
+                                   wxString& outTopModule,
+                                   std::vector<wxString>& outSourceFiles)
+{
+    const wxString projectDirectory = NormalizeProjectDirectoryPath(projectPath);
+    wxString configPath = projectDirectory + "\\sigflow.project";
+    
+    if (!wxFileExists(configPath)) {
+        OutputDebugStringA("sigflow.project not found\n");
+        return false;
+    }
+    
+    // 读取文件内容
+    wxFile file(configPath, wxFile::read);
+    if (!file.IsOpened()) {
+        OutputDebugStringA("Failed to open sigflow.project\n");
+        return false;
+    }
+    
+    wxString jsonContent;
+    file.ReadAll(&jsonContent);
+    file.Close();
+    
+    // 解析 JSON
+    Json::Value root;
+    Json::CharReaderBuilder builder;
+    std::string errors;
+    
+    std::string jsonStr = jsonContent.ToUTF8().data();
+    std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
+    
+    if (!reader->parse(jsonStr.c_str(), jsonStr.c_str() + jsonStr.size(), &root, &errors)) {
+        OutputDebugStringA(("JSON parse error: " + errors + "\n").c_str());
+        return false;
+    }
+    
+    // 读取 top_module
+    if (root.isMember("build") && root["build"].isMember("top_module")) {
+        const Json::Value& topModules = root["build"]["top_module"];
+        if (topModules.isArray() && !topModules.empty()) {
+            outTopModule = wxString::FromUTF8(topModules[0].asString());
+            OutputDebugStringA(("Top module from config: " + outTopModule.ToStdString() + "\n").c_str());
+        }
+    }
+    
+    // 读取 source_files
+    if (root.isMember("paths") && root["paths"].isMember("source_files")) {
+        const Json::Value& sources = root["paths"]["source_files"];
+        if (sources.isArray()) {
+            for (const auto& src : sources) {
+                wxString relPath = wxString::FromUTF8(src.asString());
+                wxString fullPath = projectDirectory + "\\" + relPath;
+                // 将正斜杠转换为反斜杠
+                fullPath.Replace("/", "\\");
+                outSourceFiles.push_back(fullPath);
+                OutputDebugStringA(("Source file: " + fullPath.ToStdString() + "\n").c_str());
+            }
+        }
+    }
+    
+    // 读取 library_files
+    if (root.isMember("paths") && root["paths"].isMember("library_files")) {
+        const Json::Value& libs = root["paths"]["library_files"];
+        if (libs.isArray()) {
+            for (const auto& lib : libs) {
+                wxString relPath = wxString::FromUTF8(lib.asString());
+                if (!relPath.IsEmpty()) {
+                    wxString fullPath = projectDirectory + "\\" + relPath;
+                    fullPath.Replace("/", "\\");
+                    outSourceFiles.push_back(fullPath);
+                    OutputDebugStringA(("Library file: " + fullPath.ToStdString() + "\n").c_str());
+                }
+            }
+        }
+    }
+    
+    return !outTopModule.IsEmpty() && !outSourceFiles.empty();
+}
+
+void MainFrame::ShowFpgaToolWindow(FpgaToolPage page)
+{
+    if (!m_fpgaToolWindow) return;
+    m_fpgaToolWindow->SetProjectContext(m_currentProjectPath, m_activeYosysJobId);
+    m_fpgaToolWindow->ShowPage(page);
+}
+
+void MainFrame::KillAsyncToolProcess(long processId)
+{
+    if (processId <= 0) return;
+    HANDLE process = OpenProcess(PROCESS_TERMINATE, FALSE, static_cast<DWORD>(processId));
+    if (process) {
+        TerminateProcess(process, 1);
+        CloseHandle(process);
+    }
+}
+
+void MainFrame::DoFpgaSynthesis()
+{
+    ShowFpgaToolWindow(FpgaToolPage::Yosys);
+}
+
+void MainFrame::DoTraceBridge()
+{
+    if (!m_traceBridgeWindow) return;
+    m_traceBridgeWindow->SetProjectContext(m_currentProjectPath);
+    m_traceBridgeWindow->Show();
+    m_traceBridgeWindow->Raise();
+    // AUI Dock：在右侧 notebook 中查找或创建 "TraceBridge" Tab
+    wxAuiPaneInfoArray& panes = m_auiMgr.GetAllPanes();
+    for (size_t i = 0; i < panes.GetCount(); ++i) {
+        wxWindow* w = panes[i].window;
+        wxAuiNotebook* nb = dynamic_cast<wxAuiNotebook*>(w);
+        if (!nb) continue;
+        for (size_t j = 0; j < nb->GetPageCount(); ++j) {
+            if (nb->GetPageText(j) == wxT("TraceBridge")) {
+                nb->SetSelection(j);
+                return;
+            }
+        }
+        break; // 用第一个找到的 wxAuiNotebook
+    }
+}
+
+void MainFrame::DoDebugContract()
+{
+    if (m_currentProjectPath.IsEmpty()) {
+        wxMessageBox(wxT("请先打开一个 SigFlow 项目。"), wxT("debug_contract"),
+                     wxOK | wxICON_WARNING, this);
+        return;
+    }
+    if (!m_debugContractConfigWindow) return;
+    m_debugContractConfigWindow->SetProjectContext(m_currentProjectPath);
+    m_debugContractConfigWindow->Show();
+    m_debugContractConfigWindow->Raise();
+}
+
+void MainFrame::RunTraceBridgeCapture(
+    const TraceBridgeCaptureRequest& request,
+    std::function<void(bool, const wxString&)> completion)
+{
+    const wxWeakRef<MainFrame> weakFrame(this);
+    std::vector<std::string> mappingSources;
+    wxString mappingTop;
+    std::vector<wxString> sourceFiles;
+    if (LoadProjectConfig(wxString::FromUTF8(request.projectPath), mappingTop, sourceFiles)) {
+        for (const auto& source : sourceFiles) mappingSources.push_back(source.ToStdString());
+    }
+    const std::string mappingTopModule = request.contract.topModule.empty()
+        ? mappingTop.ToStdString() : request.contract.topModule;
+    std::thread([weakFrame, request, mappingSources, mappingTopModule,
+                 completion = std::move(completion)]() mutable {
+        std::string error;
+        std::string vcdPath;
+        bool success = false;
+        auto postStatus = [weakFrame](const wxString& message) {
+            if (!wxTheApp) return;
+            wxTheApp->CallAfter([weakFrame, message]() {
+                if (weakFrame && weakFrame->m_traceBridgeWindow) {
+                    weakFrame->m_traceBridgeWindow->SetCaptureStatus(message);
+                }
+            });
+        };
+
+        try {
+            sigflow::debug::DebugSessionService sessionService;
+            sigflow::debug::DebugSessionInfo session;
+            postStatus("Creating TraceBridge debug session...");
+            if (!sessionService.Create(request.projectPath, request.contract, session, error)) {
+                error = "Unable to create TraceBridge session: " + error;
+            } else {
+                const auto paths = sigflow::debug::DebugSessionService::GetPaths(
+                    request.projectPath, session.id);
+                sigflow::debug::DebugMappingBuildResult mappingResult;
+                std::string mappingError;
+                const std::string topModule = mappingTopModule.empty()
+                    ? request.contract.topModule : mappingTopModule;
+                if (!sigflow::debug::DebugMappingBuilder::Generate(
+                        topModule, mappingSources, request.contract, paths.root,
+                        mappingResult, mappingError)) {
+                    postStatus(wxT("Warning: source mapping sidecar generation failed: ") +
+                               wxString::FromUTF8(mappingError));
+                } else {
+                    postStatus(wxString::Format(
+                        "Generated signal map (%zu signals, %zu upstream edges).",
+                        mappingResult.mappedSignals, mappingResult.graphEdges));
+                }
+                const auto transition = [&sessionService, &request, &session, &error, &postStatus](
+                    sigflow::debug::DebugSessionState state, const char* reason, const wxString& progress) {
+                    postStatus(progress);
+                    return sessionService.Transition(request.projectPath, session.id, state, reason, 0, error);
+                };
+                if (!transition(sigflow::debug::DebugSessionState::Validating,
+                                "TraceBridge GUI validated contract.", "Validating debug contract...") ||
+                    !transition(sigflow::debug::DebugSessionState::Building,
+                                "Using externally prepared debug bitstream.",
+                                "Using the externally prepared debug bitstream...") ||
+                    !transition(sigflow::debug::DebugSessionState::Programming,
+                                "Using user-programmed debug bitstream.",
+                                "Checking programmed debug-bitstream session...") ||
+                    !transition(sigflow::debug::DebugSessionState::Armed,
+                                "Opening TraceBridge UART capture.", "Opening TraceBridge UART...")) {
+                    error = "Unable to arm TraceBridge session: " + error;
+                } else {
+                    sigflow::debug::SerialTransport transport(request.serialPort,
+                                                               request.contract.transport.baud);
+                    if (!transport.Open()) {
+                        error = "Unable to open serial port " + request.serialPort + ".";
+                        std::string transitionError;
+                        sessionService.Transition(request.projectPath, session.id,
+                                                  sigflow::debug::DebugSessionState::Failed,
+                                                  error, -1, transitionError);
+                    } else {
+                        postStatus("Armed. Waiting for trigger and reading samples...");
+                        const sigflow::debug::DebugSessionPaths paths =
+                            sigflow::debug::DebugSessionService::GetPaths(request.projectPath, session.id);
+                        sigflow::debug::DebugAcquisition acquisition(transport, request.contract);
+                        success = acquisition.AcquireWithSession(request.projectPath, session.id,
+                                                                 paths.artifacts, error, request.options);
+                        if (success) vcdPath = acquisition.Result().vcdPath;
+                        transport.Close();
+                    }
+                }
+            }
+        } catch (const std::exception& exception) {
+            error = "TraceBridge acquisition exception: " + std::string(exception.what());
+        } catch (...) {
+            error = "TraceBridge acquisition failed with an unknown exception.";
+        }
+
+        if (!wxTheApp) return;
+        wxTheApp->CallAfter([weakFrame, success, error, vcdPath, completion]() {
+            if (!weakFrame || !weakFrame->m_traceBridgeWindow) return;
+            wxString completionMessage;
+            if (success) {
+                const wxString captureVcd = wxString::FromUTF8(vcdPath);
+                if (weakFrame->m_wavePanel) {
+                    weakFrame->m_wavePanel->OpenTrace(std::string(captureVcd.ToUTF8().data()));
+                    if (auto* notebook = dynamic_cast<wxAuiNotebook*>(
+                            weakFrame->m_wavePanel->GetParent())) {
+                        const size_t page = notebook->GetPageIndex(weakFrame->m_wavePanel);
+                        if (page != wxNOT_FOUND) notebook->SetSelection(page);
+                    }
+                }
+                weakFrame->m_traceBridgeWindow->SetCaptureResult(
+                    true, "Capture completed and loaded into WavePanel.", captureVcd);
+                completionMessage = wxT("采集完成：") + captureVcd;
+            } else {
+                weakFrame->m_traceBridgeWindow->SetCaptureResult(
+                    false, "Capture failed: " + wxString::FromUTF8(error));
+                completionMessage = wxT("采集失败：") + wxString::FromUTF8(error);
+            }
+            if (completion) completion(success, completionMessage);
+        });
+    }).detach();
+}
+
+void MainFrame::RunTraceBridgeDebugBuild(const TraceBridgeDebugBuildRequest& request)
+{
+    const auto workflowCompletion = request.completion;
+    const auto finishWorkflow = [workflowCompletion](bool success, const wxString& message) {
+        if (workflowCompletion) workflowCompletion(success, message);
+    };
+    if (m_currentProjectPath.IsEmpty() || request.projectPath.empty()) {
+        finishWorkflow(false, wxT("未打开 SigFlow 项目，无法开始一键流程。"));
+        return;
+    }
+    if ((m_yosysExecutor && m_yosysExecutor->GetState() == YosysExecutor::State::Running) ||
+        (m_nextpnrExecutor && m_nextpnrExecutor->GetState() == NextpnrExecutor::State::Running)) {
+        wxMessageBox(wxT("已有 FPGA 构建任务运行，请等待完成后再构建调试位流。"),
+                     wxT("TraceBridge 调试构建"), wxOK | wxICON_WARNING, this);
+        finishWorkflow(false, wxT("已有 FPGA 构建任务运行。"));
+        return;
+    }
+
+    wxString projectPath = wxString::FromUTF8(request.projectPath);
+    wxString topModule;
+    std::vector<wxString> sourceFiles;
+    if (!LoadProjectConfig(projectPath, topModule, sourceFiles)) {
+        wxMessageBox(wxT("无法从 sigflow.project 读取顶层模块和源文件。"),
+                     wxT("TraceBridge 调试构建"), wxOK | wxICON_ERROR, this);
+        finishWorkflow(false, wxT("无法读取 sigflow.project。"));
+        return;
+    }
+    FpgaProjectOptions options;
+    wxString error;
+    FpgaTargetProfile targetProfile;
+    if (!LoadFpgaProjectOptions(projectPath, options, error) ||
+        !ResolveFpgaTargetProfile(options.targetProfileId, targetProfile, error)) {
+        wxMessageBox(error, wxT("TraceBridge 调试构建"), wxOK | wxICON_ERROR, this);
+        finishWorkflow(false, error);
+        return;
+    }
+    wxString configuredCstPath;
+    for (const auto& arg : options.nextpnrArgs) {
+        if (arg.StartsWith(wxT("cst="))) {
+            configuredCstPath = arg.Mid(4);
+            break;
+        }
+    }
+    const wxString yosysExecutable = FindFpgaTool(options.yosysPath, "SIGFLOW_YOSYS", "yosys.exe");
+    const wxString nextpnrExecutable = FindFpgaTool(options.nextpnrPath, "SIGFLOW_NEXTPNR", "nextpnr-himbaechel.exe");
+    const wxString packExecutable = FindFpgaTool(options.gowinPackPath, "SIGFLOW_GOWIN_PACK", "gowin_pack.exe");
+    if (yosysExecutable.IsEmpty() || nextpnrExecutable.IsEmpty() || packExecutable.IsEmpty()) {
+        wxMessageBox(wxT("调试构建需要 yosys.exe、nextpnr-himbaechel.exe 和 gowin_pack.exe。"),
+                     wxT("TraceBridge 调试构建"), wxOK | wxICON_ERROR, this);
+        finishWorkflow(false, wxT("调试构建工具链不完整。"));
+        return;
+    }
+
+    sigflow::debug::DebugContract contract = request.contract;
+    contract.topModule = std::string(topModule.ToUTF8().data());
+    if (contract.sessionId.empty()) contract.sessionId = sigflow::debug::NewDebugSessionId();
+    contract.ApplyDefaults();
+    std::string contractError;
+    if (!contract.AssignProbeBitOffsets(contractError) || !contract.Validate(contractError)) {
+        wxMessageBox(wxString::FromUTF8(contractError), wxT("TraceBridge 调试构建"),
+                     wxOK | wxICON_ERROR, this);
+        finishWorkflow(false, wxString::FromUTF8(contractError));
+        return;
+    }
+
+    const wxString legacyJson = projectPath + wxT("\\yosys\\") + topModule + wxT(".json");
+    wxFile jsonFile(legacyJson, wxFile::read);
+    wxString jsonText;
+    if (!jsonFile.IsOpened() || !jsonFile.ReadAll(&jsonText)) {
+        wxMessageBox(wxT("找不到已完成的 Yosys JSON：") + legacyJson +
+                     wxT("\n请先完成普通综合。"), wxT("TraceBridge 调试构建"),
+                     wxOK | wxICON_WARNING, this);
+        finishWorkflow(false, wxT("找不到已完成的 Yosys JSON，请先完成普通综合。"));
+        return;
+    }
+    std::vector<sigflow::debug::DebugPortInfo> ports;
+    if (!sigflow::debug::DebugNetlistValidator::ParseTopPorts(
+            std::string(jsonText.ToUTF8().data()), std::string(topModule.ToUTF8().data()),
+            ports, contractError)) {
+        wxMessageBox(wxString::FromUTF8(contractError), wxT("TraceBridge 调试构建"),
+                     wxOK | wxICON_ERROR, this);
+        finishWorkflow(false, wxString::FromUTF8(contractError));
+        return;
+    }
+
+    sigflow::debug::DebugSessionService sessionService;
+    sigflow::debug::DebugSessionInfo session;
+    if (!sessionService.Create(request.projectPath, contract, session, contractError)) {
+        wxMessageBox(wxString::FromUTF8(contractError), wxT("TraceBridge 调试构建"),
+                     wxOK | wxICON_ERROR, this);
+        finishWorkflow(false, wxString::FromUTF8(contractError));
+        return;
+    }
+    const auto paths = sigflow::debug::DebugSessionService::GetPaths(request.projectPath, session.id);
+    sigflow::debug::DebugOverlayResult overlay;
+    sigflow::debug::DebugOverlayBuilder builder;
+    const wxString debugRtlDirectory = FindTraceBridgeDebugRtl(projectPath);
+    if (debugRtlDirectory.IsEmpty()) {
+        const wxString message =
+            wxT("找不到 TraceBridge 调试 RTL（rtl\\debug）。请确认程序从 SigFlow 仓库运行，"
+                "或将 rtl\\debug 放在工程目录/安装目录下。\n"
+                "需要 sf_micro_ila.sv、sf_uart_link.sv 和 sf_debug_link.sv。\n"
+                "Debug session: ") + wxString::FromUTF8(session.id);
+        sessionService.Transition(request.projectPath, session.id,
+                                   sigflow::debug::DebugSessionState::Failed,
+                                   std::string(message.ToUTF8().data()), -1, contractError);
+        wxMessageBox(message, wxT("TraceBridge 调试构建"), wxOK | wxICON_ERROR, this);
+        finishWorkflow(false, message);
+        return;
+    }
+    std::map<std::string, std::string> sourceSnapshot;
+    if (!builder.SnapshotUserSources(
+            [&sourceFiles] { std::vector<std::string> result; for (const auto& f : sourceFiles) result.push_back(std::string(f.ToUTF8().data())); return result; }(),
+            sourceSnapshot, contractError) ||
+        !builder.GenerateOverlay(contract, request.projectPath, paths.root, paths.artifacts,
+                                 [&sourceFiles] { std::vector<std::string> result; for (const auto& f : sourceFiles) result.push_back(std::string(f.ToUTF8().data())); return result; }(),
+                                 ports, std::string(debugRtlDirectory.ToUTF8().data()),
+                                 std::string(targetProfile.device.ToUTF8().data()),
+                                 std::string(targetProfile.family.ToUTF8().data()), false,
+                                 std::string(configuredCstPath.ToUTF8().data()),
+                                 overlay, contractError)) {
+        sessionService.Transition(request.projectPath, session.id,
+                                  sigflow::debug::DebugSessionState::Failed,
+                                  contractError, -1, contractError);
+        wxMessageBox(wxString::FromUTF8(contractError), wxT("TraceBridge 调试构建"),
+                     wxOK | wxICON_ERROR, this);
+        finishWorkflow(false, wxString::FromUTF8(contractError));
+        return;
+    }
+    sessionService.Transition(request.projectPath, session.id,
+                              sigflow::debug::DebugSessionState::Validating,
+                              "TraceBridge debug contract validated.", 0, contractError);
+    sessionService.Transition(request.projectPath, session.id,
+                              sigflow::debug::DebugSessionState::Building,
+                              "Debug overlay generated; starting Yosys.", 0, contractError);
+
+    const wxWeakRef<MainFrame> weakSelf(this);
+    const wxString sessionRoot = wxString::FromUTF8(paths.root);
+    const wxString jsonPath = wxString::FromUTF8(overlay.netlistJsonPath);
+    const wxString pnrPath = wxString::FromUTF8(paths.artifacts + "\\sf_debug_top.pnr.json");
+    const wxString fsPath = wxString::FromUTF8(overlay.fsPath);
+    const wxString buildSessionId = wxString::FromUTF8(session.id);
+    const bool programAndCapture = request.programAndCapture;
+    const TraceBridgeCaptureRequest captureRequest = request.captureRequest;
+    m_activeDebugSessionId = buildSessionId;
+    if (m_terminalCtrl) m_terminalCtrl->BeginProcessOutput(wxT("[TraceBridge] debug Yosys started\n"));
+    m_yosysExecutor = std::make_unique<YosysExecutor>();
+    YosysExecutor::Config yosysConfig;
+    yosysConfig.workingDirectory = sessionRoot;
+    yosysConfig.combinedLogPath = sessionRoot + wxT("\\logs\\debug-yosys.combined.log");
+    const bool started = m_yosysExecutor->Execute(
+        yosysExecutable, { wxT("-s"), wxString::FromUTF8(overlay.yosysScriptPath) }, yosysConfig,
+        [weakSelf](YosysExecutor::OutputStream stream, const wxString& text) {
+            if (!wxTheApp) return;
+            wxTheApp->CallAfter([weakSelf, stream, text] {
+                auto* self = weakSelf.get();
+                if (self && self->m_terminalCtrl) self->m_terminalCtrl->AppendProcessOutput(
+                    (stream == YosysExecutor::OutputStream::StdErr ? wxT("[debug yosys stderr] ") : wxEmptyString) + text);
+            });
+        },
+        [weakSelf, projectPath, buildSessionId, jsonPath, pnrPath, fsPath, overlay,
+         targetProfile, nextpnrExecutable, packExecutable, sourceSnapshot,
+         workflowCompletion, programAndCapture, captureRequest](const YosysExecutor::Result& result) {
+            if (!wxTheApp) return;
+            wxTheApp->CallAfter([weakSelf, projectPath, buildSessionId, jsonPath, pnrPath, fsPath,
+                                 overlay, targetProfile, nextpnrExecutable, packExecutable,
+                                 sourceSnapshot, workflowCompletion, programAndCapture,
+                                 captureRequest, result] {
+                auto* self = weakSelf.get();
+                if (!self) return;
+                if (result.reason != YosysExecutor::CompletionReason::Success) {
+                    std::string ignored;
+                    sigflow::debug::DebugSessionService().Transition(
+                        std::string(projectPath.ToUTF8().data()), std::string(buildSessionId.ToUTF8().data()),
+                        sigflow::debug::DebugSessionState::Failed, "Debug Yosys failed.", result.exitCode, ignored);
+                    self->m_yosysExecutor.reset();
+                    self->SetStatusText(wxT("TraceBridge 调试 Yosys 失败"));
+                    if (workflowCompletion) workflowCompletion(false, wxT("TraceBridge 调试 Yosys 失败。"));
+                    return;
+                }
+                std::string sourceError;
+                if (!sigflow::debug::DebugOverlayBuilder().VerifyUserSourcesUntouched(
+                        sourceSnapshot, sourceError)) {
+                    std::string ignored;
+                    sigflow::debug::DebugSessionService().Transition(
+                        std::string(projectPath.ToUTF8().data()), std::string(buildSessionId.ToUTF8().data()),
+                        sigflow::debug::DebugSessionState::Failed, sourceError, -1, ignored);
+                    self->m_yosysExecutor.reset();
+                    wxMessageBox(wxString::FromUTF8(sourceError), wxT("TraceBridge 调试构建"),
+                                 wxOK | wxICON_ERROR, self);
+                    if (workflowCompletion) workflowCompletion(false, wxString::FromUTF8(sourceError));
+                    return;
+                }
+                self->m_yosysExecutor.reset();
+                NextpnrExecuteRequest request;
+                request.projectPath = projectPath;
+                request.topModule = wxT("sf_debug_top");
+                request.jsonPath = jsonPath;
+                request.configuredCstPath = wxString::FromUTF8(overlay.cstPath);
+                request.deviceName = targetProfile.device;
+                request.familyName = targetProfile.family;
+                request.executablePath = nextpnrExecutable;
+                request.outputDirectory = wxFileName(jsonPath).GetPath();
+                self->m_nextpnrExecutor = std::make_unique<NextpnrExecutor>();
+                wxString prepError;
+                if (!self->m_nextpnrExecutor->Prepare(request, prepError)) {
+                    std::string ignored;
+                    sigflow::debug::DebugSessionService().Transition(
+                        std::string(projectPath.ToUTF8().data()), std::string(buildSessionId.ToUTF8().data()),
+                        sigflow::debug::DebugSessionState::Failed, std::string(prepError.ToUTF8().data()), -1, ignored);
+                    self->m_nextpnrExecutor.reset();
+                    wxMessageBox(prepError, wxT("TraceBridge 调试构建"), wxOK | wxICON_ERROR, self);
+                    if (workflowCompletion) workflowCompletion(false, prepError);
+                    return;
+                }
+                NextpnrExecutor::Config config;
+                config.workingDirectory = request.outputDirectory;
+                config.combinedLogPath = wxFileName(request.outputDirectory, wxT("debug-nextpnr.combined.log")).GetFullPath();
+                self->m_nextpnrExecutor->Execute(
+                    nextpnrExecutable, self->m_nextpnrExecutor->GetArguments(), config,
+                    [weakSelf](NextpnrExecutor::OutputStream stream, const wxString& text) {
+                        if (!wxTheApp) return;
+                        wxTheApp->CallAfter([weakSelf, stream, text] {
+                            auto* frame = weakSelf.get();
+                            if (frame && frame->m_terminalCtrl) frame->m_terminalCtrl->AppendProcessOutput(
+                                (stream == NextpnrExecutor::OutputStream::StdErr ? wxT("[debug nextpnr stderr] ") : wxEmptyString) + text);
+                        });
+                    },
+                    [weakSelf, projectPath, buildSessionId, pnrPath, fsPath, overlay, targetProfile,
+                     packExecutable, sourceSnapshot, workflowCompletion, programAndCapture, captureRequest]
+                    (const NextpnrExecutor::Result& pnrResult) {
+                        if (!wxTheApp) return;
+                        wxTheApp->CallAfter([weakSelf, projectPath, buildSessionId, pnrPath, fsPath,
+                                             overlay, targetProfile, packExecutable, sourceSnapshot,
+                                             workflowCompletion, programAndCapture, captureRequest,
+                                             pnrResult] {
+                            auto* self = weakSelf.get();
+                            if (!self) return;
+                            const wxString pnrDir = wxFileName(pnrPath).GetPath();
+                            const NextpnrJobResult report = self->m_nextpnrExecutor->Finalize(
+                                pnrResult.exitCode, pnrResult.combinedLog);
+                                self->m_nextpnrExecutor.reset();
+                            if (!report.succeeded) {
+                                std::string ignored;
+                                sigflow::debug::DebugSessionService().Transition(
+                                    std::string(projectPath.ToUTF8().data()), std::string(buildSessionId.ToUTF8().data()),
+                                    sigflow::debug::DebugSessionState::Failed, "Debug nextpnr failed.", pnrResult.exitCode, ignored);
+                                self->SetStatusText(wxT("TraceBridge 调试 nextpnr 失败"));
+                                if (workflowCompletion) workflowCompletion(false, wxT("TraceBridge 调试 nextpnr 失败。"));
+                                return;
+                            }
+                            const std::vector<wxString> args = { wxT("-d"), targetProfile.family, wxT("-o"), fsPath, pnrPath };
+                            LaunchFpgaTool(packExecutable, args, pnrDir, self->m_terminalCtrl, wxT("debug gowin_pack"), {},
+                                [weakSelf, projectPath, buildSessionId, overlay, fsPath, pnrPath,
+                                 workflowCompletion, programAndCapture, captureRequest]
+                                (int exitCode, const wxString&) {
+                                    if (!wxTheApp) return;
+                                    wxTheApp->CallAfter([weakSelf, projectPath, buildSessionId, overlay,
+                                                         fsPath, pnrPath, workflowCompletion,
+                                                         programAndCapture, captureRequest, exitCode] {
+                                        auto* self = weakSelf.get();
+                                        if (!self) return;
+                                        std::string ignored;
+                                        sigflow::debug::DebugSessionInfo metadata;
+                                        metadata.overlayPath = overlay.wrapperPath;
+                                        metadata.mergedCstPath = overlay.cstPath;
+                                        metadata.netlistJsonPath = overlay.netlistJsonPath;
+                                        metadata.pnrJsonPath = std::string(pnrPath.ToUTF8().data());
+                                        metadata.bitstreamPath = std::string(fsPath.ToUTF8().data());
+                                        metadata.bitstreamSha256 = sigflow::debug::Sha256File(metadata.bitstreamPath);
+                                        metadata.resourceReportPath = metadata.pnrJsonPath;
+                                        metadata.timingReportPath = metadata.pnrJsonPath;
+                                        sigflow::debug::DebugSessionService service;
+                                        service.UpdateBuildMetadata(std::string(projectPath.ToUTF8().data()), std::string(buildSessionId.ToUTF8().data()), metadata, ignored);
+                                        service.Transition(std::string(projectPath.ToUTF8().data()), std::string(buildSessionId.ToUTF8().data()),
+                                            exitCode == 0 ? sigflow::debug::DebugSessionState::Programming : sigflow::debug::DebugSessionState::Failed,
+                                            exitCode == 0 ? "Debug bitstream ready for programming." : "gowin_pack failed.", exitCode, ignored);
+                                        self->SetStatusText(exitCode == 0 ? wxT("TraceBridge 调试位流已生成") : wxT("TraceBridge 调试打包失败"));
+                                        if (exitCode != 0) {
+                                            if (workflowCompletion) workflowCompletion(false, wxT("TraceBridge 调试打包失败。"));
+                                            return;
+                                        }
+                                        if (!programAndCapture) return;
+
+                                        if (self->m_traceBridgeWindow) {
+                                            self->m_traceBridgeWindow->SetCaptureStatus(
+                                                wxT("调试位流已生成，准备下载 FPGA…"));
+                                        }
+                                        self->RunFpgaProgram(
+                                            fsPath,
+                                            [weakSelf, captureRequest, workflowCompletion](
+                                                bool programmed, const wxString& message) {
+                                                auto* frame = weakSelf.get();
+                                                if (!frame) return;
+                                                if (!programmed) {
+                                                    if (workflowCompletion) workflowCompletion(false, message);
+                                                    return;
+                                                }
+                                                if (frame->m_traceBridgeWindow) {
+                                                    frame->m_traceBridgeWindow->SetCaptureStatus(
+                                                        wxT("FPGA 下载完成，开始采集…"));
+                                                }
+                                                frame->RunTraceBridgeCapture(captureRequest,
+                                                                              workflowCompletion);
+                                            },
+                                            true);
+                                    });
+                                });
+                        });
+                    });
+            });
+        });
+    if (!started) {
+        m_yosysExecutor.reset();
+        wxMessageBox(wxT("无法启动调试 Yosys。"), wxT("TraceBridge 调试构建"), wxOK | wxICON_ERROR, this);
+        finishWorkflow(false, wxT("无法启动调试 Yosys。"));
+        return;
+    }
+    SetStatusText(wxT("TraceBridge 调试构建已启动"));
+}
+
+void MainFrame::RunFpgaSynthesis()
+{
+    if (m_currentProjectPath.IsEmpty()) {
+        wxMessageBox("Open a project before running FPGA synthesis.", "FPGA Synthesis",
+                     wxOK | wxICON_WARNING, this);
+        return;
+    }
+    if (!m_activeYosysJobId.IsEmpty()) {
+        wxMessageBox("A Yosys synthesis job is already running. Cancel it before starting another one.",
+                     "FPGA Synthesis", wxOK | wxICON_WARNING, this);
+        return;
+    }
+    m_yosysExecutor.reset();
+
+    const wxString yosysDirectory = m_currentProjectPath + "\\yosys";
+    const wxString nextpnrDirectory = m_currentProjectPath + "\\nextpnr";
+    if (!EnsureDirectory(yosysDirectory) || !EnsureDirectory(nextpnrDirectory)) {
+        wxMessageBox("Unable to create the yosys and nextpnr work directories.",
+                     "FPGA Synthesis", wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    wxString topModule;
+    std::vector<wxString> sourceFiles;
+    if (!LoadProjectConfig(m_currentProjectPath, topModule, sourceFiles)) {
+        wxMessageBox("sigflow.project must define build.top_module and paths.source_files.",
+                     "FPGA Synthesis", wxOK | wxICON_WARNING, this);
+        return;
+    }
+    if (!IsValidVerilogIdentifier(topModule)) {
+        wxMessageBox("The configured top module is not a valid Verilog identifier.",
+                     "FPGA Synthesis", wxOK | wxICON_ERROR, this);
+        return;
+    }
+    for (const wxString& sourceFile : sourceFiles) {
+        if (!wxFileExists(sourceFile)) {
+            wxMessageBox("Configured source file does not exist:\n" + sourceFile,
+                         "FPGA Synthesis", wxOK | wxICON_ERROR, this);
+            return;
+        }
+    }
+
+    FpgaProjectOptions options;
+    wxString optionsError;
+    if (!LoadFpgaProjectOptions(m_currentProjectPath, options, optionsError)) {
+        wxMessageBox(optionsError, "FPGA Synthesis", wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    FpgaTargetProfile targetProfile;
+    if (!ResolveFpgaTargetProfile(options.targetProfileId, targetProfile, optionsError)) {
+        wxMessageBox(optionsError, "FPGA Synthesis", wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    FpgaYosysSynthesisStrategy strategy;
+    if (!ParseFpgaYosysSynthesisStrategy(options.yosysStrategy, strategy)) {
+        wxMessageBox("fpga.yosys_strategy must be one of: baseline, debug, resource_optimized.",
+                     "FPGA Synthesis", wxOK | wxICON_ERROR, this);
+        return;
+    }
+    const FpgaYosysStrategyInfo& strategyInfo = GetFpgaYosysStrategyInfo(strategy);
+
+    SynthesisJobRequest jobRequest;
+    jobRequest.projectPath = m_currentProjectPath;
+    jobRequest.sourceFiles = sourceFiles;
+    jobRequest.topModule = topModule;
+    jobRequest.targetProfileId = targetProfile.id;
+    jobRequest.targetProfileVersion = targetProfile.version;
+    jobRequest.strategyId = strategyInfo.id;
+    jobRequest.strategyVersion = strategyInfo.version;
+    jobRequest.retryOf = m_pendingYosysRetryOf;
+    m_pendingYosysRetryOf.clear();
+    FpgaSynthesisJobService jobService;
+    SynthesisJob job;
+    if (!jobService.CreateSynthesisJob(jobRequest, job, optionsError) ||
+        !jobService.Transition(m_currentProjectPath, job.id, SynthesisJobState::Validating,
+                               "Project configuration and runtime validation started.", 0, optionsError)) {
+        wxMessageBox(optionsError, "FPGA Synthesis", wxOK | wxICON_ERROR, this);
+        return;
+    }
+    const SynthesisJobPaths jobPaths = FpgaSynthesisJobService::GetPaths(m_currentProjectPath, job.id);
+
+    const wxString jobJsonPath = jobPaths.artifacts + "\\" + topModule + ".json";
+    FpgaYosysScriptRequest scriptRequest;
+    scriptRequest.sourceFiles = sourceFiles;
+    scriptRequest.topModule = topModule;
+    scriptRequest.targetProfile = targetProfile;
+    scriptRequest.strategy = strategy;
+    scriptRequest.outputJsonPath = jobJsonPath;
+    const FpgaYosysScriptResult scriptResult = FpgaYosysScriptGenerator().Generate(scriptRequest);
+    if (!scriptResult.success) {
+        jobService.Transition(m_currentProjectPath, job.id, SynthesisJobState::Failed,
+                              "Unable to generate the controlled Yosys script.", -1, optionsError);
+        SaveYosysDiagnosticReport(jobPaths, job.id, "Failed", strategyInfo.id, wxEmptyString,
+                                  jobJsonPath, 0, scriptResult.errorMessage);
+        wxMessageBox("Unable to generate the controlled Yosys script:\n" + scriptResult.errorMessage,
+                     "FPGA Synthesis", wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    const wxString scriptPath = jobPaths.scripts + "\\run_yosys.ys";
+    if (!WriteUtf8File(scriptPath, scriptResult.script)) {
+        jobService.Transition(m_currentProjectPath, job.id, SynthesisJobState::Failed,
+                              "Unable to write the Yosys script.", -1, optionsError);
+        SaveYosysDiagnosticReport(jobPaths, job.id, "Failed", strategyInfo.id, wxEmptyString,
+                                  jobJsonPath, 0, "无法写入受控 Yosys 脚本。\n");
+        wxMessageBox("Unable to write the Yosys script:\n" + scriptPath,
+                     "FPGA Synthesis", wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    const wxString yosysExecutable = FindFpgaTool(options.yosysPath, "SIGFLOW_YOSYS", "yosys.exe");
+    if (yosysExecutable.IsEmpty()) {
+        jobService.Transition(m_currentProjectPath, job.id, SynthesisJobState::Failed,
+                              "Yosys executable was not found.", -1, optionsError);
+        SaveYosysDiagnosticReport(jobPaths, job.id, "Failed", strategyInfo.id, wxEmptyString,
+                                  jobJsonPath, 0, "未找到 Yosys 可执行文件，请检查项目配置或 Runtime。\n");
+        wxMessageBox("Yosys was not found. Set fpga.yosys_path in sigflow.project, "
+                     "set SIGFLOW_YOSYS, or add yosys.exe to PATH.\n\n"
+                     "The work directories and run_yosys.ys were created successfully.",
+                     "FPGA Synthesis", wxOK | wxICON_WARNING, this);
+        if (m_projectTreePanel) {
+            m_projectTreePanel->RefreshTree();
+        }
+        return;
+    }
+
+    const FpgaYosysRuntimeReport runtimeReport = ValidateYosysRuntime(yosysExecutable);
+    const wxString runtimeManifestPath = jobPaths.reports + "\\runtime-manifest.json";
+    wxString manifestError;
+    if (!WriteYosysRuntimeManifest(runtimeReport, runtimeManifestPath, manifestError)) {
+        SaveYosysDiagnosticReport(jobPaths, job.id, "Failed", strategyInfo.id, wxEmptyString,
+                                  jobJsonPath, 0, manifestError);
+        wxMessageBox(manifestError, "FPGA Synthesis", wxOK | wxICON_ERROR, this);
+        return;
+    }
+    if (m_terminalCtrl) {
+        m_terminalCtrl->PrintOutput(runtimeReport.FormatForTerminal());
+    }
+    if (!runtimeReport.valid) {
+        jobService.Transition(m_currentProjectPath, job.id, SynthesisJobState::Failed,
+                              "Yosys runtime preflight failed.", -1, manifestError);
+        SaveYosysDiagnosticReport(jobPaths, job.id, "Failed", strategyInfo.id, wxEmptyString,
+                                  jobJsonPath, 0, "Yosys Runtime 预检失败。\n");
+        wxMessageBox("Yosys runtime preflight failed. The detailed report was saved to:\n" +
+                         runtimeManifestPath +
+                         "\n\nRestore the required Yosys share files before running synthesis.",
+                     "FPGA Synthesis", wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    if (!jobService.Transition(m_currentProjectPath, job.id, SynthesisJobState::Queued,
+                               "Yosys process queued.", 0, optionsError) ||
+        !jobService.Transition(m_currentProjectPath, job.id, SynthesisJobState::Running,
+                               "Yosys process started.", 0, optionsError)) {
+        SaveYosysDiagnosticReport(jobPaths, job.id, "Failed", strategyInfo.id, wxEmptyString,
+                                  jobJsonPath, 0, optionsError);
+        wxMessageBox(optionsError, "FPGA Synthesis", wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    const wxString projectPath = m_currentProjectPath;
+    const wxString jobId = job.id;
+    const wxString artifactManifestPath = jobPaths.artifacts + "\\" + topModule + ".manifest.json";
+    const wxString legacyJsonPath = yosysDirectory + "\\" + topModule + ".json";
+    const wxString strategyId = strategyInfo.id;
+    YosysExecutor::Config executionConfig;
+    executionConfig.workingDirectory = jobPaths.root;
+    executionConfig.timeLimitSec = options.yosysTimeLimitSec;
+    executionConfig.memoryLimitBytes = options.yosysMemoryLimitBytes;
+    executionConfig.logSizeLimit = options.yosysLogLimitBytes;
+    executionConfig.combinedLogPath = jobPaths.logs + "\\yosys.combined.log";
+
+    if (m_terminalCtrl) {
+        m_terminalCtrl->BeginProcessOutput("[Yosys] started\nCommand: " + yosysExecutable +
+            " \"-s\" \"" + scriptPath + "\"\nWorking directory: " + jobPaths.root +
+            "\nCombined log: " + executionConfig.combinedLogPath + "\n");
+    }
+
+    const wxWeakRef<MainFrame> frame(this);
+    const auto synthesisStart = std::chrono::steady_clock::now();
+    m_activeYosysJobId = jobId;
+    if (m_fpgaToolWindow && m_fpgaToolWindow->IsShown()) {
+        m_fpgaToolWindow->SetProjectContext(m_currentProjectPath, m_activeYosysJobId);
+        m_fpgaToolWindow->RefreshSynthesisJobs();
+    }
+    m_yosysExecutor = std::make_unique<YosysExecutor>();
+    const bool started = m_yosysExecutor->Execute(
+        yosysExecutable, { "-s", scriptPath }, executionConfig,
+        [frame](YosysExecutor::OutputStream stream, const wxString& text) {
+            if (wxTheApp) {
+                wxTheApp->CallAfter([frame, stream, text] {
+                    MainFrame* callbackFrame = frame.get();
+                    if (!callbackFrame || !callbackFrame->m_terminalCtrl) {
+                        return;
+                    }
+                    const wxString prefix = stream == YosysExecutor::OutputStream::StdErr
+                        ? wxString("[Yosys stderr] ") : wxString();
+                    callbackFrame->m_terminalCtrl->AppendProcessOutput(prefix + text);
+                });
+            }
+        },
+        [frame, projectPath, jobId, jobJsonPath, artifactManifestPath, legacyJsonPath, topModule,
+         strategyId, synthesisStart]
+        (const YosysExecutor::Result& result) {
+            const YosysExecutor::Result completedResult = result;
+            if (wxTheApp) {
+                wxTheApp->CallAfter([frame, projectPath, jobId, jobJsonPath, artifactManifestPath,
+                                  legacyJsonPath, topModule, strategyId, synthesisStart, completedResult] {
+                    MainFrame* callbackFrame = frame.get();
+                    if (!callbackFrame) {
+                        return;
+                    }
+
+                    FpgaSynthesisJobService completedJobService;
+                    wxString updateError;
+                    SynthesisJobState finalState = SynthesisJobState::Failed;
+                    wxString finalMessage;
+                    switch (completedResult.reason) {
+                    case YosysExecutor::CompletionReason::Cancelled:
+                        finalState = SynthesisJobState::Cancelled;
+                        finalMessage = "Yosys process was cancelled.";
+                        break;
+                    case YosysExecutor::CompletionReason::TimedOut:
+                        finalState = SynthesisJobState::TimedOut;
+                        finalMessage = "Yosys process exceeded its configured time limit.";
+                        break;
+                    case YosysExecutor::CompletionReason::NonZeroExit:
+                        finalMessage = wxString::Format("Yosys exited with code %d.", completedResult.exitCode);
+                        break;
+                    case YosysExecutor::CompletionReason::LaunchFailed:
+                        finalMessage = "Yosys process could not be started.";
+                        break;
+                    case YosysExecutor::CompletionReason::Success: {
+                        if (!completedResult.combinedLogWritten) {
+                            finalMessage = "Yosys completed, but its combined log could not be written.";
+                            break;
+                        }
+                        if (!completedJobService.Transition(projectPath, jobId,
+                                                            SynthesisJobState::ValidatingArtifact,
+                                                            "Yosys completed; validating JSON artifact.",
+                                                            completedResult.exitCode, updateError)) {
+                            finalMessage = updateError;
+                            break;
+                        }
+
+                        ArtifactValidator validator;
+                        NetlistArtifactReport artifactReport;
+                        const bool isValid = validator.ValidateYosysJson(jobJsonPath, topModule, artifactReport);
+                        wxString manifestError;
+                        if (!validator.WriteManifest(artifactManifestPath, artifactReport, manifestError)) {
+                            finalMessage = "Unable to persist JSON artifact validation report: " + manifestError;
+                            break;
+                        }
+                        if (!isValid) {
+                            finalMessage = artifactReport.message;
+                            break;
+                        }
+                        if (!wxCopyFile(jobJsonPath, legacyJsonPath, true)) {
+                            finalMessage = "Yosys JSON artifact was valid but could not be published to the compatibility path.";
+                            break;
+                        }
+                        finalState = SynthesisJobState::Succeeded;
+                        finalMessage = "JSON artifact validated and published to the compatibility path.";
+                        break;
+                    }
+                    }
+
+                    const SynthesisJobPaths completedPaths =
+                        FpgaSynthesisJobService::GetPaths(projectPath, jobId);
+                    const int durationMs = static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(
+                        std::chrono::steady_clock::now() - synthesisStart).count());
+                    YosysLogRecord report = FpgaYosysLogParser().Parse(completedResult.combinedLog);
+                    report.jobId = jobId;
+                    report.status = ToString(finalState);
+                    report.strategy = strategyId;
+                    report.durationMs = durationMs;
+                    report.combinedLogPath = completedPaths.logs + "\\yosys.combined.log";
+                    report.stdoutLogPath = completedPaths.logs + "\\yosys.stdout.log";
+                    report.stderrLogPath = completedPaths.logs + "\\yosys.stderr.log";
+                    report.artifactPath = jobJsonPath;
+                    report.jobManifestPath = completedPaths.manifest;
+                    report.inputManifestPath = completedPaths.inputs + "\\file-list.json";
+                    report.runtimeManifestPath = completedPaths.reports + "\\runtime-manifest.json";
+                    report.scriptPath = completedPaths.scripts + "\\run_yosys.ys";
+                    report.artifactManifestPath = artifactManifestPath;
+                    if (!finalMessage.IsEmpty() && report.rootCause.IsEmpty() &&
+                        finalState != SynthesisJobState::Succeeded) {
+                        report.rootCause = "YOSYS_EXECUTION_FAILURE";
+                        report.rootSuggestion = finalMessage;
+                    }
+                    wxString reportError;
+                    if (!FpgaYosysReport::Save(report,
+                                                completedPaths.reports + "\\synthesis.analysis.json",
+                                                completedPaths.reports + "\\synthesis.summary.md",
+                                                reportError)) {
+                        finalState = SynthesisJobState::Failed;
+                        finalMessage = "Unable to write Yosys analysis report: " + reportError;
+                    }
+                    completedJobService.Transition(projectPath, jobId, finalState, finalMessage,
+                                                   completedResult.exitCode, updateError);
+                    if (callbackFrame->m_terminalCtrl) {
+                        callbackFrame->m_terminalCtrl->FinishProcessOutput(
+                            FpgaYosysReport::GenerateSummary(report));
+                    }
+                    callbackFrame->SetStatusText(finalState == SynthesisJobState::Succeeded
+                        ? "Yosys synthesis completed" : "Yosys synthesis did not complete");
+                    if (callbackFrame->m_projectTreePanel) {
+                        callbackFrame->m_projectTreePanel->RefreshTree();
+                    }
+                    if (callbackFrame->m_activeYosysJobId == jobId) {
+                        callbackFrame->m_activeYosysJobId.clear();
+                    }
+                    if (callbackFrame->m_fpgaToolWindow && callbackFrame->m_fpgaToolWindow->IsShown()) {
+                        callbackFrame->m_fpgaToolWindow->SetProjectContext(
+                            projectPath, callbackFrame->m_activeYosysJobId);
+                        callbackFrame->m_fpgaToolWindow->RefreshSynthesisJobs();
+                    }
+                });
+            }
+        });
+    if (!started) {
+        jobService.Transition(m_currentProjectPath, job.id, SynthesisJobState::Failed,
+                              "Unable to start Yosys process.", -1, optionsError);
+        SaveYosysDiagnosticReport(jobPaths, job.id, "Failed", strategyInfo.id, wxEmptyString,
+                                  jobJsonPath, 0, "无法启动 Yosys 进程。\n");
+        m_activeYosysJobId.clear();
+        m_yosysExecutor.reset();
+        if (m_fpgaToolWindow && m_fpgaToolWindow->IsShown()) {
+            m_fpgaToolWindow->SetProjectContext(m_currentProjectPath, m_activeYosysJobId);
+            m_fpgaToolWindow->RefreshSynthesisJobs();
+        }
+        if (m_terminalCtrl) {
+            m_terminalCtrl->FinishProcessOutput("[Yosys] failed to start.");
+        }
+        wxMessageBox("Unable to start Yosys. Check the configured executable path.",
+                     "FPGA Synthesis", wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    SetStatusText("Yosys synthesis started");
+    if (m_projectTreePanel) {
+        m_projectTreePanel->RefreshTree();
+    }
+}
+
+void SaveYosysDiagnosticReport(const SynthesisJobPaths& paths, const wxString& jobId,
+                               const wxString& status, const wxString& strategy,
+                               const wxString& combinedLog, const wxString& artifactPath,
+                               int durationMs, const wxString& fallbackMessage)
+{
+    YosysLogRecord report = FpgaYosysLogParser().Parse(combinedLog);
+    report.jobId = jobId;
+    report.status = status;
+    report.strategy = strategy;
+    report.durationMs = durationMs;
+    report.combinedLogPath = paths.logs + "\\yosys.combined.log";
+    report.stdoutLogPath = paths.logs + "\\yosys.stdout.log";
+    report.stderrLogPath = paths.logs + "\\yosys.stderr.log";
+    report.artifactPath = artifactPath;
+    report.jobManifestPath = paths.manifest;
+    report.inputManifestPath = paths.inputs + "\\file-list.json";
+    report.runtimeManifestPath = paths.reports + "\\runtime-manifest.json";
+    report.scriptPath = paths.scripts + "\\run_yosys.ys";
+    if (!fallbackMessage.IsEmpty() && report.rootCause.IsEmpty() && status != "Succeeded") {
+        report.rootCause = "YOSYS_PLATFORM_FAILURE";
+        report.rootSuggestion = fallbackMessage;
+    }
+    wxString ignoredError;
+    FpgaYosysReport::Save(report, paths.reports + "\\synthesis.analysis.json",
+                          paths.reports + "\\synthesis.summary.md", ignoredError);
+}
+
+void SaveNextpnrDiagnosticReport(const wxString& projectPath, int exitCode,
+                                  const wxString& combinedLog,
+                                  const wxString& fallbackMessage,
+                                  const wxString& reportPath = wxEmptyString)
+{
+    const wxString reportDir = reportPath.IsEmpty()
+        ? projectPath + "\\nextpnr"
+        : reportPath.BeforeLast('\\');
+    if (!wxDir::Exists(reportDir)) {
+        wxFileName::Mkdir(reportDir, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
+    }
+
+    NextpnrRunRecord record;
+    record.exitCode = exitCode;
+    record.toolName = "nextpnr-himbaechel";
+    record.stdoutRaw = combinedLog;
+    record.workingDir = reportDir;
+
+    NextpnrLogParser parser;
+    parser.Parse(combinedLog, wxEmptyString, record);
+
+    if (!fallbackMessage.IsEmpty() && record.classifiedErrors.empty()) {
+        NextpnrLogEvent fallback;
+        fallback.rawLine = fallbackMessage;
+        fallback.category = "error";
+        fallback.chineseDesc = fallbackMessage;
+        record.classifiedErrors.push_back(fallback);
+    }
+
+    NextpnrReport report;
+    const wxString outputPath = reportPath.IsEmpty()
+        ? reportDir + "\\route.analysis.json"
+        : reportPath;
+    report.SaveReport(record, outputPath);
+}
+
+void MainFrame::DoFpgaCancelSynthesis()
+{
+    if (!m_yosysExecutor || m_yosysExecutor->GetState() != YosysExecutor::State::Running) {
+        wxMessageBox("There is no active Yosys synthesis job to cancel.", "FPGA Synthesis",
+                     wxOK | wxICON_INFORMATION, this);
+        return;
+    }
+
+    m_yosysExecutor->Cancel();
+    if (m_terminalCtrl) {
+        m_terminalCtrl->AppendProcessOutput("[Yosys] cancellation requested.\n");
+    }
+    SetStatusText("Yosys synthesis cancellation requested");
+}
+
+void MainFrame::DoFpgaShowSynthesisJobs()
+{
+    ShowFpgaToolWindow(FpgaToolPage::Yosys);
+}
+
+void MainFrame::DoFpgaOpenSynthesisReport()
+{
+    DoFpgaShowSynthesisJobs();
+}
+
+void MainFrame::DoFpgaRetrySynthesis()
+{
+    DoFpgaShowSynthesisJobs();
+}
+
+void MainFrame::DoFpgaRoute()
+{
+    ShowFpgaToolWindow(FpgaToolPage::Nextpnr);
+}
+
+void MainFrame::DoFpgaCancelRoute()
+{
+    if (!m_nextpnrExecutor) {
+        wxMessageBox("There is no active nextpnr place and route job to cancel.",
+                     "FPGA Place and Route", wxOK | wxICON_INFORMATION, this);
+        return;
+    }
+    if (m_nextpnrExecutor->GetState() == NextpnrExecutor::State::Running) {
+        m_nextpnrExecutor->Cancel();
+        if (m_terminalCtrl) {
+            m_terminalCtrl->AppendProcessOutput("[nextpnr] cancellation requested.\n");
+        }
+        SetStatusText("nextpnr place and route cancellation requested");
+        return;
+    }
+    // 进程还没启动（Idle）：标记取消，RunFpgaRoute 会检查并中止
+    if (m_nextpnrExecutor->GetState() == NextpnrExecutor::State::Idle) {
+        m_routeCancelRequested = true;
+        SetStatusText("nextpnr place and route cancelled before start");
+        return;
+    }
+    // 进程已结束
+    wxMessageBox("The nextpnr process has already completed.",
+                 "FPGA Place and Route", wxOK | wxICON_INFORMATION, this);
+}
+
+void MainFrame::RunFpgaRoute()
+{
+    m_routeCancelRequested = false;
+
+    if (m_currentProjectPath.IsEmpty()) {
+        wxMessageBox("Open a project before running FPGA place and route.", "FPGA Place and Route",
+                     wxOK | wxICON_WARNING, this);
+        return;
+    }
+
+    if (m_nextpnrExecutor && m_nextpnrExecutor->GetState() == NextpnrExecutor::State::Running) {
+        wxMessageBox("A nextpnr place and route job is already running.",
+                     "FPGA Place and Route", wxOK | wxICON_WARNING, this);
+        return;
+    }
+
+    const wxString yosysDirectory = m_currentProjectPath + "\\yosys";
+    const wxString nextpnrDirectory = m_currentProjectPath + "\\nextpnr";
+    if (!EnsureDirectory(yosysDirectory) || !EnsureDirectory(nextpnrDirectory)) {
+        wxMessageBox("Unable to create the yosys and nextpnr work directories.",
+                     "FPGA Place and Route", wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    wxString topModule;
+    std::vector<wxString> sourceFiles;
+    if (!LoadProjectConfig(m_currentProjectPath, topModule, sourceFiles) ||
+        !IsValidVerilogIdentifier(topModule)) {
+        wxMessageBox("sigflow.project must define a valid build.top_module before place and route.",
+                     "FPGA Place and Route", wxOK | wxICON_WARNING, this);
+        return;
+    }
+
+    const wxString readmePath = nextpnrDirectory + "\\README.md";
+    if (!wxFileExists(readmePath) && !WriteUtf8File(readmePath, BuildNextpnrReadme())) {
+        wxMessageBox("Unable to write nextpnr configuration instructions.",
+                     "FPGA Place and Route", wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    FpgaProjectOptions options;
+    wxString optionsError;
+    if (!LoadFpgaProjectOptions(m_currentProjectPath, options, optionsError)) {
+        wxMessageBox(optionsError, "FPGA Place and Route", wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    FpgaTargetProfile targetProfile;
+    if (!ResolveFpgaTargetProfile(options.targetProfileId, targetProfile, optionsError)) {
+        wxMessageBox(optionsError, "FPGA Place and Route", wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    const wxString nextpnrExecutable =
+        FindFpgaTool(options.nextpnrPath, "SIGFLOW_NEXTPNR", "nextpnr-himbaechel.exe");
+    if (nextpnrExecutable.IsEmpty()) {
+        wxMessageBox("nextpnr was not found. Set fpga.nextpnr_path in sigflow.project, "
+                     "set SIGFLOW_NEXTPNR, or add the correct nextpnr executable to PATH.",
+                     "FPGA Place and Route", wxOK | wxICON_WARNING, this);
+        return;
+    }
+
+    // ── nextpnr 运行时环境检查 ──
+    {
+        const wxString exeDir = wxFileName(nextpnrExecutable).GetPath();
+        const wxString shareDir = exeDir + "\\..\\share";
+        NextpnrRuntimeReport rtReport = ValidateNextpnrRuntime(nextpnrExecutable, shareDir);
+        if (m_terminalCtrl) {
+            m_terminalCtrl->PrintOutput(rtReport.FormatForTerminal());
+        }
+        if (!rtReport.valid) {
+            wxMessageBox(rtReport.FormatForTerminal(),
+                         "FPGA Place and Route",
+                         wxOK | wxICON_ERROR, this);
+            return;
+        }
+    }
+
+    const wxString yosysJson = yosysDirectory + "\\" + topModule + ".json";
+    if (!wxFileExists(yosysJson)) {
+        wxMessageBox("The Tang Nano 9K netlist was not found:\n" + yosysJson +
+                     "\n\nRun FPGA > Synthesis and wait for Yosys to finish before place and route.",
+                     "FPGA Place and Route", wxOK | wxICON_WARNING, this);
+        return;
+    }
+
+    ArtifactValidator artifactValidator;
+    NetlistArtifactReport artifactReport;
+    if (!artifactValidator.ValidateYosysJson(yosysJson, topModule, artifactReport)) {
+        wxMessageBox("The Yosys JSON netlist is not a valid artifact:\n" +
+                         artifactReport.message + "\n\n" + yosysJson,
+                     "FPGA Place and Route", wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    // ── 提取用户配置的 CST 路径 ──
+    wxString configuredCstPath;
+    if (!options.nextpnrArgs.empty()) {
+        for (const auto& arg : options.nextpnrArgs) {
+            if (arg.StartsWith(wxT("cst="))) {
+                configuredCstPath = arg.Mid(4);
+                break;
+            }
+        }
+    }
+
+    // ── 创建 Nextpnr job ──
+    NextpnrJob routeJob;
+    wxString routeJobId;
+    {
+        NextpnrJobService jobService;
+        NextpnrJobRequest jobRequest;
+        jobRequest.projectPath = m_currentProjectPath;
+        jobRequest.topModule = topModule;
+        jobRequest.targetProfileId = options.targetProfileId;
+        jobRequest.retryOf = m_pendingNextpnrRetryOf;
+        jobRequest.jsonPath = yosysJson;
+        jobRequest.cstPath = configuredCstPath;
+        jobRequest.deviceName = targetProfile.device;
+        jobRequest.familyName = targetProfile.family;
+        m_pendingNextpnrRetryOf.clear();
+
+        wxString jobError;
+        if (jobService.Create(jobRequest, routeJob, jobError)) {
+            routeJobId = routeJob.id;
+            m_activeNextpnrJobId = routeJobId;
+            if (m_fpgaToolWindow) m_fpgaToolWindow->SetRouteActiveJob(routeJobId);
+            jobService.Transition(m_currentProjectPath, routeJobId, NextpnrJobState::Validating,
+                                  "Validating nextpnr inputs.", 0, jobError);
+        }
+    }
+
+    // ── 使用 NextpnrExecutor 做校验和参数构建 ──
+    m_nextpnrExecutor = std::make_unique<NextpnrExecutor>();
+    NextpnrExecuteRequest req;
+    req.projectPath = m_currentProjectPath;
+    req.topModule = topModule;
+    req.jsonPath = yosysJson;
+    req.configuredCstPath = configuredCstPath;
+    req.deviceName = targetProfile.device;
+    req.familyName = targetProfile.family;
+    req.executablePath = nextpnrExecutable;
+    req.outputDirectory = nextpnrDirectory;
+
+    wxString prepError;
+    if (!m_nextpnrExecutor->Prepare(req, prepError)) {
+        if (!routeJobId.IsEmpty()) {
+            wxString ignoreError;
+            NextpnrJobService().Transition(m_currentProjectPath, routeJobId,
+                NextpnrJobState::Failed, prepError, -1, ignoreError);
+        }
+        SaveNextpnrDiagnosticReport(m_currentProjectPath, -1, wxEmptyString, prepError);
+        wxMessageBox(prepError, wxT("FPGA Place and Route"), wxOK | wxICON_ERROR, this);
+        if (m_terminalCtrl) {
+            m_terminalCtrl->PrintOutput(wxT("[nextpnr] Blocked: ") + prepError + wxT("\n"));
+        }
+        m_nextpnrExecutor.reset();
+        m_activeNextpnrJobId.clear();
+        if (m_fpgaToolWindow && m_fpgaToolWindow->IsShown()) {
+            m_fpgaToolWindow->SetProjectContext(m_currentProjectPath, wxEmptyString);
+        }
+        return;
+    }
+
+    // ── 构建最终参数列表 ──
+    std::vector<wxString> arguments;
+    if (options.nextpnrArgs.empty()) {
+        arguments = m_nextpnrExecutor->GetArguments();
+    } else {
+        // 用户自定义参数：做占位符替换，并确保 CST 在列表中
+        arguments.reserve(options.nextpnrArgs.size() + 2);
+        bool hasCst = false;
+        for (auto arg : options.nextpnrArgs) {
+            arg.Replace("${yosys_json}", yosysJson);
+            arg.Replace("${nextpnr_dir}", nextpnrDirectory);
+            if (arg.StartsWith(wxT("cst="))) { hasCst = true; }
+            arguments.push_back(arg);
+        }
+        if (!hasCst) {
+            arguments.push_back(wxT("--vopt"));
+            arguments.push_back(wxT("cst=") + req.configuredCstPath);
+        }
+    }
+
+    // ── 配置执行参数 ──
+    NextpnrExecutor::Config execConfig;
+    execConfig.workingDirectory = nextpnrDirectory;
+    execConfig.combinedLogPath = nextpnrDirectory + "\\nextpnr.combined.log";
+
+    // Transition → Queued → Running
+    if (!routeJobId.IsEmpty()) {
+        wxString ignoreError;
+        NextpnrJobService().Transition(m_currentProjectPath, routeJobId,
+            NextpnrJobState::Queued, "Ready to launch.", 0, ignoreError);
+        NextpnrJobService().Transition(m_currentProjectPath, routeJobId,
+            NextpnrJobState::Running, "Process started.", 0, ignoreError);
+    }
+
+    // 在启动进程前先刷新面板，让用户看到 Running 状态
+    if (m_fpgaToolWindow && m_fpgaToolWindow->IsShown()) {
+        m_fpgaToolWindow->RefreshRouteJobs();
+    }
+
+    if (m_terminalCtrl) {
+        m_terminalCtrl->BeginProcessOutput("nextpnr-himbaechel place and route");
+    }
+
+    // 检查用户在初始化阶段是否点了 Cancel
+    if (m_routeCancelRequested) {
+        if (!routeJobId.IsEmpty()) {
+            wxString ignoreError;
+            NextpnrJobService().Transition(m_currentProjectPath, routeJobId,
+                NextpnrJobState::Cancelled, "Cancelled before process start.", -1, ignoreError);
+        }
+        m_nextpnrExecutor.reset();
+        m_activeNextpnrJobId.clear();
+        if (m_fpgaToolWindow && m_fpgaToolWindow->IsShown()) {
+            m_fpgaToolWindow->RefreshRouteJobs();
+        }
+        return;
+    }
+
+    wxWeakRef<MainFrame> weakSelf(this);
+    const wxString capturedJobId = routeJobId;
+
+    const bool started = m_nextpnrExecutor->Execute(
+        nextpnrExecutable, arguments, execConfig,
+        // OutputCallback — 实时输出到终端
+        [this](NextpnrExecutor::OutputStream stream, const wxString& text) {
+            wxMutexGuiEnter();
+            if (m_terminalCtrl) {
+                const wxString prefix =
+                    (stream == NextpnrExecutor::OutputStream::StdErr)
+                        ? "[nextpnr stderr] " : "";
+                m_terminalCtrl->AppendProcessOutput(prefix + text);
+            }
+            wxMutexGuiLeave();
+        },
+        // CompletionCallback — 进程结束后做分析（线程安全）
+        [weakSelf, capturedJobId](const NextpnrExecutor::Result& execResult) {
+            wxTheApp->CallAfter([weakSelf, capturedJobId, execResult] {
+                auto self = weakSelf.get();
+                if (!self) return;
+                if (!self->m_nextpnrExecutor) return;
+
+                // 根据 CompletionReason 确定 job 状态
+                NextpnrJobState finalState = NextpnrJobState::Failed;
+                wxString finalMessage;
+                switch (execResult.reason) {
+                case NextpnrExecutor::CompletionReason::Success:
+                    finalState = NextpnrJobState::ValidatingArtifact;
+                    finalMessage = "Nextpnr process completed.";
+                    break;
+                case NextpnrExecutor::CompletionReason::NonZeroExit:
+                    finalState = NextpnrJobState::Failed;
+                    finalMessage = "Nextpnr process exited with non-zero code.";
+                    break;
+                case NextpnrExecutor::CompletionReason::Cancelled:
+                    finalState = NextpnrJobState::Cancelled;
+                    finalMessage = "Nextpnr process was cancelled.";
+                    break;
+                case NextpnrExecutor::CompletionReason::TimedOut:
+                    finalState = NextpnrJobState::TimedOut;
+                    finalMessage = "Nextpnr process timed out.";
+                    break;
+                case NextpnrExecutor::CompletionReason::LaunchFailed:
+                    finalState = NextpnrJobState::Failed;
+                    finalMessage = "Nextpnr process could not be started.";
+                    break;
+                }
+
+                auto jobResult = self->m_nextpnrExecutor->Finalize(
+                    execResult.exitCode, execResult.combinedLog);
+
+                // 产物校验通过才算 Succeeded
+                if (finalState == NextpnrJobState::ValidatingArtifact) {
+                    finalState = jobResult.succeeded
+                        ? NextpnrJobState::Succeeded : NextpnrJobState::Failed;
+                }
+
+                // 保存诊断报告到 job 目录
+                if (finalState != NextpnrJobState::Succeeded || !jobResult.succeeded) {
+                    wxString diagReportPath;
+                    if (!capturedJobId.IsEmpty()) {
+                        diagReportPath = NextpnrJobService::GetPaths(
+                            self->m_currentProjectPath, capturedJobId)
+                            .reports + "\\route.analysis.json";
+                    }
+                    SaveNextpnrDiagnosticReport(self->m_currentProjectPath,
+                        execResult.exitCode, execResult.combinedLog,
+                        jobResult.terminalSummary, diagReportPath);
+                }
+
+                // 复制报告和日志到 job 目录，供面板打开
+                if (!capturedJobId.IsEmpty()) {
+                    NextpnrJobPaths jobPaths = NextpnrJobService::GetPaths(
+                        self->m_currentProjectPath, capturedJobId);
+                    if (wxFileExists(jobResult.analysisJsonPath)) {
+                        wxCopyFile(jobResult.analysisJsonPath,
+                            jobPaths.reports + "\\route.analysis.json");
+                    }
+                    const wxString combinedLogPath =
+                        self->m_currentProjectPath + "\\nextpnr\\nextpnr.combined.log";
+                    if (wxFileExists(combinedLogPath)) {
+                        wxCopyFile(combinedLogPath,
+                            jobPaths.logs + "\\nextpnr.combined.log");
+                    }
+                }
+
+                if (!capturedJobId.IsEmpty()) {
+                    wxString ignoreError;
+                    // 成功时走两步：Running → ValidatingArtifact → Succeeded
+                    // 取消/超时/失败直接一步到位
+                    if (finalState == NextpnrJobState::Succeeded) {
+                        NextpnrJobService().Transition(
+                            self->m_currentProjectPath, capturedJobId,
+                            NextpnrJobState::ValidatingArtifact,
+                            "Validating nextpnr artifact.", 0, ignoreError);
+                    }
+                    NextpnrJobService().Transition(
+                        self->m_currentProjectPath, capturedJobId, finalState,
+                        finalMessage, jobResult.exitCode, ignoreError);
+                }
+
+                if (self->m_terminalCtrl) {
+                    self->m_terminalCtrl->FinishProcessOutput(jobResult.terminalSummary);
+                }
+                self->m_nextpnrExecutor.reset();
+                self->m_activeNextpnrJobId.clear();
+                self->SetStatusText(finalState == NextpnrJobState::Succeeded
+                    ? "nextpnr place and route completed"
+                    : "nextpnr place and route did not complete");
+                if (self->m_projectTreePanel) {
+                    self->m_projectTreePanel->RefreshTree();
+                }
+                if (self->m_fpgaToolWindow && self->m_fpgaToolWindow->IsShown()) {
+                    self->m_fpgaToolWindow->RefreshRouteJobs();
+                }
+            });
+        });
+
+    if (!started) {
+        if (m_terminalCtrl) {
+            m_terminalCtrl->FinishProcessOutput("[nextpnr] Failed to start.");
+        }
+        if (!routeJobId.IsEmpty()) {
+            wxString ignoreError;
+            NextpnrJobService().Transition(m_currentProjectPath, routeJobId,
+                NextpnrJobState::Failed, "Unable to start nextpnr.", -1, ignoreError);
+        }
+        SaveNextpnrDiagnosticReport(m_currentProjectPath, -1, wxEmptyString,
+                                     "Unable to start nextpnr-himbaechel.");
+        wxMessageBox("Unable to start nextpnr. Check the configured executable path and arguments.",
+                     "FPGA Place and Route", wxOK | wxICON_ERROR, this);
+        m_nextpnrExecutor.reset();
+        m_activeNextpnrJobId.clear();
+        wxTheApp->CallAfter([this]() {
+            if (m_fpgaToolWindow && m_fpgaToolWindow->IsShown()) {
+                m_fpgaToolWindow->RefreshRouteJobs();
+            }
+        });
+        return;
+    }
+
+    SetStatusText("nextpnr place and route started");
+    if (m_projectTreePanel) {
+        m_projectTreePanel->RefreshTree();
+    }
+    if (m_fpgaToolWindow && m_fpgaToolWindow->IsShown()) {
+        m_fpgaToolWindow->RefreshRouteJobs();
+    }
+}
+
+void MainFrame::DoFpgaProgram()
+{
+    ShowFpgaToolWindow(FpgaToolPage::Programmer);
+}
+
+void MainFrame::RunFpgaPack()
+{
+    if (m_currentProjectPath.IsEmpty()) {
+        wxMessageBox("Open a project before building an FPGA bitstream.", "FPGA Build .fs",
+                     wxOK | wxICON_WARNING, this);
+        return;
+    }
+
+    wxString topModule;
+    std::vector<wxString> sourceFiles;
+    if (!LoadProjectConfig(m_currentProjectPath, topModule, sourceFiles)) {
+        wxMessageBox("sigflow.project must define build.top_module and paths.source_files.",
+                     "FPGA Build .fs", wxOK | wxICON_WARNING, this);
+        return;
+    }
+
+    FpgaProjectOptions options;
+    wxString optionsError;
+    if (!LoadFpgaProjectOptions(m_currentProjectPath, options, optionsError)) {
+        wxMessageBox(optionsError, "FPGA Build .fs", wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    FpgaTargetProfile targetProfile;
+    if (!ResolveFpgaTargetProfile(options.targetProfileId, targetProfile, optionsError)) {
+        wxMessageBox(optionsError, "FPGA Build .fs", wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    const wxString nextpnrDirectory = m_currentProjectPath + "\\nextpnr";
+    const wxString pnrJsonPath = nextpnrDirectory + "\\" + topModule + ".pnr.json";
+    const wxString bitstreamPath = nextpnrDirectory + "\\" + topModule + ".fs";
+    const wxString manifestPath = nextpnrDirectory + "\\" + topModule + ".pack.manifest.json";
+    FpgaPackService packService;
+    if (!packService.ValidateInput(pnrJsonPath, optionsError)) {
+        wxMessageBox(optionsError + "\n\nRun FPGA > Place and Route successfully before packing.",
+                     "FPGA Build .fs", wxOK | wxICON_WARNING, this);
+        return;
+    }
+
+    const wxString packExecutable =
+        FindFpgaTool(options.gowinPackPath, "SIGFLOW_GOWIN_PACK", "gowin_pack.exe");
+    if (packExecutable.IsEmpty()) {
+        wxMessageBox("gowin_pack was not found. Set fpga.gowin_pack_path in sigflow.project, "
+                     "set SIGFLOW_GOWIN_PACK, install it under "
+                     "external/fpga-tools/runtime/apicula/Scripts, or add it to PATH.",
+                     "FPGA Build .fs", wxOK | wxICON_WARNING, this);
+        return;
+    }
+
+    const std::vector<wxString> defaultPackArgs = {
+        "-d", "${device}", "-o", "${fs_output}", "${pnr_json}",
+    };
+    const std::vector<wxString>& configuredArgs =
+        options.gowinPackArgs.empty() ? defaultPackArgs : options.gowinPackArgs;
+    std::vector<wxString> arguments;
+    arguments.reserve(configuredArgs.size() + 5);
+    bool includesPnrJson = false;
+    bool includesBitstream = false;
+    bool includesDevice = false;
+    for (wxString argument : configuredArgs) {
+        if (argument.Contains("${pnr_json}")) {
+            includesPnrJson = true;
+            argument.Replace("${pnr_json}", pnrJsonPath);
+        }
+        if (argument.Contains("${fs_output}")) {
+            includesBitstream = true;
+            argument.Replace("${fs_output}", bitstreamPath);
+        }
+        if (argument.Contains("${device}")) {
+            includesDevice = true;
+            argument.Replace("${device}", targetProfile.family);
+        }
+        arguments.push_back(argument);
+    }
+    if (!includesDevice) {
+        arguments.insert(arguments.begin(), { "-d", targetProfile.family });
+    }
+    if (!includesBitstream) {
+        arguments.insert(arguments.end(), { "-o", bitstreamPath });
+    }
+    if (!includesPnrJson) {
+        arguments.push_back(pnrJsonPath);
+    }
+
+    FpgaPackRequest packRequest;
+    packRequest.pnrJsonPath = pnrJsonPath;
+    packRequest.bitstreamPath = bitstreamPath;
+    packRequest.executablePath = packExecutable;
+    packRequest.device = targetProfile.family;
+
+    PackJobRequest jobRequest;
+    jobRequest.projectPath = m_currentProjectPath;
+    jobRequest.pnrJsonPath = pnrJsonPath;
+    jobRequest.bitstreamPath = bitstreamPath;
+    jobRequest.executable = packExecutable;
+    jobRequest.device = targetProfile.family;
+    jobRequest.arguments = arguments;
+    jobRequest.workingDirectory = nextpnrDirectory;
+
+    ToolJob packJob;
+    wxString jobError;
+    if (!PackJob().Submit(jobRequest, packJob, jobError)) {
+        wxMessageBox(jobError, "FPGA Build .fs", wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    if (m_buildProgressBar) {
+        m_buildProgressBar->BeginOperation(wxT("Apicula gowin_pack"), 0);
+    }
+    if (m_terminalCtrl) {
+        wxString command = "[gowin_pack] Job " + packJob.id + "\nCommand: " + packExecutable;
+        for (const wxString& argument : arguments) command += " \"" + argument + "\"";
+        m_terminalCtrl->BeginProcessOutput(
+            command + "\nWorking directory: " + nextpnrDirectory + "\n");
+    }
+    const std::shared_ptr<JobOutputPump> packOutput =
+        std::make_shared<JobOutputPump>(m_terminalCtrl);
+    JobExecutionOptions jobOptions;
+    jobOptions.output = [packOutput](const wxString& chunk, bool isError) {
+        packOutput->Push(chunk, isError);
+    };
+
+    const wxWeakRef<MainFrame> weakSelf(this);
+    m_jobRuns.push_back(RunJobAsync(packJob,
+        [jobRequest](const ToolJob& job, const JobExecutionOptions& options, JobReport& report,
+                     wxString& error) {
+            return PackJob().Execute(jobRequest, job, options, report, error);
+        },
+        jobOptions,
+        [weakSelf, packRequest, manifestPath, packOutput](const JobRunOutcome& outcome) {
+            auto* self = weakSelf.get();
+            if (!self) return;
+            self->ReapJobRuns();
+            packOutput->Flush();
+            FpgaPackService service;
+            FpgaPackReport report;
+            service.Finalize(packRequest, outcome.report.exitCode, report);
+            wxString manifestError;
+            const bool manifestWritten = service.WriteManifest(manifestPath, report, manifestError);
+
+            if (self->m_buildProgressBar) {
+                self->m_buildProgressBar->FinishOperation(
+                    report.success,
+                    report.success ? wxT("Apicula packing completed")
+                                   : wxT("Apicula packing failed"));
+            }
+            if (self->m_fpgaToolWindow) {
+                self->m_fpgaToolWindow->SetPackResult(
+                    report.bitstreamPath, report.success, report.message);
+            }
+            if (self->m_terminalCtrl) {
+                wxString terminalMessage = "[gowin_pack] " + report.message +
+                    "\nJob report: " + JobService::GetPaths(outcome.job.request.projectPath,
+                        ToolJobType::Pack, outcome.job.id).jobReport +
+                    "\nManifest: " + manifestPath + "\n";
+                if (!manifestWritten) {
+                    terminalMessage += "Manifest write failed: " + manifestError + "\n";
+                }
+                self->m_terminalCtrl->FinishProcessOutput(terminalMessage);
+            }
+            self->SetStatusText(report.success ? "Apicula .fs bitstream created"
+                                               : "Apicula packing failed");
+            if (self->m_projectTreePanel) {
+                self->m_projectTreePanel->RefreshTree();
+            }
+        }));
+
+    if (m_buildProgressBar) {
+        const wxString projectPath = m_currentProjectPath;
+        const wxString jobId = packJob.id;
+        m_buildProgressBar->SetCancelCallback([projectPath, jobId] {
+            wxString ignored;
+            JobService().Cancel(projectPath, jobId, "User cancelled packing.", ignored);
+        });
+    }
+    SetStatusText("Apicula gowin_pack started");
+}
+
+void MainFrame::RunFpgaProgram(
+    const wxString& bitstreamPath,
+    std::function<void(bool, const wxString&)> completion,
+    bool confirmProgramming)
+{
+    const auto finish = [&completion](bool success, const wxString& message) {
+        if (completion) completion(success, message);
+    };
+    if (m_currentProjectPath.IsEmpty()) {
+        wxMessageBox("Open a project before programming an FPGA board.", "FPGA Program Board",
+                     wxOK | wxICON_WARNING, this);
+        finish(false, wxT("未打开 SigFlow 项目。"));
+        return;
+    }
+
+    FpgaProjectOptions options;
+    wxString optionsError;
+    if (!LoadFpgaProjectOptions(m_currentProjectPath, options, optionsError)) {
+        wxMessageBox(optionsError, "FPGA Program Board", wxOK | wxICON_ERROR, this);
+        finish(false, optionsError);
+        return;
+    }
+
+    FpgaTargetProfile targetProfile;
+    if (!ResolveFpgaTargetProfile(options.targetProfileId, targetProfile, optionsError)) {
+        wxMessageBox(optionsError, "FPGA Program Board", wxOK | wxICON_ERROR, this);
+        finish(false, optionsError);
+        return;
+    }
+
+    const wxString loaderExecutable = FindFpgaTool(
+        options.openFpgaLoaderPath, "SIGFLOW_OPENFPGALOADER", "openFPGALoader.exe");
+    if (loaderExecutable.IsEmpty()) {
+        wxMessageBox("openFPGALoader was not found. Set fpga.openfpgaloader_path in "
+                     "sigflow.project, set SIGFLOW_OPENFPGALOADER, install it under "
+                     "external/fpga-tools/runtime/openfpgaloader/bin, or add it to PATH.",
+                     "FPGA Program Board", wxOK | wxICON_WARNING, this);
+        finish(false, wxT("找不到 openFPGALoader。"));
+        return;
+    }
+
+    if (bitstreamPath.IsEmpty() || !wxFileExists(bitstreamPath)) {
+        wxMessageBox("Select an existing Apicula .fs bitstream before programming.",
+                     "FPGA Program Board", wxOK | wxICON_WARNING, this);
+        finish(false, wxT("调试位流不存在。"));
+        return;
+    }
+    if (!m_activeDebugSessionId.IsEmpty()) {
+        std::string validationError;
+        if (!sigflow::debug::DebugSessionService().ValidateBitstreamForProgramming(
+                std::string(m_currentProjectPath.ToUTF8().data()),
+                std::string(m_activeDebugSessionId.ToUTF8().data()),
+                std::string(bitstreamPath.ToUTF8().data()), validationError)) {
+            wxMessageBox(wxString::FromUTF8(
+                              ("Refusing to program: " + validationError).c_str()),
+                          "TraceBridge bitstream validation",
+                          wxOK | wxICON_ERROR, this);
+            finish(false, wxString::FromUTF8(
+                              ("位流校验失败：" + validationError).c_str()));
+            return;
+        }
+    }
+
+    if (confirmProgramming &&
+        wxMessageBox(wxT("即将把当前 TraceBridge 调试位流下载到 FPGA。\n"
+                         "这会覆盖板上的现有 SRAM 镜像，确认继续吗？"),
+                     wxT("确认下载调试位流"), wxYES_NO | wxICON_WARNING, this) != wxYES) {
+        SetStatusText(wxT("用户取消 FPGA 下载"));
+        finish(false, wxT("用户取消 FPGA 下载。"));
+        return;
+    }
+    const std::vector<wxString> defaultLoaderArgs = { "-b", targetProfile.programmerBoard, "${bitstream}" };
+    const std::vector<wxString>& configuredArgs =
+        options.openFpgaLoaderArgs.empty() ? defaultLoaderArgs : options.openFpgaLoaderArgs;
+    std::vector<wxString> arguments;
+    arguments.reserve(configuredArgs.size() + 1);
+    bool includesBitstream = false;
+    for (wxString argument : configuredArgs) {
+        if (argument.Contains("${bitstream}")) {
+            includesBitstream = true;
+            argument.Replace("${bitstream}", bitstreamPath);
+        }
+        arguments.push_back(argument);
+    }
+    if (!includesBitstream) {
+        arguments.push_back(bitstreamPath);
+    }
+
+    const wxString workingDirectory = wxFileName(bitstreamPath).GetPath();
+    const wxWeakRef<MainFrame> weakSelf(this);
+    const wxString programmingProjectPath = m_currentProjectPath;
+    const wxString programmingSessionId = m_activeDebugSessionId;
+
+    FlashJobRequest jobRequest;
+    jobRequest.projectPath = m_currentProjectPath;
+    jobRequest.bitstreamPath = bitstreamPath;
+    jobRequest.executable = loaderExecutable;
+    jobRequest.arguments = arguments;
+    jobRequest.workingDirectory = workingDirectory;
+    // UI 确认通过后，Job 层仍保留同一确认门；默认调用路径必须经过上面的对话框。
+    jobRequest.requireConfirm = confirmProgramming;
+
+    ToolJob flashJob;
+    wxString jobError;
+    if (!FlashJob().Submit(jobRequest, flashJob, jobError)) {
+        wxMessageBox(jobError, "FPGA Program Board", wxOK | wxICON_ERROR, this);
+        finish(false, jobError);
+        return;
+    }
+
+    if (m_terminalCtrl) {
+        wxString command = "[openFPGALoader] Job " + flashJob.id + "\nCommand: " + loaderExecutable;
+        for (const wxString& argument : arguments) command += " \"" + argument + "\"";
+        m_terminalCtrl->BeginProcessOutput(
+            command + "\nWorking directory: " + workingDirectory + "\n");
+    }
+    const std::shared_ptr<JobOutputPump> flashOutput =
+        std::make_shared<JobOutputPump>(m_terminalCtrl);
+    JobExecutionOptions jobOptions;
+    jobOptions.requireConfirm = confirmProgramming;
+    jobOptions.confirm = []() { return true; };
+    jobOptions.output = [flashOutput](const wxString& chunk, bool isError) {
+        flashOutput->Push(chunk, isError);
+    };
+
+    m_jobRuns.push_back(RunJobAsync(flashJob,
+        [jobRequest](const ToolJob& job, const JobExecutionOptions& options, JobReport& report,
+                     wxString& error) {
+            return FlashJob().Execute(jobRequest, job, options, report, error);
+        },
+        jobOptions,
+        [weakSelf, programmingProjectPath, programmingSessionId, completion, flashOutput]
+        (const JobRunOutcome& outcome) {
+            if (!wxTheApp) return;
+            wxTheApp->CallAfter([weakSelf, programmingProjectPath, programmingSessionId,
+                                 completion, outcome, flashOutput] {
+                auto* self = weakSelf.get();
+                if (!self) return;
+                self->ReapJobRuns();
+                flashOutput->Flush();
+                const bool success = outcome.success;
+                if (!programmingProjectPath.IsEmpty() && !programmingSessionId.IsEmpty()) {
+                    std::string ignored;
+                    sigflow::debug::DebugSessionService().Transition(
+                        std::string(programmingProjectPath.ToUTF8().data()),
+                        std::string(programmingSessionId.ToUTF8().data()),
+                        success ? sigflow::debug::DebugSessionState::Armed
+                                : sigflow::debug::DebugSessionState::Failed,
+                        success ? "openFPGALoader programming completed."
+                                : "openFPGALoader programming failed.",
+                        outcome.report.exitCode, ignored);
+                }
+                const wxString message = success
+                    ? wxT("openFPGALoader programming completed")
+                    : wxT("openFPGALoader programming failed");
+                if (self->m_terminalCtrl) {
+                    self->m_terminalCtrl->FinishProcessOutput("[openFPGALoader] " + message + "\n");
+                }
+                self->SetStatusText(message);
+                if (completion) completion(success, message);
+            });
+        }));
+
+    SetStatusText("openFPGALoader programming started");
+}
+
+void MainFrame::DoFpgaPinBinding()
+{
+    if (m_currentProjectPath.IsEmpty()) {
+        wxMessageBox("Open a project before configuring FPGA pin bindings.",
+            "FPGA Pin Binding", wxOK | wxICON_WARNING, this);
+        return;
+    }
+
+    wxString topModule;
+    std::vector<wxString> sourceFiles;
+    if (!LoadProjectConfig(m_currentProjectPath, topModule, sourceFiles)) {
+        wxMessageBox("sigflow.project must define build.top_module and paths.source_files.",
+            "FPGA Pin Binding", wxOK | wxICON_WARNING, this);
+        return;
+    }
+
+    if (m_fpgaPinBindingPanel) {
+        m_fpgaPinBindingPanel->LoadProject(m_currentProjectPath, topModule);
+    }
+
+    // 切换到引脚绑定标签页
+    wxAuiNotebook* rightNotebook = dynamic_cast<wxAuiNotebook*>(
+        m_fpgaPinBindingPanel->GetParent());
+    if (rightNotebook) {
+        for (size_t i = 0; i < rightNotebook->GetPageCount(); ++i) {
+            if (rightNotebook->GetPage(i) == m_fpgaPinBindingPanel) {
+                rightNotebook->SetSelection(i);
+                break;
+            }
+        }
+    }
+}
+
+// ==================== 忙碌指示器 ====================
+
+void MainFrame::LayoutBusyIndicator()
+{
+    if (!m_busyIndicator || !GetStatusBar()) return;
+    wxRect rect;
+    GetStatusBar()->GetFieldRect(0, rect);
+    int h = rect.height - 4;
+    m_busyIndicator->SetSize(rect.x + 4, rect.y + 2, h, h);
+}
+
+void MainFrame::ShowBusyIndicator(const wxString& text)
+{
+    if (!m_busyIndicator) return;
+    LayoutBusyIndicator();
+    m_busyIndicator->Start();
+    m_busyIndicator->Show();
+    if (!text.IsEmpty()) {
+        int indicatorWidth = m_busyIndicator->GetSize().GetWidth() + 8;
+        int spaceWidth = GetStatusBar()->GetTextExtent(" ").GetWidth();
+        int numSpaces = (spaceWidth > 0) ? (indicatorWidth / spaceWidth + 1) : 6;
+        SetStatusText(wxString(' ', numSpaces) + text, 0);
+    }
+    GetStatusBar()->Update();
+    wxYield();
+}
+
+void MainFrame::HideBusyIndicator(const wxString& text)
+{
+    if (!m_busyIndicator) return;
+    m_busyIndicator->Stop();
+    m_busyIndicator->Hide();
+    SetStatusText(text, 0);
+}
+
+// ==================== 仿真 ====================
+
+void MainFrame::DoSimCompile()
+{
+    OutputDebugStringA("=== DoSimCompile ENTER ===\n");
+
+    const wxString projectPath = m_currentProjectPath;
+    if (projectPath.IsEmpty()) {
+        wxMessageBox(wxT("请先打开项目"), wxT("编译仿真"), wxOK | wxICON_WARNING);
+        return;
+    }
+
+    wxString topModule;
+    std::vector<wxString> verilogFiles;
+    if (!LoadProjectConfig(projectPath, topModule, verilogFiles)) {
+        OutputDebugStringA("Failed to load project config, falling back to manual mode\n");
+        wxString srcDir = projectPath + "\\src";
+        wxString libDir = projectPath + "\\lib";
+        if (wxDir::Exists(srcDir)) {
+            wxDir dir;
+            if (dir.Open(srcDir)) {
+                wxString filename;
+                bool hasFile = dir.GetFirst(&filename, "*.v", wxDIR_FILES);
+                while (hasFile) {
+                    verilogFiles.push_back(srcDir + "\\" + filename);
+                    hasFile = dir.GetNext(&filename);
+                }
+            }
+        }
+        if (wxDir::Exists(libDir)) {
+            wxDir dir;
+            if (dir.Open(libDir)) {
+                wxString filename;
+                bool hasFile = dir.GetFirst(&filename, "*.v", wxDIR_FILES);
+                while (hasFile) {
+                    verilogFiles.push_back(libDir + "\\" + filename);
+                    hasFile = dir.GetNext(&filename);
+                }
+            }
+        }
+        if (verilogFiles.empty()) {
+            wxMessageBox(wxT("项目中没有找到 Verilog 文件\n请确保项目包含 src/ 或 lib/ 目录"),
+                         wxT("编译仿真"), wxOK | wxICON_WARNING);
+            return;
+        }
+        wxFileName projectFn(projectPath);
+        wxString defaultTopModule = projectFn.GetFullName();
+        wxString prompt;
+        prompt.Printf("找到 %u 个 Verilog 文件\n请输入顶层模块名称:", (unsigned)verilogFiles.size());
+        wxTextEntryDialog dialog(NULL, prompt, "编译仿真", defaultTopModule);
+        if (dialog.ShowModal() != wxID_OK) return;
+        topModule = dialog.GetValue();
+        if (topModule.IsEmpty()) {
+            wxMessageBox(wxT("顶层模块名称不能为空"), wxT("编译仿真"), wxOK | wxICON_WARNING);
+            return;
+        }
+    } else {
+        wxString confirmMsg = wxT("从 sigflow.project 读取的配置:\n顶层模块: ");
+        confirmMsg += topModule;
+        confirmMsg += wxT("\n源文件数: ");
+        confirmMsg += wxString::Format(wxT("%u"), (unsigned)verilogFiles.size());
+        confirmMsg += wxT("\n\n确认编译?");
+        
+        int result = wxMessageBox(confirmMsg, wxT("编译仿真"), wxYES_NO | wxICON_QUESTION);
+        if (result != wxYES) {
+            return;
+        }
+    }
+    if (topModule.IsEmpty()) {
+        wxMessageBox(wxT("顶层模块名称不能为空"), wxT("编译仿真"), wxOK | wxICON_WARNING);
+        return;
+    }
+
+    if (!m_simEngine) {
+        m_simEngine = std::make_shared<SimulationEngine>();
+    }
+    const std::shared_ptr<SimulationEngine> engine = m_simEngine;
+    engine->SetProjectRoot(projectPath);
+    engine->SetCompileOutputCallback([](const wxString& line, bool isError) {
+        OutputDebugStringA(isError ? "[ERR] " : "[OUT] ");
+        OutputDebugStringA(line.ToUTF8());
+        OutputDebugStringA("\n");
+    });
+
+    auto* menuBar = static_cast<MainMenuBar*>(GetMenuBar());
+    menuBar->SetSimulationBusy(true);
+    ShowBusyIndicator(wxT("正在编译仿真模型..."));
+
+    SimulationJobRequest simRequest;
+    simRequest.projectPath = projectPath;
+    simRequest.topModule = topModule;
+    simRequest.sourceFiles = verilogFiles;
+    simRequest.requireVcd = false;
+    simRequest.runner = [engine, topModule, verilogFiles](JobReport&, wxString& runnerError) {
+        engine->SetCompileOutputCallback([](const wxString& line, bool isError) {
+            OutputDebugStringA(isError ? "[ERR] " : "[OUT] ");
+            OutputDebugStringA(line.ToUTF8());
+            OutputDebugStringA("\n");
+        });
+        const SimulationCompileResult compiled = engine->Compile(topModule, verilogFiles);
+        if (!compiled.success) {
+            runnerError = compiled.errorMessage;
+            return false;
+        }
+        return true;
+    };
+
+    ToolJob simJob;
+    wxString jobError;
+    if (!SimulationJob().Submit(simRequest, simJob, jobError)) {
+        HideBusyIndicator(wxT("编译失败"));
+        menuBar->SetSimulationBusy(false);
+        wxMessageBox("Simulation Job 提交失败：" + jobError, wxT("编译失败"),
+                     wxOK | wxICON_ERROR);
+        return;
+    }
+
+    const wxWeakRef<MainFrame> weakSelf(this);
+    m_jobRuns.push_back(RunJobAsync(simJob,
+        [simRequest](const ToolJob& job, const JobExecutionOptions& options,
+                     JobReport& report, wxString& error) {
+            return SimulationJob().Execute(simRequest, job, options, report, error);
+        },
+        {},
+        [weakSelf, engine, projectPath](const JobRunOutcome& outcome) {
+            auto* self = weakSelf.get();
+            if (!self) return;
+            self->ReapJobRuns();
+            auto* menuBar = static_cast<MainMenuBar*>(self->GetMenuBar());
+            self->HideBusyIndicator(outcome.success ? wxT("编译完成") : wxT("编译失败"));
+            if (menuBar) menuBar->SetSimulationBusy(false);
+            if (outcome.success) {
+                const SimulationCompileResult result = engine->GetLastCompileResult();
+                wxString message = wxT("编译成功!\nDLL路径: ") + result.dllPath;
+                message += wxT("\nJob 报告: ") + JobService::GetPaths(
+                    projectPath, ToolJobType::Simulation, outcome.job.id).jobReport;
+                wxMessageBox(message, wxT("编译完成"), wxOK | wxICON_INFORMATION, self);
+            } else {
+                wxString message = wxT("编译失败\n\n") + outcome.message;
+                wxMessageBox(message, wxT("编译失败"), wxOK | wxICON_ERROR, self);
+            }
+            OutputDebugStringA("=== DoSimCompile EXIT ===\n");
+        }));
+}
+
+void MainFrame::DoSimRun()
+{
+    // 1. 确保项目已打开
+    if (m_currentProjectPath.IsEmpty()) {
+        wxMessageBox(wxT("请先打开项目"), wxT("运行仿真"), wxOK | wxICON_WARNING);
+        return;
+    }
+
+    // 2. 初始化仿真引擎（如果尚未初始化）
+    if (!m_simEngine) {
+        m_simEngine = std::make_shared<SimulationEngine>();
+    }
+    const std::shared_ptr<SimulationEngine> engine = m_simEngine;
+    const wxString projectPath = m_currentProjectPath;
+    engine->SetProjectRoot(projectPath);
+
+    // 3. 读取配置获取顶层模块名
+    wxString topModule;
+    std::vector<wxString> verilogFiles;
+    if (!LoadProjectConfig(projectPath, topModule, verilogFiles)) {
+        wxMessageBox(wxT("无法读取项目配置"), wxT("运行仿真"), wxOK | wxICON_WARNING);
+        return;
+    }
+
+    // 4. 设置顶层模块名并检查 DLL 是否存在
+    engine->SetTopModule(topModule);
+    if (!engine->IsCompiled(topModule)) {
+        wxMessageBox(wxT("没有可用的编译结果，请先编译"), wxT("运行仿真"), wxOK | wxICON_WARNING);
+        return;
+    }
+
+    // 5. 设置编译输出回调
+    engine->SetCompileOutputCallback([](const wxString& line, bool isError) {
+        OutputDebugStringA(isError ? "[SIM-ERR] " : "[SIM-OUT] ");
+        OutputDebugStringA(line.ToUTF8());
+        OutputDebugStringA("\n");
+    });
+
+    // 6. 运行仿真（走 SimJob：VCD 产物登记 + manifest + 报告）
+    auto* menuBar = static_cast<MainMenuBar*>(GetMenuBar());
+    menuBar->SetSimulationBusy(true);
+    ShowBusyIndicator(wxT("正在运行仿真..."));
+
+    const wxString vcdPath = projectPath + "\\" + ".sigflow" + "\\" + "sim" + "\\" +
+        topModule + "\\waveform\\wave.vcd";
+    SimulationJobRequest simRequest;
+    simRequest.projectPath = projectPath;
+    simRequest.topModule = topModule;
+    simRequest.sourceFiles = verilogFiles;
+    simRequest.outputVcdPath = vcdPath;
+    simRequest.runner = [engine, vcdPath](JobReport&, wxString& runnerError) {
+        const SimulationRunResult runResult = engine->RunSimulation(vcdPath);
+        if (!runResult.success) {
+            runnerError = runResult.errorMessage;
+            return false;
+        }
+        return true;
+    };
+
+    ToolJob simJob;
+    wxString jobError;
+    if (!SimulationJob().Submit(simRequest, simJob, jobError)) {
+        HideBusyIndicator(wxT("就绪"));
+        menuBar->SetSimulationBusy(false);
+        wxMessageBox("Simulation Job 提交失败：" + jobError, wxT("仿真错误"),
+                     wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    const wxWeakRef<MainFrame> weakSelf(this);
+    m_jobRuns.push_back(RunJobAsync(simJob,
+        [simRequest](const ToolJob& job, const JobExecutionOptions& options,
+                     JobReport& report, wxString& error) {
+            return SimulationJob().Execute(simRequest, job, options, report, error);
+        },
+        {},
+        [weakSelf, projectPath, vcdPath](const JobRunOutcome& outcome) {
+            auto* self = weakSelf.get();
+            if (!self) return;
+            self->ReapJobRuns();
+            auto* menuBar = static_cast<MainMenuBar*>(self->GetMenuBar());
+            self->HideBusyIndicator(outcome.success ? wxT("就绪") : wxT("仿真失败"));
+            if (menuBar) menuBar->SetSimulationBusy(false);
+            if (outcome.success) {
+                wxString message = wxT("仿真完成!\n波形文件: ") + vcdPath;
+                message += wxT("\nJob 报告: ") + JobService::GetPaths(
+                    projectPath, ToolJobType::Simulation, outcome.job.id).jobReport;
+                if (self->m_wavePanel && !self->m_wavePanel->OpenTrace(
+                        std::string(vcdPath.ToUTF8().data()))) {
+                    message += wxT("\n波形面板加载失败，请检查 VCD 文件。");
+                }
+                wxMessageBox(message, wxT("仿真完成"), wxOK | wxICON_INFORMATION, self);
+            } else {
+                wxMessageBox(wxT("仿真失败!\n") + outcome.message, wxT("仿真错误"),
+                             wxOK | wxICON_ERROR, self);
+            }
+        }));
+}
+
+void MainFrame::DoSimClean()
+{
+    if (!m_simEngine) {
+        wxMessageBox(wxT("没有仿真缓存需要清理"), wxT("清理缓存"), wxOK | wxICON_INFORMATION);
+        return;
+    }
+
+    wxString topModule = wxGetTextFromUser(
+        wxT("请输入要清理的顶层模块名称 (留空清理所有):"),
+        wxT("清理仿真缓存"),
+        wxT(""),
+        this
+    );
+
+    if (topModule.IsEmpty()) {
+        // 询问是否清理所有
+        int result = wxMessageBox(
+            wxT("确定要清理所有仿真缓存吗?"),
+            wxT("确认清理"),
+            wxYES_NO | wxICON_QUESTION
+        );
+        if (result != wxYES) {
+            return;
+        }
+    }
+
+    if (m_simEngine->CleanCache(topModule)) {
+        wxMessageBox(wxT("缓存清理完成"), wxT("清理完成"), wxOK | wxICON_INFORMATION);
+    } else {
+        wxMessageBox(wxT("缓存清理失败"), wxT("错误"), wxOK | wxICON_ERROR);
+    }
+}
+
+wxString MainFrame::GetTopModuleName()
+{
+    // 1. 先检查项目是否打开
+    if (m_currentProjectPath.IsEmpty()) return wxEmptyString;
+
+    // 2. 复用你已有的 LoadProjectConfig 函数读配置
+    wxString topModule;
+    std::vector<wxString> dummyFiles;
+    if (LoadProjectConfig(m_currentProjectPath, topModule, dummyFiles)) {
+        return topModule;
+    }
+
+    // 3. 配置读不到就弹窗让用户输入
+    wxTextEntryDialog dlg(this,
+        "未找到顶层模块配置，请手动输入:",
+        "顶层模块名称",
+        wxFileName(m_currentProjectPath).GetFullName()); // 默认值=项目名
+
+    
+    if (dlg.ShowModal() == wxID_OK) {
+        return dlg.GetValue(); // 返回 wxString
+    }
+    else {
+        return wxString(wxEmptyString); // 显式转为 wxString
+    }
+}
