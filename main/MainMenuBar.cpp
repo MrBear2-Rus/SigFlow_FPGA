@@ -77,6 +77,7 @@ EVT_MENU(wxID_HIGHEST + 213, MainMenuBar::OnLogging)
 EVT_MENU(wxID_HIGHEST + 220, MainMenuBar::OnSimCompile)
 EVT_MENU(wxID_HIGHEST + 221, MainMenuBar::OnSimRun)
 EVT_MENU(wxID_HIGHEST + 222, MainMenuBar::OnSimClean)
+EVT_MENU(wxID_HIGHEST + 223, MainMenuBar::OnSimCancel)
 
 EVT_MENU(wxID_HIGHEST + 230, MainMenuBar::OnFpgaSynthesis)
 EVT_MENU(wxID_HIGHEST + 231, MainMenuBar::OnFpgaRoute)
@@ -270,6 +271,7 @@ wxMenu* MainMenuBar::CreateSimulateMenu()
     m->Append(wxID_HIGHEST + 220, wxT("Compile Simulation Model\tF5"), wxT("使用Verilator编译当前Verilog文件"));
     m->Append(wxID_HIGHEST + 221, wxT("Run Simulation\tF6"), wxT("运行仿真并生成波形"));
     m->Append(wxID_HIGHEST + 222, wxT("Clean Simulation Cache"), wxT("清理仿真编译缓存"));
+    m->Append(wxID_HIGHEST + 223, wxT("Cancel Simulation\tShift+F5"), wxT("终止当前仿真作业（杀进程树）"));
     m->AppendSeparator();
 
     m->AppendCheckItem(wxID_HIGHEST + 200, "Simulation Enabled\tCtrl+E");
@@ -645,7 +647,16 @@ void MainMenuBar::SetSimulationBusy(bool busy)
     EnableTop(0, !busy);  // File
     EnableTop(1, !busy);  // Edit
     EnableTop(2, !busy);  // Project
-    EnableTop(4, !busy);  // Simulate
+    // Simulate menu stays enabled while busy; only Cancel Simulation keeps working.
+    const int simulateIndex = FindMenu(wxT("&Simulate"));
+    if (simulateIndex < 0) return;
+    wxMenu* simulateMenu = GetMenu(simulateIndex);
+    for (size_t i = 0; i < simulateMenu->GetMenuItemCount(); ++i) {
+        wxMenuItem* item = simulateMenu->FindItemByPosition(i);
+        if (item == nullptr) continue;
+        if (item->IsSeparator()) continue;
+        item->Enable(!busy || item->GetId() == wxID_HIGHEST + 223);
+    }
 }
 
 // 仿真相关事件处理
@@ -664,6 +675,11 @@ void MainMenuBar::OnSimCompile(wxCommandEvent&)
 void MainMenuBar::OnSimRun(wxCommandEvent&) 
 { 
     m_owner->DoSimRun(); 
+}
+
+void MainMenuBar::OnSimCancel(wxCommandEvent&)
+{
+    if (m_owner) m_owner->DoSimCancel();
 }
 
 void MainMenuBar::OnSimClean(wxCommandEvent&) 

@@ -257,6 +257,9 @@ bool ToolJobExecutor::Run(const ToolJob& job, const JobCommand& command,
     process.onStarted = [&job](void* handle) {
         JobService::RegisterProcess(job.request.projectPath, job.id, handle);
     };
+    process.onFinished = [&job]() {
+        JobService::UnregisterProcess(job.request.projectPath, job.id);
+    };
 
     wxString output;
     std::mutex outputMutex;
@@ -270,7 +273,6 @@ bool ToolJobExecutor::Run(const ToolJob& job, const JobCommand& command,
 
     const auto start = std::chrono::steady_clock::now();
     const PlatformProcessResult result = PlatformProcess::Run(process, onOutput);
-    JobService::UnregisterProcess(job.request.projectPath, job.id);
     const bool cancelRequested = JobService::IsCancelRequested(
         job.request.projectPath, job.id);
     const auto end = std::chrono::steady_clock::now();

@@ -1,19 +1,21 @@
 #include "SimulationEngine.h"
-#include "ProcessRunner.h"
 #include "StimulusParser.h"
 #include "TimelineGenerator.h"
 #include "SimMainGenerator.h"
-#include <wx/process.h>
-#include <wx/txtstrm.h>
+#include "../jobs/PlatformProcess.h"
+#include "../jobs/JobService.h"
 #include <wx/stdpaths.h>
 #include <wx/filename.h>
 #include <wx/dir.h>
 #include <filesystem>
-#include <fstream>
 #include <windows.h>
-#include <wx/timer.h>
 
 namespace fs = std::filesystem;
+
+static bool SimCancelRequested(const wxString& projectPath, const wxString& jobId)
+{
+    return !jobId.IsEmpty() && JobService::IsCancelRequested(projectPath, jobId);
+}
 
 SimulationEngine::SimulationEngine()
     : m_projectRoot(wxGetCwd())
@@ -62,34 +64,53 @@ bool SimulationEngine::CreateDirectoryRecursive(const wxString& path)
     }
 }
 
-int SimulationEngine::ExecuteCommand(const wxString& cmd, wxString& output, wxString& error)
+void SimulationEngine::SetJobContext(const wxString& projectPath, const wxString& jobId)
 {
-    OutputDebugStringA("ExecuteCommand entered\n");
-    
-    // 使用 wxArrayString 版本的 wxExecute，更稳定
-    wxArrayString outputArr, errorArr;
-    
-    OutputDebugStringA("Calling wxExecute...\n");
-    int exitCode = wxExecute(cmd, outputArr, errorArr, wxEXEC_SYNC | wxEXEC_HIDE_CONSOLE);
-    OutputDebugStringA(("wxExecute returned: " + std::to_string(exitCode) + "\n").c_str());
-    
-    OutputDebugStringA("Merging output...\n");
-    // 合并输出（限制行数避免过长）
-    int lineCount = 0;
-    for (const auto& line : outputArr) {
-        if (lineCount < 50) {  // 只取前50行
-            output += line + "\n";
-            lineCount++;
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_jobProjectPath = projectPath;
+    m_jobId = jobId;
+}
+
+PlatformProcessResult SimulationEngine::RunTool(const wxString& executable,
+                                                const std::vector<wxString>& arguments,
+                                                const wxString& workingDirectory,
+                                                 int timeoutSeconds,
+                                                 bool streamOutput,
+                                                 bool rawCommandLine,
+                                                 const std::vector<std::pair<wxString, wxString>>& environment)
+{
+    PlatformProcessRequest request;
+    request.executable = executable;
+    request.arguments = arguments;
+    request.workingDirectory = workingDirectory;
+    request.timeoutSeconds = timeoutSeconds > 0 ? timeoutSeconds : 600;
+    request.maxOutputBytes = 16ull * 1024ull * 1024ull; // 16MB 日志上限，超限截断不静默膨胀
+    request.quoteArguments = !rawCommandLine;
+    request.environment = environment;
+    request.onStarted = [this](void* handle) {
+        if (!m_jobId.IsEmpty()) {
+            JobService::RegisterProcess(m_jobProjectPath, m_jobId, handle);
         }
-    }
-    for (const auto& line : errorArr) {
-        if (error.Length() < 2000) {  // 限制错误长度
-            error += line + "\n";
+    };
+    request.onFinished = [this]() {
+        if (!m_jobId.IsEmpty()) {
+            JobService::UnregisterProcess(m_jobProjectPath, m_jobId);
         }
+    };
+    PlatformOutputCallback sink;
+    if (streamOutput) {
+        sink = [this](const wxString& chunk, bool isError) {
+            CompileOutputCallback callback;
+            {
+                std::lock_guard<std::mutex> lock(m_mutex);
+                m_lastCompileLog += chunk;
+                callback = m_outputCallback;
+            }
+            if (callback) callback(chunk, isError);
+        };
     }
-    OutputDebugStringA("ExecuteCommand done\n");
-    
-    return exitCode;
+    const PlatformProcessResult result = PlatformProcess::Run(request, sink);
+    return result;
 }
 
 wxString SimulationEngine::FindVerilatorPath() const
@@ -122,6 +143,30 @@ wxString SimulationEngine::FindVerilatorPath() const
     for (const auto& candidate : bundledCandidates) {
         if (wxFileExists(candidate)) {
             return candidate;
+        }
+    }
+
+    // 仓库内置：从可执行文件所在目录逐级向上查找 tools\verilator\verilator-install\bin
+    {
+        wxFileName exeFile(wxStandardPaths::Get().GetExecutablePath());
+        exeFile.SetFullName(wxEmptyString);
+        wxString directory = exeFile.GetPath();
+        for (int depth = 0; depth < 6 && !directory.IsEmpty(); ++depth) {
+            const wxString binDirectory =
+                directory + "\\tools\\verilator\\verilator-install\\bin\\";
+            const wxString repoCandidates[] = {
+                binDirectory + "verilator_bin.exe",
+                binDirectory + "verilator_bin_dbg.exe",
+                binDirectory + "verilator.exe",
+            };
+            for (const auto& candidate : repoCandidates) {
+                if (wxFileExists(candidate)) return candidate;
+            }
+            wxFileName parent(directory);
+            parent.RemoveLastDir();
+            const wxString parentPath = parent.GetPath();
+            if (parentPath == directory) break;
+            directory = parentPath;
         }
     }
 
@@ -160,8 +205,8 @@ wxString SimulationEngine::FindVerilatorPath() const
         }
     }
 
-    // 默认返回 verilator_bin（优先使用 MSYS2 的版本）
-    return "verilator_bin";
+    // 未找到时返回空串：调用方据此给出可诊断的错误，而不是拿一个不存在的名字去 CreateProcess。
+    return wxEmptyString;
 }
 
 wxString SimulationEngine::FindVerilatorIncludePath() const
@@ -243,10 +288,14 @@ wxString SimulationEngine::FindVCVarsPath() const
     // 最后尝试 vswhere.exe 自动定位（VS 2017+ 附带）
     wxString vswhere = "C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\vswhere.exe";
     if (wxFileExists(vswhere)) {
-        wxString cmd = "\"" + vswhere + "\" -latest -property installationPath";
-        wxArrayString outputArr;
-        if (wxExecute(cmd, outputArr, wxEXEC_SYNC | wxEXEC_HIDE_CONSOLE) == 0 && !outputArr.IsEmpty()) {
-            wxString installPath = outputArr[0].Trim();
+        PlatformProcessRequest request;
+        request.executable = vswhere;
+        request.arguments = { "-latest", "-property", "installationPath" };
+        request.timeoutSeconds = 30;
+        const PlatformProcessResult result = PlatformProcess::Run(request);
+        if (result.started && result.exitCode == 0 && !result.output.IsEmpty()) {
+            wxString installPath = result.output.BeforeFirst('\n');
+            installPath.Trim(true).Trim(false);
             wxString vcvars = installPath + "\\VC\\Auxiliary\\Build\\vcvars64.bat";
             if (wxFileExists(vcvars)) {
                 return vcvars;
@@ -289,7 +338,6 @@ SimulationCompileResult SimulationEngine::Compile(const wxString& topModule,
     char buf[64];
     sprintf_s(buf, "File count: %zu\n", count);
     OutputDebugStringA(buf);
-    m_currentTopModule = topModule;
 
     OutputDebugStringA("Before ReportProgress\n");
     ReportProgress(0, wxT("开始编译仿真模型"));
@@ -308,7 +356,7 @@ SimulationCompileResult SimulationEngine::Compile(const wxString& topModule,
     wxString verilatorPath = FindVerilatorPath();
     OutputDebugStringA("Got verilator path\n");
     
-    if (verilatorPath.IsEmpty() || verilatorPath == wxT("verilator_bin")) {
+    if (verilatorPath.IsEmpty()) {
         OutputDebugStringA("Resolving from PATH...\n");
         // 尝试在PATH中查找
         wxString pathEnv;
@@ -328,7 +376,9 @@ SimulationCompileResult SimulationEngine::Compile(const wxString& topModule,
     OutputDebugStringA("Checking if verilator was found...\n");
     if (verilatorPath.IsEmpty()) {
         OutputDebugStringA("ERROR: Verilator not found\n");
-        result.errorMessage = wxT("找不到 Verilator，请确保已安装并添加到 PATH");
+        result.errorMessage = wxT("找不到 Verilator：请安装 Verilator 并加入 PATH，"
+                                  "或设置环境变量 VERILATOR_BIN，"
+                                  "或将 Verilator 放到 tools\\verilator 目录下。");
         ReportProgress(0, result.errorMessage);
         return result;
     }
@@ -413,34 +463,54 @@ bool SimulationEngine::RunVerilator(const wxString& topModule,
     wxString cacheDir = GetCacheDirectory(topModule);
     wxString verilatorPath = FindVerilatorPath();
 
-    OutputDebugStringA("Building command...\n");
-    // 构建命令
-    // 注意：去掉 -Wall，避免把警告当作错误
-    // 添加 --Wno-DECLFILENAME 忽略文件名不匹配警告
-    // 注意：Verilator 5.x 不支持 --shared，只生成 C++ 代码
-    wxString cmd = "\"" + verilatorPath + "\"";
-    cmd += " -cc";
-    cmd += " -O0";  // 禁用优化，保留完整电路结构
-    cmd += " --Wno-DECLFILENAME";
-    cmd += " --Wno-TIMESCALEMOD";  // 忽略 timescale 不一致警告
-    cmd += " --timing";  // 支持时序控制（如 #1 延迟）
-    cmd += " --Mdir \"" + objDir + "\"";
-    cmd += " --top-module \"" + topModule + "\"";
-    cmd += " --trace --trace-underscore --trace-structs";  // 波形跟踪接口
-    // 只生成 C++，不编译可执行文件（--exe 和 --build 也不需要）
-    
-    // 添加所有Verilog文件
-    for (const auto& file : verilogFiles) {
-        cmd += " \"" + file + "\"";
+    std::vector<std::pair<wxString, wxString>> verilatorEnvironment;
+    {
+        const wxString binDirectory = wxFileName(verilatorPath).GetPath();
+        const wxString installRoot = wxFileName(binDirectory).GetPath();
+        if (!installRoot.IsEmpty() &&
+            wxFileName(binDirectory).GetFullName().IsSameAs("bin", false) &&
+            wxFileExists(installRoot + "\\include\\verilated.h")) {
+            verilatorEnvironment.push_back({ "VERILATOR_ROOT", installRoot });
+        }
     }
 
-    OutputDebugStringA(("Command: " + std::string(cmd.ToUTF8()) + "\n").c_str());
+    OutputDebugStringA("Building command...\n");
+    // 直接以 argv 方式调用 Verilator：路径转义交给 PlatformProcess 规范处理，
+    // 避免 cmd.exe 对 \" 的错误解析（wxExecute 时代的遗留问题）。
+    std::vector<wxString> verilatorArguments;
+    verilatorArguments.push_back("-cc");
+    verilatorArguments.push_back("-O0");  // 禁用优化，保留完整电路结构
+    verilatorArguments.push_back("--Wno-DECLFILENAME");
+    verilatorArguments.push_back("--Wno-TIMESCALEMOD");  // 忽略 timescale 不一致警告
+    verilatorArguments.push_back("--timing");  // 支持时序控制（如 #1 延迟）
+    verilatorArguments.push_back("--Mdir");
+    verilatorArguments.push_back(objDir);
+    verilatorArguments.push_back("--top-module");
+    verilatorArguments.push_back(topModule);
+    verilatorArguments.push_back("--trace");
+    verilatorArguments.push_back("--trace-underscore");
+    verilatorArguments.push_back("--trace-structs");
+    for (const wxString& file : verilogFiles) {
+        verilatorArguments.push_back(file);
+    }
 
     wxString output, error;
     OutputDebugStringA("Executing command...\n");
-    int ret = ExecuteCommand(cmd, output, error);
+    const PlatformProcessResult verilatorResult = RunTool(verilatorPath,
+        verilatorArguments, m_projectRoot, 600, false, false, verilatorEnvironment);
+    output = verilatorResult.output;
+    error = verilatorResult.errorOutput;
+    const int ret = verilatorResult.exitCode;
     OutputDebugStringA(("Command returned: " + std::to_string(ret) + "\n").c_str());
 
+    if (!verilatorResult.started) {
+        errorMsg = wxT("无法启动 Verilator 进程: ") + verilatorResult.errorMessage;
+        return false;
+    }
+    if (verilatorResult.timedOut) {
+        errorMsg = wxT("Verilator 执行超时（600秒上限）");
+        return false;
+    }
     if (ret != 0) {
         OutputDebugStringA("Command failed, setting error message...\n");
         errorMsg = wxString::Format(wxT("Verilator执行失败 (返回值: %d)"), ret);
@@ -617,88 +687,56 @@ bool SimulationEngine::CompileToDll(const wxString& topModule, wxString& errorMs
         m_dllCompileSuccess = false;
         m_lastCompileLog.Clear();
     }
-    
-    // 创建 ProcessRunner 并设置回调
-    m_processRunner = std::make_unique<ProcessRunner>();
-    
-    // 设置输出回调（实时接收编译输出）
-    m_processRunner->SetOutputCallback([this](const wxString& output, bool isError) {
-        {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            m_lastCompileLog += output;
-        }
-        
-        // 如果有外部回调，也通知外部
-        if (m_outputCallback) {
-            m_outputCallback(output, isError);
-        }
-        
-        // 输出到调试窗口
-        OutputDebugStringA(isError ? "[ERR] " : "[OUT] ");
-        OutputDebugStringA(output.ToUTF8());
-    });
-    
-    // 设置完成回调
-    m_processRunner->SetCompletionCallback([this, dllPath, batchPath](int exitCode) {
-        OutputDebugStringA(("Compile process finished with exit code: " + std::to_string(exitCode) + "\n").c_str());
 
-        {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            m_isCompiling = false;
-            m_dllCompileSuccess = (exitCode == 0 && wxFileExists(dllPath));
-        }
-
-        if (exitCode == 0 && wxFileExists(dllPath)) {
-            OutputDebugStringA("DLL compiled successfully!\n");
-        } else {
-            OutputDebugStringA("DLL compilation failed!\n");
-        }
-        
-        // 保留批处理文件用于调试（如果编译失败）
-        if (m_dllCompileSuccess) {
-            wxRemoveFile(batchPath);
-        } else {
-            OutputDebugStringA(("Batch file kept for debugging: " + batchPath.ToStdString() + "\n").c_str());
-        }
-    });
-    
-    // 使用 ProcessRunner 异步执行批处理
-    OutputDebugStringA("Starting async compilation...\n");
-    if (!m_processRunner->RunBatchFile(batchPath, projectRoot)) {
-        errorMsg = wxT("启动编译进程失败");
-        { std::lock_guard<std::mutex> lock(m_mutex); m_isCompiling = false; }
+    if (SimCancelRequested(m_jobProjectPath, m_jobId)) {
+        errorMsg = wxT("用户取消仿真作业");
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_isCompiling = false;
         return false;
     }
-    
-    // 轮询等待编译完成，定期 yield 让 UI 保持响应（spinner 动画等）
-    OutputDebugStringA("Waiting for compilation to complete...\n");
-    while (m_processRunner->IsRunning()) {
-        if (m_processRunner->WaitForCompletion(200))
-            break;
-        wxYield();
-    }
-    
-    OutputDebugStringA(("Compile returned: " + std::to_string(m_processRunner->GetExitCode()) + "\n").c_str());
+
+    // cmd 批处理执行 vcvars+cl；输出实时流式回传（worker 线程安全，不碰 UI 事件循环）
+    const PlatformProcessResult compileResult = RunTool("cmd.exe",
+        { "/d", "/s", "/c", batchPath }, projectRoot, 1800, true);
 
     {
         std::lock_guard<std::mutex> lock(m_mutex);
-        if (!m_dllCompileSuccess) {
-            OutputDebugStringA("Compile failed\n");
-            errorMsg = wxString::Format(wxT("DLL编译失败 (错误码: %d)"), m_processRunner->GetExitCode());
-            if (!m_lastCompileLog.IsEmpty()) {
-                errorMsg += wxT("\n\n编译日志:\n") + m_lastCompileLog.Left(2000);
-            }
-            return false;
-        }
+        m_isCompiling = false;
+        m_dllCompileSuccess = compileResult.exitCode == 0 && wxFileExists(dllPath);
     }
-    
+
+    // 保留批处理文件用于调试（如果编译失败）
+    if (m_dllCompileSuccess) {
+        wxRemoveFile(batchPath);
+    } else {
+        OutputDebugStringA(("Batch file kept for debugging: " + batchPath.ToStdString() + "\n").c_str());
+        if (SimCancelRequested(m_jobProjectPath, m_jobId)) {
+            errorMsg = wxT("用户取消仿真作业");
+        } else if (compileResult.timedOut) {
+            errorMsg = wxT("DLL编译超时（30分钟上限）");
+        } else if (!compileResult.started) {
+            errorMsg = wxT("启动编译进程失败: ") + compileResult.errorMessage;
+        } else {
+            errorMsg = wxString::Format(wxT("DLL编译失败 (错误码: %d)"), compileResult.exitCode);
+        }
+        wxString log;
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            log = m_lastCompileLog;
+        }
+        if (!log.IsEmpty()) {
+            errorMsg += wxT("\n\n编译日志:\n") + log.Left(2000);
+        }
+        return false;
+    }
+
     // 验证 DLL 是否生成
     if (!wxFileExists(dllPath)) {
         OutputDebugStringA("DLL file not found after compile\n");
         errorMsg = wxT("DLL文件未生成");
         return false;
     }
-    
+
     OutputDebugStringA("DLL compile success\n");
     ReportProgress(90, wxString::Format(wxT("DLL生成成功: %s"), dllPath));
     return true;
@@ -960,39 +998,32 @@ bool SimulationEngine::CompileSimRunner(const wxString& topModule, const wxStrin
         batchFile.Close();
     }
 
-    // 使用 ProcessRunner 执行编译
-    auto runner = std::make_unique<ProcessRunner>();
-    wxString simCompileLog;
-    bool simCompileSuccess = false;
-
-    runner->SetOutputCallback([&simCompileLog, this](const wxString& output, bool isError) {
-        simCompileLog += output;
-        if (m_outputCallback) {
-            m_outputCallback(output, isError);
-        }
-        OutputDebugStringA(isError ? "[SIM-ERR] " : "[SIM-OUT] ");
-        OutputDebugStringA(output.ToUTF8());
-    });
-
-    runner->SetCompletionCallback([&simCompileSuccess, &exePath](int exitCode) {
-        simCompileSuccess = (exitCode == 0 && wxFileExists(exePath));
-    });
-
-    if (!runner->RunBatchFile(batchPath, projectRoot)) {
-        errorMsg = wxT("启动仿真编译进程失败");
+    if (SimCancelRequested(m_jobProjectPath, m_jobId)) {
+        errorMsg = wxT("用户取消仿真作业");
         return false;
     }
 
-    while (runner->IsRunning()) {
-        if (runner->WaitForCompletion(200))
-            break;
-        wxYield();
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_lastCompileLog.Clear();
     }
 
-    if (!simCompileSuccess) {
-        errorMsg = wxString::Format(wxT("sim_runner.exe 编译失败 (错误码: %d)"), runner->GetExitCode());
-        if (!simCompileLog.IsEmpty()) {
-            errorMsg += wxT("\n\n编译日志:\n") + simCompileLog.Left(2000);
+    const PlatformProcessResult compileResult = RunTool("cmd.exe",
+        { "/d", "/s", "/c", batchPath }, projectRoot, 1800, true);
+
+    if (compileResult.timedOut) {
+        errorMsg = wxT("sim_runner.exe 编译超时（30分钟上限）");
+        return false;
+    }
+    if (!compileResult.started) {
+        errorMsg = wxT("启动仿真编译进程失败: ") + compileResult.errorMessage;
+        return false;
+    }
+    if (compileResult.exitCode != 0 || !wxFileExists(exePath)) {
+        errorMsg = wxString::Format(wxT("sim_runner.exe 编译失败 (错误码: %d)"),
+                                    compileResult.exitCode);
+        if (!compileResult.output.IsEmpty()) {
+            errorMsg += wxT("\n\n编译日志:\n") + compileResult.output.Left(2000);
         }
         return false;
     }
@@ -1024,47 +1055,35 @@ bool SimulationEngine::ExecuteSimRunner(const wxString& topModule, wxString& err
     wxString waveDir = cacheDir + "\\waveform";
     CreateDirectoryRecursive(waveDir);
 
-    // 运行 sim_runner.exe（工作目录设为 cacheDir，因为 VCD 路径是相对的）
-    auto runner = std::make_unique<ProcessRunner>();
-    wxString runLog;
-    bool runSuccess = false;
-
-    runner->SetOutputCallback([&runLog, this](const wxString& output, bool isError) {
-        runLog += output;
-        if (m_outputCallback) {
-            m_outputCallback(output, isError);
-        }
-    });
-
-    runner->SetCompletionCallback([&runSuccess](int exitCode) {
-        runSuccess = (exitCode == 0);
-    });
-
-    wxString cmd = "\"" + exePath + "\"";
-    if (!runner->RunAsync(cmd, cacheDir)) {
-        errorMsg = wxT("启动 sim_runner.exe 失败");
+    if (SimCancelRequested(m_jobProjectPath, m_jobId)) {
+        errorMsg = wxT("用户取消仿真作业");
         return false;
     }
 
     {
-        int elapsed = 0;
-        while (runner->IsRunning()) {
-            if (runner->WaitForCompletion(200))
-                break;
-            wxYield();
-            elapsed += 200;
-            if (elapsed >= 60000) {
-                runner->Terminate();
-                errorMsg = wxT("仿真运行超时（60秒）");
-                return false;
-            }
-        }
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_lastCompileLog.Clear();
     }
 
-    if (!runSuccess) {
-        errorMsg = wxString::Format(wxT("仿真运行失败 (错误码: %d)"), runner->GetExitCode());
-        if (!runLog.IsEmpty()) {
-            errorMsg += wxT("\n\n运行日志:\n") + runLog.Left(2000);
+    // 运行 sim_runner.exe（工作目录设为 cacheDir，因为 VCD 路径是相对的）；60s 上限沿用旧行为
+    const PlatformProcessResult runResult = RunTool(exePath, {}, cacheDir, 60, true);
+
+    if (SimCancelRequested(m_jobProjectPath, m_jobId)) {
+        errorMsg = wxT("用户取消仿真作业");
+        return false;
+    }
+    if (!runResult.started) {
+        errorMsg = wxT("启动 sim_runner.exe 失败: ") + runResult.errorMessage;
+        return false;
+    }
+    if (runResult.timedOut) {
+        errorMsg = wxT("仿真运行超时（60秒）");
+        return false;
+    }
+    if (runResult.exitCode != 0) {
+        errorMsg = wxString::Format(wxT("仿真运行失败 (错误码: %d)"), runResult.exitCode);
+        if (!runResult.output.IsEmpty()) {
+            errorMsg += wxT("\n\n运行日志:\n") + runResult.output.Left(2000);
         }
         return false;
     }
@@ -1082,12 +1101,10 @@ bool SimulationEngine::IsCompiling() const
 
 void SimulationEngine::CancelCompile()
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    if (m_processRunner && m_isCompiling) {
-        OutputDebugStringA("Cancelling compilation...\n");
-        m_processRunner->Terminate();
-        m_isCompiling = false;
-    }
+    // 进程句柄由 RunTool 登记在 JobService；取消即终止整棵进程树。
+    if (m_jobId.IsEmpty()) return;
+    wxString ignored;
+    JobService().Cancel(m_jobProjectPath, m_jobId, "User cancelled simulation.", ignored);
 }
 
 // 获取软件自身所在目录（用于找到 sc_time_stub.cpp 等工具文件）

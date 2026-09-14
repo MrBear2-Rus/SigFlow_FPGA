@@ -217,3 +217,9 @@ if(MSVC)
         VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     )
 endif()
+
+option(SIGFLOW_BUILD_TESTS "Build the jobs-layer smoke tests" ON)
+if(SIGFLOW_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()

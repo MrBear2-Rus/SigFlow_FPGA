@@ -9,6 +9,7 @@
 #include <wx/filefn.h>
 #include <wx/filename.h>
 
+#include <algorithm>
 #include <atomic>
 #include <map>
 #include <memory>
@@ -507,8 +508,8 @@ bool JobService::Start(const wxString& projectPath, const wxString& jobId,
         return false;
     }
     if (CountRunning(projectPath, job.request.type) >= ConcurrencyLimit(job.request.type)) {
-        errorMessage = "Concurrency limit reached for " + ToString(job.request.type) +
-                       "; job remains queued.";
+        errorMessage = "Another " + ToString(job.request.type) +
+                       " job is already running; cancel it before starting a new one.";
         return false;
     }
     if (job.state == ToolJobState::Created &&
@@ -589,6 +590,41 @@ bool JobService::Retry(const wxString& projectPath, const wxString& jobId,
     request.retryOf = original.id;
     if (!Create(request, retryJob, errorMessage)) return false;
     return true;
+}
+
+bool JobService::RecoverStaleJobs(const wxString& projectPath,
+                                  const std::vector<wxString>& activeJobIds,
+                                  wxString& errorMessage) const
+{
+    errorMessage.clear();
+    const auto isActive = [&activeJobIds](const wxString& id) {
+        return std::find(activeJobIds.begin(), activeJobIds.end(), id) != activeJobIds.end();
+    };
+    for (ToolJobType type : { ToolJobType::Simulation, ToolJobType::Synthesis,
+                              ToolJobType::PnR, ToolJobType::Pack, ToolJobType::Flash }) {
+        const wxString root = projectPath + wxFileName::GetPathSeparator() + ".sigflow" +
+                              wxFileName::GetPathSeparator() + "jobs" +
+                              wxFileName::GetPathSeparator() + ToString(type);
+        if (!wxDirExists(root)) continue;
+        wxDir directory(root);
+        wxString name;
+        bool found = directory.GetFirst(&name, wxEmptyString, wxDIR_DIRS);
+        while (found) {
+            ToolJob job;
+            wxString loadError;
+            if (Load(projectPath, name, job, loadError) &&
+                job.state == ToolJobState::Running && !isActive(job.id)) {
+                wxString updateError;
+                if (!Transition(projectPath, job.id, ToolJobState::Failed,
+                                "Recovered stale running job after application restart.", -1,
+                                updateError) && errorMessage.IsEmpty()) {
+                    errorMessage = updateError;
+                }
+            }
+            found = directory.GetNext(&name);
+        }
+    }
+    return errorMessage.IsEmpty();
 }
 
 wxString JobService::Sha256File(const wxString& path)

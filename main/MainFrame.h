@@ -81,6 +81,7 @@ private:
     wxString m_activeYosysJobId;
     wxString m_pendingYosysRetryOf;
     std::vector<std::shared_ptr<JobRunHandle>> m_jobRuns;
+    std::vector<wxString> m_activeToolJobIds;
 
     PluginManager* m_pluginMgr;
 
@@ -188,6 +189,7 @@ public:
                            std::vector<wxString>& outSourceFiles);  // 读取项目配置
     void DoSimCompile();      // 编译仿真模型
     void DoSimRun();          // 运行仿真
+    void DoSimCancel();       // 取消仿真作业
     void DoSimClean();        // 清理仿真缓存
 
     /* FPGA 工具链接口 */

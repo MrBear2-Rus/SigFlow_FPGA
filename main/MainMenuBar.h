@@ -104,6 +104,7 @@ private:
     void OnSimCompile(wxCommandEvent&);      // 编译仿真模型
     void OnSimRun(wxCommandEvent&);          // 运行仿真
     void OnSimClean(wxCommandEvent&);        // 清理仿真缓存
+    void OnSimCancel(wxCommandEvent&);       // 取消仿真作业
 
     /* FPGA 菜单事件回调 */
     void OnFpgaSynthesis(wxCommandEvent&);

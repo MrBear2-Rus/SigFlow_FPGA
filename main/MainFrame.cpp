@@ -31,6 +31,7 @@
 #include "fpga/ArtifactValidator.h"
 #include "fpga/FpgaPackService.h"
 #include "jobs/JobRunner.h"
+#include "jobs/JobService.h"
 #include "MainMenuBar.h"
 #include "FpgaYosysRuntime.h"
 #include "FpgaYosysExecutor.h"
@@ -1191,6 +1192,10 @@ void MainFrame::DoFileOpenProject() {
 
         m_projectTreePanel->LoadProject(path);
         m_currentProjectPath = path;
+        {
+            wxString recoverError;
+            JobService().RecoverStaleJobs(m_currentProjectPath, m_activeToolJobIds, recoverError);
+        }
         if (m_wavePanel) {
             m_wavePanel->SetProjectPath(std::string(path.ToUTF8().data()));
             m_wavePanel->SetSessionDir(std::string(path.ToUTF8().data()) + "\\.sigflow\\wave");
@@ -1320,6 +1325,10 @@ void MainFrame::SetProjectDir(const wxString& projectDir)
 
     m_projectTreePanel->LoadProject(projectDir);
     m_currentProjectPath = projectDir;
+    {
+        wxString recoverError;
+        JobService().RecoverStaleJobs(m_currentProjectPath, m_activeToolJobIds, recoverError);
+    }
     if (m_wavePanel) {
         m_wavePanel->SetProjectPath(std::string(projectDir.ToUTF8().data()));
         m_wavePanel->SetSessionDir(
@@ -4024,6 +4033,8 @@ void MainFrame::RunFpgaPack()
         return;
     }
 
+    m_activeToolJobIds.push_back(packJob.id);
+
     if (m_buildProgressBar) {
         m_buildProgressBar->BeginOperation(wxT("Apicula gowin_pack"), 0);
     }
@@ -4051,6 +4062,8 @@ void MainFrame::RunFpgaPack()
             auto* self = weakSelf.get();
             if (!self) return;
             self->ReapJobRuns();
+            self->m_activeToolJobIds.erase(std::remove(self->m_activeToolJobIds.begin(),
+                self->m_activeToolJobIds.end(), outcome.job.id), self->m_activeToolJobIds.end());
             packOutput->Flush();
             FpgaPackService service;
             FpgaPackReport report;
@@ -4206,6 +4219,8 @@ void MainFrame::RunFpgaProgram(
         return;
     }
 
+    m_activeToolJobIds.push_back(flashJob.id);
+
     if (m_terminalCtrl) {
         wxString command = "[openFPGALoader] Job " + flashJob.id + "\nCommand: " + loaderExecutable;
         for (const wxString& argument : arguments) command += " \"" + argument + "\"";
@@ -4235,6 +4250,8 @@ void MainFrame::RunFpgaProgram(
                 auto* self = weakSelf.get();
                 if (!self) return;
                 self->ReapJobRuns();
+                self->m_activeToolJobIds.erase(std::remove(self->m_activeToolJobIds.begin(),
+                    self->m_activeToolJobIds.end(), outcome.job.id), self->m_activeToolJobIds.end());
                 flashOutput->Flush();
                 const bool success = outcome.success;
                 if (!programmingProjectPath.IsEmpty() && !programmingSessionId.IsEmpty()) {
@@ -4416,7 +4433,7 @@ void MainFrame::DoSimCompile()
 
     auto* menuBar = static_cast<MainMenuBar*>(GetMenuBar());
     menuBar->SetSimulationBusy(true);
-    ShowBusyIndicator(wxT("正在编译仿真模型..."));
+    if (!m_buildProgressBar) ShowBusyIndicator(wxT("正在编译仿真模型..."));
 
     SimulationJobRequest simRequest;
     simRequest.projectPath = projectPath;
@@ -4437,6 +4454,11 @@ void MainFrame::DoSimCompile()
         return true;
     };
 
+    {
+        wxString recoverError;
+        JobService().RecoverStaleJobs(projectPath, m_activeToolJobIds, recoverError);
+    }
+
     ToolJob simJob;
     wxString jobError;
     if (!SimulationJob().Submit(simRequest, simJob, jobError)) {
@@ -4445,6 +4467,22 @@ void MainFrame::DoSimCompile()
         wxMessageBox("Simulation Job 提交失败：" + jobError, wxT("编译失败"),
                      wxOK | wxICON_ERROR);
         return;
+    }
+
+    // 引擎进程登记到该 Job：取消 = 终止整棵进程树（vcvars/cl/cmd 全部）
+    m_activeToolJobIds.push_back(simJob.id);
+    engine->SetJobContext(projectPath, simJob.id);
+    if (m_buildProgressBar) {
+        m_buildProgressBar->BeginOperation(wxT("编译仿真模型"), 0);
+        const wxString cancelProject = projectPath;
+        const wxString cancelJobId = simJob.id;
+        m_buildProgressBar->SetCancelCallback([cancelProject, cancelJobId] {
+            wxString ignored;
+            JobService().Cancel(cancelProject, cancelJobId,
+                                "User cancelled simulation compile.", ignored);
+        });
+    } else {
+        // busy indicator already shown above
     }
 
     const wxWeakRef<MainFrame> weakSelf(this);
@@ -4458,8 +4496,16 @@ void MainFrame::DoSimCompile()
             auto* self = weakSelf.get();
             if (!self) return;
             self->ReapJobRuns();
+            self->m_activeToolJobIds.erase(std::remove(self->m_activeToolJobIds.begin(),
+                self->m_activeToolJobIds.end(), outcome.job.id), self->m_activeToolJobIds.end());
+            engine->SetJobContext(wxEmptyString, wxEmptyString);
             auto* menuBar = static_cast<MainMenuBar*>(self->GetMenuBar());
-            self->HideBusyIndicator(outcome.success ? wxT("编译完成") : wxT("编译失败"));
+            if (self->m_buildProgressBar) {
+                self->m_buildProgressBar->FinishOperation(outcome.success,
+                    outcome.success ? wxT("仿真模型编译完成") : wxT("仿真模型编译失败"));
+            } else {
+                self->HideBusyIndicator(outcome.success ? wxT("编译完成") : wxT("编译失败"));
+            }
             if (menuBar) menuBar->SetSimulationBusy(false);
             if (outcome.success) {
                 const SimulationCompileResult result = engine->GetLastCompileResult();
@@ -4516,7 +4562,7 @@ void MainFrame::DoSimRun()
     // 6. 运行仿真（走 SimJob：VCD 产物登记 + manifest + 报告）
     auto* menuBar = static_cast<MainMenuBar*>(GetMenuBar());
     menuBar->SetSimulationBusy(true);
-    ShowBusyIndicator(wxT("正在运行仿真..."));
+    if (!m_buildProgressBar) ShowBusyIndicator(wxT("正在运行仿真..."));
 
     const wxString vcdPath = projectPath + "\\" + ".sigflow" + "\\" + "sim" + "\\" +
         topModule + "\\waveform\\wave.vcd";
@@ -4534,6 +4580,11 @@ void MainFrame::DoSimRun()
         return true;
     };
 
+    {
+        wxString recoverError;
+        JobService().RecoverStaleJobs(projectPath, m_activeToolJobIds, recoverError);
+    }
+
     ToolJob simJob;
     wxString jobError;
     if (!SimulationJob().Submit(simRequest, simJob, jobError)) {
@@ -4544,6 +4595,21 @@ void MainFrame::DoSimRun()
         return;
     }
 
+    m_activeToolJobIds.push_back(simJob.id);
+    engine->SetJobContext(projectPath, simJob.id);
+    if (m_buildProgressBar) {
+        m_buildProgressBar->BeginOperation(wxT("运行仿真"), 0);
+        const wxString cancelProject = projectPath;
+        const wxString cancelJobId = simJob.id;
+        m_buildProgressBar->SetCancelCallback([cancelProject, cancelJobId] {
+            wxString ignored;
+            JobService().Cancel(cancelProject, cancelJobId,
+                                "User cancelled simulation run.", ignored);
+        });
+    } else {
+        // busy indicator already shown above
+    }
+
     const wxWeakRef<MainFrame> weakSelf(this);
     m_jobRuns.push_back(RunJobAsync(simJob,
         [simRequest](const ToolJob& job, const JobExecutionOptions& options,
@@ -4551,12 +4617,20 @@ void MainFrame::DoSimRun()
             return SimulationJob().Execute(simRequest, job, options, report, error);
         },
         {},
-        [weakSelf, projectPath, vcdPath](const JobRunOutcome& outcome) {
+        [weakSelf, engine, projectPath, vcdPath](const JobRunOutcome& outcome) {
             auto* self = weakSelf.get();
             if (!self) return;
             self->ReapJobRuns();
+            self->m_activeToolJobIds.erase(std::remove(self->m_activeToolJobIds.begin(),
+                self->m_activeToolJobIds.end(), outcome.job.id), self->m_activeToolJobIds.end());
+            engine->SetJobContext(wxEmptyString, wxEmptyString);
             auto* menuBar = static_cast<MainMenuBar*>(self->GetMenuBar());
-            self->HideBusyIndicator(outcome.success ? wxT("就绪") : wxT("仿真失败"));
+            if (self->m_buildProgressBar) {
+                self->m_buildProgressBar->FinishOperation(outcome.success,
+                    outcome.success ? wxT("仿真运行完成") : wxT("仿真运行失败"));
+            } else {
+                self->HideBusyIndicator(outcome.success ? wxT("就绪") : wxT("仿真失败"));
+            }
             if (menuBar) menuBar->SetSimulationBusy(false);
             if (outcome.success) {
                 wxString message = wxT("仿真完成!\n波形文件: ") + vcdPath;
@@ -4572,6 +4646,19 @@ void MainFrame::DoSimRun()
                              wxOK | wxICON_ERROR, self);
             }
         }));
+}
+
+void MainFrame::DoSimCancel()
+{
+    if (!m_simEngine || !m_simEngine->HasActiveJob()) {
+        SetStatusText(wxT("没有正在运行的仿真作业"));
+        return;
+    }
+    m_simEngine->CancelCompile();
+    if (m_terminalCtrl) {
+        m_terminalCtrl->AppendProcessOutput("[sim] cancellation requested.\n");
+    }
+    SetStatusText(wxT("仿真取消请求已发送"));
 }
 
 void MainFrame::DoSimClean()

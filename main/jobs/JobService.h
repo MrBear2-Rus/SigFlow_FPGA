@@ -145,6 +145,11 @@ public:
     bool Retry(const wxString& projectPath, const wxString& jobId, ToolJob& retryJob,
                wxString& errorMessage) const;
 
+    // 回收僵尸 Running 作业；activeJobIds 中的作业视为活动，绝不回收。
+    bool RecoverStaleJobs(const wxString& projectPath,
+                          const std::vector<wxString>& activeJobIds,
+                          wxString& errorMessage) const;
+
     bool WriteReport(const wxString& projectPath, const wxString& jobId,
                      const JobReport& report, wxString& errorMessage) const;
     bool LoadReport(const wxString& projectPath, const wxString& jobId,

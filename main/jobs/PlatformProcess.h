@@ -4,6 +4,7 @@
 
 #include <functional>
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 // 平台抽象层：Job 层唯一允许触碰"进程"的地方。
@@ -16,8 +17,14 @@ struct PlatformProcessRequest {
     int timeoutSeconds = 0; // <=0 表示不设超时
     std::uint64_t maxOutputBytes = 0; // 0 表示不限制；执行器默认设置上限
     std::uint64_t memoryLimitBytes = 0; // 0 表示不限制（Windows Job Object）
+    // true: executable+arguments 按规范转义拼接；false: executable 字段当作完整命令行原样传递（cmd /c 场景）
+    bool quoteArguments = true;
+    // 追加/覆盖子进程环境变量（Windows: 与父环境合并后传入；POSIX: fork 后 setenv）。
+    std::vector<std::pair<wxString, wxString>> environment;
     // 进程创建成功后回调可终止句柄（Job Object / 进程组），供 Cancel 使用。
     std::function<void(void*)> onStarted;
+    // Run 收尾时（关闭句柄前）同步回调：调用方在此注销已登记的进程句柄。
+    std::function<void()> onFinished;
 };
 
 struct PlatformProcessResult {
@@ -25,6 +32,7 @@ struct PlatformProcessResult {
     bool timedOut = false;
     int exitCode = -1;
     wxString output; // stdout + stderr 合并
+    wxString errorOutput; // stderr 单独视图（stdout/stderr 合并仍在 output）
     wxString errorMessage;
     bool outputTruncated = false;
 };

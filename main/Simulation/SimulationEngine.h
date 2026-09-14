@@ -5,9 +5,9 @@
 #include <vector>
 #include <memory>
 #include <mutex>
+#include "../jobs/PlatformProcess.h"
 
 // 前向声明
-class ProcessRunner;
 class StimulusParser;
 class TimelineGenerator;
 class SimMainGenerator;
@@ -44,7 +44,19 @@ public:
     
     // 设置当前顶层模块名（跨会话运行仿真时需要）
     void SetTopModule(const wxString& topModule) { m_currentTopModule = topModule; }
-    
+
+    // Job 上下文：非空时进程经 JobService 登记并可被真取消。
+    void SetJobContext(const wxString& projectPath, const wxString& jobId);
+
+    // 是否有活跃的仿真作业（jobId 非空）
+    bool HasActiveJob() const { std::lock_guard<std::mutex> lock(m_mutex); return !m_jobId.IsEmpty(); }
+
+    wxString ActiveJobId() const
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_jobId;
+    }
+
     // 设置编译进度回调
     void SetProgressCallback(CompileProgressCallback callback);
 
@@ -68,10 +80,18 @@ public:
     const SimulationCompileResult& GetLastCompileResult() const { return m_lastResult; }
 
     // 获取最后一次编译的完整日志
-    wxString GetLastCompileLog() const { return m_lastCompileLog; }
+    wxString GetLastCompileLog() const
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_lastCompileLog;
+    }
 
     // 设置编译输出回调（实时接收编译输出）
-    void SetCompileOutputCallback(CompileOutputCallback callback) { m_outputCallback = callback; }
+    void SetCompileOutputCallback(CompileOutputCallback callback)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_outputCallback = callback;
+    }
 
     // 检查是否正在编译中
     bool IsCompiling() const;
@@ -86,12 +106,23 @@ private:
     CompileProgressCallback m_progressCallback;
     CompileOutputCallback m_outputCallback;
 
-    // 异步进程执行器
-    std::unique_ptr<ProcessRunner> m_processRunner;
     wxString m_lastCompileLog;      // 最后一次编译的完整日志
     bool m_isCompiling = false;     // 是否正在编译中
     bool m_dllCompileSuccess = false; // DLL编译是否成功
     mutable std::mutex m_mutex;     // 保护编译日志的互斥锁
+
+    wxString m_jobProjectPath;
+    wxString m_jobId;
+
+    // 统一进程执行入口：PlatformProcess 是唯一触碰系统调用的地方。
+    // streamOutput=true 时把输出增量写入 m_lastCompileLog 并转发 m_outputCallback。
+    PlatformProcessResult RunTool(const wxString& executable,
+                                  const std::vector<wxString>& arguments,
+                                  const wxString& workingDirectory,
+                                  int timeoutSeconds,
+                                  bool streamOutput,
+                                  bool rawCommandLine = false,
+                                  const std::vector<std::pair<wxString, wxString>>& environment = {});
 
     // 获取缓存目录路径: <projectRoot>/.sigflow/sim/<topModule>/
     wxString GetCacheDirectory(const wxString& topModule) const;
@@ -112,9 +143,6 @@ private:
     
     // 创建 sc_time_stub.cpp 文件
     void CreateScTimeStub(const wxString& path);
-
-    // 执行系统命令并捕获输出
-    int ExecuteCommand(const wxString& cmd, wxString& output, wxString& error);
 
     // 查找Verilator安装路径
     wxString FindVerilatorPath() const;

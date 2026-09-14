@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <chrono>
 #include <cstring>
+#include <cwchar>
+#include <map>
 #include <mutex>
 #include <thread>
 
@@ -17,6 +19,7 @@
 #include <poll.h>
 #include <signal.h>
 #include <spawn.h>
+#include <cstdlib>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -63,6 +66,22 @@ wxString StoreOutput(OutputCollector* collector, const char* buffer, std::size_t
     return text;
 }
 
+wxString MergeOutputWhere(OutputCollector* collector, bool isError)
+{
+    if (collector == nullptr) return wxString();
+    std::lock_guard<std::mutex> lock(collector->mutex);
+    std::stable_sort(collector->events.begin(), collector->events.end(),
+        [](const OutputEvent& left, const OutputEvent& right) {
+            if (left.timestamp != right.timestamp) return left.timestamp < right.timestamp;
+            return left.sequence < right.sequence;
+        });
+    wxString output;
+    for (const OutputEvent& event : collector->events) {
+        if (event.isError == isError) output += event.text;
+    }
+    return output;
+}
+
 wxString MergeOutput(OutputCollector* collector)
 {
     if (collector == nullptr) return wxString();
@@ -91,9 +110,25 @@ bool NeedsQuoting(const wxString& value)
 wxString PlatformProcess::QuoteArgument(const wxString& value)
 {
     if (!NeedsQuoting(value)) return value;
-    wxString escaped = value;
-    escaped.Replace("\\", "\\\\");
-    escaped.Replace("\"", "\\\"");
+    wxString escaped;
+    std::size_t backslashes = 0;
+    for (wxChar character : value) {
+        if (character == '\\') {
+            ++backslashes;
+            escaped += character;
+            continue;
+        }
+        if (character == '"') {
+            // 引号前的反斜杠全部翻倍，再补一个转义引号
+            escaped += wxString(backslashes + 1, '\\');
+            escaped += character;
+        } else {
+            escaped += character;
+        }
+        backslashes = 0;
+    }
+    // 结尾反斜杠翻倍，避免转义外层收尾引号
+    escaped += wxString(backslashes, '\\');
     return "\"" + escaped + "\"";
 }
 
@@ -108,6 +143,42 @@ wxString PlatformProcess::BuildCommandLine(const wxString& executable,
 #ifdef _WIN32
 
 namespace {
+
+struct CaseInsensitiveLess {
+    bool operator()(const std::wstring& left, const std::wstring& right) const
+    {
+        return _wcsicmp(left.c_str(), right.c_str()) < 0;
+    }
+};
+
+std::vector<wchar_t> BuildEnvironmentBlock(
+    const std::vector<std::pair<wxString, wxString>>& overrides)
+{
+    if (overrides.empty()) return {};
+    std::map<std::wstring, std::wstring, CaseInsensitiveLess> merged;
+    LPWCH parent = GetEnvironmentStringsW();
+    if (parent != nullptr) {
+        for (const wchar_t* entry = parent; *entry != L'\0'; entry += wcslen(entry) + 1) {
+            const std::wstring line(entry);
+            const std::size_t equals = line.find(L'=');
+            if (equals == std::wstring::npos || equals == 0) continue; // 跳过 "=C:" 之类
+            merged[line.substr(0, equals)] = line.substr(equals + 1);
+        }
+        FreeEnvironmentStringsW(parent);
+    }
+    for (const auto& pair : overrides) {
+        merged[pair.first.ToStdWstring()] = pair.second.ToStdWstring();
+    }
+    std::vector<wchar_t> block;
+    for (const auto& pair : merged) {
+        block.insert(block.end(), pair.first.begin(), pair.first.end());
+        block.push_back(L'=');
+        block.insert(block.end(), pair.second.begin(), pair.second.end());
+        block.push_back(L'\0');
+    }
+    block.push_back(L'\0');
+    return block;
+}
 
 void PumpStream(HANDLE handle, bool isErrorStream, OutputCollector* collector,
                 const PlatformOutputCallback* onOutput)
@@ -151,16 +222,20 @@ PlatformProcessResult PlatformProcess::Run(const PlatformProcessRequest& request
     startup.hStdOutput = stdoutWrite;
     startup.hStdError = stderrWrite;
 
-    const wxString commandLine = BuildCommandLine(request.executable, request.arguments);
+    const wxString commandLine = request.quoteArguments
+        ? BuildCommandLine(request.executable, request.arguments)
+        : request.executable;
     std::vector<wchar_t> mutableCommand(commandLine.length() + 1);
     std::memcpy(mutableCommand.data(), commandLine.wc_str(),
                 (commandLine.length() + 1) * sizeof(wchar_t));
     const wxString workingDirectory = request.workingDirectory.IsEmpty()
         ? wxString() : request.workingDirectory;
+    std::vector<wchar_t> environmentBlock = BuildEnvironmentBlock(request.environment);
 
     PROCESS_INFORMATION processInfo{};
     if (!CreateProcessW(nullptr, mutableCommand.data(), nullptr, nullptr, TRUE,
-                        CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT, nullptr,
+                        CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT,
+                        environmentBlock.empty() ? nullptr : environmentBlock.data(),
                         workingDirectory.IsEmpty() ? nullptr : workingDirectory.wc_str(),
                         &startup, &processInfo)) {
         result.errorMessage = wxString::Format("Unable to start process (Win32 error %lu).",
@@ -215,11 +290,13 @@ PlatformProcessResult PlatformProcess::Run(const PlatformProcessRequest& request
 
     stdoutPump.join();
     stderrPump.join();
+    if (request.onFinished) request.onFinished();
     CloseHandle(stdoutRead);
     CloseHandle(stderrRead);
     CloseHandle(processInfo.hProcess);
     if (jobObject != nullptr) CloseHandle(jobObject);
     result.output = MergeOutput(&collector);
+    result.errorOutput = MergeOutputWhere(&collector, true);
     result.outputTruncated = collector.truncated;
     return result;
 }
@@ -280,6 +357,10 @@ PlatformProcessResult PlatformProcess::Run(const PlatformProcessRequest& request
                                            const PlatformOutputCallback& onOutput)
 {
     PlatformProcessResult result;
+    if (!request.quoteArguments) {
+        result.errorMessage = "Raw command line is not supported on POSIX.";
+        return result;
+    }
     int stdoutPipe[2] = { -1, -1 };
     int stderrPipe[2] = { -1, -1 };
     if (pipe(stdoutPipe) != 0 || pipe(stderrPipe) != 0) {
@@ -303,6 +384,9 @@ PlatformProcessResult PlatformProcess::Run(const PlatformProcessRequest& request
     }
     if (child == 0) {
         setpgid(0, 0);
+        for (const auto& pair : request.environment) {
+            setenv(pair.first.utf8_string().c_str(), pair.second.utf8_string().c_str(), 1);
+        }
         dup2(stdoutPipe[1], STDOUT_FILENO);
         dup2(stderrPipe[1], STDERR_FILENO);
         close(stdoutPipe[0]);
@@ -353,10 +437,12 @@ PlatformProcessResult PlatformProcess::Run(const PlatformProcessRequest& request
         waitpid(child, &status, 0);
     }
     pump.join();
+    if (request.onFinished) request.onFinished();
 
     if (WIFEXITED(status)) result.exitCode = WEXITSTATUS(status);
     else if (WIFSIGNALED(status)) result.exitCode = 128 + WTERMSIG(status);
     result.output = MergeOutput(&collector);
+    result.errorOutput = MergeOutputWhere(&collector, true);
     result.outputTruncated = collector.truncated;
     return result;
 }
