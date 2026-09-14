@@ -18,23 +18,17 @@ add_executable(job_tests ${JOB_TESTS_SOURCES})
 target_include_directories(job_tests PRIVATE
     "${SIGFLOW_MAIN_DIR}"
     "${SIGFLOW_3RD_DIR}"
-    "${SIGFLOW_WX_INCLUDE_DIR}"
-    $<$<CXX_COMPILER_ID:MSVC>:${SIGFLOW_WX_INCLUDE_DIR}/msvc>
-    "${SIGFLOW_WX_CONFIG_DIR}"
 )
 
-target_compile_definitions(job_tests PRIVATE
-    WIN32 _WINDOWS NOPCH WXUSINGDLL __WXMSW__ UNICODE _UNICODE _CRT_SECURE_NO_WARNINGS)
+if(WIN32)
+    target_include_directories(job_tests PRIVATE
+        "${SIGFLOW_WX_INCLUDE_DIR}"
+        "${SIGFLOW_WX_CONFIG_DIR}"
+    )
+    target_compile_definitions(job_tests PRIVATE
+        WIN32 _WINDOWS NOPCH WXUSINGDLL __WXMSW__ UNICODE _UNICODE)
 
-if(MSVC)
-    set_property(TARGET job_tests PROPERTY MSVC_RUNTIME_LIBRARY
-        "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
-    target_compile_options(job_tests PRIVATE /utf-8 /W3)
-    target_link_directories(job_tests PRIVATE "${SIGFLOW_WX_LIB_DIR}")
-    target_link_libraries(job_tests PRIVATE
-        $<$<CONFIG:Debug>:wxbase32ud> $<$<NOT:$<CONFIG:Debug>>:wxbase32u>)
-else()
-    # GCC/MinGW：wx 为动态库（libwxbase33ud），链接导入库并在运行前拷贝 DLL
+    # MinGW：wx 为动态库（libwxbase33ud），链接导入库并在运行前拷贝 DLL
     find_library(JOB_TESTS_WX_BASE_LIBRARY NAMES wx_baseu-3.3 wx_baseu-3.2 wxbase33ud wxbase32ud
         PATHS "${SIGFLOW_WX_LIB_DIR}" NO_DEFAULT_PATH REQUIRED)
     target_link_libraries(job_tests PRIVATE "${JOB_TESTS_WX_BASE_LIBRARY}" bcrypt)
@@ -46,16 +40,20 @@ else()
             COMMAND ${CMAKE_COMMAND} -E copy_if_different "${WX_DLL}"
                     "$<TARGET_FILE_DIR:job_tests>/")
     endforeach()
+else()
+    # Linux / 其他 Unix：wx 头由根目录的 wxWidgets_USE_FILE 提供
+    foreach(SIGFLOW_WX_BASE_NAME IN ITEMS wx_baseu-3.2 wx_baseu-3.3 wx_baseu)
+        find_library(JOB_TESTS_WX_BASE_LIBRARY NAMES ${SIGFLOW_WX_BASE_NAME})
+        if(JOB_TESTS_WX_BASE_LIBRARY)
+            break()
+        endif()
+    endforeach()
+    if(NOT JOB_TESTS_WX_BASE_LIBRARY)
+        message(WARNING
+            "wxBase library not found; job_tests may fail to link. "
+            "Install wxWidgets or set -DJOB_TESTS_WX_BASE_LIBRARY=<path>.")
+    endif()
+    target_link_libraries(job_tests PRIVATE ${JOB_TESTS_WX_BASE_LIBRARY} Threads::Threads)
 endif()
 
 add_test(NAME job_tests COMMAND job_tests)
-
-# wxBase 是 DLL：运行前把 DLL 拷到测试可执行文件旁
-if(MSVC)
-    file(GLOB JOB_TESTS_WX_DLLS "${SIGFLOW_WX_LIB_DIR}/*.dll")
-    foreach(WX_DLL ${JOB_TESTS_WX_DLLS})
-        add_custom_command(TARGET job_tests POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different "${WX_DLL}"
-                    "$<TARGET_FILE_DIR:job_tests>/")
-    endforeach()
-endif()

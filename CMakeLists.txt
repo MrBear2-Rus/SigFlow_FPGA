@@ -7,28 +7,30 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-if(NOT WIN32)
-    message(FATAL_ERROR
-        "This CMake bootstrap targets the current Windows implementation. "
-        "Finish the POSIX platform layer before building on Linux or Kylin.")
-endif()
-
 set(SIGFLOW_MAIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/main")
 set(SIGFLOW_3RD_DIR "${CMAKE_CURRENT_SOURCE_DIR}/3rd")
 set(SIGFLOW_PLUGIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/plugin_sdk")
 set(SIGFLOW_SLANG_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/external/slang-sdk" CACHE PATH
-    "GCC/MSVC-compatible slang SDK root")
+    "GCC-compatible slang SDK root")
 set(SIGFLOW_WX_ROOT "${SIGFLOW_3RD_DIR}/wxWidgets-3.2.9" CACHE PATH
-    "GCC/MSVC-compatible wxWidgets root")
+    "GCC-compatible wxWidgets root")
 set(MINGW_ROOT "" CACHE PATH "MinGW installation root used for GCC runtime DLLs")
 
-if(MSVC)
-    set(SIGFLOW_SLANG_DIR "${SIGFLOW_SLANG_ROOT}")
-    set(SIGFLOW_WX_DIR "${SIGFLOW_WX_ROOT}")
-    set(SIGFLOW_WX_INCLUDE_DIR "${SIGFLOW_WX_DIR}/include")
-    set(SIGFLOW_WX_CONFIG_DIR "${SIGFLOW_WX_DIR}/lib/vc_x64_dll/mswud")
-    set(SIGFLOW_WX_LIB_DIR "${SIGFLOW_WX_DIR}/lib/vc_x64_dll")
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+# ---------------------------------------------------------------------------
+# 本项目只支持 CMake + GCC：
+#   - Windows：MinGW-w64 GCC（-G "MinGW Makefiles"）
+#   - Linux：系统 GCC
+# 注意：业务代码仍含 Win32 依赖，Linux 目前只保证 configure 通过，
+#       代码移植（#ifdef 双实现 / 平台层）是后续独立工作。
+# ---------------------------------------------------------------------------
+if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    message(FATAL_ERROR
+        "SigFlow targets CMake + GCC (MinGW on Windows, GCC on Linux). "
+        "Detected compiler: ${CMAKE_CXX_COMPILER_ID}.")
+endif()
+
+if(WIN32)
+    # ---- MinGW-w64 on Windows ----
     set(SIGFLOW_SLANG_DIR "${SIGFLOW_SLANG_ROOT}")
     set(SIGFLOW_WX_DIR "${SIGFLOW_WX_ROOT}")
     set(SIGFLOW_WX_INCLUDE_DIR "${SIGFLOW_WX_DIR}/include")
@@ -50,7 +52,21 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
             "GCC build requires a slang SDK with GCC-compatible libraries and headers.")
     endif()
 else()
-    message(FATAL_ERROR "Unsupported compiler: ${CMAKE_CXX_COMPILER_ID}")
+    # ---- Linux / 其他 Unix ----
+    set(SIGFLOW_SLANG_DIR "${SIGFLOW_SLANG_ROOT}")
+    set(SIGFLOW_WX_INCLUDE_DIR "")
+    set(SIGFLOW_WX_CONFIG_DIR "")
+    set(SIGFLOW_WX_LIB_DIR "")
+
+    find_package(wxWidgets REQUIRED COMPONENTS core base aui stc gl)
+    include(${wxWidgets_USE_FILE})
+    find_package(Threads REQUIRED)
+
+    if(NOT EXISTS "${SIGFLOW_SLANG_ROOT}/include/slang/ast/Compilation.h")
+        message(WARNING
+            "slang SDK headers not found under ${SIGFLOW_SLANG_ROOT}. "
+            "Configure with -DSIGFLOW_SLANG_ROOT=<linux slang SDK> before building.")
+    endif()
 endif()
 
 file(GLOB_RECURSE SIGFLOW_MAIN_SOURCES CONFIGURE_DEPENDS
@@ -76,7 +92,7 @@ add_executable(sigflow WIN32
     ${SIGFLOW_THIRD_PARTY_SOURCES}
 )
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+if(WIN32)
     target_sources(sigflow PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/sigflow.rc")
 endif()
 
@@ -90,49 +106,26 @@ target_include_directories(sigflow PRIVATE
     "${SIGFLOW_3RD_DIR}/tree-sitter-verilog/src"
     "${SIGFLOW_3RD_DIR}/nlohmann"
     "${SIGFLOW_SLANG_DIR}/include"
-    "${SIGFLOW_WX_INCLUDE_DIR}"
-    $<$<CXX_COMPILER_ID:MSVC>:${SIGFLOW_WX_INCLUDE_DIR}/msvc>
-    "${SIGFLOW_WX_CONFIG_DIR}"
 )
 
-target_compile_definitions(sigflow PRIVATE
-    WIN32
-    _WINDOWS
-    NOPCH
-    $<$<CXX_COMPILER_ID:MSVC>:WXUSINGDLL>
-    __WXMSW__
-    UNICODE
-    _UNICODE
-    _CRT_SECURE_NO_WARNINGS
-    $<$<CXX_COMPILER_ID:MSVC>:SLANG_DEBUG>
-    $<$<CXX_COMPILER_ID:GNU>:wxUSE_DPI_AWARE_MANIFEST=2>
-)
-
-if(MSVC)
-    set_property(TARGET sigflow PROPERTY MSVC_RUNTIME_LIBRARY
-        "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
-    target_compile_options(sigflow PRIVATE /utf-8 /W3)
+if(WIN32)
+    target_include_directories(sigflow PRIVATE
+        "${SIGFLOW_WX_INCLUDE_DIR}"
+        "${SIGFLOW_WX_CONFIG_DIR}"
+    )
+    target_compile_definitions(sigflow PRIVATE
+        WIN32
+        _WINDOWS
+        NOPCH
+        WXUSINGDLL
+        __WXMSW__
+        UNICODE
+        _UNICODE
+        wxUSE_DPI_AWARE_MANIFEST=2
+    )
 endif()
 
-if(MSVC)
-    target_link_directories(sigflow PRIVATE
-        "${SIGFLOW_SLANG_DIR}"
-        "${SIGFLOW_WX_LIB_DIR}"
-    )
-    target_link_libraries(sigflow PRIVATE
-        svlang setupapi advapi32 bcrypt opengl32
-        $<$<CONFIG:Debug>:wxmsw32ud_core>
-        $<$<CONFIG:Debug>:wxmsw32ud_aui>
-        $<$<CONFIG:Debug>:wxmsw32ud_stc>
-        $<$<CONFIG:Debug>:wxmsw32ud_gl>
-        $<$<CONFIG:Debug>:wxbase32ud>
-        $<$<NOT:$<CONFIG:Debug>>:wxmsw32u_core>
-        $<$<NOT:$<CONFIG:Debug>>:wxmsw32u_aui>
-        $<$<NOT:$<CONFIG:Debug>>:wxmsw32u_stc>
-        $<$<NOT:$<CONFIG:Debug>>:wxmsw32u_gl>
-        $<$<NOT:$<CONFIG:Debug>>:wxbase32u>
-    )
-else()
+if(WIN32)
     find_library(SIGFLOW_SLANG_LIBRARY NAMES svlang slang
         PATHS "${SIGFLOW_SLANG_ROOT}" "${SIGFLOW_SLANG_ROOT}/lib"
         NO_DEFAULT_PATH REQUIRED)
@@ -148,7 +141,6 @@ else()
         PATHS "${SIGFLOW_WX_LIB_DIR}" NO_DEFAULT_PATH REQUIRED)
     find_library(SIGFLOW_WX_XML_LIBRARY NAMES wx_baseu_xml-3.2 wxbase33ud_xml wxbase32ud_xml wxbase32u_xml
         PATHS "${SIGFLOW_WX_LIB_DIR}" NO_DEFAULT_PATH REQUIRED)
-    target_compile_definitions(sigflow PRIVATE WXUSINGDLL)
     target_link_libraries(sigflow PRIVATE
         "${SIGFLOW_SLANG_LIBRARY}"
         "${SIGFLOW_WX_CORE_LIBRARY}"
@@ -158,6 +150,19 @@ else()
         "${SIGFLOW_WX_BASE_LIBRARY}"
         "${SIGFLOW_WX_XML_LIBRARY}"
         setupapi advapi32 bcrypt opengl32
+    )
+else()
+    find_library(SIGFLOW_SLANG_LIBRARY NAMES svlang slang
+        PATHS "${SIGFLOW_SLANG_DIR}/lib" "${SIGFLOW_SLANG_DIR}")
+    if(NOT SIGFLOW_SLANG_LIBRARY)
+        message(WARNING
+            "libslang/svlang not found. Configure with -DSIGFLOW_SLANG_LIBRARY=<path> "
+            "or install slang before building.")
+    endif()
+    target_link_libraries(sigflow PRIVATE
+        ${SIGFLOW_SLANG_LIBRARY}
+        ${wxWidgets_LIBRARIES}
+        Threads::Threads
     )
 endif()
 
@@ -170,31 +175,22 @@ add_custom_command(TARGET sigflow POST_BUILD
         "$<TARGET_FILE_DIR:sigflow>/canvas_elements.json"
 )
 
-if(MSVC)
-    add_custom_command(TARGET sigflow POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${SIGFLOW_SLANG_DIR}/svlang.dll"
-            "$<TARGET_FILE_DIR:sigflow>/svlang.dll"
-    )
-endif()
-
-if(MSVC)
-    file(GLOB SIGFLOW_WX_DLLS "${SIGFLOW_WX_LIB_DIR}/*.dll")
-else()
+if(WIN32)
     file(GLOB SIGFLOW_WX_DLLS
         "${SIGFLOW_WX_ROOT}/debug/bin/*.dll"
         "${SIGFLOW_WX_ROOT}/bin/*.dll"
+        "${SIGFLOW_WX_LIB_DIR}/*.dll"
     )
+    foreach(SIGFLOW_WX_DLL IN LISTS SIGFLOW_WX_DLLS)
+        add_custom_command(TARGET sigflow POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${SIGFLOW_WX_DLL}"
+                "$<TARGET_FILE_DIR:sigflow>/"
+        )
+    endforeach()
 endif()
-foreach(SIGFLOW_WX_DLL IN LISTS SIGFLOW_WX_DLLS)
-    add_custom_command(TARGET sigflow POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${SIGFLOW_WX_DLL}"
-            "$<TARGET_FILE_DIR:sigflow>/"
-    )
-endforeach()
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND MINGW_ROOT)
+if(WIN32 AND MINGW_ROOT)
     foreach(SIGFLOW_MINGW_DLL IN ITEMS
         "${MINGW_ROOT}/bin/libgcc_s_seh-1.dll"
         "${MINGW_ROOT}/bin/libstdc++-6.dll"
@@ -208,14 +204,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND MINGW_ROOT)
             )
         endif()
     endforeach()
-endif()
-
-if(MSVC)
-    set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT sigflow)
-    set_property(TARGET sigflow PROPERTY VS_DPI_AWARE "PerMonitor")
-    set_target_properties(sigflow PROPERTIES
-        VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-    )
 endif()
 
 option(SIGFLOW_BUILD_TESTS "Build the jobs-layer smoke tests" ON)
