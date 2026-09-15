@@ -1,9 +1,11 @@
 #include "FpgaSynthesisJob.h"
 
-#include <json/json.h>
+#include "jobs/Sha256.h"
+#include "platform/PlatformPaths.h"
 
-#include <windows.h>
-#include <bcrypt.h>
+using sigflow::platform::JoinPath;
+
+#include <json/json.h>
 
 #include <wx/dir.h>
 #include <wx/datetime.h>
@@ -15,8 +17,6 @@
 #include <cstring>
 #include <memory>
 #include <vector>
-
-#pragma comment(lib, "bcrypt.lib")
 
 namespace {
 
@@ -58,7 +58,7 @@ bool IsWithinDirectory(const wxString& path, const wxString& directory)
     wxString normalizedDirectory = NormalizePath(directory);
     normalizedPath.MakeLower();
     normalizedDirectory.MakeLower();
-    if (!normalizedDirectory.EndsWith("\\")) normalizedDirectory += "\\";
+    if (!normalizedDirectory.EndsWith(wxString(sigflow::platform::PathSeparator()))) normalizedDirectory += sigflow::platform::PathSeparator();
     return normalizedPath.StartsWith(normalizedDirectory);
 }
 
@@ -66,49 +66,7 @@ bool WriteJsonAtomically(const wxString& path, const Json::Value& value, wxStrin
 
 wxString Sha256File(const wxString& filePath)
 {
-    wxFile file(filePath, wxFile::read);
-    if (!file.IsOpened()) return wxString();
-
-    BCRYPT_ALG_HANDLE algorithm = nullptr;
-    BCRYPT_HASH_HANDLE hash = nullptr;
-    DWORD objectLength = 0;
-    DWORD hashLength = 0;
-    DWORD bytesReturned = 0;
-    NTSTATUS status = BCryptOpenAlgorithmProvider(&algorithm, BCRYPT_SHA256_ALGORITHM, nullptr, 0);
-    if (status >= 0) {
-        status = BCryptGetProperty(algorithm, BCRYPT_OBJECT_LENGTH,
-                                   reinterpret_cast<PUCHAR>(&objectLength), sizeof(objectLength),
-                                   &bytesReturned, 0);
-    }
-    if (status >= 0) {
-        status = BCryptGetProperty(algorithm, BCRYPT_HASH_LENGTH,
-                                   reinterpret_cast<PUCHAR>(&hashLength), sizeof(hashLength),
-                                   &bytesReturned, 0);
-    }
-    std::vector<unsigned char> object(objectLength);
-    std::vector<unsigned char> value(hashLength);
-    if (status >= 0) {
-        status = BCryptCreateHash(algorithm, &hash, object.data(), objectLength, nullptr, 0, 0);
-    }
-    std::vector<unsigned char> buffer(64 * 1024);
-    while (status >= 0) {
-        const wxFileOffset bytesRead = file.Read(buffer.data(), buffer.size());
-        if (bytesRead == wxInvalidOffset) {
-            status = -1;
-        } else if (bytesRead == 0) {
-            break;
-        } else {
-            status = BCryptHashData(hash, buffer.data(), static_cast<ULONG>(bytesRead), 0);
-        }
-    }
-    if (status >= 0) status = BCryptFinishHash(hash, value.data(), hashLength, 0);
-    if (hash) BCryptDestroyHash(hash);
-    if (algorithm) BCryptCloseAlgorithmProvider(algorithm, 0);
-    if (status < 0) return wxString();
-
-    wxString result;
-    for (unsigned char byte : value) result += wxString::Format("%02x", byte);
-    return result;
+    return Sha256FileHex(filePath);
 }
 
 bool WriteInputFileList(const SynthesisJob& job, const SynthesisJobPaths& paths, wxString& errorMessage)
@@ -128,7 +86,7 @@ bool WriteInputFileList(const SynthesisJob& job, const SynthesisJobPaths& paths,
     root["files"] = files;
     Json::StreamWriterBuilder writer;
     writer["indentation"] = "  ";
-    return WriteJsonAtomically(paths.inputs + "\\file-list.json", root, errorMessage);
+    return WriteJsonAtomically(JoinPath(paths.inputs, "file-list.json"), root, errorMessage);
 }
 
 bool WriteJsonAtomically(const wxString& path, const Json::Value& value, wxString& errorMessage)
@@ -305,13 +263,13 @@ bool IsTerminalSynthesisJobState(SynthesisJobState state)
 SynthesisJobPaths FpgaSynthesisJobService::GetPaths(const wxString& projectPath, const wxString& jobId)
 {
     SynthesisJobPaths paths;
-    paths.root = projectPath + "\\.sigflow\\fpga\\runs\\" + jobId;
-    paths.inputs = paths.root + "\\inputs";
-    paths.scripts = paths.root + "\\scripts";
-    paths.logs = paths.root + "\\logs";
-    paths.artifacts = paths.root + "\\artifacts";
-    paths.reports = paths.root + "\\reports";
-    paths.manifest = paths.root + "\\manifest.json";
+    paths.root = JoinPath(JoinPath(JoinPath(JoinPath(projectPath, ".sigflow"), "fpga"), "runs"), jobId);
+    paths.inputs = JoinPath(paths.root, "inputs");
+    paths.scripts = JoinPath(paths.root, "scripts");
+    paths.logs = JoinPath(paths.root, "logs");
+    paths.artifacts = JoinPath(paths.root, "artifacts");
+    paths.reports = JoinPath(paths.root, "reports");
+    paths.manifest = JoinPath(paths.root, "manifest.json");
     return paths;
 }
 
@@ -419,7 +377,7 @@ bool FpgaSynthesisJobService::List(const wxString& projectPath, std::vector<Synt
 {
     errorMessage.clear();
     jobs.clear();
-    const wxString runsDirectory = projectPath + "\\.sigflow\\fpga\\runs";
+    const wxString runsDirectory = JoinPath(JoinPath(JoinPath(projectPath, ".sigflow"), "fpga"), "runs");
     if (!wxDirExists(runsDirectory)) return true;
     wxDir directory(runsDirectory);
     wxString name;
@@ -447,7 +405,7 @@ bool FpgaSynthesisJobService::GetSynthesisArtifacts(const wxString& projectPath,
     wxString fileName;
     bool found = directory.GetFirst(&fileName, wxEmptyString, wxDIR_FILES);
     while (found) {
-        artifactPaths.push_back(paths.root + "\\" + fileName);
+        artifactPaths.push_back(JoinPath(paths.root, fileName));
         found = directory.GetNext(&fileName);
     }
     for (const wxString& subdirectory : { paths.scripts, paths.logs, paths.artifacts, paths.reports }) {
@@ -455,7 +413,7 @@ bool FpgaSynthesisJobService::GetSynthesisArtifacts(const wxString& projectPath,
         if (!child.IsOpened()) continue;
         found = child.GetFirst(&fileName, wxEmptyString, wxDIR_FILES);
         while (found) {
-            artifactPaths.push_back(subdirectory + "\\" + fileName);
+            artifactPaths.push_back(JoinPath(subdirectory, fileName));
             found = child.GetNext(&fileName);
         }
     }
@@ -470,8 +428,8 @@ bool FpgaSynthesisJobService::GetSynthesisReport(const wxString& projectPath, co
     SynthesisJob job;
     if (!Load(projectPath, jobId, job, errorMessage)) return false;
     const SynthesisJobPaths paths = GetPaths(projectPath, jobId);
-    wxFile jsonFile(paths.reports + "\\synthesis.analysis.json", wxFile::read);
-    wxFile summaryFile(paths.reports + "\\synthesis.summary.md", wxFile::read);
+    wxFile jsonFile(JoinPath(paths.reports, "synthesis.analysis.json"), wxFile::read);
+    wxFile summaryFile(JoinPath(paths.reports, "synthesis.summary.md"), wxFile::read);
     if (!jsonFile.IsOpened() || !jsonFile.ReadAll(&jsonReport)) {
         errorMessage = "Synthesis analysis report is not available for job " + jobId + ".";
         return false;

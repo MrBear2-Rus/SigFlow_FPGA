@@ -1,12 +1,12 @@
 #include "SigTree.h"
 #include "MainFrame.h"
+#include "platform/Log.h"
 
 #include <json/json.h>
 #include <iostream>
 #include <fstream>
 #include <filesystem>
 #include <memory>
-#include <windows.h>
 #include <regex>
 #include <set>
 #include <queue>
@@ -819,29 +819,29 @@ void SigFlowTree::UpdateTreeFromSlang(slang::ast::Compilation* compilation) {
 }
 
 void SigFlowTree::PrintTree() {
-    OutputDebugStringA("######################## SigTree ########################\n");
+    SIGFLOW_LOG("######################## SigTree ########################\n");
 
     root->Print();
-    OutputDebugStringA("\n");
+    SIGFLOW_LOG("\n");
 
     for (SigTreeNode* node : root->GetChildren()) {
         FileNode* fn = static_cast<FileNode*>(node);
         fn->Print();
-        OutputDebugStringA("\n");
+        SIGFLOW_LOG("\n");
         for (SigTreeNode* child : fn->GetChildren()) {
             TopNode* tn = static_cast<TopNode*>(child);
             tn->Print();
-            OutputDebugStringA("\n");
+            SIGFLOW_LOG("\n");
             for (SigTreeNode* child2 : tn->GetChildren()) {
                 if (child2->type == SigTreeNodeType::Second) {
                     SecondNode* sn = static_cast<SecondNode*>(child2);
                     sn->Print();
-                    OutputDebugStringA("\n");
+                    SIGFLOW_LOG("\n");
                 }
                 else if (child2->type == SigTreeNodeType::Signal) {
                     SignalNode* nn = static_cast<SignalNode*>(child2);
                     nn->Print();
-                    OutputDebugStringA("\n");
+                    SIGFLOW_LOG("\n");
                 }
             }
         }
@@ -873,7 +873,7 @@ void SigTreeNode::Print() {
     }
     info += "\n";
 
-    OutputDebugStringA(info.c_str());
+    SIGFLOW_LOG(info.c_str());
 }
 
 void SigTreeNode::ClearNode() {
@@ -957,7 +957,7 @@ void AlwaysNode::Print() {
     info += "SecondType: Always\n";
     info += "Edge: " + std::string(edgeType == EdgeType::Posedge ? "posedge" : "negedge") + "\n";
     info += "Statement count: " + std::to_string(getStatementCount()) + "\n";
-    OutputDebugStringA(info.c_str());
+    SIGFLOW_LOG(info.c_str());
     SecondNode::Print();
 }
 
@@ -1119,14 +1119,14 @@ void ProjectNode::Print() {
     SigTreeNode::Print();
     std::string info;
     info = "ProjectPath: " + projectPath + "\n";
-    OutputDebugStringA(info.c_str());
+    SIGFLOW_LOG(info.c_str());
 }
 
 void FileNode::Print() {
     SigTreeNode::Print();
     std::string info;
     info = "FilePath: " + filePath + "\n";
-    OutputDebugStringA(info.c_str());
+    SIGFLOW_LOG(info.c_str());
 }
 
 void TopNode::Print() {
@@ -1152,7 +1152,7 @@ void TopNode::Print() {
         info += "port: " + p->identifier + " " + "Out" + "\n";
     }
 
-    OutputDebugStringA(info.c_str());
+    SIGFLOW_LOG(info.c_str());
 }
 
 void SecondNode::Print() {
@@ -1168,7 +1168,7 @@ void SecondNode::Print() {
         info += "port: " + p.identifier + " " + "Out" + " to: " + p.conn + "\n";
     }
 
-    OutputDebugStringA(info.c_str());
+    SIGFLOW_LOG(info.c_str());
 }
 
 void SignalNode::Print() {
@@ -1177,7 +1177,7 @@ void SignalNode::Print() {
     info += "Signal Type: " + SigFlowTree::ToString(signalType) + "\n";
     info += "Identifier: " + identifier + "\n";
 
-    OutputDebugStringA(info.c_str());
+    SIGFLOW_LOG(info.c_str());
 }
 
 void SigTreeNode::RemoveChildren() {
@@ -1696,7 +1696,7 @@ std::string GateInstNode::GetName() {
 }
 
 void GateInstNode::Print() {
-    OutputDebugStringA("SecondType: GateInstance\n");
+    SIGFLOW_LOG("SecondType: GateInstance\n");
     SecondNode::Print();
 }
 
@@ -1753,7 +1753,7 @@ void ModuleInstNode::Print() {
     for (Port& p : inout_ports) {
         info += "port: " + p.identifier + " " + "InOut" + " to: " + p.conn + "\n";
     }
-    OutputDebugStringA(info.c_str());
+    SIGFLOW_LOG(info.c_str());
     SecondNode::Print();
 }
 
@@ -1786,7 +1786,7 @@ void ContinuousAssignNode::Print() {
     std::string info;
     info += "SecondType: ContinuousAssign\n";
     info += "Expression: " + template_exp + "\n";
-    OutputDebugStringA(info.c_str());
+    SIGFLOW_LOG(info.c_str());
     SecondNode::Print();
 }
 

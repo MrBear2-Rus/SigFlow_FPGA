@@ -56,7 +56,7 @@ std::vector<int> GetStableLines(const std::vector<BlockInfo>& blocks) {
         if (reject.find(b.id) == reject.end() && b.stability == Stability::Stable) {
             for (int i = b.start_line; i <= b.end_line; i++) {
                 out.push_back(i);
-                //OutputDebugStringA(wxString::Format("[%d] ", i));
+                //SIGFLOW_LOG(wxString::Format("[%d] ", i));
             }
 
         }

@@ -1,10 +1,7 @@
-#define _WIN32_WINNT 0x0601
-#define WINVER       0x0601
-
 #include "FpgaPackService.h"
 
-#include <windows.h>
-#include <bcrypt.h>
+#include "../jobs/Sha256.h"
+
 #include <json/json.h>
 
 #include <wx/datetime.h>
@@ -12,13 +9,8 @@
 #include <wx/filefn.h>
 #include <wx/filename.h>
 
-#include <vector>
-
-#pragma comment(lib, "bcrypt.lib")
-
 namespace {
 
-constexpr size_t kHashBufferSize = 64 * 1024;
 constexpr std::uint64_t kMinimumBitstreamSizeBytes = 32;
 
 wxString NormalizePath(const wxString& path)
@@ -46,65 +38,7 @@ bool GetFileSize(const wxString& path, std::uint64_t& sizeBytes)
 
 wxString Sha256File(const wxString& filePath)
 {
-    wxFile file(filePath, wxFile::read);
-    if (!file.IsOpened()) {
-        return wxString();
-    }
-
-    BCRYPT_ALG_HANDLE algorithm = nullptr;
-    BCRYPT_HASH_HANDLE hash = nullptr;
-    DWORD hashObjectLength = 0;
-    DWORD hashLength = 0;
-    DWORD bytesReturned = 0;
-    NTSTATUS status = BCryptOpenAlgorithmProvider(&algorithm, BCRYPT_SHA256_ALGORITHM, nullptr, 0);
-    if (status >= 0) {
-        status = BCryptGetProperty(algorithm, BCRYPT_OBJECT_LENGTH,
-                                   reinterpret_cast<PUCHAR>(&hashObjectLength), sizeof(hashObjectLength),
-                                   &bytesReturned, 0);
-    }
-    if (status >= 0) {
-        status = BCryptGetProperty(algorithm, BCRYPT_HASH_LENGTH,
-                                   reinterpret_cast<PUCHAR>(&hashLength), sizeof(hashLength),
-                                   &bytesReturned, 0);
-    }
-
-    std::vector<unsigned char> hashObject(hashObjectLength);
-    std::vector<unsigned char> hashValue(hashLength);
-    if (status >= 0) {
-        status = BCryptCreateHash(algorithm, &hash, hashObject.data(), hashObjectLength, nullptr, 0, 0);
-    }
-
-    std::vector<unsigned char> buffer(kHashBufferSize);
-    while (status >= 0) {
-        const wxFileOffset bytesRead = file.Read(buffer.data(), buffer.size());
-        if (bytesRead == wxInvalidOffset) {
-            status = -1;
-            break;
-        }
-        if (bytesRead == 0) {
-            break;
-        }
-        status = BCryptHashData(hash, buffer.data(), static_cast<ULONG>(bytesRead), 0);
-    }
-
-    if (status >= 0) {
-        status = BCryptFinishHash(hash, hashValue.data(), hashLength, 0);
-    }
-    if (hash) {
-        BCryptDestroyHash(hash);
-    }
-    if (algorithm) {
-        BCryptCloseAlgorithmProvider(algorithm, 0);
-    }
-    if (status < 0) {
-        return wxString();
-    }
-
-    wxString result;
-    for (unsigned char byte : hashValue) {
-        result += wxString::Format("%02x", byte);
-    }
-    return result;
+    return Sha256FileHex(filePath);
 }
 
 Json::Value ToJson(const FpgaPackReport& report)

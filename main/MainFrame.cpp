@@ -1,4 +1,5 @@
 #include <wx/msgdlg.h>
+#include <wx/panel.h>
 #include <wx/filename.h> 
 #include <wx/sstream.h>
 #include <wx/aui/aui.h>
@@ -16,7 +17,10 @@
 #include <wx/timer.h>
 #include <wx/weakref.h>
 
-#include <windows.h>
+#include "platform/Log.h"
+#include "platform/PlatformPaths.h"
+
+using sigflow::platform::JoinPath;
 
 #include <cstring>
 #include <cstdarg>
@@ -315,19 +319,22 @@ wxString FindFpgaTool(const wxString& configuredPath, const wxString& environmen
         return wxFileExists(configuredPath) ? configuredPath : wxString();
     }
 
+    const wxString fileName = sigflow::platform::WithExecutableSuffix(executableName);
+
     // Support both IDE launches from the repository and direct launches from bin/x64/<config>.
     const wxString executableDirectory =
         wxFileName(wxStandardPaths::Get().GetExecutablePath()).GetPath();
     for (const wxString& startDirectory : { wxGetCwd(), executableDirectory }) {
         wxFileName directory = wxFileName::DirName(startDirectory);
         for (int depth = 0; depth < 6; ++depth) {
+            const wxUniChar separator = sigflow::platform::PathSeparator();
             const wxString bundledToolRoot =
-                directory.GetPath() + "\\external\\fpga-tools\\runtime";
+                directory.GetPath() + separator + "external" + separator + "fpga-tools" + separator + "runtime";
             const std::vector<wxString> bundledCandidates = {
-                bundledToolRoot + "\\yosys\\bin\\" + executableName,
-                bundledToolRoot + "\\nextpnr\\bin\\" + executableName,
-                bundledToolRoot + "\\apicula\\Scripts\\" + executableName,
-                bundledToolRoot + "\\openfpgaloader\\bin\\" + executableName,
+                bundledToolRoot + separator + "yosys" + separator + "bin" + separator + fileName,
+                bundledToolRoot + separator + "nextpnr" + separator + "bin" + separator + fileName,
+                bundledToolRoot + separator + "apicula" + separator + "Scripts" + separator + fileName,
+                bundledToolRoot + separator + "openfpgaloader" + separator + "bin" + separator + fileName,
             };
             for (const wxString& candidate : bundledCandidates) {
                 if (wxFileExists(candidate)) {
@@ -340,7 +347,16 @@ wxString FindFpgaTool(const wxString& configuredPath, const wxString& environmen
 
     wxString environmentPath;
     if (wxGetEnv(environmentVariable, &environmentPath) && !environmentPath.IsEmpty()) {
-        return wxFileExists(environmentPath) ? environmentPath : wxString();
+        if (wxFileExists(environmentPath)) {
+            return environmentPath;
+        }
+        if (environmentPath.Find('\\') == wxNOT_FOUND && environmentPath.Find('/') == wxNOT_FOUND) {
+            const wxString environmentFileName = sigflow::platform::WithExecutableSuffix(environmentPath);
+            if (wxFileExists(environmentFileName)) {
+                return environmentFileName;
+            }
+        }
+        return wxString();
     }
 
     wxString pathVariable;
@@ -348,7 +364,7 @@ wxString FindFpgaTool(const wxString& configuredPath, const wxString& environmen
         return wxString();
     }
 
-    for (wxString directory : wxSplit(pathVariable, ';')) {
+    for (wxString directory : sigflow::platform::SplitPathVariable(pathVariable)) {
         directory.Trim(true).Trim(false);
         if (directory.StartsWith("\"") && directory.EndsWith("\"")) {
             directory = directory.Mid(1, directory.length() - 2);
@@ -357,7 +373,7 @@ wxString FindFpgaTool(const wxString& configuredPath, const wxString& environmen
             continue;
         }
 
-        const wxString candidate = directory + wxFileName::GetPathSeparator() + executableName;
+        const wxString candidate = directory + sigflow::platform::PathSeparator() + fileName;
         if (wxFileExists(candidate)) {
             return candidate;
         }
@@ -433,24 +449,35 @@ long LaunchFpgaTool(const wxString& executable, const std::vector<wxString>& arg
 
 wxString BuildNextpnrReadme()
 {
+#if defined(_WIN32)
+    const wxString yosysPath = "C:/tools/yosys/yosys.exe";
+    const wxString nextpnrPath = "C:/tools/nextpnr/nextpnr-himbaechel.exe";
+    const wxString gowinPackPath = "C:/tools/apicula/Scripts/gowin_pack.exe";
+    const wxString openFpgaLoaderPath = "C:/tools/openfpgaloader/openFPGALoader.exe";
+#else
+    const wxString yosysPath = "/usr/local/bin/yosys";
+    const wxString nextpnrPath = "/usr/local/bin/nextpnr-himbaechel";
+    const wxString gowinPackPath = "/usr/local/bin/gowin_pack";
+    const wxString openFpgaLoaderPath = "/usr/local/bin/openFPGALoader";
+#endif
     return
         "# nextpnr work directory\n\n"
         "The default target is the Sipeed Tang Nano 9K: GW1NR-LV9QN88PC6/I5 (GW1N-9C).\n\n"
         "```json\n"
         "{\n"
         "  \"fpga\": {\n"
-        "    \"yosys_path\": \"C:/tools/yosys/yosys.exe\",\n"
+        "    \"yosys_path\": \"" + yosysPath + "\",\n"
         "    \"yosys_strategy\": \"baseline\",\n"
-        "    \"nextpnr_path\": \"C:/tools/nextpnr/nextpnr-himbaechel.exe\",\n"
+        "    \"nextpnr_path\": \"" + nextpnrPath + "\",\n"
         "    \"nextpnr_args\": [\n"
         "      \"--device\", \"GW1NR-LV9QN88PC6/I5\",\n"
         "      \"--vopt\", \"family=GW1N-9C\",\n"
         "      \"--json\", \"${yosys_json}\",\n"
         "      \"--write\", \"${nextpnr_dir}/top.pnr.json\"\n"
         "    ],\n"
-        "    \"gowin_pack_path\": \"C:/tools/apicula/Scripts/gowin_pack.exe\",\n"
+        "    \"gowin_pack_path\": \"" + gowinPackPath + "\",\n"
         "    \"gowin_pack_args\": [\"-d\", \"${device}\", \"-o\", \"${fs_output}\", \"${pnr_json}\"],\n"
-        "    \"openfpgaloader_path\": \"C:/tools/openfpgaloader/openFPGALoader.exe\",\n"
+        "    \"openfpgaloader_path\": \"" + openFpgaLoaderPath + "\",\n"
         "    \"openfpgaloader_args\": [\"-b\", \"tangnano9k\", \"${bitstream}\"]\n"
         "  }\n"
         "}\n"
@@ -1103,7 +1130,7 @@ void DumpTree(TSNode node, const wxString& src, int indent) {
             ts_node_end_byte(node) - ts_node_start_byte(node))
         << "\n";
 
-    //OutputDebugStringA(line);
+    //SIGFLOW_LOG(line);
 
     uint32_t n = ts_node_child_count(node);
     for (uint32_t i = 0; i < n; ++i)
@@ -2508,14 +2535,14 @@ bool MainFrame::LoadProjectConfig(const wxString& projectPath,
     wxString configPath = projectDirectory + "\\sigflow.project";
     
     if (!wxFileExists(configPath)) {
-        OutputDebugStringA("sigflow.project not found\n");
+        SIGFLOW_LOG("sigflow.project not found\n");
         return false;
     }
     
     // 读取文件内容
     wxFile file(configPath, wxFile::read);
     if (!file.IsOpened()) {
-        OutputDebugStringA("Failed to open sigflow.project\n");
+        SIGFLOW_LOG("Failed to open sigflow.project\n");
         return false;
     }
     
@@ -2532,7 +2559,7 @@ bool MainFrame::LoadProjectConfig(const wxString& projectPath,
     std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
     
     if (!reader->parse(jsonStr.c_str(), jsonStr.c_str() + jsonStr.size(), &root, &errors)) {
-        OutputDebugStringA(("JSON parse error: " + errors + "\n").c_str());
+        SIGFLOW_LOG(("JSON parse error: " + errors + "\n").c_str());
         return false;
     }
     
@@ -2541,7 +2568,7 @@ bool MainFrame::LoadProjectConfig(const wxString& projectPath,
         const Json::Value& topModules = root["build"]["top_module"];
         if (topModules.isArray() && !topModules.empty()) {
             outTopModule = wxString::FromUTF8(topModules[0].asString());
-            OutputDebugStringA(("Top module from config: " + outTopModule.ToStdString() + "\n").c_str());
+            SIGFLOW_LOG(("Top module from config: " + outTopModule.ToStdString() + "\n").c_str());
         }
     }
     
@@ -2551,11 +2578,11 @@ bool MainFrame::LoadProjectConfig(const wxString& projectPath,
         if (sources.isArray()) {
             for (const auto& src : sources) {
                 wxString relPath = wxString::FromUTF8(src.asString());
-                wxString fullPath = projectDirectory + "\\" + relPath;
+                    wxString fullPath = JoinPath(projectDirectory, relPath);
                 // 将正斜杠转换为反斜杠
-                fullPath.Replace("/", "\\");
+                    fullPath.Replace(wxUniChar('/'), sigflow::platform::PathSeparator());
                 outSourceFiles.push_back(fullPath);
-                OutputDebugStringA(("Source file: " + fullPath.ToStdString() + "\n").c_str());
+                SIGFLOW_LOG(("Source file: " + fullPath.ToStdString() + "\n").c_str());
             }
         }
     }
@@ -2567,10 +2594,10 @@ bool MainFrame::LoadProjectConfig(const wxString& projectPath,
             for (const auto& lib : libs) {
                 wxString relPath = wxString::FromUTF8(lib.asString());
                 if (!relPath.IsEmpty()) {
-                    wxString fullPath = projectDirectory + "\\" + relPath;
-                    fullPath.Replace("/", "\\");
+                wxString fullPath = JoinPath(projectDirectory, relPath);
+                fullPath.Replace(wxUniChar('/'), sigflow::platform::PathSeparator());
                     outSourceFiles.push_back(fullPath);
-                    OutputDebugStringA(("Library file: " + fullPath.ToStdString() + "\n").c_str());
+                    SIGFLOW_LOG(("Library file: " + fullPath.ToStdString() + "\n").c_str());
                 }
             }
         }
@@ -2589,11 +2616,7 @@ void MainFrame::ShowFpgaToolWindow(FpgaToolPage page)
 void MainFrame::KillAsyncToolProcess(long processId)
 {
     if (processId <= 0) return;
-    HANDLE process = OpenProcess(PROCESS_TERMINATE, FALSE, static_cast<DWORD>(processId));
-    if (process) {
-        TerminateProcess(process, 1);
-        CloseHandle(process);
-    }
+    wxProcess::Kill(static_cast<int>(processId), wxSIGKILL);
 }
 
 void MainFrame::DoFpgaSynthesis()
@@ -2799,9 +2822,9 @@ void MainFrame::RunTraceBridgeDebugBuild(const TraceBridgeDebugBuildRequest& req
             break;
         }
     }
-    const wxString yosysExecutable = FindFpgaTool(options.yosysPath, "SIGFLOW_YOSYS", "yosys.exe");
-    const wxString nextpnrExecutable = FindFpgaTool(options.nextpnrPath, "SIGFLOW_NEXTPNR", "nextpnr-himbaechel.exe");
-    const wxString packExecutable = FindFpgaTool(options.gowinPackPath, "SIGFLOW_GOWIN_PACK", "gowin_pack.exe");
+    const wxString yosysExecutable = FindFpgaTool(options.yosysPath, "SIGFLOW_YOSYS", "yosys");
+    const wxString nextpnrExecutable = FindFpgaTool(options.nextpnrPath, "SIGFLOW_NEXTPNR", "nextpnr-himbaechel");
+    const wxString packExecutable = FindFpgaTool(options.gowinPackPath, "SIGFLOW_GOWIN_PACK", "gowin_pack");
     if (yosysExecutable.IsEmpty() || nextpnrExecutable.IsEmpty() || packExecutable.IsEmpty()) {
         wxMessageBox(wxT("调试构建需要 yosys.exe、nextpnr-himbaechel.exe 和 gowin_pack.exe。"),
                      wxT("TraceBridge 调试构建"), wxOK | wxICON_ERROR, this);
@@ -3160,7 +3183,7 @@ void MainFrame::RunFpgaSynthesis()
     }
     const SynthesisJobPaths jobPaths = FpgaSynthesisJobService::GetPaths(m_currentProjectPath, job.id);
 
-    const wxString jobJsonPath = jobPaths.artifacts + "\\" + topModule + ".json";
+    const wxString jobJsonPath = JoinPath(jobPaths.artifacts, topModule + ".json");
     FpgaYosysScriptRequest scriptRequest;
     scriptRequest.sourceFiles = sourceFiles;
     scriptRequest.topModule = topModule;
@@ -3189,7 +3212,7 @@ void MainFrame::RunFpgaSynthesis()
         return;
     }
 
-    const wxString yosysExecutable = FindFpgaTool(options.yosysPath, "SIGFLOW_YOSYS", "yosys.exe");
+    const wxString yosysExecutable = FindFpgaTool(options.yosysPath, "SIGFLOW_YOSYS", "yosys");
     if (yosysExecutable.IsEmpty()) {
         jobService.Transition(m_currentProjectPath, job.id, SynthesisJobState::Failed,
                               "Yosys executable was not found.", -1, optionsError);
@@ -3241,8 +3264,8 @@ void MainFrame::RunFpgaSynthesis()
 
     const wxString projectPath = m_currentProjectPath;
     const wxString jobId = job.id;
-    const wxString artifactManifestPath = jobPaths.artifacts + "\\" + topModule + ".manifest.json";
-    const wxString legacyJsonPath = yosysDirectory + "\\" + topModule + ".json";
+    const wxString artifactManifestPath = JoinPath(jobPaths.artifacts, topModule + ".manifest.json");
+    const wxString legacyJsonPath = JoinPath(yosysDirectory, topModule + ".json");
     const wxString strategyId = strategyInfo.id;
     YosysExecutor::Config executionConfig;
     executionConfig.workingDirectory = jobPaths.root;
@@ -3602,7 +3625,7 @@ void MainFrame::RunFpgaRoute()
     }
 
     const wxString nextpnrExecutable =
-        FindFpgaTool(options.nextpnrPath, "SIGFLOW_NEXTPNR", "nextpnr-himbaechel.exe");
+        FindFpgaTool(options.nextpnrPath, "SIGFLOW_NEXTPNR", "nextpnr-himbaechel");
     if (nextpnrExecutable.IsEmpty()) {
         wxMessageBox("nextpnr was not found. Set fpga.nextpnr_path in sigflow.project, "
                      "set SIGFLOW_NEXTPNR, or add the correct nextpnr executable to PATH.",
@@ -3626,7 +3649,7 @@ void MainFrame::RunFpgaRoute()
         }
     }
 
-    const wxString yosysJson = yosysDirectory + "\\" + topModule + ".json";
+    const wxString yosysJson = JoinPath(yosysDirectory, topModule + ".json");
     if (!wxFileExists(yosysJson)) {
         wxMessageBox("The Tang Nano 9K netlist was not found:\n" + yosysJson +
                      "\n\nRun FPGA > Synthesis and wait for Yosys to finish before place and route.",
@@ -3956,9 +3979,9 @@ void MainFrame::RunFpgaPack()
     }
 
     const wxString nextpnrDirectory = m_currentProjectPath + "\\nextpnr";
-    const wxString pnrJsonPath = nextpnrDirectory + "\\" + topModule + ".pnr.json";
-    const wxString bitstreamPath = nextpnrDirectory + "\\" + topModule + ".fs";
-    const wxString manifestPath = nextpnrDirectory + "\\" + topModule + ".pack.manifest.json";
+    const wxString pnrJsonPath = JoinPath(nextpnrDirectory, topModule + ".pnr.json");
+    const wxString bitstreamPath = JoinPath(nextpnrDirectory, topModule + ".fs");
+    const wxString manifestPath = JoinPath(nextpnrDirectory, topModule + ".pack.manifest.json");
     FpgaPackService packService;
     if (!packService.ValidateInput(pnrJsonPath, optionsError)) {
         wxMessageBox(optionsError + "\n\nRun FPGA > Place and Route successfully before packing.",
@@ -3967,7 +3990,7 @@ void MainFrame::RunFpgaPack()
     }
 
     const wxString packExecutable =
-        FindFpgaTool(options.gowinPackPath, "SIGFLOW_GOWIN_PACK", "gowin_pack.exe");
+        FindFpgaTool(options.gowinPackPath, "SIGFLOW_GOWIN_PACK", "gowin_pack");
     if (packExecutable.IsEmpty()) {
         wxMessageBox("gowin_pack was not found. Set fpga.gowin_pack_path in sigflow.project, "
                      "set SIGFLOW_GOWIN_PACK, install it under "
@@ -4140,7 +4163,7 @@ void MainFrame::RunFpgaProgram(
     }
 
     const wxString loaderExecutable = FindFpgaTool(
-        options.openFpgaLoaderPath, "SIGFLOW_OPENFPGALOADER", "openFPGALoader.exe");
+        options.openFpgaLoaderPath, "SIGFLOW_OPENFPGALOADER", "openFPGALoader");
     if (loaderExecutable.IsEmpty()) {
         wxMessageBox("openFPGALoader was not found. Set fpga.openfpgaloader_path in "
                      "sigflow.project, set SIGFLOW_OPENFPGALOADER, install it under "
@@ -4351,7 +4374,7 @@ void MainFrame::HideBusyIndicator(const wxString& text)
 
 void MainFrame::DoSimCompile()
 {
-    OutputDebugStringA("=== DoSimCompile ENTER ===\n");
+    SIGFLOW_LOG("=== DoSimCompile ENTER ===\n");
 
     const wxString projectPath = m_currentProjectPath;
     if (projectPath.IsEmpty()) {
@@ -4362,7 +4385,7 @@ void MainFrame::DoSimCompile()
     wxString topModule;
     std::vector<wxString> verilogFiles;
     if (!LoadProjectConfig(projectPath, topModule, verilogFiles)) {
-        OutputDebugStringA("Failed to load project config, falling back to manual mode\n");
+        SIGFLOW_LOG("Failed to load project config, falling back to manual mode\n");
         wxString srcDir = projectPath + "\\src";
         wxString libDir = projectPath + "\\lib";
         if (wxDir::Exists(srcDir)) {
@@ -4371,7 +4394,7 @@ void MainFrame::DoSimCompile()
                 wxString filename;
                 bool hasFile = dir.GetFirst(&filename, "*.v", wxDIR_FILES);
                 while (hasFile) {
-                    verilogFiles.push_back(srcDir + "\\" + filename);
+                    verilogFiles.push_back(JoinPath(srcDir, filename));
                     hasFile = dir.GetNext(&filename);
                 }
             }
@@ -4382,7 +4405,7 @@ void MainFrame::DoSimCompile()
                 wxString filename;
                 bool hasFile = dir.GetFirst(&filename, "*.v", wxDIR_FILES);
                 while (hasFile) {
-                    verilogFiles.push_back(libDir + "\\" + filename);
+                    verilogFiles.push_back(JoinPath(libDir, filename));
                     hasFile = dir.GetNext(&filename);
                 }
             }
@@ -4426,9 +4449,9 @@ void MainFrame::DoSimCompile()
     const std::shared_ptr<SimulationEngine> engine = m_simEngine;
     engine->SetProjectRoot(projectPath);
     engine->SetCompileOutputCallback([](const wxString& line, bool isError) {
-        OutputDebugStringA(isError ? "[ERR] " : "[OUT] ");
-        OutputDebugStringA(line.ToUTF8());
-        OutputDebugStringA("\n");
+        SIGFLOW_LOG(isError ? "[ERR] " : "[OUT] ");
+        SIGFLOW_LOG(line.ToUTF8().data());
+        SIGFLOW_LOG("\n");
     });
 
     auto* menuBar = static_cast<MainMenuBar*>(GetMenuBar());
@@ -4442,9 +4465,9 @@ void MainFrame::DoSimCompile()
     simRequest.requireVcd = false;
     simRequest.runner = [engine, topModule, verilogFiles](JobReport&, wxString& runnerError) {
         engine->SetCompileOutputCallback([](const wxString& line, bool isError) {
-            OutputDebugStringA(isError ? "[ERR] " : "[OUT] ");
-            OutputDebugStringA(line.ToUTF8());
-            OutputDebugStringA("\n");
+            SIGFLOW_LOG(isError ? "[ERR] " : "[OUT] ");
+            SIGFLOW_LOG(line.ToUTF8().data());
+            SIGFLOW_LOG("\n");
         });
         const SimulationCompileResult compiled = engine->Compile(topModule, verilogFiles);
         if (!compiled.success) {
@@ -4517,7 +4540,7 @@ void MainFrame::DoSimCompile()
                 wxString message = wxT("编译失败\n\n") + outcome.message;
                 wxMessageBox(message, wxT("编译失败"), wxOK | wxICON_ERROR, self);
             }
-            OutputDebugStringA("=== DoSimCompile EXIT ===\n");
+            SIGFLOW_LOG("=== DoSimCompile EXIT ===\n");
         }));
 }
 
@@ -4554,9 +4577,9 @@ void MainFrame::DoSimRun()
 
     // 5. 设置编译输出回调
     engine->SetCompileOutputCallback([](const wxString& line, bool isError) {
-        OutputDebugStringA(isError ? "[SIM-ERR] " : "[SIM-OUT] ");
-        OutputDebugStringA(line.ToUTF8());
-        OutputDebugStringA("\n");
+        SIGFLOW_LOG(isError ? "[SIM-ERR] " : "[SIM-OUT] ");
+        SIGFLOW_LOG(line.ToUTF8().data());
+        SIGFLOW_LOG("\n");
     });
 
     // 6. 运行仿真（走 SimJob：VCD 产物登记 + manifest + 报告）
@@ -4564,8 +4587,7 @@ void MainFrame::DoSimRun()
     menuBar->SetSimulationBusy(true);
     if (!m_buildProgressBar) ShowBusyIndicator(wxT("正在运行仿真..."));
 
-    const wxString vcdPath = projectPath + "\\" + ".sigflow" + "\\" + "sim" + "\\" +
-        topModule + "\\waveform\\wave.vcd";
+    const wxString vcdPath = JoinPath(JoinPath(JoinPath(JoinPath(JoinPath(projectPath, ".sigflow"), "sim"), topModule), "waveform"), "wave.vcd");
     SimulationJobRequest simRequest;
     simRequest.projectPath = projectPath;
     simRequest.topModule = topModule;

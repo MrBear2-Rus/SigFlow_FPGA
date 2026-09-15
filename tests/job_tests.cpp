@@ -3,13 +3,19 @@
 #include "jobs/JobService.h"
 #include "jobs/ToolJobs.h"
 
+#include "platform/PlatformPaths.h"
+#include "platform/DynamicLibrary.h"
+#include "platform/LocalPipe.h"
+
 #include <wx/file.h>
 #include <wx/filename.h>
 #include <wx/dir.h>
 
 #include <filesystem>
+#include <cstdint>
 #include <cstdio>
 #include <ctime>
+#include <memory>
 #include <string>
 
 static int g_failures = 0;
@@ -223,6 +229,55 @@ static void TestSimulationJobInProcess()
     std::filesystem::remove_all(std::filesystem::path(project.ToStdString()), ec);
 }
 
+static void TestPlatformPaths()
+{
+    const wxString base = "yosys";
+    CHECK(sigflow::platform::WithExecutableSuffix(base) == base + sigflow::platform::ExecutableSuffix(),
+          "executable suffix appended");
+    CHECK(sigflow::platform::WithExecutableSuffix(base + sigflow::platform::ExecutableSuffix()) ==
+              base + sigflow::platform::ExecutableSuffix(),
+          "existing suffix not duplicated");
+    const wxString joined = wxString("a") + sigflow::platform::PathListSeparator() + "b" +
+                            sigflow::platform::PathListSeparator() + "c";
+    const std::vector<wxString> parts = sigflow::platform::SplitPathVariable(joined);
+    CHECK(parts.size() == 3 && parts[0] == "a" && parts[1] == "b" && parts[2] == "c",
+          "PATH list split by platform separator");
+}
+
+static void TestDynamicLibrary()
+{
+#if defined(_WIN32)
+    sigflow::platform::DynamicLibrary library;
+    CHECK(library.Load("kernel32.dll") && library.IsLoaded(), "load system DLL");
+    CHECK(library.Symbol("GetCurrentProcessId") != nullptr, "resolve exported symbol");
+    library.Unload();
+    CHECK(!library.IsLoaded(), "unload system DLL");
+#else
+    sigflow::platform::DynamicLibrary library;
+    CHECK(library.Load("libc.so.6") || library.Load("libdl.so.2"), "load system SO");
+    if (library.IsLoaded()) library.Unload();
+#endif
+}
+
+static void TestLocalPipe()
+{
+    std::unique_ptr<sigflow::platform::LocalPipe> host;
+    std::unique_ptr<sigflow::platform::LocalPipe> device;
+    std::string error;
+    if (!sigflow::platform::LocalPipe::CreatePair("sigflow_job_tests_pipe", host, device, error)) {
+        std::printf("[FAIL] LocalPipe::CreatePair: %s\n", error.c_str());
+        ++g_failures;
+        return;
+    }
+    CHECK(host != nullptr && device != nullptr, "pipe pair created");
+    // CreatePair 已完成构造并打开两端（Windows 上 host=client, device=server）。
+    const std::uint8_t out[4] = { 1, 2, 3, 4 };
+    std::uint8_t in[4] = { 0, 0, 0, 0 };
+    CHECK(host->Write(out, sizeof(out), 1000), "pipe write");
+    const std::size_t read = device->Read(in, sizeof(in), 1000);
+    CHECK(read == sizeof(in) && in[0] == 1 && in[3] == 4, "pipe read round-trip");
+}
+
 int main()
 {
     TestPlatformProcess();
@@ -231,6 +286,9 @@ int main()
     TestJobRecovery();
     TestJobRecoveryCrossType();
     TestSimulationJobInProcess();
+    TestPlatformPaths();
+    TestDynamicLibrary();
+    TestLocalPipe();
     std::printf(g_failures == 0 ? "\nALL TESTS PASSED\n" : "\n%d TEST(S) FAILED\n",
                 g_failures);
     return g_failures == 0 ? 0 : 1;

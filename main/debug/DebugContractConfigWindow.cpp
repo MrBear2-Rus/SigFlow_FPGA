@@ -20,6 +20,7 @@
 #include <wx/filename.h>
 #include <wx/msgdlg.h>
 #include <wx/notebook.h>
+#include <wx/panel.h>
 #include <wx/sizer.h>
 #include <wx/spinctrl.h>
 #include <wx/statbox.h>

@@ -1,18 +1,14 @@
 #pragma once
-#include <debugapi.h>
+#include "platform/Log.h"
 #include <cstdarg>
-#include <stdio.h>
+#include <cstdio>
 
-#ifdef _DEBUG
 inline void MyLog(const char* fmt, ...)
 {
-    char buf[512];
+    char buffer[512];
     va_list args;
     va_start(args, fmt);
-    vsnprintf(buf, sizeof(buf), fmt, args);
+    vsnprintf(buffer, sizeof(buffer), fmt, args);
     va_end(args);
-    OutputDebugStringA(buf);
+    SIGFLOW_LOG(buffer);
 }
-#else
-inline void MyLog(const char* fmt, ...) { (void)fmt; }
-#endif

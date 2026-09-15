@@ -3,6 +3,7 @@
 #include <sstream>
 #include <algorithm>
 #include <regex>
+#include <filesystem>
 #include <wx/filename.h>
 
 StimulusParser::StimulusParser() {}
@@ -10,7 +11,8 @@ StimulusParser::~StimulusParser() {}
 
 bool StimulusParser::Parse(const wxString& filePath, TestbenchInfo& result)
 {
-    std::ifstream file(filePath.ToStdString());
+    const std::filesystem::path inPath(std::filesystem::u8path(filePath.ToUTF8().data()));
+    std::ifstream file(inPath);
     if (!file.is_open()) {
         m_lastError = wxString::Format(wxT("无法打开文件: %s"), filePath);
         return false;

@@ -2,6 +2,7 @@
 #include <wx/filename.h>
 #include <wx/stdpaths.h>
 #include <fstream>
+#include <filesystem>
 #include <json/json.h>
 
 static wxString GetJsonPath()
@@ -14,7 +15,8 @@ static bool ParseJson(const wxString& path,
     wxVector<ToolCategory>& catsOut,
     wxVector<wxString>& /*mainOut*/)
 {
-    std::ifstream f(path.ToStdString(), std::ios::binary);
+    const std::filesystem::path jsonPath(std::filesystem::u8path(path.ToUTF8().data()));
+    std::ifstream f(jsonPath, std::ios::binary);
     if (!f) return false;
 
     Json::Value root;

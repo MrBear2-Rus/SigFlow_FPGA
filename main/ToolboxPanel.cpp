@@ -16,6 +16,10 @@
 #include <wx/arrstr.h>
 #include <wx/bmpbndl.h>
 
+#include "platform/PlatformPaths.h"
+
+using sigflow::platform::JoinPath;
+
 
 
 #define SVG_FOLDER wxT("res/svg/")
@@ -23,7 +27,7 @@
 
 static void MY_LOG(const wxString & s)
 {
-    wxFile f(wxStandardPaths::Get().GetTempDir() + "\\logsim_tools.log",
+    wxFile f(JoinPath(wxStandardPaths::Get().GetTempDir(), "logsim_tools.log"),
         wxFile::write_append);
     if (f.IsOpened()) {
         f.Write(wxDateTime::Now().FormatISOCombined() + "  " + s + "\n");

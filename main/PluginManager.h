@@ -1,10 +1,10 @@
 ﻿#pragma once
 #include "ISigPlugin.h"
+#include "platform/DynamicLibrary.h"
 #include <vector>
 #include <string>
-#include <windows.h>
+#include <memory>
 #include <filesystem>
-#include <map>
 
 class PluginManager {
 public:
@@ -24,11 +24,11 @@ public:
     void UnloadAll();
 
 private:
-    struct PluginInfo {
-        HMODULE hModule;
-        ISigPlugin* pInstance;
+    struct LoadedPlugin {
+        std::unique_ptr<sigflow::platform::DynamicLibrary> library;
+        ISigPlugin* instance = nullptr;
     };
 
     std::vector<ISigPlugin*> m_plugins;
-    std::vector<PluginInfo> m_loadedModules; // 维护句柄和实例的对应关系
+    std::vector<LoadedPlugin> m_loadedModules; // 维护句柄和实例的对应关系
 };

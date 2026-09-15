@@ -81,7 +81,7 @@ void GetAllNodeTypeTS() {
     uint32_t symbol_count = ts_language_symbol_count(lang); // 使用 API 获取数量
     for (uint32_t i = 0; i < symbol_count; ++i) {
         const char* name = ts_language_symbol_name(lang, i); // 获取 symbol 名称
-        //OutputDebugStringA(wxString::Format("%s\n", name));
+        //SIGFLOW_LOG(wxString::Format("%s\n", name));
     }
 }
 
@@ -171,7 +171,7 @@ void DumpTree(TSNode node, const wxString& src, int indent) {
         << "\n";
 
     wxLogDebug("%s", line);
-    //OutputDebugStringA(line);
+    //SIGFLOW_LOG(line);
 
     uint32_t n = ts_node_child_count(node);
     for (uint32_t i = 0; i < n; ++i)
@@ -224,7 +224,7 @@ void PrintTreeSitterResult(const std::vector<BlockInfo>& res) {
 
         out += line;
     }
-    //OutputDebugStringA(out);
+    //SIGFLOW_LOG(out);
     //wxLogDebug(out);
 }
 
@@ -351,7 +351,7 @@ void printLineStatus(std::vector<Stability> status) {
             id++;
             continue;
         }
-        //OutputDebugStringA(wxString::Format("Line [%d] : %s \n", id++,sta));
+        //SIGFLOW_LOG(wxString::Format("Line [%d] : %s \n", id++,sta));
     }
 }
 

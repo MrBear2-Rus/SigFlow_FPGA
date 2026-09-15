@@ -6,7 +6,6 @@
 #include <wx/file.h>
 #include <wx/process.h>
 #include <wx/txtstrm.h>
-#include <windows.h>
 #include <iostream>
 #include <string>
 #include <sstream>
@@ -258,7 +257,6 @@ std::vector<int> GetLineDepth(const std::vector<BlockInfo>& blocks, int total_li
 
 
     for (int i = 1; i <= total_lines; i++) {
-        //OutputDebugStringA(wxString::Format("Line [%d]: Depth %d\n",i, depths[i]));
     }
     return depths;
 }
@@ -274,7 +272,6 @@ std::vector<bool> isLineHeader(const std::vector<BlockInfo>& blocks, int total_l
 
 
     for (int i = 1; i <= total_lines; i++) {
-        //OutputDebugStringA(wxString::Format("Line [%d]: Header? %d\n", i, mark[i]? 1:0));
     }
     return mark;
 }

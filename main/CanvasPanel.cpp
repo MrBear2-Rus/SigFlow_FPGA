@@ -5,6 +5,7 @@
 #include <wx/file.h>
 #include <wx/stdpaths.h>
 #include <fstream>
+#include <filesystem>
 #include <unordered_set>
 
 
@@ -517,7 +518,8 @@ bool CanvasPanel::Read() {
         return false;
     }
 
-    std::ifstream file(filepath.GetFullPath().ToStdString());
+    const std::filesystem::path canvasPath(std::filesystem::u8path(filepath.GetFullPath().ToUTF8().data()));
+    std::ifstream file(canvasPath);
     if (!file.is_open()) return false;
 
     json root;

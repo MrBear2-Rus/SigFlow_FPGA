@@ -1,20 +1,5 @@
 #include "WaveformGLRenderer.h"
 
-#ifdef _DEBUG
-#pragma comment(lib, "wxmsw32ud_gl.lib")
-#else
-#pragma comment(lib, "wxmsw32u_gl.lib")
-#endif
-#pragma comment(lib, "opengl32.lib")
-
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
-
 #include <GL/gl.h>
 
 // 说明：opengl32.dll 只导出 GL 1.1 符号，VBO（1.5）需 wglGetProcAddress 加载。

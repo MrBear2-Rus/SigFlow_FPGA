@@ -150,9 +150,6 @@ private:
     // 查找 Verilator C++ 运行时头文件和实现目录
     wxString FindVerilatorIncludePath() const;
 
-    // 获取Visual Studio的VCVarsPath（用于设置编译环境）
-    wxString FindVCVarsPath() const;
-
     // 获取软件自身所在目录（用于找到 sc_time_stub.cpp 等工具文件）
     wxString GetSoftwareDirectory() const;
 

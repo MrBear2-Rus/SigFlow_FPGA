@@ -2,6 +2,7 @@
 #include "SigTree.h"
 #include "SigTextEditor.h"
 #include "VerilogStructuring.h"
+#include "platform/Log.h"
 #include <algorithm>
 #include <wx/time.h>
 
@@ -422,13 +423,13 @@ void VerilogManager::Print() {
     for (auto b : blocks) {
         wxString info = wxString::Format("Block: %d - %d, Node: %s\n", GetLine(b.startHandle),
             GetLine(b.endHandle), wxString::FromUTF8(b.self->GetName().c_str()));
-        OutputDebugStringA(info);
+        SIGFLOW_LOG(info);
     }
 
     for (auto b : break_blocks) {
         wxString code = m_stc->GetTextRange(b.structure->Start(), b.structure->End());
         wxString info = wxString::Format("Break_Block: %d - %d\n\tCode: %s\n", GetLine(b.startHandle), GetLine(b.endHandle), code);
-        OutputDebugStringA(info);
+        SIGFLOW_LOG(info);
     }
 }
 

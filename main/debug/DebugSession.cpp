@@ -16,6 +16,10 @@
 #include <system_error>
 #include <utility>
 
+#include "../platform/PlatformPaths.h"
+
+using sigflow::platform::JoinPath;
+
 namespace sigflow {
 namespace debug {
 
@@ -294,20 +298,20 @@ bool IsLegalDebugTransition(DebugSessionState from, DebugSessionState to)
 
 std::string DebugSessionService::DebugRoot(const std::string& projectPath)
 {
-    return projectPath + "\\.sigflow\\debug";
+    return JoinPath(JoinPath(projectPath, ".sigflow"), "debug");
 }
 
 DebugSessionPaths DebugSessionService::GetPaths(const std::string& projectPath,
                                                 const std::string& sessionId)
 {
     DebugSessionPaths paths;
-    paths.root = DebugRoot(projectPath) + "\\" + sessionId;
-    paths.overlay = paths.root + "\\overlay";
-    paths.scripts = paths.root + "\\scripts";
-    paths.logs = paths.root + "\\logs";
-    paths.artifacts = paths.root + "\\artifacts";
-    paths.reports = paths.root + "\\reports";
-    paths.manifest = paths.root + "\\manifest.json";
+    paths.root = JoinPath(DebugRoot(projectPath), sessionId);
+    paths.overlay = JoinPath(paths.root, "overlay");
+    paths.scripts = JoinPath(paths.root, "scripts");
+    paths.logs = JoinPath(paths.root, "logs");
+    paths.artifacts = JoinPath(paths.root, "artifacts");
+    paths.reports = JoinPath(paths.root, "reports");
+    paths.manifest = JoinPath(paths.root, "manifest.json");
     return paths;
 }
 

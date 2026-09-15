@@ -3,6 +3,7 @@
 #include <wx/filename.h>
 #include <wx/stdpaths.h>
 #include <fstream>
+#include <filesystem>
 #include <json/json.h>
 #include "my_log.h"
 
@@ -10,7 +11,8 @@ std::vector<SecondElement> g_elements;
 
 std::vector<SecondElement> LoadSecondElements(const wxString& jsonPath)
 {
-    std::ifstream f(jsonPath.ToStdString(), std::ios::binary);
+    const std::filesystem::path modelPath(std::filesystem::u8path(jsonPath.ToUTF8().data()));
+    std::ifstream f(modelPath, std::ios::binary);
     if (!f.is_open()) { MyLog("LoadCanvas: file not found!\n"); return {}; }
 
     Json::Value root;

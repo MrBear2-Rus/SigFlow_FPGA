@@ -2,6 +2,7 @@
 #include <fstream>
 #include <sstream>
 #include <map>
+#include <filesystem>
 
 SimMainGenerator::SimMainGenerator() {}
 SimMainGenerator::~SimMainGenerator() {}
@@ -9,7 +10,8 @@ SimMainGenerator::~SimMainGenerator() {}
 bool SimMainGenerator::Generate(const Timeline& timeline, const wxString& outputPath,
                                 const wxString& vcdRelativePath)
 {
-    std::ofstream file(outputPath.ToStdString());
+    const std::filesystem::path outPath(std::filesystem::u8path(outputPath.ToUTF8().data()));
+    std::ofstream file(outPath);
     if (!file.is_open()) {
         m_lastError = wxString::Format(wxT("无法创建文件: %s"), outputPath);
         return false;

@@ -8,6 +8,7 @@
 #include "../trace/VcdLazyTraceSource.h"
 
 #include <wx/button.h>
+#include <wx/panel.h>
 #include <wx/choicdlg.h>
 #include <wx/dir.h>
 #include <wx/filedlg.h>

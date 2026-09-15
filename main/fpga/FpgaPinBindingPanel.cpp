@@ -1,6 +1,7 @@
 #include "FpgaPinBindingPanel.h"
 #include "FpgaConstraint.h"
 #include <wx/msgdlg.h>
+#include <wx/panel.h>
 #include <wx/datetime.h>
 #include <wx/dcbuffer.h>
 #include <wx/dialog.h>

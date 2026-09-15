@@ -1,7 +1,7 @@
 #include "MainMenuBar.h"
 #include "MainFrame.h"  // 为了转发调用 DoFileXXX
 #include <wx/config.h>
-#include <windows.h>  // For OutputDebugStringA and MessageBoxA
+#include "platform/Log.h"
 
 enum
 {
@@ -662,13 +662,13 @@ void MainMenuBar::SetSimulationBusy(bool busy)
 // 仿真相关事件处理
 void MainMenuBar::OnSimCompile(wxCommandEvent&) 
 { 
-    OutputDebugStringA("=== OnSimCompile called ===\n");
+    SIGFLOW_LOG("=== OnSimCompile called ===\n");
     if (m_owner) {
-        OutputDebugStringA("m_owner is valid, calling DoSimCompile...\n");
+        SIGFLOW_LOG("m_owner is valid, calling DoSimCompile...\n");
         m_owner->DoSimCompile(); 
     } else {
-        OutputDebugStringA("ERROR: m_owner is NULL!\n");
-        MessageBoxA(NULL, "m_owner is NULL!", "Error", MB_OK | MB_ICONERROR);
+        SIGFLOW_LOG("ERROR: m_owner is NULL!\n");
+        wxMessageBox(wxString("m_owner is NULL!"), wxString("Error"), wxOK | wxICON_ERROR);
     }
 }
 

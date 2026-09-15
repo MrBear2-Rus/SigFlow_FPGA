@@ -10,8 +10,12 @@
 #include <thread>
 
 #ifdef _WIN32
+#ifndef _WIN32_WINNT
 #define _WIN32_WINNT 0x0601
+#endif
+#ifndef WINVER
 #define WINVER 0x0601
+#endif
 #include <windows.h>
 #else
 #include <errno.h>
@@ -368,15 +372,15 @@ PlatformProcessResult PlatformProcess::Run(const PlatformProcessRequest& request
         return result;
     }
 
-    const std::string executable = request.executable.utf8_string();
+    const std::string executable = std::string(request.executable.ToUTF8().data());
     std::vector<std::string> storage;
     storage.push_back(executable);
-    for (const wxString& argument : request.arguments) storage.push_back(argument.utf8_string());
+    for (const wxString& argument : request.arguments) storage.push_back(std::string(argument.ToUTF8().data()));
     std::vector<char*> argv;
     for (std::string& item : storage) argv.push_back(item.data());
     argv.push_back(nullptr);
 
-    const std::string workingDirectory = request.workingDirectory.utf8_string();
+    const std::string workingDirectory = std::string(request.workingDirectory.ToUTF8().data());
     const pid_t child = fork();
     if (child < 0) {
         result.errorMessage = "Unable to fork a job process.";
@@ -385,7 +389,7 @@ PlatformProcessResult PlatformProcess::Run(const PlatformProcessRequest& request
     if (child == 0) {
         setpgid(0, 0);
         for (const auto& pair : request.environment) {
-            setenv(pair.first.utf8_string().c_str(), pair.second.utf8_string().c_str(), 1);
+            setenv(pair.first.ToUTF8().data(), pair.second.ToUTF8().data(), 1);
         }
         dup2(stdoutPipe[1], STDOUT_FILENO);
         dup2(stderrPipe[1], STDERR_FILENO);

@@ -2,6 +2,12 @@
 #include <string>
 #include <wx/wx.h>
 
+#if defined(_WIN32)
+#define SIGFLOW_PLUGIN_CALL __cdecl
+#else
+#define SIGFLOW_PLUGIN_CALL
+#endif
+
 // 插件接口定义
 class ISigPlugin {
 public:
@@ -23,4 +29,4 @@ public:
 };
 
 // 导出函数的原型定义，方便内核 GetProcAddress
-typedef ISigPlugin* (__cdecl* CreatePluginFunc)();
+typedef ISigPlugin* (SIGFLOW_PLUGIN_CALL* CreatePluginFunc)();

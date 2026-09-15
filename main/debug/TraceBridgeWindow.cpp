@@ -11,10 +11,14 @@
 #include "DebugMappingBuilder.h"
 #include "../fpga/FpgaConstraint.h"
 #include "../fpga/FpgaPinData.h"
+#include "../platform/PlatformPaths.h"
+
+using sigflow::platform::JoinPath;
 
 #include <json/json.h>
 #include <wx/button.h>
 #include <wx/checkbox.h>
+#include <wx/panel.h>
 #include <wx/choice.h>
 #include <wx/colour.h>
 #include <wx/dcclient.h>
@@ -126,10 +130,12 @@ std::string FindBundledVerilator() {
     executable.RemoveLastDir();
     executable.RemoveLastDir();
     const wxString root = executable.GetPath();
+    const wxUniChar pathSeparator = sigflow::platform::PathSeparator();
+    const wxString verilatorBinDbg = sigflow::platform::WithExecutableSuffix("verilator_bin_dbg");
     const wxString candidates[] = {
-        root + "\\tools\\verilator\\verilator-install\\bin\\verilator_bin_dbg.exe",
-        root + "\\tools\\verilator\\bin\\verilator_bin_dbg.exe",
-        wxGetCwd() + "\\tools\\verilator\\verilator-install\\bin\\verilator_bin_dbg.exe"
+        root + pathSeparator + "tools" + pathSeparator + "verilator" + pathSeparator + "verilator-install" + pathSeparator + "bin" + pathSeparator + verilatorBinDbg,
+        root + pathSeparator + "tools" + pathSeparator + "verilator" + pathSeparator + "bin" + pathSeparator + verilatorBinDbg,
+        wxGetCwd() + pathSeparator + "tools" + pathSeparator + "verilator" + pathSeparator + "verilator-install" + pathSeparator + "bin" + pathSeparator + verilatorBinDbg
     };
     for (const auto& candidate : candidates) {
         if (wxFileExists(candidate)) return ToUtf8(candidate);
@@ -305,7 +311,7 @@ bool ValidateDebugTransportPins(const sigflow::debug::DebugContract& contract,
             return false;
         }
     }
-    const wxString bindingsPath = projectPath + wxT("\\.sigflow\\fpga\\constraints\\pin-bindings.json");
+    const wxString bindingsPath = JoinPath(JoinPath(JoinPath(JoinPath(projectPath, ".sigflow"), "fpga"), "constraints"), "pin-bindings.json");
     if (wxFileExists(bindingsPath)) {
         ConstraintSheet sheet;
         wxString loadError;
@@ -1553,9 +1559,9 @@ void TraceBridgeWindow::OnGenerateReplay(wxCommandEvent&) {
         wxMessageBox(wxT("请先完成一次硬件采集。"), wxT("输入重放"), wxOK | wxICON_INFORMATION, this);
         return;
     }
-    const wxString sessionRoot = projectPath_ + wxT("\\.sigflow\\debug\\") + lastSessionId_;
-    const wxString mapPath = sessionRoot + wxT("\\signal-map.json");
-    const wxString graphPath = sessionRoot + wxT("\\dependency-graph.json");
+    const wxString sessionRoot = JoinPath(JoinPath(JoinPath(projectPath_, ".sigflow"), "debug"), lastSessionId_);
+    const wxString mapPath = JoinPath(sessionRoot, "signal-map.json");
+    const wxString graphPath = JoinPath(sessionRoot, "dependency-graph.json");
     if (!wxFileExists(mapPath) || !wxFileExists(graphPath)) {
         std::string topModule;
         std::vector<std::string> sourceFiles;
@@ -1640,7 +1646,8 @@ void TraceBridgeWindow::OnGenerateReplay(wxCommandEvent&) {
             for (const auto& source : sourceFiles) buildCommand += " " + QuoteProcessArg(source);
             buildCommand += " " + QuoteProcessArg(tbPath.string());
             const std::string runCommand = QuoteProcessArg(
-                (objectPath / ("V" + topModule + ".exe")).string());
+                (objectPath / sigflow::platform::WithExecutableSuffix(
+                    wxString("V") + wxString::FromUTF8(topModule)).ToStdString()).string());
             sigflow::debug::ReplayRunResult runResult;
             if (!sigflow::debug::ReplayRunner::Run(
                     buildCommand + " && " + runCommand, rootPath, runResult, error)) {
@@ -1680,12 +1687,12 @@ void TraceBridgeWindow::RunComparison() {
     AddLog(TbLogTag::INFO, wxT("开始波形比对…"));
     auto hwPath = ToUtf8(lastCaptureHwVcd_);
     auto simPath = ToUtf8(lastCaptureSimVcd_);
-    const wxString sidecarRoot = projectPath_ + wxT("\\.sigflow\\debug\\") + lastSessionId_;
-    const wxString replayReportFile = sidecarRoot + wxT("\\artifacts\\replay-consistency.json");
+    const wxString sidecarRoot = JoinPath(JoinPath(JoinPath(projectPath_, ".sigflow"), "debug"), lastSessionId_);
+    const wxString replayReportFile = JoinPath(JoinPath(sidecarRoot, "artifacts"), "replay-consistency.json");
     const bool replayReference = wxFileExists(replayReportFile) &&
         wxFileName(lastCaptureSimVcd_).GetFullName().CmpNoCase(wxT("replay.vcd")) == 0;
-    const wxString sourceMapFile = sidecarRoot + wxT("\\signal-map.json");
-    const wxString dependencyGraphFile = sidecarRoot + wxT("\\dependency-graph.json");
+    const wxString sourceMapFile = JoinPath(sidecarRoot, "signal-map.json");
+    const wxString dependencyGraphFile = JoinPath(sidecarRoot, "dependency-graph.json");
     const bool hasSourceMap = wxFileExists(sourceMapFile);
     const bool hasDependencyGraph = wxFileExists(dependencyGraphFile);
     const sigflow::debug::DebugContract behaviorContract = contract_;
@@ -1836,14 +1843,14 @@ void TraceBridgeWindow::ShowComparisonResult(const sigflow::debug::ComparisonRes
 
     // 4. 保存 compare.json 到会话目录
     if (!lastSessionId_.IsEmpty() && !projectPath_.IsEmpty()) {
-        wxString sessionDir = projectPath_ + wxT("\\.sigflow\\debug\\") + lastSessionId_;
+        wxString sessionDir = JoinPath(JoinPath(JoinPath(projectPath_, ".sigflow"), "debug"), lastSessionId_);
         SaveCompareJson(sessionDir, lastSessionId_, r);
         const auto paths = sigflow::debug::DebugSessionService::GetPaths(
             ToUtf8(projectPath_), ToUtf8(lastSessionId_));
         std::string summaryError;
         if (!sigflow::debug::DebugBehaviorSummaryBuilder::Save(
-                lastBehaviorSummary_, paths.reports + "\\behavior-summary.json",
-                paths.reports + "\\behavior-summary.md", summaryError)) {
+                lastBehaviorSummary_, JoinPath(paths.reports, "behavior-summary.json"),
+                JoinPath(paths.reports, "behavior-summary.md"), summaryError)) {
             AddLog(TbLogTag::WR, ToWxString(summaryError));
         }
     }
@@ -2048,8 +2055,8 @@ void TraceBridgeWindow::OnStartCapture(wxCommandEvent&) {
         try {
             // MainFrame 创建正式 DebugSession；此目录仅作为无主框架时的回退。
             std::string outDir = request.projectPath.empty()
-                ? (std::string(".") + "\\sigflow_capture_out")
-                : (request.projectPath + "\\.sigflow\\debug\\capture-fallback");
+                ? JoinPath(std::string("."), "sigflow_capture_out")
+                : JoinPath(JoinPath(JoinPath(request.projectPath, ".sigflow"), "debug"), "capture-fallback");
             std::string error;
             bool ok = false;
             wxString vcdPath;
@@ -2364,8 +2371,8 @@ bool TraceBridgeWindow::ImportSessionFromZip(const wxString& archivePath,
             cleanup();
             return false;
         }
-        wxString destination = ToWxString(staging.string()) + wxT("\\") +
-                               wxString::FromUTF8(fileName.c_str());
+        wxString destination = JoinPath(ToWxString(staging.string()),
+                               wxString::FromUTF8(fileName.c_str()));
         destination.Replace(wxT("/"), wxT("\\"));
         if (!wxFileName::Mkdir(wxFileName(destination).GetPath(), wxS_DIR_DEFAULT,
                                wxPATH_MKDIR_FULL)) {
@@ -2498,7 +2505,7 @@ bool TraceBridgeWindow::SaveCompareJson(const wxString& sessionDir, const wxStri
 {
     if (sessionDir.IsEmpty()) return false;
     if (!wxDirExists(sessionDir)) wxMkdir(sessionDir);
-    const wxString path = sessionDir + wxT("\\compare.json");
+    const wxString path = JoinPath(sessionDir, "compare.json");
 
     Json::Value root;
     root["schema_version"] = "1.0";

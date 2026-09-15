@@ -1,10 +1,8 @@
 
-#define _WIN32_WINNT 0x0601
-#define WINVER       0x0601
-#include <windows.h>
 #include "FpgaYosysRuntime.h"
 
-#include <bcrypt.h>
+#include "jobs/Sha256.h"
+#include "platform/PlatformPaths.h"
 
 #include <wx/file.h>
 #include <wx/filename.h>
@@ -13,11 +11,7 @@
 #include <cstring>
 #include <vector>
 
-#pragma comment(lib, "bcrypt.lib")
-
 namespace {
-
-constexpr size_t kHashBufferSize = 64 * 1024;
 
 wxString JoinPath(const wxString& directory, const wxString& relativePath)
 {
@@ -34,73 +28,15 @@ wxString JoinPath(const wxString& directory, const wxString& relativePath)
 wxString GetShareDirectory(const wxString& executablePath)
 {
     wxFileName executable(executablePath);
-    wxFileName shareDirectory = wxFileName::DirName(executable.GetPath() + "\\..\\share");
+    wxFileName shareDirectory = wxFileName::DirName(sigflow::platform::JoinPath(
+        sigflow::platform::JoinPath(executable.GetPath(), ".."), "share"));
     shareDirectory.Normalize(wxPATH_NORM_DOTS | wxPATH_NORM_ABSOLUTE);
     return shareDirectory.GetPath();
 }
 
 wxString Sha256File(const wxString& filePath)
 {
-    wxFile file(filePath, wxFile::read);
-    if (!file.IsOpened()) {
-        return wxString();
-    }
-
-    BCRYPT_ALG_HANDLE algorithm = nullptr;
-    BCRYPT_HASH_HANDLE hash = nullptr;
-    DWORD hashObjectLength = 0;
-    DWORD hashLength = 0;
-    DWORD bytesReturned = 0;
-    NTSTATUS status = BCryptOpenAlgorithmProvider(&algorithm, BCRYPT_SHA256_ALGORITHM, nullptr, 0);
-    if (status < 0) {
-        return wxString();
-    }
-
-    status = BCryptGetProperty(algorithm, BCRYPT_OBJECT_LENGTH,
-                               reinterpret_cast<PUCHAR>(&hashObjectLength), sizeof(hashObjectLength),
-                               &bytesReturned, 0);
-    if (status >= 0) {
-        status = BCryptGetProperty(algorithm, BCRYPT_HASH_LENGTH,
-                                   reinterpret_cast<PUCHAR>(&hashLength), sizeof(hashLength),
-                                   &bytesReturned, 0);
-    }
-
-    std::vector<unsigned char> hashObject(hashObjectLength);
-    std::vector<unsigned char> hashValue(hashLength);
-    if (status >= 0) {
-        status = BCryptCreateHash(algorithm, &hash, hashObject.data(), hashObjectLength, nullptr, 0, 0);
-    }
-
-    std::vector<unsigned char> buffer(kHashBufferSize);
-    while (status >= 0) {
-        const wxFileOffset bytesRead = file.Read(buffer.data(), buffer.size());
-        if (bytesRead == wxInvalidOffset) {
-            status = -1;
-            break;
-        }
-        if (bytesRead == 0) {
-            break;
-        }
-        status = BCryptHashData(hash, buffer.data(), static_cast<ULONG>(bytesRead), 0);
-    }
-
-    if (status >= 0) {
-        status = BCryptFinishHash(hash, hashValue.data(), hashLength, 0);
-    }
-    if (hash) {
-        BCryptDestroyHash(hash);
-    }
-    BCryptCloseAlgorithmProvider(algorithm, 0);
-
-    if (status < 0) {
-        return wxString();
-    }
-
-    wxString result;
-    for (unsigned char byte : hashValue) {
-        result += wxString::Format("%02x", byte);
-    }
-    return result;
+    return Sha256FileHex(filePath);
 }
 
 bool HasYosysCommand(const wxString& executablePath, const wxString& commandName)

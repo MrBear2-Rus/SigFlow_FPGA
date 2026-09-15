@@ -10,18 +10,49 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(SIGFLOW_MAIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/main")
 set(SIGFLOW_3RD_DIR "${CMAKE_CURRENT_SOURCE_DIR}/3rd")
 set(SIGFLOW_PLUGIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/plugin_sdk")
+# slang：预编译 SDK（回退用）与本地源码（推荐）
 set(SIGFLOW_SLANG_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/external/slang-sdk" CACHE PATH
-    "GCC-compatible slang SDK root")
+    "GCC-compatible slang prebuilt SDK root (fallback)")
+set(SIGFLOW_SLANG_SRC "${CMAKE_CURRENT_SOURCE_DIR}/external/slang-src" CACHE PATH
+    "slang source tree for a local (from-source) build")
+# wxWidgets：预编译根（回退用）与本地源码（推荐）
 set(SIGFLOW_WX_ROOT "${SIGFLOW_3RD_DIR}/wxWidgets-3.2.9" CACHE PATH
-    "GCC-compatible wxWidgets root")
+    "Prebuilt wxWidgets root (fallback)")
+set(SIGFLOW_WX_SRC "${SIGFLOW_3RD_DIR}/wxWidgets-src" CACHE PATH
+    "wxWidgets source tree for a local (from-source) build")
 set(MINGW_ROOT "" CACHE PATH "MinGW installation root used for GCC runtime DLLs")
+
+# ---------------------------------------------------------------------------
+# 本地源码构建开关（双模式）：
+#   ON  + 源码存在 → 从本地源码编译 wxWidgets / slang（Win/Linux 同一套）
+#   ON  + 源码缺失 → 自动回退到预编译/系统
+#   OFF            → 一律用预编译/系统
+# ---------------------------------------------------------------------------
+option(SIGFLOW_USE_LOCAL_WX
+    "Build wxWidgets from SIGFLOW_WX_SRC instead of prebuilt/system wx" ON)
+option(SIGFLOW_BUILD_SLANG_FROM_SOURCE
+    "Build slang from SIGFLOW_SLANG_SRC instead of the prebuilt SDK" OFF)
+option(SIGFLOW_SLANG_FETCH_DEPS
+    "Let slang fetch fmt/boost/tomlplusplus via FetchContent instead of requiring system libs" OFF)
+set(SIGFLOW_SLANG_DEP_URL_PREFIX "" CACHE STRING
+    "Base URL prefix for slang dependency FetchContent (e.g. https://gitclone.com/github.com/)")
+
+if(SIGFLOW_USE_LOCAL_WX AND EXISTS "${SIGFLOW_WX_SRC}/CMakeLists.txt")
+    set(SIGFLOW_WX_LOCAL ON)
+else()
+    set(SIGFLOW_WX_LOCAL OFF)
+endif()
+
+if(SIGFLOW_BUILD_SLANG_FROM_SOURCE AND EXISTS "${SIGFLOW_SLANG_SRC}/CMakeLists.txt")
+    set(SIGFLOW_SLANG_LOCAL ON)
+else()
+    set(SIGFLOW_SLANG_LOCAL OFF)
+endif()
 
 # ---------------------------------------------------------------------------
 # 本项目只支持 CMake + GCC：
 #   - Windows：MinGW-w64 GCC（-G "MinGW Makefiles"）
 #   - Linux：系统 GCC
-# 注意：业务代码仍含 Win32 依赖，Linux 目前只保证 configure 通过，
-#       代码移植（#ifdef 双实现 / 平台层）是后续独立工作。
 # ---------------------------------------------------------------------------
 if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     message(FATAL_ERROR
@@ -32,24 +63,29 @@ endif()
 if(WIN32)
     # ---- MinGW-w64 on Windows ----
     set(SIGFLOW_SLANG_DIR "${SIGFLOW_SLANG_ROOT}")
-    set(SIGFLOW_WX_DIR "${SIGFLOW_WX_ROOT}")
-    set(SIGFLOW_WX_INCLUDE_DIR "${SIGFLOW_WX_DIR}/include")
-    set(SIGFLOW_WX_CONFIG_DIR "" CACHE PATH
-        "GCC wxWidgets generated include directory containing wx/setup.h")
-    set(SIGFLOW_WX_LIB_DIR "" CACHE PATH
-        "GCC wxWidgets library directory")
-    if(NOT EXISTS "${SIGFLOW_WX_CONFIG_DIR}/wx/setup.h")
-        message(FATAL_ERROR
-            "GCC build requires a wxWidgets GCC build. Set SIGFLOW_WX_CONFIG_DIR "
-            "to its generated include directory containing wx/setup.h.")
+    if(NOT SIGFLOW_WX_LOCAL)
+        set(SIGFLOW_WX_DIR "${SIGFLOW_WX_ROOT}")
+        set(SIGFLOW_WX_INCLUDE_DIR "${SIGFLOW_WX_DIR}/include")
+        set(SIGFLOW_WX_CONFIG_DIR "" CACHE PATH
+            "GCC wxWidgets generated include directory containing wx/setup.h")
+        set(SIGFLOW_WX_LIB_DIR "" CACHE PATH
+            "GCC wxWidgets library directory")
+        if(NOT EXISTS "${SIGFLOW_WX_CONFIG_DIR}/wx/setup.h")
+            message(FATAL_ERROR
+                "GCC build requires a wxWidgets GCC build. Set SIGFLOW_WX_CONFIG_DIR "
+                "to its generated include directory containing wx/setup.h, or enable "
+                "-DSIGFLOW_USE_LOCAL_WX=ON with a local wxWidgets source tree.")
+        endif()
+        if(NOT EXISTS "${SIGFLOW_WX_LIB_DIR}")
+            message(FATAL_ERROR
+                "GCC build requires SIGFLOW_WX_LIB_DIR pointing to the wxWidgets GCC "
+                "libraries, or enable -DSIGFLOW_USE_LOCAL_WX=ON.")
+        endif()
     endif()
-    if(NOT EXISTS "${SIGFLOW_WX_LIB_DIR}")
+    if(NOT SIGFLOW_SLANG_LOCAL AND NOT EXISTS "${SIGFLOW_SLANG_ROOT}/include/slang/ast/Compilation.h")
         message(FATAL_ERROR
-            "GCC build requires SIGFLOW_WX_LIB_DIR pointing to the wxWidgets GCC libraries.")
-    endif()
-    if(NOT EXISTS "${SIGFLOW_SLANG_ROOT}/include/slang/ast/Compilation.h")
-        message(FATAL_ERROR
-            "GCC build requires a slang SDK with GCC-compatible libraries and headers.")
+            "GCC build requires a slang SDK with GCC-compatible libraries and headers, "
+            "or enable -DSIGFLOW_BUILD_SLANG_FROM_SOURCE=ON with a local slang source tree.")
     endif()
 else()
     # ---- Linux / 其他 Unix ----
@@ -58,15 +94,57 @@ else()
     set(SIGFLOW_WX_CONFIG_DIR "")
     set(SIGFLOW_WX_LIB_DIR "")
 
-    find_package(wxWidgets REQUIRED COMPONENTS core base aui stc gl)
-    include(${wxWidgets_USE_FILE})
+    if(NOT SIGFLOW_WX_LOCAL)
+        find_package(wxWidgets REQUIRED COMPONENTS core base aui stc gl)
+        include(${wxWidgets_USE_FILE})
+    endif()
     find_package(Threads REQUIRED)
 
-    if(NOT EXISTS "${SIGFLOW_SLANG_ROOT}/include/slang/ast/Compilation.h")
+    if(NOT SIGFLOW_SLANG_LOCAL AND NOT EXISTS "${SIGFLOW_SLANG_ROOT}/include/slang/ast/Compilation.h")
         message(WARNING
-            "slang SDK headers not found under ${SIGFLOW_SLANG_ROOT}. "
-            "Configure with -DSIGFLOW_SLANG_ROOT=<linux slang SDK> before building.")
+            "slang SDK headers not found under ${SIGFLOW_SLANG_ROOT}. Configure with "
+            "-DSIGFLOW_SLANG_ROOT=<linux slang SDK> or -DSIGFLOW_BUILD_SLANG_FROM_SOURCE=ON.")
     endif()
+endif()
+
+# ---------------------------------------------------------------------------
+# 本地源码构建 wxWidgets（推荐路径）
+# ---------------------------------------------------------------------------
+if(SIGFLOW_WX_LOCAL)
+    message(STATUS "wxWidgets: building from local source ${SIGFLOW_WX_SRC}")
+    set(wxBUILD_SHARED ON CACHE BOOL "" FORCE)
+    set(wxBUILD_MONOLITHIC OFF CACHE BOOL "" FORCE)
+    set(wxBUILD_SAMPLES OFF CACHE BOOL "" FORCE)
+    set(wxBUILD_DEMOS OFF CACHE BOOL "" FORCE)
+    set(wxBUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(wxBUILD_PRECOMP OFF CACHE BOOL "" FORCE)
+    set(wxUSE_OPENGL ON CACHE BOOL "" FORCE)
+    add_subdirectory("${SIGFLOW_WX_SRC}" "${CMAKE_BINARY_DIR}/wxWidgets" EXCLUDE_FROM_ALL)
+else()
+    message(STATUS "wxWidgets: using prebuilt/system wx (SIGFLOW_WX_ROOT=${SIGFLOW_WX_ROOT})")
+endif()
+
+# ---------------------------------------------------------------------------
+# 本地源码构建 slang（推荐路径）
+# ---------------------------------------------------------------------------
+if(SIGFLOW_SLANG_LOCAL)
+    message(STATUS "slang: building from local source ${SIGFLOW_SLANG_SRC}")
+    set(SLANG_INCLUDE_TOOLS OFF CACHE BOOL "" FORCE)
+    set(SLANG_INCLUDE_TESTS OFF CACHE BOOL "" FORCE)
+    set(SLANG_INCLUDE_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(SLANG_USE_MIMALLOC OFF CACHE BOOL "" FORCE)
+    # 依赖策略：默认用系统库；SIGFLOW_SLANG_FETCH_DEPS=ON 时改为 FetchContent（可配镜像前缀，先拉再编译）。
+    if(SIGFLOW_SLANG_FETCH_DEPS)
+        if(SIGFLOW_SLANG_DEP_URL_PREFIX)
+            set(SLANG_DEP_URL_PREFIX "${SIGFLOW_SLANG_DEP_URL_PREFIX}" CACHE STRING "" FORCE)
+        endif()
+    else()
+        set(SLANG_USE_SYSTEM_FMT ON CACHE BOOL "" FORCE)
+        set(SLANG_USE_SYSTEM_BOOST ON CACHE BOOL "" FORCE)
+        set(SLANG_USE_SYSTEM_TOMLPLUSPLUS ON CACHE BOOL "" FORCE)
+    endif()
+    set(SLANG_LIB_NAME "svlang" CACHE STRING "" FORCE)
+    add_subdirectory("${SIGFLOW_SLANG_SRC}" "${CMAKE_BINARY_DIR}/slang" EXCLUDE_FROM_ALL)
 endif()
 
 file(GLOB_RECURSE SIGFLOW_MAIN_SOURCES CONFIGURE_DEPENDS
@@ -105,14 +183,25 @@ target_include_directories(sigflow PRIVATE
     "${SIGFLOW_3RD_DIR}/tree-sitter/lib/src"
     "${SIGFLOW_3RD_DIR}/tree-sitter-verilog/src"
     "${SIGFLOW_3RD_DIR}/nlohmann"
-    "${SIGFLOW_SLANG_DIR}/include"
 )
 
-if(WIN32)
+if(SIGFLOW_SLANG_LOCAL)
+    target_include_directories(sigflow PRIVATE
+        "${SIGFLOW_SLANG_SRC}/include"
+        "${SIGFLOW_SLANG_SRC}/external"      # vendored boost_unordered/expected 等 shim
+        "${CMAKE_BINARY_DIR}/slang/source")   # slang 构建期生成的 slang_export.h 等
+else()
+    target_include_directories(sigflow PRIVATE "${SIGFLOW_SLANG_DIR}/include")
+endif()
+
+if(WIN32 AND NOT SIGFLOW_WX_LOCAL)
     target_include_directories(sigflow PRIVATE
         "${SIGFLOW_WX_INCLUDE_DIR}"
         "${SIGFLOW_WX_CONFIG_DIR}"
     )
+endif()
+
+if(WIN32)
     target_compile_definitions(sigflow PRIVATE
         WIN32
         _WINDOWS
@@ -125,10 +214,10 @@ if(WIN32)
     )
 endif()
 
-if(WIN32)
-    find_library(SIGFLOW_SLANG_LIBRARY NAMES svlang slang
-        PATHS "${SIGFLOW_SLANG_ROOT}" "${SIGFLOW_SLANG_ROOT}/lib"
-        NO_DEFAULT_PATH REQUIRED)
+# ---- 链接 ----
+if(SIGFLOW_WX_LOCAL)
+    target_link_libraries(sigflow PRIVATE wx::core wx::base wx::aui wx::stc wx::gl wx::xml)
+elseif(WIN32)
     find_library(SIGFLOW_WX_CORE_LIBRARY NAMES wx_mswu_core-3.2 wxmsw33ud_core wxmsw32ud_core wxmsw32u_core
         PATHS "${SIGFLOW_WX_LIB_DIR}" NO_DEFAULT_PATH REQUIRED)
     find_library(SIGFLOW_WX_AUI_LIBRARY NAMES wx_mswu_aui-3.2 wxmsw33ud_aui wxmsw32ud_aui wxmsw32u_aui
@@ -142,15 +231,34 @@ if(WIN32)
     find_library(SIGFLOW_WX_XML_LIBRARY NAMES wx_baseu_xml-3.2 wxbase33ud_xml wxbase32ud_xml wxbase32u_xml
         PATHS "${SIGFLOW_WX_LIB_DIR}" NO_DEFAULT_PATH REQUIRED)
     target_link_libraries(sigflow PRIVATE
-        "${SIGFLOW_SLANG_LIBRARY}"
         "${SIGFLOW_WX_CORE_LIBRARY}"
         "${SIGFLOW_WX_AUI_LIBRARY}"
         "${SIGFLOW_WX_STC_LIBRARY}"
         "${SIGFLOW_WX_GL_LIBRARY}"
         "${SIGFLOW_WX_BASE_LIBRARY}"
         "${SIGFLOW_WX_XML_LIBRARY}"
-        setupapi advapi32 bcrypt opengl32
     )
+else()
+    target_link_libraries(sigflow PRIVATE
+        ${wxWidgets_LIBRARIES}
+        Threads::Threads
+        ${CMAKE_DL_LIBS}
+    )
+    find_package(OpenGL)
+    if(OpenGL_FOUND)
+        target_link_libraries(sigflow PRIVATE OpenGL::GL)
+    else()
+        message(WARNING "OpenGL not found; waveform GL rendering may fail to link on Linux.")
+    endif()
+endif()
+
+if(SIGFLOW_SLANG_LOCAL)
+    target_link_libraries(sigflow PRIVATE slang::slang)
+elseif(WIN32)
+    find_library(SIGFLOW_SLANG_LIBRARY NAMES svlang slang
+        PATHS "${SIGFLOW_SLANG_ROOT}" "${SIGFLOW_SLANG_ROOT}/lib"
+        NO_DEFAULT_PATH REQUIRED)
+    target_link_libraries(sigflow PRIVATE "${SIGFLOW_SLANG_LIBRARY}")
 else()
     find_library(SIGFLOW_SLANG_LIBRARY NAMES svlang slang
         PATHS "${SIGFLOW_SLANG_DIR}/lib" "${SIGFLOW_SLANG_DIR}")
@@ -159,11 +267,11 @@ else()
             "libslang/svlang not found. Configure with -DSIGFLOW_SLANG_LIBRARY=<path> "
             "or install slang before building.")
     endif()
-    target_link_libraries(sigflow PRIVATE
-        ${SIGFLOW_SLANG_LIBRARY}
-        ${wxWidgets_LIBRARIES}
-        Threads::Threads
-    )
+    target_link_libraries(sigflow PRIVATE ${SIGFLOW_SLANG_LIBRARY})
+endif()
+
+if(WIN32)
+    target_link_libraries(sigflow PRIVATE setupapi advapi32 opengl32)
 endif()
 
 add_custom_command(TARGET sigflow POST_BUILD
@@ -176,11 +284,19 @@ add_custom_command(TARGET sigflow POST_BUILD
 )
 
 if(WIN32)
-    file(GLOB SIGFLOW_WX_DLLS
-        "${SIGFLOW_WX_ROOT}/debug/bin/*.dll"
-        "${SIGFLOW_WX_ROOT}/bin/*.dll"
-        "${SIGFLOW_WX_LIB_DIR}/*.dll"
-    )
+    if(SIGFLOW_WX_LOCAL)
+        # 本地 wx 构建产物 DLL 拷贝（递归收集 wx 子构建输出）
+        file(GLOB_RECURSE SIGFLOW_WX_DLLS
+            "${CMAKE_BINARY_DIR}/wxWidgets/*.dll"
+            "${CMAKE_BINARY_DIR}/wxWidgets/**/*.dll"
+        )
+    else()
+        file(GLOB SIGFLOW_WX_DLLS
+            "${SIGFLOW_WX_ROOT}/debug/bin/*.dll"
+            "${SIGFLOW_WX_ROOT}/bin/*.dll"
+            "${SIGFLOW_WX_LIB_DIR}/*.dll"
+        )
+    endif()
     foreach(SIGFLOW_WX_DLL IN LISTS SIGFLOW_WX_DLLS)
         add_custom_command(TARGET sigflow POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different

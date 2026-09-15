@@ -9,6 +9,10 @@
 #include <vector>
 #include <cstddef>
 
+#include "../platform/PlatformPaths.h"
+
+using sigflow::platform::JoinPath;
+
 namespace {
 
 constexpr wxFileOffset kMaxCstFileSize = 100 * 1024;   // CST 文件大小上限: 100KB
@@ -29,31 +33,31 @@ wxString CstValidator::AutoResolveCst(const wxString& projectRoot,
         if (fn.IsAbsolute()) return configuredCstPath;
 
         // 相对路径 -> 基于项目根目录解析
-        wxFileName resolved(projectRoot + wxT("\\") + configuredCstPath);
+        wxFileName resolved(JoinPath(projectRoot, configuredCstPath));
         resolved.MakeAbsolute();
         return resolved.GetFullPath();
     }
 
     // 2. 默认路径
     const wxString defaultPath =
-        wxFileName(projectRoot + wxT("\\constraints\\tangnano9k.cst")).GetFullPath();
+        wxFileName(JoinPath(JoinPath(projectRoot, "constraints"), "tangnano9k.cst")).GetFullPath();
     if (wxFile::Exists(defaultPath)) return defaultPath;
 
     // 3. 扫描 constraints/ 目录
-    wxDir constraintsDir(projectRoot + wxT("\\constraints"));
+    wxDir constraintsDir(JoinPath(projectRoot, "constraints"));
     if (constraintsDir.IsOpened()) {
         wxString filename;
         if (constraintsDir.GetFirst(&filename, wxT("*.cst"), wxDIR_FILES)) {
-            return wxFileName(projectRoot + wxT("\\constraints\\") + filename).GetFullPath();
+            return wxFileName(JoinPath(JoinPath(projectRoot, "constraints"), filename)).GetFullPath();
         }
     }
 
     // 4. 兜底: nextpnr/ 目录
-    wxDir nextpnrDir(projectRoot + wxT("\\nextpnr"));
+    wxDir nextpnrDir(JoinPath(projectRoot, "nextpnr"));
     if (nextpnrDir.IsOpened()) {
         wxString filename;
         if (nextpnrDir.GetFirst(&filename, wxT("*.cst"), wxDIR_FILES)) {
-            return wxFileName(projectRoot + wxT("\\nextpnr\\") + filename).GetFullPath();
+            return wxFileName(JoinPath(JoinPath(projectRoot, "nextpnr"), filename)).GetFullPath();
         }
     }
 
