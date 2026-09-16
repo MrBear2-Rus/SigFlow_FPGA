@@ -227,7 +227,7 @@ private:
     const int HIT_RADIUS = 8;
 
     void UpdateHoverInfo(const wxPoint& screenPos);
-    HoverInfo GetHoverInfo(HoverInfo& hoverInfo) const { hoverInfo = m_hoverInfo; }
+    HoverInfo GetHoverInfo(HoverInfo& hoverInfo) const { hoverInfo = m_hoverInfo; return m_hoverInfo; }
     std::tuple<int, int> HitElementAndPinTest(const wxPoint& canvasPos, bool* isInput, wxPoint* worldPos);
     int HitTestText(wxPoint canvasPos);
     int HitWire(const wxPoint& canvasPos);

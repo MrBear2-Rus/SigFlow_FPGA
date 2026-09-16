@@ -59,9 +59,9 @@ using sigflow::platform::JoinPath;
 #include "CanvasNoteBook.h"
 #include "VerilogStructuring.h"
 #include "VerilogManager.h"
-#include "Fpga/NextpnrLogParser.h"
-#include "Fpga/NextpnrReport.h"
-#include "Fpga/CstValidator.h"
+#include "fpga/NextpnrLogParser.h"
+#include "fpga/NextpnrReport.h"
+#include "fpga/CstValidator.h"
 #include "fpga/NextpnrExecutor.h"
 #include "fpga/NextpnrJob.h"
 
