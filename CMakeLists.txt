@@ -274,6 +274,10 @@ if(WIN32)
     target_link_libraries(sigflow PRIVATE setupapi advapi32 opengl32)
 endif()
 
+if(SIGFLOW_STRICT_WARNINGS AND NOT MSVC)
+    target_compile_options(sigflow PRIVATE -Wall -Wextra)
+endif()
+
 add_custom_command(TARGET sigflow POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${SIGFLOW_MAIN_DIR}/res"
@@ -323,6 +327,8 @@ if(WIN32 AND MINGW_ROOT)
 endif()
 
 option(SIGFLOW_BUILD_TESTS "Build the jobs-layer smoke tests" ON)
+option(SIGFLOW_STRICT_WARNINGS
+    "Enable -Wall -Wextra for the SigFlow target (portability sweep)" OFF)
 if(SIGFLOW_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
