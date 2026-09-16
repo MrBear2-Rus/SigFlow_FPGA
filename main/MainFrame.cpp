@@ -35,6 +35,7 @@ using sigflow::platform::JoinPath;
 #include "fpga/ArtifactValidator.h"
 #include "fpga/FpgaPackService.h"
 #include "jobs/JobRunner.h"
+#include "jobs/JobOutputPump.h"
 #include "jobs/JobService.h"
 #include "MainMenuBar.h"
 #include "FpgaYosysRuntime.h"
@@ -218,7 +219,7 @@ private:
 bool LoadFpgaProjectOptions(const wxString& projectPath, FpgaProjectOptions& options,
                             wxString& errorMessage)
 {
-    const wxString configPath = NormalizeProjectDirectoryPath(projectPath) + "\\sigflow.project";
+    const wxString configPath =JoinPath(NormalizeProjectDirectoryPath(projectPath), "sigflow.project");
     wxFile file(configPath, wxFile::read);
     if (!file.IsOpened()) {
         errorMessage = "Unable to open sigflow.project.";
@@ -392,11 +393,11 @@ wxString FindTraceBridgeDebugRtl(const wxString& projectPath)
         if (startDirectory.IsEmpty()) continue;
         wxFileName directory = wxFileName::DirName(startDirectory);
         for (int depth = 0; depth < 10; ++depth) {
-            const wxString candidate = directory.GetPath() + "\\rtl\\debug";
+            const wxString candidate =JoinPath(JoinPath(directory.GetPath(), "rtl"), "debug");
             if (wxDirExists(candidate) &&
-                wxFileExists(candidate + "\\sf_micro_ila.sv") &&
-                wxFileExists(candidate + "\\sf_uart_link.sv") &&
-                wxFileExists(candidate + "\\sf_debug_link.sv")) {
+                wxFileExists(JoinPath(candidate, "sf_micro_ila.sv")) &&
+                wxFileExists(JoinPath(candidate, "sf_uart_link.sv")) &&
+                wxFileExists(JoinPath(candidate, "sf_debug_link.sv"))) {
                 return candidate;
             }
             const wxString previousDirectory = directory.GetPath();
@@ -542,8 +543,7 @@ MainFrame::MainFrame()
     m_terminalCtrl(nullptr),
     m_pluginMgr(nullptr)
 {
-    // 图标
-    wxInitAllImageHandlers();
+    // 图标（wxApp 初始化时已自动注册全部 image handlers，不要再手动调用 wxInitAllImageHandlers）
     wxBitmapBundle svgIcon = wxBitmapBundle::FromSVGFile(sigflow::platform::ResourcePath("res/svg_icons/icon.svg"), wxSize(24, 24));
     wxIcon icon = svgIcon.GetIconFor(this);
     if (icon.IsOk()) SetIcon(icon);
@@ -552,8 +552,8 @@ MainFrame::MainFrame()
     // 标题
     SetTitle("SigFlow [no project]");
 
-    // 元件模型库
-    wxString jsonPath = wxFileName(wxGetCwd(), "canvas_elements.json").GetFullPath();
+    // 元件模型库（随 exe 分发，构建时拷到 exe 旁；用 exe 目录定位，避免依赖 CWD）
+    wxString jsonPath = wxFileName(sigflow::platform::ExecutableDir(), "canvas_elements.json").GetFullPath();
     MyLog("MainFrame: JSON full path = [%s]\n", jsonPath.ToUTF8().data());
     g_elements = LoadSecondElements(jsonPath);
 
@@ -668,7 +668,7 @@ MainFrame::MainFrame()
         // ✅ 新增：传给 WavePanel
         if (m_wavePanel) {
             m_wavePanel->SetProjectPath(std::string(projectPath.ToUTF8().data()));
-            m_wavePanel->SetSessionDir(std::string(projectPath.ToUTF8().data()) + "\\.sigflow\\wave");
+            m_wavePanel->SetSessionDir(JoinPath(JoinPath(std::string(projectPath.ToUTF8().data()), ".sigflow"), "wave"));
         }
         if (m_debugContractConfigWindow) {
             m_debugContractConfigWindow->SetProjectContext(projectPath);
@@ -726,7 +726,7 @@ MainFrame::MainFrame()
                 if (!panel) continue;
                 const auto& elements = panel->GetSecond();
                 for (std::size_t element = 0; element < elements.size(); ++element) {
-                    const std::string name = elements[element].GetIdentifier().ToStdString();
+                    const std::string name = sigflow::platform::Utf8String(elements[element].GetIdentifier());
                     if (name == signalName || name == signalName.substr(signalName.find_last_of("./") + 1)) {
                         m_canvas->SetSelection(static_cast<int>(page));
                         panel->UpdateSelection({}, {static_cast<int>(element)}, {});
@@ -755,8 +755,7 @@ MainFrame::MainFrame()
     m_traceBridgeWindow->SetNavigationCallback(navigateTrace);
     if (!m_currentProjectPath.IsEmpty()) {
         m_wavePanel->SetProjectPath(std::string(m_currentProjectPath.ToUTF8().data()));
-        m_wavePanel->SetSessionDir(
-            std::string(m_currentProjectPath.ToUTF8().data()) + "\\.sigflow\\wave");
+        m_wavePanel->SetSessionDir(JoinPath(JoinPath(std::string(m_currentProjectPath.ToUTF8().data()), ".sigflow"), "wave"));
     }
 
     auto GetIcon = [&](const wxString& path) {
@@ -785,7 +784,7 @@ MainFrame::MainFrame()
     m_terminalCtrl->PrintOutput("Plugin Directory: " + pluginDir);
 
     // 4. 加载插件
-    m_pluginMgr->LoadPlugins(pluginDir.ToStdString());
+    m_pluginMgr->LoadPlugins(sigflow::platform::Utf8String(pluginDir));
 
     // 获取所有插件列表，准备在菜单或工具栏显示
     const auto& plugins = m_pluginMgr->GetAllPlugins();
@@ -1069,12 +1068,16 @@ void MainFrame::OnToolboxElement(wxCommandEvent& evt)
 bool MirrorDirectory(const wxString& source, const wxString& dest) {
     if (!wxDir::Exists(dest)) {
         if (!wxFileName::Mkdir(dest, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL)) {
+            SIGFLOW_LOG("MirrorDirectory: cannot create destination '" + dest + "'\n");
             return false;
         }
     }
 
     wxDir dir(source);
-    if (!dir.IsOpened()) return false;
+    if (!dir.IsOpened()) {
+        SIGFLOW_LOG("MirrorDirectory: cannot open source '" + source + "'\n");
+        return false;
+    }
 
     wxString filename;
     // 1. 复制所有文件。任何失败都必须向上传播。
@@ -1084,6 +1087,9 @@ bool MirrorDirectory(const wxString& source, const wxString& dest) {
         wxString dstFile = dest + wxFileName::GetPathSeparator() + filename;
 
         if (!wxCopyFile(srcFile, dstFile, true)) {
+            // 指明是哪一个文件失败：此前只返回 false，调用方也无提示，
+            // 用户只会看到"标题不刷新/镜像静默失败"，完全无从排查。
+            SIGFLOW_LOG("MirrorDirectory: copy failed '" + srcFile + "' -> '" + dstFile + "'\n");
             return false;
         }
         cont = dir.GetNext(&filename);
@@ -1225,11 +1231,11 @@ void MainFrame::DoFileOpenProject() {
         }
         if (m_wavePanel) {
             m_wavePanel->SetProjectPath(std::string(path.ToUTF8().data()));
-            m_wavePanel->SetSessionDir(std::string(path.ToUTF8().data()) + "\\.sigflow\\wave");
+            m_wavePanel->SetSessionDir(JoinPath(JoinPath(std::string(path.ToUTF8().data()), ".sigflow"), "wave"));
         }
 
         maps.clear();
-        sigTree->LoadProject(path.ToStdString());
+        sigTree->LoadProject(sigflow::platform::Utf8String(path));
 
 
         wxString fullPath = path + wxFileName::GetPathSeparator() + "sigflow.project";
@@ -1264,7 +1270,7 @@ void MainFrame::DoFileOpenProject() {
                     wxFileName fn1(file.asString());
                     fn1.MakeAbsolute(path);
                     wxString wxAbsPath = fn1.GetFullPath();
-                    std::string absPath1 = wxAbsPath.ToStdString();
+                    std::string absPath1 = sigflow::platform::Utf8String(wxAbsPath);
 
                     // 2. 读取该文件的实际内容 (关键步骤)
                     wxFile vFile(wxAbsPath, wxFile::read);
@@ -1274,7 +1280,7 @@ void MainFrame::DoFileOpenProject() {
                     vFile.ReadAll(&fileContent);
                     vFile.Close();
 
-                    std::string stdCode = fileContent.ToStdString();
+                    std::string stdCode = sigflow::platform::Utf8String(fileContent);
 
 
                     TSTree* new_tree = ts_parser_parse_string(m_parser, nullptr, stdCode.c_str(), stdCode.length());
@@ -1310,23 +1316,21 @@ void MainFrame::DoFileOpenProject() {
 
         progress.Update(progress.GetRange() - 1, "Creating Workspace Mirror...");
 
-        wxString workspacePath = m_currentProjectPath + wxFileName::GetPathSeparator() +
-            ".sigflow" + wxFileName::GetPathSeparator() + "workspace";
+        wxString workspacePath = JoinPath(JoinPath(m_currentProjectPath, ".sigflow"), "workspace");
 
         //wxLogStatus("Mirroring project to workspace...");
 
+        // 工程镜像只是给编译器用的副本，属于"尽力而为"：
+        // 失败不应影响"项目已经打开"这一事实，更不能因此跳过项目名/标题更新
+        // （原实现把 RefreshTitle 放在 if 内部，镜像一旦失败标题就永远停在 "[no project]"）。
         if (MirrorDirectory(m_currentProjectPath, workspacePath)) {
-            //wxLogMessage("Project mirrored to: %s", workspacePath);
-
-            // 2. 更新内部状态
-            m_currentProjectPath = m_currentProjectPath;
-            m_workspacePath = workspacePath; // 建议在 MainFrame 增加此成员变量
-            m_projectName = wxFileName(path).GetFullName();
-
-            // 3. 让左侧树加载原始路径（用户感知），但编译器使用 workspacePath
-            m_projectTreePanel->LoadProject(m_currentProjectPath);
-            RefreshTitle();
+            m_workspacePath = workspacePath;
+        } else {
+            SIGFLOW_LOG("MainFrame: project mirror failed; continuing without workspace copy.\n");
         }
+        m_projectName = wxFileName(path).GetFullName();
+        m_projectTreePanel->LoadProject(m_currentProjectPath);
+        RefreshTitle();
 
         progress.Update(progress.GetRange(), "Load Complete!");
         wxCommandEvent evt;
@@ -1358,12 +1362,11 @@ void MainFrame::SetProjectDir(const wxString& projectDir)
     }
     if (m_wavePanel) {
         m_wavePanel->SetProjectPath(std::string(projectDir.ToUTF8().data()));
-        m_wavePanel->SetSessionDir(
-            std::string(projectDir.ToUTF8().data()) + "\\.sigflow\\wave");
+        m_wavePanel->SetSessionDir(JoinPath(JoinPath(std::string(projectDir.ToUTF8().data()), ".sigflow"), "wave"));
     }
 
     maps.clear();
-    sigTree->LoadProject(projectDir.ToStdString());
+    sigTree->LoadProject(sigflow::platform::Utf8String(projectDir));
 
     wxString fullPath = projectDir + wxFileName::GetPathSeparator() + "sigflow.project";
     wxFile file(fullPath);
@@ -1396,7 +1399,7 @@ void MainFrame::SetProjectDir(const wxString& projectDir)
                 wxFileName fn1(file.asString());
                 fn1.MakeAbsolute(projectDir);
                 wxString wxAbsPath = fn1.GetFullPath();
-                std::string absPath1 = wxAbsPath.ToStdString();
+                std::string absPath1 = sigflow::platform::Utf8String(wxAbsPath);
 
                 // 2. 读取该文件的实际内容 (关键步骤)
                 wxFile vFile(wxAbsPath, wxFile::read);
@@ -1406,7 +1409,7 @@ void MainFrame::SetProjectDir(const wxString& projectDir)
                 vFile.ReadAll(&fileContent);
                 vFile.Close();
 
-                std::string stdCode = fileContent.ToStdString();
+                std::string stdCode = sigflow::platform::Utf8String(fileContent);
 
                 // 3. 为当前文件构造 Tree-sitter 资源
                 TSParser* parser = ts_parser_new();
@@ -1453,20 +1456,18 @@ void MainFrame::SetProjectDir(const wxString& projectDir)
     progress.Update(progress.GetRange() - 1, "Creating Workspace Mirror...");
 
     // 构造工作区路径
-    wxString workspacePath = m_currentProjectPath + wxFileName::GetPathSeparator() +
-        ".sigflow" + wxFileName::GetPathSeparator() + "workspace";
+    wxString workspacePath = JoinPath(JoinPath(m_currentProjectPath, ".sigflow"), "workspace");
 
     // 镜像目录（复用你的 MirrorDirectory 函数）
+    // 同上：镜像失败不应阻止标题/项目名更新，否则界面会一直显示 "[no project]"。
     if (MirrorDirectory(m_currentProjectPath, workspacePath)) {
-        // 更新内部状态（保留你的原有逻辑）
-        m_currentProjectPath = m_currentProjectPath;
-        m_workspacePath = workspacePath; // 确保 MainFrame 有这个成员变量
-        m_projectName = wxFileName(projectDir).GetFullName();
-
-        // 重新加载项目树
-        m_projectTreePanel->LoadProject(m_currentProjectPath);
-        RefreshTitle(); // 确保有这个刷新标题的函数
+        m_workspacePath = workspacePath;
+    } else {
+        SIGFLOW_LOG("MainFrame: project mirror failed; continuing without workspace copy.\n");
     }
+    m_projectName = wxFileName(projectDir).GetFullName();
+    m_projectTreePanel->LoadProject(m_currentProjectPath);
+    RefreshTitle();
 
     // 进度条完成
     progress.Update(progress.GetRange(), "Load Complete!");
@@ -1753,19 +1754,19 @@ wxString MainFrame::GenerateFileContent()
 
 void MainFrame::DoFileOpen(const wxString& path)
 {
-    /*
     wxString filePath = path;
 
-    // 如果用户没有提供路径，显示文件选择对话框
+    // 未给出路径时弹出文件选择框（默认定位到当前项目根）。
     if (filePath.IsEmpty()) {
+        const wxString defaultDir =
+            m_currentProjectPath.IsEmpty() ? wxGetCwd() : m_currentProjectPath;
         wxFileDialog openDialog(
             this,
-            wxT("打开文件"),
-            wxT(""),
-            wxT(""),
-            wxT("电路文件 (*.circ)|*.circ|所有文件 (*.*)|*.*"),
-            wxFD_OPEN | wxFD_FILE_MUST_EXIST
-        );
+            wxT("Open File"),
+            defaultDir,
+            wxEmptyString,
+            wxT("Verilog 源文件 (*.v;*.sv)|*.v;*.sv|所有文件 (*.*)|*.*"),
+            wxFD_OPEN | wxFD_FILE_MUST_EXIST);
 
         if (openDialog.ShowModal() != wxID_OK) {
             return;
@@ -1773,117 +1774,16 @@ void MainFrame::DoFileOpen(const wxString& path)
         filePath = openDialog.GetPath();
     }
 
-    // 检查文件扩展名
-    wxFileName fn(filePath);
-    wxString ext = fn.GetExt().Lower();
-
-    // 注：不再支持直接打开单个 .v 文件，必须通过项目方式打开
-
-    // 尝试读取文件内容
-    wxFile file;
-    if (!file.Open(filePath, wxFile::read)) {
-        wxMessageBox(wxT("无法打开文件: ") + filePath, wxT("错误"), wxOK | wxICON_ERROR);
-        return;
-    }
-
-    // ��ȡXML����
-    wxString xmlContent;
-    file.ReadAll(&xmlContent);
-    file.Close();
-
-    // ����XML
-    wxXmlDocument doc;
-    wxStringInputStream stream(xmlContent);
-    if (!doc.Load(stream)) {
-        wxMessageBox("�ļ���ʽ����: " + filePath, "����", wxOK | wxICON_ERROR);
-        return;
-    }
-
-    // ��յ�ǰ����
-    //m_canvas->ClearAll();
-
-    // �������ڵ�
-    wxXmlNode* root = doc.GetRoot();
-    if (!root || root->GetName() != "project") {
-        wxMessageBox("��Ч�ĵ�·�ļ�", "����", wxOK | wxICON_ERROR);
-        return;
-    }
-
-    // ���ҵ�·�ڵ�
-    wxXmlNode* circuit = root->GetChildren();
-    while (circuit) {
-        if (circuit->GetName() == "circuit") {
-            break;
-        }
-        circuit = circuit->GetNext();
-    }
-
-    if (!circuit) {
-        wxMessageBox("�ļ���δ�ҵ���·��Ϣ", "����", wxOK | wxICON_ERROR);
-        return;
-    }
-
-    // ����Ԫ��������
-    wxXmlNode* child = circuit->GetChildren();
-    while (child) {
-        // ����Ԫ�����Ƴ���ת�Ƕ���ش��룩
-        if (child->GetName() == "element") {
-            wxString name = child->GetAttribute("name");
-            int x = wxAtoi(child->GetAttribute("x", "0"));
-            int y = wxAtoi(child->GetAttribute("y", "0"));
-            // �Ƴ��������й���rotation�Ķ�ȡ
-            // int rotation = wxAtoi(child->GetAttribute("rotation", "0"));
-
-            //m_canvas->AddElement(name, wxPoint(x, y));
-            // 同时移除设置旋转角度的逻辑（如果有的话）
-        }
-
-        // �������ߣ���DoFileOpen�����У�
-        else if (child->GetName() == "wire") {
-            wxString fromStr = child->GetAttribute("from");
-            wxString toStr = child->GetAttribute("to");
-            wxString midPointsStr = child->GetAttribute("midpoints", "");
-
-            // ��������� (x,y)
-            auto parsePoint = [](const wxString& str) -> wxPoint {
-                int x = 0, y = 0;
-                if (sscanf(str.ToUTF8().data(), "(%d,%d)", &x, &y) == 2) {
-                    return wxPoint(x, y);
-                }
-                return wxPoint(0, 0);
-                };
-
-            // �ؽ�pts����
-            std::vector<ControlPoint> pts;
-            pts.push_back({ parsePoint(fromStr), CPType::Pin });  // ��㣨Pin���ͣ�
-
-            // �����м��
-            if (!midPointsStr.IsEmpty()) {
-                wxArrayString midPoints = wxSplit(midPointsStr, ';');
-                for (const auto& ptStr : midPoints) {
-                    if (ptStr.IsEmpty()) continue;
-                    pts.push_back({ parsePoint(ptStr), CPType::Bend });  // �м��Ϊ�۵�
-                }
-            }
-
-            pts.push_back({ parsePoint(toStr), CPType::Free });  // �յ㣨Free���ͣ�
-
-            // ����Wire�����ӵ�����
-            Wire wire;
-            wire.pts = pts;  // ֱ�Ӹ�ֵ��Wire��pts��Ա
-            wire.GenerateCells();  // ��������㣨������ʾһ���ԣ�
-            m_canvas->AddWire(wire);
-        }
-
-        child = child->GetNext();
-    }
-
-    // 更新状态
-    m_currentFilePath = filePath;
-    m_isModified = false;
-    SetTitle(wxFileName(filePath).GetFullName());
-    static_cast<MainMenuBar*>(GetMenuBar())->AddFileToHistory(filePath);
-    SetStatusText("�Ѵ�: " + filePath);*/
+    // 复用"从项目树打开文件"的完整流程：
+    //   保存/放弃当前画布 → 切换编辑器、树面板、画布 → 刷新标题。
+    //
+    // 旧实现把整个函数体注释掉了，是个**静默空操作**：
+    // 文件菜单的"打开"、工具栏打开按钮、FPGA 工具窗的"打开源文件"、
+    // 波形/调试跳转、最近文件菜单全都点了没反应，
+    // 而最近文件菜单还会 AddFileToHistory，看起来像"打开成功"了。
+    wxCommandEvent openEvent(wxEVT_MENU, ID_OPEN_FILE_FROM_TREE);
+    openEvent.SetString(filePath);
+    OnOpenFileFromTree(openEvent);
 }
 
 
@@ -2340,7 +2240,7 @@ void MainFrame::OnOpenFileFromTree(wxCommandEvent& evt) {
         return;
     }
 
-    FileNode* fn = sigTree->GetFileNode(path.ToStdString());
+    FileNode* fn = sigTree->GetFileNode(sigflow::platform::Utf8String(path));
     if (!fn) {
         wxMessageBox("The selected file is not a parsed Verilog source in this project.",
                      "Open File", wxOK | wxICON_WARNING, this);
@@ -2464,17 +2364,28 @@ void MainFrame::OnAnalysisComplete(wxThreadEvent& event) {
 // 在 MainFrame 中实现
 void MainFrame::RefreshTitle() {
     wxString title = "SigFlow";
-    wxFileName fileObj(m_currentFilePath);
-    if (fileObj.MakeRelativeTo(m_currentProjectPath)) {
-        if (!m_projectName.IsEmpty()) {
-            title += " [" + m_projectName  + wxFileName::GetPathSeparator() + fileObj.GetFullPath() + "]";
-        }
+    if (m_projectName.IsEmpty()) {
+        SetTitle(title + " [no project]");
+        return;
+    }
 
+    title += " [" + m_projectName;
+
+    // 只有确实打开了文件、并且能相对项目根求值成功时，才把相对路径并进标题。
+    // 旧实现无条件对 m_currentFilePath 调 MakeRelativeTo(m_currentProjectPath)：
+    // 未打开任何文件时 m_currentFilePath 为空，wxFileName 会按**当前工作目录**解析，
+    // 于是标题变成类似 "SigFlow [Linux2.0/../../C/CMake_SigFlow/]" 的怪字符串。
+    if (!m_currentFilePath.IsEmpty()) {
+        wxFileName fileObj(m_currentFilePath);
+        const wxString relative = fileObj.MakeRelativeTo(m_currentProjectPath)
+            ? fileObj.GetFullPath() : wxString();
+        if (!relative.IsEmpty()) {
+            title += wxFileName::GetPathSeparator() + relative;
+        }
     }
-    else {
-        title += " [" + m_projectName + wxFileName::GetPathSeparator() + "]";
-    }
-    this->SetTitle(title);
+
+    title += "]";
+    SetTitle(title);
 }
 
 
@@ -2532,7 +2443,7 @@ bool MainFrame::LoadProjectConfig(const wxString& projectPath,
                                    std::vector<wxString>& outSourceFiles)
 {
     const wxString projectDirectory = NormalizeProjectDirectoryPath(projectPath);
-    wxString configPath = projectDirectory + "\\sigflow.project";
+    wxString configPath =JoinPath(projectDirectory, "sigflow.project");
     
     if (!wxFileExists(configPath)) {
         SIGFLOW_LOG("sigflow.project not found\n");
@@ -2668,10 +2579,10 @@ void MainFrame::RunTraceBridgeCapture(
     wxString mappingTop;
     std::vector<wxString> sourceFiles;
     if (LoadProjectConfig(wxString::FromUTF8(request.projectPath), mappingTop, sourceFiles)) {
-        for (const auto& source : sourceFiles) mappingSources.push_back(source.ToStdString());
+        for (const auto& source : sourceFiles) mappingSources.push_back(sigflow::platform::Utf8String(source));
     }
     const std::string mappingTopModule = request.contract.topModule.empty()
-        ? mappingTop.ToStdString() : request.contract.topModule;
+        ? sigflow::platform::Utf8String(mappingTop) : request.contract.topModule;
     std::thread([weakFrame, request, mappingSources, mappingTopModule,
                  completion = std::move(completion)]() mutable {
         std::string error;
@@ -2844,7 +2755,7 @@ void MainFrame::RunTraceBridgeDebugBuild(const TraceBridgeDebugBuildRequest& req
         return;
     }
 
-    const wxString legacyJson = projectPath + wxT("\\yosys\\") + topModule + wxT(".json");
+    const wxString legacyJson =JoinPath(JoinPath(projectPath, "yosys"), "") + topModule + wxT(".json");
     wxFile jsonFile(legacyJson, wxFile::read);
     wxString jsonText;
     if (!jsonFile.IsOpened() || !jsonFile.ReadAll(&jsonText)) {
@@ -2878,8 +2789,8 @@ void MainFrame::RunTraceBridgeDebugBuild(const TraceBridgeDebugBuildRequest& req
     const wxString debugRtlDirectory = FindTraceBridgeDebugRtl(projectPath);
     if (debugRtlDirectory.IsEmpty()) {
         const wxString message =
-            wxT("找不到 TraceBridge 调试 RTL（rtl\\debug）。请确认程序从 SigFlow 仓库运行，"
-                "或将 rtl\\debug 放在工程目录/安装目录下。\n"
+            wxT("找不到 TraceBridge 调试 RTL（rtl/debug）。请确认程序从 SigFlow 仓库运行，"
+                "或将 rtl/debug 放在工程目录/安装目录下。\n"
                 "需要 sf_micro_ila.sv、sf_uart_link.sv 和 sf_debug_link.sv。\n"
                 "Debug session: ") + wxString::FromUTF8(session.id);
         sessionService.Transition(request.projectPath, session.id,
@@ -2918,7 +2829,7 @@ void MainFrame::RunTraceBridgeDebugBuild(const TraceBridgeDebugBuildRequest& req
     const wxWeakRef<MainFrame> weakSelf(this);
     const wxString sessionRoot = wxString::FromUTF8(paths.root);
     const wxString jsonPath = wxString::FromUTF8(overlay.netlistJsonPath);
-    const wxString pnrPath = wxString::FromUTF8(paths.artifacts + "\\sf_debug_top.pnr.json");
+    const wxString pnrPath = wxString::FromUTF8(JoinPath(paths.artifacts, "sf_debug_top.pnr.json"));
     const wxString fsPath = wxString::FromUTF8(overlay.fsPath);
     const wxString buildSessionId = wxString::FromUTF8(session.id);
     const bool programAndCapture = request.programAndCapture;
@@ -2928,7 +2839,7 @@ void MainFrame::RunTraceBridgeDebugBuild(const TraceBridgeDebugBuildRequest& req
     m_yosysExecutor = std::make_unique<YosysExecutor>();
     YosysExecutor::Config yosysConfig;
     yosysConfig.workingDirectory = sessionRoot;
-    yosysConfig.combinedLogPath = sessionRoot + wxT("\\logs\\debug-yosys.combined.log");
+    yosysConfig.combinedLogPath =JoinPath(JoinPath(sessionRoot, "logs"), "debug-yosys.combined.log");
     const bool started = m_yosysExecutor->Execute(
         yosysExecutable, { wxT("-s"), wxString::FromUTF8(overlay.yosysScriptPath) }, yosysConfig,
         [weakSelf](YosysExecutor::OutputStream stream, const wxString& text) {
@@ -3114,8 +3025,8 @@ void MainFrame::RunFpgaSynthesis()
     }
     m_yosysExecutor.reset();
 
-    const wxString yosysDirectory = m_currentProjectPath + "\\yosys";
-    const wxString nextpnrDirectory = m_currentProjectPath + "\\nextpnr";
+    const wxString yosysDirectory =JoinPath(m_currentProjectPath, "yosys");
+    const wxString nextpnrDirectory =JoinPath(m_currentProjectPath, "nextpnr");
     if (!EnsureDirectory(yosysDirectory) || !EnsureDirectory(nextpnrDirectory)) {
         wxMessageBox("Unable to create the yosys and nextpnr work directories.",
                      "FPGA Synthesis", wxOK | wxICON_ERROR, this);
@@ -3201,7 +3112,7 @@ void MainFrame::RunFpgaSynthesis()
         return;
     }
 
-    const wxString scriptPath = jobPaths.scripts + "\\run_yosys.ys";
+    const wxString scriptPath =JoinPath(jobPaths.scripts, "run_yosys.ys");
     if (!WriteUtf8File(scriptPath, scriptResult.script)) {
         jobService.Transition(m_currentProjectPath, job.id, SynthesisJobState::Failed,
                               "Unable to write the Yosys script.", -1, optionsError);
@@ -3229,7 +3140,7 @@ void MainFrame::RunFpgaSynthesis()
     }
 
     const FpgaYosysRuntimeReport runtimeReport = ValidateYosysRuntime(yosysExecutable);
-    const wxString runtimeManifestPath = jobPaths.reports + "\\runtime-manifest.json";
+    const wxString runtimeManifestPath =JoinPath(jobPaths.reports, "runtime-manifest.json");
     wxString manifestError;
     if (!WriteYosysRuntimeManifest(runtimeReport, runtimeManifestPath, manifestError)) {
         SaveYosysDiagnosticReport(jobPaths, job.id, "Failed", strategyInfo.id, wxEmptyString,
@@ -3272,7 +3183,7 @@ void MainFrame::RunFpgaSynthesis()
     executionConfig.timeLimitSec = options.yosysTimeLimitSec;
     executionConfig.memoryLimitBytes = options.yosysMemoryLimitBytes;
     executionConfig.logSizeLimit = options.yosysLogLimitBytes;
-    executionConfig.combinedLogPath = jobPaths.logs + "\\yosys.combined.log";
+    executionConfig.combinedLogPath =JoinPath(jobPaths.logs, "yosys.combined.log");
 
     if (m_terminalCtrl) {
         m_terminalCtrl->BeginProcessOutput("[Yosys] started\nCommand: " + yosysExecutable +
@@ -3378,14 +3289,14 @@ void MainFrame::RunFpgaSynthesis()
                     report.status = ToString(finalState);
                     report.strategy = strategyId;
                     report.durationMs = durationMs;
-                    report.combinedLogPath = completedPaths.logs + "\\yosys.combined.log";
-                    report.stdoutLogPath = completedPaths.logs + "\\yosys.stdout.log";
-                    report.stderrLogPath = completedPaths.logs + "\\yosys.stderr.log";
+                    report.combinedLogPath =JoinPath(completedPaths.logs, "yosys.combined.log");
+                    report.stdoutLogPath =JoinPath(completedPaths.logs, "yosys.stdout.log");
+                    report.stderrLogPath =JoinPath(completedPaths.logs, "yosys.stderr.log");
                     report.artifactPath = jobJsonPath;
                     report.jobManifestPath = completedPaths.manifest;
-                    report.inputManifestPath = completedPaths.inputs + "\\file-list.json";
-                    report.runtimeManifestPath = completedPaths.reports + "\\runtime-manifest.json";
-                    report.scriptPath = completedPaths.scripts + "\\run_yosys.ys";
+                    report.inputManifestPath =JoinPath(completedPaths.inputs, "file-list.json");
+                    report.runtimeManifestPath =JoinPath(completedPaths.reports, "runtime-manifest.json");
+                    report.scriptPath =JoinPath(completedPaths.scripts, "run_yosys.ys");
                     report.artifactManifestPath = artifactManifestPath;
                     if (!finalMessage.IsEmpty() && report.rootCause.IsEmpty() &&
                         finalState != SynthesisJobState::Succeeded) {
@@ -3393,9 +3304,7 @@ void MainFrame::RunFpgaSynthesis()
                         report.rootSuggestion = finalMessage;
                     }
                     wxString reportError;
-                    if (!FpgaYosysReport::Save(report,
-                                                completedPaths.reports + "\\synthesis.analysis.json",
-                                                completedPaths.reports + "\\synthesis.summary.md",
+                    if (!FpgaYosysReport::Save(report,JoinPath(completedPaths.reports, "synthesis.analysis.json"),JoinPath(completedPaths.reports, "synthesis.summary.md"),
                                                 reportError)) {
                         finalState = SynthesisJobState::Failed;
                         finalMessage = "Unable to write Yosys analysis report: " + reportError;
@@ -3457,21 +3366,20 @@ void SaveYosysDiagnosticReport(const SynthesisJobPaths& paths, const wxString& j
     report.status = status;
     report.strategy = strategy;
     report.durationMs = durationMs;
-    report.combinedLogPath = paths.logs + "\\yosys.combined.log";
-    report.stdoutLogPath = paths.logs + "\\yosys.stdout.log";
-    report.stderrLogPath = paths.logs + "\\yosys.stderr.log";
+    report.combinedLogPath =JoinPath(paths.logs, "yosys.combined.log");
+    report.stdoutLogPath =JoinPath(paths.logs, "yosys.stdout.log");
+    report.stderrLogPath =JoinPath(paths.logs, "yosys.stderr.log");
     report.artifactPath = artifactPath;
     report.jobManifestPath = paths.manifest;
-    report.inputManifestPath = paths.inputs + "\\file-list.json";
-    report.runtimeManifestPath = paths.reports + "\\runtime-manifest.json";
-    report.scriptPath = paths.scripts + "\\run_yosys.ys";
+    report.inputManifestPath =JoinPath(paths.inputs, "file-list.json");
+    report.runtimeManifestPath =JoinPath(paths.reports, "runtime-manifest.json");
+    report.scriptPath =JoinPath(paths.scripts, "run_yosys.ys");
     if (!fallbackMessage.IsEmpty() && report.rootCause.IsEmpty() && status != "Succeeded") {
         report.rootCause = "YOSYS_PLATFORM_FAILURE";
         report.rootSuggestion = fallbackMessage;
     }
     wxString ignoredError;
-    FpgaYosysReport::Save(report, paths.reports + "\\synthesis.analysis.json",
-                          paths.reports + "\\synthesis.summary.md", ignoredError);
+    FpgaYosysReport::Save(report,JoinPath(paths.reports, "synthesis.analysis.json"),JoinPath(paths.reports, "synthesis.summary.md"), ignoredError);
 }
 
 void SaveNextpnrDiagnosticReport(const wxString& projectPath, int exitCode,
@@ -3479,9 +3387,12 @@ void SaveNextpnrDiagnosticReport(const wxString& projectPath, int exitCode,
                                   const wxString& fallbackMessage,
                                   const wxString& reportPath = wxEmptyString)
 {
+    // reportPath 可能来自 Windows 风格（C:\a\b）或 POSIX 风格（/a/b）路径，
+    // 不能写死 BeforeLast('\\')——那在 Linux 上会找不到分隔符而返回整串。
+    // wxFileName::GetPath() 会按平台正确处理两种分隔符。
     const wxString reportDir = reportPath.IsEmpty()
-        ? projectPath + "\\nextpnr"
-        : reportPath.BeforeLast('\\');
+        ? JoinPath(projectPath, "nextpnr")
+        : wxFileName(reportPath).GetPath();
     if (!wxDir::Exists(reportDir)) {
         wxFileName::Mkdir(reportDir, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL);
     }
@@ -3505,7 +3416,7 @@ void SaveNextpnrDiagnosticReport(const wxString& projectPath, int exitCode,
 
     NextpnrReport report;
     const wxString outputPath = reportPath.IsEmpty()
-        ? reportDir + "\\route.analysis.json"
+        ?JoinPath(reportDir, "route.analysis.json")
         : reportPath;
     report.SaveReport(record, outputPath);
 }
@@ -3587,8 +3498,8 @@ void MainFrame::RunFpgaRoute()
         return;
     }
 
-    const wxString yosysDirectory = m_currentProjectPath + "\\yosys";
-    const wxString nextpnrDirectory = m_currentProjectPath + "\\nextpnr";
+    const wxString yosysDirectory =JoinPath(m_currentProjectPath, "yosys");
+    const wxString nextpnrDirectory =JoinPath(m_currentProjectPath, "nextpnr");
     if (!EnsureDirectory(yosysDirectory) || !EnsureDirectory(nextpnrDirectory)) {
         wxMessageBox("Unable to create the yosys and nextpnr work directories.",
                      "FPGA Place and Route", wxOK | wxICON_ERROR, this);
@@ -3604,7 +3515,7 @@ void MainFrame::RunFpgaRoute()
         return;
     }
 
-    const wxString readmePath = nextpnrDirectory + "\\README.md";
+    const wxString readmePath =JoinPath(nextpnrDirectory, "README.md");
     if (!wxFileExists(readmePath) && !WriteUtf8File(readmePath, BuildNextpnrReadme())) {
         wxMessageBox("Unable to write nextpnr configuration instructions.",
                      "FPGA Place and Route", wxOK | wxICON_ERROR, this);
@@ -3636,7 +3547,7 @@ void MainFrame::RunFpgaRoute()
     // ── nextpnr 运行时环境检查 ──
     {
         const wxString exeDir = wxFileName(nextpnrExecutable).GetPath();
-        const wxString shareDir = exeDir + "\\..\\share";
+        const wxString shareDir =JoinPath(JoinPath(exeDir, ".."), "share");
         NextpnrRuntimeReport rtReport = ValidateNextpnrRuntime(nextpnrExecutable, shareDir);
         if (m_terminalCtrl) {
             m_terminalCtrl->PrintOutput(rtReport.FormatForTerminal());
@@ -3758,7 +3669,7 @@ void MainFrame::RunFpgaRoute()
     // ── 配置执行参数 ──
     NextpnrExecutor::Config execConfig;
     execConfig.workingDirectory = nextpnrDirectory;
-    execConfig.combinedLogPath = nextpnrDirectory + "\\nextpnr.combined.log";
+    execConfig.combinedLogPath =JoinPath(nextpnrDirectory, "nextpnr.combined.log");
 
     // Transition → Queued → Running
     if (!routeJobId.IsEmpty()) {
@@ -3855,9 +3766,9 @@ void MainFrame::RunFpgaRoute()
                 if (finalState != NextpnrJobState::Succeeded || !jobResult.succeeded) {
                     wxString diagReportPath;
                     if (!capturedJobId.IsEmpty()) {
-                        diagReportPath = NextpnrJobService::GetPaths(
+                        diagReportPath =JoinPath(NextpnrJobService::GetPaths(
                             self->m_currentProjectPath, capturedJobId)
-                            .reports + "\\route.analysis.json";
+                            .reports, "route.analysis.json");
                     }
                     SaveNextpnrDiagnosticReport(self->m_currentProjectPath,
                         execResult.exitCode, execResult.combinedLog,
@@ -3869,14 +3780,11 @@ void MainFrame::RunFpgaRoute()
                     NextpnrJobPaths jobPaths = NextpnrJobService::GetPaths(
                         self->m_currentProjectPath, capturedJobId);
                     if (wxFileExists(jobResult.analysisJsonPath)) {
-                        wxCopyFile(jobResult.analysisJsonPath,
-                            jobPaths.reports + "\\route.analysis.json");
+                        wxCopyFile(jobResult.analysisJsonPath,JoinPath(jobPaths.reports, "route.analysis.json"));
                     }
-                    const wxString combinedLogPath =
-                        self->m_currentProjectPath + "\\nextpnr\\nextpnr.combined.log";
+                    const wxString combinedLogPath =JoinPath(JoinPath(self->m_currentProjectPath, "nextpnr"), "nextpnr.combined.log");
                     if (wxFileExists(combinedLogPath)) {
-                        wxCopyFile(combinedLogPath,
-                            jobPaths.logs + "\\nextpnr.combined.log");
+                        wxCopyFile(combinedLogPath,JoinPath(jobPaths.logs, "nextpnr.combined.log"));
                     }
                 }
 
@@ -3978,7 +3886,7 @@ void MainFrame::RunFpgaPack()
         return;
     }
 
-    const wxString nextpnrDirectory = m_currentProjectPath + "\\nextpnr";
+    const wxString nextpnrDirectory =JoinPath(m_currentProjectPath, "nextpnr");
     const wxString pnrJsonPath = JoinPath(nextpnrDirectory, topModule + ".pnr.json");
     const wxString bitstreamPath = JoinPath(nextpnrDirectory, topModule + ".fs");
     const wxString manifestPath = JoinPath(nextpnrDirectory, topModule + ".pack.manifest.json");
@@ -4386,8 +4294,8 @@ void MainFrame::DoSimCompile()
     std::vector<wxString> verilogFiles;
     if (!LoadProjectConfig(projectPath, topModule, verilogFiles)) {
         SIGFLOW_LOG("Failed to load project config, falling back to manual mode\n");
-        wxString srcDir = projectPath + "\\src";
-        wxString libDir = projectPath + "\\lib";
+        wxString srcDir =JoinPath(projectPath, "src");
+        wxString libDir =JoinPath(projectPath, "lib");
         if (wxDir::Exists(srcDir)) {
             wxDir dir;
             if (dir.Open(srcDir)) {
@@ -4418,8 +4326,8 @@ void MainFrame::DoSimCompile()
         wxFileName projectFn(projectPath);
         wxString defaultTopModule = projectFn.GetFullName();
         wxString prompt;
-        prompt.Printf("找到 %u 个 Verilog 文件\n请输入顶层模块名称:", (unsigned)verilogFiles.size());
-        wxTextEntryDialog dialog(NULL, prompt, "编译仿真", defaultTopModule);
+        prompt.Printf(wxT("找到 %u 个 Verilog 文件\n请输入顶层模块名称:"), (unsigned)verilogFiles.size());
+        wxTextEntryDialog dialog(NULL, prompt, wxT("编译仿真"), defaultTopModule);
         if (dialog.ShowModal() != wxID_OK) return;
         topModule = dialog.GetValue();
         if (topModule.IsEmpty()) {
@@ -4487,7 +4395,7 @@ void MainFrame::DoSimCompile()
     if (!SimulationJob().Submit(simRequest, simJob, jobError)) {
         HideBusyIndicator(wxT("编译失败"));
         menuBar->SetSimulationBusy(false);
-        wxMessageBox("Simulation Job 提交失败：" + jobError, wxT("编译失败"),
+        wxMessageBox(wxT("Simulation Job 提交失败：") + jobError, wxT("编译失败"),
                      wxOK | wxICON_ERROR);
         return;
     }
@@ -4612,7 +4520,7 @@ void MainFrame::DoSimRun()
     if (!SimulationJob().Submit(simRequest, simJob, jobError)) {
         HideBusyIndicator(wxT("就绪"));
         menuBar->SetSimulationBusy(false);
-        wxMessageBox("Simulation Job 提交失败：" + jobError, wxT("仿真错误"),
+        wxMessageBox(wxT("Simulation Job 提交失败：") + jobError, wxT("仿真错误"),
                      wxOK | wxICON_ERROR, this);
         return;
     }
@@ -4730,8 +4638,8 @@ wxString MainFrame::GetTopModuleName()
 
     // 3. 配置读不到就弹窗让用户输入
     wxTextEntryDialog dlg(this,
-        "未找到顶层模块配置，请手动输入:",
-        "顶层模块名称",
+        wxT("未找到顶层模块配置，请手动输入:"),
+        wxT("顶层模块名称"),
         wxFileName(m_currentProjectPath).GetFullName()); // 默认值=项目名
 
     

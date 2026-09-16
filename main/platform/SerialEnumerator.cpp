@@ -166,7 +166,11 @@ std::vector<SerialPortInfo> EnumerateSerialPorts()
             fs::path target = fs::read_symlink(entry.path(), readEc);
             if (!readEc) {
                 if (target.is_relative()) target = byId / target;
-                info.name = target.lexically_normal().filename().string();
+                // 必须保留**绝对路径**：上层会用这个名字直接 open()，
+                // 若只取 filename()（如 "ttyUSB0"）就会变成相对当前工作目录打开，
+                // 必然 ENOENT。udev 对几乎每个 USB 串口都建立 /dev/serial/by-id，
+                // 所以这里正是 Linux 上的主分支，取错等于 Linux 串口功能整体不可用。
+                info.name = target.lexically_normal().string();
             }
             if (info.name.empty()) info.name = info.friendlyName;
             result.push_back(std::move(info));
@@ -181,7 +185,9 @@ std::vector<SerialPortInfo> EnumerateSerialPorts()
         for (const auto& entry : fs::directory_iterator(dev, devEc)) {
             if (devEc) break;
             const std::string filename = entry.path().filename().string();
-            if (filename.rfind("ttyUSB", 0) != 0 && filename.rfind("ttyACM", 0) != 0) {
+            if (filename.rfind("ttyUSB", 0) != 0 && filename.rfind("ttyACM", 0) != 0 &&
+                filename.rfind("ttyS", 0) != 0 && filename.rfind("ttyAMA", 0) != 0 &&
+                filename.rfind("ttyXRUSB", 0) != 0 && filename.rfind("rfcomm", 0) != 0) {
                 continue;
             }
             SerialPortInfo info;

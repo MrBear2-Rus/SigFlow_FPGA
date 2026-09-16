@@ -146,8 +146,16 @@ bool NextpnrLogParser::Parse(const wxString& stdoutRaw, const wxString& /*stderr
             event.category = wxT("info");
         }
 
-        // 首行提取版本号
-        if (firstLine) { record.toolVersion = ExtractVersion(line); firstLine = false; }
+        // 版本号：不能只在第一行找。
+        // 真实 nextpnr 的第一行是
+        //   "Info: nextpnr-himbaechel -- Next Place and Route -- for Gowin GW1N-9C"
+        // 版本号在**第二行** "Info: Version 0.7 (git sha1 ...)"，
+        // 旧实现只看第一行，于是 toolVersion 永远是 "unknown"。
+        if (record.toolVersion.IsEmpty() || record.toolVersion == wxT("unknown")) {
+            const wxString version = ExtractVersion(line);
+            if (version != wxT("unknown")) record.toolVersion = version;
+        }
+        firstLine = false;
 
         // 逐行提取关键信息
         ExtractDeviceInfo(line, record);
@@ -178,39 +186,44 @@ bool NextpnrLogParser::Parse(const wxString& stdoutRaw, const wxString& /*stderr
 }
 
 // 阶段识别：根据日志行关键词判定
+//
+// 这里**必须大小写不敏感、并按词干匹配**。
+// 旧实现用的是大小写敏感的精确子串（"Pack IOBs" / "HeAP Placer Time" / "Routing complete"），
+// 而 nextpnr-himbaechel 实际打印的是 "Info: Packing IOBs.."、"Info: Packing IOs.." ——
+// 根本不含 "Pack IOBs" 这个子串。于是**即使布局布线成功**，也会被判成
+// "Packing: not reached"，并触发 NextpnrReport 里的 "Packing did not complete" 假失败诊断。
+// 同仓 parse_progress.cpp 解析同一份输出时用的是大小写不敏感的 \bpack(ing)?\b，
+// 两个模块必须保持一致。
 wxString NextpnrLogParser::DetectStage(const wxString& line)
 {
+    wxString lower = line;
+    lower.MakeLower();
+
     // Pack 阶段
-    if (line.Contains(wxT("Pack IOBs")) || line.Contains(wxT("Pack GSR")) ||
-        line.Contains(wxT("Pack wide LUTs")) || line.Contains(wxT("Pack ALUs")) ||
-        line.Contains(wxT("Pack PLL")))
-        return wxT("pack");
-    if (line.Contains(wxT("Pack")) && line.Contains(wxT("cells")))
+    if (lower.Contains(wxT("packing")) || lower.Contains(wxT("pack iob")) ||
+        lower.Contains(wxT("pack io")) || lower.Contains(wxT("pack gsr")) ||
+        lower.Contains(wxT("pack wide")) || lower.Contains(wxT("pack alu")) ||
+        lower.Contains(wxT("pack pll")) || lower.Contains(wxT("pack lut")) ||
+        lower.Contains(wxT("pack constant")) || lower.Contains(wxT("pack cell")))
         return wxT("pack");
 
     // Place 阶段
-    if (line.Contains(wxT("Creating initial analytic placement")) ||
-        line.Contains(wxT("Running main analytical placer")) ||
-        line.Contains(wxT("HeAP Placer Time")) ||
-        line.Contains(wxT("Running simulated annealing placer")))
+    if (lower.Contains(wxT("placing")) || lower.Contains(wxT("placer")) ||
+        lower.Contains(wxT("placement")) || lower.Contains(wxT("simulated annealing")))
         return wxT("place");
 
     // Route 阶段
-    if (line.Contains(wxT("Routing globals")) ||
-        line.Contains(wxT("Routing..")) ||
-        line.Contains(wxT("Setting up routing queue")) ||
-        line.Contains(wxT("Routing complete")) ||
-        line.Contains(wxT("Router1 time")))
+    if (lower.Contains(wxT("routing")) || lower.Contains(wxT("router1")) ||
+        lower.Contains(wxT("router2")) || lower.Contains(wxT("route complete")))
         return wxT("route");
 
     // 资源报告
-    if (line.Contains(wxT("Device utilisation")))
+    if (lower.Contains(wxT("device utilisation")) || lower.Contains(wxT("device utilization")))
         return wxT("resource");
 
     // 时序报告
-    if (line.Contains(wxT("Max frequency for clock")) ||
-        line.Contains(wxT("Critical path report")) ||
-        line.Contains(wxT("Slack histogram")))
+    if (lower.Contains(wxT("max frequency")) || lower.Contains(wxT("critical path")) ||
+        lower.Contains(wxT("slack histogram")))
         return wxT("timing");
 
     return wxT("unknown");
@@ -274,7 +287,13 @@ void NextpnrLogParser::ClassifyError(const wxString& line, int lineNumber)
 // 版本号提取
 wxString NextpnrLogParser::ExtractVersion(const wxString& line)
 {
-    static const wxRegEx re(wxT("Version\\s+(\\S+)\\)"), wxRE_ADVANCED);
+    // 真实 nextpnr 的横幅形如：
+    //   Info: nextpnr-himbaechel -- Next Place and Route -- for Gowin GW1N-9C
+    //   Info: Version 0.7 (git sha1 abcdef0, ...)
+    // 旧正则 "Version\s+(\S+)\)" 要求版本号后**紧跟**右括号，
+    // 而实际版本号后面是 " (git sha1 ...)" → 永远匹配不到，版本号恒为 "unknown"。
+    // 这里只取 "Version <token>"，token 允许数字/字母/._+-。
+    static const wxRegEx re(wxT("Version\\s+([0-9][0-9A-Za-z._+-]*)"), wxRE_ADVANCED);
     if (re.Matches(line)) return re.GetMatch(line, 1);
     return wxT("unknown");
 }
@@ -299,10 +318,22 @@ void NextpnrLogParser::ExtractTimingInfo(const wxString& line, NextpnrRunRecord&
         record.timingPassed = (re.GetMatch(line, 3) == wxT("PASS"));
     }
 
-    // 阶段完成标记
-    if (line.Contains(wxT("Pack IOBs")))        record.packCompleted = true;
-    if (line.Contains(wxT("HeAP Placer Time")))  record.placeCompleted = true;
-    if (line.Contains(wxT("Routing complete")))  record.routeCompleted = true;
+    // 阶段"是否走到"标记（大小写不敏感，见 DetectStage 的说明）。
+    // 语义是"该阶段已经出现"，因此成功跑完的运行三个阶段都为真；
+    // 中途失败的运行只会有一部分为真 —— 正好用于定位卡在哪一步。
+    wxString lower = line;
+    lower.MakeLower();
+    if (lower.Contains(wxT("packing")) || lower.Contains(wxT("pack iob")) ||
+        lower.Contains(wxT("pack io")) || lower.Contains(wxT("pack gsr"))) {
+        record.packCompleted = true;
+    }
+    if (lower.Contains(wxT("placing")) || lower.Contains(wxT("placer")) ||
+        lower.Contains(wxT("analytic placement")) || lower.Contains(wxT("simulated annealing"))) {
+        record.placeCompleted = true;
+    }
+    if (lower.Contains(wxT("routing")) || lower.Contains(wxT("router1"))) {
+        record.routeCompleted = true;
+    }
 }
 
 // 逐行 Counts 不做操作（由 Parse 末尾的 ExtractFinalCounts 统一处理）

@@ -1264,12 +1264,15 @@ void TraceBridgeWindow::SetCaptureResult(bool success, const wxString& message, 
                 wxT("\n现在可以点【比对仿真 VCD…】选择仿真输出，查看双轨差异。"));
             // 从 vcdPath 中提取 sessionId：.../.sigflow/debug/<id>/artifacts/capture.vcd
             {
+                // 统一成 '/' 再查找。原实现先把 '/' 换成 '\\' 再找 "\\.sigflow\\debug\\"，
+                // 在 Linux 上路径本来就是 '/'，替换后反而永远匹配不到 → lastSessionId_ 取不到。
                 wxString path = vcdPath;
-                path.Replace(wxT("/"), wxT("\\"));
-                size_t pos = path.rfind(wxT("\\.sigflow\\debug\\"));
+                path.Replace(wxT("\\"), wxT("/"));
+                const wxString marker = wxT("/.sigflow/debug/");
+                size_t pos = path.rfind(marker);
                 if (pos != wxString::npos) {
-                    wxString rest = path.Mid(pos + 16);
-                    size_t sep = rest.find(wxT("\\"));
+                    wxString rest = path.Mid(pos + marker.length());
+                    size_t sep = rest.find(wxT("/"));
                     if (sep != wxString::npos) {
                         lastSessionId_ = rest.Left(static_cast<std::size_t>(sep));
                     }
@@ -2373,7 +2376,9 @@ bool TraceBridgeWindow::ImportSessionFromZip(const wxString& archivePath,
         }
         wxString destination = JoinPath(ToWxString(staging.string()),
                                wxString::FromUTF8(fileName.c_str()));
-        destination.Replace(wxT("/"), wxT("\\"));
+        // 不要在这里把 '/' 换成 '\\'：JoinPath 已经给出平台正确的分隔符，
+        // 强行替换会把 Linux 路径整体揉成一个文件名字符串，
+        // 导致 Mkdir/写入落到错误位置、后续 SHA/大小校验失败 → ZIP 会话导入必失败。
         if (!wxFileName::Mkdir(wxFileName(destination).GetPath(), wxS_DIR_DEFAULT,
                                wxPATH_MKDIR_FULL)) {
             error = wxT("无法创建归档文件目录：") + destination;

@@ -15,6 +15,11 @@ using sigflow::platform::JoinPath;
 
 namespace {
 
+// 未显式配置超时时的兜底上限。
+// 必须有限：0 会被平台层理解为"无超时"（Windows INFINITE / POSIX 无超时轮询），
+// 工具一旦卡死，任务就会永远停在 Running，取消也无效。
+constexpr int kDefaultToolTimeoutSec = 600;
+
 bool FileExists(const wxString& path) {
     return wxFile::Exists(path);
 }
@@ -43,9 +48,9 @@ NextpnrRuntimeReport ValidateNextpnrRuntime(const wxString& executablePath,
         check.path = executablePath;
         check.passed = FileExists(executablePath);
         if (!check.passed) {
-            check.message = "找不到 nextpnr 可执行文件，"
-                            "请检查 sigflow.project -> fpga.nextpnr_path。"
-                            "路径: " + executablePath;
+            check.message = wxT("找不到 nextpnr 可执行文件，")
+                            wxT("请检查 sigflow.project -> fpga.nextpnr_path。")
+                            wxT("路径: ") + executablePath;
             report.valid = false;
         } else {
             check.message = "OK";
@@ -65,9 +70,9 @@ NextpnrRuntimeReport ValidateNextpnrRuntime(const wxString& executablePath,
         check.path = chipdbPath;
         check.passed = FileExists(chipdbPath);
         if (!check.passed) {
-            check.message = "芯片数据库文件缺失，"
-                            "请确认 nextpnr runtime 是否解压完整。"
-                            "路径: " + chipdbPath;
+            check.message = wxT("芯片数据库文件缺失，")
+                            wxT("请确认 nextpnr runtime 是否解压完整。")
+                            wxT("路径: ") + chipdbPath;
             report.valid = false;
         } else {
             check.message = "OK";
@@ -81,9 +86,9 @@ NextpnrRuntimeReport ValidateNextpnrRuntime(const wxString& executablePath,
         check.path = shareDirectory;
         check.passed = wxDir::Exists(shareDirectory);
         if (!check.passed) {
-            check.message = "nextpnr share 目录不存在，"
-                            "请确认 nextpnr runtime 是否解压完整。"
-                            "路径: " + shareDirectory;
+            check.message = wxT("nextpnr share 目录不存在，")
+                            wxT("请确认 nextpnr runtime 是否解压完整。")
+                            wxT("路径: ") + shareDirectory;
             report.valid = false;
         } else {
             check.message = "OK";
@@ -160,7 +165,11 @@ bool NextpnrExecutor::Execute(const wxString& executable,
         request.executable = executable;
         request.arguments = args;
         request.workingDirectory = config.workingDirectory;
-        request.timeoutSeconds = config.timeLimitSec;
+        // timeLimitSec <= 0 表示"未配置"。不能直接把 0 传给平台层：
+        // 那意味着**完全没有超时**（Windows 是 WaitForSingleObject(INFINITE)，
+        // POSIX 是无超时轮询），nextpnr 一旦卡死任务就会永远停在 Running。
+        request.timeoutSeconds = config.timeLimitSec > 0
+            ? config.timeLimitSec : kDefaultToolTimeoutSec;
         request.maxOutputBytes = 0;
         request.memoryLimitBytes = static_cast<std::uint64_t>(config.memoryLimitBytes);
         request.onStarted = [this](void* handle) {
@@ -383,7 +392,23 @@ std::vector<wxString> NextpnrExecutor::BuildArguments(
 }
 
 bool NextpnrExecutor::ValidateArtifact(const wxString& pnrJsonPath) {
-    return FileExists(pnrJsonPath);
+    // 只判"文件存在"是不够的：nextpnr 崩溃/磁盘写满时会留下 0 字节或截断的
+    // .pnr.json，却被判定为成功并继续喂给 gowin_pack。
+    // 这里额外要求文件非空（ToolJobs 对同类产物就是这么校验的）。
+    if (!FileExists(pnrJsonPath)) {
+        return false;
+    }
+    const wxFileName info(pnrJsonPath);
+    if (!info.FileExists()) {
+        return false;
+    }
+    wxFile file(pnrJsonPath, wxFile::read);
+    if (!file.IsOpened()) {
+        return false;
+    }
+    const bool ok = file.Length() > 0;
+    file.Close();
+    return ok;
 }
 
 void NextpnrExecutor::RunAnalysis(const wxString& combinedLog,

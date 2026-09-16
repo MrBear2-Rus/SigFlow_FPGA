@@ -21,13 +21,18 @@ struct JobRunOutcome {
 
 class JobRunHandle {
 public:
+    JobRunHandle() : m_finished(std::make_shared<std::atomic<bool>>(false)) {}
     ~JobRunHandle() { Join(); }
 
-    bool IsFinished() const { return m_finished.load(); }
+    bool IsFinished() const { return m_finished->load(); }
 
     void Join()
     {
         if (!m_thread.joinable()) return;
+        // 绝不能 join 自己：若 handle 的最后一个 shared_ptr 在 worker 线程上析构，
+        // join() 会抛 system_error，而析构函数是 noexcept → std::terminate。
+        // （RunJobAsync 已经不再把 handle 捕获进线程闭包，这里是第二道保险。）
+        if (m_thread.get_id() == std::this_thread::get_id()) return;
         m_thread.join();
     }
 
@@ -40,7 +45,9 @@ private:
         const std::function<void(const JobRunOutcome&)>&);
 
     std::thread m_thread;
-    std::atomic<bool> m_finished{false};
+    // 用 shared_ptr 而不是裸成员：线程闭包只捕获这个标志，不捕获 handle 本身，
+    // 从而彻底避免"worker 线程持有 handle 最后一份引用 → 在自己线程上析构"的自连接。
+    std::shared_ptr<std::atomic<bool>> m_finished;
 };
 
 inline std::shared_ptr<JobRunHandle> RunJobAsync(
@@ -51,7 +58,9 @@ inline std::shared_ptr<JobRunHandle> RunJobAsync(
     const std::function<void(const JobRunOutcome&)>& onDone)
 {
     const std::shared_ptr<JobRunHandle> handle = std::make_shared<JobRunHandle>();
-    handle->m_thread = std::thread([handle, job, execute, options, onDone]() {
+    // 只捕获完成标志（共享所有权），**不捕获 handle**。
+    const std::shared_ptr<std::atomic<bool>> finished = handle->m_finished;
+    handle->m_thread = std::thread([finished, job, execute, options, onDone]() {
         JobRunOutcome outcome;
         outcome.job = job;
         try {
@@ -63,7 +72,7 @@ inline std::shared_ptr<JobRunHandle> RunJobAsync(
             outcome.success = false;
             outcome.message = "Unhandled exception in Job execution.";
         }
-        handle->m_finished.store(true);
+        finished->store(true);
         if (wxTheApp == nullptr) return;
         wxTheApp->CallAfter([outcome, onDone]() {
             if (onDone) onDone(outcome);
@@ -71,47 +80,3 @@ inline std::shared_ptr<JobRunHandle> RunJobAsync(
     });
     return handle;
 }
-
-// 把后台线程产生的进程输出合并后一次性刷到终端控件（避免逐块 CallAfter 洪水）。
-class JobOutputPump : public std::enable_shared_from_this<JobOutputPump> {
-public:
-    explicit JobOutputPump(wxWeakRef<TerminalCtrl> terminal) : m_terminal(terminal) {}
-
-    void Push(const wxString& chunk, bool isError)
-    {
-        (void)isError;
-        if (chunk.IsEmpty()) return;
-        bool schedule = false;
-        {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            m_pending += chunk;
-            if (!m_scheduled) {
-                m_scheduled = true;
-                schedule = true;
-            }
-        }
-        if (!schedule || wxTheApp == nullptr) return;
-        const std::shared_ptr<JobOutputPump> self = shared_from_this();
-        wxTheApp->CallAfter([self]() { self->Flush(); });
-    }
-
-    void Flush()
-    {
-        wxString text;
-        {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            text = m_pending;
-            m_pending.clear();
-            m_scheduled = false;
-        }
-        TerminalCtrl* terminal = m_terminal.get();
-        if (terminal == nullptr) return;
-        if (!text.IsEmpty()) terminal->AppendProcessOutput(text);
-    }
-
-private:
-    wxWeakRef<TerminalCtrl> m_terminal;
-    std::mutex m_mutex;
-    wxString m_pending;
-    bool m_scheduled = false;
-};

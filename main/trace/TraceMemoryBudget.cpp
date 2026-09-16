@@ -60,7 +60,10 @@ void TraceMemoryBudget::Clear()
 std::vector<std::string> TraceMemoryBudget::EvictToLimit()
 {
     std::vector<std::string> evicted;
-    while (m_usedBytes > m_maxBytes && m_lru.size() > 1) {
+    // 原条件 m_lru.size() > 1 会在"单条缓存自身就超过上限"时停止淘汰：
+    // m_usedBytes 永远高于 m_maxBytes（一个宽范围查询可能有数百 MB），
+    // 所谓内存预算形同虚设。允许淘汰最后一条。
+    while (m_usedBytes > m_maxBytes && !m_lru.empty()) {
         const std::string victim = m_lru.back();
         m_lru.pop_back();
         const auto it = m_entries.find(victim);

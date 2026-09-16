@@ -1,10 +1,11 @@
-﻿// SigTree.h
+// SigTree.h
 #pragma once
 
 #include <cstdint>
 #include <string>
 #include <vector>
 #include <memory>
+#include <utility>
 #include <map>
 #include <unordered_map>
 #include <queue>
@@ -24,15 +25,20 @@ class MainFrame;
 class AlwaysStatement;
 
 // ====================  Arena  ====================
+// 以 placement new 在块内存上构造对象。因为对象不是 operator new 分配的，
+// 所以绝不能用 delete 释放（否则是 "free(): invalid pointer" / double free），
+// 同时又必须显式调用析构函数，否则对象持有的 std::string/std::vector 等会泄漏。
+// 这里统一记录"指针 + 析构 thunk"，由 reset() 逆序析构后再释放内存块。
 class Arena {
     std::vector<std::unique_ptr<char[]>> blocks;
+    std::vector<std::pair<void*, void (*)(void*)>> destructors;
     size_t blockSize = 1 << 20; // 1MB
     char* cur = nullptr;
     size_t remaining = 0;
 
 public:
     Arena() = default;
-    ~Arena() = default;
+    ~Arena() { reset(); }
 
     void* allocate(size_t n, size_t align = alignof(std::max_align_t)) {
         size_t space = remaining;
@@ -54,10 +60,18 @@ public:
     template <typename T, typename... Args>
     T* make(Args&&... args) {
         void* mem = allocate(sizeof(T), alignof(T));
-        return new (mem) T(std::forward<Args>(args)...);
+        T* object = new (mem) T(std::forward<Args>(args)...);
+        destructors.emplace_back(static_cast<void*>(object),
+                                 [](void* p) { static_cast<T*>(p)->~T(); });
+        return object;
     }
 
     void reset() {
+        // 逆序析构（与构造顺序相反），随后才释放内存块。
+        for (auto it = destructors.rbegin(); it != destructors.rend(); ++it) {
+            it->second(it->first);
+        }
+        destructors.clear();
         blocks.clear();
         cur = nullptr;
         remaining = 0;
@@ -105,7 +119,9 @@ enum class EdgeType { Posedge, Negedge };
 // ====================  Port  ====================
 struct Port {
     std::string identifier;
-    PortDirection direction;
+    // 必须有初始值：assign 解析出的端口会读 direction 来分类，
+    // 未初始化时会随机落到 in/out，导致 out_ports 为空并让 GetName() 越界。
+    PortDirection direction = PortDirection::InOut;
     std::string conn;
     SignalNode* signal = nullptr; 
 
@@ -322,7 +338,9 @@ public:
 class ModuleInstNode : public SecondNode {
 public:
     std::string defIdentifier;
-    TopNode* Definition;
+    // 必须初始化为 nullptr：CanvasPanel / SigFlowTreePanel 会在 LinkSingleInstWithDef
+    // 之前就读它做 "if (mn->Definition)" 判断，未初始化时是把随机内存当指针解引用。
+    TopNode* Definition = nullptr;
 
     ModuleInstNode() : SecondNode(SecondNodeType::ModuleInstance) {};
     ModuleInstNode(std::string id, std::string def) : SecondNode(id, SecondNodeType::ModuleInstance), defIdentifier(def) {};
@@ -543,9 +561,9 @@ public:
 // ====================  AlwaysStatement  ====================
 class AlwaysStatement : public Statement {
 public:
-    bool is_blocking;                     // true for blocking (=), false for non-blocking (<=)
+    bool is_blocking = false;             // true for blocking (=), false for non-blocking (<=)
     std::string nb_or_b_expression;        // RHS 表达式模板字符串
-    float delay;                           // 可选延迟值
+    float delay = 0.0f;                   // 可选延迟值
     std::string out_port_name;              // LHS 变量名（输出端口）
     std::vector<std::string> in_port_names; // RHS 中出现的所有输入信号名
 

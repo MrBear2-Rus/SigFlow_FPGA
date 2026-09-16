@@ -877,10 +877,16 @@ void SigTreeNode::Print() {
 }
 
 void SigTreeNode::ClearNode() {
-    for (auto child : children) {
+    // 节点全部由 Arena 以 placement new 构造（见 SigTree.h: Arena::make），
+    // 因此**绝对不能用 delete 释放**：
+    //   * 对 char[] 块的内部指针调用 operator delete → glibc "free(): invalid pointer" abort；
+    //   * 若该节点恰好位于块首，整块 1MB 会被提前释放，随后 arena.reset() 再释放一次
+    //     → double free / 堆破坏，且析构函数会在已释放内存上运行。
+    // 触发条件是"同一进程内打开第二个项目"（LoadProject 会先 ClearTree()）。
+    // 这里只负责断开父子链接；对象析构与内存回收统一交给 Arena::reset()（会逆序析构）。
+    for (auto* child : children) {
         if (child) {
             child->ClearNode();
-            delete child;
         }
     }
     children.clear();
@@ -1181,9 +1187,12 @@ void SignalNode::Print() {
 }
 
 void SigTreeNode::RemoveChildren() {
-    for (auto* cld : children) {
-        RemoveChild(cld);
-    }
+    // 不能边 range-for 边 RemoveChild(cld)：RemoveChild 内部 erase 会让迭代器失效，
+    // 之后继续 ++it 是 UB（可能丢子节点、重复、或崩溃）。
+    // RemoveChildren() 被每个 Clone() 调用，而 CloneSubtreeToArena 又在每次
+    // AddChild/AddSignal（即每次解析、每次画布/树编辑）中触发，属于高频路径。
+    // 这里的语义只是"丢弃这份拷贝的子列表"，直接 clear 即可。
+    children.clear();
 }
 
 void SigTreeNode::RemoveChild(SigTreeNode* child) {

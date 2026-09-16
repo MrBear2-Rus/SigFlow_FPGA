@@ -69,8 +69,11 @@ WaveformGLCanvas::WaveformGLCanvas(
 WaveformGLCanvas::~WaveformGLCanvas()
 {
     if (m_glContext) {
-        SetCurrent(*m_glContext);
-        m_renderer.Shutdown();
+        // 只有成功绑定上下文才谈得上释放 GL 资源；
+        // 否则 Shutdown() 会在"没有当前上下文"的情况下调用 GL（未定义行为）。
+        if (SetCurrent(*m_glContext)) {
+            m_renderer.Shutdown();
+        }
         delete m_glContext;
         m_glContext = nullptr;
     }
@@ -78,7 +81,18 @@ WaveformGLCanvas::~WaveformGLCanvas()
 
 bool WaveformGLCanvas::EnsureContext()
 {
-    if (m_glContext) return m_glReady;
+    if (m_glContext) {
+        // **每次绘制都必须重新 SetCurrent**。
+        // 旧实现在第一次创建上下文后就直接返回，之后的 glClear/draw/SwapBuffers
+        // 都作用在"UI 线程当前恰好绑定的那个上下文"上。Compare 模式下同时存在
+        // 两个 WaveformView（TraceBridgeWindow 会注册两个），于是 A 的重绘可能
+        // 画进 B 的上下文 —— 表现为某个面板空白/内容错乱。
+        if (!SetCurrent(*m_glContext)) {
+            NotifyFailure();
+            return false;
+        }
+        return m_glReady;
+    }
     try {
         m_glContext = new wxGLContext(this);
     } catch (...) {
@@ -88,7 +102,13 @@ bool WaveformGLCanvas::EnsureContext()
         NotifyFailure();
         return false;
     }
-    SetCurrent(*m_glContext);
+    // SetCurrent 返回 bool：失败（像素格式不合法、上下文丢失、远程会话等）时
+    // 若继续调用 Initialize()，就会在没有当前上下文的情况下执行 GL 调用（UB），
+    // 本来应该走的软件回退也就永远不会触发。
+    if (!SetCurrent(*m_glContext)) {
+        NotifyFailure();
+        return false;
+    }
     m_glReady = m_renderer.Initialize();
     if (!m_glReady) NotifyFailure();
     return m_glReady;

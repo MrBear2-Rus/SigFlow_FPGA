@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include <wx/wx.h>
 #include <wx/dcgraph.h>  
@@ -126,7 +126,9 @@ public:
     wxRect m_bound;
     std::vector<Shape> m_shapes;
 
-    TopNode* self;
+    // 必须初始化为 nullptr：GetIdentifier() 会做 "self == nullptr ? ... : self->identifier"，
+    // 未初始化时连这个判空都是 UB，非空的随机值会直接解引用崩溃。
+    TopNode* self = nullptr;
 
     std::vector<Pin> m_inPins;
     std::vector<Pin> m_outPins;
@@ -164,7 +166,8 @@ public:
     wxRect m_bound;
     std::vector<Shape> m_shapes;
 
-    SecondNode* self;
+    // 同 TopModuleBox::self，必须初始化为 nullptr。
+    SecondNode* self = nullptr;
 
     std::vector<Pin> m_inPins;
     std::vector<Pin> m_outPins;

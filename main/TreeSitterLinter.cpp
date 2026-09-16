@@ -1,4 +1,4 @@
-﻿#include "TreeSitterLinter.h"
+#include "TreeSitterLinter.h"
 #include <wx/file.h>
 #include <unordered_set>
 
@@ -28,13 +28,23 @@ std::vector<BlockInfo> TreeSitterLinter::Lint(wxString code) {
     //GetAllNodeTypeTS();
     std::vector<BlockInfo> res;
 
-    TSTree* new_tree = ts_parser_parse_string(parser, nullptr, code.c_str(), code.length());
-    //if (tree) ts_tree_delete(tree);
-    //tree = new_tree;
+    // tree-sitter 需要的是 **UTF-8 字节 + 字节长度**。
+    // 本工程的 wx 是 wxUSE_UNICODE_UTF8=0（wxString 内部为 wchar_t），因此：
+    //   * code.length() 返回"字符数"，不是字节数；
+    //   * code.c_str() 隐式转 const char* 时走"当前 locale"，并非 UTF-8。
+    // 二者组合的后果：UTF-8 locale 下含中文的源码只解析前 length() 个字节（尾部被截断）；
+    // 在 LANG=C 或 Windows ANSI 代码页无法表示该文本时，转换缓冲为空/更短，
+    // 而长度仍是字符数 → tree-sitter 越界读堆内存。
+    // 必须显式取 UTF-8 字节，并让 TraverseNode/GetNodeName 用同一份缓冲。
+    const wxScopedCharBuffer utf8 = code.ToUTF8();
+    if (!utf8.data() || utf8.length() == 0) return res;
+
+    TSTree* new_tree = ts_parser_parse_string(parser, nullptr, utf8.data(), utf8.length());
+    if (new_tree == nullptr) return res;
+
     TSNode root_node = ts_tree_root_node(new_tree);
     int id_count = 1;
-    DumpTree(root_node, code);
-    TraverseNode(root_node, code, res, id_count);
+    TraverseNode(root_node, utf8.data(), res, id_count);
 
     std::sort(res.begin(), res.end(), [](const BlockInfo& a, const BlockInfo& b) {
         return a.id < b.id; // 按 ID 从小到大排序
@@ -44,12 +54,14 @@ std::vector<BlockInfo> TreeSitterLinter::Lint(wxString code) {
 }
 
 bool TreeSitterLinter::TSTest(wxString code) {
+    // 同 Lint()：必须传 UTF-8 字节与字节长度。
+    const wxScopedCharBuffer utf8 = code.ToUTF8();
+    if (!utf8.data() || utf8.length() == 0) return true;   // 空文件视为无错误
 
-
-    TSTree* new_tree = ts_parser_parse_string(parser, nullptr, code.c_str(), code.length());
+    TSTree* new_tree = ts_parser_parse_string(parser, nullptr, utf8.data(), utf8.length());
+    if (new_tree == nullptr) return true;
 
     TSNode root_node = ts_tree_root_node(new_tree);
-    DumpTree(root_node, code);
     bool test = ts_node_has_error(root_node);
     ts_tree_delete(new_tree);
 
@@ -57,20 +69,33 @@ bool TreeSitterLinter::TSTest(wxString code) {
 }
 
     std::tuple<TSNode, bool> TreeSitterLinter::GetStructNode(wxString code) {
-        TSTree* new_tree = ts_parser_parse_string(parser, nullptr, code.c_str(), code.length());
-        
-        TSNode root_node = ts_tree_root_node(new_tree);
+        // 同 Lint()：必须传 UTF-8 字节与字节长度。
+        const wxScopedCharBuffer utf8 = code.ToUTF8();
+        if (!utf8.data() || utf8.length() == 0) return std::make_tuple(TSNode{}, true);
+
+        TSTree* new_tree = ts_parser_parse_string(parser, nullptr, utf8.data(), utf8.length());
+        if (new_tree == nullptr) return std::make_tuple(TSNode{}, true);
+
+        // 调用方拿到的是 TSNode，其有效性依赖背后的 TSTree 存活。
+        // 这里把树挂到成员 tree 上（析构函数会释放），既修掉了原先"每次调用泄漏一棵树"，
+        // 又保证返回的节点在下次解析前一直有效。
+        if (tree) ts_tree_delete(tree);
+        tree = new_tree;
+
+        TSNode root_node = ts_tree_root_node(tree);
         bool x = ts_node_has_error(root_node);
-        DumpTree(root_node, code);
         TSNode decl = ts_node_named_child(root_node, 0);
-        TSNode item = ts_node_named_child(decl, 1);
-        //DumpTree(item, code);
+        // 此前未做判空：空文件/异常语法下 decl 为 null，其子节点读取是未定义行为。
+        TSNode item = ts_node_is_null(decl) ? TSNode{} : ts_node_named_child(decl, 1);
+        (void)item;
         return std::make_tuple(root_node, x);
     }
 
 
 std::vector<BlockInfo> TreeSitterLinter::LintFromPath(wxString filePath) {
-    wxString code = LoadCodeFromPath(filePath);
+    // LoadCodeFromPath 返回的是原始文件字节（UTF-8），必须用 FromUTF8 解码；
+    // 直接 std::string → wxString 会走 locale，在 Windows(ANSI) 下破坏内容。
+    wxString code = wxString::FromUTF8(LoadCodeFromPath(filePath));
     std::vector<BlockInfo> res = Lint(code);
     return res;
 }

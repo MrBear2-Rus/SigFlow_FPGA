@@ -64,7 +64,7 @@ bool SimulationEngine::CreateDirectoryRecursive(const wxString& path)
         return true;
     }
     catch (const std::exception& e) {
-        wxLogError("创建目录失败: %s - %s", path, e.what());
+        wxLogError(wxT("创建目录失败: %s - %s"), path, e.what());
         return false;
     }
 }
@@ -383,8 +383,8 @@ SimulationCompileResult SimulationEngine::Compile(const wxString& topModule,
     SIGFLOW_LOG("Cleaning old obj_dir...\n");
     {
         std::error_code ec;
-        std::filesystem::remove_all(objDir.ToStdString(), ec);
-        std::filesystem::create_directories(objDir.ToStdString(), ec);
+        std::filesystem::remove_all(sigflow::platform::Utf8String(objDir), ec);
+        std::filesystem::create_directories(sigflow::platform::Utf8String(objDir), ec);
     }
     SIGFLOW_LOG("obj_dir cleaned\n");
 
@@ -417,7 +417,7 @@ SimulationCompileResult SimulationEngine::Compile(const wxString& topModule,
     result.dllPath = JoinPath(cacheDir, topModule + sigflow::platform::SharedLibrarySuffix());
     m_lastResult = result;
 
-    ReportProgress(100, "编译完成!");
+    ReportProgress(100, wxT("编译完成!"));
     return result;
 }
 
@@ -426,7 +426,7 @@ bool SimulationEngine::RunVerilator(const wxString& topModule,
                                     wxString& errorMsg)
 {
     SIGFLOW_LOG("RunVerilator entered\n");
-    ReportProgress(20, "正在生成C++代码(Verilator)...");
+    ReportProgress(20, wxT("正在生成C++代码(Verilator)..."));
 
     wxString objDir = GetObjDirPath(topModule);
     wxString cacheDir = GetCacheDirectory(topModule);
@@ -494,7 +494,7 @@ bool SimulationEngine::RunVerilator(const wxString& topModule,
     }
 
     SIGFLOW_LOG("Command succeeded\n");
-    ReportProgress(50, "C++代码生成完成");
+    ReportProgress(50, wxT("C++代码生成完成"));
     return true;
 }
 
@@ -532,7 +532,7 @@ void SimulationEngine::CreateScTimeStub(const wxString& path)
 bool SimulationEngine::CompileToDll(const wxString& topModule, wxString& errorMsg)
 {
     SIGFLOW_LOG("=== CompileToDll entered ===\n");
-    ReportProgress(60, "正在编译DLL...");
+    ReportProgress(60, wxT("正在编译DLL..."));
 
     wxString cacheDir = GetCacheDirectory(topModule);
     wxString objDir = GetObjDirPath(topModule);

@@ -1,4 +1,5 @@
 #include "FpgaToolWindow.h"
+#include "../platform/PlatformPaths.h"
 
 #include <utility>
 
@@ -425,7 +426,7 @@ void FpgaToolWindow::UpdateNextpnrInfo()
     wxString jsonText = wxT("未找到网表，请先运行 Synthesis");
     wxColour jsonColour = FpgaTheme::kRed;
     if (!m_projectPath.IsEmpty()) {
-        const wxString yosysDirectory = m_projectPath + "\\yosys";
+        const wxString yosysDirectory = sigflow::platform::JoinPath(m_projectPath, "yosys");
         int count = 0;
         if (wxDirExists(yosysDirectory)) {
             wxDir directory(yosysDirectory);

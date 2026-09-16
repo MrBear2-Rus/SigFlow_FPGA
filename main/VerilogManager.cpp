@@ -1,4 +1,5 @@
 #include "VerilogManager.h"
+#include "platform/PlatformPaths.h"
 #include "SigTree.h"
 #include "SigTextEditor.h"
 #include "VerilogStructuring.h"
@@ -100,7 +101,7 @@ void VerilogManager::OnTimer(wxTimerEvent&) {
 
         wxString delta = GetBlockText(b);
 
-        std::string x = "module _tmp;\n" + delta.ToStdString() + "\nendmodule\n";
+        std::string x = "module _tmp;\n" + sigflow::platform::Utf8String(delta) + "\nendmodule\n";
         TSTree* fragmentTree = ts_parser_parse_string(m_ts_parser, nullptr, x.c_str(), x.length());
         if (fragmentTree) {
             TSNode fragmentRoot = ts_tree_root_node(fragmentTree);
@@ -109,8 +110,8 @@ void VerilogManager::OnTimer(wxTimerEvent&) {
                 continue;
             }
             // 1. 获取基础数据
-            std::string fp = m_stc->m_currentFilePath.ToStdString();
-            std::string fullCode = m_stc->GetText().ToStdString();
+            std::string fp = sigflow::platform::Utf8String(m_stc->m_currentFilePath);
+            std::string fullCode = sigflow::platform::Utf8String(m_stc->GetText());
 
             if (m_ts_tree) ts_tree_delete(m_ts_tree);
             m_ts_tree = ts_parser_parse_string(m_ts_parser, nullptr, fullCode.c_str(), fullCode.length());
@@ -160,7 +161,7 @@ bool VerilogManager::SetFileNode(FileNode* n, std::unordered_map<SigTreeNode*, s
 
     this->fn = n;
 
-    std::string text = m_stc->GetText().ToStdString();
+    std::string text = sigflow::platform::Utf8String(m_stc->GetText());
     if (m_ts_tree) ts_tree_delete(m_ts_tree);
     m_ts_tree = ts_parser_parse_string(m_ts_parser, nullptr, text.c_str(), text.length());
     if (!m_ts_tree) {
@@ -254,7 +255,7 @@ Block* VerilogManager::AddBreakBlock(int startline, int endline) {
     int blockStartLine = GetSTCLine(b->startHandle);
     int pos = blockStartLine >= 0 ? m_stc->PositionFromLine(blockStartLine) : 0;
     wxString text = GetBlockText(*b);
-    structure.OnInsert(pos, text.ToStdString());
+    structure.OnInsert(pos, sigflow::platform::Utf8String(text));
     b->structure = &structure;
     return b;
 }
@@ -331,7 +332,11 @@ Block* VerilogManager::FindBlock(int start, int end) {
     wxString text = event.GetText();
 
     int start = m_stc->LineFromPosition(pos);
-    int end = m_stc->LineFromPosition(pos + static_cast<int>(text.size()));
+    // event.GetPosition() 是 Scintilla 的 **UTF-8 字节**偏移，而 wxString::size() 是
+    // **字符数**。含中文时字符数 < 字节数，end 行会被算小，块范围随之错位。
+    // 这里统一改用 UTF-8 字节长度（删除时 text 为空 → 0，与原行为一致）。
+    const wxScopedCharBuffer insertedUtf8 = text.ToUTF8();
+    int end = m_stc->LineFromPosition(pos + static_cast<int>(insertedUtf8.length()));
     Block* b = FindBlock(start, end);
     bool initializedFromCurrentText = false;
     if (!b) {
@@ -357,7 +362,7 @@ Block* VerilogManager::FindBlock(int start, int end) {
             wxString t = GetBlockText(*it);
             structures.emplace_back();
             Structuring& structure = structures.back();
-            structure.OnInsert(startPos, t.ToStdString());
+            structure.OnInsert(startPos, sigflow::platform::Utf8String(t));
             it->structure = &structure;
             break_blocks.splice(break_blocks.end(), blocks, it);
             initializedFromCurrentText = true;
@@ -375,7 +380,7 @@ Block* VerilogManager::FindBlock(int start, int end) {
     if (!initializedFromCurrentText) {
         if (type & wxSTC_MOD_INSERTTEXT)
         {
-            sp->OnInsert(pos, text.ToStdString());
+            sp->OnInsert(pos, sigflow::platform::Utf8String(text));
         }
 
         if (type & wxSTC_MOD_DELETETEXT)
@@ -519,7 +524,7 @@ void VerilogManager::SigFlowNodeDeleted(SigTreeNode* node) {
 
 std::vector<Stability> VerilogManager::GetLineStatus() {
     std::vector<Stability> sta = std::vector<Stability>(m_stc->GetLineCount(), Stability::Stable);
-    if (StructureTest(m_stc->GetText().ToStdString())) {
+    if (StructureTest(sigflow::platform::Utf8String(m_stc->GetText()))) {
         return sta;
     }
 

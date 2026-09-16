@@ -1,5 +1,6 @@
 ﻿#include "SFNPropertyPanel.h"
 #include "PropertyPanelBuilder.h"
+#include "platform/PlatformPaths.h"
 #include <wx/statline.h>
 
 wxDEFINE_EVENT(EVT_SFTREE_CHANGED, wxCommandEvent);
@@ -93,7 +94,7 @@ void SFNPropertyPanel::LoadNode(SigTreeNode* node) {
             auto syncId = [this, tn](wxEvent& event) {
                 wxTextCtrl* ctrl = wxDynamicCast(event.GetEventObject(), wxTextCtrl);
                 if (!ctrl) { event.Skip(); return; }
-                m_tree->ReIdentifier(tn, ctrl->GetValue().ToStdString());
+                m_tree->ReIdentifier(tn, sigflow::platform::Utf8String(ctrl->GetValue()));
                 if (event.GetEventType() == wxEVT_TEXT_ENTER)
                     this->GetParent()->SetFocus();
                 event.Skip();
@@ -119,7 +120,7 @@ void SFNPropertyPanel::LoadNode(SigTreeNode* node) {
             auto syncId = [this, sn](wxEvent& event) {
                 wxTextCtrl* ctrl = wxDynamicCast(event.GetEventObject(), wxTextCtrl);
                 if (!ctrl) { event.Skip(); return; }
-                m_tree->ReIdentifier(sn, ctrl->GetValue().ToStdString());
+                m_tree->ReIdentifier(sn, sigflow::platform::Utf8String(ctrl->GetValue()));
                 if (event.GetEventType() == wxEVT_TEXT_ENTER)
                     this->GetParent()->SetFocus();
                 event.Skip();
@@ -144,7 +145,7 @@ void SFNPropertyPanel::LoadNode(SigTreeNode* node) {
                 auto syncId = [this, sn](wxEvent& event) {
                     wxTextCtrl* ctrl = wxDynamicCast(event.GetEventObject(), wxTextCtrl);
                     if (!ctrl) { event.Skip(); return; }
-                    m_tree->ReIdentifier(sn, ctrl->GetValue().ToStdString());
+                    m_tree->ReIdentifier(sn, sigflow::platform::Utf8String(ctrl->GetValue()));
                     if (event.GetEventType() == wxEVT_TEXT_ENTER)
                         this->GetParent()->SetFocus();
                     event.Skip();
@@ -174,7 +175,7 @@ void SFNPropertyPanel::LoadNode(SigTreeNode* node) {
                 auto syncId = [this, sn](wxEvent& event) {
                     wxTextCtrl* ctrl = wxDynamicCast(event.GetEventObject(), wxTextCtrl);
                     if (!ctrl) { event.Skip(); return; }
-                    m_tree->ReIdentifier(sn, ctrl->GetValue().ToStdString());
+                    m_tree->ReIdentifier(sn, sigflow::platform::Utf8String(ctrl->GetValue()));
                     if (event.GetEventType() == wxEVT_TEXT_ENTER)
                         this->GetParent()->SetFocus();
                     event.Skip();
@@ -203,7 +204,7 @@ void SFNPropertyPanel::LoadNode(SigTreeNode* node) {
                     wxTextCtrl* ctrl = wxDynamicCast(event.GetEventObject(), wxTextCtrl);
                     if (!ctrl || !ctrl->GetClientData()) { event.Skip(); return; }
                     auto* dataPtr = static_cast<std::string*>(ctrl->GetClientData());
-                    *dataPtr = ctrl->GetValue().ToStdString();
+                    *dataPtr = sigflow::platform::Utf8String(ctrl->GetValue());
                     CallAfter([this]() { wxPostEvent(this, wxCommandEvent()); });
                     if (event.GetEventType() == wxEVT_TEXT_ENTER)
                         this->GetParent()->SetFocus();
@@ -304,7 +305,7 @@ wxSizer* SFNPropertyPanel::CreateSecondPortRowSizer(SecondNode* sn, const wxStri
         connChoice->Bind(wxEVT_CHOICE, [this, sn, portName](wxCommandEvent& event) {
             wxChoice* choice = wxDynamicCast(event.GetEventObject(), wxChoice);
             if (choice) {
-                std::string newVal = choice->GetStringSelection().ToStdString();
+                std::string newVal = sigflow::platform::Utf8String(choice->GetStringSelection());
 
                 // 调用后端逻辑更新连接
                 m_tree->PortConn(sn, portName, newVal);
@@ -447,7 +448,7 @@ void SFNPropertyPanel::Add_BN_OR_B_Expression(wxSizer* groupSizer, AlwaysNode* a
             wxTextCtrl* ctrl = wxDynamicCast(event.GetEventObject(), wxTextCtrl);
             if (ctrl && ctrl->GetClientData()) {
                 auto* dataPtr = static_cast<std::string*>(ctrl->GetClientData());
-                *dataPtr = ctrl->GetValue().ToStdString();
+                *dataPtr = sigflow::platform::Utf8String(ctrl->GetValue());
                 CallAfter([this]() { wxPostEvent(this, wxCommandEvent()); });
             }
             event.Skip();
@@ -520,7 +521,7 @@ void SFNPropertyPanel::Add_BN_OR_B_Port(wxSizer* groupSizer, AlwaysNode* an, Por
         connCtrl->Bind(wxEVT_CHOICE, [this, an, portName](wxCommandEvent& event) {
             wxChoice* choice = wxDynamicCast(event.GetEventObject(), wxChoice);
             if (choice) {
-                std::string newVal = choice->GetStringSelection().ToStdString();
+                std::string newVal = sigflow::platform::Utf8String(choice->GetStringSelection());
 
                 // 调用后端逻辑更新连接
                 m_tree->PortConn(an, portName, newVal);
@@ -538,7 +539,7 @@ void SFNPropertyPanel::Add_BN_OR_B_Port(wxSizer* groupSizer, AlwaysNode* an, Por
         wxString portName = p.identifier;
         deletePortBtn->Bind(wxEVT_BUTTON, [this, an, portName](wxCommandEvent&) {
             // 调用按名称删除端口的方法
-            an->DeletePort(portName.ToStdString());
+            an->DeletePort(sigflow::platform::Utf8String(portName));
             LoadNode(m_node);
             });
     }

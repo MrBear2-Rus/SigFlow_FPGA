@@ -1,4 +1,4 @@
-﻿#include <wx/graphics.h> 
+#include <wx/graphics.h> 
 #include "platform/PlatformPaths.h"
 #include <wx/dcbuffer.h>
 #include <wx/dcgraph.h>  
@@ -7,6 +7,7 @@
 #include <wx/stdpaths.h>
 #include <fstream>
 #include <filesystem>
+#include <algorithm>
 #include <unordered_set>
 
 
@@ -19,6 +20,23 @@
 #include "HandyToolKit.h"
 #include "CanvasEventHandler.h"
 #include "CanvasNoteBook.h"
+
+namespace {
+
+// wxString → UTF-8 std::string。
+//
+// 绝不能用 wxString::ToStdString()：它走的是当前 locale（Windows 上是 ANSI/CP936），
+// 于是中文元件名/画布名会变成非法 UTF-8 字节：
+//   * 交给 nlohmann 的 dump() 会抛 type_error.316，而 Save() 没有 try/catch，
+//     异常逃出 UI 事件处理就是 std::terminate（整个进程被终止）；
+//   * 在 Linux 的非 UTF-8 locale 下还会静默变成空串（数据丢失）。
+std::string ToUtf8(const wxString& text)
+{
+    const wxScopedCharBuffer buffer = text.ToUTF8();
+    return std::string(buffer.data() != nullptr ? buffer.data() : "", buffer.length());
+}
+
+} // namespace
 
 wxBEGIN_EVENT_TABLE(CanvasPanel, wxPanel)
 EVT_PAINT(CanvasPanel::OnPaint)
@@ -454,15 +472,15 @@ bool CanvasPanel::Save() {
 
     // 2. 构建 JSON 数据结构
     json root;
-    root["canvas_name"] = GetNote().ToStdString();
+    root["canvas_name"] = ToUtf8(GetNote());
     root["elements"] = json::array(); // 初始化元素数组
     
 
     // 3. 遍历 m_elems 并填充数据
     for (const auto& elem : m_elems) {
         json element;
-        element["type"] = elem.type.ToStdString();
-        element["id"] = elem.GetIdentifier().ToStdString();
+        element["type"] = ToUtf8(elem.type);
+        element["id"] = ToUtf8(elem.GetIdentifier());
         // 假设 GetPos() 返回 wxPoint
         wxPoint pos = elem.GetPos();
 
@@ -486,7 +504,16 @@ bool CanvasPanel::Save() {
 
     // 4. 将 JSON 写入文件
     // 先写临时文件再原子替换，避免中途失败留下截断的画布 JSON。
-    const std::string serialized = root.dump(4);
+    // dump() 在字符串不是合法 UTF-8 时会抛 type_error.316；Save() 可能在 UI 事件里被调用，
+    // 异常一旦逃出去就是 std::terminate，所以必须在这里兜住并上报失败。
+    std::string serialized;
+    try {
+        serialized = root.dump(4);
+    }
+    catch (const std::exception& error) {
+        MyLog("CanvasPanel::Save: JSON serialization failed: %s\n", error.what());
+        return false;
+    }
     const wxString temporaryPath = filepath.GetFullPath() + ".tmp";
     wxFile file(temporaryPath, wxFile::write);
     if (!file.IsOpened() ||
@@ -509,6 +536,11 @@ bool CanvasPanel::Save() {
 
 
 bool CanvasPanel::Read() {
+    // 与 Save() 保持一致的三层判空：换项目/关闭标签页期间 tn 可能已经为空，
+    // 旧实现直接 tn->GetParent()->GetParent() 会空指针崩溃。
+    if (!tn || !tn->GetParent() || !tn->GetParent()->GetParent()) {
+        return false;
+    }
     auto* n = tn->GetParent()->GetParent();
     ProjectNode* pn = static_cast<ProjectNode*>(n);
     wxString cwd = pn->projectPath;
@@ -539,7 +571,7 @@ bool CanvasPanel::Read() {
         // 这样查找时间复杂度是 O(N)，而不是 O(N^2)
         std::unordered_map<std::string, SecondElement*> idMap;
         for (auto& elem : m_elems) {
-            idMap[elem.GetIdentifier().ToStdString()] = &elem;
+            idMap[ToUtf8(elem.GetIdentifier())] = &elem;
         }
 
         // 2. 遍历 JSON 数据进行匹配更新
@@ -799,25 +831,52 @@ void CanvasPanel::OnScroll(wxScrollEvent& event) {
 }
 
 void CanvasPanel::LayoutScrollbars(){
-    wxSize clientSize = GetClientSize();
-    int scrollbarSize = wxSystemSettings::GetMetric(wxSYS_VSCROLL_X);
-    int width = 24;
+    const wxSize clientSize = GetClientSize();
+    // 用系统度量取滚动条宽度（HiDPI 下写死 24 会偏窄）；取不到再退回 24。
+    // 旧实现把度量算进 scrollbarSize 却没用，仍然用常量 24。
+    int width = wxSystemSettings::GetMetric(wxSYS_VSCROLL_X);
+    if (width <= 0) width = 24;
+
+    const float scale = (m_scale > 0.0f) ? m_scale : 1.0f;
+    // SetThumbSize 传负数在 GTK 上会触发断言，至少钳到 1。
+    const int hThumb = std::max(1, static_cast<int>((clientSize.x - width - 1) / scale));
+    const int vThumb = std::max(1, static_cast<int>((clientSize.y - width - 1) / scale));
+
+    bool changed = false;
+    const auto apply = [&changed](wxScrollBar* bar, const wxSize& size,
+                                  const wxPoint& pos, int thumb, int range, int value) {
+        if (bar->GetSize() != size || bar->GetPosition() != pos ||
+            bar->GetThumbSize() != thumb || bar->GetRange() != range ||
+            bar->GetThumbPosition() != value) {
+            bar->SetSize(size);
+            bar->SetPosition(pos);
+            bar->SetThumbSize(thumb);
+            bar->SetRange(range);
+            bar->SetThumbPosition(value);
+            changed = true;
+        }
+    };
 
     // 水平滚动条：底部，宽度要减去垂直滚动条的宽度
-    m_hScroll->SetSize(clientSize.x - width, width);
-    m_hScroll->SetPosition(wxPoint(0, clientSize.y - width));
-    m_hScroll->SetThumbSize((clientSize.x - width - 1) / m_scale);
-    m_hScroll->SetRange(m_size.x);
-    m_hScroll->SetThumbPosition(-m_offset.x / m_scale);
+    apply(m_hScroll, wxSize(clientSize.x - width, width),
+          wxPoint(0, clientSize.y - width), hThumb, m_size.x,
+          static_cast<int>(-m_offset.x / scale));
 
-    // 垂直滚动条：右侧，高度要减去水平滚动条的高度   
-    m_vScroll->SetSize(width, clientSize.y);
-    m_vScroll->SetPosition(wxPoint(clientSize.x - width, 0));
-    m_vScroll->SetThumbSize((clientSize.y - width - 1) / m_scale);
-    m_vScroll->SetRange(m_size.y);
-    m_vScroll->SetThumbPosition(-m_offset.y / m_scale);
+    // 垂直滚动条：右侧，高度要减去水平滚动条的高度
+    apply(m_vScroll, wxSize(width, clientSize.y),
+          wxPoint(clientSize.x - width, 0), vThumb, m_size.y,
+          static_cast<int>(-m_offset.y / scale));
 
-    Refresh();
+    // 只在几何真的变化时重绘。
+    //
+    // 旧实现无条件 Refresh()，而 OnPaint() 第一件事就是调用 LayoutScrollbars()，
+    // 于是"每次绘制都把窗口重新置脏" → 自激重绘循环，长期占满一个核
+    // （与 ProjectTreePanel 的文件监视自激是同一类问题）。
+    // 现在 OnPaint 里几何已是最新 → changed 为 false → 不再自激；
+    // 而缩放/尺寸变化时会 changed=true → 触发一次重绘，行为不变。
+    if (changed) {
+        Refresh(false);
+    }
 }
 
 void CanvasPanel::SetoffSet(wxPoint offset) {
@@ -1558,7 +1617,7 @@ void CanvasPanel::AddGateNode(GateType type, wxPoint pos) {
 
 void CanvasPanel::AddModuleInstNode(wxString def, wxPoint pos) {
     extern std::vector<SecondElement> g_elements;
-    ModuleInstNode mn("new_"+ def.ToStdString(), def.ToStdString());
+    ModuleInstNode mn("new_" + ToUtf8(def), ToUtf8(def));
     sftree->AddChild(tn, &mn);
     Refresh();
 }
@@ -1577,13 +1636,13 @@ void CanvasPanel::AddSecondElement(SecondNode* sn) {
 }
 
 void CanvasPanel::AddSecondNode(wxString type, wxPoint pos) {
-    GateType gt = SigFlowTree::GateTypeFromString(type.ToStdString());
+    GateType gt = SigFlowTree::GateTypeFromString(ToUtf8(type));
     if (gt != GateType::Unknown) AddGateNode(gt, pos);
     else AddModuleInstNode(type, pos);
 }
 
 void CanvasPanel::SetPreview(wxString type) {
-    GateType gt = SigFlowTree::GateTypeFromString(type.ToStdString());
+    GateType gt = SigFlowTree::GateTypeFromString(ToUtf8(type));
     if (gt != GateType::Unknown) {
         extern std::vector<SecondElement> g_elements;
 

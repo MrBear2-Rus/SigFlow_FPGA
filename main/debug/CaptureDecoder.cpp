@@ -81,9 +81,13 @@ bool DecodeCaptureToVcd(const std::vector<std::uint32_t>& samples,
         const std::uint32_t sample = samples[t];
         out << "#" << t << "\n";
         for (std::size_t i = 0; i < probes.size(); ++i) {
+            // width == 32 时 (1u << 32) 是未定义行为；在本机 GCC 上实际得到 0，
+            // 于是 32 位探针被解码成恒 0（静默错误数据）。必须单独处理。
+            const std::uint32_t widthMask = probes[i].width >= 32
+                ? 0xFFFFFFFFu
+                : ((std::uint32_t(1) << probes[i].width) - 1);
             const std::uint32_t masked =
-                (sample >> probes[i].bitOffset) &
-                ((std::uint32_t(1) << probes[i].width) - 1);
+                (sample >> probes[i].bitOffset) & widthMask;
             const std::string value = BitsOf(masked, probes[i].width);
             if (t == 0 || value != prev[i]) {
                 out << "b" << value << " " << IdCode(static_cast<int>(i)) << "\n";

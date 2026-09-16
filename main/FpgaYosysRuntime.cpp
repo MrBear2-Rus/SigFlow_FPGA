@@ -28,10 +28,30 @@ wxString JoinPath(const wxString& directory, const wxString& relativePath)
 wxString GetShareDirectory(const wxString& executablePath)
 {
     wxFileName executable(executablePath);
-    wxFileName shareDirectory = wxFileName::DirName(sigflow::platform::JoinPath(
-        sigflow::platform::JoinPath(executable.GetPath(), ".."), "share"));
-    shareDirectory.Normalize(wxPATH_NORM_DOTS | wxPATH_NORM_ABSOLUTE);
-    return shareDirectory.GetPath();
+    // 两种常见布局：
+    //   Windows 打包版：<prefix>/share          —— 数据直接位于 share 下
+    //   Linux 发行版：  <prefix>/share/yosys    —— 数据位于 share/yosys 子目录
+    // 必须用真实存在的文件来判定，否则会像此前一样解析到 /usr/share，
+    // 让 15 项 share:* 检查全部失败（required=true → 预检失败 → 综合无法启动）。
+    const wxString prefix = executable.GetPath();
+    const wxString shareRoot = sigflow::platform::JoinPath(prefix, "..");
+    const wxString candidates[] = {
+        sigflow::platform::JoinPath(sigflow::platform::JoinPath(shareRoot, "share"), "yosys"),
+        sigflow::platform::JoinPath(shareRoot, "share"),
+    };
+
+    const auto normalize = [](const wxString& path) {
+        wxFileName fileName(wxFileName::DirName(path));
+        fileName.Normalize(wxPATH_NORM_DOTS | wxPATH_NORM_ABSOLUTE);
+        return fileName.GetPath();
+    };
+
+    for (const wxString& candidate : candidates) {
+        if (wxFileExists(sigflow::platform::JoinPath(candidate, "techmap.v"))) {
+            return normalize(candidate);
+        }
+    }
+    return normalize(candidates[1]);
 }
 
 wxString Sha256File(const wxString& filePath)
@@ -130,7 +150,11 @@ FpgaYosysRuntimeReport ValidateYosysRuntime(const wxString& executablePath)
 
     AddFileCheck(report, "yosys-executable", executablePath);
     const wxString executableDirectory = wxFileName(executablePath).GetPath();
-    AddFileCheck(report, "yosys-abc", JoinPath(executableDirectory, "yosys-abc.exe"));
+    // 不能硬编码 ".exe"：Linux 上 yosys-abc 没有扩展名，
+    // 判成缺失会让预检整体失败（required=true），综合永远启动不了。
+    AddFileCheck(report, "yosys-abc",
+                 JoinPath(executableDirectory,
+                          sigflow::platform::WithExecutableSuffix("yosys-abc")));
 
     const std::vector<wxString> shareFiles = {
         "gowin/cells_sim.v",

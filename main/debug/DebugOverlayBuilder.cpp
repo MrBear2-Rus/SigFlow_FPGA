@@ -1,4 +1,5 @@
 #include "DebugOverlayBuilder.h"
+#include "../platform/PlatformPaths.h"
 
 #include "DebugFingerprint.h"
 #include "DebugThresholds.h"
@@ -359,7 +360,7 @@ std::string DebugOverlayBuilder::BuildYosysScript(
     out << "read_verilog -sv " << debugRtlDir << "/sf_micro_ila.sv\n";
     out << "read_verilog -sv " << debugRtlDir << "/sf_uart_link.sv\n";
     if (stubLink) {
-        std::string stub = overlayDir + "\\sf_debug_link.sv";
+        std::string stub = sigflow::platform::JoinPath(overlayDir, "sf_debug_link.sv");
         for (char& c : stub)
             if (c == '\\') c = '/';
         out << "read_verilog -sv " << stub << "\n";
@@ -459,21 +460,21 @@ bool DebugOverlayBuilder::GenerateOverlay(
         return false;
     }
 
-    const std::string overlayDir = sessionDir + "\\overlay";
+    const std::string overlayDir = sigflow::platform::JoinPath(sessionDir, "overlay");
     std::error_code ec;
     std::filesystem::create_directories(overlayDir, ec);
     std::filesystem::create_directories(artifactsDir, ec);
 
-    result.wrapperPath = overlayDir + "\\sf_debug_top.sv";
-    result.cstPath = overlayDir + "\\debug.cst";
-    result.yosysScriptPath = sessionDir + "\\scripts\\run_yosys.ys";
-    result.nextpnrArgsPath = sessionDir + "\\scripts\\nextpnr_args.txt";
-    result.gowinPackArgsPath = sessionDir + "\\scripts\\gowin_pack_args.txt";
-    result.netlistJsonPath = artifactsDir + "\\sf_debug_top.json";
-    result.netlistCheckJsonPath = artifactsDir + "\\sf_debug_top.pre.json";
-    result.fsPath = artifactsDir + "\\sf_debug_top.fs";
+    result.wrapperPath = sigflow::platform::JoinPath(overlayDir, "sf_debug_top.sv");
+    result.cstPath = sigflow::platform::JoinPath(overlayDir, "debug.cst");
+    result.yosysScriptPath = sigflow::platform::JoinPath(sigflow::platform::JoinPath(sessionDir, "scripts"), "run_yosys.ys");
+    result.nextpnrArgsPath = sigflow::platform::JoinPath(sigflow::platform::JoinPath(sessionDir, "scripts"), "nextpnr_args.txt");
+    result.gowinPackArgsPath = sigflow::platform::JoinPath(sigflow::platform::JoinPath(sessionDir, "scripts"), "gowin_pack_args.txt");
+    result.netlistJsonPath = sigflow::platform::JoinPath(artifactsDir, "sf_debug_top.json");
+    result.netlistCheckJsonPath = sigflow::platform::JoinPath(artifactsDir, "sf_debug_top.pre.json");
+    result.fsPath = sigflow::platform::JoinPath(artifactsDir, "sf_debug_top.fs");
 
-    std::filesystem::create_directories(sessionDir + "\\scripts", ec);
+    std::filesystem::create_directories(sigflow::platform::JoinPath(sessionDir, "scripts"), ec);
 
     const std::string mergedCst =
         BuildMergedCst(contract, projectPath, configuredCstPath, userTopPorts, error);
@@ -488,7 +489,7 @@ bool DebugOverlayBuilder::GenerateOverlay(
         return false;
     }
     if (stubLink) {
-        const std::string stubPath = overlayDir + "\\sf_debug_link.sv";
+        const std::string stubPath = sigflow::platform::JoinPath(overlayDir, "sf_debug_link.sv");
         if (!WriteFile(stubPath, BuildLinkStub(contract), error)) return false;
         result.generatedFiles.push_back(stubPath);
     }

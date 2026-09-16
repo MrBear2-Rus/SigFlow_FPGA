@@ -1,4 +1,4 @@
-﻿//﻿#include "ToolboxPanel.h"
+//﻿#include "ToolboxPanel.h"
 #include "ToolboxPanel.h"
 #include "ToolboxModel.h"
 #include <wx/artprov.h>
@@ -238,8 +238,12 @@ ToolboxPanel::ToolboxPanel(wxWindow* parent)
 
 void ToolboxPanel::LoadToolIcon(const wxString& toolName, const wxString& svgFileName)
 {
-    wxString fullPath = SVG_FOLDER + svgFileName;
-
+    // 用 ResourcePath 定位（相对 **可执行文件目录**），不要用相对 CWD 的裸路径。
+    // 旧实现是 wxString fullPath = SVG_FOLDER + svgFileName（"res/svg/..."）：
+    // 从桌面项/快捷方式/其它工作目录启动时，wxFileExists 直接为 false，
+    // 结果是**所有工具箱图标静默消失**。ResourcePath 还会把 '\' 规范化为 '/'。
+    const wxString fullPath =
+        sigflow::platform::ResourcePath(SVG_FOLDER + svgFileName);
 
     if (!wxFileExists(fullPath)) {
         return;
@@ -264,6 +268,9 @@ void ToolboxPanel::LoadToolIcon(const wxString& toolName, const wxString& svgFil
     }
 
     wxImage img = largeBmp.ConvertToImage();
+    if (!img.IsOk() || img.GetWidth() <= 0 || img.GetHeight() <= 0) {
+        return;
+    }
 
     // 计算等比例缩放
     int w = img.GetWidth();
@@ -276,25 +283,37 @@ void ToolboxPanel::LoadToolIcon(const wxString& toolName, const wxString& svgFil
 
     int newW = (int)(w * scale);
     int newH = (int)(h * scale);
+    if (newW < 1) newW = 1;
+    if (newH < 1) newH = 1;
 
     img = img.Scale(newW, newH, wxIMAGE_QUALITY_HIGH);
 
-    // 创建 24x24 透明背景
-    wxBitmap finalBmp(targetSize, targetSize, 32);
-    wxMemoryDC dc(finalBmp);
-    dc.SetBackground(*wxWHITE_BRUSH);
+    // 创建 24x24 的**透明**画布，再把缩放后的图标居中贴上去。
+    //
+    // 旧实现用 wxMemoryDC + *wxWHITE_BRUSH 清背景，把注释里声称的"透明背景"
+    // 实际画成了不透明白块 —— 在暗色主题下每个工具图标都是一个白色方块。
+    wxImage canvas(targetSize, targetSize);
+    canvas.InitAlpha();
+    unsigned char* alpha = canvas.GetAlpha();
+    const std::size_t pixelCount = static_cast<std::size_t>(targetSize) * targetSize;
+    for (std::size_t i = 0; i < pixelCount; ++i) {
+        alpha[i] = 0;   // 全透明
+    }
+    if (!img.HasAlpha()) {
+        img.InitAlpha();   // 源图没有 alpha 时按"完全不透明"参与混合
+    }
 
-    dc.Clear();
+    const int offsetX = (targetSize - newW) / 2;
+    const int offsetY = (targetSize - newH) / 2;
+    canvas.Paste(img, offsetX, offsetY, wxIMAGE_ALPHA_BLEND_OVER);
 
-    int offsetX = (targetSize - newW) / 2;
-    int offsetY = (targetSize - newH) / 2;
-
-    dc.DrawBitmap(wxBitmap(img), offsetX, offsetY, true);
-    dc.SelectObject(wxNullBitmap);
+    wxBitmap finalBmp(canvas);
+    if (!finalBmp.IsOk()) {
+        return;
+    }
 
     int iconIndex = m_imgList->Add(finalBmp);
     m_toolIconIndex[toolName] = iconIndex;
-    
 }
 
 

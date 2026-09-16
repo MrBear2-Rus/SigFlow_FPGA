@@ -171,6 +171,15 @@ bool DebugAcquisition::Acquire(const std::string& outDir, std::string& error,
     const bool minimal = contract_.transport.protocol == "minimal";
     DebugInfo info;
     if (minimal) {
+        // minimal 协议的 depth 字段只有 16 位，而契约允许到 10,000,000。
+        // 旧实现直接窄化：深度被静默截断（例如 100000 → 34464），
+        // 且后续 ReadCapture/SaveCaptureRaw/DecodeCaptureToVcd 全按截断值工作，
+        // 设备端校验也只在 full 分支做。这里显式拒绝而不是悄悄改数。
+        if (contract_.capture.depth > 0xFFFFu) {
+            error = "采样深度 " + std::to_string(contract_.capture.depth) +
+                    " 超出 minimal 协议上限 65535；请改用 full 协议或降低深度";
+            return false;
+        }
         info.depth = static_cast<std::uint16_t>(contract_.capture.depth);
         info.width = 32;
         info.fingerprint64 = contract_.fingerprints.fingerprint64;
@@ -451,7 +460,12 @@ bool DebugAcquisition::AcquireWithSession(const std::string& projectPath,
     std::string reason = ok ? std::string("acquired") : error;
     if (!ok && error == "Aborted") {
         target = DebugSessionState::Failed;
-    } else if (!ok && error.find("超时") != std::string::npos) {
+    } else if (!ok && (error.find("超时") != std::string::npos ||
+                       error.find("timeout") != std::string::npos ||
+                       error.find("Timeout") != std::string::npos ||
+                       error.find("timed out") != std::string::npos)) {
+        // 协议层报的是英文（"response timeout"），只匹配中文子串会让超时
+        // 被归类成 Failed，重试/诊断逻辑随之失效。
         target = DebugSessionState::TimedOut;
     }
     std::string transitionError;

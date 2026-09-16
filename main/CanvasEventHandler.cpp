@@ -1,4 +1,4 @@
-﻿#include <wx/msgdlg.h>
+#include <wx/msgdlg.h>
 
 #include "CanvasEventHandler.h"
 #include "platform/PlatformPaths.h"
@@ -357,12 +357,23 @@ void CanvasEventHandler::OnCanvasLeftUp(wxMouseEvent& evt) {
     }
     // 选中拖动
     else if (m_toolStateMachine->GetSelectState() == SelectToolState::DRAG_SELECT) {
+        // RAII 作用域守卫：无论从哪条分支退出（含下面两处边界检查/空指针的提前 return），
+        // 都必须把选择状态机复位回 IDLE。
+        // 旧实现在 return 前不复位，于是状态一直停在 DRAG_SELECT：
+        // 之后的鼠标移动会持续匹配该分支并调用 UpdateSelectedDragging()，
+        // 表现为"选择粘在光标上、没有按鼠标也在改元素坐标"。
+        struct SelectStateGuard {
+            ToolStateMachine* machine;
+            ~SelectStateGuard() { machine->SetSelectState(SelectToolState::IDLE); }
+        } stateGuard{ m_toolStateMachine };
+
         m_canvas->SetStatus(wxString::Format("Select Tool: End Dragging"));
         if (m_compntIdx.size() == 1) {
             int elemIdx = m_compntIdx[0]; // 获取唯一选中的元件索引
 
             // 边界检查：防止索引越界崩溃
             if (elemIdx < 0 || elemIdx >= (int)m_canvas->GetSecond().size()) {
+                m_eventHandled = true;
                 return;
             }
 
@@ -373,6 +384,7 @@ void CanvasEventHandler::OnCanvasLeftUp(wxMouseEvent& evt) {
             // 空指针检查：防止传递无效指针
             if (node == nullptr) {
                 wxLogMessage("Warning: Selected element has no SigTreeNode!");
+                m_eventHandled = true;
                 return;
             }
 
@@ -856,30 +868,58 @@ void CanvasEventHandler::StartSelectedDragging(const wxPoint& startPos) {
     const std::vector<CanvasTextElement> textElements = m_canvas->GetTextElements();
     const std::vector<Wire> wires = m_canvas->GetWires();
 
-    for (int i = 0; i < m_compntIdx.size(); i++) {
-        StartElementDragging(i);
-        m_compntPos.push_back(elements[m_compntIdx[i]].GetPos());
+    // 三个"选中索引 → 位置/锚点"向量必须与索引向量**一一对应**：
+    // UpdateSelectedDragging() 用同一个下标 i 同时索引它们，任何一处越界都是 OOB 写。
+    // 旧实现对越界项既不检查也不补位，而 StartElementDragging 早退时不会 push，
+    // 于是 m_movingWires 比 m_compntIdx 短 → UpdateSelectedDragging 越界读。
+    for (int i = 0; i < static_cast<int>(m_compntIdx.size()); i++) {
+        const int idx = m_compntIdx[i];
+        if (idx < 0 || idx >= static_cast<int>(elements.size())) {
+            m_compntPos.push_back(wxPoint(0, 0));
+            m_movingWires.emplace_back();   // 占位，保持下标对齐
+            continue;
+        }
+        StartElementDragging(i);            // 内部保证一定会 push（即使是空列表）
+        m_compntPos.push_back(elements[idx].GetPos());
     }
-    for (int i = 0; i < m_textElemIdx.size(); i++) {
-        m_textElemPos.push_back(textElements[m_textElemIdx[i]].GetPosition());
+    for (int i = 0; i < static_cast<int>(m_textElemIdx.size()); i++) {
+        const int idx = m_textElemIdx[i];
+        m_textElemPos.push_back(
+            (idx >= 0 && idx < static_cast<int>(textElements.size()))
+                ? textElements[idx].GetPosition()
+                : wxPoint(0, 0));
     }
-    for (int i = 0; i < m_wireIdx.size(); i++) {
+    for (int i = 0; i < static_cast<int>(m_wireIdx.size()); i++) {
         points.clear();
-        for (int j = 0; j < wires[m_wireIdx[i]].Size(); j++) {
-            points.push_back(wires[m_wireIdx[i]].pts[j].pos);
+        const int idx = m_wireIdx[i];
+        if (idx >= 0 && idx < static_cast<int>(wires.size())) {
+            for (int j = 0; j < static_cast<int>(wires[idx].Size()); j++) {
+                points.push_back(wires[idx].pts[j].pos);
+            }
         }
         m_wirePos.push_back(points);
     }
 }
 
 void CanvasEventHandler::StartElementDragging(int i) {
-    if (m_compntIdx[i] < 0 || m_compntIdx[i] >= (int)m_canvas->GetSecond().size()) return;
+    std::vector<WireAnchor> tmp;
+
+    // 注意：无论是否越界都必须 push（哪怕是空列表），
+    // 否则 m_movingWires 与 m_compntIdx 的下标对应关系会错位。
+    if (i < 0 || i >= static_cast<int>(m_compntIdx.size())) {
+        m_movingWires.push_back(tmp);
+        return;
+    }
+    const int idx = m_compntIdx[i];
+    if (idx < 0 || idx >= static_cast<int>(m_canvas->GetSecond().size())) {
+        m_movingWires.push_back(tmp);
+        return;
+    }
 
     // 收集该元件所有引脚对应的导线端点
-    
-    const auto& elem = m_canvas->GetSecond()[m_compntIdx[i]];
 
-    std::vector<WireAnchor> tmp;
+    const auto& elem = m_canvas->GetSecond()[idx];
+
     auto collect = [&](const auto& pins, bool isIn) {
         for (size_t p = 0; p < pins.size(); ++p) {
             wxPoint pinWorld = elem.GetPos() + wxPoint(pins[p].pos.x, pins[p].pos.y);
@@ -907,23 +947,28 @@ void CanvasEventHandler::UpdateSelectedDragging() {
     wxPoint raw = m_hoverInfo.canvasPos - m_selectedDragPos;
     wxPoint delta((raw.x + grid / 2) / grid * grid, (raw.y + grid / 2) / grid * grid);
     
-    for (int i = 0; i < m_compntIdx.size(); i++) {
-        m_canvas->SecondSetPos(m_compntIdx[i], m_compntPos[i] + delta);
+    for (int i = 0; i < static_cast<int>(m_compntIdx.size()); i++) {
+        const int elemIdx = m_compntIdx[i];
+        if (elemIdx < 0 || elemIdx >= static_cast<int>(m_canvas->GetSecond().size())) continue;
+        if (i >= static_cast<int>(m_compntPos.size())) break;
+        m_canvas->SecondSetPos(elemIdx, m_compntPos[i] + delta);
 
+        if (i >= static_cast<int>(m_movingWires.size())) continue;
         for (const auto& aw : m_movingWires[i]) {
             if (aw.wireIdx >= m_canvas->GetWires().size()) continue;
-            auto it = std::find(m_wireIdx.begin(), m_wireIdx.end(), aw.wireIdx);
             const Wire& wire = m_canvas->GetWires()[aw.wireIdx];
 
             // 计算新引脚世界坐标
-            
-            const auto& elem = m_canvas->GetSecond()[m_compntIdx[i]];
+
+            const auto& elem = m_canvas->GetSecond()[elemIdx];
             const auto& pins = aw.isInput ? elem.GetInputPins() : elem.GetOutputPins();
             if (aw.pinIdx >= pins.size()) continue;
             wxPoint pinOffset = wxPoint(pins[aw.pinIdx].pos.x, pins[aw.pinIdx].pos.y);
             wxPoint newPinPos = elem.GetPos() + pinOffset;
 
             Wire tmp_wire = wire;
+            // 少于 2 个控制点时 pts[1] / pts[size-2] 会越界（空 vector 的 size-2 还会回绕成巨大值）。
+            if (tmp_wire.pts.size() < 2) continue;
             // 更新导线端点
             if (aw.ptIdx == 0) {
                 tmp_wire.pts.front().pos = newPinPos;
@@ -936,15 +981,20 @@ void CanvasEventHandler::UpdateSelectedDragging() {
             m_canvas->UpdateWire(tmp_wire, aw.wireIdx);
         }
     }
-    for (int i = 0; i < m_textElemIdx.size(); i++) {
-        m_canvas->TextSetPos(m_textElemIdx[i], m_textElemPos[i] + delta);
-
+    for (int i = 0; i < static_cast<int>(m_textElemIdx.size()); i++) {
+        if (i >= static_cast<int>(m_textElemPos.size())) break;
+        const int textIdx = m_textElemIdx[i];
+        if (textIdx < 0 || textIdx >= static_cast<int>(m_canvas->GetTextElements().size())) continue;
+        m_canvas->TextSetPos(textIdx, m_textElemPos[i] + delta);
     }
-    for (int i = 0; i < m_wireIdx.size(); i++) {
-        for (int j = 0; j < m_canvas->GetWires()[m_wireIdx[i]].Size(); j++) {
-            wxPoint rawPos = m_wirePos[i][j];
-            m_canvas->WirePtsSetPos(m_wireIdx[i], j, m_wirePos[i][j] + delta);
-
+    for (int i = 0; i < static_cast<int>(m_wireIdx.size()); i++) {
+        if (i >= static_cast<int>(m_wirePos.size())) break;
+        const int wireIdx = m_wireIdx[i];
+        if (wireIdx < 0 || wireIdx >= static_cast<int>(m_canvas->GetWires().size())) continue;
+        // 拖拽期间导线控制点数量可能与快照不一致（例如被其它路径改写），逐一核对再写。
+        if (m_wirePos[i].size() != m_canvas->GetWires()[wireIdx].Size()) continue;
+        for (int j = 0; j < static_cast<int>(m_canvas->GetWires()[wireIdx].Size()); j++) {
+            m_canvas->WirePtsSetPos(wireIdx, j, m_wirePos[i][j] + delta);
         }
     }
     m_canvas->SetStatus(wxString::Format("Select Tool: Moving selected elements (%d, %d)", delta.x, delta.y));
@@ -1093,33 +1143,31 @@ void CanvasEventHandler::FinishClickSelect(wxMouseEvent& evt) {
     if (m_compntIdx.size() == 1) {
         int elemIdx = m_compntIdx[0]; // 获取唯一选中的元件索引
 
-        // 边界检查：防止索引越界崩溃
-        if (elemIdx < 0 || elemIdx >= (int)m_canvas->GetSecond().size()) {
-            return;
+        // 边界检查：防止索引越界崩溃。
+        // 注意不要在这里直接 return —— 那会跳过函数末尾的
+        // SetSelectState(IDLE) 与 evt.Skip()，让工具状态机卡住。
+        if (elemIdx >= 0 && elemIdx < (int)m_canvas->GetSecond().size()) {
+            const SecondElement& selectedElem = m_canvas->GetSecond()[elemIdx];
+            SigTreeNode* node = selectedElem.self;
+            if (node) {
+                wxCommandEvent evt(EVT_SFTREE_NODE_ACTIVATED); // 事件已能识别
+                evt.SetClientData(node); // 携带元件的 SigTreeNode* 指针
+                wxPostEvent(m_canvas, evt); // 发送事件到 CanvasPanel
+            }
         }
-        const SecondElement& selectedElem = m_canvas->GetSecond()[elemIdx];
-        SigTreeNode* node = selectedElem.self;
-        if (!node) {
-            return;
-        }
-
-        wxCommandEvent evt(EVT_SFTREE_NODE_ACTIVATED); // 事件已能识别
-        evt.SetClientData(node); // 携带元件的 SigTreeNode* 指针
-        wxPostEvent(m_canvas, evt); // 发送事件到 CanvasPanel
     }
     else if(m_wireIdx.size() == 1){
         int wireIdx = m_wireIdx[0]; // 获取唯一选中的元件索引
 
-        // 边界检查：防止索引越界崩溃
-        if (wireIdx < 0 || wireIdx >= (int)m_canvas->GetWires().size()) {
-            return;
-        }
-        const Wire& w = m_canvas->GetWires()[wireIdx];
-        SignalNode* node = w.GetSelf();
+        // 同上：越界时不要提前 return，必须走到末尾复位状态机。
+        if (wireIdx >= 0 && wireIdx < (int)m_canvas->GetWires().size()) {
+            const Wire& w = m_canvas->GetWires()[wireIdx];
+            SignalNode* node = w.GetSelf();
 
-        wxCommandEvent evt(EVT_SFTREE_NODE_ACTIVATED); // 事件已能识别
-        evt.SetClientData(node); // 携带元件的 SigTreeNode* 指针
-        wxPostEvent(m_canvas, evt); // 发送事件到 CanvasPanel
+            wxCommandEvent evt(EVT_SFTREE_NODE_ACTIVATED); // 事件已能识别
+            evt.SetClientData(node); // 携带元件的 SigTreeNode* 指针
+            wxPostEvent(m_canvas, evt); // 发送事件到 CanvasPanel
+        }
     }
     m_toolStateMachine->SetSelectState(SelectToolState::IDLE);
     evt.Skip();

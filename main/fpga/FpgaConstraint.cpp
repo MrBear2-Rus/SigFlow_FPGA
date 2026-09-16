@@ -1,4 +1,5 @@
 #include "FpgaConstraint.h"
+#include "../platform/PlatformPaths.h"
 #include <wx/file.h>
 #include <wx/filename.h>
 #include <wx/datetime.h>
@@ -681,7 +682,7 @@ bool SaveConstraintSheet(const wxString& filePath, const ConstraintSheet& sheet,
 }
 
 wxString FindYosysJsonPath(const wxString& projectRoot, const wxString& topModule) {
-    wxFileName jsonPath(projectRoot + "\\yosys", topModule + ".json");
+    wxFileName jsonPath(sigflow::platform::JoinPath(projectRoot, "yosys"), topModule + ".json");
     jsonPath.Normalize(wxPATH_NORM_DOTS | wxPATH_NORM_ABSOLUTE);
     if (jsonPath.FileExists()) {
         return jsonPath.GetFullPath();

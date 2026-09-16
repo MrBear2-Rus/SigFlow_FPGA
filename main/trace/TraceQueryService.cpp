@@ -110,7 +110,16 @@ TraceQueryResult TraceQueryService::Execute(const std::shared_ptr<Job>& job)
             return result;
         }
         result.signals.push_back(std::move(signalResult));
-        if (job->request.progress) job->request.progress(job->id, index + 1, total);
+        if (job->request.progress) {
+            // 用户回调可能在任意实现里抛异常；这里是 std::thread 的入口路径，
+            // 异常一旦逃出线程函数就是 std::terminate（整个进程被终止）。
+            // 与 DebugAcquisition::FireProgress 的写法保持一致，就地兜住。
+            try {
+                job->request.progress(job->id, index + 1, total);
+            }
+            catch (...) {
+            }
+        }
     }
     result.success = !job->cancelled.load();
     result.cancelled = !result.success;
@@ -133,7 +142,14 @@ void TraceQueryService::WorkerLoop()
         }
 
         TraceQueryResult result = Execute(job);
-        if (job->request.completed) job->request.completed(result);
+        if (job->request.completed) {
+            // 同 progress：绝不能让回调异常逃出 WorkerLoop 这个线程函数。
+            try {
+                job->request.completed(result);
+            }
+            catch (...) {
+            }
+        }
         {
             std::lock_guard<std::mutex> lock(mutex_);
             jobs_.erase(job->id);

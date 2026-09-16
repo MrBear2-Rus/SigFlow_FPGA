@@ -7,6 +7,7 @@
 #include "WaveformMiniMap.h"
 
 #include <wx/bitmap.h>
+#include <wx/weakref.h>
 #include <wx/brush.h>
 #include <wx/dcbuffer.h>
 #include <wx/dcclient.h>
@@ -69,13 +70,20 @@ WaveformView::~WaveformView()
 void WaveformView::RebuildGlCanvas()
 {
     if (m_glCanvas) return;
+    // 延迟回调必须持**弱引用**：GL 初始化失败后要经 wxTheApp->CallAfter 回到 UI 线程，
+    // 而视图可能在这次派发之前就被销毁（关标签页、重载 trace），
+    // 捕获裸 this 就是 use-after-free。同仓 MainFrame 已用同样写法。
+    wxWeakRef<WaveformView> weakSelf(this);
     try {
         m_glCanvas = new WaveformGLCanvas(
             this, m_state, m_source,
-            [this]() {
-                if (wxTheApp) {
-                    wxTheApp->CallAfter([this]() { OnGlFailed(); });
-                }
+            [weakSelf]() {
+                if (!wxTheApp) return;
+                wxTheApp->CallAfter([weakSelf]() {
+                    if (WaveformView* self = weakSelf.get()) {
+                        self->OnGlFailed();
+                    }
+                });
             },
             [this]() { NotifyViewChanged(); },
             [this](const wxPoint& point, sigflow::trace::TimeValue a,

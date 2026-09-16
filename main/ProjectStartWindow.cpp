@@ -1,5 +1,6 @@
 #include "ProjectStartWindow.h"
 #include "platform/PlatformPaths.h"
+#include "platform/Log.h"
 #include "MainFrame.h"
 #include <wx/filedlg.h>
 #include <wx/msgdlg.h>
@@ -25,14 +26,30 @@ EVT_BUTTON(ID_BTN_DELETE_PROJECT, ProjectStartWindow::OnDeleteProject)
 EVT_LIST_ITEM_ACTIVATED(ID_LIST_RECENT_PROJECTS, ProjectStartWindow::OnRecentProjectDblClick)
 wxEND_EVENT_TABLE()
 
+namespace {
+
+// 启动日志的固定位置。
+//
+// 不能再用相对路径 "sigflow.log"：它解析到**当前工作目录**，
+// 从桌面项/快捷方式/其它目录启动时启动日志面板永远是空的，
+// 而 CWD 只读时写入还会静默失败（本仓 PlatformPaths.h 也明确要求
+// 不要用 CWD 定位随程序分发的文件）。与 canvas_elements.json 一致，
+// 放到可执行文件目录旁边。
+wxString StartupLogPath()
+{
+    return sigflow::platform::JoinPath(sigflow::platform::ExecutableDir(), "sigflow.log");
+}
+
+} // namespace
+
 // 构造函数：启动时加载配置文件中的历史记录
 ProjectStartWindow::ProjectStartWindow(wxWindow* parent, wxWindowID id, const wxString& title,
     const wxPoint& pos, const wxSize& size, long style)
     : wxDialog(parent, id, title, pos, size, style)
 {
     // 加载历史记录：从配置文件读取到内存
-    wxConfig config("Sigflow");
-    m_fileHistory.Load(config);
+    wxConfigBase* config = wxConfig::Get();  // 统一身份，见 MainMenuBar::LoadHistory 的说明
+    m_fileHistory.Load(*config);
 
    
 
@@ -47,7 +64,7 @@ ProjectStartWindow::ProjectStartWindow(wxWindow* parent, wxWindowID id, const wx
 
     // 窗口居中
     Centre(wxBOTH);
-    wxInitAllImageHandlers();
+    // wxApp 初始化时已自动注册全部 image handlers，不要再手动调用 wxInitAllImageHandlers
     wxBitmapBundle svgIcon = wxBitmapBundle::FromSVGFile(sigflow::platform::ResourcePath("res/svg_icons/icon.svg"), wxSize(24, 24));
     wxIcon icon = svgIcon.GetIconFor(this);
     if (icon.IsOk()) SetIcon(icon);
@@ -58,12 +75,14 @@ void ProjectStartWindow::LoadLogFromFile()
 {
     if (!m_logCtrl) return;
 
-    if (!wxFileExists("sigflow.log")) return;
+    const wxString logPath = StartupLogPath();
+    if (!wxFileExists(logPath)) return;
 
-    wxFile file("sigflow.log");
+    wxFile file(logPath);
+    if (!file.IsOpened()) return;
 
     wxString content;
-    file.ReadAll(&content);
+    if (!file.ReadAll(&content)) return;
 
     m_logCtrl->SetValue(content);  // 一次性加载全部日志
 
@@ -171,10 +190,18 @@ void ProjectStartWindow::Log(const wxString& msg, const wxString& level)
     if (m_logCtrl)
         m_logCtrl->AppendText(line);
 
-    // 写文件（可选但强烈建议）
-    wxFile file("sigflow.log", wxFile::write_append);
-    if (file.IsOpened())
-        file.Write(line);
+    // 写文件（可选但强烈建议）。写入失败不再静默：
+    // 日志目录不可写时至少让调用方知道（这里是启动窗口，只发到 stderr）。
+    wxFile file(StartupLogPath(), wxFile::write_append);
+    if (!file.IsOpened()) {
+        SIGFLOW_LOG("ProjectStartWindow: cannot open startup log for append\n");
+        return;
+    }
+    const wxScopedCharBuffer utf8 = line.ToUTF8();
+    if (!utf8.data() ||
+        file.Write(utf8.data(), utf8.length()) != static_cast<wxFileOffset>(utf8.length())) {
+        SIGFLOW_LOG("ProjectStartWindow: cannot write startup log\n");
+    }
 }
 
 // 加载历史记录到列表控件
@@ -194,9 +221,9 @@ void ProjectStartWindow::LoadRecentProjects()
 // 保存历史记录到配置文件
 void ProjectStartWindow::SaveRecentProjects()
 {
-    wxConfig config("Sigflow");
-    m_fileHistory.Save(config);
-    config.Flush();
+    wxConfigBase* config = wxConfig::Get();  // 统一身份，见 MainMenuBar::LoadHistory 的说明
+    m_fileHistory.Save(*config);
+    config->Flush();
 }
 
 // 添加路径到历史记录

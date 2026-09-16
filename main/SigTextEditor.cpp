@@ -476,7 +476,7 @@ bool SigTextEditor::SaveFileAs(wxString path) {
     wxString dir = fn.GetPath();
     if (!wxDirExists(dir)) {
         if (!wxFileName::Mkdir(dir, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL)) {
-            wxLogError("无法创建缓存目录: %s", dir);
+            wxLogError(wxT("无法创建缓存目录: %s"), dir);
             return false;
         }
     }

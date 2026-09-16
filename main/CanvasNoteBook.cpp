@@ -1,4 +1,5 @@
-﻿#include "CanvasNoteBook.h"
+#include "CanvasNoteBook.h"
+#include <algorithm>
 #include "MainFrame.h"
 
 #include <wx/aui/auibar.h>
@@ -112,7 +113,7 @@ bool CanvasNoteBook::SaveModifiedCanvases() {
         }
     }
     m_isModified = false;
-    SetStatusText("已保存所有画布", 0);
+    SetStatusText(wxT("已保存所有画布"), 0);
     return true;
 }
 
@@ -331,7 +332,19 @@ void CanvasNoteBook::OnPageClose(wxAuiNotebookEvent& evt) {
 
     // 2. 根据索引找到对应的 CanvasPanel 实例
     CanvasPanel* panel = (CanvasPanel*)GetPage(sel);
+    if (panel == nullptr) {
+        evt.Skip();
+        return;
+    }
     TopNode* tn = panel->tn;
+    if (tn == nullptr) {
+        // 没有关联的树节点就没什么可删的，但页面仍需要正常关闭，
+        // 且必须先从 cvses 里摘掉指针（见文件末尾的说明）。
+        const auto it = std::find(cvses.begin(), cvses.end(), panel);
+        if (it != cvses.end()) cvses.erase(it);
+        evt.Skip();
+        return;
+    }
 
     wxMessageDialog dlg(this, wxString::Format("Are you sure you want to delete Module %s?", tn->identifier),
         "Confirm Deletion", wxYES_NO | wxICON_QUESTION);
@@ -342,13 +355,13 @@ void CanvasNoteBook::OnPageClose(wxAuiNotebookEvent& evt) {
         return;
     }
 
-    sftree->RemoveChild(fn,tn);
+    sftree->RemoveChild(fn, tn);
 
     /*
     // 3. 自定义逻辑：检查是否有未保存的更改
     if (panel && panel->IsModified()) {
-        wxMessageDialog dlg(this, "画布有未保存的修改，确定要关闭吗？",
-            "确认关闭", wxYES_NO | wxICON_QUESTION);
+        wxMessageDialog dlg(this, wxT("画布有未保存的修改，确定要关闭吗？"),
+            wxT("确认关闭"), wxYES_NO | wxICON_QUESTION);
 
         if (dlg.ShowModal() == wxID_NO) {
             // --- 核心点：如果不满足自定义条件，Veto() 事件 ---
@@ -358,9 +371,19 @@ void CanvasNoteBook::OnPageClose(wxAuiNotebookEvent& evt) {
         }
     }*/
 
-    // 4. 如果用户选择确定，或者没有修改，可以手动执行清理逻辑
-    // 如：移除 cvses vector 中的记录，通知逻辑层删除节点等
-    //this->RemoveCanvasFromTracking(panel);
+    // 4. 关键：在交给默认处理删除页面之前，先把 panel 从 cvses 中摘掉。
+    //
+    // 旧实现只 sftree->RemoveChild() 就 evt.Skip()：wxAuiNotebook 的默认处理会
+    // **delete 掉这个 CanvasPanel**，而 cvses 里仍留着它的指针。此后任何
+    // SigFlowNodeAdded / Changed / Deleted / OnPageChanged 遍历 cvses 时都会
+    // 解引用已析构对象（use-after-free）；同时 RemoveChild 只是 wxPostEvent，
+    // 队列里的删除事件还会再来访问它一次。
+    {
+        const auto it = std::find(cvses.begin(), cvses.end(), panel);
+        if (it != cvses.end()) {
+            cvses.erase(it);
+        }
+    }
 
     // evt.Skip() 会允许默认的删除行为执行
     evt.Skip();

@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <wx/wx.h>
 #include <vector>
 #include <tuple>
@@ -82,7 +82,7 @@ public:
     // ... 现有成员 ...
 
     // 分支相关
-    LogicSignal status;
+    LogicSignal status = LogicSignal::ZERO;
     static std::vector<ControlPoint> Route(const ControlPoint& start, const ControlPoint& end);
     void SetStatus(LogicSignal s) { status = s; };
 

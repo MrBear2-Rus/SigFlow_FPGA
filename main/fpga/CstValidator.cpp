@@ -121,13 +121,36 @@ CstValidationResult CstValidator::Validate(const wxString& cstPath,
             result.errorSummary = wxT("无法读取 CST 文件。");
             return result;
         }
-        // 用 std::vector<char> 替代 new[]/delete[]（避免裸指针管理）
         const wxFileOffset len = readFile.Length();
+        if (len <= 0) {
+            result.errorSummary = wxT("CST 文件为空。");
+            return result;
+        }
+        // 用 std::vector<char> 替代 new[]/delete[]（避免裸指针管理）
         std::vector<char> buf(static_cast<std::size_t>(len) + 1);
-        readFile.Read(buf.data(), len);
-        buf[static_cast<std::size_t>(len)] = '\0';
-        content = wxString::FromUTF8(buf.data());
+        const wxFileOffset got = readFile.Read(buf.data(), len);
         readFile.Close();
+        if (got != len) {
+            // 短读：旧实现忽略返回值，buf 尾部保持为 0，后面的约束被静默跳过，
+            // 而校验仍然报"通过"。这里必须显式失败。
+            result.errorSummary = wxString::Format(
+                wxT("CST 文件读取不完整：期望 %lu 字节，实际 %lu 字节。"),
+                static_cast<unsigned long>(len), static_cast<unsigned long>(got));
+            return result;
+        }
+        buf[static_cast<std::size_t>(len)] = '\0';
+
+        content = wxString::FromUTF8(buf.data(), static_cast<std::size_t>(len));
+        if (content.IsEmpty()) {
+            // FromUTF8 对非法 UTF-8 返回空串。中文注释的 CST 若以 GBK/CP936 保存就会
+            // 走到这里；旧实现继续往下走 → 0 行 → invalidLines==0 → 判定为"合法"，
+            // 等于**静默放过一个根本没有被校验的文件**。必须显式失败。
+            result.errorSummary =
+                wxT("CST 文件不是有效的 UTF-8 编码，无法校验（请将约束文件另存为 UTF-8）。");
+            result.valid = false;
+            result.syntaxOk = false;
+            return result;
+        }
     }
 
     // 统一换行符

@@ -56,8 +56,14 @@ bool IsWithinDirectory(const wxString& path, const wxString& directory)
 {
     wxString normalizedPath = NormalizePath(path);
     wxString normalizedDirectory = NormalizePath(directory);
+#if defined(__WXMSW__)
+    // 只有 Windows 文件系统才大小写不敏感。
     normalizedPath.MakeLower();
     normalizedDirectory.MakeLower();
+#endif
+    // Linux 上大小写敏感：无条件 MakeLower 会让 "/proj" "包含" "/PROJ/evil.v"，
+    // 使"RTL 必须位于工程目录内"的校验形同虚设。
+    //（jobs/JobService.cpp 的同名检查已经用 #ifdef __WXMSW__ 正确保护，这里对齐。）
     if (!normalizedDirectory.EndsWith(wxString(sigflow::platform::PathSeparator()))) normalizedDirectory += sigflow::platform::PathSeparator();
     return normalizedPath.StartsWith(normalizedDirectory);
 }

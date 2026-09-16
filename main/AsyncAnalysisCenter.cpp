@@ -1,4 +1,5 @@
-﻿#include "AsyncAnalysisCenter.h"
+#include "AsyncAnalysisCenter.h"
+#include "platform/PlatformPaths.h"
 
 #include <tree_sitter/api.h>
 #include <json/json.h>
@@ -39,18 +40,34 @@ AsyncAnalysisCenter::AsyncAnalysisCenter(wxEvtHandler* parentHandler)
 }
 
 AsyncAnalysisCenter::~AsyncAnalysisCenter() {
-
+    // 请求后台线程退出并等待它真正返回。
+    //
+    // 旧实现：析构为空 + wxTHREAD_DETACHED，TestDestroy() 永远不会为真，
+    // 只能靠 wxThreadHelper 析构里的 KillThread()/wxThread::Kill() 强杀线程，
+    // 有可能在它持有互斥锁时把线程打死（留下永久锁死的 mutex）。
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_shutdown = true;
+    }
+    m_condition.notify_all();
+    if (wxThread* thread = GetThread()) {
+        thread->Delete();   // joinable 线程：等待 Entry() 返回
+    }
 }
 
 void AsyncAnalysisCenter::PushTask(const wxString& projectPath, const wxString& code) {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    m_projectPath = projectPath;
-    m_pendingCode = code; // 记录待分析的文件路径 哈哈
-    m_hasNewTask = true;
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_projectPath = projectPath;
+        m_pendingCode = code;
+        m_hasNewTask = true;
+    }
+    m_condition.notify_one();   // 叫醒等待中的消费者，不必再等 50ms
 
     wxThread* thread = GetThread();
     if (!thread || !thread->IsRunning()) {
-        if (CreateThread(wxTHREAD_DETACHED) == wxTHREAD_NO_ERROR) {
+        // JOINABLE（而不是 DETACHED），这样析构时可以优雅地等待线程结束。
+        if (CreateThread(wxTHREAD_JOINABLE) == wxTHREAD_NO_ERROR) {
             GetThread()->Run();
         }
     }
@@ -62,22 +79,28 @@ wxThread::ExitCode AsyncAnalysisCenter::Entry() {
         wxString code;
         {
             std::unique_lock<std::mutex> lock(m_mutex);
-            // 改进：使用条件变量代替 Sleep，提高响应速度
-            if (!m_hasNewTask) {
-                wxMilliSleep(50); // 或者使用 m_condition.wait_for
-                continue;
+            // 条件变量等待：绝不能在持锁状态下 sleep。
+            // 旧实现 wxMilliSleep(50) 是在 lock 作用域内执行的，
+            // 于是 UI 线程每次 PushTask 都可能被阻塞最长 50ms。
+            m_condition.wait(lock, [this] { return m_hasNewTask || m_shutdown; });
+            if (m_shutdown) {
+                break;
             }
             projectPath = m_projectPath;
             code = m_pendingCode;
             m_hasNewTask = false;
         }
 
-        size_t line_count = std::count(code.begin(), code.end(), '\n');
+        const std::size_t line_count = static_cast<std::size_t>(
+            std::count(code.begin(), code.end(), '\n'));
 
-        // 如果最后一行没有以 \n 结尾，通常也算作一行
-        if (code.Last() != '\n') {
-            line_count++;
+        // 如果最后一行没有以 \n 结尾，通常也算作一行。
+        // 注意必须先判空：wxString::Last() 对空串会断言/解引用无效迭代器。
+        std::size_t total_lines = line_count;
+        if (!code.IsEmpty() && code.Last() != '\n') {
+            total_lines++;
         }
+        (void)total_lines;
 
         ///////////////////////////////////////////////////////////////////////////////////////
         //sigTree = new SigFlowTree(projectPath.ToStdString());
@@ -149,6 +172,11 @@ wxThread::ExitCode AsyncAnalysisCenter::Entry() {
 
 
         */
+
+
+        // 旧实现从不释放 parser：每次任务泄漏一个原生 TSParser（无界内存增长）。
+        // 上面被注释掉的分析逻辑若将来恢复，请把 ts_parser_delete 放在所有 return 之前。
+        ts_parser_delete(parser);
     }
 
     return (wxThread::ExitCode)0;
@@ -168,8 +196,10 @@ std::unique_ptr<SlangProject> AsyncAnalysisCenter::LoadProject(const wxString& p
     wxString fullPath = projectPath + wxFileName::GetPathSeparator() + "sigflow.project";
     wxFile file(fullPath);
     wxString content;
-    file.ReadAll(&content);
-    std::string utf8Content = content.ToUTF8().data();
+    if (!file.IsOpened() || !file.ReadAll(&content)) {
+        return nullptr;   // 旧实现忽略返回值，会拿空串去解析 JSON
+    }
+    std::string utf8Content = sigflow::platform::Utf8String(content);
 
     Json::Value root;
     Json::CharReaderBuilder builder;
@@ -185,7 +215,7 @@ std::unique_ptr<SlangProject> AsyncAnalysisCenter::LoadProject(const wxString& p
         for (const auto& file : root["paths"]["source_files"]) {
             wxFileName fn1(file.asString());
             fn1.MakeAbsolute(projectPath);
-            std::string absPath1 = fn1.GetFullPath().ToStdString();
+            std::string absPath1 = sigflow::platform::Utf8String(fn1.GetFullPath());
             sp->persistentFiles.push_back(absPath1);
             sp->driver->sourceLoader.addFiles(sp->persistentFiles.back());
         }
@@ -196,7 +226,7 @@ std::unique_ptr<SlangProject> AsyncAnalysisCenter::LoadProject(const wxString& p
         for (const auto& dir : root["paths"]["include_dirs"]) {
             wxFileName fn2(dir.asString());
             fn2.MakeAbsolute(projectPath);
-            std::string absPath2 = fn2.GetFullPath().ToStdString();
+            std::string absPath2 = sigflow::platform::Utf8String(fn2.GetFullPath());
             sp->persistentIncludes.push_back(absPath2);
             sp->driver->sourceLoader.addSearchDirectories(sp->persistentIncludes.back());
 

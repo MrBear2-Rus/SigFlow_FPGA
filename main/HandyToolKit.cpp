@@ -17,7 +17,7 @@ HandyToolKit::HandyToolKit(CanvasPanel* parent, CanvasEventHandler* ce)
 	m_canvas(parent),
 	m_selectedTool(-1), m_hoveredTool(-1), m_CanvasEventHandler(ce)
 {   
-    wxInitAllImageHandlers();
+    // wxApp 初始化时已自动注册全部 image handlers，不要再手动调用 wxInitAllImageHandlers
     SetBackgroundStyle(wxBG_STYLE_PAINT);
     int baseSize = 24; // 稍微调大一点点，24在4K屏缩放后可能依然偏小
     m_toolSize = FromDIP(baseSize);

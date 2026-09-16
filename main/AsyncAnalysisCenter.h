@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "TreeSitterLinter.h"
 #include "SigTree.h"
 
@@ -6,6 +6,7 @@
 #include <wx/thread.h>
 #include <string>
 #include <mutex>
+#include <condition_variable>
 #include <set>
 #include <map>
 
@@ -60,10 +61,14 @@ private:
     
 
     wxEvtHandler* m_parentHandler;  // 接收事件的 UI 窗口句柄
-    std::string m_projectPath;     // 待处理的代码缓冲区
-    std::string m_pendingCode;     // 待处理的代码缓冲区
-    bool m_hasNewTask;             // 任务标记
+    // 用 wxString 保存：赋给 std::string 会走 locale 转换（Windows 上变 ANSI），
+    // 路径/代码里的非 ASCII 字符会被破坏。真正需要字节时再显式 ToUTF8()。
+    wxString m_projectPath;        // 待处理的项目路径
+    wxString m_pendingCode;        // 待处理的代码缓冲区
+    bool m_hasNewTask = false;     // 任务标记
+    bool m_shutdown = false;       // 请求后台线程退出
     std::mutex m_mutex;            // 保护缓冲区的互斥锁
+    std::condition_variable m_condition;  // 取代"持锁 sleep 50ms"的忙等
 
     TreeSitterLinter TSLinter;
     SigFlowTree* sigTree;

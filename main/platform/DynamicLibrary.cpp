@@ -20,8 +20,25 @@ bool DynamicLibrary::Load(const std::string& path)
 {
     Unload();
 #if defined(_WIN32)
-    const HMODULE module = ::LoadLibraryA(path.c_str());
-    if (module == nullptr) { m_error = "LoadLibraryA failed"; return false; }
+    // path 约定为 **UTF-8**（调用方用 platform::PathToUtf8 生成）。
+    // 旧实现用 LoadLibraryA + 窄字符路径：Windows 上按 ANSI 代码页解释，
+    // 形如 C:\Users\<中文名>\...\plugins 的路径会加载失败；
+    // 而且 GetLastError() 被丢弃，失败原因完全不可见。
+    const int wideLength = ::MultiByteToWideChar(
+        CP_UTF8, 0, path.c_str(), static_cast<int>(path.size()), nullptr, 0);
+    if (wideLength <= 0) {
+        m_error = "plugin path is not valid UTF-8";
+        return false;
+    }
+    std::wstring widePath(static_cast<std::size_t>(wideLength), L'\0');
+    ::MultiByteToWideChar(CP_UTF8, 0, path.c_str(), static_cast<int>(path.size()),
+                          widePath.data(), wideLength);
+    const HMODULE module = ::LoadLibraryW(widePath.c_str());
+    if (module == nullptr) {
+        m_error = "LoadLibraryW failed (Win32 error " +
+                  std::to_string(::GetLastError()) + ")";
+        return false;
+    }
     m_handle = reinterpret_cast<void*>(module);
 #else
     void* library = ::dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);

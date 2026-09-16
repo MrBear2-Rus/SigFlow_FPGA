@@ -289,25 +289,46 @@ add_custom_command(TARGET sigflow POST_BUILD
 
 if(WIN32)
     if(SIGFLOW_WX_LOCAL)
-        # 本地 wx 构建产物 DLL 拷贝（递归收集 wx 子构建输出）
-        file(GLOB_RECURSE SIGFLOW_WX_DLLS
-            "${CMAKE_BINARY_DIR}/wxWidgets/*.dll"
-            "${CMAKE_BINARY_DIR}/wxWidgets/**/*.dll"
-        )
+        # 本地 wx 构建时，**不能**用 file(GLOB) 去收集 wx 的 DLL：
+        # GLOB 在 configure 期求值，而 wx 是 EXCLUDE_FROM_ALL 的子工程，
+        # 全新配置时它的 DLL 还没被构建出来，GLOB 得到空列表 →
+        # 一条拷贝命令都不会注册。结果是 sigflow.exe（GUI 子系统、无控制台）
+        # 在加载阶段就因缺少 libwxmsw*.dll 被拒绝，而且普通 cmake --build
+        # 永远修不好（只有重新 configure 才行）。
+        # 改用生成器表达式，直接引用真实 target 的产物，构建后必然存在。
+        set(SIGFLOW_WX_RUNTIME_TARGETS core base aui stc gl xml)
+        foreach(SIGFLOW_WX_RUNTIME IN LISTS SIGFLOW_WX_RUNTIME_TARGETS)
+            if(TARGET "wx::${SIGFLOW_WX_RUNTIME}")
+                add_custom_command(TARGET sigflow POST_BUILD
+                    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                        "$<TARGET_FILE:wx::${SIGFLOW_WX_RUNTIME}>"
+                        "$<TARGET_FILE_DIR:sigflow>/"
+                )
+            endif()
+        endforeach()
     else()
+        # 预编译 wx：DLL 在 configure 时已经存在，GLOB 可用；
+        # 但仍然显式提示"一个 DLL 都没找到"，避免再次静默漏拷。
         file(GLOB SIGFLOW_WX_DLLS
             "${SIGFLOW_WX_ROOT}/debug/bin/*.dll"
             "${SIGFLOW_WX_ROOT}/bin/*.dll"
             "${SIGFLOW_WX_LIB_DIR}/*.dll"
         )
+        if(NOT SIGFLOW_WX_DLLS)
+            message(WARNING
+                "No wxWidgets DLLs found to copy next to sigflow.exe. "
+                "Check SIGFLOW_WX_ROOT (${SIGFLOW_WX_ROOT}) / SIGFLOW_WX_LIB_DIR "
+                "(${SIGFLOW_WX_LIB_DIR}); the executable will fail to start "
+                "without them.")
+        endif()
+        foreach(SIGFLOW_WX_DLL IN LISTS SIGFLOW_WX_DLLS)
+            add_custom_command(TARGET sigflow POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    "${SIGFLOW_WX_DLL}"
+                    "$<TARGET_FILE_DIR:sigflow>/"
+            )
+        endforeach()
     endif()
-    foreach(SIGFLOW_WX_DLL IN LISTS SIGFLOW_WX_DLLS)
-        add_custom_command(TARGET sigflow POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${SIGFLOW_WX_DLL}"
-                "$<TARGET_FILE_DIR:sigflow>/"
-        )
-    endforeach()
 endif()
 
 if(WIN32 AND MINGW_ROOT)

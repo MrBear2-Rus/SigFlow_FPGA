@@ -8,6 +8,14 @@
 #include <algorithm>
 #include <cstdint>
 
+namespace {
+// 未显式配置超时时的兜底上限。
+// 必须有限：0 会被平台层理解为"无超时"（Windows INFINITE / POSIX 无超时轮询），
+// 工具一旦卡死，任务就会永远停在 Running，取消也无效。
+constexpr int kDefaultToolTimeoutSec = 600;
+} // namespace
+
+
 YosysExecutor::YosysExecutor() = default;
 
 YosysExecutor::~YosysExecutor()
@@ -51,7 +59,9 @@ bool YosysExecutor::Execute(const wxString& executable,
         request.executable = executable;
         request.arguments = args;
         request.workingDirectory = config.workingDirectory;
-        request.timeoutSeconds = config.timeLimitSec;
+        // timeLimitSec <= 0 表示未配置：回落到有限上限，避免工具卡死时任务永不结束。
+        request.timeoutSeconds = config.timeLimitSec > 0
+            ? config.timeLimitSec : kDefaultToolTimeoutSec;
         request.maxOutputBytes = 0;
         request.memoryLimitBytes = static_cast<std::uint64_t>(config.memoryLimitBytes);
         request.onStarted = [this](void* handle) {

@@ -149,13 +149,16 @@ size_t MainMenuBar::GetHistoryFileCount() const
 }
 void MainMenuBar::LoadHistory()
 {
-    wxConfig config("MyLogisim");
-    m_fileHistory.Load(config);
+    // 必须与启动窗口、以及菜单构造里的 m_fileHistory.Load(*wxConfig::Get())
+    // 使用**同一个** config 身份。
+    // 旧实现这里硬编码 "MyLogisim"，而启动窗口用 "Sigflow"、菜单构造用默认 app
+    // config —— 三套存储互不相通：在启动窗口删掉的最近项目会在 File 菜单里复活，
+    // 菜单列表也永远保存不下来。应用名由 cMain 的 SetAppName("Sigflow") 统一设定。
+    m_fileHistory.Load(*wxConfig::Get());
 }
 void MainMenuBar::SaveHistory()
 {
-    wxConfig config("MyLogisim");
-    m_fileHistory.Save(config);
+    m_fileHistory.Save(*wxConfig::Get());
 }
 
 /* ---------- 六大菜单创建 ---------- */

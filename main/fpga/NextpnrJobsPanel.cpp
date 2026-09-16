@@ -1,4 +1,5 @@
 #include "NextpnrJobsPanel.h"
+#include "../platform/PlatformPaths.h"
 
 #include <algorithm>
 
@@ -263,7 +264,7 @@ void NextpnrJobsPanel::RenderSelectedJob()
     wxString reportContent;
     {
         wxLogNull suppressLog;
-        wxFile reportFile(paths.reports + "\\route.analysis.json", wxFile::read);
+        wxFile reportFile(sigflow::platform::JoinPath(paths.reports, "route.analysis.json"), wxFile::read);
         if (reportFile.IsOpened()) {
             reportFile.ReadAll(&reportContent);
         }
@@ -294,7 +295,8 @@ void NextpnrJobsPanel::SetReportText(const wxString& text)
 void NextpnrJobsPanel::AppendReportLine(const wxString& line)
 {
     const int start = m_reportText->GetLength();
-    const int length = static_cast<int>(line.length() + 1);
+    // 同 FpgaSynthesisJobsPanel：必须用 UTF-8 字节长度，不能用字符数。
+    const int length = static_cast<int>(line.ToUTF8().length()) + 1;
     m_reportText->AppendText(line + "\n");
     m_reportText->StartStyling(start);
     m_reportText->SetStyling(length, ReportStyleForLine(line));
@@ -306,8 +308,8 @@ void NextpnrJobsPanel::UpdateActions()
     const bool hasJob = job != nullptr;
     const NextpnrJobPaths paths = hasJob
         ? NextpnrJobService::GetPaths(m_projectPath, job->id) : NextpnrJobPaths();
-    m_openReportButton->Enable(hasJob && wxFileExists(paths.reports + "\\route.analysis.json"));
-    m_openLogButton->Enable(hasJob && wxFileExists(paths.logs + "\\nextpnr.combined.log"));
+    m_openReportButton->Enable(hasJob && wxFileExists(sigflow::platform::JoinPath(paths.reports, "route.analysis.json")));
+    m_openLogButton->Enable(hasJob && wxFileExists(sigflow::platform::JoinPath(paths.logs, "nextpnr.combined.log")));
     m_retryButton->Enable(hasJob && IsTerminalNextpnrJobState(job->state) &&
                           static_cast<bool>(m_retryHandler));
 }
@@ -373,7 +375,7 @@ void NextpnrJobsPanel::OnOpenReport(wxCommandEvent&)
     const NextpnrJob* job = GetSelectedJob();
     if (!job) return;
     const NextpnrJobPaths paths = NextpnrJobService::GetPaths(m_projectPath, job->id);
-    const wxString filePath = paths.reports + "\\route.analysis.json";
+    const wxString filePath = sigflow::platform::JoinPath(paths.reports, "route.analysis.json");
     if (!wxFileExists(filePath)) {
         ShowInfo("Report has not been generated yet.");
         return;
@@ -394,7 +396,7 @@ void NextpnrJobsPanel::OnOpenLog(wxCommandEvent&)
     const NextpnrJob* job = GetSelectedJob();
     if (!job) return;
     const NextpnrJobPaths paths = NextpnrJobService::GetPaths(m_projectPath, job->id);
-    const wxString filePath = paths.logs + "\\nextpnr.combined.log";
+    const wxString filePath = sigflow::platform::JoinPath(paths.logs, "nextpnr.combined.log");
     if (!wxFileExists(filePath)) {
         ShowInfo("Log has not been generated yet.");
         return;

@@ -324,20 +324,26 @@ bool DebugProtocol::ReadCapture(std::uint16_t start, std::uint16_t count,
     samples.clear();
     samples.reserve(count);
     const std::uint32_t total = count;
-    std::uint16_t pos = start;
+    // 用 32 位游标推进。旧实现 pos 是 std::uint16_t：
+    //   * 上界 start + count 会按 int 提升，可能 > 65535；
+    //   * pos + chunk 再转回 uint16 会在 65535 处回绕成 0，永远到不了上界
+    //     → 无限循环、每条样本一次 USB 往返，直到内存耗尽。
+    const std::uint32_t end = static_cast<std::uint32_t>(start) + count;
+    std::uint32_t pos = start;
     if (progressCb) { try { progressCb(0, total); } catch (...) {} }
-    while (pos < start + count) {
+    while (pos < end) {
         const std::uint16_t chunk =
             static_cast<std::uint16_t>(std::min<std::size_t>(proto::kMaxSamples,
-                                                             start + count - pos));
+                                                             end - pos));
         std::vector<std::uint32_t> part;
-        if (!ReadSamples(pos, chunk, part, error, timeoutMs, attempts)) {
+        if (!ReadSamples(static_cast<std::uint16_t>(pos), chunk, part, error,
+                         timeoutMs, attempts)) {
             error = "read chunk [" + std::to_string(pos) + "," +
                     std::to_string(pos + chunk) + ") failed: " + error;
             return false;
         }
         samples.insert(samples.end(), part.begin(), part.end());
-        pos = static_cast<std::uint16_t>(pos + chunk);
+        pos += chunk;
         if (progressCb) {
             const std::uint32_t got = static_cast<std::uint32_t>(samples.size());
             try { progressCb(got, total); } catch (...) {}

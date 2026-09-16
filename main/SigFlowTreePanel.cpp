@@ -336,12 +336,12 @@ TopNode* SigFlowTreePanel::ShowCreateTopDialog(TopNodeType type, SigTreeNode* pa
             auto* rowWrapper = PropertyPanelBuilder::CreateTopPortRow(scrolled, "input",
                 wxString::FromUTF8(in_ports[i]->identifier), &nameCtrl, &delBtn);
             if (nameCtrl) {
-                nameCtrl->Bind(wxEVT_TEXT, [&, i](wxCommandEvent&) {
+                nameCtrl->Bind(wxEVT_TEXT, [&, i, nameCtrl](wxCommandEvent&) {
                     in_ports[i]->identifier = nameCtrl->GetValue().ToStdString();
                     });
             }
             if (delBtn) {
-                delBtn->Bind(wxEVT_BUTTON, [&, i](wxCommandEvent&) {
+                delBtn->Bind(wxEVT_BUTTON, [&, i, delBtn](wxCommandEvent&) {
                     in_ports.erase(in_ports.begin() + i);
                     rebuild();
                     });
@@ -354,12 +354,12 @@ TopNode* SigFlowTreePanel::ShowCreateTopDialog(TopNodeType type, SigTreeNode* pa
             auto* rowWrapper = PropertyPanelBuilder::CreateTopPortRow(scrolled, "output",
                 wxString::FromUTF8(out_ports[i]->identifier), &nameCtrl, &delBtn);
             if (nameCtrl) {
-                nameCtrl->Bind(wxEVT_TEXT, [&, i](wxCommandEvent&) {
+                nameCtrl->Bind(wxEVT_TEXT, [&, i, nameCtrl](wxCommandEvent&) {
                     out_ports[i]->identifier = nameCtrl->GetValue().ToStdString();
                     });
             }
             if (delBtn) {
-                delBtn->Bind(wxEVT_BUTTON, [&, i](wxCommandEvent&) {
+                delBtn->Bind(wxEVT_BUTTON, [&, i, delBtn](wxCommandEvent&) {
                     out_ports.erase(out_ports.begin() + i);
                     rebuild();
                     });
@@ -523,7 +523,7 @@ SecondNode* SigFlowTreePanel::CreateModuleInstDialog(SigTreeNode* parent) {
                 choices,
                 &connCtrl);
             if (connCtrl) {
-                connCtrl->Bind(wxEVT_TEXT, [&, i](wxCommandEvent& e) {
+                connCtrl->Bind(wxEVT_TEXT, [&, i, connCtrl](wxCommandEvent& e) {
                     in_ports[i].conn = e.GetString().ToStdString();
                     });
             }
@@ -538,7 +538,7 @@ SecondNode* SigFlowTreePanel::CreateModuleInstDialog(SigTreeNode* parent) {
                 choices,
                 &connCtrl);
             if (connCtrl) {
-                connCtrl->Bind(wxEVT_TEXT, [&, i](wxCommandEvent& e) {
+                connCtrl->Bind(wxEVT_TEXT, [&, i, connCtrl](wxCommandEvent& e) {
                     out_ports[i].conn = e.GetString().ToStdString();
                     });
             }
@@ -634,7 +634,7 @@ SecondNode* SigFlowTreePanel::CreateGateInstDialog(SigTreeNode* parent) {
                 choices,
                 &connCtrl);
             if (connCtrl) {
-                connCtrl->Bind(wxEVT_TEXT, [&, i](wxCommandEvent& e) {
+                connCtrl->Bind(wxEVT_TEXT, [&, i, connCtrl](wxCommandEvent& e) {
                     ports[i].conn = e.GetString().ToStdString();
                     });
             }
@@ -720,7 +720,7 @@ SecondNode* SigFlowTreePanel::CreateContiniousAssignDialog(SigTreeNode* parent) 
                 choices,
                 &connCtrl);
             if (connCtrl) {
-                connCtrl->Bind(wxEVT_TEXT, [&, i](wxCommandEvent& e) {
+                connCtrl->Bind(wxEVT_TEXT, [&, i, connCtrl](wxCommandEvent& e) {
                     out_ports[i].conn = e.GetString().ToStdString();
                     });
             }
@@ -735,7 +735,7 @@ SecondNode* SigFlowTreePanel::CreateContiniousAssignDialog(SigTreeNode* parent) 
                 choices,
                 &connCtrl);
             if (connCtrl) {
-                connCtrl->Bind(wxEVT_TEXT, [&, i](wxCommandEvent& e) {
+                connCtrl->Bind(wxEVT_TEXT, [&, i, connCtrl](wxCommandEvent& e) {
                     in_ports[i].conn = e.GetString().ToStdString();
                     });
             }

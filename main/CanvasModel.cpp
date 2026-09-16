@@ -1,8 +1,9 @@
-﻿#include "CanvasModel.h"
+#include "CanvasModel.h"
 #include "platform/PlatformPaths.h"
 #include "CanvasElement.h"
 #include <wx/filename.h>
 #include <wx/stdpaths.h>
+#include <algorithm>
 #include <fstream>
 #include <filesystem>
 #include <json/json.h>
@@ -36,8 +37,15 @@ std::vector<SecondElement> LoadSecondElements(const wxString& jsonPath)
 
         std::vector<Shape> shapes;
         for (const auto& shape : elem["shapes"]) {
-            wxColour color(shape["color"].asString());
-            wxString type = shape["type"].asString();
+            // asString() 返回 std::string，直接构造 wxString 会按 locale 解码；
+            // 颜色字符串必须先校验再使用，否则非法值会生成无效 wxColour，
+            // 交给 pen/brush 会在 GTK 上产生告警甚至断言。
+            wxString type = wxString::FromUTF8(shape["type"].asString());
+            const wxString colorText = wxString::FromUTF8(shape["color"].asString());
+            wxColour color;
+            if (!color.Set(colorText)) {
+                color = *wxBLACK;
+            }
 
             if (type == "polygon") {
                 std::vector<Point> pts;
@@ -62,7 +70,14 @@ std::vector<SecondElement> LoadSecondElements(const wxString& jsonPath)
             else if (type == "circle") {
 
                 bool fill = shape.get("fill", false).asBool();
-                wxColour fillColor = fill ? wxColour(shape.get("fillColor", "#808080").asString()) : wxColour(0, 0, 0);
+                wxColour fillColor;
+                const wxString fillText = wxString::FromUTF8(
+                    shape.get("fillColor", "#808080").asString());
+                if (fill) {
+                    if (!fillColor.Set(fillText)) fillColor = *wxBLACK;
+                } else {
+                    fillColor = wxColour(0, 0, 0);
+                }
 
                 shapes.push_back(Circle{
                     {shape["x"].asInt(), shape["y"].asInt()},
@@ -75,18 +90,24 @@ std::vector<SecondElement> LoadSecondElements(const wxString& jsonPath)
             else if (type == "text") {
                 wxString text = wxString::FromUTF8(shape["text"].asString());
                 //text.Replace("&", "&&");
+                // 缺省或非法字号会让 wxFont 变成无效字体（不显示/触发断言），至少钳到 1。
+                const int fontSize = std::max(1, shape["fontSize"].asInt());
                 shapes.push_back(Text{
                     {shape["x"].asInt(), shape["y"].asInt()},
                     text,
 
-                    shape["fontSize"].asInt(),
+                    fontSize,
                     color
                     });
             }
             else if (type == "path") {
+                wxColour stroke;
+                if (!stroke.Set(wxString::FromUTF8(shape["stroke"].asString()))) {
+                    stroke = *wxBLACK;
+                }
                 shapes.push_back(Path{
                     shape["d"].asString(),
-                    wxColour(shape["stroke"].asString()),
+                    stroke,
                     shape["strokeWidth"].asInt(),
                     shape["fill"].asString() != "none"
                     });

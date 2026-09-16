@@ -81,3 +81,53 @@ if(SIGFLOW_WX_LOCAL AND WIN32)
 endif()
 
 add_test(NAME job_tests COMMAND job_tests)
+
+# ---------------------------------------------------------------------------
+# fpga_flow_probe：无 GUI 的 FPGA 工具链探针
+#
+# 直接调用 SigFlow 内部的 FPGA 代码路径（脚本生成 / 进程执行 / 日志解析 /
+# 产物校验 / nextpnr Prepare+Finalize），不启动主程序。
+# 只链接 wxBase，不碰任何 GUI 源文件。
+# ---------------------------------------------------------------------------
+set(FPGA_PROBE_SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/fpga_flow_probe.cpp"
+    "${SIGFLOW_MAIN_DIR}/FpgaYosysRuntime.cpp"
+    "${SIGFLOW_MAIN_DIR}/FpgaYosysScriptGenerator.cpp"
+    "${SIGFLOW_MAIN_DIR}/FpgaYosysExecutor.cpp"
+    "${SIGFLOW_MAIN_DIR}/fpga/FpgaYosysReport.cpp"
+    "${SIGFLOW_MAIN_DIR}/fpga/FpgaYosysLogParser.cpp"
+    "${SIGFLOW_MAIN_DIR}/fpga/NextpnrExecutor.cpp"
+    "${SIGFLOW_MAIN_DIR}/fpga/NextpnrReport.cpp"
+    "${SIGFLOW_MAIN_DIR}/fpga/NextpnrLogParser.cpp"
+    "${SIGFLOW_MAIN_DIR}/fpga/CstValidator.cpp"
+    "${SIGFLOW_MAIN_DIR}/fpga/FpgaConstraint.cpp"
+    "${SIGFLOW_MAIN_DIR}/fpga/FpgaPinData.cpp"
+    "${SIGFLOW_MAIN_DIR}/fpga/ArtifactValidator.cpp"
+    "${SIGFLOW_MAIN_DIR}/jobs/PlatformProcess.cpp"
+    "${SIGFLOW_MAIN_DIR}/jobs/Sha256.cpp"
+    "${SIGFLOW_3RD_DIR}/json/jsoncpp.cpp"
+)
+
+add_executable(fpga_flow_probe ${FPGA_PROBE_SOURCES})
+
+target_include_directories(fpga_flow_probe PRIVATE
+    "${SIGFLOW_MAIN_DIR}"
+    "${SIGFLOW_3RD_DIR}"
+)
+
+if(SIGFLOW_WX_LOCAL)
+    target_link_libraries(fpga_flow_probe PRIVATE wx::base)
+else()
+    target_link_libraries(fpga_flow_probe PRIVATE ${JOB_TESTS_WX_BASE_LIBRARY})
+endif()
+
+if(NOT WIN32)
+    target_link_libraries(fpga_flow_probe PRIVATE Threads::Threads)
+endif()
+
+# 测试用的 Verilog 设计与约束文件要拷到可执行文件旁（探针按 ExecutableDir() 找）
+add_custom_command(TARGET fpga_flow_probe POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_CURRENT_SOURCE_DIR}/fpga_flow"
+        "$<TARGET_FILE_DIR:fpga_flow_probe>/fpga_flow"
+)

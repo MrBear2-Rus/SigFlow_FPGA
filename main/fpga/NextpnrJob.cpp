@@ -1,4 +1,5 @@
 #include "NextpnrJob.h"
+#include "../platform/PlatformPaths.h"
 
 #include <json/json.h>
 
@@ -212,12 +213,12 @@ bool IsTerminalNextpnrJobState(NextpnrJobState state)
 NextpnrJobPaths NextpnrJobService::GetPaths(const wxString& projectPath, const wxString& jobId)
 {
     NextpnrJobPaths paths;
-    paths.root = projectPath + "\\.sigflow\\fpga\\runs-nextpnr\\" + jobId;
-    paths.inputs = paths.root + "\\inputs";
-    paths.logs = paths.root + "\\logs";
-    paths.artifacts = paths.root + "\\artifacts";
-    paths.reports = paths.root + "\\reports";
-    paths.manifest = paths.root + "\\manifest.json";
+    paths.root = sigflow::platform::JoinPath(sigflow::platform::JoinPath(sigflow::platform::JoinPath(sigflow::platform::JoinPath(projectPath, ".sigflow"), "fpga"), "runs-nextpnr"), "") + jobId;
+    paths.inputs = sigflow::platform::JoinPath(paths.root, "inputs");
+    paths.logs = sigflow::platform::JoinPath(paths.root, "logs");
+    paths.artifacts = sigflow::platform::JoinPath(paths.root, "artifacts");
+    paths.reports = sigflow::platform::JoinPath(paths.root, "reports");
+    paths.manifest = sigflow::platform::JoinPath(paths.root, "manifest.json");
     return paths;
 }
 
@@ -315,7 +316,7 @@ bool NextpnrJobService::List(const wxString& projectPath, std::vector<NextpnrJob
 {
     errorMessage.clear();
     jobs.clear();
-    const wxString runsDir = projectPath + "\\.sigflow\\fpga\\runs-nextpnr";
+    const wxString runsDir = sigflow::platform::JoinPath(sigflow::platform::JoinPath(sigflow::platform::JoinPath(projectPath, ".sigflow"), "fpga"), "runs-nextpnr");
     if (!wxDirExists(runsDir)) return true;
     wxDir dir(runsDir);
     wxString name;

@@ -27,8 +27,10 @@ wxString NextpnrReport::FormatSummary(const NextpnrRunRecord& record)
     summary += wxString::Format(wxT("Target: %s, family %s.\n"), deviceStr, familyStr);
 
     // 阶段状态
+    // 措辞用 "reached" 而不是 "completed"：解析器标记的是"日志里是否出现过该阶段"，
+    // 成功跑完时三个阶段都为 reached，中途失败则只有前面的阶段为 reached。
     auto stageLabel = [](bool done) -> wxString {
-        return done ? wxString(wxT("completed")) : wxString(wxT("not reached"));
+        return done ? wxString(wxT("reached")) : wxString(wxT("not reached"));
     };
     summary += wxString::Format(
         wxT("Packing: %s; placement: %s; routing: %s.\n"),

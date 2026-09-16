@@ -11,6 +11,9 @@
 
 #include <algorithm>
 #include <atomic>
+#if !defined(_WIN32)
+#include <unistd.h>
+#endif
 #include <map>
 #include <memory>
 #include <mutex>
@@ -26,6 +29,18 @@ std::mutex g_concurrencyMutex;
 std::map<ToolJobType, std::size_t> g_concurrencyLimits;
 
 std::mutex g_processMutex;
+
+// 保护 job manifest 的"读-改-写"序列。
+// 旧实现里 Cancel（UI 线程）与 ToolJobExecutor::Finish（worker 线程）会同时
+// Load→改→WriteManifest，最后写入者覆盖前者：Cancelled 可能被改回 Succeeded，
+// 或整条状态迁移凭空消失。用 recursive_mutex 是因为 Start() 会用同一把锁
+// 连续调用多次 Transition()（可重入），而其内部还会再走 Load/WriteManifest。
+std::recursive_mutex& ManifestMutex()
+{
+    static std::recursive_mutex mutex;
+    return mutex;
+}
+
 std::map<wxString, void*> g_runningProcesses;
 std::set<wxString> g_cancelRequested;
 
@@ -83,7 +98,19 @@ bool IsWithinDirectory(const wxString& path, const wxString& directory)
 
 bool WriteJson(const wxString& path, const Json::Value& value, wxString& errorMessage)
 {
-    const wxString temporaryPath = path + ".tmp";
+    // 临时文件名必须唯一：原先固定用 path + ".tmp"，两个并发写入者会
+    // 交错写同一个文件、再各自 rename，导致 manifest 内容被截断/串写。
+    static std::atomic<unsigned long> tempSequence{0};
+    const wxString temporaryPath = wxString::Format(
+        "%s.tmp.%lu.%lu", path,
+        static_cast<unsigned long>(
+#ifdef _WIN32
+            ::GetCurrentProcessId()
+#else
+            ::getpid()
+#endif
+        ),
+        tempSequence.fetch_add(1));
     Json::StreamWriterBuilder writer;
     writer["indentation"] = "  ";
     const wxString content = wxString::FromUTF8(Json::writeString(writer, value)) + "\n";
@@ -379,6 +406,7 @@ bool JobService::IsSafeJobId(const wxString& value)
 
 bool JobService::Create(const ToolJobRequest& request, ToolJob& job, wxString& errorMessage) const
 {
+    std::lock_guard<std::recursive_mutex> manifestLock(ManifestMutex());
     errorMessage.clear();
     if (request.projectPath.IsEmpty() || !wxDirExists(request.projectPath)) {
         errorMessage = "A project directory is required.";
@@ -482,6 +510,7 @@ bool JobService::Transition(const wxString& projectPath, const wxString& jobId,
                             ToolJobState targetState, const wxString& reason, int exitCode,
                             wxString& errorMessage) const
 {
+    std::lock_guard<std::recursive_mutex> manifestLock(ManifestMutex());
     ToolJob job;
     if (!Load(projectPath, jobId, job, errorMessage)) return false;
     if (!IsLegalTransition(job.state, targetState)) {
@@ -500,6 +529,7 @@ bool JobService::Transition(const wxString& projectPath, const wxString& jobId,
 bool JobService::Start(const wxString& projectPath, const wxString& jobId,
                        wxString& errorMessage) const
 {
+    std::lock_guard<std::recursive_mutex> manifestLock(ManifestMutex());
     ToolJob job;
     if (!Load(projectPath, jobId, job, errorMessage)) return false;
     if (job.state == ToolJobState::Running) return true;
@@ -525,6 +555,7 @@ bool JobService::Start(const wxString& projectPath, const wxString& jobId,
 bool JobService::Cancel(const wxString& projectPath, const wxString& jobId,
                         const wxString& reason, wxString& errorMessage) const
 {
+    std::lock_guard<std::recursive_mutex> manifestLock(ManifestMutex());
     ToolJob job;
     if (!Load(projectPath, jobId, job, errorMessage)) return false;
     if (job.state != ToolJobState::Created && job.state != ToolJobState::Validating &&

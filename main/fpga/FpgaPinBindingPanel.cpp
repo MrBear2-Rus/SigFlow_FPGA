@@ -1,4 +1,5 @@
 #include "FpgaPinBindingPanel.h"
+#include "../platform/PlatformPaths.h"
 #include "FpgaConstraint.h"
 #include <wx/msgdlg.h>
 #include <wx/panel.h>
@@ -1075,9 +1076,21 @@ void FpgaPinBindingPanel::OnBoardQuickSelect(wxCommandEvent& evt) {
 }
 
 wxString FpgaPinBindingPanel::GetConstraintsPath() const {
-    return m_projectPath + "\\.sigflow\\fpga\\constraints\\pin-bindings.json";
+    // 必须用平台分隔符：原先硬编码 "\\.sigflow\\fpga\\constraints\\..."，
+    // 在 Linux 上整串是"一个文件名"，约束会写到项目的兄弟目录，
+    // 而 CstValidator / NextpnrExecutor 又在 <proj>/constraints 下查找 → 永远找不到。
+    return sigflow::platform::JoinPath(
+        sigflow::platform::JoinPath(
+            sigflow::platform::JoinPath(
+                sigflow::platform::JoinPath(m_projectPath, ".sigflow"), "fpga"),
+            "constraints"),
+        "pin-bindings.json");
 }
 
 wxString FpgaPinBindingPanel::GetCstPath() const {
-    return m_projectPath + "\\constraints\\" + m_topModule + ".cst";
+    // 同上：必须与 CstValidator 的查找路径（<proj>/constraints）一致，
+    // 否则生成 CST 时提示成功、布局布线却报"找不到 CST 约束文件"。
+    return sigflow::platform::JoinPath(
+        sigflow::platform::JoinPath(m_projectPath, "constraints"),
+        m_topModule + ".cst");
 }

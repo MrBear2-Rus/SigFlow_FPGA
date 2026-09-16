@@ -6,3 +6,6 @@
 /external/fpga-tools/
 /tools/verilator/
 /sigflow.log
+.debug/
+3rd/
+

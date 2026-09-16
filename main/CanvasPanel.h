@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <wx/wx.h>
 #include <vector>
 #include <chrono>
@@ -141,7 +141,12 @@ public:
     void DelSecondNode(int id);
     void DelSecondElement(SecondNode* sn);
     void DelSecondElement(int id);
-    void SecondSetPos(int i, wxPoint pos) { m_elems[i].SetPos(pos); RefreshRect(m_elems[i].GetBounds()); };
+    // 以下内联 setter 都会被拖拽/擦除路径用"可能过期的选择索引"调用，
+    // 必须先做边界检查：越界写 std::vector 是 UB（崩溃或堆破坏）。
+    void SecondSetPos(int i, wxPoint pos) {
+        if (i < 0 || i >= static_cast<int>(m_elems.size())) return;
+        m_elems[i].SetPos(pos); RefreshRect(m_elems[i].GetBounds());
+    };
     void RefreshElem(SecondNode* sn);
     const std::vector<SecondElement>& GetSecond() const { return m_elems; };
 
@@ -153,8 +158,14 @@ public:
     void DeleteWire(int index);
     void WireSetWholeOffSet(int index, const wxPoint& offset);
     void WirePtsSetPos(int wireIndex, int controlPointIndex, const wxPoint& pos);
-    void WireGenerateCells(int Index) { m_wires[Index].GenerateCells(); };
-    void UpdateWire(const Wire& newWire, int index) {m_wires[index] = newWire; m_wires[index].GenerateCells(); Refresh(); };
+    void WireGenerateCells(int Index) {
+        if (Index < 0 || Index >= static_cast<int>(m_wires.size())) return;
+        m_wires[Index].GenerateCells();
+    };
+    void UpdateWire(const Wire& newWire, int index) {
+        if (index < 0 || index >= static_cast<int>(m_wires.size())) return;
+        m_wires[index] = newWire; m_wires[index].GenerateCells(); Refresh();
+    };
     void UpdatePreviewWire(Wire wire) { m_previewWire = wire; Refresh(); };
     void ClearPreviewWire() { m_previewWire = Wire(); Refresh(); };
     void RefreshSignal(SignalNode* sn);
@@ -165,8 +176,16 @@ public:
     void AddTextWithIns(CanvasTextElement text);
     void ReclaimText(CanvasTextElement text, int index);
     void CreateTextElementWithoutRecord(const wxPoint& position, wxString text);
-    void DeleteTextElement(int index) { m_textElements.erase(m_textElements.begin() + index); m_selTxtIdx.erase(std::remove(m_selTxtIdx.begin(), m_selTxtIdx.end(), index), m_selTxtIdx.end()); Refresh(); };
-    void TextSetPos(int index, const wxPoint& pos) { m_textElements[index].SetPosition(pos); Refresh(); };
+    void DeleteTextElement(int index) {
+        if (index < 0 || index >= static_cast<int>(m_textElements.size())) return;
+        m_textElements.erase(m_textElements.begin() + index);
+        m_selTxtIdx.erase(std::remove(m_selTxtIdx.begin(), m_selTxtIdx.end(), index), m_selTxtIdx.end());
+        Refresh();
+    };
+    void TextSetPos(int index, const wxPoint& pos) {
+        if (index < 0 || index >= static_cast<int>(m_textElements.size())) return;
+        m_textElements[index].SetPosition(pos); Refresh();
+    };
     void StartTextEditing(int index);
     void FinishTextEditing() { DetachHiddenTextCtrl(); m_toolStateMachine->SetTextState(TextToolState::IDLE); };
     void SetupHiddenTextCtrl();

@@ -2,6 +2,7 @@
 #include "jobs/PlatformProcess.h"
 #include "jobs/JobService.h"
 #include "jobs/ToolJobs.h"
+#include "jobs/JobRunner.h"
 
 #include "platform/PlatformPaths.h"
 #include "platform/DynamicLibrary.h"
@@ -15,8 +16,11 @@
 #include <cstdint>
 #include <cstdio>
 #include <ctime>
+#include <atomic>
+#include <chrono>
 #include <memory>
 #include <string>
+#include <thread>
 
 static int g_failures = 0;
 #define CHECK(cond, msg)                                                      \
@@ -38,6 +42,10 @@ static wxString MakeTempProjectDir()
 
 static void TestPlatformProcess()
 {
+    // 注意：这里的用例必须按平台分支。
+    // 原实现无条件下硬编码 cmd.exe / ping -n，导致 Linux 上 ctest 直接 6 项失败，
+    // 而"失败"又被当成环境问题忽略 —— 等于 jobs 层在 Linux 上从未被真正验证过。
+#if defined(_WIN32)
     PlatformProcessRequest echo;
     echo.executable = "cmd.exe";
     echo.arguments = { "/d", "/s", "/c", "echo hello-from-job" };
@@ -72,6 +80,44 @@ static void TestPlatformProcess()
     slow.timeoutSeconds = 1;
     const PlatformProcessResult slowResult = PlatformProcess::Run(slow);
     CHECK(slowResult.started && slowResult.timedOut, "timeout kills process tree");
+#else
+    // 用**裸命令名** "sh" 而不是 "/bin/sh"：这正好是回归用例——
+    // POSIX 分支曾经用 execv()（不搜索 PATH），裸命令名必然 ENOENT/_exit(127)。
+    // 现在实现改用 execvp()，所以本用例必须通过；一旦有人改回 execv，这里立刻变红。
+    PlatformProcessRequest echo;
+    echo.executable = "sh";
+    echo.arguments = { "-c", "echo hello-from-job" };
+    echo.timeoutSeconds = 30;
+    const PlatformProcessResult echoResult = PlatformProcess::Run(echo);
+    CHECK(echoResult.started && echoResult.exitCode == 0, "sh echo exits 0");
+    CHECK(echoResult.output.Contains("hello-from-job"), "stdout captured");
+
+    PlatformProcessRequest round;
+    round.executable = "sh";
+    round.arguments = { "-c", "echo \"$1\"", "sh", "a b c" };
+    round.timeoutSeconds = 30;
+    const PlatformProcessResult roundResult = PlatformProcess::Run(round);
+    CHECK(roundResult.started && roundResult.exitCode == 0 &&
+          roundResult.output.Contains("a b c"),
+          "argv round-trip preserves spaced argument");
+
+    // 原始命令行模式在 POSIX 上明确不支持（没有可移植的 shell 解析）：
+    // 断言"被拒绝并给出错误信息"，而不是静默当成成功。
+    PlatformProcessRequest rawMode;
+    rawMode.executable = "echo raw-mode-ok";
+    rawMode.quoteArguments = false;
+    rawMode.timeoutSeconds = 30;
+    const PlatformProcessResult rawResult = PlatformProcess::Run(rawMode);
+    CHECK(!rawResult.started && !rawResult.errorMessage.IsEmpty(),
+          "raw command line rejected on POSIX with an error");
+
+    PlatformProcessRequest slow;
+    slow.executable = "sh";
+    slow.arguments = { "-c", "sleep 5" };
+    slow.timeoutSeconds = 1;
+    const PlatformProcessResult slowResult = PlatformProcess::Run(slow);
+    CHECK(slowResult.started && slowResult.timedOut, "timeout kills process tree");
+#endif
 
     const wxString quoted = PlatformProcess::BuildCommandLine("tool.exe",
         { "C:\\ends with backslash\\", "a b" });
@@ -81,6 +127,16 @@ static void TestPlatformProcess()
 
 static void TestProcessEnvironment()
 {
+#if !defined(_WIN32)
+    PlatformProcessRequest request;
+    request.executable = "sh";
+    request.arguments = { "-c", "echo $SIGFLOW_TEST_ENV" };
+    request.environment = { { "SIGFLOW_TEST_ENV", "env-override-ok" } };
+    request.timeoutSeconds = 30;
+    const PlatformProcessResult result = PlatformProcess::Run(request);
+    CHECK(result.started && result.exitCode == 0 && result.output.Contains("env-override-ok"),
+          "environment override reaches child process");
+#else
     PlatformProcessRequest request;
     request.executable = "cmd.exe";
     request.arguments = { "/d", "/s", "/c", "echo %SIGFLOW_TEST_ENV%" };
@@ -89,6 +145,7 @@ static void TestProcessEnvironment()
     const PlatformProcessResult result = PlatformProcess::Run(request);
     CHECK(result.started && result.exitCode == 0 && result.output.Contains("env-override-ok"),
           "environment override reaches child process");
+#endif
 }
 
 static void TestJobServiceStateMachine()
@@ -206,7 +263,7 @@ static void TestSimulationJobInProcess()
     SimulationJobRequest simRequest;
     simRequest.projectPath = project;
     simRequest.topModule = "top";
-    simRequest.sourceFiles = { project + "\\src.v" };
+    simRequest.sourceFiles = {sigflow::platform::JoinPath(project, "src.v") };
     simRequest.requireVcd = false; // 编译型：无 VCD 产物
     simRequest.runner = [](JobReport& report, wxString& runnerError) {
         report.summary = "in-process ok";
@@ -278,10 +335,86 @@ static void TestLocalPipe()
     CHECK(read == sizeof(in) && in[0] == 1 && in[3] == 4, "pipe read round-trip");
 }
 
+// 进程输出的解码回归测试。
+//
+// 旧实现直接 wxString::FromUTF8(buffer, n)：
+//   * 4096 字节的 read 很容易把 3 字节汉字劈成两半 → FromUTF8 返回空串 → **整块 4KB 被丢弃**；
+//   * Windows 上工具输出 CP936/GBK 时整块非法 → 同样整块丢弃。
+// 中文报错信息恰好是用户最需要看到的部分，所以这两条必须作为回归用例。
+static void TestOutputDecoding()
+{
+#if !defined(_WIN32)
+    // 1) 2000 个汉字（3 字节/字 = 6000 字节）必然跨越 4096 的读取边界。
+    PlatformProcessRequest big;
+    big.executable = "sh";
+    big.arguments = { "-c",
+        "i=0; while [ $i -lt 2000 ]; do printf '\\344\\270\\255'; i=$((i+1)); done" };
+    big.timeoutSeconds = 30;
+    const PlatformProcessResult bigResult = PlatformProcess::Run(big);
+    CHECK(bigResult.started && bigResult.exitCode == 0, "utf8 producer exits 0");
+    CHECK(bigResult.output.length() == 2000,
+          "utf8 output spanning read boundaries is not truncated or dropped");
+
+    // 2) 非法 UTF-8（0xFF 0xFE）必须回退解码，而不是丢掉整块。
+    PlatformProcessRequest bad;
+    bad.executable = "sh";
+    bad.arguments = { "-c", "printf '\\377\\376BAD'" };
+    bad.timeoutSeconds = 30;
+    const PlatformProcessResult badResult = PlatformProcess::Run(bad);
+    CHECK(badResult.started && badResult.exitCode == 0, "binary producer exits 0");
+    CHECK(badResult.output.Contains("BAD"),
+          "invalid utf-8 output falls back instead of being dropped");
+#endif
+}
+
+// JobRunHandle 生命周期回归测试。
+//
+// 旧实现把 handle 自己捕获进了线程闭包：一旦调用方丢弃最后一个引用，
+// handle 就会在 **worker 线程** 上析构 → ~JobRunHandle() → m_thread.join() 自连接
+// → 在 noexcept 析构里抛 system_error → std::terminate（整个进程被终止）。
+// 因此本用例真正的断言是"进程还能走到下一行"。
+static void TestJobHandleLifecycle()
+{
+    const wxString project = MakeTempProjectDir();
+    ToolJob job;
+    wxString error;
+    ToolJobRequest request;
+    request.type = ToolJobType::Simulation;
+    request.projectPath = project;
+    if (!JobService().Create(request, job, error)) {
+        CHECK(false, "job created for handle test");
+        return;
+    }
+
+    {
+        // 故意不 Join，立刻释放最后一个引用。
+        auto handle = RunJobAsync(
+            job,
+            [](const ToolJob&, const JobExecutionOptions&, JobReport& report, wxString& message) {
+                report.state = ToolJobState::Succeeded;
+                report.summary = "ok";
+                message = "ok";
+                return true;
+            },
+            JobExecutionOptions(),
+            [](const JobRunOutcome&) {});
+        (void)handle;
+    }
+
+    // 等 worker 收尾（测试环境没有 wxApp 事件循环，CallAfter 不会被派发）。
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    CHECK(true, "dropping the last JobRunHandle does not self-join / terminate");
+
+    std::error_code ec;
+    std::filesystem::remove_all(std::filesystem::path(project.ToStdString()), ec);
+}
+
 int main()
 {
     TestPlatformProcess();
     TestProcessEnvironment();
+    TestOutputDecoding();
+    TestJobHandleLifecycle();
     TestJobServiceStateMachine();
     TestJobRecovery();
     TestJobRecoveryCrossType();

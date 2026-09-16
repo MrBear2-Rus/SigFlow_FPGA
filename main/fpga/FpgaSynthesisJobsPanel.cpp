@@ -1,4 +1,5 @@
 #include "FpgaSynthesisJobsPanel.h"
+#include "../platform/PlatformPaths.h"
 
 #include <algorithm>
 
@@ -265,7 +266,7 @@ void FpgaSynthesisJobsPanel::RenderSelectedJob()
 
     const SynthesisJobPaths paths = FpgaSynthesisJobService::GetPaths(m_projectPath, job->id);
     wxString combinedLog;
-    wxFile logFile(paths.logs + "\\yosys.combined.log", wxFile::read);
+    wxFile logFile(sigflow::platform::JoinPath(paths.logs, "yosys.combined.log"), wxFile::read);
     if (logFile.IsOpened()) logFile.ReadAll(&combinedLog);
     m_parsedLog = FpgaYosysLogParser().Parse(combinedLog);
     if (m_filter->GetSelection() == 0) {
@@ -306,7 +307,10 @@ void FpgaSynthesisJobsPanel::SetReportText(const wxString& text)
 void FpgaSynthesisJobsPanel::AppendReportLine(const wxString& line)
 {
     const int start = m_reportText->GetLength();
-    const int length = static_cast<int>(line.length() + 1); // +1 for '\n'
+    // wxStyledTextCtrl 的 GetLength/SetStyling 用的是 UTF-8 **字节**偏移，
+    // 而 wxString::length() 是**字符**数：中文报告行会让着色长度偏小，
+    // 后续行的颜色整体错位。用 UTF-8 字节长度。
+    const int length = static_cast<int>(line.ToUTF8().length()) + 1; // +1 for '\n'
     m_reportText->AppendText(line + "\n");
     m_reportText->StartStyling(start);
     m_reportText->SetStyling(length, ReportStyleForLine(line));
@@ -318,8 +322,8 @@ void FpgaSynthesisJobsPanel::UpdateActions()
     const bool hasJob = job != nullptr;
     const SynthesisJobPaths paths = hasJob
         ? FpgaSynthesisJobService::GetPaths(m_projectPath, job->id) : SynthesisJobPaths();
-    m_openReportButton->Enable(hasJob && wxFileExists(paths.reports + "\\synthesis.summary.md"));
-    m_openLogButton->Enable(hasJob && wxFileExists(paths.logs + "\\yosys.combined.log"));
+    m_openReportButton->Enable(hasJob && wxFileExists(sigflow::platform::JoinPath(paths.reports, "synthesis.summary.md")));
+    m_openLogButton->Enable(hasJob && wxFileExists(sigflow::platform::JoinPath(paths.logs, "yosys.combined.log")));
     const auto source = std::find_if(m_parsedLog.events.begin(), m_parsedLog.events.end(),
         [](const YosysLogEvent& event) {
             return event.severity == YosysLogSeverity::Error && !event.sourceFile.IsEmpty();
@@ -397,7 +401,7 @@ void FpgaSynthesisJobsPanel::OnOpenReport(wxCommandEvent&)
     const SynthesisJob* job = GetSelectedJob();
     if (!job || !m_openFileHandler) return;
     const SynthesisJobPaths paths = FpgaSynthesisJobService::GetPaths(m_projectPath, job->id);
-    m_openFileHandler(paths.reports + "\\synthesis.summary.md", 0);
+    m_openFileHandler(sigflow::platform::JoinPath(paths.reports, "synthesis.summary.md"), 0);
 }
 
 void FpgaSynthesisJobsPanel::OnOpenLog(wxCommandEvent&)
@@ -405,7 +409,7 @@ void FpgaSynthesisJobsPanel::OnOpenLog(wxCommandEvent&)
     const SynthesisJob* job = GetSelectedJob();
     if (!job || !m_openFileHandler) return;
     const SynthesisJobPaths paths = FpgaSynthesisJobService::GetPaths(m_projectPath, job->id);
-    m_openFileHandler(paths.logs + "\\yosys.combined.log", 0);
+    m_openFileHandler(sigflow::platform::JoinPath(paths.logs, "yosys.combined.log"), 0);
 }
 
 void FpgaSynthesisJobsPanel::OnOpenSource(wxCommandEvent&)

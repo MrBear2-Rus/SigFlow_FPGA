@@ -178,7 +178,7 @@ void FpgaYosysLogParser::Classify(YosysLogEvent& event)
     event.suggestion = "";
     if (event.severity == YosysLogSeverity::Warning) {
         event.ruleId = "YOSYS_WARNING";
-        event.suggestion = "检查该警告涉及的 RTL 和综合策略。";
+        event.suggestion = wxT("检查该警告涉及的 RTL 和综合策略。");
         return;
     }
     if (event.severity != YosysLogSeverity::Error) {
@@ -186,29 +186,29 @@ void FpgaYosysLogParser::Classify(YosysLogEvent& event)
     }
     if (lower.Contains("syntax error") || lower.Contains("parse error")) {
         event.ruleId = "YOSYS_RTL_SYNTAX";
-        event.suggestion = "检查报告中的源文件、行号和 Verilog/SystemVerilog 语法。";
+        event.suggestion = wxT("检查报告中的源文件、行号和 Verilog/SystemVerilog 语法。");
     } else if (lower.Contains("top module") && (lower.Contains("not found") || lower.Contains("not exist"))) {
         event.ruleId = "YOSYS_TOP_MISSING";
-        event.suggestion = "确认 build.top_module 与 RTL 中的 module 名称一致。";
+        event.suggestion = wxT("确认 build.top_module 与 RTL 中的 module 名称一致。");
     } else if (lower.Contains("undefined module") || lower.Contains("blackbox")) {
         event.ruleId = "YOSYS_UNDEFINED_MODULE";
-        event.suggestion = "补充缺失的 RTL/library 文件，或检查实例化模块名称。";
+        event.suggestion = wxT("补充缺失的 RTL/library 文件，或检查实例化模块名称。");
     } else if (lower.Contains("cells_sim.v") || lower.Contains("share") || lower.Contains("command not found")) {
         event.ruleId = "YOSYS_RUNTIME_MISSING";
-        event.suggestion = "运行 Runtime 预检，恢复缺失的 Yosys share 文件或命令。";
+        event.suggestion = wxT("运行 Runtime 预检，恢复缺失的 Yosys share 文件或命令。");
     } else if (lower.Contains("unsupported") || lower.Contains("not supported")) {
         event.ruleId = "YOSYS_UNSUPPORTED_FEATURE";
-        event.suggestion = "将 RTL 改写为目标器件支持的结构，或切换受控综合策略。";
+        event.suggestion = wxT("将 RTL 改写为目标器件支持的结构，或切换受控综合策略。");
     } else if (lower.Contains("abc") || lower.Contains("aiger")) {
         event.ruleId = "YOSYS_ABC_FAILURE";
         event.retryable = true;
-        event.suggestion = "保留任务证据，尝试 debug 或 resource_optimized 策略并比较结果。";
+        event.suggestion = wxT("保留任务证据，尝试 debug 或 resource_optimized 策略并比较结果。");
     } else if (lower.Contains("write_json") || lower.Contains("cannot open")) {
         event.ruleId = "YOSYS_OUTPUT_FAILURE";
-        event.suggestion = "检查任务目录权限、磁盘空间和输出路径。";
+        event.suggestion = wxT("检查任务目录权限、磁盘空间和输出路径。");
     } else {
         event.ruleId = "UNKNOWN_YOSYS_ERROR";
-        event.suggestion = "打开完整日志，根据首个错误定位根因；必要时保留任务目录提交平台问题。";
+        event.suggestion = wxT("打开完整日志，根据首个错误定位根因；必要时保留任务目录提交平台问题。");
     }
 }
 

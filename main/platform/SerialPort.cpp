@@ -407,10 +407,13 @@ bool SerialPort::Impl::SetBaudRate(std::uint32_t baudRate)
     termios tty = {};
     if (::tcgetattr(fd, &tty) != 0) return false;
     speed_t speed = B0;
-    if (ToSpeedConstant(baud, speed)) {
-        ::cfsetispeed(&tty, speed);
-        ::cfsetospeed(&tty, speed);
+    // IsSupportedBaud() 已经筛过一道；这里再兜一次，避免把 B0（挂断）当成
+    // "没设置"的哨兵值传给驱动。
+    if (!ToSpeedConstant(baud, speed)) {
+        return false;
     }
+    ::cfsetispeed(&tty, speed);
+    ::cfsetospeed(&tty, speed);
     return ::tcsetattr(fd, TCSANOW, &tty) == 0;
 }
 
@@ -448,8 +451,17 @@ const std::string& SerialPort::PortName() const { return m_impl->portName; }
 
 bool SerialPort::IsSupportedBaud(std::uint32_t baud)
 {
-    // 覆盖 110 ~ 3M 常见范围；驱动对任意值都有容忍度，这里只做合理性检查。
+#if defined(_WIN32)
+    // Windows 直接写 dcb.BaudRate，驱动接受任意值，只做合理性检查。
     return baud >= 110 && baud <= 3000000;
+#else
+    // POSIX 只能通过 termios 的 speed 常量设置波特率，不在表内的值**根本无法生效**。
+    // 旧实现无条件返回 true，于是 SetBaudRate(250000) 返回成功，
+    // 而端口仍停留在 tcgetattr 读到的旧速率（通常 9600）—— 静默的错误波特率，
+    // 与 Windows 行为也不一致。这里改为按同一张表判定。
+    speed_t speed = B0;
+    return ToSpeedConstant(baud, speed);
+#endif
 }
 
 } // namespace sigflow::platform
