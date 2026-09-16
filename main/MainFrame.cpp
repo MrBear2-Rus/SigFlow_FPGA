@@ -816,7 +816,7 @@ MainFrame::MainFrame()
     leftSideNotebook->AddPage(m_sigFlowTreePanel, "SigFlow Tree");
     leftSideNotebook->AddPage(m_toolbox, "Component Library");
 
-    Bind(wxEVT_TOOL, [=](wxCommandEvent& e) {
+    Bind(wxEVT_TOOL, [=, this](wxCommandEvent& e) {
         int clickedId = e.GetId();
         wxAuiPaneInfo& pane = m_auiMgr.GetPane(leftSideNotebook);
         // 1. 实现互斥选中（就像 Notebook 切换标签一样）

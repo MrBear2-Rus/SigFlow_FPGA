@@ -9,6 +9,9 @@
 #      Win32 types HANDLE / HMODULE / DWORD / LSTATUS / INVALID_HANDLE_VALUE.
 #   3. WARN: bare "\\" path concatenation in main/**/*.cpp (excluding main/platform/**).
 #   4. REPORT: ".exe"/".dll" literals outside main/platform/** and tests/**.
+#   5. FATAL: headers under main/ using fixed-width ints (uint64_t, ...) without <cstdint>.
+#   6. FATAL: #include "..." whose path case does not match the real file (Linux is case-sensitive).
+#   7. WARN: deprecated std::filesystem::u8path outside main/platform/** (C++20; use Utf8Path()).
 #
 # Exits non-zero on rule 1 or rule 2 violations. Pass -Baseline to force exit 0
 # (report-only mode for the P0 transitional state).
@@ -141,6 +144,62 @@ foreach ($f in $allRepoFiles) {
     }
 }
 
+# --- Rule 5: fixed-width ints without <cstdint> in headers (fatal) ----------
+$rule5 = New-Object System.Collections.ArrayList
+$r5IntPattern = '\b(uint8_t|uint16_t|uint32_t|uint64_t|int8_t|int16_t|int32_t|int64_t)\b'
+foreach ($f in $headerFiles) {
+    $rel = Get-RelativePath $Root $f.FullName
+    if (Test-Excluded $rel @('main\platform\') @()) { continue }
+    $content = [System.IO.File]::ReadAllText($f.FullName)
+    if ($content -notmatch $r5IntPattern) { continue }
+    if ($content -match '#\s*include\s*<cstdint>') { continue }
+    [void]$rule5.Add([pscustomobject]@{ file = $rel; line = 0; text = 'uses fixed-width ints without <cstdint>' })
+}
+
+# --- Rule 6: include path case mismatch (fatal; Linux is case-sensitive) ----
+$rule6 = New-Object System.Collections.ArrayList
+$caseMap = @{}
+foreach ($f in $allMainFiles) {
+    $relFwd = (Get-RelativePath $Root $f.FullName).Replace('\', '/')
+    $caseMap[$relFwd.ToLower()] = $relFwd
+}
+$r6Pattern = '#\s*include\s+"([^"]+\.(?:h|hpp|hxx))"'
+foreach ($f in @($allMainFiles | Where-Object { $_.Extension -match '(?i)\.(cpp|h|hpp|hxx|cc|cxx)$' })) {
+    $rel = Get-RelativePath $Root $f.FullName
+    $relFwd = $rel.Replace('\', '/')
+    $dir = ($relFwd -replace '/[^/]+$', '')
+    $n = 0
+    foreach ($line in [System.IO.File]::ReadAllLines($f.FullName)) {
+        $n++
+        $m = [regex]::Match($line, $r6Pattern)
+        if (-not $m.Success) { continue }
+        $inc = $m.Groups[1].Value
+        foreach ($cand in @(($dir + '/' + $inc), ('main/' + $inc))) {
+            $key = $cand.ToLower()
+            if ($caseMap.ContainsKey($key) -and $caseMap[$key] -cne $cand) {
+                [void]$rule6.Add([pscustomobject]@{ file = $rel; line = $n;
+                    text = ("include '{0}' but actual file is '{1}'" -f $inc, $caseMap[$key]) })
+                break
+            }
+        }
+    }
+}
+
+# --- Rule 7: deprecated std::filesystem::u8path (warn) ----------------------
+$rule7 = New-Object System.Collections.ArrayList
+$r7Pattern = '\bu8path\b'
+foreach ($f in @($allMainFiles | Where-Object { $_.Extension -match '(?i)\.(cpp|h|hpp|hxx|cc|cxx)$' })) {
+    $rel = Get-RelativePath $Root $f.FullName
+    if (Test-Excluded $rel @('main\platform\') @()) { continue }
+    $n = 0
+    foreach ($line in [System.IO.File]::ReadAllLines($f.FullName)) {
+        $n++
+        if ($line -match $r7Pattern -and $line -notmatch '^\s*//') {
+            [void]$rule7.Add([pscustomobject]@{ file = $rel; line = $n; text = $line.Trim() })
+        }
+    }
+}
+
 # --- Report ----------------------------------------------------------------
 Write-Host ""
 Write-Host "=== SigFlow portability check ==="
@@ -154,10 +213,17 @@ Write-Host "[Rule 3] bare backslash path concat (WARN):"
 Show-Hits "warnings" $rule3
 Write-Host "[Rule 4] .exe/.dll literals (REPORT):"
 Show-Hits "occurrences" $rule4
+Write-Host "[Rule 5] headers missing <cstdint> (FATAL):"
+Show-Hits "violations" $rule5
+Write-Host "[Rule 6] include case mismatch (FATAL):"
+Show-Hits "violations" $rule6
+Write-Host "[Rule 7] deprecated std::filesystem::u8path (WARN):"
+Show-Hits "warnings" $rule7
 Write-Host ""
-$fatal = $rule1.Count + $rule2.Count
-Write-Host ("Summary: fatal={0} (rule1={1}, rule2={2}), warn={3}, report={4}" -f `
-    $fatal, $rule1.Count, $rule2.Count, $rule3.Count, $rule4.Count)
+$fatal = $rule1.Count + $rule2.Count + $rule5.Count + $rule6.Count
+Write-Host ("Summary: fatal={0} (r1={1}, r2={2}, r5={3}, r6={4}), warn={5} (r3={6}, r7={7}), report={8}" -f `
+    $fatal, $rule1.Count, $rule2.Count, $rule5.Count, $rule6.Count, `
+    ($rule3.Count + $rule7.Count), $rule3.Count, $rule7.Count, $rule4.Count)
 
 if ($fatal -gt 0 -and -not $Baseline) {
     Write-Host "RESULT: FAIL"

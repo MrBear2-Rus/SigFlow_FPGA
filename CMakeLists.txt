@@ -95,7 +95,7 @@ else()
     set(SIGFLOW_WX_LIB_DIR "")
 
     if(NOT SIGFLOW_WX_LOCAL)
-        find_package(wxWidgets REQUIRED COMPONENTS core base aui stc gl)
+        find_package(wxWidgets REQUIRED COMPONENTS core base aui stc gl xml)
         include(${wxWidgets_USE_FILE})
     endif()
     find_package(Threads REQUIRED)
