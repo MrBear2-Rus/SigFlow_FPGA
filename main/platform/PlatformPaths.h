@@ -4,6 +4,7 @@
 #include <wx/string.h>
 #include <wx/filename.h>
 #include <wx/stdpaths.h>
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -105,6 +106,28 @@ inline wxString ResourcePath(const wxString& relative)
     if (cleaned == "res") cleaned.clear();
     else if (cleaned.StartsWith("res/")) cleaned = cleaned.Mid(4);
     return cleaned.IsEmpty() ? ResourceRoot() : ResourceRoot() + "/" + cleaned;
+}
+
+// UTF-8 路径 -> std::filesystem::path。
+// C++20 起 std::filesystem::u8path 被弃用（GCC16 会告警/未来可能移除），这里统一封装。
+inline std::filesystem::path Utf8Path(const char* utf8)
+{
+#if defined(__cpp_char8_t)
+    return std::filesystem::path(reinterpret_cast<const char8_t*>(utf8));
+#else
+    return std::filesystem::u8path(utf8);
+#endif
+}
+
+inline std::filesystem::path Utf8Path(const std::string& utf8)
+{
+    return Utf8Path(utf8.c_str());
+}
+
+inline std::filesystem::path Utf8Path(const wxString& utf8Text)
+{
+    const wxScopedCharBuffer utf8 = utf8Text.ToUTF8();
+    return Utf8Path(utf8.data() != nullptr ? utf8.data() : "");
 }
 
 } // namespace sigflow::platform

@@ -59,7 +59,7 @@ wxString SimulationEngine::GetObjDirPath(const wxString& topModule) const
 bool SimulationEngine::CreateDirectoryRecursive(const wxString& path)
 {
     try {
-        fs::path p(fs::u8path(path.ToUTF8().data()));
+        fs::path p(sigflow::platform::Utf8Path(path));
         fs::create_directories(p);
         return true;
     }
@@ -677,7 +677,7 @@ bool SimulationEngine::CleanCache(const wxString& topModule)
     wxString cacheDir = GetCacheDirectory(topModule);
     
     try {
-        fs::path p(fs::u8path(cacheDir.ToUTF8().data()));
+        fs::path p(sigflow::platform::Utf8Path(cacheDir));
         if (fs::exists(p)) {
             fs::remove_all(p);
         }

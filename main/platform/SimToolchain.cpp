@@ -258,7 +258,7 @@ std::vector<std::string> CollectObjectSources(const std::string& objDir)
 {
     std::vector<std::string> sources;
     std::error_code ec;
-    const std::filesystem::path directory = std::filesystem::u8path(objDir);
+    const std::filesystem::path directory = sigflow::platform::Utf8Path(objDir);
     if (!std::filesystem::is_directory(directory, ec)) return sources;
     for (const auto& entry : std::filesystem::directory_iterator(directory, ec)) {
         if (!entry.is_regular_file(ec)) continue;
@@ -303,7 +303,7 @@ PlatformProcessResult RunCompilerArgs(const std::vector<wxString>& arguments,
 bool OutputExists(const std::string& path)
 {
     std::error_code ec;
-    return std::filesystem::exists(std::filesystem::u8path(path), ec);
+    return std::filesystem::exists(sigflow::platform::Utf8Path(path), ec);
 }
 
 } // namespace

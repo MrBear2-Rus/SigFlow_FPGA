@@ -1,4 +1,5 @@
 ﻿#include <wx/graphics.h> 
+#include "platform/PlatformPaths.h"
 #include <wx/dcbuffer.h>
 #include <wx/dcgraph.h>  
 #include <wx/filename.h>
@@ -518,7 +519,7 @@ bool CanvasPanel::Read() {
         return false;
     }
 
-    const std::filesystem::path canvasPath(std::filesystem::u8path(filepath.GetFullPath().ToUTF8().data()));
+    const std::filesystem::path canvasPath(sigflow::platform::Utf8Path(filepath.GetFullPath()));
     std::ifstream file(canvasPath);
     if (!file.is_open()) return false;
 

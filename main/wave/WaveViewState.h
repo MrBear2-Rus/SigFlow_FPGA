@@ -3,6 +3,7 @@
 #include "../trace/TraceTypes.h"
 #include "WaveTheme.h"
 
+#include <cstdint>
 #include <limits>
 #include <vector>
 

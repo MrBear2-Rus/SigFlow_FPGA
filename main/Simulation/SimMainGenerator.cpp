@@ -1,4 +1,5 @@
 #include "SimMainGenerator.h"
+#include "../platform/PlatformPaths.h"
 #include <fstream>
 #include <sstream>
 #include <map>
@@ -10,7 +11,7 @@ SimMainGenerator::~SimMainGenerator() {}
 bool SimMainGenerator::Generate(const Timeline& timeline, const wxString& outputPath,
                                 const wxString& vcdRelativePath)
 {
-    const std::filesystem::path outPath(std::filesystem::u8path(outputPath.ToUTF8().data()));
+    const std::filesystem::path outPath(sigflow::platform::Utf8Path(outputPath));
     std::ofstream file(outPath);
     if (!file.is_open()) {
         m_lastError = wxString::Format(wxT("无法创建文件: %s"), outputPath);

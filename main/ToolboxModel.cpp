@@ -1,4 +1,5 @@
 #include "ToolboxModel.h"
+#include "platform/PlatformPaths.h"
 #include <wx/filename.h>
 #include <wx/stdpaths.h>
 #include <fstream>
@@ -15,7 +16,7 @@ static bool ParseJson(const wxString& path,
     wxVector<ToolCategory>& catsOut,
     wxVector<wxString>& /*mainOut*/)
 {
-    const std::filesystem::path jsonPath(std::filesystem::u8path(path.ToUTF8().data()));
+    const std::filesystem::path jsonPath(sigflow::platform::Utf8Path(path));
     std::ifstream f(jsonPath, std::ios::binary);
     if (!f) return false;
 

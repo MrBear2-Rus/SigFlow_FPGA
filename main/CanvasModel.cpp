@@ -1,4 +1,5 @@
 ﻿#include "CanvasModel.h"
+#include "platform/PlatformPaths.h"
 #include "CanvasElement.h"
 #include <wx/filename.h>
 #include <wx/stdpaths.h>
@@ -11,7 +12,7 @@ std::vector<SecondElement> g_elements;
 
 std::vector<SecondElement> LoadSecondElements(const wxString& jsonPath)
 {
-    const std::filesystem::path modelPath(std::filesystem::u8path(jsonPath.ToUTF8().data()));
+    const std::filesystem::path modelPath(sigflow::platform::Utf8Path(jsonPath));
     std::ifstream f(modelPath, std::ios::binary);
     if (!f.is_open()) { MyLog("LoadCanvas: file not found!\n"); return {}; }
 

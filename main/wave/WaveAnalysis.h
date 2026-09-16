@@ -3,6 +3,7 @@
 #include "../trace/TraceSource.h"
 #include "WaveViewState.h"
 
+#include <cstdint>
 #include <string>
 
 namespace sigflow {

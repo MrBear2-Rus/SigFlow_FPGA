@@ -1,4 +1,5 @@
 #include "StimulusParser.h"
+#include "../platform/PlatformPaths.h"
 #include <fstream>
 #include <sstream>
 #include <algorithm>
@@ -11,7 +12,7 @@ StimulusParser::~StimulusParser() {}
 
 bool StimulusParser::Parse(const wxString& filePath, TestbenchInfo& result)
 {
-    const std::filesystem::path inPath(std::filesystem::u8path(filePath.ToUTF8().data()));
+    const std::filesystem::path inPath(sigflow::platform::Utf8Path(filePath));
     std::ifstream file(inPath);
     if (!file.is_open()) {
         m_lastError = wxString::Format(wxT("无法打开文件: %s"), filePath);

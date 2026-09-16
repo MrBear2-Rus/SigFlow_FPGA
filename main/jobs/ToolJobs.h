@@ -2,6 +2,7 @@
 
 #include "JobService.h"
 
+#include <cstdint>
 #include <functional>
 #include <vector>
 
