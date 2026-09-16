@@ -1,4 +1,5 @@
 #include "ProjectStartWindow.h"
+#include "platform/PlatformPaths.h"
 #include "MainFrame.h"
 #include <wx/filedlg.h>
 #include <wx/msgdlg.h>
@@ -47,9 +48,9 @@ ProjectStartWindow::ProjectStartWindow(wxWindow* parent, wxWindowID id, const wx
     // 窗口居中
     Centre(wxBOTH);
     wxInitAllImageHandlers();
-    wxBitmapBundle svgIcon = wxBitmapBundle::FromSVGFile("res\\svg_icons\\icon.svg", wxSize(24, 24));
+    wxBitmapBundle svgIcon = wxBitmapBundle::FromSVGFile(sigflow::platform::ResourcePath("res/svg_icons/icon.svg"), wxSize(24, 24));
     wxIcon icon = svgIcon.GetIconFor(this);
-    SetIcon(icon);
+    if (icon.IsOk()) SetIcon(icon);
 }
 
 

@@ -197,8 +197,8 @@ wxMenu* MainMenuBar::CreateEditMenu()
     wxMenu* m = new wxMenu;
 
     wxMenuItem* undoItem = new wxMenuItem(m, wxID_UNDO, "&Can't Undo");
-    undoItem->Enable(false);  // ← 关键：初始时禁用
     m->Append(undoItem);
+    undoItem->Enable(false);  // 必须在 Append 之后才能 Enable（否则 wxGTK 断言 invalid menu item）
     m->AppendSeparator();
 
     m->Append(wxID_CUT, "Cu&t\t");

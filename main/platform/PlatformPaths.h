@@ -3,6 +3,7 @@
 // 路径/环境/可执行文件后缀的平台差异集中处。业务代码通过这里取值。
 #include <wx/string.h>
 #include <wx/filename.h>
+#include <wx/stdpaths.h>
 #include <string>
 #include <vector>
 
@@ -81,6 +82,29 @@ inline wxString WithExecutableSuffix(const wxString& baseName)
 {
     if (baseName.EndsWith(ExecutableSuffix())) return baseName;
     return baseName + ExecutableSuffix();
+}
+
+// ---- 资源路径（统一管理，避免业务代码里散落 "res\\..." 相对路径）----
+// 资源根目录：<可执行文件目录>/res（Windows/Linux 一致；构建后 res/ 会被拷到 exe 旁）。
+inline const wxString& ResourceRoot()
+{
+    static const wxString root = [] {
+        wxFileName exePath(wxStandardPaths::Get().GetExecutablePath());
+        exePath.SetFullName(wxEmptyString);
+        return exePath.GetPath() + "/res";
+    }();
+    return root;
+}
+
+// 资源文件绝对路径：relative 可写 "res/icons/a.svg" 或 "icons/a.svg"；
+// 内部统一把 '\' 规范化为 '/',因此 Linux 上也能正确解析。
+inline wxString ResourcePath(const wxString& relative)
+{
+    wxString cleaned = relative;
+    cleaned.Replace("\\", "/");
+    if (cleaned == "res") cleaned.clear();
+    else if (cleaned.StartsWith("res/")) cleaned = cleaned.Mid(4);
+    return cleaned.IsEmpty() ? ResourceRoot() : ResourceRoot() + "/" + cleaned;
 }
 
 } // namespace sigflow::platform

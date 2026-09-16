@@ -544,9 +544,9 @@ MainFrame::MainFrame()
 {
     // 图标
     wxInitAllImageHandlers();
-    wxBitmapBundle svgIcon = wxBitmapBundle::FromSVGFile("res\\svg_icons\\icon.svg", wxSize(24, 24));
+    wxBitmapBundle svgIcon = wxBitmapBundle::FromSVGFile(sigflow::platform::ResourcePath("res/svg_icons/icon.svg"), wxSize(24, 24));
     wxIcon icon = svgIcon.GetIconFor(this);
-    SetIcon(icon);
+    if (icon.IsOk()) SetIcon(icon);
 
     wxSize tbIconSize = FromDIP(wxSize(12, 12));
     // 标题
@@ -760,7 +760,7 @@ MainFrame::MainFrame()
     }
 
     auto GetIcon = [&](const wxString& path) {
-        wxBitmapBundle bundle = wxBitmapBundle::FromSVGFile(path, wxSize(24, 24));
+        wxBitmapBundle bundle = wxBitmapBundle::FromSVGFile(sigflow::platform::ResourcePath(path), wxSize(24, 24));
         return bundle.GetBitmap(FromDIP((tbIconSize, tbIconSize)));
         };
 

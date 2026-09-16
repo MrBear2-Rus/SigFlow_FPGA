@@ -1,6 +1,7 @@
 ﻿#include <wx/msgdlg.h>
 
 #include "CanvasEventHandler.h"
+#include "platform/PlatformPaths.h"
 #include "CanvasTextElement.h"
 #include "HandyToolKit.h"
 
@@ -36,7 +37,7 @@ void CanvasEventHandler::SetCurrentTool(ToolType tool) {
             break;
             }
         case ToolType::WIRE_TOOL: {
-            wxImage image("res\\icons\\wiring.png", wxBITMAP_TYPE_PNG);
+            wxImage image(sigflow::platform::ResourcePath("res/icons/wiring.png"), wxBITMAP_TYPE_PNG);
             image.GetOptionInt(wxIMAGE_OPTION_CUR_HOTSPOT_X);
             image.GetOptionInt(wxIMAGE_OPTION_CUR_HOTSPOT_Y);
             wxCursor cursor(image);
@@ -48,7 +49,7 @@ void CanvasEventHandler::SetCurrentTool(ToolType tool) {
             break;
         }
         case ToolType::ERASER_TOOL: {
-            wxImage image("res\\icons\\eraser.png", wxBITMAP_TYPE_PNG);
+            wxImage image(sigflow::platform::ResourcePath("res/icons/eraser.png"), wxBITMAP_TYPE_PNG);
             image.GetOptionInt(wxIMAGE_OPTION_CUR_HOTSPOT_X);
             image.GetOptionInt(wxIMAGE_OPTION_CUR_HOTSPOT_Y);
             wxCursor cursor(image);
@@ -314,7 +315,7 @@ void CanvasEventHandler::FinishWireDrawing() {
 }
 
 void CanvasEventHandler::CancelWireDrawing() {
-    wxImage image("res\\icons\\wiring.png", wxBITMAP_TYPE_PNG);
+    wxImage image(sigflow::platform::ResourcePath("res/icons/wiring.png"), wxBITMAP_TYPE_PNG);
     image.GetOptionInt(wxIMAGE_OPTION_CUR_HOTSPOT_X);
     image.GetOptionInt(wxIMAGE_OPTION_CUR_HOTSPOT_Y);
     wxCursor cursor(image);

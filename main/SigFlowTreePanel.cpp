@@ -1,4 +1,5 @@
 ﻿#include "SigFlowTreePanel.h"
+#include "platform/PlatformPaths.h"
 #include "PropertyPanelBuilder.h"
 #include <wx/statline.h>
 #include <wx/artprov.h>
@@ -266,7 +267,7 @@ void SigFlowTreePanel::InitTreeIcons() {
     // 添加图标（可以从艺术资源、图标文件或位图加载）
     // 这里的顺序要和上面的 enum 对应
     auto GetIcon = [&](const wxString& path) {
-        wxBitmapBundle bundle = wxBitmapBundle::FromSVGFile(path, sz);
+        wxBitmapBundle bundle = wxBitmapBundle::FromSVGFile(sigflow::platform::ResourcePath(path), sz);
         return bundle.GetBitmap(sz);
         };
 

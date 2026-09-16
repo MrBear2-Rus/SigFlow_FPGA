@@ -1,4 +1,5 @@
 #include "ToolStateMachine.h"
+#include "platform/PlatformPaths.h"
 #include <wx/datetime.h>
 #include <wx/utils.h>
 #include <wx/image.h>
@@ -52,7 +53,7 @@ void ToolStateMachine::SetCurrentTool(ToolType tool) {
             break;
         }
         case ToolType::WIRE_TOOL: {
-            wxImage image("res\\icons\\wiring.png", wxBITMAP_TYPE_PNG);
+            wxImage image(sigflow::platform::ResourcePath("res/icons/wiring.png"), wxBITMAP_TYPE_PNG);
             image.GetOptionInt(wxIMAGE_OPTION_CUR_HOTSPOT_X);
             image.GetOptionInt(wxIMAGE_OPTION_CUR_HOTSPOT_Y);
             wxCursor cursor(image);

@@ -1,5 +1,6 @@
 ﻿// HandyToolKit.cpp
 #include "HandyToolKit.h"
+#include "platform/PlatformPaths.h"
 #include <wx/dcbuffer.h>
 #include <wx/wx.h>
 #include <wx/graphics.h>
@@ -33,7 +34,7 @@ void HandyToolKit::CreateTools(int size)
 
     // 定义辅助加载函数
     auto GetIcon = [this](const wxString& path) {
-        wxBitmapBundle bundle = wxBitmapBundle::FromSVGFile(path, wxSize(24, 24));
+        wxBitmapBundle bundle = wxBitmapBundle::FromSVGFile(sigflow::platform::ResourcePath(path), wxSize(24, 24));
         return bundle.GetBitmap(wxSize(this->m_toolSize, this->m_toolSize));
         };
 
