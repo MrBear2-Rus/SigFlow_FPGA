@@ -8,6 +8,7 @@
 #include <wx/file.h>
 #include <wx/filefn.h>
 #include <wx/filename.h>
+#include <wx/utils.h>
 
 #include <algorithm>
 #include <atomic>
@@ -103,13 +104,7 @@ bool WriteJson(const wxString& path, const Json::Value& value, wxString& errorMe
     static std::atomic<unsigned long> tempSequence{0};
     const wxString temporaryPath = wxString::Format(
         "%s.tmp.%lu.%lu", path,
-        static_cast<unsigned long>(
-#ifdef _WIN32
-            ::GetCurrentProcessId()
-#else
-            ::getpid()
-#endif
-        ),
+        static_cast<unsigned long>(wxGetProcessId()),
         tempSequence.fetch_add(1));
     Json::StreamWriterBuilder writer;
     writer["indentation"] = "  ";
