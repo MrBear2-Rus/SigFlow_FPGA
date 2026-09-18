@@ -1,4 +1,6 @@
 #include "FpgaSynthesisJobsPanel.h"
+
+#include <wx/log.h>
 #include "../platform/PlatformPaths.h"
 
 #include <algorithm>
@@ -180,6 +182,18 @@ void FpgaSynthesisJobsPanel::SortJobsNewestFirst()
 
 void FpgaSynthesisJobsPanel::RefreshJobs()
 {
+    // 防重入。
+    // 本函数会重建整个列表，而重建过程本身会派发选中事件（见下方 SetItemState），
+    // 该事件又会回到本面板；定时器/刷新按钮也可能正在事件处理中途再次触发。
+    // 在 wxGTK 的 GtkTreeView 正派发手势/选中信号时改动它的模型，
+    // 会让 wxGTK 内部的项数组与模型错位，之后按索引删除就会越界断言。
+    if (m_refreshing) return;
+    m_refreshing = true;
+    struct RefreshGuard {
+        bool& flag;
+        ~RefreshGuard() { flag = false; }
+    } refreshGuard{ m_refreshing };
+
     m_jobs.clear();
     m_jobList->DeleteAllItems();
     SetReportText(wxEmptyString);
@@ -227,8 +241,15 @@ void FpgaSynthesisJobsPanel::RefreshJobs()
         return;
     }
     if (selectedIndex == wxNOT_FOUND) selectedIndex = 0;
+    // 程序化设置选中：wxGTK 会**同步**派发 wxEVT_LIST_ITEM_SELECTED。
+    // 此刻列表刚重建完，若让该事件再回环到 OnJobSelected，就会在
+    // GtkTreeView 自己的信号派发过程中重入渲染逻辑；旧代码还会紧接着再显式
+    // SelectJob 一次（同一件事做两遍）。
+    // 这里屏蔽回环事件，下面显式选一次即可。
+    m_suppressJobSelection = true;
     m_jobList->SetItemState(selectedIndex, wxLIST_STATE_SELECTED | wxLIST_STATE_FOCUSED,
                             wxLIST_STATE_SELECTED | wxLIST_STATE_FOCUSED);
+    m_suppressJobSelection = false;
     SelectJob(selectedIndex);
 }
 
@@ -266,8 +287,18 @@ void FpgaSynthesisJobsPanel::RenderSelectedJob()
 
     const SynthesisJobPaths paths = FpgaSynthesisJobService::GetPaths(m_projectPath, job->id);
     wxString combinedLog;
-    wxFile logFile(sigflow::platform::JoinPath(paths.logs, "yosys.combined.log"), wxFile::read);
-    if (logFile.IsOpened()) logFile.ReadAll(&combinedLog);
+    {
+        // 与 NextpnrJobsPanel::RenderSelectedJob 保持完全一致的写法：
+        // 日志文件可能还不存在（作业还在跑 / 早期失败 / 应用中途退出后
+        // RecoverStaleJobs 把作业标成 Failed，日志从未落盘）。
+        // 用 wxLogNull 抑制 wxFile 打开失败的 wxLogSysError，否则每次刷新面板
+        // 都会在日志/终端里打出
+        //   can't open file '...' (error 2: No such file or directory)
+        // 那看起来像程序故障，其实只是"报告还没生成"。
+        wxLogNull suppressLog;
+        wxFile logFile(sigflow::platform::JoinPath(paths.logs, "yosys.combined.log"), wxFile::read);
+        if (logFile.IsOpened()) logFile.ReadAll(&combinedLog);
+    }
     m_parsedLog = FpgaYosysLogParser().Parse(combinedLog);
     if (m_filter->GetSelection() == 0) {
         SetReportText(summaryReport);
@@ -381,6 +412,10 @@ wxColour FpgaSynthesisJobsPanel::StateColour(SynthesisJobState state)
 
 void FpgaSynthesisJobsPanel::OnJobSelected(wxListEvent& event)
 {
+    // 程序化选中（RefreshJobs 里的 SetItemState）不在这里处理，避免事件回环。
+    if (m_suppressJobSelection) {
+        return;
+    }
     SelectJob(event.GetIndex());
 }
 

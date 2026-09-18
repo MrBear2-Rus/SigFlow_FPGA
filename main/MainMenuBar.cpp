@@ -451,11 +451,31 @@ void MainMenuBar::OnExit(wxCommandEvent&)
 void MainMenuBar::OnFileHistory(wxCommandEvent& evt)
 {
     const int idx = evt.GetId() - wxID_FILE1;
-    wxString path = m_fileHistory.GetHistoryFile(idx);
-    if (!path.IsEmpty())
-    {
-        m_owner->DoFileOpen(path);  // 带路径打开
-        m_fileHistory.AddFileToHistory(path); // 提到最前
+
+    // 必须做边界检查。
+    // EVT_MENU_RANGE 只保证 id 落在 [wxID_FILE1, wxID_FILE9]，并不保证
+    // 该下标在内部历史数组里存在：菜单项与 wxFileHistory 的内部数组一旦不同步
+    //（例如历史被 Load() 重建而菜单没有跟着重建），wxFileHistory::GetHistoryFile(idx)
+    // 就会用越界下标去访问内部数组，直接在 wx 内部触发断言。
+    if (idx < 0 || static_cast<size_t>(idx) >= m_fileHistory.GetCount()) {
+        return;
+    }
+
+    const wxString path = m_fileHistory.GetHistoryFile(idx);
+    if (path.IsEmpty()) {
+        return;
+    }
+
+    m_owner->DoFileOpen(path);  // 带路径打开
+
+    // "提到最前" 会 insert/delete 菜单项（wxFileHistory::AddFileToHistory 内部会
+    // 调用 m_fileMenus 里各菜单的 Append/SetLabel/Delete 来重排 MRU 项）。
+    // 而此刻我们正处在**这个菜单自己的事件处理过程中** —— 在 wxWidgets 里
+    // 于菜单事件里修改该菜单是明确禁忌：菜单项数量与 wxFileHistory 内部数组
+    // 一旦错位，后续的 SetLabel/Delete（以及内部的 RemoveAt）就会用错误下标。
+    // 因此把这次历史更新推迟到本次事件处理结束之后再做。
+    if (m_owner) {
+        m_owner->CallAfter([this, path]() { AddFileToHistory(path); });
     }
 }
 

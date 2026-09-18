@@ -84,13 +84,17 @@ wxString EscapeJson(wxString value)
     return value;
 }
 
-void AddFileCheck(FpgaYosysRuntimeReport& report, const wxString& id, const wxString& path)
+void AddFileCheck(FpgaYosysRuntimeReport& report, const wxString& id, const wxString& path,
+                  bool required = true)
 {
     FpgaYosysRuntimeCheck check;
     check.id = id;
     check.path = path;
+    check.required = required;
     check.passed = wxFileExists(path);
-    check.message = check.passed ? "File is available." : "Required file is missing.";
+    check.message = check.passed ? "File is available."
+                                 : (required ? "Required file is missing."
+                                             : "Optional file is not present in this Yosys version.");
     if (check.passed) {
         check.sha256 = Sha256File(path);
         if (check.sha256.IsEmpty()) {
@@ -162,9 +166,7 @@ FpgaYosysRuntimeReport ValidateYosysRuntime(const wxString& executablePath)
         "gowin/arith_map.v",
         "gowin/brams.txt",
         "gowin/brams_map.v",
-        "gowin/cells_latch.v",
         "gowin/cells_map.v",
-        "gowin/dsp_map.v",
         "gowin/lutrams.txt",
         "gowin/lutrams_map.v",
         "mul2dsp.v",
@@ -176,6 +178,20 @@ FpgaYosysRuntimeReport ValidateYosysRuntime(const wxString& executablePath)
     for (const wxString& relativePath : shareFiles) {
         AddFileCheck(report, wxString("share:") + relativePath,
                      JoinPath(report.shareDirectory, relativePath));
+    }
+
+    // 版本相关的 techlib 文件：存在就校验，不存在只提示，**不影响 valid**。
+    // yosys 0.4x 起已从 techlibs/gowin 移除 cells_latch.v 与 dsp_map.v
+    //（功能并入其它 map 文件），而上面的清单是按更早的 yosys（随包分发的 0.38）
+    // 写死的。若继续当作必需项，用新版 yosys 时预检必然失败，
+    // 结果是综合被永久拦住 —— 但工具链其实完全可用。
+    const std::vector<wxString> optionalShareFiles = {
+        "gowin/cells_latch.v",
+        "gowin/dsp_map.v",
+    };
+    for (const wxString& relativePath : optionalShareFiles) {
+        AddFileCheck(report, wxString("share:") + relativePath,
+                     JoinPath(report.shareDirectory, relativePath), false);
     }
 
     if (wxFileExists(executablePath)) {

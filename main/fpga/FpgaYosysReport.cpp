@@ -2,6 +2,8 @@
 
 #include <json/json.h>
 
+#include <wx/log.h>
+
 #include <wx/file.h>
 #include <wx/filefn.h>
 
@@ -80,6 +82,11 @@ Json::Value ToJson(const YosysLogRecord& record)
     provenance["artifact_manifest"] = record.artifactManifestPath.ToStdString();
     Json::Value inputHashes(Json::arrayValue);
     if (!record.inputManifestPath.IsEmpty()) {
+        // 输入清单可能不存在（例如作业在写完清单前就失败）。
+        // 直接用 wxFile::read 打开会经 wxLogSysError 打出
+        //   can't open file '...' (error 2: No such file or directory)
+        // 这里只是在做"可追溯性"的附加信息，缺了就跳过，不该当成故障报出来。
+        wxLogNull suppressLog;
         wxFile inputManifest(record.inputManifestPath, wxFile::read);
         wxString manifestText;
         if (inputManifest.IsOpened() && inputManifest.ReadAll(&manifestText)) {

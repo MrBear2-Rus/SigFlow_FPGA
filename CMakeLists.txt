@@ -354,3 +354,15 @@ if(SIGFLOW_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
 endif()
+
+# ---------------------------------------------------------------------------
+# 可选：FPGA 工具链（yosys / nextpnr / apicula）源码获取 + 本地编译
+#
+# 默认关闭，不影响普通构建；开启后：
+#   cmake -S . -B build -DSIGFLOW_FETCH_FPGA_TOOLS=ON
+#   cmake --build build --target sigflow_fpga_tools -j
+# Windows 与 Linux 由 FetchContent 下载**同一套源码**，各自本地编译，
+# 产物落位到 external/fpga-tools/runtime/，主程序无需改动即可找到。
+# 详见 cmake/FpgaTools.cmake。
+# ---------------------------------------------------------------------------
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/FpgaTools.cmake")

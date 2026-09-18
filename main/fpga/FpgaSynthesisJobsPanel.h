@@ -39,6 +39,9 @@ private:
     wxButton* m_openSourceButton = nullptr;
     wxButton* m_retryButton = nullptr;
     wxTimer m_refreshTimer;
+    // 刷新列表期间需要抑制的事件回环（见 RefreshJobs 的说明）
+    bool m_refreshing = false;
+    bool m_suppressJobSelection = false;
 
     std::function<void(const wxString&, long)> m_openFileHandler;
     std::function<void(const wxString&)> m_retryHandler;

@@ -331,10 +331,14 @@ wxString FindFpgaTool(const wxString& configuredPath, const wxString& environmen
             const wxUniChar separator = sigflow::platform::PathSeparator();
             const wxString bundledToolRoot =
                 directory.GetPath() + separator + "external" + separator + "fpga-tools" + separator + "runtime";
+            // apicula 的脚本目录随平台而异：Windows 的 venv 用 Scripts/，
+            // Linux 的 venv 用 bin/ —— 两处都要找，否则 Linux 上源码构建出来的
+            // gowin_pack 永远找不到。
             const std::vector<wxString> bundledCandidates = {
                 bundledToolRoot + separator + "yosys" + separator + "bin" + separator + fileName,
                 bundledToolRoot + separator + "nextpnr" + separator + "bin" + separator + fileName,
                 bundledToolRoot + separator + "apicula" + separator + "Scripts" + separator + fileName,
+                bundledToolRoot + separator + "apicula" + separator + "bin" + separator + fileName,
                 bundledToolRoot + separator + "openfpgaloader" + separator + "bin" + separator + fileName,
             };
             for (const wxString& candidate : bundledCandidates) {
@@ -2756,9 +2760,17 @@ void MainFrame::RunTraceBridgeDebugBuild(const TraceBridgeDebugBuildRequest& req
     }
 
     const wxString legacyJson =JoinPath(JoinPath(projectPath, "yosys"), "") + topModule + wxT(".json");
-    wxFile jsonFile(legacyJson, wxFile::read);
     wxString jsonText;
-    if (!jsonFile.IsOpened() || !jsonFile.ReadAll(&jsonText)) {
+    bool jsonReadable = false;
+    {
+        // 该文件不存在时下面已经会弹一个友好的提示框；这里若直接 wxFile::read，
+        // 会先经 wxLogSysError 打出一行 "can't open file ... (error 2)" 到日志/终端，
+        // 与随后的提示框内容重复且更容易被误认为故障。用 wxLogNull 静默预期失败。
+        wxLogNull suppressLog;
+        wxFile jsonFile(legacyJson, wxFile::read);
+        jsonReadable = jsonFile.IsOpened() && jsonFile.ReadAll(&jsonText);
+    }
+    if (!jsonReadable) {
         wxMessageBox(wxT("找不到已完成的 Yosys JSON：") + legacyJson +
                      wxT("\n请先完成普通综合。"), wxT("TraceBridge 调试构建"),
                      wxOK | wxICON_WARNING, this);
@@ -3074,6 +3086,35 @@ void MainFrame::RunFpgaSynthesis()
     }
     const FpgaYosysStrategyInfo& strategyInfo = GetFpgaYosysStrategyInfo(strategy);
 
+    // ── 前置条件检查：先确认工具存在、运行时完整，**再**创建作业状态 ──
+    // 旧顺序是"先建作业目录、写 run_yosys.ys，然后才去找工具"，
+    // 在没有 Yosys 的机器上会平白产生一堆副作用：
+    //   * 创建 inputs/scripts/logs/artifacts/reports 五个目录和 run_yosys.ys；
+    //   * 留下一个 Failed 作业和一份诊断报告，面板里不断堆积"什么都没跑"的记录；
+    //   * 还提示"目录和脚本已创建成功"，让用户以为综合已经开始了。
+    // 正确顺序是"前置条件 → 副作用"：工具不满足就地返回，不产生任何作业状态。
+    const wxString yosysExecutable = FindFpgaTool(options.yosysPath, "SIGFLOW_YOSYS", "yosys");
+    if (yosysExecutable.IsEmpty()) {
+        wxMessageBox(wxString("Yosys was not found. Set fpga.yosys_path in sigflow.project, "
+                     "set SIGFLOW_YOSYS, or add ") +
+                     sigflow::platform::WithExecutableSuffix("yosys") +
+                     " to PATH.\n\nNo synthesis job was created.",
+                     "FPGA Synthesis", wxOK | wxICON_WARNING, this);
+        return;
+    }
+
+    const FpgaYosysRuntimeReport runtimeReport = ValidateYosysRuntime(yosysExecutable);
+    if (m_terminalCtrl) {
+        m_terminalCtrl->PrintOutput(runtimeReport.FormatForTerminal());
+    }
+    if (!runtimeReport.valid) {
+        wxMessageBox("Yosys runtime preflight failed. The detailed report was printed to the "
+                     "terminal.\n\nRestore the required Yosys share files before running "
+                     "synthesis.\n\nNo synthesis job was created.",
+                     "FPGA Synthesis", wxOK | wxICON_ERROR, this);
+        return;
+    }
+
     SynthesisJobRequest jobRequest;
     jobRequest.projectPath = m_currentProjectPath;
     jobRequest.sourceFiles = sourceFiles;
@@ -3123,23 +3164,6 @@ void MainFrame::RunFpgaSynthesis()
         return;
     }
 
-    const wxString yosysExecutable = FindFpgaTool(options.yosysPath, "SIGFLOW_YOSYS", "yosys");
-    if (yosysExecutable.IsEmpty()) {
-        jobService.Transition(m_currentProjectPath, job.id, SynthesisJobState::Failed,
-                              "Yosys executable was not found.", -1, optionsError);
-        SaveYosysDiagnosticReport(jobPaths, job.id, "Failed", strategyInfo.id, wxEmptyString,
-                                  jobJsonPath, 0, "未找到 Yosys 可执行文件，请检查项目配置或 Runtime。\n");
-        wxMessageBox("Yosys was not found. Set fpga.yosys_path in sigflow.project, "
-                     "set SIGFLOW_YOSYS, or add yosys.exe to PATH.\n\n"
-                     "The work directories and run_yosys.ys were created successfully.",
-                     "FPGA Synthesis", wxOK | wxICON_WARNING, this);
-        if (m_projectTreePanel) {
-            m_projectTreePanel->RefreshTree();
-        }
-        return;
-    }
-
-    const FpgaYosysRuntimeReport runtimeReport = ValidateYosysRuntime(yosysExecutable);
     const wxString runtimeManifestPath =JoinPath(jobPaths.reports, "runtime-manifest.json");
     wxString manifestError;
     if (!WriteYosysRuntimeManifest(runtimeReport, runtimeManifestPath, manifestError)) {
@@ -3148,21 +3172,6 @@ void MainFrame::RunFpgaSynthesis()
         wxMessageBox(manifestError, "FPGA Synthesis", wxOK | wxICON_ERROR, this);
         return;
     }
-    if (m_terminalCtrl) {
-        m_terminalCtrl->PrintOutput(runtimeReport.FormatForTerminal());
-    }
-    if (!runtimeReport.valid) {
-        jobService.Transition(m_currentProjectPath, job.id, SynthesisJobState::Failed,
-                              "Yosys runtime preflight failed.", -1, manifestError);
-        SaveYosysDiagnosticReport(jobPaths, job.id, "Failed", strategyInfo.id, wxEmptyString,
-                                  jobJsonPath, 0, "Yosys Runtime 预检失败。\n");
-        wxMessageBox("Yosys runtime preflight failed. The detailed report was saved to:\n" +
-                         runtimeManifestPath +
-                         "\n\nRestore the required Yosys share files before running synthesis.",
-                     "FPGA Synthesis", wxOK | wxICON_ERROR, this);
-        return;
-    }
-
     if (!jobService.Transition(m_currentProjectPath, job.id, SynthesisJobState::Queued,
                                "Yosys process queued.", 0, optionsError) ||
         !jobService.Transition(m_currentProjectPath, job.id, SynthesisJobState::Running,

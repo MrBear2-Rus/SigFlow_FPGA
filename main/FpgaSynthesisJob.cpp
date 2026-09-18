@@ -434,14 +434,34 @@ bool FpgaSynthesisJobService::GetSynthesisReport(const wxString& projectPath, co
     SynthesisJob job;
     if (!Load(projectPath, jobId, job, errorMessage)) return false;
     const SynthesisJobPaths paths = GetPaths(projectPath, jobId);
-    wxFile jsonFile(JoinPath(paths.reports, "synthesis.analysis.json"), wxFile::read);
-    wxFile summaryFile(JoinPath(paths.reports, "synthesis.summary.md"), wxFile::read);
+    const wxString jsonPath = JoinPath(paths.reports, "synthesis.analysis.json");
+    const wxString summaryPath = JoinPath(paths.reports, "synthesis.summary.md");
+
+    // 必须先判存在、再打开。
+    // 报告文件在下列情况下**本来就不存在**，这属于正常状态而不是故障：
+    //   * 作业还在排队/运行（报告要等 Yosys 结束才写）；
+    //   * 作业在早期就失败（例如进程没起来），或进程被强杀；
+    //   * 应用在综合过程中退出，重启后 RecoverStaleJobs 把该作业标成 Failed，
+    //     日志与报告从未落盘。
+    // 而 wxFile 以 wxFile::read 打开不存在的文件会走 wxLogSysError，
+    // 在日志/终端里打出一行
+    //   can't open file '...' (error 2: No such file or directory)
+    // 用户会以为程序坏了。这里改为返回一条普通的状态说明。
+    if (!wxFileExists(jsonPath) || !wxFileExists(summaryPath)) {
+        errorMessage = wxString::Format(
+            "Synthesis report is not available for job %s (state: %s).",
+            jobId, ToString(job.state));
+        return false;
+    }
+
+    wxFile jsonFile(jsonPath, wxFile::read);
+    wxFile summaryFile(summaryPath, wxFile::read);
     if (!jsonFile.IsOpened() || !jsonFile.ReadAll(&jsonReport)) {
-        errorMessage = "Synthesis analysis report is not available for job " + jobId + ".";
+        errorMessage = "Synthesis analysis report is not readable for job " + jobId + ".";
         return false;
     }
     if (!summaryFile.IsOpened() || !summaryFile.ReadAll(&summaryReport)) {
-        errorMessage = "Synthesis summary report is not available for job " + jobId + ".";
+        errorMessage = "Synthesis summary report is not readable for job " + jobId + ".";
         return false;
     }
     return true;
