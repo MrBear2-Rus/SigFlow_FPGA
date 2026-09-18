@@ -1,0 +1,73 @@
+{
+  "created_at" : "2026-09-09T08:06:34Z",
+  "exit_code" : 0,
+  "job_id" : "20260909T160634-000001",
+  "job_type" : "pack",
+  "operator" : "local",
+  "parameters" : 
+  {
+    "arguments" : 
+    [
+      "-d",
+      "GW1N-9C",
+      "-o",
+      "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\nextpnr\\min_led_uart_top.fs",
+      "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\nextpnr\\min_led_uart_top.pnr.json"
+    ],
+    "bitstream" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\nextpnr\\min_led_uart_top.fs",
+    "device" : "GW1N-9C",
+    "executable" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\external\\fpga-tools\\runtime\\apicula\\Scripts\\gowin_pack.exe",
+    "pnr_json" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\nextpnr\\min_led_uart_top.pnr.json",
+    "timeout_seconds" : 0,
+    "working_directory" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\nextpnr"
+  },
+  "retry_of" : "",
+  "schema_version" : "1.0",
+  "state" : "Succeeded",
+  "transitions" : 
+  [
+    {
+      "exit_code" : 0,
+      "operator" : "local",
+      "reason" : "Job created.",
+      "state" : "Created",
+      "timestamp" : "2026-09-09T08:06:34Z"
+    },
+    {
+      "exit_code" : 0,
+      "operator" : "local",
+      "reason" : "Job validation started.",
+      "state" : "Validating",
+      "timestamp" : "2026-09-09T08:06:34Z"
+    },
+    {
+      "exit_code" : 0,
+      "operator" : "local",
+      "reason" : "Job queued.",
+      "state" : "Queued",
+      "timestamp" : "2026-09-09T08:06:34Z"
+    },
+    {
+      "exit_code" : 0,
+      "operator" : "local",
+      "reason" : "Job execution started.",
+      "state" : "Running",
+      "timestamp" : "2026-09-09T08:06:34Z"
+    },
+    {
+      "exit_code" : 0,
+      "operator" : "local",
+      "reason" : "Job process completed.",
+      "state" : "ValidatingArtifact",
+      "timestamp" : "2026-09-09T08:06:34Z"
+    },
+    {
+      "exit_code" : 0,
+      "operator" : "local",
+      "reason" : "FPGA bitstream packed and validated.",
+      "state" : "Succeeded",
+      "timestamp" : "2026-09-09T08:06:34Z"
+    }
+  ],
+  "updated_at" : "2026-09-09T08:06:34Z"
+}

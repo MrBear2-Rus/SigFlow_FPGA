@@ -1,0 +1,11 @@
+empty
+Jtag frequency : requested 6.00MHz    -> real 6.00MHz   
+Parse file Parse E:\EDA_Race\Cangku\new\SigFlow_FPGA\examples\tracebridge_tangnano9k\.sigflow\debug\tracebridge-tangnano9k-demo\artifacts\sf_debug_top.fs: 
+Done
+DONE
+Erase SRAM Load SRAM Load SRAM: [==============================                    ] 58.98%
+Load SRAM: [==================================================] 100.00%
+
+Done
+DONE
+CRC check: Success

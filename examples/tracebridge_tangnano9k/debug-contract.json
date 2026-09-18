@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0",
+  "session_id": "tracebridge-tangnano9k-demo",
+  "target_profile": "tang-nano-9k@1.0.0",
+  "top_module": "min_led_uart_top",
+  "sample_clock": {
+    "signal": "clk",
+    "frequency_hz": 27000000
+  },
+  "probes": [
+    {
+      "id": "led",
+      "path": "min_led_uart_top.led",
+      "width": 4,
+      "bit_offset": 0
+    },
+    {
+      "id": "state",
+      "path": "min_led_uart_top.state",
+      "width": 4,
+      "bit_offset": 4
+    }
+  ],
+  "trigger": {
+    "kind": "none"
+  },
+  "capture": {
+    "depth": 1024,
+    "pretrigger_samples": 0,
+    "decimation": 1
+  },
+  "transport": {
+    "kind": "uart",
+    "protocol": "full",
+    "tx_port": "dbg_tx",
+    "rx_port": "dbg_rx",
+    "baud": 921600,
+    "sync_enabled": true,
+    "tx_pin": 17,
+    "rx_pin": 18,
+    "rst_pin": 0
+  },
+  "fingerprints": {
+    "source": "",
+    "toolchain": "",
+    "bitstream": "",
+    "fingerprint64": 0
+  }
+}

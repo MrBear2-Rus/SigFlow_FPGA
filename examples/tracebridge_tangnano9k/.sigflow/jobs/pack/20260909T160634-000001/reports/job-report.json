@@ -1,0 +1,21 @@
+{
+  "artifacts" : 
+  [
+    {
+      "kind" : "bitstream",
+      "path" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\nextpnr\\min_led_uart_top.fs",
+      "sha256" : "daa7fd55a614c6976e02c786111498f18388c1ec3e6eae42ec402a5e34eeffb4",
+      "size_bytes" : 2070048
+    }
+  ],
+  "completed_at" : "2026-09-09T08:06:34Z",
+  "duration_ms" : 494,
+  "errors" : [],
+  "exit_code" : 0,
+  "job_id" : "20260909T160634-000001",
+  "job_type" : "pack",
+  "schema_version" : "1.0",
+  "started_at" : "2026-09-09T08:06:34Z",
+  "state" : "Succeeded",
+  "summary" : "FPGA bitstream packed and validated."
+}

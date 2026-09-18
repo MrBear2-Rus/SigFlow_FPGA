@@ -1,0 +1,23 @@
+{
+  "artifacts" : [],
+  "completed_at" : "2026-09-13T09:35:58Z",
+  "duration_ms" : 11,
+  "errors" : 
+  [
+    {
+      "code" : "IN_PROCESS_FAILED",
+      "ir_coordinate" : "",
+      "log_line" : 0,
+      "severity" : "error",
+      "stage" : "Running",
+      "summary" : "\u039e\u05e8\u01b4\u05af Verilator \u0778\u04cc: Unable to start process (Win32 error 2)."
+    }
+  ],
+  "exit_code" : 0,
+  "job_id" : "20260913T173558-000001",
+  "job_type" : "simulation",
+  "schema_version" : "1.0",
+  "started_at" : "2026-09-13T09:35:58Z",
+  "state" : "Failed",
+  "summary" : "\u039e\u05e8\u01b4\u05af Verilator \u0778\u04cc: Unable to start process (Win32 error 2)."
+}

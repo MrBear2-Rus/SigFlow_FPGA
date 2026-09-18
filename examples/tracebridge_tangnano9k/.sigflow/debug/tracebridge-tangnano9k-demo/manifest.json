@@ -1,0 +1,74 @@
+{
+  "baud" : 921600,
+  "bitstream_path" : "",
+  "bitstream_sha256" : "",
+  "build_fingerprint" : "",
+  "build_id" : "tracebridge-tangnano9k-demo",
+  "capture_depth" : 1024,
+  "capture_width" : 32,
+  "clk_hz" : 27000000,
+  "created_at" : "2026-09-18T02:42:57Z",
+  "exit_code" : 0,
+  "merged_cst_path" : "",
+  "netlist_json_path" : "",
+  "overlay_path" : "",
+  "pnr_json_path" : "",
+  "protocol" : "full",
+  "resource_report_path" : "",
+  "retry_of" : "",
+  "rx_pin" : 18,
+  "schema_version" : "1.0",
+  "session_id" : "tracebridge-tangnano9k-demo",
+  "state" : "Captured",
+  "timing_report_path" : "",
+  "tool_versions" : [],
+  "transitions" : 
+  [
+    {
+      "exit_code" : 0,
+      "operator" : "local",
+      "reason" : "session created",
+      "state" : "Created",
+      "timestamp" : "2026-09-18T02:42:57Z"
+    },
+    {
+      "exit_code" : 0,
+      "operator" : "local",
+      "reason" : "TraceBridge GUI validated contract.",
+      "state" : "Validating",
+      "timestamp" : "2026-09-18T02:42:57Z"
+    },
+    {
+      "exit_code" : 0,
+      "operator" : "local",
+      "reason" : "Using externally prepared debug bitstream.",
+      "state" : "Building",
+      "timestamp" : "2026-09-18T02:42:57Z"
+    },
+    {
+      "exit_code" : 0,
+      "operator" : "local",
+      "reason" : "Using user-programmed debug bitstream.",
+      "state" : "Programming",
+      "timestamp" : "2026-09-18T02:42:57Z"
+    },
+    {
+      "exit_code" : 0,
+      "operator" : "local",
+      "reason" : "Opening TraceBridge UART capture.",
+      "state" : "Armed",
+      "timestamp" : "2026-09-18T02:42:57Z"
+    },
+    {
+      "exit_code" : 0,
+      "operator" : "local",
+      "reason" : "acquired",
+      "state" : "Captured",
+      "timestamp" : "2026-09-18T02:42:58Z"
+    }
+  ],
+  "tx_pin" : 17,
+  "uart_divider" : 29,
+  "uart_error_percent" : 1.0237068965517184,
+  "updated_at" : "2026-09-18T02:42:58Z"
+}

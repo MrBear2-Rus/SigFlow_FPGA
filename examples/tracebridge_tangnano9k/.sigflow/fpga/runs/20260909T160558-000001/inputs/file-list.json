@@ -1,0 +1,13 @@
+{
+  "files" : 
+  [
+    {
+      "name" : "min_led_uart_top.v",
+      "path" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\rtl\\min_led_uart_top.v",
+      "sha256" : "d23a48060cb807b4581dfa1e29fe0e90dada91066e981f6a5873f6b5f0ae2a79"
+    }
+  ],
+  "project_path" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k",
+  "schema_version" : "1.0",
+  "top_module" : "min_led_uart_top"
+}

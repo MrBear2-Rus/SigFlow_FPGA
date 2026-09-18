@@ -1,0 +1,23 @@
+{
+  "artifacts" : [],
+  "completed_at" : "2026-09-09T08:07:54Z",
+  "duration_ms" : 481,
+  "errors" : 
+  [
+    {
+      "code" : "PROCESS_EXIT_NONZERO",
+      "ir_coordinate" : "",
+      "log_line" : 0,
+      "severity" : "error",
+      "stage" : "Running",
+      "summary" : "Job process exited with code 1."
+    }
+  ],
+  "exit_code" : 1,
+  "job_id" : "20260909T160753-000002",
+  "job_type" : "flash",
+  "schema_version" : "1.0",
+  "started_at" : "2026-09-09T08:07:53Z",
+  "state" : "Failed",
+  "summary" : "Job process exited with code 1."
+}

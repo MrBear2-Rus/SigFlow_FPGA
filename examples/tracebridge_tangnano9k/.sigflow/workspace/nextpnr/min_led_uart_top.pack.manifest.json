@@ -1,0 +1,26 @@
+{
+  "completed_at" : "2026-09-09T16:06:35Z",
+  "device" : "GW1N-9C",
+  "executable" : 
+  {
+    "path" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\external\\fpga-tools\\runtime\\apicula\\Scripts\\gowin_pack.exe",
+    "sha256" : "e672ebaa839cddb4e68739e94704573d47d42d70c1a5f7f3e0ab5985c476cf5c"
+  },
+  "exit_code" : 0,
+  "input" : 
+  {
+    "pnr_json" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\nextpnr\\min_led_uart_top.pnr.json",
+    "sha256" : "c7e2549a4bd5b1abf80458c1a0e42d70e79e62167d2ba49c52b2bec44125de67",
+    "size_bytes" : 413786
+  },
+  "message" : "Apicula .fs artifact is valid.",
+  "output" : 
+  {
+    "fs" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\nextpnr\\min_led_uart_top.fs",
+    "sha256" : "daa7fd55a614c6976e02c786111498f18388c1ec3e6eae42ec402a5e34eeffb4",
+    "size_bytes" : 2070048
+  },
+  "schema_version" : "1.0",
+  "success" : true,
+  "tool" : "gowin_pack"
+}

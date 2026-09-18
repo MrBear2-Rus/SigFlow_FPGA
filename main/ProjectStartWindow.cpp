@@ -165,8 +165,16 @@ void ProjectStartWindow::OnDeleteProject(wxCommandEvent& evt)
         return;
     }
 
-    // 获取对应历史索引
-    size_t historyIdx = m_recentProjectsList->GetItemData(item);
+    // 获取对应历史索引；列表项 data 可能因历史重建而失效，必须先做边界检查，
+    // 否则 RemoveFileFromHistory 会用越界下标触发 wxArrayString::RemoveAt 断言。
+    const long historyIndex = m_recentProjectsList->GetItemData(item);
+    if (historyIndex < 0 || static_cast<size_t>(historyIndex) >= m_fileHistory.GetCount())
+    {
+        Log("Skipped stale recent-project entry.");
+        LoadRecentProjects();
+        return;
+    }
+    const size_t historyIdx = static_cast<size_t>(historyIndex);
 
     wxString path = m_fileHistory.GetHistoryFile(historyIdx);
 
@@ -271,7 +279,9 @@ void ProjectStartWindow::OnRecentProjectDblClick(wxListEvent& evt)
     if (itemIdx == -1) return;
 
     // 获取对应路径并打开项目
-    size_t historyIdx = m_recentProjectsList->GetItemData(itemIdx);
+    const long historyIndex = m_recentProjectsList->GetItemData(itemIdx);
+    if (historyIndex < 0 || static_cast<size_t>(historyIndex) >= m_fileHistory.GetCount()) return;
+    const size_t historyIdx = static_cast<size_t>(historyIndex);
     wxString projectDir = m_fileHistory.GetHistoryFile(historyIdx);
     OpenProject(projectDir);
 }

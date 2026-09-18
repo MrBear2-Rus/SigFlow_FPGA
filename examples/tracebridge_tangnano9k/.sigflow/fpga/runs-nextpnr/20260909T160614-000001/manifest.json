@@ -1,0 +1,67 @@
+{
+  "created_at" : "2026-09-09T16:06:14Z",
+  "exit_code" : 0,
+  "job_id" : "20260909T160614-000001",
+  "request" : 
+  {
+    "cst_path" : "",
+    "device_name" : "GW1NR-LV9QN88PC6/I5",
+    "family_name" : "GW1N-9C",
+    "json_path" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\yosys\\min_led_uart_top.json",
+    "operator" : "local",
+    "project_path" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k",
+    "retry_of" : "",
+    "target_profile" : "tang-nano-9k",
+    "target_profile_version" : "",
+    "top_module" : "min_led_uart_top"
+  },
+  "retry_of" : "",
+  "schema_version" : "1.0",
+  "state" : "Succeeded",
+  "transitions" : 
+  [
+    {
+      "exit_code" : 0,
+      "operator" : "local",
+      "reason" : "Job created.",
+      "state" : "Created",
+      "timestamp" : "2026-09-09T16:06:14Z"
+    },
+    {
+      "exit_code" : 0,
+      "operator" : "local",
+      "reason" : "Validating nextpnr inputs.",
+      "state" : "Validating",
+      "timestamp" : "2026-09-09T16:06:14Z"
+    },
+    {
+      "exit_code" : 0,
+      "operator" : "local",
+      "reason" : "Ready to launch.",
+      "state" : "Queued",
+      "timestamp" : "2026-09-09T16:06:14Z"
+    },
+    {
+      "exit_code" : 0,
+      "operator" : "local",
+      "reason" : "Process started.",
+      "state" : "Running",
+      "timestamp" : "2026-09-09T16:06:14Z"
+    },
+    {
+      "exit_code" : 0,
+      "operator" : "local",
+      "reason" : "Validating nextpnr artifact.",
+      "state" : "ValidatingArtifact",
+      "timestamp" : "2026-09-09T16:06:15Z"
+    },
+    {
+      "exit_code" : 0,
+      "operator" : "local",
+      "reason" : "Nextpnr process completed.",
+      "state" : "Succeeded",
+      "timestamp" : "2026-09-09T16:06:15Z"
+    }
+  ],
+  "updated_at" : "2026-09-09T16:06:15Z"
+}

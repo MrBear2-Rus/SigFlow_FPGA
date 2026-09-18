@@ -1,0 +1,18 @@
+{
+  "artifact_id" : "yosys-netlist-json",
+  "expected_top_module" : "min_led_uart_top",
+  "failed_field" : "",
+  "message" : "Yosys JSON artifact is valid.",
+  "path" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\.sigflow\\fpga\\runs\\20260912T090024-000001\\artifacts\\min_led_uart_top.json",
+  "schema_version" : "1.0",
+  "sha256" : "f90d4645508dd43b5065bfb8f0bcd420826dfdbf7d15d3e067dceab95928de0e",
+  "size_bytes" : 1230458,
+  "status" : "Valid",
+  "summary" : 
+  {
+    "cells" : 191,
+    "netnames" : 230,
+    "ports" : 4
+  },
+  "validated_at" : "2026-09-12T09:00:25Z"
+}

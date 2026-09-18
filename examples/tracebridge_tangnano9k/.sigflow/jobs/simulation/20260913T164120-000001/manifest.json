@@ -1,0 +1,41 @@
+{
+  "created_at" : "2026-09-13T08:41:20Z",
+  "exit_code" : 0,
+  "job_id" : "20260913T164120-000001",
+  "job_type" : "simulation",
+  "operator" : "local",
+  "parameters" : 
+  {
+    "arguments" : [],
+    "executable" : "",
+    "output_vcd" : "",
+    "source_files" : 
+    [
+      "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\rtl\\min_led_uart_top.v"
+    ],
+    "timeout_seconds" : 0,
+    "top_module" : "min_led_uart_top",
+    "working_directory" : ""
+  },
+  "retry_of" : "",
+  "schema_version" : "1.0",
+  "state" : "Failed",
+  "transitions" : 
+  [
+    {
+      "exit_code" : 0,
+      "operator" : "local",
+      "reason" : "Job created.",
+      "state" : "Created",
+      "timestamp" : "2026-09-13T08:41:20Z"
+    },
+    {
+      "exit_code" : 0,
+      "operator" : "local",
+      "reason" : "Failed",
+      "state" : "Failed",
+      "timestamp" : "2026-09-13T08:41:20Z"
+    }
+  ],
+  "updated_at" : "2026-09-13T08:41:20Z"
+}

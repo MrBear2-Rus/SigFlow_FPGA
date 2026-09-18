@@ -287,6 +287,17 @@ add_custom_command(TARGET sigflow POST_BUILD
         "$<TARGET_FILE_DIR:sigflow>/canvas_elements.json"
 )
 
+# TraceBridge 在运行时需要 rtl/debug 下的三个调试 RTL（sf_micro_ila.sv /
+# sf_uart_link.sv / sf_debug_link.sv）。把它部署到可执行目录，避免只在
+# "从仓库根目录运行" 时才找得到（Linux/安装目录下从 build 目录直接启动会失败）。
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/rtl")
+    add_custom_command(TARGET sigflow POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_CURRENT_SOURCE_DIR}/rtl"
+            "$<TARGET_FILE_DIR:sigflow>/rtl"
+    )
+endif()
+
 if(WIN32)
     if(SIGFLOW_WX_LOCAL)
         # 本地 wx 构建时，**不能**用 file(GLOB) 去收集 wx 的 DLL：

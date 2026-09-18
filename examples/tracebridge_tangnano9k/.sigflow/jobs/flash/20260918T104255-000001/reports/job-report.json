@@ -1,0 +1,21 @@
+{
+  "artifacts" : 
+  [
+    {
+      "kind" : "bitstream",
+      "path" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\.sigflow\\debug\\tracebridge-tangnano9k-demo\\artifacts\\sf_debug_top.fs",
+      "sha256" : "42359f845a31fd7997cbe1d37f4fff978de1ad68b87caefc5661a72561c24275",
+      "size_bytes" : 3557920
+    }
+  ],
+  "completed_at" : "2026-09-18T02:42:57Z",
+  "duration_ms" : 2302,
+  "errors" : [],
+  "exit_code" : 0,
+  "job_id" : "20260918T104255-000001",
+  "job_type" : "flash",
+  "schema_version" : "1.0",
+  "started_at" : "2026-09-18T02:42:55Z",
+  "state" : "Succeeded",
+  "summary" : "FPGA flash completed after confirmation."
+}

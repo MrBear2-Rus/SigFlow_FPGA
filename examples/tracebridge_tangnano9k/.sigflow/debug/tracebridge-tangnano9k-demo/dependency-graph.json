@@ -1,0 +1,81 @@
+{
+  "dependencies" : 
+  [
+    {
+      "dependent" : "uart_tx_r",
+      "source" : "bit_count"
+    },
+    {
+      "dependent" : "led",
+      "source" : "state"
+    },
+    {
+      "dependent" : "uart_tx_r",
+      "source" : "tx_shift"
+    },
+    {
+      "dependent" : "uart_tx",
+      "source" : "uart_tx_r"
+    }
+  ],
+  "nodes" : 
+  [
+    {
+      "clock_domain" : "clk",
+      "fanout" : 1,
+      "signal" : "bit_count"
+    },
+    {
+      "clock_domain" : "clk",
+      "fanout" : 0,
+      "signal" : "bit_timer"
+    },
+    {
+      "clock_domain" : "clk",
+      "fanout" : 0,
+      "signal" : "clk"
+    },
+    {
+      "clock_domain" : "clk",
+      "fanout" : 0,
+      "signal" : "led"
+    },
+    {
+      "clock_domain" : "clk",
+      "fanout" : 0,
+      "signal" : "rst_n"
+    },
+    {
+      "clock_domain" : "clk",
+      "fanout" : 1,
+      "signal" : "state"
+    },
+    {
+      "clock_domain" : "clk",
+      "fanout" : 0,
+      "signal" : "tick"
+    },
+    {
+      "clock_domain" : "clk",
+      "fanout" : 0,
+      "signal" : "tx_busy"
+    },
+    {
+      "clock_domain" : "clk",
+      "fanout" : 1,
+      "signal" : "tx_shift"
+    },
+    {
+      "clock_domain" : "clk",
+      "fanout" : 0,
+      "signal" : "uart_tx"
+    },
+    {
+      "clock_domain" : "clk",
+      "fanout" : 1,
+      "signal" : "uart_tx_r"
+    }
+  ],
+  "schema_version" : "1.0",
+  "top_module" : "min_led_uart_top"
+}

@@ -1,0 +1,307 @@
+Info: Using uarch 'gowin' for device 'GW1NR-LV9QN88PC6/I5'
+
+Info: Cell O_psram_ck[0] not found
+Info: Cell O_psram_ck[1] not found
+Info: Cell O_psram_ck_n[0] not found
+Info: Cell O_psram_ck_n[1] not found
+Info: Cell O_psram_cs_n[0] not found
+Info: Cell O_psram_cs_n[1] not found
+Info: Cell O_psram_reset_n[0] not found
+Info: Cell O_psram_reset_n[1] not found
+Info: Cell IO_psram_dq[0] not found
+Info: Cell IO_psram_dq[1] not found
+Info: Cell IO_psram_dq[2] not found
+Info: Cell IO_psram_dq[3] not found
+Info: Cell IO_psram_dq[4] not found
+Info: Cell IO_psram_dq[5] not found
+Info: Cell IO_psram_dq[6] not found
+Info: Cell IO_psram_dq[7] not found
+Info: Cell IO_psram_dq[8] not found
+Info: Cell IO_psram_dq[9] not found
+Info: Cell IO_psram_dq[10] not found
+Info: Cell IO_psram_dq[11] not found
+Info: Cell IO_psram_dq[12] not found
+Info: Cell IO_psram_dq[13] not found
+Info: Cell IO_psram_dq[14] not found
+Info: Cell IO_psram_dq[15] not found
+Info: Cell IO_psram_rwds[0] not found
+Info: Cell IO_psram_rwds[1] not found
+Info: Reading constraints...
+Info: Create constant nets...
+Info: Modify LUTs...
+Info: Pack IOBs...
+Info: Pack I3C IOs...
+Info: Pack MIPI IOs...
+Info: Pack diff IOBs...
+Info: Pack FFs into IO cells...
+Info: Pack IODELAY...
+Info: Pack Input Edge Monitors...
+Info: Pack IO logic...
+Info: Pack DESER16 logic...
+Info: Pack GSR...
+Info: Pack HCLK cells...
+Info: Pack DLLDLYs...
+Info: Pack wide LUTs...
+Info: Packed MUX2_LUT8:0, MUX2_LU7:0, MUX2_LUT6:0, MUX2_LUT5:0
+Info: Pack ALUs...
+Info: Pack SSRAMs...
+Info: Constrained 38 LUTFF pairs.
+Info: Pack PLL...
+Info: Pack ADC...
+Info: Pack BSRAMs...
+Info: Pack DSP...
+Info: Pack INV...
+Info: Pack buffered nets...
+Info: Pack EMCU and UserFlash cells...
+Info: Pack UserFlash cells...
+Info: Pack DQCE cells...
+Info: Pack DCS cells...
+Info: Checksum: 0x05ffafa5
+
+Info: Device utilisation:
+Info: 	                 VCC:       1/      1   100%
+Info: 	                 IOB:       7/    276     2%
+Info: 	                LUT4:     135/   8640     1%
+Info: 	              OSER16:       0/     80     0%
+Info: 	              IDES16:       0/     80     0%
+Info: 	            IOLOGICI:       0/    276     0%
+Info: 	            IOLOGICO:       0/    276     0%
+Info: 	           MUX2_LUT5:       0/   4320     0%
+Info: 	           MUX2_LUT6:       0/   2160     0%
+Info: 	           MUX2_LUT7:       0/   1080     0%
+Info: 	           MUX2_LUT8:       0/   1080     0%
+Info: 	                 ALU:      92/   6480     1%
+Info: 	                 GND:       1/      1   100%
+Info: 	                 DFF:      58/   6480     0%
+Info: 	           RAM16SDP4:       0/    270     0%
+Info: 	               BSRAM:       0/     26     0%
+Info: 	              ALU54D:       0/     10     0%
+Info: 	     MULTADDALU18X18:       0/     10     0%
+Info: 	        MULTALU18X18:       0/     10     0%
+Info: 	        MULTALU36X18:       0/     10     0%
+Info: 	           MULT36X36:       0/      5     0%
+Info: 	           MULT18X18:       0/     20     0%
+Info: 	             MULT9X9:       0/     40     0%
+Info: 	              PADD18:       0/     20     0%
+Info: 	               PADD9:       0/     40     0%
+Info: 	                 GSR:       1/      1   100%
+Info: 	                 OSC:       0/      1     0%
+Info: 	                rPLL:       0/      2     0%
+Info: 	           FLASH608K:       0/      1     0%
+Info: 	                BUFG:       0/     22     0%
+Info: 	                DQCE:       0/     24     0%
+Info: 	                 DCS:       0/      8     0%
+Info: 	               DHCEN:       0/     24     0%
+Info: 	              CLKDIV:       0/      8     0%
+Info: 	             CLKDIV2:       0/     16     0%
+Info: 	           MIPI_IBUF:       0/     22     0%
+Info: 	           MIPI_OBUF:       0/     20     0%
+
+Info: Running custom HCLK placer...
+Info: Placed 0 cells based on constraints.
+Info: Creating initial analytic placement for 69 cells, random placement wirelen = 3227.
+Info:     at initial placer iter 0, wirelen = 357
+Info:     at initial placer iter 1, wirelen = 286
+Info:     at initial placer iter 2, wirelen = 251
+Info:     at initial placer iter 3, wirelen = 259
+Info: Running main analytical placer, max placement attempts per cell = 10878.
+Info:     at iteration #1, type ALL: wirelen solved = 234, spread = 347, legal = 526; time = 0.00s
+Info:     at iteration #2, type ALL: wirelen solved = 256, spread = 353, legal = 511; time = 0.00s
+Info:     at iteration #3, type ALL: wirelen solved = 233, spread = 383, legal = 534; time = 0.00s
+Info:     at iteration #4, type ALL: wirelen solved = 224, spread = 319, legal = 535; time = 0.00s
+Info:     at iteration #5, type ALL: wirelen solved = 245, spread = 464, legal = 541; time = 0.00s
+Info:     at iteration #6, type ALL: wirelen solved = 225, spread = 408, legal = 504; time = 0.00s
+Info:     at iteration #7, type ALL: wirelen solved = 230, spread = 451, legal = 531; time = 0.00s
+Info:     at iteration #8, type ALL: wirelen solved = 290, spread = 374, legal = 446; time = 0.00s
+Info:     at iteration #9, type ALL: wirelen solved = 235, spread = 380, legal = 472; time = 0.00s
+Info:     at iteration #10, type ALL: wirelen solved = 236, spread = 469, legal = 550; time = 0.00s
+Info:     at iteration #11, type ALL: wirelen solved = 237, spread = 397, legal = 465; time = 0.00s
+Info:     at iteration #12, type ALL: wirelen solved = 244, spread = 405, legal = 452; time = 0.00s
+Info:     at iteration #13, type ALL: wirelen solved = 251, spread = 443, legal = 497; time = 0.00s
+Info: HeAP Placer Time: 0.07s
+Info:   of which solving equations: 0.03s
+Info:   of which spreading cells: 0.01s
+Info:   of which strict legalisation: 0.01s
+
+Info: Running simulated annealing placer for refinement.
+Info:   at iteration #1: temp = 0.000000, timing cost = 5, wirelen = 446
+Info:   at iteration #5: temp = 0.000000, timing cost = 2, wirelen = 399
+Info:   at iteration #5: temp = 0.000000, timing cost = 2, wirelen = 399 
+Info: SA placement time 0.02s
+
+Info: Max frequency for clock 'clk_IBUF_I_O': 168.38 MHz (PASS at 12.00 MHz)
+
+Info: Slack histogram:
+Info:  legend: * represents 1 endpoint(s)
+Info:          + represents [1,1) endpoint(s)
+Info: [ 77394,  77538) |* 
+Info: [ 77538,  77682) | 
+Info: [ 77682,  77826) | 
+Info: [ 77826,  77970) | 
+Info: [ 77970,  78114) | 
+Info: [ 78114,  78258) | 
+Info: [ 78258,  78402) | 
+Info: [ 78402,  78546) | 
+Info: [ 78546,  78690) | 
+Info: [ 78690,  78834) | 
+Info: [ 78834,  78978) | 
+Info: [ 78978,  79122) | 
+Info: [ 79122,  79266) | 
+Info: [ 79266,  79410) | 
+Info: [ 79410,  79554) | 
+Info: [ 79554,  79698) | 
+Info: [ 79698,  79842) | 
+Info: [ 79842,  79986) | 
+Info: [ 79986,  80130) | 
+Info: [ 80130,  80274) |*** 
+Info: Checksum: 0x1843121c
+Info: Routing globals...
+Info:     'clk_IBUF_I_O' net was routed using global resources only.
+
+Info: Routing..
+Info: Setting up routing queue.
+Info: Routing 496 arcs.
+Info:            |   (re-)routed arcs  |   delta    | remaining|       time spent     |
+Info:    IterCnt |  w/ripup   wo/ripup |  w/r  wo/r |      arcs| batch(sec) total(sec)|
+Info:        528 |       32        413 |   32   413 |         0|       0.10       0.10|
+Info: Routing complete.
+Info: Router1 time 0.10s
+Info: Checksum: 0xe0d7e7bf
+
+Info: Critical path report for clock 'clk_IBUF_I_O' (posedge -> posedge):
+Info:       type curr  total name
+Info:   clk-to-q  0.46  0.46 Source uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_I0_ALU_I1_SUM_LUT3_I2_F_LUT3_F_1_I2_ALU_SUM_I1_DFFCE_Q.Q
+Info:    routing  0.89  1.35 Net uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_I0_ALU_I1_SUM_LUT3_I2_F_LUT3_F_1_I2_ALU_SUM_I1 (5,14) -> (6,14)
+Info:                          Sink uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT.I0
+Info:      logic  0.96  2.31 Source uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT.COUT
+Info:    routing  0.00  2.31 Net uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN (6,14) -> (6,14)
+Info:                          Sink uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT.CIN
+Info:                          Defined in:
+Info:                               E:/EDA_Race/Cangku/new/SigFlow_FPGA/examples/tracebridge_tangnano9k/rtl/min_led_uart_top.v:44.21-44.42
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA\external\fpga-tools\runtime\yosys\bin\..\share\gowin/arith_map.v:57.7-63.5
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA\external\fpga-tools\runtime\yosys\bin\..\share\gowin/cells_sim.v:1033.25-1033.29
+Info:      logic  0.06  2.36 Source uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT.COUT
+Info:    routing  0.00  2.36 Net uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN (6,14) -> (6,14)
+Info:                          Sink uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT.CIN
+Info:                          Defined in:
+Info:                               E:/EDA_Race/Cangku/new/SigFlow_FPGA/examples/tracebridge_tangnano9k/rtl/min_led_uart_top.v:44.21-44.42
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA\external\fpga-tools\runtime\yosys\bin\..\share\gowin/arith_map.v:57.7-63.5
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA\external\fpga-tools\runtime\yosys\bin\..\share\gowin/cells_sim.v:1033.25-1033.29
+Info:      logic  0.06  2.42 Source uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT.COUT
+Info:    routing  0.00  2.42 Net uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN (6,14) -> (6,14)
+Info:                          Sink uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT.CIN
+Info:                          Defined in:
+Info:                               E:/EDA_Race/Cangku/new/SigFlow_FPGA/examples/tracebridge_tangnano9k/rtl/min_led_uart_top.v:44.21-44.42
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA\external\fpga-tools\runtime\yosys\bin\..\share\gowin/arith_map.v:57.7-63.5
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA\external\fpga-tools\runtime\yosys\bin\..\share\gowin/cells_sim.v:1033.25-1033.29
+Info:      logic  0.06  2.48 Source uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT.COUT
+Info:    routing  0.00  2.48 Net uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN (6,14) -> (7,14)
+Info:                          Sink uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT.CIN
+Info:                          Defined in:
+Info:                               E:/EDA_Race/Cangku/new/SigFlow_FPGA/examples/tracebridge_tangnano9k/rtl/min_led_uart_top.v:44.21-44.42
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA\external\fpga-tools\runtime\yosys\bin\..\share\gowin/arith_map.v:57.7-63.5
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA\external\fpga-tools\runtime\yosys\bin\..\share\gowin/cells_sim.v:1033.25-1033.29
+Info:      logic  0.06  2.54 Source uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT.COUT
+Info:    routing  0.00  2.54 Net uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN (7,14) -> (7,14)
+Info:                          Sink uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT.CIN
+Info:                          Defined in:
+Info:                               E:/EDA_Race/Cangku/new/SigFlow_FPGA/examples/tracebridge_tangnano9k/rtl/min_led_uart_top.v:44.21-44.42
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA\external\fpga-tools\runtime\yosys\bin\..\share\gowin/arith_map.v:57.7-63.5
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA\external\fpga-tools\runtime\yosys\bin\..\share\gowin/cells_sim.v:1033.25-1033.29
+Info:      logic  0.06  2.59 Source uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT.COUT
+Info:    routing  0.00  2.59 Net uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN (7,14) -> (7,14)
+Info:                          Sink uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT.CIN
+Info:                          Defined in:
+Info:                               E:/EDA_Race/Cangku/new/SigFlow_FPGA/examples/tracebridge_tangnano9k/rtl/min_led_uart_top.v:44.21-44.42
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA\external\fpga-tools\runtime\yosys\bin\..\share\gowin/arith_map.v:57.7-63.5
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA\external\fpga-tools\runtime\yosys\bin\..\share\gowin/cells_sim.v:1033.25-1033.29
+Info:      logic  0.06  2.65 Source uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT.COUT
+Info:    routing  0.00  2.65 Net uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN (7,14) -> (7,14)
+Info:                          Sink uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT.CIN
+Info:                          Defined in:
+Info:                               E:/EDA_Race/Cangku/new/SigFlow_FPGA/examples/tracebridge_tangnano9k/rtl/min_led_uart_top.v:44.21-44.42
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA\external\fpga-tools\runtime\yosys\bin\..\share\gowin/arith_map.v:57.7-63.5
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA\external\fpga-tools\runtime\yosys\bin\..\share\gowin/cells_sim.v:1033.25-1033.29
+Info:      logic  0.06  2.71 Source uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT.COUT
+Info:    routing  0.00  2.71 Net uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN (7,14) -> (7,14)
+Info:                          Sink uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT.CIN
+Info:                          Defined in:
+Info:                               E:/EDA_Race/Cangku/new/SigFlow_FPGA/examples/tracebridge_tangnano9k/rtl/min_led_uart_top.v:44.21-44.42
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA\external\fpga-tools\runtime\yosys\bin\..\share\gowin/arith_map.v:57.7-63.5
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA\external\fpga-tools\runtime\yosys\bin\..\share\gowin/cells_sim.v:1033.25-1033.29
+Info:      logic  0.06  2.76 Source uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT.COUT
+Info:    routing  0.00  2.76 Net uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN (7,14) -> (7,14)
+Info:                          Sink uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT.CIN
+Info:                          Defined in:
+Info:                               E:/EDA_Race/Cangku/new/SigFlow_FPGA/examples/tracebridge_tangnano9k/rtl/min_led_uart_top.v:44.21-44.42
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA\external\fpga-tools\runtime\yosys\bin\..\share\gowin/arith_map.v:57.7-63.5
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA\external\fpga-tools\runtime\yosys\bin\..\share\gowin/cells_sim.v:1033.25-1033.29
+Info:      logic  0.06  2.82 Source uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT.COUT
+Info:    routing  0.00  2.82 Net uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT_CIN (7,14) -> (8,14)
+Info:                          Sink uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT.CIN
+Info:                          Defined in:
+Info:                               E:/EDA_Race/Cangku/new/SigFlow_FPGA/examples/tracebridge_tangnano9k/rtl/min_led_uart_top.v:44.21-44.42
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA\external\fpga-tools\runtime\yosys\bin\..\share\gowin/arith_map.v:57.7-63.5
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA\external\fpga-tools\runtime\yosys\bin\..\share\gowin/cells_sim.v:1033.25-1033.29
+Info:      logic  0.06  2.88 Source uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN_ALU_COUT.COUT
+Info:    routing  0.00  2.88 Net uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT_CIN (8,14) -> (8,14)
+Info:                          Sink uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT.CIN
+Info:                          Defined in:
+Info:                               E:/EDA_Race/Cangku/new/SigFlow_FPGA/examples/tracebridge_tangnano9k/rtl/min_led_uart_top.v:44.21-44.42
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA\external\fpga-tools\runtime\yosys\bin\..\share\gowin/arith_map.v:57.7-63.5
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA\external\fpga-tools\runtime\yosys\bin\..\share\gowin/cells_sim.v:1033.25-1033.29
+Info:      logic  0.06  2.93 Source uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN_ALU_COUT.COUT
+Info:    routing  0.00  2.93 Net uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_CIN (8,14) -> (8,14)
+Info:                          Sink uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT.CIN
+Info:                          Defined in:
+Info:                               E:/EDA_Race/Cangku/new/SigFlow_FPGA/examples/tracebridge_tangnano9k/rtl/min_led_uart_top.v:44.21-44.42
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA\external\fpga-tools\runtime\yosys\bin\..\share\gowin/arith_map.v:57.7-63.5
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA\external\fpga-tools\runtime\yosys\bin\..\share\gowin/cells_sim.v:1033.25-1033.29
+Info:      logic  0.06  2.99 Source uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT.COUT
+Info:    routing  0.00  2.99 Net uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_TAIL_ALULC (8,14) -> (8,14)
+Info:                          Sink uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_TAIL_ALULC.CIN
+Info:      logic  0.56  3.55 Source uart_tx_r_DFFPE_Q_CE_LUT3_F_I1_ALU_COUT_TAIL_ALULC.SUM
+Info:    routing  1.22  4.77 Net uart_tx_r_DFFPE_Q_CE_DFFCE_CE_1_Q[3] (8,14) -> (7,16)
+Info:                          Sink uart_tx_r_DFFPE_Q_CE_DFFCE_CE_1_Q_LUT4_I1.I3
+Info:                          Defined in:
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA\external\fpga-tools\runtime\yosys\bin\..\share\gowin/cells_map.v:130.20-130.21
+Info:      logic  0.62  5.40 Source uart_tx_r_DFFPE_Q_CE_DFFCE_CE_1_Q_LUT4_I1.F
+Info:    routing  0.41  5.81 Net uart_tx_r_DFFPE_Q_CE_DFFCE_CE_1_Q_LUT4_I1_F[3] (7,16) -> (7,16)
+Info:                          Sink uart_tx_r_DFFPE_Q_CE_DFFCE_CE_1_Q_LUT4_I1_F_LUT4_I3.I3
+Info:                          Defined in:
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA\external\fpga-tools\runtime\yosys\bin\..\share\gowin/cells_map.v:130.20-130.21
+Info:      logic  0.62  6.43 Source uart_tx_r_DFFPE_Q_CE_DFFCE_CE_1_Q_LUT4_I1_F_LUT4_I3.F
+Info:    routing  0.00  6.43 Net uart_tx_r_DFFPE_Q_CE_DFFCE_CE_1_Q_LUT4_I1_F_LUT4_I3_F (7,16) -> (7,16)
+Info:                          Sink uart_tx_r_DFFPE_Q_CE_DFFCE_CE_1_Q_LUT4_I1_F_LUT4_I3_F_DFFC_D.D
+Info:                          Defined in:
+Info:                               E:/EDA_Race/Cangku/new/SigFlow_FPGA/examples/tracebridge_tangnano9k/rtl/min_led_uart_top.v:23.5-61.8
+Info:      setup  0.40  6.83 Source uart_tx_r_DFFPE_Q_CE_DFFCE_CE_1_Q_LUT4_I1_F_LUT4_I3_F_DFFC_D.D
+Info: 4.31 ns logic, 2.52 ns routing
+
+Info: Max frequency for clock 'clk_IBUF_I_O': 146.37 MHz (PASS at 12.00 MHz)
+
+Info: Slack histogram:
+Info:  legend: * represents 1 endpoint(s)
+Info:          + represents [1,1) endpoint(s)
+Info: [ 76501,  76664) |* 
+Info: [ 76664,  76827) | 
+Info: [ 76827,  76990) | 
+Info: [ 76990,  77153) | 
+Info: [ 77153,  77316) | 
+Info: [ 77316,  77479) | 
+Info: [ 77479,  77642) | 
+Info: [ 77642,  77805) | 
+Info: [ 77805,  77968) | 
+Info: [ 77968,  78131) | 
+Info: [ 78131,  78294) | 
+Info: [ 78294,  78457) | 
+Info: [ 78457,  78620) | 
+Info: [ 78620,  78783) | 
+Info: [ 78783,  78946) | 
+Info: [ 78946,  79109) | 
+Info: [ 79109,  79272) | 
+Info: [ 79272,  79435) | 
+Info: [ 79435,  79598) | 
+Info: [ 79598,  79761) |*** 
+
+Info: Program finished normally.

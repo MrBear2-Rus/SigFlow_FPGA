@@ -1,0 +1,69 @@
+{
+  "created_at" : "2026-09-08T15:34:58Z",
+  "exit_code" : 0,
+  "job_id" : "20260908T153458-000001",
+  "request" : 
+  {
+    "operator" : "local",
+    "project_path" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k",
+    "retry_of" : "",
+    "source_files" : 
+    [
+      "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\rtl\\min_led_uart_top.v"
+    ],
+    "strategy" : "baseline",
+    "strategy_version" : "1.0",
+    "target_profile" : "tang-nano-9k",
+    "target_profile_version" : "1.0.0",
+    "top_module" : "min_led_uart_top"
+  },
+  "retry_of" : "",
+  "schema_version" : "1.0",
+  "state" : "Succeeded",
+  "transitions" : 
+  [
+    {
+      "exit_code" : 0,
+      "operator" : "local",
+      "reason" : "Job created.",
+      "state" : "Created",
+      "timestamp" : "2026-09-08T15:34:58Z"
+    },
+    {
+      "exit_code" : 0,
+      "operator" : "local",
+      "reason" : "Project configuration and runtime validation started.",
+      "state" : "Validating",
+      "timestamp" : "2026-09-08T15:34:58Z"
+    },
+    {
+      "exit_code" : 0,
+      "operator" : "local",
+      "reason" : "Yosys process queued.",
+      "state" : "Queued",
+      "timestamp" : "2026-09-08T15:35:00Z"
+    },
+    {
+      "exit_code" : 0,
+      "operator" : "local",
+      "reason" : "Yosys process started.",
+      "state" : "Running",
+      "timestamp" : "2026-09-08T15:35:00Z"
+    },
+    {
+      "exit_code" : 0,
+      "operator" : "local",
+      "reason" : "Yosys completed; validating JSON artifact.",
+      "state" : "ValidatingArtifact",
+      "timestamp" : "2026-09-08T15:35:02Z"
+    },
+    {
+      "exit_code" : 0,
+      "operator" : "local",
+      "reason" : "JSON artifact validated and published to the compatibility path.",
+      "state" : "Succeeded",
+      "timestamp" : "2026-09-08T15:35:02Z"
+    }
+  ],
+  "updated_at" : "2026-09-08T15:35:02Z"
+}

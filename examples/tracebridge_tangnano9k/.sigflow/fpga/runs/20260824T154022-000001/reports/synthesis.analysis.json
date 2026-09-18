@@ -1,0 +1,95 @@
+{
+  "artifacts" : 
+  {
+    "combined_log" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\.sigflow\\fpga\\runs\\20260824T154022-000001\\logs\\yosys.combined.log",
+    "json" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\.sigflow\\fpga\\runs\\20260824T154022-000001\\artifacts\\min_led_uart_top.json",
+    "stderr_log" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\.sigflow\\fpga\\runs\\20260824T154022-000001\\logs\\yosys.stderr.log",
+    "stdout_log" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\.sigflow\\fpga\\runs\\20260824T154022-000001\\logs\\yosys.stdout.log"
+  },
+  "duration_ms" : 649,
+  "error_count" : 0,
+  "events" : 
+  [
+    {
+      "evidence" : "ABC: Warning: The network is combinational.",
+      "line" : 1363,
+      "raw" : "ABC: Warning: The network is combinational.",
+      "retryable" : false,
+      "rule_id" : "YOSYS_WARNING",
+      "sequence" : 1094,
+      "severity" : "WARNING",
+      "source_column" : 0,
+      "source_file" : "",
+      "source_line" : 0,
+      "stage" : "abc9",
+      "suggestion" : ""
+    }
+  ],
+  "failed_stage" : "",
+  "job_id" : "20260824T154022-000001",
+  "provenance" : 
+  {
+    "artifact_manifest" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\.sigflow\\fpga\\runs\\20260824T154022-000001\\artifacts\\min_led_uart_top.manifest.json",
+    "input_hashes" : 
+    [
+      {
+        "name" : "min_led_uart_top.v",
+        "path" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\rtl\\min_led_uart_top.v",
+        "sha256" : "d23a48060cb807b4581dfa1e29fe0e90dada91066e981f6a5873f6b5f0ae2a79"
+      }
+    ],
+    "input_manifest" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\.sigflow\\fpga\\runs\\20260824T154022-000001\\inputs\\file-list.json",
+    "job_manifest" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\.sigflow\\fpga\\runs\\20260824T154022-000001\\manifest.json",
+    "runtime_manifest" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\.sigflow\\fpga\\runs\\20260824T154022-000001\\reports\\runtime-manifest.json",
+    "script" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\.sigflow\\fpga\\runs\\20260824T154022-000001\\scripts\\run_yosys.ys"
+  },
+  "resources" : 
+  {
+    "cell_types" : [],
+    "dff" : 0,
+    "ibuf" : 0,
+    "lut" : 0,
+    "obuf" : 0,
+    "total_cells" : -1
+  },
+  "root_cause" : "",
+  "root_suggestion" : "",
+  "schema_version" : "1.0",
+  "stages" : 
+  [
+    {
+      "first_line" : 12,
+      "last_line" : 1556,
+      "name" : "read_verilog",
+      "status" : "Observed"
+    },
+    {
+      "first_line" : 16,
+      "last_line" : 1516,
+      "name" : "hierarchy",
+      "status" : "Observed"
+    },
+    {
+      "first_line" : 25,
+      "last_line" : 1427,
+      "name" : "synth_gowin",
+      "status" : "Observed"
+    },
+    {
+      "first_line" : 191,
+      "last_line" : 1071,
+      "name" : "proc",
+      "status" : "Observed"
+    },
+    {
+      "first_line" : 900,
+      "last_line" : 1420,
+      "name" : "abc9",
+      "status" : "Observed"
+    }
+  ],
+  "status" : "Succeeded",
+  "strategy" : "baseline",
+  "tool_version" : "0.67+",
+  "warning_count" : 1
+}

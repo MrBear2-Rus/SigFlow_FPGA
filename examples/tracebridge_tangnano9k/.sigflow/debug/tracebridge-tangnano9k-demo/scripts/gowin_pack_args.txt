@@ -1,0 +1,1 @@
+-d GW1N-9C -o E:\EDA_Race\Cangku\new\SigFlow_FPGA\examples\tracebridge_tangnano9k\.sigflow\debug\tracebridge-tangnano9k-demo\artifacts\sf_debug_top.fs E:\EDA_Race\Cangku\new\SigFlow_FPGA\examples\tracebridge_tangnano9k\.sigflow\debug\tracebridge-tangnano9k-demo\artifacts/sf_debug_top.pnr.json

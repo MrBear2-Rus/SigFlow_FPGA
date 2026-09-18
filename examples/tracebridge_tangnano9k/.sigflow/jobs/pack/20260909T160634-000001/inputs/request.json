@@ -1,0 +1,18 @@
+{
+  "arguments" : 
+  [
+    "-d",
+    "GW1N-9C",
+    "-o",
+    "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\nextpnr\\min_led_uart_top.fs",
+    "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\nextpnr\\min_led_uart_top.pnr.json"
+  ],
+  "bitstream" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\nextpnr\\min_led_uart_top.fs",
+  "device" : "GW1N-9C",
+  "executable" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\external\\fpga-tools\\runtime\\apicula\\Scripts\\gowin_pack.exe",
+  "job_type" : "pack",
+  "pnr_json" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\nextpnr\\min_led_uart_top.pnr.json",
+  "project_path" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k",
+  "timeout_seconds" : 0,
+  "working_directory" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\nextpnr"
+}

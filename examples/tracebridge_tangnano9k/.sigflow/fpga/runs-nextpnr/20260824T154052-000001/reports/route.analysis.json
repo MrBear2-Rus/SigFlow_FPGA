@@ -1,0 +1,22 @@
+{
+  "tool": "",
+  "version": "unknown",
+  "device": "GW1NR-LV9QN88PC6/I5",
+  "family": "",
+  "exit_code": -1,
+  "stages": {
+    "pack": true,
+    "place": true,
+    "route": true
+  },
+  "timing": {
+    "clock": "clk_IBUF_I_O",
+    "max_freq_mhz": 146.37,
+    "passed": true
+  },
+  "resources": {
+
+  },
+  "warnings": 0,
+  "errors": 0
+}

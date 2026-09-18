@@ -1,0 +1,15 @@
+{
+  "arguments" : 
+  [
+    "-b",
+    "tangnano9k",
+    "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\.sigflow\\debug\\tracebridge-tangnano9k-demo\\artifacts\\sf_debug_top.fs"
+  ],
+  "bitstream" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\.sigflow\\debug\\tracebridge-tangnano9k-demo\\artifacts\\sf_debug_top.fs",
+  "executable" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA_Cmake\\external\\fpga-tools\\runtime\\openfpgaloader\\bin\\openFPGALoader.exe",
+  "job_type" : "flash",
+  "project_path" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k",
+  "require_confirm" : true,
+  "timeout_seconds" : 0,
+  "working_directory" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\.sigflow\\debug\\tracebridge-tangnano9k-demo\\artifacts"
+}

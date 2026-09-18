@@ -1,0 +1,70 @@
+{
+  "created_at" : "2026-09-18T02:42:55Z",
+  "exit_code" : 0,
+  "job_id" : "20260918T104255-000001",
+  "job_type" : "flash",
+  "operator" : "local",
+  "parameters" : 
+  {
+    "arguments" : 
+    [
+      "-b",
+      "tangnano9k",
+      "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\.sigflow\\debug\\tracebridge-tangnano9k-demo\\artifacts\\sf_debug_top.fs"
+    ],
+    "bitstream" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\.sigflow\\debug\\tracebridge-tangnano9k-demo\\artifacts\\sf_debug_top.fs",
+    "executable" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA_Cmake\\external\\fpga-tools\\runtime\\openfpgaloader\\bin\\openFPGALoader.exe",
+    "require_confirm" : true,
+    "timeout_seconds" : 0,
+    "working_directory" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\.sigflow\\debug\\tracebridge-tangnano9k-demo\\artifacts"
+  },
+  "retry_of" : "",
+  "schema_version" : "1.0",
+  "state" : "Succeeded",
+  "transitions" : 
+  [
+    {
+      "exit_code" : 0,
+      "operator" : "local",
+      "reason" : "Job created.",
+      "state" : "Created",
+      "timestamp" : "2026-09-18T02:42:55Z"
+    },
+    {
+      "exit_code" : 0,
+      "operator" : "local",
+      "reason" : "Job validation started.",
+      "state" : "Validating",
+      "timestamp" : "2026-09-18T02:42:55Z"
+    },
+    {
+      "exit_code" : 0,
+      "operator" : "local",
+      "reason" : "Job queued.",
+      "state" : "Queued",
+      "timestamp" : "2026-09-18T02:42:55Z"
+    },
+    {
+      "exit_code" : 0,
+      "operator" : "local",
+      "reason" : "Job execution started.",
+      "state" : "Running",
+      "timestamp" : "2026-09-18T02:42:55Z"
+    },
+    {
+      "exit_code" : 0,
+      "operator" : "local",
+      "reason" : "Job process completed.",
+      "state" : "ValidatingArtifact",
+      "timestamp" : "2026-09-18T02:42:57Z"
+    },
+    {
+      "exit_code" : 0,
+      "operator" : "local",
+      "reason" : "FPGA flash completed after confirmation.",
+      "state" : "Succeeded",
+      "timestamp" : "2026-09-18T02:42:57Z"
+    }
+  ],
+  "updated_at" : "2026-09-18T02:42:57Z"
+}

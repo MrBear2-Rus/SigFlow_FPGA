@@ -1,0 +1,14 @@
+{
+  "arguments" : [],
+  "executable" : "",
+  "job_type" : "simulation",
+  "output_vcd" : "",
+  "project_path" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k",
+  "source_files" : 
+  [
+    "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\rtl\\min_led_uart_top.v"
+  ],
+  "timeout_seconds" : 0,
+  "top_module" : "min_led_uart_top",
+  "working_directory" : ""
+}

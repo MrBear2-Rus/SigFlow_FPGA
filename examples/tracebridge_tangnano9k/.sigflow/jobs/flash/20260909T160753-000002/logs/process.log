@@ -1,0 +1,3 @@
+unable to open ftdi device: -3 (device not found)
+empty
+JTAG init failed with: unable to open ftdi device

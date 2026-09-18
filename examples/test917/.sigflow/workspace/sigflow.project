@@ -1,0 +1,13 @@
+{
+  "build": { "top_module": ["top"] },
+  "paths": { "source_files": ["src/top.v"], "library_files": [] },
+  "fpga": {
+    "target_profile": "tang-nano-9k",
+    "yosys_path": "",
+    "yosys_strategy": "baseline",
+    "nextpnr_path": "",
+    "nextpnr_args": [],
+    "openfpgaloader_path": "",
+    "openfpgaloader_args": []
+  }
+}

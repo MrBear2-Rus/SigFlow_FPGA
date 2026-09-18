@@ -1,0 +1,271 @@
+Info: Using uarch 'gowin' for device 'GW1NR-LV9QN88PC6/I5'
+
+Info: Cell O_psram_ck[0] not found
+Info: Cell O_psram_ck[1] not found
+Info: Cell O_psram_ck_n[0] not found
+Info: Cell O_psram_ck_n[1] not found
+Info: Cell O_psram_cs_n[0] not found
+Info: Cell O_psram_cs_n[1] not found
+Info: Cell O_psram_reset_n[0] not found
+Info: Cell O_psram_reset_n[1] not found
+Info: Cell IO_psram_dq[0] not found
+Info: Cell IO_psram_dq[1] not found
+Info: Cell IO_psram_dq[2] not found
+Info: Cell IO_psram_dq[3] not found
+Info: Cell IO_psram_dq[4] not found
+Info: Cell IO_psram_dq[5] not found
+Info: Cell IO_psram_dq[6] not found
+Info: Cell IO_psram_dq[7] not found
+Info: Cell IO_psram_dq[8] not found
+Info: Cell IO_psram_dq[9] not found
+Info: Cell IO_psram_dq[10] not found
+Info: Cell IO_psram_dq[11] not found
+Info: Cell IO_psram_dq[12] not found
+Info: Cell IO_psram_dq[13] not found
+Info: Cell IO_psram_dq[14] not found
+Info: Cell IO_psram_dq[15] not found
+Info: Cell IO_psram_rwds[0] not found
+Info: Cell IO_psram_rwds[1] not found
+Info: Reading constraints...
+Info: Create constant nets...
+Info: Modify LUTs...
+Info: Pack IOBs...
+Info: Pack I3C IOs...
+Info: Pack MIPI IOs...
+Info: Pack diff IOBs...
+Info: Pack FFs into IO cells...
+Info: Pack IODELAY...
+Info: Pack Input Edge Monitors...
+Info: Pack IO logic...
+Info: Pack DESER16 logic...
+Info: Pack GSR...
+Info: Pack HCLK cells...
+Info: Pack DLLDLYs...
+Info: Pack wide LUTs...
+Info: Packed MUX2_LUT8:6, MUX2_LU7:4, MUX2_LUT6:8, MUX2_LUT5:91
+Info: Pack ALUs...
+Info: Pack SSRAMs...
+Info: Constrained 158 LUTFF pairs.
+Info: Pack PLL...
+Info: Pack ADC...
+Info: Pack BSRAMs...
+Info: Pack DSP...
+Info: Pack INV...
+Info: Pack buffered nets...
+Info: Pack EMCU and UserFlash cells...
+Info: Pack UserFlash cells...
+Info: Pack DQCE cells...
+Info: Pack DCS cells...
+Info: Checksum: 0xf216bbde
+
+Info: Device utilisation:
+Info: 	                 VCC:       1/      1   100%
+Info: 	                 IOB:       9/    276     3%
+Info: 	                LUT4:    1403/   8640    16%
+Info: 	              OSER16:       0/     80     0%
+Info: 	              IDES16:       0/     80     0%
+Info: 	            IOLOGICI:       0/    276     0%
+Info: 	            IOLOGICO:       0/    276     0%
+Info: 	           MUX2_LUT5:     171/   4320     3%
+Info: 	           MUX2_LUT6:      40/   2160     1%
+Info: 	           MUX2_LUT7:      16/   1080     1%
+Info: 	           MUX2_LUT8:       6/   1080     0%
+Info: 	                 ALU:     466/   6480     7%
+Info: 	                 GND:       1/      1   100%
+Info: 	                 DFF:     541/   6480     8%
+Info: 	           RAM16SDP4:       0/    270     0%
+Info: 	               BSRAM:       2/     26     7%
+Info: 	              ALU54D:       0/     10     0%
+Info: 	     MULTADDALU18X18:       0/     10     0%
+Info: 	        MULTALU18X18:       0/     10     0%
+Info: 	        MULTALU36X18:       0/     10     0%
+Info: 	           MULT36X36:       0/      5     0%
+Info: 	           MULT18X18:       0/     20     0%
+Info: 	             MULT9X9:       0/     40     0%
+Info: 	              PADD18:       0/     20     0%
+Info: 	               PADD9:       0/     40     0%
+Info: 	                 GSR:       1/      1   100%
+Info: 	                 OSC:       0/      1     0%
+Info: 	                rPLL:       0/      2     0%
+Info: 	           FLASH608K:       0/      1     0%
+Info: 	                BUFG:       0/     22     0%
+Info: 	                DQCE:       0/     24     0%
+Info: 	                 DCS:       0/      8     0%
+Info: 	               DHCEN:       0/     24     0%
+Info: 	              CLKDIV:       0/      8     0%
+Info: 	             CLKDIV2:       0/     16     0%
+Info: 	           MIPI_IBUF:       0/     22     0%
+Info: 	           MIPI_OBUF:       0/     20     0%
+
+Info: Running custom HCLK placer...
+Info: Placed 0 cells based on constraints.
+Info: Creating initial analytic placement for 1126 cells, random placement wirelen = 46429.
+Info:     at initial placer iter 0, wirelen = 826
+Info:     at initial placer iter 1, wirelen = 810
+Info:     at initial placer iter 2, wirelen = 749
+Info:     at initial placer iter 3, wirelen = 744
+Info: Running main analytical placer, max placement attempts per cell = 882456.
+Info:     at iteration #1, type ALL: wirelen solved = 708, spread = 8424, legal = 15183; time = 0.09s
+Info:     at iteration #2, type ALL: wirelen solved = 902, spread = 8881, legal = 13890; time = 0.06s
+Info:     at iteration #3, type ALL: wirelen solved = 1102, spread = 7886, legal = 13508; time = 0.06s
+Info:     at iteration #4, type ALL: wirelen solved = 1466, spread = 6928, legal = 12620; time = 0.06s
+Info:     at iteration #5, type ALL: wirelen solved = 1670, spread = 6057, legal = 11120; time = 0.05s
+Info:     at iteration #6, type ALL: wirelen solved = 1855, spread = 6100, legal = 10781; time = 0.05s
+Info:     at iteration #7, type ALL: wirelen solved = 2036, spread = 5887, legal = 10511; time = 0.06s
+Info:     at iteration #8, type ALL: wirelen solved = 2224, spread = 5471, legal = 11312; time = 0.06s
+Info:     at iteration #9, type ALL: wirelen solved = 2254, spread = 6084, legal = 12031; time = 0.06s
+Info:     at iteration #10, type ALL: wirelen solved = 2414, spread = 6475, legal = 11435; time = 0.06s
+Info:     at iteration #11, type ALL: wirelen solved = 2653, spread = 5889, legal = 11825; time = 0.06s
+Info:     at iteration #12, type ALL: wirelen solved = 2787, spread = 6534, legal = 11797; time = 0.07s
+Info: HeAP Placer Time: 0.96s
+Info:   of which solving equations: 0.30s
+Info:   of which spreading cells: 0.04s
+Info:   of which strict legalisation: 0.44s
+
+Info: Running simulated annealing placer for refinement.
+Info:   at iteration #1: temp = 0.000000, timing cost = 106, wirelen = 10511
+Info:   at iteration #5: temp = 0.000000, timing cost = 62, wirelen = 8024
+Info:   at iteration #10: temp = 0.000000, timing cost = 51, wirelen = 7196
+Info:   at iteration #15: temp = 0.000000, timing cost = 51, wirelen = 6882
+Info:   at iteration #20: temp = 0.000000, timing cost = 49, wirelen = 6640
+Info:   at iteration #25: temp = 0.000000, timing cost = 45, wirelen = 6432
+Info:   at iteration #30: temp = 0.000000, timing cost = 44, wirelen = 6350
+Info:   at iteration #35: temp = 0.000000, timing cost = 43, wirelen = 6324
+Info:   at iteration #35: temp = 0.000000, timing cost = 43, wirelen = 6327 
+Info: SA placement time 2.44s
+
+Info: Max frequency for clock 'sample_clk': 94.07 MHz (PASS at 12.00 MHz)
+
+Info: Slack histogram:
+Info:  legend: * represents 2 endpoint(s)
+Info:          + represents [1,2) endpoint(s)
+Info: [ 72703,  73210) |*+
+Info: [ 73210,  73717) |+
+Info: [ 73717,  74224) |******+
+Info: [ 74224,  74731) |*****+
+Info: [ 74731,  75238) |**+
+Info: [ 75238,  75745) |**+
+Info: [ 75745,  76252) |******+
+Info: [ 76252,  76759) |**********+
+Info: [ 76759,  77266) |**+
+Info: [ 77266,  77773) |*+
+Info: [ 77773,  78280) |*************+
+Info: [ 78280,  78787) |*******+
+Info: [ 78787,  79294) |*****************+
+Info: [ 79294,  79801) |*********+
+Info: [ 79801,  80308) |*********************+
+Info: [ 80308,  80815) |**************************+
+Info: [ 80815,  81322) |***********+
+Info: [ 81322,  81829) |****+
+Info: [ 81829,  82336) |*************+
+Info: [ 82336,  82843) |************************************************************ 
+Info: Checksum: 0x1f3b4806
+Info: Routing globals...
+Info:     'sample_clk' net was routed using global resources only.
+Info:     'u_link.state_DFFRE_Q_3_D_LUT4_F_I2_LUT4_F_1_I3_LUT4_F_I1[3]' is routed using segments.
+Info:     'arm' is routed using segments.
+Info:     'u_link.arm_pulse_r_DFFR_Q_D_LUT3_F_I2_LUT4_I3_F[1]' is routed using segments.
+Info:     'u_link.resp_crc[15]' is routed using segments.
+Info:     'u_link.enc_scan_DFFRE_Q_CE_LUT4_F_I2_LUT3_I1_F' is routed using segments.
+Info:     'u_ila.done_reg_LUT4_I0_F_MUX2_LUT5_I1_O_LUT3_I2_F_LUT4_I3_F_MUX2_LUT5_I0_O_MUX2_LUT5_O_S0_LUT4_F_1_I3_LUT4_F_I3_LUT4_F_I2_LUT4_I1_F_MUX2_LUT6_S0_O[0]' is routed using segments.
+Info:     'u_link.enc_src_DFFRE_Q_2_D[3]' is routed using segments.
+Info:     'u_ila.done_reg_LUT4_I0_F_MUX2_LUT5_I1_O[0]' is routed using segments.
+Info:     'u_link.resp_crc[8]' is routed using segments.
+Info:     'u_link.resp_crc[12]' is routed using segments.
+
+Info: Routing..
+Info: Setting up routing queue.
+Info: Routing 6023 arcs.
+Info:            |   (re-)routed arcs  |   delta    | remaining|       time spent     |
+Info:    IterCnt |  w/ripup   wo/ripup |  w/r  wo/r |      arcs| batch(sec) total(sec)|
+Info:       1000 |       57        880 |   57   880 |      5123|       0.44       0.44|
+Info:       2000 |       82       1556 |   25   676 |      4153|       0.20       0.63|
+Info:       3000 |       88       2428 |    6   872 |      3160|       0.34       0.97|
+Info:       4000 |      107       3286 |   19   858 |      2185|       0.37       1.34|
+Info:       5000 |      151       4142 |   44   856 |      1250|       0.47       1.80|
+Info:       6000 |      225       4949 |   74   807 |       357|       0.59       2.39|
+Info:       6427 |      271       5286 |   46   337 |         0|       0.30       2.69|
+Info: Routing complete.
+Info: Router1 time 2.69s
+Info: Checksum: 0x52b3435c
+
+Info: Critical path report for clock 'sample_clk' (posedge -> posedge):
+Info:       type curr  total name
+Info:   clk-to-q  0.46  0.46 Source u_link.read_data_DFFRE_Q_1.Q
+Info:    routing  0.41  0.87 Net u_link.read_data[6] (3,15) -> (3,15)
+Info:                          Sink u_link.u_uart.rx_valid_LUT4_I0_F_LUT4_I3_1_I2_LUT4_F_I3_LUT3_I0_F_LUT4_F_I3_LUT4_F_I3_MUX2_LUT5_O_I1_LUT4_F_I3_MUX2_LUT5_O_I0_LUT4_F.I1
+Info:                          Defined in:
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA\rtl\debug/sf_debug_link.sv:121.18-121.27
+Info:      logic  1.10  1.97 Source u_link.u_uart.rx_valid_LUT4_I0_F_LUT4_I3_1_I2_LUT4_F_I3_LUT3_I0_F_LUT4_F_I3_LUT4_F_I3_MUX2_LUT5_O_I1_LUT4_F_I3_MUX2_LUT5_O_I0_LUT4_F.F
+Info:    routing  0.00  1.97 Net u_link.u_uart.rx_valid_LUT4_I0_F_LUT4_I3_1_I2_LUT4_F_I3_LUT3_I0_F_LUT4_F_I3_LUT4_F_I3_MUX2_LUT5_O_I1_LUT4_F_I3_MUX2_LUT5_O_I0 (3,15) -> (3,15)
+Info:                          Sink u_link.u_uart.rx_valid_LUT4_I0_F_LUT4_I3_1_I2_LUT4_F_I3_LUT3_I0_F_LUT4_F_I3_LUT4_F_I3_MUX2_LUT5_O_I1_LUT4_F_I3_MUX2_LUT5_O.I0
+Info:                          Defined in:
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA_Cmake\external\fpga-tools\runtime\yosys\bin\..\share\gowin/cells_map.v:151.9-151.11
+Info:      logic  0.47  2.44 Source u_link.u_uart.rx_valid_LUT4_I0_F_LUT4_I3_1_I2_LUT4_F_I3_LUT3_I0_F_LUT4_F_I3_LUT4_F_I3_MUX2_LUT5_O_I1_LUT4_F_I3_MUX2_LUT5_O.O
+Info:    routing  1.37  3.81 Net u_link.u_uart.rx_valid_LUT4_I0_F_LUT4_I3_1_I2_LUT4_F_I3_LUT3_I0_F_LUT4_F_I3_LUT4_F_I3_MUX2_LUT5_O_I1_LUT4_F_I3[3] (3,15) -> (5,12)
+Info:                          Sink u_link.u_uart.rx_valid_LUT4_I0_F_LUT4_I3_1_I2_LUT4_F_I3_LUT3_I0_F_LUT4_F_I3_LUT4_F_I3_MUX2_LUT5_O_I1_LUT4_F.I3
+Info:                          Defined in:
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA_Cmake\external\fpga-tools\runtime\yosys\bin\..\share\gowin/cells_map.v:130.20-130.21
+Info:      logic  0.62  4.43 Source u_link.u_uart.rx_valid_LUT4_I0_F_LUT4_I3_1_I2_LUT4_F_I3_LUT3_I0_F_LUT4_F_I3_LUT4_F_I3_MUX2_LUT5_O_I1_LUT4_F.F
+Info:    routing  0.00  4.43 Net u_link.u_uart.rx_valid_LUT4_I0_F_LUT4_I3_1_I2_LUT4_F_I3_LUT3_I0_F_LUT4_F_I3_LUT4_F_I3_MUX2_LUT5_O_I1 (5,12) -> (5,12)
+Info:                          Sink u_link.u_uart.rx_valid_LUT4_I0_F_LUT4_I3_1_I2_LUT4_F_I3_LUT3_I0_F_LUT4_F_I3_LUT4_F_I3_MUX2_LUT5_O.I1
+Info:                          Defined in:
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA_Cmake\external\fpga-tools\runtime\yosys\bin\..\share\gowin/cells_map.v:151.13-151.15
+Info:      logic  0.50  4.94 Source u_link.u_uart.rx_valid_LUT4_I0_F_LUT4_I3_1_I2_LUT4_F_I3_LUT3_I0_F_LUT4_F_I3_LUT4_F_I3_MUX2_LUT5_O.O
+Info:    routing  1.28  6.22 Net u_link.u_uart.rx_valid_LUT4_I0_F_LUT4_I3_1_I2_LUT4_F_I3_LUT3_I0_F_LUT4_F_I3_LUT4_F_I3[4] (5,12) -> (7,11)
+Info:                          Sink u_link.u_uart.rx_valid_LUT4_I0_F_LUT4_I3_1_I2_LUT4_F_I3_LUT3_I0_F_LUT4_F_I3_LUT4_F_I3_LUT4_I3_F_MUX2_LUT5_I0.S0
+Info:                          Defined in:
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA_Cmake\external\fpga-tools\runtime\yosys\bin\..\share\gowin/cells_map.v:130.20-130.21
+Info:      logic  0.18  6.40 Source u_link.u_uart.rx_valid_LUT4_I0_F_LUT4_I3_1_I2_LUT4_F_I3_LUT3_I0_F_LUT4_F_I3_LUT4_F_I3_LUT4_I3_F_MUX2_LUT5_I0.O
+Info:    routing  1.85  8.25 Net u_link.u_uart.rx_valid_LUT4_I0_F_LUT4_I3_1_I2_LUT4_F_I3_LUT3_I0_F_LUT4_F_I3_LUT4_F_I3_LUT4_I3_F_MUX2_LUT5_I0_O[1] (7,11) -> (7,11)
+Info:                          Sink u_link.u_uart.rx_valid_LUT4_I0_F_LUT4_I3_1_I2_LUT4_F_I3_LUT3_I0_F_LUT4_F_1.I1
+Info:                          Defined in:
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA_Cmake\external\fpga-tools\runtime\yosys\bin\..\share\gowin/cells_map.v:130.20-130.21
+Info:      logic  1.10  9.34 Source u_link.u_uart.rx_valid_LUT4_I0_F_LUT4_I3_1_I2_LUT4_F_I3_LUT3_I0_F_LUT4_F_1.F
+Info:    routing  0.81  10.15 Net u_link.u_uart.rx_valid_LUT4_I0_F_LUT4_I3_1_I2_LUT4_F_I3_LUT3_I0_F[6] (7,11) -> (7,12)
+Info:                          Sink u_link.enc_zero_DFFE_Q_CE_MUX2_LUT7_O_I1_MUX2_LUT6_O.S0
+Info:                          Defined in:
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA_Cmake\external\fpga-tools\runtime\yosys\bin\..\share\gowin/cells_map.v:130.20-130.21
+Info:      logic  0.18  10.33 Source u_link.enc_zero_DFFE_Q_CE_MUX2_LUT7_O_I1_MUX2_LUT6_O.O
+Info:    routing  0.00  10.33 Net u_link.enc_zero_DFFE_Q_CE_MUX2_LUT7_O_I1 (7,12) -> (7,12)
+Info:                          Sink u_link.enc_zero_DFFE_Q_CE_MUX2_LUT7_O.I1
+Info:                          Defined in:
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA_Cmake\external\fpga-tools\runtime\yosys\bin\..\share\gowin/cells_map.v:163.13-163.15
+Info:      logic  0.50  10.83 Source u_link.enc_zero_DFFE_Q_CE_MUX2_LUT7_O.O
+Info:    routing  1.92  12.74 Net u_link.enc_zero_DFFE_Q_CE[3] (7,12) -> (12,10)
+Info:                          Sink u_link.u_uart.rx_valid_LUT4_I0_F_LUT4_I3_1.I0
+Info:                          Defined in:
+Info:                               E:\EDA_Race\Cangku\new\SigFlow_FPGA_Cmake\external\fpga-tools\runtime\yosys\bin\..\share\gowin/cells_map.v:130.20-130.21
+Info:      logic  1.03  13.77 Source u_link.u_uart.rx_valid_LUT4_I0_F_LUT4_I3_1.F
+Info:    routing  0.89  14.66 Net u_link.u_uart.rx_valid_LUT4_I0_F_LUT4_I3_1_F (12,10) -> (13,11)
+Info:                          Sink u_link.state_DFFRE_Q_1.CE
+Info:      setup  0.04  14.71 Source u_link.state_DFFRE_Q_1.CE
+Info: 6.18 ns logic, 8.53 ns routing
+
+Info: Max frequency for clock 'sample_clk': 67.99 MHz (PASS at 12.00 MHz)
+
+Info: Slack histogram:
+Info:  legend: * represents 1 endpoint(s)
+Info:          + represents [1,1) endpoint(s)
+Info: [ 68625,  69291) |****+
+Info: [ 69291,  69957) |*******+
+Info: [ 69957,  70623) |**********+
+Info: [ 70623,  71289) |************+
+Info: [ 71289,  71955) |**********+
+Info: [ 71955,  72621) |*************+
+Info: [ 72621,  73287) |**********+
+Info: [ 73287,  73953) |********+
+Info: [ 73953,  74619) |****+
+Info: [ 74619,  75285) |***************************+
+Info: [ 75285,  75951) |+
+Info: [ 75951,  76617) |***********************+
+Info: [ 76617,  77283) |*************************************+
+Info: [ 77283,  77949) |***************************+
+Info: [ 77949,  78615) |******************+
+Info: [ 78615,  79281) |********************************************+
+Info: [ 79281,  79947) |**********************************+
+Info: [ 79947,  80613) |************************************************************ 
+Info: [ 80613,  81279) |******************************+
+Info: [ 81279,  81945) |******************+
+
+Info: Program finished normally.

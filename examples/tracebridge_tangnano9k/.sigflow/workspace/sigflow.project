@@ -1,0 +1,14 @@
+{
+  "build": {
+    "top_module": ["min_led_uart_top"]
+  },
+  "paths": {
+    "source_files": ["rtl/min_led_uart_top.v"],
+    "library_files": []
+  },
+  "fpga": {
+    "target_profile": "tang-nano-9k",
+    "yosys_strategy": "baseline",
+    "openfpgaloader_args": ["-b", "tangnano9k", "${bitstream}"]
+  }
+}

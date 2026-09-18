@@ -1,0 +1,128 @@
+{
+  "schema_version" : "1.0",
+  "signals" : 
+  [
+    {
+      "canvas_id" : "bit_count",
+      "clock_domain" : "clk",
+      "direction" : "internal",
+      "fanout" : 1,
+      "probe" : false,
+      "sftree_path" : "bit_count",
+      "signal" : "bit_count",
+      "source_line" : 11,
+      "source_path" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\rtl\\min_led_uart_top.v"
+    },
+    {
+      "canvas_id" : "bit_timer",
+      "clock_domain" : "clk",
+      "direction" : "internal",
+      "fanout" : 0,
+      "probe" : false,
+      "sftree_path" : "bit_timer",
+      "signal" : "bit_timer",
+      "source_line" : 12,
+      "source_path" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\rtl\\min_led_uart_top.v"
+    },
+    {
+      "canvas_id" : "clk",
+      "clock_domain" : "clk",
+      "direction" : "input",
+      "fanout" : 0,
+      "probe" : false,
+      "sftree_path" : "clk",
+      "signal" : "clk",
+      "source_line" : 2,
+      "source_path" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\rtl\\min_led_uart_top.v"
+    },
+    {
+      "canvas_id" : "led",
+      "clock_domain" : "clk",
+      "direction" : "internal",
+      "fanout" : 0,
+      "probe" : true,
+      "sftree_path" : "min_led_uart_top.led",
+      "signal" : "led",
+      "source_line" : 4,
+      "source_path" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\rtl\\min_led_uart_top.v"
+    },
+    {
+      "canvas_id" : "rst_n",
+      "clock_domain" : "clk",
+      "direction" : "input",
+      "fanout" : 0,
+      "probe" : false,
+      "sftree_path" : "rst_n",
+      "signal" : "rst_n",
+      "source_line" : 3,
+      "source_path" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\rtl\\min_led_uart_top.v"
+    },
+    {
+      "canvas_id" : "state",
+      "clock_domain" : "clk",
+      "direction" : "internal",
+      "fanout" : 1,
+      "probe" : true,
+      "sftree_path" : "min_led_uart_top.state",
+      "signal" : "state",
+      "source_line" : 7,
+      "source_path" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\rtl\\min_led_uart_top.v"
+    },
+    {
+      "canvas_id" : "tick",
+      "clock_domain" : "clk",
+      "direction" : "internal",
+      "fanout" : 0,
+      "probe" : false,
+      "sftree_path" : "tick",
+      "signal" : "tick",
+      "source_line" : 8,
+      "source_path" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\rtl\\min_led_uart_top.v"
+    },
+    {
+      "canvas_id" : "tx_busy",
+      "clock_domain" : "clk",
+      "direction" : "internal",
+      "fanout" : 0,
+      "probe" : false,
+      "sftree_path" : "tx_busy",
+      "signal" : "tx_busy",
+      "source_line" : 9,
+      "source_path" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\rtl\\min_led_uart_top.v"
+    },
+    {
+      "canvas_id" : "tx_shift",
+      "clock_domain" : "clk",
+      "direction" : "internal",
+      "fanout" : 1,
+      "probe" : false,
+      "sftree_path" : "tx_shift",
+      "signal" : "tx_shift",
+      "source_line" : 10,
+      "source_path" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\rtl\\min_led_uart_top.v"
+    },
+    {
+      "canvas_id" : "uart_tx",
+      "clock_domain" : "clk",
+      "direction" : "internal",
+      "fanout" : 0,
+      "probe" : false,
+      "sftree_path" : "uart_tx",
+      "signal" : "uart_tx",
+      "source_line" : 5,
+      "source_path" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\rtl\\min_led_uart_top.v"
+    },
+    {
+      "canvas_id" : "uart_tx_r",
+      "clock_domain" : "clk",
+      "direction" : "internal",
+      "fanout" : 1,
+      "probe" : false,
+      "sftree_path" : "uart_tx_r",
+      "signal" : "uart_tx_r",
+      "source_line" : 13,
+      "source_path" : "E:\\EDA_Race\\Cangku\\new\\SigFlow_FPGA\\examples\\tracebridge_tangnano9k\\rtl\\min_led_uart_top.v"
+    }
+  ],
+  "top_module" : "min_led_uart_top"
+}

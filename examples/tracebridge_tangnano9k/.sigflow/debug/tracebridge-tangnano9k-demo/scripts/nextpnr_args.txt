@@ -1,0 +1,5 @@
+--json E:\EDA_Race\Cangku\new\SigFlow_FPGA\examples\tracebridge_tangnano9k\.sigflow\debug\tracebridge-tangnano9k-demo\artifacts/sf_debug_top.json
+--write E:\EDA_Race\Cangku\new\SigFlow_FPGA\examples\tracebridge_tangnano9k\.sigflow\debug\tracebridge-tangnano9k-demo\artifacts/sf_debug_top.pnr.json
+--device GW1NR-LV9QN88PC6/I5
+--vopt family=GW1N-9C
+--vopt cst=E:\EDA_Race\Cangku\new\SigFlow_FPGA\examples\tracebridge_tangnano9k\.sigflow\debug\tracebridge-tangnano9k-demo\overlay\debug.cst
