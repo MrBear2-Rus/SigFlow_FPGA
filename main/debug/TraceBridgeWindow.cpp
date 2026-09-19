@@ -4,6 +4,7 @@
 #include "DebugFingerprint.h"
 #include "SerialPortEnumerator.h"
 #include "SerialTransport.h"
+#include "FtdiTransport.h"
 #include "WaveformAligner.h"
 #include "WaveformComparator.h"
 #include "RootCauseGraph.h"
@@ -126,9 +127,14 @@ std::string FindBundledVerilator() {
     }
 
     wxFileName executable(wxStandardPaths::Get().GetExecutablePath());
-    executable.RemoveLastDir();
-    executable.RemoveLastDir();
-    executable.RemoveLastDir();
+    // 向上三级定位仓库根（例如 <repo>/build/bin -> <repo>）。
+    // 必须用带边界判断的版本：直接在较浅的路径（exe 靠近盘根）上连调三次
+    // RemoveLastDir() 会越过根目录并触发 wxArrayString 越界断言。
+    for (int up = 0; up < 3; ++up) {
+        if (!sigflow::platform::TryRemoveLastDir(executable)) {
+            break;
+        }
+    }
     const wxString root = executable.GetPath();
     const wxUniChar pathSeparator = sigflow::platform::PathSeparator();
     const wxString verilatorBinDbg = sigflow::platform::WithExecutableSuffix("verilator_bin_dbg");
@@ -1233,13 +1239,19 @@ void TraceBridgeWindow::SetNavigationCallback(
     if (simWavePanel_) simWavePanel_->SetNavigationCallback(navigationCallback_);
 }
 
+// 进度语义：只更新"当前阶段状态"标签，**不写事件日志列表**。
+// 原实现每条进度都 AddLog(TbLogTag::INFO, message)，而回读样本阶段是
+// 「每 1 个样本一条进度」（ReadCapture 按 kMaxSamples=1 分块），
+// 一次采集会往日志列表塞上千/上万条；wxListCtrl 在 wxGTK 下是 generic 实现
+// （插入 + 逐行上色 + DeleteItem(0) 裁剪 + EnsureVisible 滚动重绘），
+// 界面会被拖死。进度属于"状态"而非"事件"，因此只更新标签。
+// 阶段切换与最终结果仍由调用方显式记录（见 OnBuildProgramCapture 的进度回调）。
 void TraceBridgeWindow::SetCaptureStatus(const wxString& message) {
     if (!wxIsMainThread()) {
         CallAfter([this, message] { SetCaptureStatus(message); });
         return;
     }
     stepperStatus_->SetLabel(message);
-    AddLog(TbLogTag::INFO, message);
 }
 
 void TraceBridgeWindow::SetCaptureResult(bool success, const wxString& message, const wxString& vcdPath) {
@@ -1380,19 +1392,38 @@ void TraceBridgeWindow::RefreshSerialPorts() {
                                      : wxString{})
                               : wxString{};
     choice->Clear();
+    // 自动选口策略：**必须按接口号，不能只看名字**。
+    // 双通道调试器（Tang Nano 全系板载 BL702 伪装 FT2232、FT2232/FT4232 等）
+    // 会暴露两个串口：接口 0 = JTAG，接口 1 = UART。采集协议走 UART ——
+    // 若选中接口 0，同步前导帧发出去一个字节都收不到（response timeout）。
+    // 旧实现只按 friendlyName 关键字（sipeed/tang/ft2232）匹配，而两个通道的
+    // by-id 名字都含 SIPEED_...，于是取了枚举到的第一个（通常是接口 0）→ 必超时。
     int bestIdx = wxNOT_FOUND;
+    int bestScore = -100000;   // 保证至少有一个候选（即使它是接口 0）
     for (const auto& p : sigflow::debug::EnumerateSerialPorts()) {
         wxString label = ToWxString(p.name);
         if (!p.friendlyName.empty()) {
             label += wxT(" (") + ToWxString(p.friendlyName) + wxT(")");
         }
+        if (p.interfaceNumber >= 0) {
+            label += wxString::Format(wxT(" · IF%02d"), p.interfaceNumber);
+            if (p.interfaceNumber == 1) label += wxT(" [UART]");
+        }
         choice->Append(label, new wxStringClientData(ToWxString(p.name)));
-        if (bestIdx == wxNOT_FOUND) {
-            const wxString fn = ToWxString(p.friendlyName).Lower();
-            if (fn.Contains(wxT("sipeed")) || fn.Contains(wxT("tang")) ||
-                fn.Contains(wxT("ft2232")) || fn.Contains(wxT("ch340"))) {
-                bestIdx = static_cast<int>(choice->GetCount() - 1);
-            }
+
+        const wxString fn = ToWxString(p.friendlyName).Lower();
+        int score = 0;
+        if (p.interfaceNumber == 1) score += 100;   // ★ UART 通道：采集要的就是它
+        if (p.interfaceNumber == 0) score -= 100;   // ★ JTAG 通道：绝不能默认选它
+        if (fn.Contains(wxT("sipeed")) || fn.Contains(wxT("tang")) ||
+            fn.Contains(wxT("ft2232")) || fn.Contains(wxT("ftdi"))) {
+            score += 10;
+        } else if (fn.Contains(wxT("ch340"))) {
+            score += 5;
+        }
+        if (score > bestScore) {
+            bestScore = score;
+            bestIdx = static_cast<int>(choice->GetCount() - 1);
         }
     }
     if (!prev.IsEmpty()) {
@@ -1509,10 +1540,23 @@ void TraceBridgeWindow::OnBuildProgramCapture(wxCommandEvent&) {
 
     m_aborted.store(false);
     request.captureRequest.options.aborted = &m_aborted;
-    request.captureRequest.options.onProgress = [this](sigflow::debug::DebugAcqStage,
-                                                         int, const std::string& message) {
-        if (!message.empty()) SetCaptureStatus(ToWxString(message));
-    };
+    // 进度回调在 worker 线程触发。
+    // 进度只更新状态标签（SetCaptureStatus 内部已 marshal 到 UI 线程）；
+    // 日志则**只在阶段切换时**记一条，既能看清流程又不刷屏。
+    request.captureRequest.options.onProgress =
+        [this, lastStage = -1](sigflow::debug::DebugAcqStage stage, int,
+                               const std::string& message) mutable {
+            const wxString text = ToWxString(message);
+            if (!text.IsEmpty()) SetCaptureStatus(text);
+
+            const int order = sigflow::debug::DebugAcquisition::StageOrder(stage);
+            if (order != lastStage) {
+                lastStage = order;
+                PostLog(this, TbLogTag::INFO,
+                        wxString(wxT("阶段: ")) +
+                            ToWxString(sigflow::debug::DebugAcquisition::StageName(stage)));
+            }
+        };
     request.completion = [this](bool success, const wxString& message) {
         if (!wxIsMainThread()) {
             CallAfter([this, success, message] { SetDebugWorkflowResult(success, message); });
@@ -1953,6 +1997,18 @@ bool TraceBridgeWindow::BuildCaptureRequest(TraceBridgeCaptureRequest& request, 
     request.projectPath = ToUtf8(projectPath_);
     request.contractPath = ToUtf8(contractFilePath_);
     request.serialPort = ToUtf8(runtimePanel_->GetSelectedSerialPureName());
+    // 把实际使用的串口写进日志。旧实现不记录，出问题时只能靠猜
+    // （曾出现自动选到 JTAG 通道 → 同步校准 response timeout）。
+    {
+        auto* self = const_cast<TraceBridgeWindow*>(this);
+        if (request.serialPort.empty()) {
+            PostLog(self, TbLogTag::ERR,
+                    wxT("未选择串口：请在运行时面板选择调试器串口"));
+        } else {
+            PostLog(self, TbLogTag::CFG,
+                    wxT("使用串口：") + ToWxString(request.serialPort));
+        }
+    }
     request.contract = contract_;
     if (probeEditor_) {
         std::vector<sigflow::debug::DebugProbe> editedProbes;
@@ -2073,16 +2129,50 @@ void TraceBridgeWindow::OnStartCapture(wxCommandEvent&) {
                 // 直接返回：Result 会由 SetCaptureResult 改回来，这里直接把 thread 结束即可
                 return;
             }
-            // 自己执行（当没有外部 handler 时，直接 SerialTransport + DebugAcquisition）
-            sigflow::debug::SerialTransport transport(request.serialPort,
-                                                      request.contract.transport.baud);
-            if (!transport.Open()) {
-                wxString openErr = wxT("串口打开失败：") + ToWxString(request.serialPort);
+            // 传输层选择：**优先 libftdi 直连**（绕过 ftdi_sio / tty）。
+            // 实测 Tang Nano 9K 的板载 BL702 只是"模仿" FT2232：同一个 PING 帧，
+            // libftdi 直连能收到合法 Pong，而 /dev/ttyUSBx 路径完全没有应答；
+            // 且 libftdi 打开设备会 detach ftdi_sio，烧录后调试串口的 tty 常消失。
+            // 找不到设备或未编译 libftdi 支持时，回退到原来的串口传输层。
+            const std::uint32_t debugBaud =
+                static_cast<std::uint32_t>(request.contract.transport.baud);
+            std::unique_ptr<sigflow::debug::ITransport> transport;
+#if defined(SIGFLOW_HAVE_LIBFTDI)
+            if (sigflow::debug::FtdiTransport::IsDevicePresent(0x0403, 0x6010)) {
+                auto ftdi = std::make_unique<sigflow::debug::FtdiTransport>(0x0403, 0x6010,
+                                                                           1, debugBaud);
+                if (ftdi->Open()) {
+                    transport = std::move(ftdi);
+                    PostLog(this, TbLogTag::CFG,
+                            wxT("传输层：libftdi 直连（0403:6010 通道 B，绕过 tty）"));
+                } else {
+                    PostLog(this, TbLogTag::ERR,
+                            wxT("libftdi 直连打开失败（设备存在但打不开），回退串口"));
+                }
+            } else {
+                PostLog(this, TbLogTag::ERR,
+                        wxT("未发现 0403:6010 调试器，回退串口"));
+            }
+#else
+            PostLog(this, TbLogTag::ERR,
+                    wxT("本构建未包含 libftdi 支持，回退串口"));
+#endif
+            if (!transport) {
+                auto serial = std::make_unique<sigflow::debug::SerialTransport>(
+                    request.serialPort, debugBaud);
+                if (serial->Open()) {
+                    transport = std::move(serial);
+                }
+            }
+            if (!transport) {
+                wxString openErr = wxT("无法打开调试链路：串口 ") +
+                                   ToWxString(request.serialPort) +
+                                   wxT(" 打开失败，且未找到 0403:6010 调试器");
                 PostLog(this, TbLogTag::ERR, openErr);
                 PostResult(this, 0, openErr);
                 return;
             }
-            sigflow::debug::DebugAcquisition acq(transport, request.contract);
+            sigflow::debug::DebugAcquisition acq(*transport, request.contract);
             ok = acq.Acquire(outDir, error, request.options);
             vcdPath = ToWxString(acq.Result().vcdPath);
             if (m_aborted.load()) {

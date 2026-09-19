@@ -174,10 +174,10 @@ wxString SimulationEngine::FindVerilatorPath() const
                 if (wxFileExists(candidate)) return candidate;
             }
             wxFileName parent(directory);
-            parent.RemoveLastDir();
-            const wxString parentPath = parent.GetPath();
-            if (parentPath == directory) break;
-            directory = parentPath;
+            if (!sigflow::platform::TryRemoveLastDir(parent)) {
+                break;   // 已在根目录：不能再上溯（空目录列表上 RemoveAt 会越界）
+            }
+            directory = parent.GetPath();
         }
     }
 
@@ -248,7 +248,7 @@ wxString SimulationEngine::FindVerilatorIncludePath() const
     if (wxFileExists(verilatorPath)) {
         wxFileName prefix(verilatorPath);
         prefix.SetFullName(wxEmptyString);
-        prefix.RemoveLastDir(); // bin
+        sigflow::platform::TryRemoveLastDir(prefix); // bin（已在根目录则忽略）
         const wxString candidates[] = {
             prefix.GetPath() + sigflow::platform::PathSeparator() + "share" + sigflow::platform::PathSeparator() + "verilator" + sigflow::platform::PathSeparator() + "include",
             prefix.GetPath() + sigflow::platform::PathSeparator() + "include"
@@ -1032,15 +1032,15 @@ wxString SimulationEngine::GetSoftwareDirectory() const
     
     // 如果在 x64/Release 或 x64/Debug 下，向上两级
     if (path.Lower().Contains("x64")) {
-        exeDir.RemoveLastDir();  // 去掉 Release/Debug
-        exeDir.RemoveLastDir();  // 去掉 x64
+        sigflow::platform::TryRemoveLastDir(exeDir);  // 去掉 Release/Debug
+        sigflow::platform::TryRemoveLastDir(exeDir);  // 去掉 x64
         path = exeDir.GetPath();
     }
     
     // 检查是否在 main 目录下
     if (path.EndsWith("main") || path.EndsWith("main\\")) {
         // 已经在 main 目录，软件根目录是上级
-        exeDir.RemoveLastDir();
+        sigflow::platform::TryRemoveLastDir(exeDir);
     }
     
     wxString result = exeDir.GetPath();

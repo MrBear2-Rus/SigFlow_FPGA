@@ -8,6 +8,7 @@
 #include <cctype>
 #include <string>
 #include <vector>
+#include <functional>
 
 namespace sigflow::platform {
 
@@ -183,6 +184,56 @@ inline std::string Utf8String(const wxString& text)
 {
     const wxScopedCharBuffer utf8 = text.ToUTF8();
     return std::string(utf8.data() != nullptr ? utf8.data() : "", utf8.length());
+}
+
+// ---------------------------------------------------------------------------
+// 安全地"向上遍历目录"
+//
+// 为什么必须走这两个函数：
+//   wxFileName::RemoveLastDir() 是**内联且没有空判断**的（wx/filename.h）：
+//       void RemoveLastDir() { RemoveDir(GetDirCount() - 1); }
+//   而 RemoveDir 也没有边界检查（wx src/common/filename.cpp）：
+//       void wxFileName::RemoveDir(size_t pos) { m_dirs.RemoveAt(pos); }
+//   m_dirs 是 wxArrayString。所以当路径已经到达根目录（m_dirs 为空）时，
+//   GetDirCount() - 1 会下溢成 SIZE_MAX，进而
+//       m_dirs.RemoveAt(SIZE_MAX)  ->  断言 "bad index in wxArrayString::Remove"
+//   在 wxDEBUG_LEVEL=1 的构建（如 Linux 发行版 wx）下会刷屏；在
+//   wxDEBUG_LEVEL=0 的 Release 构建下虽被静默成空操作，但上溯逻辑本身仍是错的。
+//
+// 注意：根目录的表现各平台不同（Unix "/"、Windows "C:\"、UNC 共享根），
+// 但判据统一是 GetDirCount()==0，不能比较 GetPath()。
+// ---------------------------------------------------------------------------
+
+// 上溯一层；已在根目录时返回 false 且**不改变** directory。
+inline bool TryRemoveLastDir(wxFileName& directory)
+{
+    if (directory.GetDirCount() == 0) {
+        return false;
+    }
+    directory.RemoveLastDir();
+    return true;
+}
+
+// 从 startDirectory 起逐层向上（含起点）最多 maxDepth 层，对每层调用 probe；
+// probe 返回非空字符串即停止并返回该值；到达根目录后自动停止。
+inline wxString WalkUpDirectories(const wxString& startDirectory, int maxDepth,
+                                  const std::function<wxString(const wxString&)>& probe)
+{
+    if (startDirectory.IsEmpty() || maxDepth <= 0) {
+        return wxString();
+    }
+
+    wxFileName directory = wxFileName::DirName(startDirectory);
+    for (int depth = 0; depth < maxDepth; ++depth) {
+        const wxString found = probe(directory.GetPath());
+        if (!found.IsEmpty()) {
+            return found;
+        }
+        if (!TryRemoveLastDir(directory)) {
+            break;   // 已到根，禁止继续上溯
+        }
+    }
+    return wxString();
 }
 
 } // namespace sigflow::platform

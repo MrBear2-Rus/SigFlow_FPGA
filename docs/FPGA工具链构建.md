@@ -118,8 +118,23 @@ chipdb 收拢到主程序固定查找的 `nextpnr/share/himbaechel/gowin/`。
 - **网络**：下载发生在 configure 阶段；GitHub 不可达时必须配 `SIGFLOW_FPGA_TOOLS_URL_PREFIX`。
 - **Boost 下载较大**（release 包约 130 MB）。内网/慢链路可先自行下载该包，
   再用 `-DSIGFLOW_BOOST_URL=file:///路径/boost-1.85.0-cmake.tar.xz` 指向本地文件。
-- **`openFPGALoader` 与 `verilator` 未纳入**本模块（前者用于下载到板、后者用于 RTL 仿真）。
-  它们仍然沿用"随包预置或 PATH"的方式；如需一并源码构建，可按同样的
-  FetchContent + ExternalProject 模式追加。
+- **GitHub 的 git 协议若不通**（`git ls-remote` 超时），本模块用的都是 URL/tarball 方式
+  （`codeload.github.com` / 官方站点），不依赖 git；也可用
+  `-DFETCHCONTENT_SOURCE_DIR_<名称>=<本地源码目录>` 直接喂已下好的源码，彻底离线构建。
+- **`openFPGALoader` 已纳入**（含自建 **libftdi1**）。
+  Tang Nano 全系在 `src/board.hpp` 里定义为 `cable "ft2232"`（FTDI 线缆），
+  而 openFPGALoader 只要 `ENABLE_FTDI_BASED_CABLE` 为 ON 就**强制** `USE_LIBFTDI=ON`
+  （普通变量，`-D` 覆盖不掉），FTDI 线缆也没有 libusb 回退实现 ——
+  所以 libftdi1 由本模块用 URL 包自建到 `runtime/deps/libftdi/`，
+  并给 openFPGALoader 写入 `INSTALL_RPATH`，运行期靠它找到 `libftdi1.so.2`。
+  相关 cache 变量：`SIGFLOW_FETCH_OPENFPGALOADER`、`SIGFLOW_OPENFPGALOADER_URL`、
+  `SIGFLOW_LIBFTDI_URL`。
+- **`verilator` 仍未纳入**（RTL 仿真用），目前沿用以"随包预置或 PATH"的方式。
+- **CMake 4 与老工程**：libftdi 1.5 仍写 `cmake_minimum_required(VERSION 2.6)`，
+  而 CMake 4 已移除对 <3.5 的兼容，会报
+  `Compatibility with CMake < 3.5 has been removed`。
+  模块里已按官方逃生口传 `-DCMAKE_POLICY_VERSION_MINIMUM=3.5`；将来接入其它老工程时同理。
+- **烧录还需要 USB 权限**：访问板载 JTAG 通常要 udev 规则（openFPGALoader 源码里
+  带 `99-openfpgaloader.rules`）或以 root 运行。
 - apicula 的脚本目录随平台而异（Windows `Scripts/`、Linux `bin/`），
   主程序 `FindFpgaTool()` 两处都会查找。

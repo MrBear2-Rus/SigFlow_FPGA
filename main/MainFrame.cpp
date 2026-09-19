@@ -25,6 +25,7 @@ using sigflow::platform::JoinPath;
 #include <cstring>
 #include <cstdarg>
 #include <algorithm>
+#include <memory>
 #include <limits>
 #include <mutex>
 #include <functional>
@@ -54,6 +55,7 @@ using sigflow::platform::JoinPath;
 #include "debug/DebugFingerprint.h"
 #include "debug/DebugMappingBuilder.h"
 #include "debug/SerialTransport.h"
+#include "debug/FtdiTransport.h"
 #include "ToolboxPanel.h"  
 #include "CanvasModel.h"
 #include "my_log.h"
@@ -326,27 +328,33 @@ wxString FindFpgaTool(const wxString& configuredPath, const wxString& environmen
     const wxString executableDirectory =
         wxFileName(wxStandardPaths::Get().GetExecutablePath()).GetPath();
     for (const wxString& startDirectory : { wxGetCwd(), executableDirectory }) {
-        wxFileName directory = wxFileName::DirName(startDirectory);
-        for (int depth = 0; depth < 6; ++depth) {
-            const wxUniChar separator = sigflow::platform::PathSeparator();
-            const wxString bundledToolRoot =
-                directory.GetPath() + separator + "external" + separator + "fpga-tools" + separator + "runtime";
-            // apicula 的脚本目录随平台而异：Windows 的 venv 用 Scripts/，
-            // Linux 的 venv 用 bin/ —— 两处都要找，否则 Linux 上源码构建出来的
-            // gowin_pack 永远找不到。
-            const std::vector<wxString> bundledCandidates = {
-                bundledToolRoot + separator + "yosys" + separator + "bin" + separator + fileName,
-                bundledToolRoot + separator + "nextpnr" + separator + "bin" + separator + fileName,
-                bundledToolRoot + separator + "apicula" + separator + "Scripts" + separator + fileName,
-                bundledToolRoot + separator + "apicula" + separator + "bin" + separator + fileName,
-                bundledToolRoot + separator + "openfpgaloader" + separator + "bin" + separator + fileName,
-            };
-            for (const wxString& candidate : bundledCandidates) {
-                if (wxFileExists(candidate)) {
-                    return candidate;
+        // 用 WalkUpDirectories 做上溯：到达根目录即停止。
+        // 旧写法 `for (depth < 6) { ...; directory.RemoveLastDir(); }` 在路径层级
+        // 少于 6 层时会越过根目录，触发 wxArrayString 越界断言（见 PlatformPaths.h）。
+        const wxString bundled = sigflow::platform::WalkUpDirectories(
+            startDirectory, 6, [&](const wxString& directory) -> wxString {
+                const wxUniChar separator = sigflow::platform::PathSeparator();
+                const wxString bundledToolRoot =
+                    directory + separator + "external" + separator + "fpga-tools" + separator + "runtime";
+                // apicula 的脚本目录随平台而异：Windows 的 venv 用 Scripts/，
+                // Linux 的 venv 用 bin/ —— 两处都要找，否则 Linux 上源码构建出来的
+                // gowin_pack 永远找不到。
+                const std::vector<wxString> bundledCandidates = {
+                    bundledToolRoot + separator + "yosys" + separator + "bin" + separator + fileName,
+                    bundledToolRoot + separator + "nextpnr" + separator + "bin" + separator + fileName,
+                    bundledToolRoot + separator + "apicula" + separator + "Scripts" + separator + fileName,
+                    bundledToolRoot + separator + "apicula" + separator + "bin" + separator + fileName,
+                    bundledToolRoot + separator + "openfpgaloader" + separator + "bin" + separator + fileName,
+                };
+                for (const wxString& candidate : bundledCandidates) {
+                    if (wxFileExists(candidate)) {
+                        return candidate;
+                    }
                 }
-            }
-            directory.RemoveLastDir();
+                return wxString();
+            });
+        if (!bundled.IsEmpty()) {
+            return bundled;
         }
     }
 
@@ -395,18 +403,22 @@ wxString FindTraceBridgeDebugRtl(const wxString& projectPath)
     };
     for (const wxString& startDirectory : startDirectories) {
         if (startDirectory.IsEmpty()) continue;
-        wxFileName directory = wxFileName::DirName(startDirectory);
-        for (int depth = 0; depth < 10; ++depth) {
-            const wxString candidate =JoinPath(JoinPath(directory.GetPath(), "rtl"), "debug");
-            if (wxDirExists(candidate) &&
-                wxFileExists(JoinPath(candidate, "sf_micro_ila.sv")) &&
-                wxFileExists(JoinPath(candidate, "sf_uart_link.sv")) &&
-                wxFileExists(JoinPath(candidate, "sf_debug_link.sv"))) {
-                return candidate;
-            }
-            const wxString previousDirectory = directory.GetPath();
-            directory.RemoveLastDir();
-            if (directory.GetPath() == previousDirectory) break;
+        // 旧实现在 RemoveLastDir() **之后**才判断"路径是否没变"，但断言恰恰就发生在
+        // 那一次 RemoveLastDir() 里（空目录列表 → RemoveAt(SIZE_MAX)）；
+        // 判断必须在调用之前，所以改用 WalkUpDirectories。
+        const wxString debugRtl = sigflow::platform::WalkUpDirectories(
+            startDirectory, 10, [](const wxString& directory) -> wxString {
+                const wxString candidate = JoinPath(JoinPath(directory, "rtl"), "debug");
+                if (wxDirExists(candidate) &&
+                    wxFileExists(JoinPath(candidate, "sf_micro_ila.sv")) &&
+                    wxFileExists(JoinPath(candidate, "sf_uart_link.sv")) &&
+                    wxFileExists(JoinPath(candidate, "sf_debug_link.sv"))) {
+                    return candidate;
+                }
+                return wxString();
+            });
+        if (!debugRtl.IsEmpty()) {
+            return debugRtl;
         }
     }
     return wxString();
@@ -2641,10 +2653,54 @@ void MainFrame::RunTraceBridgeCapture(
                                 "Opening TraceBridge UART capture.", "Opening TraceBridge UART...")) {
                     error = "Unable to arm TraceBridge session: " + error;
                 } else {
-                    sigflow::debug::SerialTransport transport(request.serialPort,
-                                                               request.contract.transport.baud);
-                    if (!transport.Open()) {
-                        error = "Unable to open serial port " + request.serialPort + ".";
+                    // 传输层选择：优先 libftdi 直连（绕过 ftdi_sio / tty）。
+                    // Tang Nano 9K 的板载 BL702 只是"模仿" FT2232：实测同一个 PING 帧，
+                    // libftdi 直连能收到合法 Pong（00 08 01 02 01 01 01 15 42 00），
+                    // 而 /dev/ttyUSBx 路径完全没有应答；且 libftdi 打开设备会 detach
+                    // ftdi_sio，烧录后调试串口的 tty 常常直接消失。
+                    // 找不到设备或未编译 libftdi 支持时，回退到串口传输层。
+                    const std::uint32_t debugBaud =
+                        static_cast<std::uint32_t>(request.contract.transport.baud);
+                    std::unique_ptr<sigflow::debug::ITransport> transport;
+                    // 失败原因与"实际使用的传输层"都会拼进最终 error
+                    // （GUI 运行日志表能看到），便于定位。
+                    std::string why;
+                    std::string transportUsed = "unknown";
+#if defined(SIGFLOW_HAVE_LIBFTDI)
+                    if (sigflow::debug::FtdiTransport::IsDevicePresent(0x0403, 0x6010)) {
+                        // 打开是瞬态操作（设备刚被 JTAG 用过 + 内核驱动重新绑定），重试几次
+                        for (int attempt = 0; attempt < 5 && !transport; ++attempt) {
+                            auto ftdi = std::make_unique<sigflow::debug::FtdiTransport>(
+                                0x0403, 0x6010, 1, debugBaud);
+                            if (ftdi->Open()) {
+                                transport = std::move(ftdi);
+                                transportUsed = "libftdi(0403:6010 chB)";
+                                postStatus("Transport: libftdi direct (0403:6010 channel B, "
+                                           "bypassing tty).");
+                            } else if (attempt < 4) {
+                                wxMilliSleep(200);
+                            }
+                        }
+                        if (!transport) why += "libftdi open failed x5; ";
+                    } else {
+                        why += "libftdi: 0403:6010 not found; ";
+                    }
+#else
+                    why += "no libftdi support; ";
+#endif
+                    if (!transport) {
+                        auto serial = std::make_unique<sigflow::debug::SerialTransport>(
+                            request.serialPort, debugBaud);
+                        if (serial->Open()) {
+                            transport = std::move(serial);
+                            transportUsed = "serial:" + request.serialPort;
+                            postStatus("Transport: serial fallback.");
+                        } else {
+                            why += "serial " + request.serialPort + " open failed; ";
+                        }
+                    }
+                    if (!transport) {
+                        error = "Unable to open debug link (" + why + ").";
                         std::string transitionError;
                         sessionService.Transition(request.projectPath, session.id,
                                                   sigflow::debug::DebugSessionState::Failed,
@@ -2653,11 +2709,17 @@ void MainFrame::RunTraceBridgeCapture(
                         postStatus("Armed. Waiting for trigger and reading samples...");
                         const sigflow::debug::DebugSessionPaths paths =
                             sigflow::debug::DebugSessionService::GetPaths(request.projectPath, session.id);
-                        sigflow::debug::DebugAcquisition acquisition(transport, request.contract);
+                        sigflow::debug::DebugAcquisition acquisition(*transport, request.contract);
                         success = acquisition.AcquireWithSession(request.projectPath, session.id,
                                                                  paths.artifacts, error, request.options);
-                        if (success) vcdPath = acquisition.Result().vcdPath;
-                        transport.Close();
+                        if (success) {
+                            vcdPath = acquisition.Result().vcdPath;
+                        } else {
+                            // 把"实际用了哪条传输层"拼进 GUI 可见的错误里：
+                            // 这是区分"libftdi 直连"与"串口回退"的关键信息。
+                            error += " ［传输层=" + transportUsed + "］";
+                        }
+                        transport->Close();
                     }
                 }
             }
@@ -2990,24 +3052,49 @@ void MainFrame::RunTraceBridgeDebugBuild(const TraceBridgeDebugBuildRequest& req
                                             self->m_traceBridgeWindow->SetCaptureStatus(
                                                 wxT("调试位流已生成，准备下载 FPGA…"));
                                         }
-                                        self->RunFpgaProgram(
-                                            fsPath,
-                                            [weakSelf, captureRequest, workflowCompletion](
-                                                bool programmed, const wxString& message) {
+                                        // Tang Nano 9K 的板载 FTDI/JTAG 打开经常失败，单次下载
+                                        // 成功率很低；一键流程必须在失败时重试，而不是直接放弃。
+                                        auto attemptProgram =
+                                            std::make_shared<std::function<void(int)>>();
+                                        *attemptProgram =
+                                            [weakSelf, fsPath, captureRequest, workflowCompletion,
+                                             attemptProgram](int attempt) {
                                                 auto* frame = weakSelf.get();
                                                 if (!frame) return;
-                                                if (!programmed) {
-                                                    if (workflowCompletion) workflowCompletion(false, message);
-                                                    return;
-                                                }
-                                                if (frame->m_traceBridgeWindow) {
-                                                    frame->m_traceBridgeWindow->SetCaptureStatus(
-                                                        wxT("FPGA 下载完成，开始采集…"));
-                                                }
-                                                frame->RunTraceBridgeCapture(captureRequest,
-                                                                              workflowCompletion);
-                                            },
-                                            true);
+                                                frame->RunFpgaProgram(
+                                                    fsPath,
+                                                    [weakSelf, attempt, captureRequest,
+                                                     workflowCompletion, attemptProgram](
+                                                        bool programmed, const wxString& message) {
+                                                        auto* f = weakSelf.get();
+                                                        if (!f) return;
+                                                        if (!programmed) {
+                                                            constexpr int kMaxProgramAttempts = 5;
+                                                            if (attempt < kMaxProgramAttempts) {
+                                                                if (f->m_traceBridgeWindow) {
+                                                                    f->m_traceBridgeWindow->SetCaptureStatus(
+                                                                        wxString::Format(
+                                                                            wxT("FPGA 下载失败，重试 %d/%d…"),
+                                                                            attempt + 1,
+                                                                            kMaxProgramAttempts));
+                                                                }
+                                                                (*attemptProgram)(attempt + 1);
+                                                                return;
+                                                            }
+                                                            if (workflowCompletion)
+                                                                workflowCompletion(false, message);
+                                                            return;
+                                                        }
+                                                        if (f->m_traceBridgeWindow) {
+                                                            f->m_traceBridgeWindow->SetCaptureStatus(
+                                                                wxT("FPGA 下载完成，开始采集…"));
+                                                        }
+                                                        f->RunTraceBridgeCapture(captureRequest,
+                                                                                 workflowCompletion);
+                                                    },
+                                                    true);
+                                            };
+                                        (*attemptProgram)(1);
                                     });
                                 });
                         });
@@ -4120,7 +4207,9 @@ void MainFrame::RunFpgaProgram(
         finish(false, wxT("用户取消 FPGA 下载。"));
         return;
     }
-    const std::vector<wxString> defaultLoaderArgs = { "-b", targetProfile.programmerBoard, "${bitstream}" };
+    // 传 -v：FlashJob 会从输出里读取 Gowin 状态寄存器，判断位流是否真的被 FPGA 接受。
+    const std::vector<wxString> defaultLoaderArgs =
+        { "-b", targetProfile.programmerBoard, "-v", "${bitstream}" };
     const std::vector<wxString>& configuredArgs =
         options.openFpgaLoaderArgs.empty() ? defaultLoaderArgs : options.openFpgaLoaderArgs;
     std::vector<wxString> arguments;
@@ -4135,6 +4224,10 @@ void MainFrame::RunFpgaProgram(
     }
     if (!includesBitstream) {
         arguments.push_back(bitstreamPath);
+    }
+    // 用户通过 sigflow.project 自定义参数时也要带 -v，否则拿不到状态寄存器。
+    if (std::find(arguments.begin(), arguments.end(), wxString(wxS("-v"))) == arguments.end()) {
+        arguments.insert(arguments.begin(), wxString(wxS("-v")));
     }
 
     const wxString workingDirectory = wxFileName(bitstreamPath).GetPath();

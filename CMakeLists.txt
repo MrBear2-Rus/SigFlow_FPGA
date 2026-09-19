@@ -377,3 +377,35 @@ endif()
 # 详见 cmake/FpgaTools.cmake。
 # ---------------------------------------------------------------------------
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/FpgaTools.cmake")
+
+# =============================================================================
+# 调试 UART 的 libftdi 直连传输层（可选，见 main/debug/FtdiTransport.cpp）
+#
+# Tang Nano 9K 的板载 BL702 只是"模仿" FT2232：实测同一个 PING 帧，
+#   * libftdi 直连（绕过内核驱动）能收到合法 Pong；而 /dev/ttyUSBx(ftdi_sio)
+#     路径完全没有应答 —— 模拟层没有真正实现 ftdi_sio 用的 UART 厂商命令；
+#   * 且 libftdi 打开设备会 detach ftdi_sio，烧录后调试串口的 tty 常常消失。
+# 因此调试 UART 优先走 libftdi 直连。libftdi 由 FPGA 工具链模块源码构建并落位在
+#   external/fpga-tools/runtime/deps/libftdi
+# 找不到时本传输层不编译，自动回退到串口传输层。
+# =============================================================================
+set(SIGFLOW_LIBFTDI_ROOT
+    "${CMAKE_CURRENT_SOURCE_DIR}/external/fpga-tools/runtime/deps/libftdi"
+    CACHE PATH "libftdi 安装前缀（默认用 FPGA 工具链的源码构建产物）")
+
+find_path(SIGFLOW_LIBFTDI_INCLUDE_DIR NAMES libftdi1/ftdi.h
+          HINTS "${SIGFLOW_LIBFTDI_ROOT}/include")
+find_library(SIGFLOW_LIBFTDI_LIBRARY NAMES ftdi1
+             HINTS "${SIGFLOW_LIBFTDI_ROOT}/lib")
+
+if(SIGFLOW_LIBFTDI_INCLUDE_DIR AND SIGFLOW_LIBFTDI_LIBRARY)
+    target_include_directories(sigflow PRIVATE "${SIGFLOW_LIBFTDI_INCLUDE_DIR}")
+    target_link_libraries(sigflow PRIVATE "${SIGFLOW_LIBFTDI_LIBRARY}")
+    target_compile_definitions(sigflow PRIVATE SIGFLOW_HAVE_LIBFTDI=1)
+    set_target_properties(sigflow PROPERTIES
+        BUILD_RPATH "${SIGFLOW_LIBFTDI_ROOT}/lib"
+        INSTALL_RPATH "${SIGFLOW_LIBFTDI_ROOT}/lib")
+    message(STATUS "[debug] libftdi 直连传输层: 启用 (${SIGFLOW_LIBFTDI_LIBRARY})")
+else()
+    message(STATUS "[debug] libftdi 直连传输层: 未找到 libftdi，调试 UART 回退到串口")
+endif()

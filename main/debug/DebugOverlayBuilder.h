@@ -58,6 +58,7 @@ private:
                                 std::string& error) const;
     std::string BuildYosysScript(const DebugContract& contract,
                                  const std::vector<std::string>& userSourceFiles,
+                                 const std::vector<DebugPortInfo>& userTopPorts,
                                  const std::string& debugRtlDir,
                                  const std::string& overlayDir,
                                  const std::string& artifactsDir,

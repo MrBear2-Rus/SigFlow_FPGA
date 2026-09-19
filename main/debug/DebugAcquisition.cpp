@@ -1,6 +1,7 @@
 #include "DebugAcquisition.h"
 
 #include "DebugSession.h"
+#include "../platform/PlatformPaths.h"
 
 #include <chrono>
 #include <cstdio>
@@ -396,8 +397,11 @@ bool DebugAcquisition::Acquire(const std::string& outDir, std::string& error,
     }
     if (IsAborted(options)) { error = "Aborted"; return false; }
 
-    result_.rawPath = outDir + "\\capture.raw";
-    result_.vcdPath = outDir + "\\capture.vcd";
+    // 必须用平台分隔符拼接：旧实现硬编码 '\\'，在 Linux 上会生成
+    // **文件名就叫 "\capture.raw" / "\capture.vcd"** 的文件（反斜杠成了文件名字符），
+    // 与后续按 '/' 处理这些路径的代码不一致。
+    result_.rawPath = sigflow::platform::JoinPath(outDir, std::string("capture.raw"));
+    result_.vcdPath = sigflow::platform::JoinPath(outDir, std::string("capture.vcd"));
     FireProgress(options, DebugAcqStage::SaveRaw, 0, "写入 capture.raw");
     if (!SaveCaptureRaw(result_.rawPath, info.depth, info.width, 0, result_.samples,
                         error)) {

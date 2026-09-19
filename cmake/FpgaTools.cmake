@@ -466,6 +466,118 @@ endif()
 # apicula 必须先于 nextpnr 完成（chipdb 生成依赖 apycula）
 add_dependencies(sigflow_nextpnr_build sigflow_apicula_build)
 
+# -----------------------------------------------------------------------------
+# 2.5 openFPGALoader —— "下载/烧录到板"
+#
+# 依赖链：openFPGALoader → libftdi1 → libusb-1.0（系统已有）
+#
+# 为什么必须自建 libftdi1：
+#   Tang Nano 9K 在 openFPGALoader 的 src/board.hpp 里定义为 cable "ft2232"：
+#       JTAG_BOARD("tangnano9k", "", "ft2232", SPI_FLASH, 0, 0, CABLE_DEFAULT)
+#   而 CMakeLists.txt 只要下列任一为 ON 就**强制** USE_LIBFTDI=ON
+#       if (ENABLE_FTDI_BASED_CABLE OR ENABLE_USB_BLASTERI OR ENABLE_XILINX_VIRTUAL_CABLE_SERVER)
+#           set(USE_LIBFTDI ON)     # 普通变量，-DUSE_LIBFTDI=OFF 覆盖不掉
+#   FTDI 类线缆没有 libusb 回退实现（src/ftdiJtagMPSSE.cpp 等直接依赖 libftdi1）。
+#   所以不装 libftdi 就只能砍掉 ft2232，等于不支持 Tang Nano 全系。
+#
+# 注入方式：openFPGALoader 先 find_package(LibFTDI1 QUIET)，失败才回退
+# pkg_check_modules(libftdi1)。libftdi 会同时安装 LibFTDI1Config.cmake 与
+# libftdi1.pc，因此把它的安装前缀交给 CMAKE_PREFIX_PATH / PKG_CONFIG_PATH 即可。
+# 运行期还需要能找到 libftdi1.so，故给 openFPGALoader 写入 INSTALL_RPATH。
+# -----------------------------------------------------------------------------
+option(SIGFLOW_FETCH_OPENFPGALOADER "下载并本地编译 openFPGALoader（含 libftdi1）" ON)
+
+set(SIGFLOW_LIBFTDI_URL
+    "https://www.intra2net.com/en/developer/libftdi/download/libftdi1-1.5.tar.bz2"
+    CACHE STRING "libftdi 源码包 URL（openFPGALoader 的 FTDI 线缆依赖）")
+set(SIGFLOW_OPENFPGALOADER_URL
+    "https://codeload.github.com/trabucayre/openFPGALoader/tar.gz/refs/tags/v1.1.1"
+    CACHE STRING "openFPGALoader 源码包 URL")
+
+set(_sigflow_stage_libftdi          "${SIGFLOW_FPGA_RUNTIME_DIR}/deps/libftdi")
+set(_sigflow_stage_openfpgaloader   "${SIGFLOW_FPGA_RUNTIME_DIR}/openfpgaloader")
+set(_sigflow_openfpgaloader_build_dir "${CMAKE_CURRENT_BINARY_DIR}/fpga-tools-build/openfpgaloader")
+set(_sigflow_openfpgaloader_dep_targets "")
+
+if(SIGFLOW_FETCH_OPENFPGALOADER)
+    FetchContent_Declare(sigflow_libftdi
+        URL           "${SIGFLOW_LIBFTDI_URL}"
+        SOURCE_SUBDIR "${_sigflow_fetch_only_subdir}")
+    FetchContent_Declare(sigflow_openfpgaloader
+        URL           "${SIGFLOW_OPENFPGALOADER_URL}"
+        SOURCE_SUBDIR "${_sigflow_fetch_only_subdir}")
+    FetchContent_MakeAvailable(sigflow_libftdi sigflow_openfpgaloader)
+
+    # libftdi1：只用核心库。FTDIPP/PYTHON_BINDINGS/FTDI_EEPROM/EXAMPLES/BUILD_TESTS
+    # 全部关掉 —— 其中 FTDI_EEPROM 需要 libconfuse、FTDIPP/BUILD_TESTS 需要 Boost，
+    # 我们都不需要（这些开关定义在 libftdi 的 CMakeOptions.txt 里）。
+    ExternalProject_Add(sigflow_libftdi_build
+        SOURCE_DIR        "${sigflow_libftdi_SOURCE_DIR}"
+        DOWNLOAD_COMMAND  ""
+        UPDATE_COMMAND    ""
+        PATCH_COMMAND     ""
+        CMAKE_ARGS
+            -DCMAKE_BUILD_TYPE=Release
+            -DCMAKE_INSTALL_PREFIX=${_sigflow_stage_libftdi}
+            # libftdi 1.5 仍写着 cmake_minimum_required(VERSION 2.6)，而 CMake 4
+            # 已移除对 <3.5 的兼容，直接 configure 会报
+            #   "Compatibility with CMake < 3.5 has been removed from CMake."
+            # 官方给出的逃生口就是这个变量。
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+            -DFTDIPP=OFF
+            -DPYTHON_BINDINGS=OFF
+            -DFTDI_EEPROM=OFF
+            -DEXAMPLES=OFF
+            -DBUILD_TESTS=OFF
+            -DDOC=OFF
+        BUILD_COMMAND     ${CMAKE_COMMAND} --build . -j${_sigflow_tool_jobs}
+        INSTALL_COMMAND   ${CMAKE_COMMAND} --install .
+        BINARY_DIR        "${CMAKE_CURRENT_BINARY_DIR}/fpga-tools-build/libftdi"
+        BUILD_IN_SOURCE   FALSE
+        LOG_CONFIGURE     TRUE
+        LOG_BUILD         TRUE
+        LOG_INSTALL       TRUE
+        USES_TERMINAL_BUILD TRUE)
+
+    # openFPGALoader：整条 configure 用 `cmake -E env` 包起来，把 PKG_CONFIG_PATH
+    # 指向自建的 libftdi（pkg-config 会在此基础上继续搜索系统默认路径，所以
+    # libusb-1.0 / zlib / libudev 仍能找到）。
+    ExternalProject_Add(sigflow_openfpgaloader_build
+        SOURCE_DIR        "${sigflow_openfpgaloader_SOURCE_DIR}"
+        DOWNLOAD_COMMAND  ""
+        UPDATE_COMMAND    ""
+        PATCH_COMMAND     ""
+        CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env
+            "PKG_CONFIG_PATH=${_sigflow_stage_libftdi}/lib/pkgconfig"
+            ${CMAKE_COMMAND}
+                -DCMAKE_BUILD_TYPE=Release
+                -DCMAKE_INSTALL_PREFIX=${_sigflow_stage_openfpgaloader}
+                -DCMAKE_PREFIX_PATH=${_sigflow_stage_libftdi}
+                -DCMAKE_INSTALL_RPATH=${_sigflow_stage_libftdi}/lib
+                -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON
+                -DENABLE_OPTIM=ON
+                -DENABLE_FTDI_BASED_CABLE=ON
+                -DENABLE_CMSISDAP_V1=OFF
+                -DENABLE_LIBGPIOD=OFF
+                -S "${sigflow_openfpgaloader_SOURCE_DIR}"
+                -B "${_sigflow_openfpgaloader_build_dir}"
+        BUILD_COMMAND     ${CMAKE_COMMAND} --build "${_sigflow_openfpgaloader_build_dir}"
+                              -j${_sigflow_tool_jobs}
+        INSTALL_COMMAND   ${CMAKE_COMMAND} --install "${_sigflow_openfpgaloader_build_dir}"
+        BINARY_DIR        "${_sigflow_openfpgaloader_build_dir}"
+        BUILD_IN_SOURCE   FALSE
+        DEPENDS           sigflow_libftdi_build
+        LOG_CONFIGURE     TRUE
+        LOG_BUILD         TRUE
+        LOG_INSTALL       TRUE
+        USES_TERMINAL_BUILD TRUE)
+
+    set(_sigflow_openfpgaloader_dep_targets sigflow_libftdi_build sigflow_openfpgaloader_build)
+    message(STATUS "[FPGA tools] openFPGALoader: 启用（含 libftdi1，Tang Nano 9K 的 ft2232 线缆需要）")
+else()
+    message(STATUS "[FPGA tools] SIGFLOW_FETCH_OPENFPGALOADER=OFF：烧录功能将使用预置/系统 openFPGALoader")
+endif()
+
 # =============================================================================
 # 3) 汇总目标
 # =============================================================================
@@ -479,7 +591,8 @@ add_custom_target(sigflow_fpga_tools
     VERBATIM)
 add_dependencies(sigflow_fpga_tools
     sigflow_yosys_build sigflow_nextpnr_build sigflow_apicula_build
-    ${_sigflow_nextpnr_dep_targets})
+    ${_sigflow_nextpnr_dep_targets}
+    ${_sigflow_openfpgaloader_dep_targets})
 
 if(SIGFLOW_FETCH_FPGA_TOOLS_AS_DEPENDENCY)
     add_dependencies(sigflow sigflow_fpga_tools)

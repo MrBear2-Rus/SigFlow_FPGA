@@ -5,6 +5,8 @@
 #include <setupapi.h>
 #else
 #include <filesystem>
+#include <cstdio>
+#include <fstream>
 #endif
 
 #include <algorithm>
@@ -149,6 +151,58 @@ std::vector<SerialPortInfo> EnumerateSerialPorts()
 
 #else  // !defined(_WIN32)
 
+namespace {
+
+// idVendor / idProduct / serial 是纯文本 sysfs 属性，去掉行尾空白。
+std::string ReadSysfsText(const std::filesystem::path& path)
+{
+    std::ifstream in(path);
+    if (!in) return {};
+    std::string value;
+    std::getline(in, value);
+    while (!value.empty() &&
+           (value.back() == '\n' || value.back() == '\r' || value.back() == ' ' ||
+            value.back() == '\t')) {
+        value.pop_back();
+    }
+    return value;
+}
+
+// 读取 USB 串口的归属信息。实测层级（Tang Nano 9K 板载 BL702 / FT2232）：
+//   .../3-8:1.1/ttyUSB1   ← 起点：/sys/class/tty/ttyUSB1/device 解析后的目标
+//   .../3-8:1.1           ← bInterfaceNumber（**文本**属性，内容形如 "1\n"）
+//   .../3-8               ← idVendor / idProduct / serial
+// 不同内核层级可能略有差异，因此不写死层数，向上搜索最多 3 层。
+void FillUsbInfo(SerialPortInfo& info)
+{
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    fs::path node = fs::weakly_canonical(
+        fs::path("/sys/class/tty") / fs::path(info.name).filename() / "device", ec);
+    if (ec || node.empty()) return;
+
+    for (int up = 0; up < 3 && !node.empty(); ++up) {
+        if (info.interfaceNumber < 0) {
+            const std::string raw = ReadSysfsText(node / "bInterfaceNumber");
+            if (!raw.empty()) {
+                // sysfs 属性是【文本】：内容形如 "1\n"。
+                // 曾按二进制单字节读，'1' 会变成 0x31=49，通道判断会全错。
+                try {
+                    info.interfaceNumber = std::stoi(raw);
+                } catch (...) {
+                }
+            }
+        }
+        if (info.vendorId.empty())  info.vendorId  = ReadSysfsText(node / "idVendor");
+        if (info.productId.empty()) info.productId = ReadSysfsText(node / "idProduct");
+        if (info.usbSerial.empty()) info.usbSerial = ReadSysfsText(node / "serial");
+        if (info.interfaceNumber >= 0 && !info.vendorId.empty() && !info.productId.empty()) break;
+        node = node.parent_path();
+    }
+}
+
+} // namespace
+
 std::vector<SerialPortInfo> EnumerateSerialPorts()
 {
     namespace fs = std::filesystem;
@@ -173,6 +227,7 @@ std::vector<SerialPortInfo> EnumerateSerialPorts()
                 info.name = target.lexically_normal().string();
             }
             if (info.name.empty()) info.name = info.friendlyName;
+            FillUsbInfo(info);
             result.push_back(std::move(info));
         }
     }
@@ -193,6 +248,7 @@ std::vector<SerialPortInfo> EnumerateSerialPorts()
             SerialPortInfo info;
             info.name = entry.path().string();
             info.friendlyName = info.name;
+            FillUsbInfo(info);
             result.push_back(std::move(info));
         }
     }

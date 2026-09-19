@@ -13,6 +13,7 @@
 #include <wx/filename.h>
 
 #include <chrono>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 
@@ -26,6 +27,23 @@ wxString NowUtc()
 bool Exists(const wxString& path)
 {
     return !path.IsEmpty() && wxFileExists(path);
+}
+
+// 从 openFPGALoader -v 输出里解析 Gowin 配置后的状态寄存器：
+//     after program sram: displayReadReg 0003f020
+// 其中 bit0 是 CRC Error（成功配置时该位为 0）。
+// 退出码通常已能反映失败（FTDI 打开/JTAG 初始化失败时返回非 0），这里再核一次状态
+// 寄存器，作为"位流确实被 FPGA 接受"的硬证据，避免把被拒的配置当成烧写成功。
+// 返回 true 表示成功解析出寄存器值；status 的 bit0 为 1 表示配置被 FPGA 拒绝。
+bool ParseGowinProgramStatus(const wxString& output, std::uint32_t& status)
+{
+    const wxString key = wxS("after program sram: displayReadReg ");
+    const int at = output.Find(key);
+    if (at == wxNOT_FOUND) return false;
+    unsigned long value = 0;
+    if (!output.Mid(at + key.length(), 8).ToULong(&value, 16)) return false;
+    status = static_cast<std::uint32_t>(value);
+    return true;
 }
 
 Json::Value StringArray(const std::vector<wxString>& values)
@@ -486,7 +504,26 @@ bool FlashJob::Execute(const FlashJobRequest& request, const ToolJob& job,
                                              job.id).logs + wxFileName::GetPathSeparator() +
                             "process.log",
                         request.timeoutSeconds };
-    if (!ToolJobExecutor().Run(job, command, guarded, report, errorMessage)) return false;
+    wxString combinedOutput;
+    if (!ToolJobExecutor().Run(job, command, guarded, report, errorMessage, &combinedOutput))
+        return false;
+
+    // 退出码之外再核一次 Gowin 状态寄存器：如果 FPGA 明确报了 CRC Error，
+    // 即便 openFPGALoader 返回 0 也不能当成烧写成功。
+    std::uint32_t gowinStatus = 0;
+    if (ParseGowinProgramStatus(combinedOutput, gowinStatus) && (gowinStatus & 0x1u) != 0u) {
+        errorMessage = wxString::Format(
+            wxS("FPGA 未接受位流：Gowin 状态寄存器 0x%08X（CRC Error）。")
+            wxS("请检查 USB 线缆/供电后重试下载。"),
+            static_cast<unsigned int>(gowinStatus));
+        report.state = ToolJobState::Failed;
+        report.summary = errorMessage;
+        report.errors.push_back({ "FPGA_CONFIG_REJECTED", "error", "ValidatingArtifact", "",
+                                  errorMessage, 0 });
+        ToolJobExecutor().Finish(job, report);
+        return false;
+    }
+
     if (!Exists(request.bitstreamPath)) {
         errorMessage = "The FPGA bitstream disappeared before the flash completed.";
         report.state = ToolJobState::Failed;

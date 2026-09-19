@@ -330,7 +330,23 @@ bool DebugProtocol::ReadCapture(std::uint16_t start, std::uint16_t count,
     //     → 无限循环、每条样本一次 USB 往返，直到内存耗尽。
     const std::uint32_t end = static_cast<std::uint32_t>(start) + count;
     std::uint32_t pos = start;
+
+    // ---- 进度回调节流 ----
+    // 本函数按 kMaxSamples(=1) 分块，即**每个样本一次串口往返**；若每个样本都
+    // 回调一次进度，上层（TraceBridge）会为每条进度做一次重量级 UI 更新
+    // （跨线程投递 + 列表插入/逐行上色/头部裁剪/EnsureVisible 滚动重绘），
+    // 一次 1024 深度的采集就是 1024 条、65535 深度就是 65535 条 ——
+    // 界面会被彻底拖死（表现为回读样本阶段假死）。
+    //
+    // 策略：首帧与末帧必报；其余取"样本步长"与"时间间隔"二者先到者，
+    // 保证慢链路下最多约 10 次/秒、快链路下最多约 total/kProgressSampleStride 次。
+    constexpr std::uint32_t kProgressSampleStride = 256;
+    constexpr auto kProgressMinInterval = std::chrono::milliseconds(100);
+
+    std::uint32_t lastReported = 0;
+    auto lastReportTime = std::chrono::steady_clock::now();
     if (progressCb) { try { progressCb(0, total); } catch (...) {} }
+
     while (pos < end) {
         const std::uint16_t chunk =
             static_cast<std::uint16_t>(std::min<std::size_t>(proto::kMaxSamples,
@@ -344,9 +360,18 @@ bool DebugProtocol::ReadCapture(std::uint16_t start, std::uint16_t count,
         }
         samples.insert(samples.end(), part.begin(), part.end());
         pos += chunk;
+
         if (progressCb) {
             const std::uint32_t got = static_cast<std::uint32_t>(samples.size());
-            try { progressCb(got, total); } catch (...) {}
+            const bool finished = (pos >= end);
+            const bool strideDue = (got - lastReported) >= kProgressSampleStride;
+            const bool timeDue =
+                (std::chrono::steady_clock::now() - lastReportTime) >= kProgressMinInterval;
+            if (finished || strideDue || timeDue) {
+                lastReported = got;
+                lastReportTime = std::chrono::steady_clock::now();
+                try { progressCb(got, total); } catch (...) {}
+            }
         }
     }
     return true;
