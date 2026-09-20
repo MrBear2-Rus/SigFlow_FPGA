@@ -126,6 +126,12 @@ std::string FindBundledVerilator() {
         return ToUtf8(configured);
     }
 
+    // 随包工具链统一布局：<repo>/external/fpga-tools/runtime/verilator/bin/...
+    const wxString bundled = sigflow::platform::FindBundledVerilatorBinary();
+    if (!bundled.IsEmpty()) {
+        return ToUtf8(bundled);
+    }
+
     wxFileName executable(wxStandardPaths::Get().GetExecutablePath());
     // 向上三级定位仓库根（例如 <repo>/build/bin -> <repo>）。
     // 必须用带边界判断的版本：直接在较浅的路径（exe 靠近盘根）上连调三次

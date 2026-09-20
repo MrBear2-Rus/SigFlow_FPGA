@@ -145,6 +145,10 @@ wxString SimulationEngine::FindVerilatorPath() const
     }
 
     const wxString verilatorBinDbg = sigflow::platform::WithExecutableSuffix("verilator_bin_dbg");
+    const wxString bundledVerilator = sigflow::platform::FindBundledVerilatorBinary();
+    if (!bundledVerilator.IsEmpty()) {
+        return bundledVerilator;
+    }
     const wxString bundledCandidates[] = {
         GetSoftwareDirectory() + pathSeparator + "tools" + pathSeparator + "verilator" + pathSeparator + "verilator-install" + pathSeparator + "bin" + pathSeparator + verilatorBinDbg,
         GetSoftwareDirectory() + pathSeparator + "tools" + pathSeparator + "verilator" + pathSeparator + "bin" + pathSeparator + verilatorBinDbg,

@@ -8,6 +8,14 @@
 #define SIGFLOW_PLUGIN_CALL
 #endif
 
+// 导出工厂函数用（配合前面的 extern "C"）：
+//   Windows -> __declspec(dllexport)；GCC/Clang -> visibility("default")。
+#if defined(_WIN32)
+#define SIGFLOW_PLUGIN_EXPORT __declspec(dllexport)
+#else
+#define SIGFLOW_PLUGIN_EXPORT __attribute__((visibility("default")))
+#endif
+
 // 插件接口定义
 class ISigPlugin {
 public:

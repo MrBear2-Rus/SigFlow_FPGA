@@ -74,6 +74,10 @@ set(SIGFLOW_CXXOPTS_URL
 set(SIGFLOW_EIGEN_REPO   "https://gitlab.com/libeigen/eigen.git" CACHE STRING "Eigen3 源码仓库")
 set(SIGFLOW_EIGEN_TAG    "3.4.0"             CACHE STRING "Eigen3 git tag")
 
+# ---- verilator（RTL 仿真；autoconf 工程，产物落 runtime/verilator）----
+set(SIGFLOW_VERILATOR_REPO "verilator/verilator" CACHE STRING "verilator 源码仓库")
+set(SIGFLOW_VERILATOR_TAG  "v5.052"             CACHE STRING "verilator git tag/commit")
+
 set(SIGFLOW_FPGA_TOOLS_JOBS "" CACHE STRING "工具链并行编译任务数（空=自动）")
 if(SIGFLOW_FPGA_TOOLS_JOBS)
     set(_sigflow_tool_jobs "${SIGFLOW_FPGA_TOOLS_JOBS}")
@@ -176,7 +180,16 @@ FetchContent_Declare(apicula
     GIT_PROGRESS   TRUE
     SOURCE_SUBDIR  "${_sigflow_fetch_only_subdir}")
 
-FetchContent_MakeAvailable(yosys nextpnr apicula)
+# ---- verilator：autoconf 工程，提供 RTL 仿真（verilator_bin / include / share）----
+_sigflow_tool_url(_sigflow_verilator_url "${SIGFLOW_VERILATOR_REPO}")
+FetchContent_Declare(verilator
+    GIT_REPOSITORY "${_sigflow_verilator_url}"
+    GIT_TAG        "${SIGFLOW_VERILATOR_TAG}"
+    GIT_SHALLOW    TRUE
+    GIT_PROGRESS   TRUE
+    SOURCE_SUBDIR  "${_sigflow_fetch_only_subdir}")
+
+FetchContent_MakeAvailable(yosys nextpnr apicula verilator)
 
 # =============================================================================
 # 2) ExternalProject：交给各自的原生构建系统本地编译
@@ -221,6 +234,69 @@ else()
 endif()
 set_property(TARGET sigflow_yosys_build PROPERTY BUILD_BYPRODUCTS
              "${_sigflow_yosys_bin}" "${_sigflow_yosys_abc}")
+
+# -----------------------------------------------------------------------------
+# 2.1b verilator（autoconf 工程）
+#      autoconf              -> 生成 configure（git 源码里没有预生成的 configure）
+#      ./configure --prefix= -> 生成 Makefile
+#      make -j N ; make install
+#      产物：<stage>/bin/verilator_bin[_dbg][.exe] + <stage>/share/verilator/include
+#      （SimulationEngine 的 FindVerilatorIncludePath 正是按 bin/.. 找 share/verilator/include）
+#
+# 依赖：autoconf / flex / bison / perl / python3 / make / C++ 编译器 / help2man。
+# Windows 下与 yosys 一样需在 MSYS2 MINGW64 环境里构建（configure 需要 sh）。
+#
+# MSYS2 的两个坑（已在此固化，细节见 tools/build_verilator_msys2.sh）：
+#   1) MSYS2 没有 mingw-w64 版 flex：FlexLexer.h 只在 /usr/include，
+#      MinGW g++ 不搜它 → 拷一份到 /mingw64/include。
+#   2) man 规则用 help2man；verilator.1 用 pod2man，而它在 /usr/bin/core_perl
+#      （不在默认 PATH）→ 补 PATH。
+# -----------------------------------------------------------------------------
+set(_sigflow_stage_verilator "${SIGFLOW_FPGA_RUNTIME_DIR}/verilator")
+
+if(WIN32)
+    # 注意 \$PATH 要转义，否则会被当成 CMake 变量展开。
+    set(_sigflow_verilator_shell_prefix
+        "export PATH=\\$PATH:/usr/bin/core_perl; "
+        "if [ ! -f /mingw64/include/FlexLexer.h ] && [ -f /usr/include/FlexLexer.h ]; then "
+        "cp /usr/include/FlexLexer.h /mingw64/include/FlexLexer.h; fi;")
+    set(_sigflow_verilator_configure
+        "sh" "-c" "${_sigflow_verilator_shell_prefix} autoconf && ./configure --prefix=${_sigflow_stage_verilator}")
+    set(_sigflow_verilator_build
+        "sh" "-c" "${_sigflow_verilator_shell_prefix} make -j${_sigflow_tool_jobs}")
+    set(_sigflow_verilator_install
+        "sh" "-c" "${_sigflow_verilator_shell_prefix} make install")
+else()
+    set(_sigflow_verilator_configure
+        "sh" "-c" "autoconf && ./configure --prefix=${_sigflow_stage_verilator}")
+    set(_sigflow_verilator_build "${SIGFLOW_MAKE}" -j${_sigflow_tool_jobs})
+    set(_sigflow_verilator_install "${SIGFLOW_MAKE}" install)
+endif()
+
+ExternalProject_Add(sigflow_verilator_build
+    SOURCE_DIR        "${verilator_SOURCE_DIR}"
+    DOWNLOAD_COMMAND  ""
+    UPDATE_COMMAND    ""
+    PATCH_COMMAND     ""
+    CONFIGURE_COMMAND ${_sigflow_verilator_configure}
+    BUILD_COMMAND     ${_sigflow_verilator_build}
+    INSTALL_COMMAND   ${_sigflow_verilator_install}
+    BUILD_IN_SOURCE   TRUE
+    LOG_DOWNLOAD      TRUE
+    LOG_CONFIGURE     TRUE
+    LOG_BUILD         TRUE
+    LOG_INSTALL       TRUE
+    USES_TERMINAL_BUILD TRUE)
+
+if(WIN32)
+    set(_sigflow_verilator_bin "${_sigflow_stage_verilator}/bin/verilator_bin.exe")
+    set(_sigflow_verilator_dbg "${_sigflow_stage_verilator}/bin/verilator_bin_dbg.exe")
+else()
+    set(_sigflow_verilator_bin "${_sigflow_stage_verilator}/bin/verilator_bin")
+    set(_sigflow_verilator_dbg "${_sigflow_stage_verilator}/bin/verilator_bin_dbg")
+endif()
+set_property(TARGET sigflow_verilator_build PROPERTY BUILD_BYPRODUCTS
+             "${_sigflow_verilator_bin}" "${_sigflow_verilator_dbg}")
 
 # -----------------------------------------------------------------------------
 # 2.0 nextpnr 的两个硬依赖：Boost(program_options, iostreams) + Eigen3
@@ -587,10 +663,12 @@ add_custom_target(sigflow_fpga_tools
     COMMAND ${CMAKE_COMMAND} -E echo "  yosys   : ${_sigflow_yosys_bin}"
     COMMAND ${CMAKE_COMMAND} -E echo "  nextpnr : ${_sigflow_nextpnr_bin}"
     COMMAND ${CMAKE_COMMAND} -E echo "  apicula : ${_sigflow_stage_apicula}"
+    COMMAND ${CMAKE_COMMAND} -E echo "  verilator: ${_sigflow_verilator_bin}"
     COMMAND ${CMAKE_COMMAND} -E echo ""
     VERBATIM)
 add_dependencies(sigflow_fpga_tools
     sigflow_yosys_build sigflow_nextpnr_build sigflow_apicula_build
+    sigflow_verilator_build
     ${_sigflow_nextpnr_dep_targets}
     ${_sigflow_openfpgaloader_dep_targets})
 

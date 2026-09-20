@@ -111,6 +111,80 @@ gowin 的 `chipdb-*.bin` 由 nextpnr 在编译期借助 **apycula** 生成，因
 apicula 与 nextpnr 都不可少。构建完成后 `cmake/FpgaToolsStageChipdb.cmake` 会把
 chipdb 收拢到主程序固定查找的 `nextpnr/share/himbaechel/gowin/`。
 
+## Windows：补一个完整 yosys（含 `connect`）
+
+随包分发的 `external/fpga-tools/runtime/yosys` 若是第三方 **MSVC** 构建，可能缺少
+`connect`、`rename`、`copy`、`add`、`expose` 等标准 pass。TraceBridge 生成调试位流时
+`run_yosys.ys` 里有：
+
+```
+flatten
+proc
+connect -set probe_bus[7:4] u_dut.state
+```
+
+它把**非端口**的顶层内部信号绑到探针总线。为什么必须这么写：Yosys 的 Verilog 前端
+**不支持层次化引用**，直接在 HDL 里 `assign probe_bus[7:4] = u_dut.state;` 只会得到一个
+`implicitly declared` 的空 wire（`flatten` 后真实寄存器还会被改名成 `..._1`），
+探针恒 0；所以要 `flatten` 之后用 `connect` 显式绑定。一旦缺 `connect`，
+Yosys 阶段会直接 `ERROR: No such command: connect` 失败。
+
+### 为什么不直接拿一个 yosys-only 包
+
+- 官方只在 **oss-cad-suite**（整套）里发 Windows 二进制，没有 yosys-only 的发布件；
+- `conda-forge` 的 `yosys` **没有 win-64**（目前只有 linux-64 / macOS-64）；
+- Yosys **不支持 MSVC**（`cmake/FpgaTools.cmake` 已对此给出 `FATAL_ERROR`）。
+
+因此 Windows 上要拿到完整 yosys，用 **MSYS2 + MinGW 源码编译**代价最小。
+
+### 步骤（MSYS2 MINGW64 终端）
+
+```bash
+pacman -Syu
+pacman -S --needed base-devel mingw-w64-x86_64-gcc bison flex git \
+    make pkg-config tcl libffi libreadline zlib
+tools/build_yosys_msys2.sh
+```
+
+脚本依次完成：拉源码（含 `abc` 子模块）→ `make config-msys2-64`（关掉
+`ENABLE_TCL/READLINE/PLUGINS` 以减少 DLL 依赖）→ `make -j` →
+`make install PREFIX=external/fpga-tools/runtime/yosys` → 拷 MinGW 运行时 DLL →
+**自检 `help connect`**，不通过即报错退出。
+
+可覆盖的环境变量：`YOSYS_REF`（默认 `v0.49`）、`YOSYS_SRC_DIR`、
+`SIGFLOW_FPGA_RUNTIME_DIR`、`YOSYS_JOBS`、`YOSYS_FORCE`。
+
+### 校验
+
+```bash
+external/fpga-tools/runtime/yosys/bin/yosys.exe -p "help connect"   # 必须打印用法
+```
+
+不通过则 TraceBridge 的调试位流一定失败。
+
+> 注意：`cmake/FpgaTools.cmake` 的 `sigflow_yosys_build` 目标也会把 yosys 装到同一
+> 落位目录，但它默认连带构建整条工具链且需要 MSYS2 环境；只想补 yosys 时用上面的脚本即可。
+> 替换前脚本会把不含 `connect` 的旧 `yosys.exe` 备份为 `yosys.exe.missing-connect.bak`。
+
+## Verilator（RTL 仿真）
+
+Verilator 同样纳入源码构建与统一落位 `external/fpga-tools/runtime/verilator`：
+
+- `cmake/FpgaTools.cmake` 的 `sigflow_verilator_build`：`autoconf → ./configure --prefix=<stage> → make -j → make install`；
+- Windows 独立构建脚本 `tools/build_verilator_msys2.sh`（MSYS2 MINGW64，含 tarball 回退）；
+- 版本固定：`SIGFLOW_VERILATOR_REPO` / `SIGFLOW_VERILATOR_TAG`（默认 `verilator/verilator` / `v5.052`）。
+
+主程序侧发现逻辑已统一：`main/platform/PlatformPaths.h::FindBundledVerilatorBinary()`，
+`SimulationEngine::FindVerilatorPath` 与 `TraceBridgeWindow::FindBundledVerilator` 都会先查它；
+运行时头文件按 `<stage>/share/verilator/include` 解析（沿用 `FindVerilatorIncludePath` 的规则）。
+
+MSYS2 上的两个坑（脚本与 CMake 均已固化）：
+
+1. MSYS2 没有 mingw-w64 版 flex，`FlexLexer.h` 只在 `/usr/include` → 需拷到 `/mingw64/include`；
+2. man 规则用 `help2man`，`verilator.1` 用 `pod2man`（位于 `/usr/bin/core_perl`，不在默认 PATH）。
+
+依赖：`autoconf flex bison perl python help2man`（MSYS2）。
+
 ## 已知限制
 
 - **构建耗时**：yosys + nextpnr 首次编译通常需要 15–45 分钟，因此默认**不**挂到主目标上；
@@ -129,7 +203,7 @@ chipdb 收拢到主程序固定查找的 `nextpnr/share/himbaechel/gowin/`。
   并给 openFPGALoader 写入 `INSTALL_RPATH`，运行期靠它找到 `libftdi1.so.2`。
   相关 cache 变量：`SIGFLOW_FETCH_OPENFPGALOADER`、`SIGFLOW_OPENFPGALOADER_URL`、
   `SIGFLOW_LIBFTDI_URL`。
-- **`verilator` 仍未纳入**（RTL 仿真用），目前沿用以"随包预置或 PATH"的方式。
+- **`verilator` 已纳入**（RTL 仿真，见上一节）；产物落 `runtime/verilator/`，主程序统一发现。
 - **CMake 4 与老工程**：libftdi 1.5 仍写 `cmake_minimum_required(VERSION 2.6)`，
   而 CMake 4 已移除对 <3.5 的兼容，会报
   `Compatibility with CMake < 3.5 has been removed`。

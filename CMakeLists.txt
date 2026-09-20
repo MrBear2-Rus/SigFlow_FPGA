@@ -119,6 +119,9 @@ if(SIGFLOW_WX_LOCAL)
     set(wxBUILD_TESTS OFF CACHE BOOL "" FORCE)
     set(wxBUILD_PRECOMP OFF CACHE BOOL "" FORCE)
     set(wxUSE_OPENGL ON CACHE BOOL "" FORCE)
+    # DeepSeek 插件走 wxWebRequest：显式打开。Windows 用 WinHTTP（自带）；
+    # Linux 用 libcurl 后端（需 libcurl 开发包，否则 wx 会警告并回退为关闭）。
+    set(wxUSE_WEBREQUEST ON CACHE BOOL "" FORCE)
     add_subdirectory("${SIGFLOW_WX_SRC}" "${CMAKE_BINARY_DIR}/wxWidgets" EXCLUDE_FROM_ALL)
 else()
     message(STATUS "wxWidgets: using prebuilt/system wx (SIGFLOW_WX_ROOT=${SIGFLOW_WX_ROOT})")
@@ -307,7 +310,7 @@ if(WIN32)
         # 在加载阶段就因缺少 libwxmsw*.dll 被拒绝，而且普通 cmake --build
         # 永远修不好（只有重新 configure 才行）。
         # 改用生成器表达式，直接引用真实 target 的产物，构建后必然存在。
-        set(SIGFLOW_WX_RUNTIME_TARGETS core base aui stc gl xml)
+        set(SIGFLOW_WX_RUNTIME_TARGETS core base aui stc gl xml net)
         foreach(SIGFLOW_WX_RUNTIME IN LISTS SIGFLOW_WX_RUNTIME_TARGETS)
             if(TARGET "wx::${SIGFLOW_WX_RUNTIME}")
                 add_custom_command(TARGET sigflow POST_BUILD
@@ -408,4 +411,22 @@ if(SIGFLOW_LIBFTDI_INCLUDE_DIR AND SIGFLOW_LIBFTDI_LIBRARY)
     message(STATUS "[debug] libftdi 直连传输层: 启用 (${SIGFLOW_LIBFTDI_LIBRARY})")
 else()
     message(STATUS "[debug] libftdi 直连传输层: 未找到 libftdi，调试 UART 回退到串口")
+endif()
+
+# ---------------------------------------------------------------------------
+# 双版本（Edu/Pro）与可选插件
+#
+# 单代码库、双构建目标：SIGFLOW_EDITION 先落地"版本标识"（编译期宏
+# SIGFLOW_EDITION），后续特性开关/发布包按它分化。DeepSeek AI 助手为
+# 两版共享能力，由 SIGFLOW_BUILD_DEEPSEEK_PLUGIN 控制是否装配。
+# ---------------------------------------------------------------------------
+set(SIGFLOW_EDITION "dev" CACHE STRING "产品版本：edu | pro | dev（同一代码库、双构建目标）")
+set_property(CACHE SIGFLOW_EDITION PROPERTY STRINGS edu pro dev)
+target_compile_definitions(sigflow PRIVATE SIGFLOW_EDITION="${SIGFLOW_EDITION}")
+
+option(SIGFLOW_BUILD_DEEPSEEK_PLUGIN
+       "构建 DeepSeek AI 助手插件（跨平台 MODULE；需要 wx 启用 wxUSE_WEBREQUEST）" OFF)
+if(SIGFLOW_BUILD_DEEPSEEK_PLUGIN)
+    add_subdirectory(Plugin_DeepSeek)
+    message(STATUS "[edition] ${SIGFLOW_EDITION} + DeepSeek 插件已装配")
 endif()

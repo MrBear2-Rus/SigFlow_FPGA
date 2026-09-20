@@ -236,4 +236,51 @@ inline wxString WalkUpDirectories(const wxString& startDirectory, int maxDepth,
     return wxString();
 }
 
+// ---------------------------------------------------------------------------
+// 随包 FPGA 工具链运行时目录
+//
+// 布局：<repo>/external/fpga-tools/runtime/<tool>/{bin,share,...}
+// 与 MainFrame::FindFpgaTool 的 bundled 分支保持一致：从可执行文件目录与
+// 当前工作目录分别向上查找（带边界判断，避免越过根目录触发 wx 断言）。
+// 找不到返回空串。
+// ---------------------------------------------------------------------------
+inline wxString FpgaToolRuntimeRoot()
+{
+    const auto probe = [](const wxString& directory) -> wxString {
+        const wxUniChar separator = PathSeparator();
+        const wxString candidate =
+            directory + separator + "external" + separator + "fpga-tools" + separator + "runtime";
+        return wxDirExists(candidate) ? candidate : wxString();
+    };
+    wxString found = WalkUpDirectories(ExecutableDir(), 8, probe);
+    if (found.IsEmpty()) {
+        found = WalkUpDirectories(wxGetCwd(), 8, probe);
+    }
+    return found;
+}
+
+// 随包 Verilator 可执行文件（<runtime>/verilator/bin/verilator_bin[_dbg]）。
+// 找不到返回空串，调用方可继续尝试 env / PATH 等其它来源。
+inline wxString FindBundledVerilatorBinary()
+{
+    const wxString root = FpgaToolRuntimeRoot();
+    if (root.IsEmpty()) {
+        return wxString();
+    }
+    const wxUniChar separator = PathSeparator();
+    const wxString binDirectory =
+        root + separator + "verilator" + separator + "bin" + separator;
+    const wxString candidates[] = {
+        binDirectory + WithExecutableSuffix("verilator_bin_dbg"),
+        binDirectory + WithExecutableSuffix("verilator_bin"),
+        binDirectory + WithExecutableSuffix("verilator"),
+    };
+    for (const auto& candidate : candidates) {
+        if (wxFileExists(candidate)) {
+            return candidate;
+        }
+    }
+    return wxString();
+}
+
 } // namespace sigflow::platform
