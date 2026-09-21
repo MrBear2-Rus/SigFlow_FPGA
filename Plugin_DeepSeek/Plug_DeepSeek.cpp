@@ -14,6 +14,7 @@
 #include <vector>
 #include <map>
 #include <chrono>
+#include <ctime>
 #include <iomanip>
 #include <cstdlib>
 #include <functional>
@@ -39,6 +40,19 @@ using json = nlohmann::json;
 
 
 
+
+namespace {
+// MSVC 的 localtime_s(tm*, time_t*) 与 POSIX 的 localtime_r(time_t*, tm*)
+// 参数顺序相反，这里统一成一个可移植入口。
+void LocalTimeSafe(const std::time_t* time, std::tm* out)
+{
+#if defined(_WIN32)
+    localtime_s(out, time);
+#else
+    localtime_r(time, out);
+#endif
+}
+} // namespace
 
 wxDEFINE_EVENT(EVT_AI_RESPONSE, wxThreadEvent);
 
@@ -870,7 +884,7 @@ void Plug_DeepSeek::GenerateAndSetSessionTitle(const std::string& firstUserMsg, 
                 auto now = std::chrono::system_clock::now();
                 std::time_t t = std::chrono::system_clock::to_time_t(now);
                 std::tm tm;
-                localtime_s(&tm, &t);
+                LocalTimeSafe(&t, &tm);
                 std::ostringstream ss;
                 ss << "会话 " << std::put_time(&tm, "%Y%m%d%H%M%S");
                 finalTitle = ss.str();
@@ -1002,7 +1016,7 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
                 auto now = std::chrono::system_clock::now();
                 std::time_t t = std::chrono::system_clock::to_time_t(now);
                 std::tm tm;
-                localtime_s(&tm, &t);
+                LocalTimeSafe(&t, &tm);
                 std::ostringstream ss;
                 ss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
                 std::string savedName = std::string("会话 ") + ss.str();
@@ -1015,7 +1029,7 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
                 auto now = std::chrono::system_clock::now();
                 std::time_t t = std::chrono::system_clock::to_time_t(now);
                 std::tm tm;
-                localtime_s(&tm, &t);
+                LocalTimeSafe(&t, &tm);
                 std::ostringstream ss;
                 ss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
                 std::string savedName = std::string("会话 ") + ss.str();
@@ -1235,7 +1249,7 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
 
                     auto now = std::chrono::system_clock::now();
                     std::time_t t = std::chrono::system_clock::to_time_t(now);
-                    std::tm tm; localtime_s(&tm, &t);
+                    std::tm tm; LocalTimeSafe(&t, &tm);
                     std::ostringstream ss; ss << "gen_tmp_" << std::put_time(&tm, "%Y%m%d%H%M%S") << ".txt";
                     this->m_generationTempPath = (base / ss.str()).string();
                     this->m_generationTempStream.reset(new std::ofstream(this->m_generationTempPath, std::ios::out | std::ios::binary | std::ios::trunc));
