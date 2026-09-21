@@ -42,6 +42,9 @@ void PluginManager::LoadPlugins(const std::string& folderPath) {
             // 1. 加载动态库模块
             auto library = std::make_unique<sigflow::platform::DynamicLibrary>();
             if (!library->Load(dllPath)) {
+                // 旧实现静默 continue：插件加载失败时界面上完全看不出原因。
+                SIGFLOW_LOG("PluginManager: failed to load " + dllPath +
+                            " (" + library->LastError() + ")\n");
                 continue;
             }
 
@@ -58,11 +61,14 @@ void PluginManager::LoadPlugins(const std::string& folderPath) {
                     m_loadedModules.push_back({ std::move(library), pPlugin });
                 }
                 else {
+                    SIGFLOW_LOG("PluginManager: CreateSigPlugin returned null for " + dllPath + "\n");
                     library->Unload();
                 }
             }
             else {
                 // 没找到导出函数，释放句柄
+                SIGFLOW_LOG("PluginManager: " + dllPath +
+                            " does not export CreateSigPlugin (not a SigFlow plugin?)\n");
                 library->Unload();
             }
         }

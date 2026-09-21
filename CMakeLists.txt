@@ -95,7 +95,9 @@ else()
     set(SIGFLOW_WX_LIB_DIR "")
 
     if(NOT SIGFLOW_WX_LOCAL)
-        find_package(wxWidgets REQUIRED COMPONENTS core base aui stc gl xml)
+        # 注意：必须包含 net —— wxWebRequest 在 wxNet（net/webrequest.cpp），
+        # DeepSeek 插件用到它；缺了会导致插件链接时报 wxWebRequest 未定义。
+        find_package(wxWidgets REQUIRED COMPONENTS core base aui stc gl xml net)
         include(${wxWidgets_USE_FILE})
     endif()
     find_package(Threads REQUIRED)
@@ -119,9 +121,11 @@ if(SIGFLOW_WX_LOCAL)
     set(wxBUILD_TESTS OFF CACHE BOOL "" FORCE)
     set(wxBUILD_PRECOMP OFF CACHE BOOL "" FORCE)
     set(wxUSE_OPENGL ON CACHE BOOL "" FORCE)
-    # DeepSeek 插件走 wxWebRequest：显式打开。Windows 用 WinHTTP（自带）；
-    # Linux 用 libcurl 后端（需 libcurl 开发包，否则 wx 会警告并回退为关闭）。
-    set(wxUSE_WEBREQUEST ON CACHE BOOL "" FORCE)
+    # DeepSeek 插件走 wxWebRequest，但这里**不要**强设 wxUSE_WEBREQUEST：
+    # wx 会在有后端时自动开启（Windows=WinHTTP；Linux=libcurl，需 libcurl 开发包），
+    # 无后端时自动关闭。强行 set(... CACHE ... FORCE) 会触发 wx 的
+    # wx_option_force_value 报 "FORCE specified without CACHE"（见 build/cmake/functions.cmake）。
+    # 插件是否装配由下面的 find_package(CURL) 决定。
     add_subdirectory("${SIGFLOW_WX_SRC}" "${CMAKE_BINARY_DIR}/wxWidgets" EXCLUDE_FROM_ALL)
 else()
     message(STATUS "wxWidgets: using prebuilt/system wx (SIGFLOW_WX_ROOT=${SIGFLOW_WX_ROOT})")
@@ -424,9 +428,57 @@ set(SIGFLOW_EDITION "dev" CACHE STRING "产品版本：edu | pro | dev（同一�
 set_property(CACHE SIGFLOW_EDITION PROPERTY STRINGS edu pro dev)
 target_compile_definitions(sigflow PRIVATE SIGFLOW_EDITION="${SIGFLOW_EDITION}")
 
+# 探测 wx 是否启用了 wxWebRequest（读 wx/setup.h 的 wxUSE_WEBREQUEST）。
+# 只有真正可用时才默认装配插件，避免"默认 ON 但 wx 不支持"把构建直接搞挂。
+function(_sigflow_detect_wx_webrequest out)
+    set(_candidates "")
+    if(DEFINED wxWidgets_INCLUDE_DIRS)
+        list(APPEND _candidates ${wxWidgets_INCLUDE_DIRS})
+    endif()
+    # 本地源码构建：wx 在构建目录里生成的 setup.h
+    file(GLOB _generated "${CMAKE_BINARY_DIR}/wxWidgets/lib/wx/include/*/wx/setup.h")
+    list(APPEND _candidates ${_generated})
+    foreach(_dir ${_candidates})
+        set(_setup "${_dir}")
+        if(NOT _setup MATCHES "setup\\.h$")
+            set(_setup "${_dir}/wx/setup.h")
+        endif()
+        if(EXISTS "${_setup}")
+            file(STRINGS "${_setup}" _line REGEX "^#define[ \t]+wxUSE_WEBREQUEST[ \t]+")
+            if(_line MATCHES "wxUSE_WEBREQUEST[ \t]+1")
+                set(${out} ON PARENT_SCOPE)
+                return()
+            endif()
+        endif()
+    endforeach()
+    set(${out} OFF PARENT_SCOPE)
+endfunction()
+
+# DeepSeek 插件默认"能装就装"：
+#   Windows —— wxWebRequest 用自带 WinHTTP，直接默认 ON；
+#   Linux   —— 需要 libcurl（wxWebRequest 的 curl 后端）且 wx 确实启用了它。
+if(WIN32)
+    set(_sigflow_deepseek_default ON)
+else()
+    find_package(CURL QUIET)
+    _sigflow_detect_wx_webrequest(_sigflow_wx_has_webrequest)
+    if(CURL_FOUND AND _sigflow_wx_has_webrequest)
+        set(_sigflow_deepseek_default ON)
+    else()
+        set(_sigflow_deepseek_default OFF)
+    endif()
+endif()
+
 option(SIGFLOW_BUILD_DEEPSEEK_PLUGIN
-       "构建 DeepSeek AI 助手插件（跨平台 MODULE；需要 wx 启用 wxUSE_WEBREQUEST）" OFF)
+       "构建 DeepSeek AI 助手插件（跨平台 MODULE；需要 wx 启用 wxUSE_WEBREQUEST）"
+       ${_sigflow_deepseek_default})
 if(SIGFLOW_BUILD_DEEPSEEK_PLUGIN)
     add_subdirectory(Plugin_DeepSeek)
     message(STATUS "[edition] ${SIGFLOW_EDITION} + DeepSeek 插件已装配")
+else()
+    message(STATUS
+        "[edition] ${SIGFLOW_EDITION}（DeepSeek 插件未装配：需要 libcurl 且 wx 启用 "
+        "wxUSE_WEBREQUEST。Ubuntu: sudo apt install libcurl4-openssl-dev，"
+        "Arch: sudo pacman -S curl，然后重建 wx；确认无误可用 "
+        "-DSIGFLOW_BUILD_DEEPSEEK_PLUGIN=ON 强制装配）")
 endif()

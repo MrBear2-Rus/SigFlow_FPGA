@@ -151,7 +151,8 @@ Compress-Archive -Path "$stage" -DestinationPath wx-mingw.zip
 
 ## 附录 B：DeepSeek AI 助手插件（跨平台，可选）
 
-插件源码在 `Plugin_DeepSeek/`，默认**不构建**。开启：
+插件源码在 `Plugin_DeepSeek/`。**默认"能装就装"**：Windows 恒装配；Linux 需 libcurl
+且 wx 启用了 `wxUSE_WEBREQUEST`（configure 会打印是否装配）。手动开关：
 
 ```bash
 cmake -S . -B build -DSIGFLOW_BUILD_DEEPSEEK_PLUGIN=ON -DSIGFLOW_EDITION=pro
