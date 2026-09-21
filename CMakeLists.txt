@@ -428,41 +428,57 @@ set(SIGFLOW_EDITION "dev" CACHE STRING "产品版本：edu | pro | dev（同一�
 set_property(CACHE SIGFLOW_EDITION PROPERTY STRINGS edu pro dev)
 target_compile_definitions(sigflow PRIVATE SIGFLOW_EDITION="${SIGFLOW_EDITION}")
 
-# 探测 wx 是否启用了 wxWebRequest（读 wx/setup.h 的 wxUSE_WEBREQUEST）。
-# 只有真正可用时才默认装配插件，避免"默认 ON 但 wx 不支持"把构建直接搞挂。
-function(_sigflow_detect_wx_webrequest out)
-    set(_candidates "")
-    if(DEFINED wxWidgets_INCLUDE_DIRS)
-        list(APPEND _candidates ${wxWidgets_INCLUDE_DIRS})
-    endif()
-    # 本地源码构建：wx 在构建目录里生成的 setup.h
-    file(GLOB _generated "${CMAKE_BINARY_DIR}/wxWidgets/lib/wx/include/*/wx/setup.h")
-    list(APPEND _candidates ${_generated})
-    foreach(_dir ${_candidates})
-        set(_setup "${_dir}")
-        if(NOT _setup MATCHES "setup\\.h$")
-            set(_setup "${_dir}/wx/setup.h")
-        endif()
-        if(EXISTS "${_setup}")
-            file(STRINGS "${_setup}" _line REGEX "^#define[ \t]+wxUSE_WEBREQUEST[ \t]+")
-            if(_line MATCHES "wxUSE_WEBREQUEST[ \t]+1")
-                set(${out} ON PARENT_SCOPE)
-                return()
-            endif()
-        endif()
-    endforeach()
-    set(${out} OFF PARENT_SCOPE)
-endfunction()
-
 # DeepSeek 插件默认"能装就装"：
 #   Windows —— wxWebRequest 用自带 WinHTTP，直接默认 ON；
 #   Linux   —— 需要 libcurl（wxWebRequest 的 curl 后端）且 wx 确实启用了它。
+# 下面同时把"到底缺哪一项"记下来，未装配时打印出来，便于排查。
+set(_sigflow_wx_setup "")
+set(_sigflow_wx_webrequest "unknown")
+
 if(WIN32)
     set(_sigflow_deepseek_default ON)
 else()
     find_package(CURL QUIET)
-    _sigflow_detect_wx_webrequest(_sigflow_wx_has_webrequest)
-    if(CURL_FOUND AND _sigflow_wx_has_webrequest)
+
+    # 定位 wx/setup.h：系统 wx（include 目录 + wx-config）+ 本地源码构建（构建目录）
+    set(_sigflow_wx_dirs "")
+    if(DEFINED wxWidgets_INCLUDE_DIRS)
+        list(APPEND _sigflow_wx_dirs ${wxWidgets_INCLUDE_DIRS})
+    endif()
+    find_program(_sigflow_wx_config NAMES wx-config)
+    if(_sigflow_wx_config)
+        execute_process(COMMAND ${_sigflow_wx_config} --cxxflags
+                        OUTPUT_VARIABLE _sigflow_wxflags ERROR_QUIET)
+        string(REGEX MATCHALL "-I[^ \t\r\n]+" _sigflow_wxincs "${_sigflow_wxflags}")
+        foreach(_inc ${_sigflow_wxincs})
+            string(SUBSTRING "${_inc}" 2 -1 _p)
+            list(APPEND _sigflow_wx_dirs "${_p}")
+        endforeach()
+    endif()
+    file(GLOB _sigflow_wxgen "${CMAKE_BINARY_DIR}/wxWidgets/lib/wx/include/*/wx/setup.h")
+    list(APPEND _sigflow_wx_dirs ${_sigflow_wxgen})
+
+    foreach(_dir ${_sigflow_wx_dirs})
+        set(_candidate "${_dir}")
+        if(NOT _candidate MATCHES "setup\\.h$")
+            set(_candidate "${_dir}/wx/setup.h")
+        endif()
+        if(EXISTS "${_candidate}")
+            set(_sigflow_wx_setup "${_candidate}")
+            break()
+        endif()
+    endforeach()
+
+    if(_sigflow_wx_setup)
+        file(STRINGS "${_sigflow_wx_setup}" _wr_line REGEX "^#define[ \t]+wxUSE_WEBREQUEST[ \t]+")
+        if(_wr_line MATCHES "wxUSE_WEBREQUEST[ \t]+1")
+            set(_sigflow_wx_webrequest "1")
+        else()
+            set(_sigflow_wx_webrequest "0")
+        endif()
+    endif()
+
+    if(CURL_FOUND AND _sigflow_wx_webrequest STREQUAL "1")
         set(_sigflow_deepseek_default ON)
     else()
         set(_sigflow_deepseek_default OFF)
@@ -476,9 +492,20 @@ if(SIGFLOW_BUILD_DEEPSEEK_PLUGIN)
     add_subdirectory(Plugin_DeepSeek)
     message(STATUS "[edition] ${SIGFLOW_EDITION} + DeepSeek 插件已装配")
 else()
-    message(STATUS
-        "[edition] ${SIGFLOW_EDITION}（DeepSeek 插件未装配：需要 libcurl 且 wx 启用 "
-        "wxUSE_WEBREQUEST。Ubuntu: sudo apt install libcurl4-openssl-dev，"
-        "Arch: sudo pacman -S curl，然后重建 wx；确认无误可用 "
-        "-DSIGFLOW_BUILD_DEEPSEEK_PLUGIN=ON 强制装配）")
+    if(WIN32)
+        set(_deepseek_reason "已手动关闭（-DSIGFLOW_BUILD_DEEPSEEK_PLUGIN=OFF）")
+    elseif(NOT CURL_FOUND)
+        set(_deepseek_reason
+            "未找到 libcurl 开发文件（curl-config / CURLConfig.cmake）；"
+            "Ubuntu: sudo apt install libcurl4-openssl-dev，Arch: sudo pacman -S curl")
+    elseif(_sigflow_wx_webrequest STREQUAL "0")
+        set(_deepseek_reason
+            "当前 wx 未启用 wxWebRequest（${_sigflow_wx_setup}）；需带 libcurl 重新构建 wx")
+    elseif(_sigflow_wx_webrequest STREQUAL "unknown")
+        set(_deepseek_reason
+            "无法定位 wx/setup.h，无法判定 wxWebRequest（可 -DSIGFLOW_BUILD_DEEPSEEK_PLUGIN=ON 试编）")
+    else()
+        set(_deepseek_reason "未知")
+    endif()
+    message(STATUS "[edition] ${SIGFLOW_EDITION}（DeepSeek 插件未装配：${_deepseek_reason}）")
 endif()
