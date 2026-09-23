@@ -41,9 +41,19 @@ if(SIGFLOW_WX_LOCAL)
     # wxWebRequest 在 wxNet（net/webrequest.cpp），必须一并链接。
     target_link_libraries(sigflow_deepseek PRIVATE wx::core wx::base wx::net)
 elseif(WIN32)
+    # 非本地源码构建：显式给 wx 头目录（<wx/wx.h> / <wx/string.h> 等）。
+    target_include_directories(sigflow_deepseek PRIVATE
+        "${SIGFLOW_WX_INCLUDE_DIR}"
+        "${SIGFLOW_WX_CONFIG_DIR}"
+    )
+    # wxWebRequest 在 wxNet（net/webrequest.cpp），必须一并链接。
+    find_library(SIGFLOW_DEEPSEEK_WX_NET_LIBRARY
+        NAMES wxbase33ud_net wxbase32ud_net wx_mswu_net-3.2
+        PATHS "${SIGFLOW_WX_LIB_DIR}" NO_DEFAULT_PATH REQUIRED)
     target_link_libraries(sigflow_deepseek PRIVATE
         "${SIGFLOW_WX_CORE_LIBRARY}"
-        "${SIGFLOW_WX_BASE_LIBRARY}")
+        "${SIGFLOW_WX_BASE_LIBRARY}"
+        "${SIGFLOW_DEEPSEEK_WX_NET_LIBRARY}")
 else()
     target_link_libraries(sigflow_deepseek PRIVATE ${wxWidgets_LIBRARIES})
 endif()

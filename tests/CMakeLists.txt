@@ -133,6 +133,12 @@ target_include_directories(fpga_flow_probe PRIVATE
 if(SIGFLOW_WX_LOCAL)
     target_link_libraries(fpga_flow_probe PRIVATE wx::base)
 else()
+    # 非本地源码构建时，wx::base 不是 imported target，需显式给 wx 头目录
+    # （FpgaYosysRuntime.h 等会 #include <wx/string.h>）。
+    target_include_directories(fpga_flow_probe PRIVATE
+        "${SIGFLOW_WX_INCLUDE_DIR}"
+        "${SIGFLOW_WX_CONFIG_DIR}"
+    )
     target_link_libraries(fpga_flow_probe PRIVATE ${JOB_TESTS_WX_BASE_LIBRARY})
 endif()
 
