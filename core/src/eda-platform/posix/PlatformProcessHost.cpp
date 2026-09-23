@@ -214,6 +214,14 @@ ProcessResult PosixProcessHost::Run(const ProcessSpec& spec,
         }
         usleep(100000);
     }
+    // 与 Win32 后端保持一致：等待循环结束后再读一次取消标志。
+    //
+    // Cancel() 直接 SIGKILL 子进程，于是下一轮 waitpid 会【先】返回 child，
+    // 循环从 `finished = true; break;` 退出，抢在 `cancelRequested_` 检查之前，
+    // 局部 cancelled 仍为 false —— outcome 被误判为 NonZeroExit，
+    // 契约测试 "ProcessHost cancel outcome" 因此在 Linux 上失败（Windows 不受影响，
+    // 因为它是在循环【之后】才 load() 标志）。
+    cancelled = cancelled || cancelRequested_.load();
     const bool timedOut = !finished && !cancelled;
     if (!finished) {
         // killpg 可能因进程组不存在(ESRCH)失败，退回 kill(pid)。

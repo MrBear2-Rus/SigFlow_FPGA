@@ -17,10 +17,25 @@ set(JOB_TESTS_SOURCES
 
 add_executable(job_tests ${JOB_TESTS_SOURCES})
 
+# 插件化后 job_tests 直接编译 main/fpga/*.cpp（它们 #include 插件的头）
+file(GLOB SIGFLOW_PLUGIN_INCLUDE_DIRS CONFIGURE_DEPENDS
+     "${CMAKE_SOURCE_DIR}/InnerPlugin/*/include")
+
 target_include_directories(job_tests PRIVATE
     "${SIGFLOW_MAIN_DIR}"
     "${SIGFLOW_3RD_DIR}"
+    "${CMAKE_SOURCE_DIR}/core/src"
+    ${SIGFLOW_PLUGIN_INCLUDE_DIRS}
 )
+
+# 这些薄封装把实现委托给 core 与官方插件静态库，必须链接
+foreach(_eda_lib eda_platform eda-synth-yosys eda-pnr-nextpnr eda-pack-gowin
+                 eda-program-openfpgaloader eda-target-tangnano9k eda-cst-gowin-cst
+                 eda-wave-vcd eda-lib-basic eda-sim-verilator)
+    if(TARGET ${_eda_lib})
+        target_link_libraries(job_tests PRIVATE ${_eda_lib})
+    endif()
+endforeach()
 
 # ---- wxBase：本地源码 / 预编译 / 系统 三选一 ----
 if(SIGFLOW_WX_LOCAL)

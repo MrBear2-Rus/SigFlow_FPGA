@@ -4,11 +4,15 @@
 set(SIG_TREE_SYNC_SOURCES
     "${CMAKE_CURRENT_SOURCE_DIR}/sig_tree_sync_smoke.cpp"
     "${SIGFLOW_MAIN_DIR}/SigTree.cpp"
-    "${SIGFLOW_3RD_DIR}/tree-sitter-verilog/src/parser.c"
-    "${SIGFLOW_3RD_DIR}/tree-sitter/lib/src/lib.c"
+    # tree-sitter 不在这里单独编译：本目标编出的 parser.c.o 缺少
+    # tree_sitter_verilog 符号，改为链接共享静态库 sigflow_tree_sitter。
 )
 
 add_executable(sig_tree_sync_smoke ${SIG_TREE_SYNC_SOURCES})
+
+if(TARGET sigflow_tree_sitter)
+    target_link_libraries(sig_tree_sync_smoke PRIVATE sigflow_tree_sitter)
+endif()
 
 target_include_directories(sig_tree_sync_smoke PRIVATE
     "${SIGFLOW_MAIN_DIR}"

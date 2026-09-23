@@ -409,6 +409,57 @@ add_subdirectory(InnerPlugin/eda-cst-gowin-cst)
 add_subdirectory(InnerPlugin/eda-wave-vcd)
 add_subdirectory(InnerPlugin/eda-lib-basic)
 
+# -----------------------------------------------------------------------------
+# 插件化（P0）后，main/ 下很多 .cpp 变成薄封装，直接 #include 插件/核心的头：
+#   main/fpga/FpgaPinData.cpp         -> PinDatabaseStore.h      (eda-target-tangnano9k)
+#   main/FpgaYosysScriptGenerator.cpp -> YosysScriptGenerator.h  (eda-synth-yosys)
+#   main/fpga/CstValidator.cpp        -> CstFileValidator.h      (eda-cst-gowin-cst)
+#   main/fpga/FpgaConstraint.cpp      -> ConstraintSheet.h       (eda-cst-gowin-cst)
+#   main/fpga/NextpnrLogParser.cpp    -> NextpnrLogModel.h       (eda-pnr-nextpnr)
+#   main/jobs/Sha256.cpp              -> eda-platform/Sha256.h   (core/src)
+# 这些路径此前只加给了 sigflow 目标，于是【其它目标】(job_tests / fpga_flow_probe ...)
+# 全部编译失败；实现委托给插件静态库后还会出现 undefined reference。
+# 这里统一加入 —— 新增目标不会再漏（Windows 走 main.vcxproj，不受影响）。
+# -----------------------------------------------------------------------------
+file(GLOB SIGFLOW_PLUGIN_INCLUDE_DIRS CONFIGURE_DEPENDS
+     "${CMAKE_CURRENT_SOURCE_DIR}/InnerPlugin/*/include")
+include_directories(
+    "${CMAKE_CURRENT_SOURCE_DIR}/core/src"
+    # 插件/核心头里会 #include "eda/api/*.hpp"（冻结 C ABI 与类型定义）
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    ${SIGFLOW_PLUGIN_INCLUDE_DIRS}
+)
+
+# -----------------------------------------------------------------------------
+# tree-sitter 抽成共享静态库：sig_tree_sync_smoke 之前自编的 parser.c.o 里
+# 没有 tree_sitter_verilog 符号（与 sigflow 编译选项不一致），改为复用同一份。
+# -----------------------------------------------------------------------------
+add_library(sigflow_tree_sitter STATIC
+    "${SIGFLOW_3RD_DIR}/tree-sitter-verilog/src/parser.c"
+    "${SIGFLOW_3RD_DIR}/tree-sitter/lib/src/lib.c")
+target_include_directories(sigflow_tree_sitter PUBLIC
+    "${SIGFLOW_3RD_DIR}/tree-sitter/lib/include"
+    "${SIGFLOW_3RD_DIR}/tree-sitter/lib/src"
+    "${SIGFLOW_3RD_DIR}/tree-sitter-verilog/src")
+
+# 同理：所有可执行目标都要链接 core 与官方插件静态库。
+# 放在 add_subdirectory(InnerPlugin/...) 之后：插件自身不会被重复链接。
+foreach(_eda_dep
+        eda_platform
+        eda-synth-yosys
+        eda-pnr-nextpnr
+        eda-pack-gowin
+        eda-program-openfpgaloader
+        eda-target-tangnano9k
+        eda-cst-gowin-cst
+        eda-wave-vcd
+        eda-lib-basic
+        eda-sim-verilator)
+    if(TARGET ${_eda_dep})
+        link_libraries(${_eda_dep})
+    endif()
+endforeach()
+
 # P0-8：主程序复用核心库（Composer 使用 eda::PluginHost）。
 target_include_directories(sigflow PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/core/src")
 target_link_libraries(sigflow PRIVATE eda_core)
