@@ -1,217 +1,70 @@
 #include "ArtifactValidator.h"
 
-#include "../jobs/Sha256.h"
+#include "YosysArtifactValidator.h"
 
-#include <json/json.h>
+#include "platform/PlatformPaths.h"
 
-#include <wx/datetime.h>
-#include <wx/file.h>
-#include <wx/filefn.h>
-#include <wx/filename.h>
-
-#include <memory>
-
-namespace {
-
-const wxString kYosysNetlistArtifactId = "yosys-netlist-json";
-
-wxString NowUtc()
-{
-    return wxDateTime::UNow().FormatISOCombined('T') + "Z";
+// P1-1：产物校验逻辑已移入 InnerPlugin/eda-synth-yosys（wx-free）。
+// 本文件保留同签名的 wx 适配层，供旧调用点（MainFrame / fpga_flow_probe）在迁移期使用。
+wxString ToString(ArtifactValidationStatus status) {
+    return wxString::FromUTF8(
+        eda::synth::ToString(static_cast<eda::synth::ArtifactValidationStatus>(status)).c_str());
 }
 
-bool Fail(NetlistArtifactReport& report, ArtifactValidationStatus status,
-          const wxString& message, const wxString& failedField = wxString())
-{
-    report.status = status;
-    report.message = message;
-    report.failedField = failedField;
-    return false;
-}
+ArtifactValidator::ArtifactValidator(ArtifactValidationOptions options) : m_options(options) {}
 
-void InitializeReport(const wxString& jsonPath, const wxString& expectedTopModule,
-                      NetlistArtifactReport& report)
-{
+bool ArtifactValidator::ValidateYosysJson(const wxString& jsonPath,
+                                          const wxString& expectedTopModule,
+                                          NetlistArtifactReport& report) const {
+    eda::synth::ArtifactValidationOptions options;
+    options.minimumFileSizeBytes = m_options.minimumFileSizeBytes;
+    eda::synth::ArtifactValidator validator(options);
+
+    eda::synth::NetlistArtifactReport pluginReport;
+    const bool ok = validator.ValidateYosysJson(sigflow::platform::Utf8String(jsonPath),
+                                                sigflow::platform::Utf8String(expectedTopModule),
+                                                pluginReport);
+
     report = NetlistArtifactReport();
-    report.artifactId = kYosysNetlistArtifactId;
-    report.expectedTopModule = expectedTopModule;
-    report.validatedAt = NowUtc();
-
-    wxFileName normalizedPath(jsonPath);
-    normalizedPath.Normalize(wxPATH_NORM_DOTS | wxPATH_NORM_ABSOLUTE);
-    report.path = normalizedPath.GetFullPath();
-}
-
-wxString Sha256File(const wxString& filePath)
-{
-    return Sha256FileHex(filePath);
-}
-
-Json::Value ToJson(const NetlistArtifactReport& report)
-{
-    Json::Value root(Json::objectValue);
-    root["schema_version"] = "1.0";
-    root["artifact_id"] = report.artifactId.ToStdString();
-    root["status"] = ToString(report.status).ToStdString();
-    root["path"] = report.path.ToStdString();
-    root["expected_top_module"] = report.expectedTopModule.ToStdString();
-    root["failed_field"] = report.failedField.ToStdString();
-    root["message"] = report.message.ToStdString();
-    root["validated_at"] = report.validatedAt.ToStdString();
-    root["size_bytes"] = Json::UInt64(report.sizeBytes);
-    root["sha256"] = report.sha256.ToStdString();
-
-    Json::Value summary(Json::objectValue);
-    summary["ports"] = Json::UInt64(report.portCount);
-    summary["cells"] = Json::UInt64(report.cellCount);
-    summary["netnames"] = Json::UInt64(report.netnameCount);
-    root["summary"] = summary;
-    return root;
-}
-
-bool WriteJsonAtomically(const wxString& path, const Json::Value& value, wxString& errorMessage)
-{
-    const wxString temporaryPath = path + ".tmp";
-    Json::StreamWriterBuilder writer;
-    writer["indentation"] = "  ";
-    const wxString content = wxString::FromUTF8(Json::writeString(writer, value)) + "\n";
-    const wxScopedCharBuffer utf8 = content.ToUTF8();
-
-    wxFile file(temporaryPath, wxFile::write);
-    if (!file.IsOpened() || !utf8.data() ||
-        file.Write(utf8.data(), utf8.length()) != static_cast<wxFileOffset>(utf8.length())) {
-        file.Close();
-        wxRemoveFile(temporaryPath);
-        errorMessage = wxString("Unable to write artifact manifest: ") + path;
-        return false;
-    }
-    file.Close();
-
-    if (!wxRenameFile(temporaryPath, path, true)) {
-        wxRemoveFile(temporaryPath);
-        errorMessage = wxString("Unable to replace artifact manifest: ") + path;
-        return false;
-    }
-    return true;
-}
-
-} // namespace
-
-wxString ToString(ArtifactValidationStatus status)
-{
-    switch (status) {
-    case ArtifactValidationStatus::NotValidated: return "NotValidated";
-    case ArtifactValidationStatus::Valid: return "Valid";
-    case ArtifactValidationStatus::MissingFile: return "MissingFile";
-    case ArtifactValidationStatus::TooSmall: return "TooSmall";
-    case ArtifactValidationStatus::ReadFailed: return "ReadFailed";
-    case ArtifactValidationStatus::InvalidJson: return "InvalidJson";
-    case ArtifactValidationStatus::MissingModules: return "MissingModules";
-    case ArtifactValidationStatus::MissingTopModule: return "MissingTopModule";
-    case ArtifactValidationStatus::MissingRequiredField: return "MissingRequiredField";
-    case ArtifactValidationStatus::HashFailed: return "HashFailed";
-    }
-    return "Unknown";
-}
-
-ArtifactValidator::ArtifactValidator(ArtifactValidationOptions options)
-    : m_options(options)
-{
-}
-
-bool ArtifactValidator::ValidateYosysJson(const wxString& jsonPath, const wxString& expectedTopModule,
-                                           NetlistArtifactReport& report) const
-{
-    InitializeReport(jsonPath, expectedTopModule, report);
-    if (expectedTopModule.IsEmpty()) {
-        return Fail(report, ArtifactValidationStatus::MissingTopModule,
-                    "Expected top module name is empty.");
-    }
-    if (report.path.IsEmpty() || !wxFileExists(report.path)) {
-        return Fail(report, ArtifactValidationStatus::MissingFile,
-                    "Yosys JSON artifact does not exist.");
-    }
-
-    wxFileName fileName(report.path);
-    const wxULongLong fileSize = fileName.GetSize();
-    if (fileSize == wxInvalidSize) {
-        return Fail(report, ArtifactValidationStatus::ReadFailed,
-                    "Unable to obtain Yosys JSON artifact size.");
-    }
-    report.sizeBytes = static_cast<std::uint64_t>(fileSize.GetValue());
-    if (report.sizeBytes < m_options.minimumFileSizeBytes) {
-        return Fail(report, ArtifactValidationStatus::TooSmall,
-                    wxString::Format("Yosys JSON artifact is only %llu bytes; minimum is %llu bytes.",
-                                     static_cast<unsigned long long>(report.sizeBytes),
-                                     static_cast<unsigned long long>(m_options.minimumFileSizeBytes)));
-    }
-
-    wxFile file(report.path, wxFile::read);
-    wxString content;
-    if (!file.IsOpened() || !file.ReadAll(&content)) {
-        file.Close();
-        return Fail(report, ArtifactValidationStatus::ReadFailed,
-                    "Unable to read Yosys JSON artifact.");
-    }
-    file.Close();
-
-    const wxScopedCharBuffer utf8 = content.ToUTF8();
-    if (!utf8.data() || utf8.length() == 0) {
-        return Fail(report, ArtifactValidationStatus::InvalidJson,
-                    "Yosys JSON artifact is not valid UTF-8 JSON text.");
-    }
-
-    Json::Value root;
-    Json::CharReaderBuilder builder;
-    std::string parseErrors;
-    std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
-    if (!reader->parse(utf8.data(), utf8.data() + utf8.length(), &root, &parseErrors)) {
-        return Fail(report, ArtifactValidationStatus::InvalidJson,
-                    wxString("Unable to parse Yosys JSON artifact: ") + wxString::FromUTF8(parseErrors));
-    }
-    if (!root.isObject() || !root.isMember("modules") || !root["modules"].isObject()) {
-        return Fail(report, ArtifactValidationStatus::MissingModules,
-                    "Yosys JSON artifact must contain an object field 'modules'.", "modules");
-    }
-
-    const Json::Value& modules = root["modules"];
-    const wxScopedCharBuffer topModuleUtf8 = expectedTopModule.ToUTF8();
-    if (!topModuleUtf8.data() || !modules.isMember(topModuleUtf8.data()) ||
-        !modules[topModuleUtf8.data()].isObject()) {
-        return Fail(report, ArtifactValidationStatus::MissingTopModule,
-                    wxString("Expected top module '") + expectedTopModule +
-                        "' was not found in the Yosys JSON artifact.",
-                    "modules." + expectedTopModule);
-    }
-
-    const Json::Value& topModule = modules[topModuleUtf8.data()];
-    for (const char* requiredField : { "ports", "cells", "netnames" }) {
-        const wxString fieldName = wxString::FromUTF8(requiredField);
-        if (!topModule.isMember(requiredField) || !topModule[requiredField].isObject()) {
-            return Fail(report, ArtifactValidationStatus::MissingRequiredField,
-                        wxString("Yosys JSON top module '") + expectedTopModule +
-                            "' is missing required object field '" + fieldName + "'.",
-                        "modules." + expectedTopModule + "." + fieldName);
-        }
-    }
-
-    report.portCount = static_cast<std::uint64_t>(topModule["ports"].size());
-    report.cellCount = static_cast<std::uint64_t>(topModule["cells"].size());
-    report.netnameCount = static_cast<std::uint64_t>(topModule["netnames"].size());
-    report.sha256 = Sha256File(report.path);
-    if (report.sha256.IsEmpty()) {
-        return Fail(report, ArtifactValidationStatus::HashFailed,
-                    "Unable to calculate SHA-256 for Yosys JSON artifact.");
-    }
-
-    report.status = ArtifactValidationStatus::Valid;
-    report.message = "Yosys JSON artifact is valid.";
-    return true;
+    report.status = static_cast<ArtifactValidationStatus>(pluginReport.status);
+    report.artifactId = wxString::FromUTF8(pluginReport.artifactId.c_str());
+    report.path = wxString::FromUTF8(pluginReport.path.c_str());
+    report.expectedTopModule = wxString::FromUTF8(pluginReport.expectedTopModule.c_str());
+    report.failedField = wxString::FromUTF8(pluginReport.failedField.c_str());
+    report.message = wxString::FromUTF8(pluginReport.message.c_str());
+    report.validatedAt = wxString::FromUTF8(pluginReport.validatedAt.c_str());
+    report.sizeBytes = pluginReport.sizeBytes;
+    report.portCount = pluginReport.portCount;
+    report.cellCount = pluginReport.cellCount;
+    report.netnameCount = pluginReport.netnameCount;
+    report.sha256 = wxString::FromUTF8(pluginReport.sha256.c_str());
+    return ok;
 }
 
 bool ArtifactValidator::WriteManifest(const wxString& manifestPath,
                                       const NetlistArtifactReport& report,
-                                      wxString& errorMessage) const
-{
-    return WriteJsonAtomically(manifestPath, ToJson(report), errorMessage);
+                                      wxString& errorMessage) const {
+    eda::synth::ArtifactValidationOptions options;
+    options.minimumFileSizeBytes = m_options.minimumFileSizeBytes;
+    eda::synth::ArtifactValidator validator(options);
+
+    eda::synth::NetlistArtifactReport pluginReport;
+    pluginReport.status = static_cast<eda::synth::ArtifactValidationStatus>(report.status);
+    pluginReport.artifactId = sigflow::platform::Utf8String(report.artifactId);
+    pluginReport.path = sigflow::platform::Utf8String(report.path);
+    pluginReport.expectedTopModule = sigflow::platform::Utf8String(report.expectedTopModule);
+    pluginReport.failedField = sigflow::platform::Utf8String(report.failedField);
+    pluginReport.message = sigflow::platform::Utf8String(report.message);
+    pluginReport.validatedAt = sigflow::platform::Utf8String(report.validatedAt);
+    pluginReport.sizeBytes = report.sizeBytes;
+    pluginReport.portCount = report.portCount;
+    pluginReport.cellCount = report.cellCount;
+    pluginReport.netnameCount = report.netnameCount;
+    pluginReport.sha256 = sigflow::platform::Utf8String(report.sha256);
+
+    std::string error;
+    const bool ok = validator.WriteManifest(sigflow::platform::Utf8String(manifestPath),
+                                            pluginReport, error);
+    if (!ok) errorMessage = wxString::FromUTF8(error.c_str());
+    return ok;
 }

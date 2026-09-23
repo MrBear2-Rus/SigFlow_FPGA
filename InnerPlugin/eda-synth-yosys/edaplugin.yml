@@ -1,0 +1,10 @@
+id: eda-synth-yosys
+version: 1.0.0
+display_name: Yosys Synthesizer
+vendor: SigFlow
+location: inner
+runtime: inprocess
+capabilities:
+  - synth/yosys
+jobs:
+  - synth

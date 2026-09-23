@@ -1,0 +1,10 @@
+id: eda-sim-verilator
+version: 1.0.0
+display_name: Verilator Simulator
+vendor: SigFlow
+location: inner
+runtime: inprocess
+capabilities:
+  - sim/verilator
+jobs:
+  - sim.build

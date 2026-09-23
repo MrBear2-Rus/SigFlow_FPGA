@@ -1,0 +1,8 @@
+id: eda-cst-gowin-cst
+version: 1.0.0
+display_name: Gowin CST Constraints
+vendor: SigFlow
+location: inner
+runtime: inprocess
+capabilities:
+  - cst/gowin

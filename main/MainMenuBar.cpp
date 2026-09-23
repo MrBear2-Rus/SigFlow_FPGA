@@ -101,13 +101,16 @@ EVT_MENU(wxID_HIGHEST + 500, MainMenuBar::OnTutorial)
 EVT_MENU(wxID_HIGHEST + 501, MainMenuBar::OnUserGuide)
 EVT_MENU(wxID_HIGHEST + 502, MainMenuBar::OnLibraryRef)
 EVT_MENU(wxID_ABOUT, MainMenuBar::OnAbout)
+EVT_MENU_OPEN(MainMenuBar::OnMenuOpen)
 wxEND_EVENT_TABLE()
 
 MainMenuBar::MainMenuBar(MainFrame* owner)
     : wxMenuBar(),
     m_owner(owner),
     m_fileHistory(9),
-    m_windowMenu(nullptr)
+    m_windowMenu(nullptr),
+    m_helpMenu(nullptr),
+    m_helpBackendsMenu(nullptr)
 {
     /* 1. 创建并追加六大菜单 */
     wxMenu* fileMenu = CreateFileMenu();   // 先拿到指针
@@ -383,8 +386,41 @@ wxMenu* MainMenuBar::CreateHelpMenu()
     m->Append(wxID_HIGHEST + 501, wxT("User's Guide"));
     m->Append(wxID_HIGHEST + 502, wxT("Library Reference"));
     m->AppendSeparator();
+    // P1-8：工具链后端选择（能力 → 插件）放在 Help 下拉栏；先建空子菜单，
+    // 待 Help 菜单打开时（插件已加载）再由 OnMenuOpen → RebuildToolchainBackendsMenu 填充。
+    m_helpBackendsMenu = new wxMenu;
+    m->AppendSubMenu(m_helpBackendsMenu, wxT("Toolchain Backends"));
+    m->AppendSeparator();
     m->Append(wxID_ABOUT, wxT("About..."));
+    m_helpMenu = m;
     return m;
+}
+
+// P1-8：按当前已加载插件重建 Toolchain Backends 子菜单。
+void MainMenuBar::RebuildToolchainBackendsMenu()
+{
+    if (m_helpBackendsMenu == nullptr) return;
+    // 清空旧项（含子菜单对象）。
+    while (m_helpBackendsMenu->GetMenuItemCount() > 0) {
+        m_helpBackendsMenu->Delete(m_helpBackendsMenu->FindItemByPosition(0));
+    }
+    if (m_owner == nullptr) return;
+    const std::vector<std::string> capabilities = m_owner->AvailableToolCapabilities();
+    if (capabilities.empty()) {
+        m_helpBackendsMenu->Append(wxID_ANY, wxT("(no toolchain backends found)"))->Enable(false);
+        return;
+    }
+    // 复用 MainFrame 的构建逻辑（它负责按能力生成单选项并绑定切换）。
+    m_owner->BuildToolchainBackendsMenu(m_helpBackendsMenu);
+}
+
+void MainMenuBar::OnMenuOpen(wxMenuEvent& event)
+{
+    // Help 菜单打开时懒重建后端子菜单（此时插件已加载）。
+    if (m_helpMenu != nullptr && event.GetMenu() == m_helpMenu) {
+        RebuildToolchainBackendsMenu();
+    }
+    event.Skip();
 }
 
 /* ---------- File 菜单事件转发 ---------- */

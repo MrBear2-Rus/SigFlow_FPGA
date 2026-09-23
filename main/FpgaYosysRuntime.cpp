@@ -4,11 +4,17 @@
 #include "jobs/Sha256.h"
 #include "platform/PlatformPaths.h"
 
+#include "TargetProfileStore.h"
+#include <eda/api/target_profile.hpp>
+
+#include <wx/dir.h>
 #include <wx/file.h>
+#include <wx/filefn.h>
 #include <wx/filename.h>
 #include <wx/utils.h>
 
 #include <cstring>
+#include <filesystem>
 #include <vector>
 
 namespace {
@@ -116,19 +122,78 @@ void AddCommandCheck(FpgaYosysRuntimeReport& report, const wxString& executableP
     report.checks.push_back(check);
 }
 
+// ── P1-5：目标 profile 从 JSON 解析（取代硬编码）；找不到文件时用内置默认 JSON 兜底 ──
+const char* kDefaultTangNano9kJson = R"JSON({
+  "schema_version": "1.0",
+  "id": "tang-nano-9k",
+  "version": "1.0.0",
+  "display_name": "Sipeed Tang Nano 9K",
+  "yosys": { "family": "gw1n" },
+  "nextpnr": { "device": "GW1NR-LV9QN88PC6/I5", "family": "GW1N-9C" },
+  "openfpgaloader": { "board": "tangnano9k" }
+})JSON";
+
+std::filesystem::path FindTargetProfilesDirectory()
+{
+    const wxString executableDirectory =
+        wxFileName(wxStandardPaths::Get().GetExecutablePath()).GetPath();
+    const auto probe = [](const wxString& directory) -> wxString {
+        const wxString candidate =
+            directory + wxFileName::GetPathSeparator() + "main" + wxFileName::GetPathSeparator() +
+            "fpga" + wxFileName::GetPathSeparator() + "target-profiles";
+        return wxDirExists(candidate) ? candidate : wxString();
+    };
+    wxString found = sigflow::platform::WalkUpDirectories(executableDirectory, 8, probe);
+    if (found.IsEmpty()) {
+        found = sigflow::platform::WalkUpDirectories(wxGetCwd(), 8, probe);
+    }
+    if (found.IsEmpty()) return {};
+    return sigflow::platform::Utf8Path(found);
+}
+
+void ApplyTargetProfile(const eda::TargetProfile& source, FpgaTargetProfile& target)
+{
+    target.id = wxString::FromUTF8(source.id.c_str());
+    target.version = wxString::FromUTF8(source.version.c_str());
+    target.displayName = wxString::FromUTF8(source.displayName.c_str());
+    target.device = wxString::FromUTF8(source.device.c_str());
+    target.family = wxString::FromUTF8(source.family.c_str());
+    target.yosysFamily = wxString::FromUTF8(source.yosysFamily.c_str());
+    target.programmerBoard = wxString::FromUTF8(source.programmerBoard.c_str());
+}
+
+bool LoadTargetProfileById(const wxString& id, FpgaTargetProfile& profile,
+                           wxString& errorMessage)
+{
+    const std::string idUtf8 = sigflow::platform::Utf8String(id);
+    eda::TargetProfile parsed;
+    std::string error;
+
+    const std::filesystem::path directory = FindTargetProfilesDirectory();
+    if (!directory.empty() &&
+        eda::target::TargetProfileStore::LoadById(directory, idUtf8, parsed, error)) {
+        ApplyTargetProfile(parsed, profile);
+        return true;
+    }
+    if (idUtf8 == "tang-nano-9k" &&
+        eda::target::TargetProfileStore::Parse(kDefaultTangNano9kJson, parsed, error)) {
+        ApplyTargetProfile(parsed, profile);
+        return true;
+    }
+    errorMessage = wxString::FromUTF8(error.c_str());
+    return false;
+}
+
 } // namespace
 
 const FpgaTargetProfile& GetTangNano9kTargetProfile()
 {
-    static const FpgaTargetProfile profile = {
-        "tang-nano-9k",
-        "1.0.0",
-        "Sipeed Tang Nano 9K",
-        "GW1NR-LV9QN88PC6/I5",
-        "GW1N-9C",
-        "gw1n",
-        "tangnano9k",
-    };
+    static const FpgaTargetProfile profile = [] {
+        FpgaTargetProfile resolved;
+        wxString ignored;
+        LoadTargetProfileById("tang-nano-9k", resolved, ignored);
+        return resolved;
+    }();
     return profile;
 }
 
@@ -136,13 +201,12 @@ bool ResolveFpgaTargetProfile(const wxString& profileId, FpgaTargetProfile& prof
                               wxString& errorMessage)
 {
     const wxString normalizedId = profileId.IsEmpty() ? wxString("tang-nano-9k") : profileId.Lower();
-    if (normalizedId == "tang-nano-9k") {
-        profile = GetTangNano9kTargetProfile();
+    if (LoadTargetProfileById(normalizedId, profile, errorMessage)) {
         return true;
     }
 
     errorMessage = wxString("Unsupported FPGA target profile: ") + profileId +
-                   ". Supported profile: tang-nano-9k.";
+                   ". Supported profile: tang-nano-9k. (" + errorMessage + ")";
     return false;
 }
 

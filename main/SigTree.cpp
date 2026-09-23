@@ -1,5 +1,4 @@
 #include "SigTree.h"
-#include "MainFrame.h"
 #include "platform/Log.h"
 
 #include <json/json.h>
@@ -22,7 +21,7 @@ SecondNodeType isTSNodeSecond(std::string node_type);
 bool isTSNodeNet(std::string node_type);
 void CollectSigTreeNodeInfoTS(SigTreeNode* node, TSNode& TSnode, std::string filepath, std::string code);
 
-SigFlowTree::SigFlowTree(MainFrame* parent) : m_parent(parent), root(nullptr) {
+SigFlowTree::SigFlowTree(wxEvtHandler* parent) : m_parent(parent), root(nullptr) {
     const char* top_temp = R"(
                 ;; 1. 模块定义捕获（独立，保证只要有模块名就能匹配）
                 (module_declaration
@@ -143,18 +142,43 @@ void SigFlowTree::ClearTree() {
         if (m_parent) {
             wxCommandEvent event(EVT_SIGFLOWNODE_DEL);
             event.SetClientData(node);
-            m_parent->GetEventHandler()->ProcessEvent(event);
+            m_parent->ProcessEvent(event);
         }
     };
 
     notifyDeleted(notifyDeleted, root);
     DefinitionTable.clear();
     InstanceTable.clear();
+    uidIndex.clear();
+    nextUid = 1;
     if (root) {
         root->ClearNode();
         root = nullptr;
     }
     arena.reset();
+}
+
+// P2-1a：给缺失 uid 的节点分配稳定标识，并重建 uid→节点索引。
+// 只新增标识，不触碰 UpdateTreeFromTS / AddChild / 布线等算法。
+void SigFlowTree::ReindexUids() {
+    uidIndex.clear();
+    if (!root) return;
+    std::queue<SigTreeNode*> pending;
+    pending.push(root);
+    while (!pending.empty()) {
+        SigTreeNode* node = pending.front();
+        pending.pop();
+        if (node->uid == 0) node->uid = nextUid++;
+        uidIndex[node->uid] = node;
+        for (SigTreeNode* child : node->GetChildren()) {
+            if (child) pending.push(child);
+        }
+    }
+}
+
+SigTreeNode* SigFlowTree::NodeByUid(std::uint64_t uid) const {
+    const auto it = uidIndex.find(uid);
+    return it == uidIndex.end() ? nullptr : it->second;
 }
 
 void SigFlowTree::LoadProject(std::string projectPath) {
@@ -246,7 +270,7 @@ ExpressionResult FormalizeExpression(
     return result;
 }
 
-void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,std::string& filePath, std::string& code, std::unordered_map<SigTreeNode*, std::tuple<int, int>>& outMap) {
+void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,std::string& filePath, std::string& code, std::unordered_map<std::uint64_t, std::tuple<int, int>>& outMap) {
     TSNode currentNode = ts_tree_cursor_current_node(cursor);
     SigTreeNode* newParent = SigRoot;
     std::string node_type = ts_node_type(currentNode);
@@ -270,7 +294,7 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
         if (node_type == "source_file") {
             FileNode* fn = arena.make<FileNode>(filePath);
             fn = static_cast<FileNode*>(this->AddChild(newParent, fn));
-            outMap[fn] = std::make_tuple(ts_node_start_point(currentNode).row, ts_node_end_point(currentNode).row);
+            outMap[fn->uid] = std::make_tuple(ts_node_start_point(currentNode).row, ts_node_end_point(currentNode).row);
             newParent = fn;
         }
     }
@@ -326,7 +350,7 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
             tn->UpdateInPorts(in);
             tn->UpdateOutPorts(out);
             tn = static_cast<TopNode*>(this->AddChild(newParent, tn));
-            outMap[tn] = std::make_tuple(ts_node_start_point(currentNode).row, ts_node_end_point(currentNode).row);
+            outMap[tn->uid] = std::make_tuple(ts_node_start_point(currentNode).row, ts_node_end_point(currentNode).row);
             newParent = tn;
         }
     }
@@ -361,7 +385,7 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                 SignalNode* nn = this->AddSignal(tParent,&tmpNode);
                 
                 if (nn) {
-                    outMap[nn] = std::make_tuple(ts_node_start_point(currentNode).row, ts_node_end_point(currentNode).row);
+                    outMap[nn->uid] = std::make_tuple(ts_node_start_point(currentNode).row, ts_node_end_point(currentNode).row);
             }
             
         }
@@ -389,7 +413,7 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                 SignalNode tmpNode(id, SignalType::Reg);
                 SignalNode* nn = this->AddSignal(tParent, &tmpNode);
                 if (nn) {
-                    outMap[nn] = std::make_tuple(ts_node_start_point(currentNode).row, ts_node_end_point(currentNode).row);
+                    outMap[nn->uid] = std::make_tuple(ts_node_start_point(currentNode).row, ts_node_end_point(currentNode).row);
             }
         }
             ts_query_cursor_delete(cursor);
@@ -440,7 +464,7 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                     }
                 }
                 mn = static_cast<ModuleInstNode*>(this->AddChild(newParent, mn));
-                outMap[mn] = std::make_tuple(ts_node_start_point(currentNode).row, ts_node_end_point(currentNode).row);
+                outMap[mn->uid] = std::make_tuple(ts_node_start_point(currentNode).row, ts_node_end_point(currentNode).row);
                 newParent = mn;
             }
             else if (second_type == SecondNodeType::GateInstance) {
@@ -498,7 +522,7 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                     tParent->SetSecondPortConn(gn, gn->out_ports[0].identifier, out_conn[0]);
                 }
                 gn = static_cast<GateInstNode*>(this->AddChild(newParent, gn));
-                outMap[gn] = std::make_tuple(ts_node_start_point(currentNode).row, ts_node_end_point(currentNode).row);
+                outMap[gn->uid] = std::make_tuple(ts_node_start_point(currentNode).row, ts_node_end_point(currentNode).row);
                 newParent = gn;
             }
             else if (second_type == SecondNodeType::Always) {
@@ -622,7 +646,7 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                 an->edgeType = et;
 
                 an = static_cast<AlwaysNode*>(this->AddChild(newParent, an));
-                outMap[an] = std::make_tuple(ts_node_start_point(currentNode).row, ts_node_end_point(currentNode).row);
+                outMap[an->uid] = std::make_tuple(ts_node_start_point(currentNode).row, ts_node_end_point(currentNode).row);
                 newParent = an;
             }
             else if (second_type == SecondNodeType::ContinuousAssign) {
@@ -679,7 +703,7 @@ void SigFlowTree::UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot,st
                 }
                 tParent->AddSecondPort(an, out);
                 an = static_cast<ContinuousAssignNode*>(this->AddChild(newParent, an));
-                outMap[an] = std::make_tuple(ts_node_start_point(currentNode).row, ts_node_end_point(currentNode).row);
+                outMap[an->uid] = std::make_tuple(ts_node_start_point(currentNode).row, ts_node_end_point(currentNode).row);
                 newParent = an;
             }
         }
@@ -812,10 +836,6 @@ void SigFlowTree::HangInst(ModuleInstNode* inst) {
         inst->inout_ports.push_back(port);
     }
     inst->in_ports.clear();
-}
-
-void SigFlowTree::UpdateTreeFromSlang(slang::ast::Compilation* compilation) {
-    // Not implemented
 }
 
 void SigFlowTree::PrintTree() {
@@ -1224,7 +1244,7 @@ void SigFlowTree::RemoveChild(SigTreeNode* parent, SigTreeNode* child) {
     parent->RemoveChild(child);
     wxCommandEvent evt(EVT_SIGFLOWNODE_DEL);
     evt.SetClientData(child);
-    wxPostEvent(m_parent->GetEventHandler(), evt);
+    wxPostEvent(m_parent, evt);
 }
 
 void SigFlowTree::RemoveSignal(TopNode* parent, SignalNode* sn) {
@@ -1240,7 +1260,7 @@ void SigFlowTree::RemoveSignal(TopNode* parent, SignalNode* sn) {
     }
     wxCommandEvent evt(EVT_SIGFLOWNODE_DEL);
     evt.SetClientData(sn);
-    wxPostEvent(m_parent->GetEventHandler(), evt);
+    wxPostEvent(m_parent, evt);
 }
 
 SigTreeNode* SigFlowTree::AddChild(SigTreeNode* parent, SigTreeNode* externalNode) {
@@ -1264,7 +1284,7 @@ SigTreeNode* SigFlowTree::AddChild(SigTreeNode* parent, SigTreeNode* externalNod
         parent->AddChild(safeNode);
         wxCommandEvent event(EVT_SIGFLOWNODE_ADD);
         event.SetClientData(safeNode);
-        m_parent->GetEventHandler()->ProcessEvent(event);
+        m_parent->ProcessEvent(event);
     }
     else {
         this->root = static_cast<ProjectNode*>(safeNode);
@@ -1282,7 +1302,7 @@ SignalNode* SigFlowTree::AddSignal(TopNode* parent, SignalNode* sn) {
         safeNode->parent = parent;
         wxCommandEvent event(EVT_SIGFLOWNODE_ADD);
         event.SetClientData(safeNode);
-        m_parent->GetEventHandler()->ProcessEvent(event);
+        m_parent->ProcessEvent(event);
         return safeNode;
     }
     else return nullptr;
@@ -1312,7 +1332,7 @@ void SigFlowTree::AddInPort(SecondNode* sn) {
     sn->in_ports.push_back(p);
     wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
     evt.SetClientData(sn);
-    wxPostEvent(m_parent->GetEventHandler(), evt);
+    wxPostEvent(m_parent, evt);
 }
 
 void SigFlowTree::AddOutPort(SecondNode* sn) {
@@ -1321,7 +1341,7 @@ void SigFlowTree::AddOutPort(SecondNode* sn) {
     wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
     sn->out_ports.push_back(p);
     evt.SetClientData(sn);
-    wxPostEvent(m_parent->GetEventHandler(), evt);
+    wxPostEvent(m_parent, evt);
 }
 
 void SigFlowTree::AddInPort(TopNode* tn) {
@@ -1330,7 +1350,7 @@ void SigFlowTree::AddInPort(TopNode* tn) {
     tn->in_ports.push_back(p);
     wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
     evt.SetClientData(tn);
-    wxPostEvent(m_parent->GetEventHandler(), evt);
+    wxPostEvent(m_parent, evt);
 }
 
 void SigFlowTree::AddOutPort(TopNode* tn) {
@@ -1339,7 +1359,7 @@ void SigFlowTree::AddOutPort(TopNode* tn) {
     tn->out_ports.push_back(p);
     wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
     evt.SetClientData(tn);
-    wxPostEvent(m_parent->GetEventHandler(), evt);
+    wxPostEvent(m_parent, evt);
 }
 
 void SigFlowTree::AddInOutPort(SecondNode* sn) {
@@ -1351,7 +1371,7 @@ void SigFlowTree::SecondDelLastInPort(SecondNode* sn) {
         sn->in_ports.pop_back();
     wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
     evt.SetClientData(sn);
-    wxPostEvent(m_parent->GetEventHandler(), evt);
+    wxPostEvent(m_parent, evt);
 }
 
 void SigFlowTree::TopDelPort(TopNode* sn, Port p) {
@@ -1364,7 +1384,7 @@ void SigFlowTree::TopDelPort(TopNode* sn, Port p) {
             sn->GetInPorts().erase(it);
             wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
             evt.SetClientData(sn);
-            m_parent->GetEventHandler()->ProcessEvent(evt);
+            m_parent->ProcessEvent(evt);
         }
     }
     else if (p.direction == PortDirection::Out) {
@@ -1376,7 +1396,7 @@ void SigFlowTree::TopDelPort(TopNode* sn, Port p) {
             sn->GetOutPorts().erase(it);
             wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
             evt.SetClientData(sn);
-            m_parent->GetEventHandler()->ProcessEvent(evt);
+            m_parent->ProcessEvent(evt);
         }
     }
 }
@@ -1390,7 +1410,7 @@ void SigFlowTree::TopDelPort(TopNode* sn, wxString port_id) {
         sn->GetInPorts().erase(it);
         wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
         evt.SetClientData(sn);
-        m_parent->GetEventHandler()->ProcessEvent(evt);
+        m_parent->ProcessEvent(evt);
     }
 
     auto it2 = std::find_if(sn->GetOutPorts().begin(), sn->GetOutPorts().end(),
@@ -1401,7 +1421,7 @@ void SigFlowTree::TopDelPort(TopNode* sn, wxString port_id) {
         sn->GetOutPorts().erase(it2);
         wxCommandEvent evt(EVT_SIGFLOWNODE_CHANGED);
         evt.SetClientData(sn);
-        m_parent->GetEventHandler()->ProcessEvent(evt);
+        m_parent->ProcessEvent(evt);
     }
 }
 
@@ -1425,7 +1445,7 @@ void SigFlowTree::PortReName(TopNode* tn, wxString old_id, wxString new_id) {
     if (changed) {
         wxCommandEvent* evt = new wxCommandEvent(EVT_SIGFLOWNODE_CHANGED);
         evt->SetClientData(tn);
-        m_parent->GetEventHandler()->QueueEvent(evt);
+        m_parent->QueueEvent(evt);
     }
 }
 
@@ -1477,7 +1497,7 @@ void SigFlowTree::PortReName(SecondNode* sn, wxString old_id, wxString new_id) {
     if (changed) {
         wxCommandEvent* evt = new wxCommandEvent(EVT_SIGFLOWNODE_CHANGED);
         evt->SetClientData(sn);
-        m_parent->GetEventHandler()->QueueEvent(evt);
+        m_parent->QueueEvent(evt);
     }
 }
 
@@ -1507,7 +1527,7 @@ void SigFlowTree::PortConn(SecondNode* sn, wxString id, wxString conn) {
     if (found) {
         wxCommandEvent* evt = new wxCommandEvent(EVT_SIGFLOWNODE_CHANGED);
         evt->SetClientData(sn);
-        m_parent->GetEventHandler()->QueueEvent(evt);
+        m_parent->QueueEvent(evt);
     }
 }
 
@@ -1515,21 +1535,21 @@ void SigFlowTree::ReIdentifier(TopNode* tn, wxString id) {
     tn->identifier = id;
     wxCommandEvent* evt = new wxCommandEvent(EVT_SIGFLOWNODE_CHANGED);
     evt->SetClientData(tn);
-    m_parent->GetEventHandler()->QueueEvent(evt);
+    m_parent->QueueEvent(evt);
 }
 
 void SigFlowTree::ReIdentifier(SecondNode* sn, wxString id) {
     sn->identifier = id;
     wxCommandEvent* evt = new wxCommandEvent(EVT_SIGFLOWNODE_CHANGED);
     evt->SetClientData(sn);
-    m_parent->GetEventHandler()->QueueEvent(evt);
+    m_parent->QueueEvent(evt);
 }
 
 void SigFlowTree::ReIdentifier(SignalNode* sn, wxString id) {
     sn->identifier = id;
     wxCommandEvent* evt = new wxCommandEvent(EVT_SIGFLOWNODE_CHANGED);
     evt->SetClientData(sn);
-    m_parent->GetEventHandler()->QueueEvent(evt);
+    m_parent->QueueEvent(evt);
 }
 
 void SigFlowTree::RegisterNodeRecursive(SigTreeNode* node) {

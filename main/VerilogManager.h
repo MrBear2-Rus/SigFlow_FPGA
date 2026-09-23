@@ -46,10 +46,10 @@ public:
     VerilogManager(SigTextEditor* stc, SigFlowTree* tree, TSParser* parser);
     ~VerilogManager();
     void ClearFileNode();
-    bool SetFileNode(FileNode* n, std::unordered_map<SigTreeNode*, std::tuple<int, int>> map);
+    bool SetFileNode(FileNode* n, std::unordered_map<std::uint64_t, std::tuple<int, int>> map);
 
-    void CollectBlocks(std::unordered_map<SigTreeNode*, std::tuple<int, int>>& map);
-    void AppendBlocks(std::unordered_map<SigTreeNode*, std::tuple<int, int>>& map);
+    void CollectBlocks(std::unordered_map<std::uint64_t, std::tuple<int, int>>& map);
+    void AppendBlocks(std::unordered_map<std::uint64_t, std::tuple<int, int>>& map);
 
     void AddBlock(int startline, int endline, SigTreeNode* node);
     Block* AddBreakBlock(int startline, int endline);

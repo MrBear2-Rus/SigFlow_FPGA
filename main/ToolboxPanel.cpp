@@ -1,6 +1,5 @@
 //﻿#include "ToolboxPanel.h"
 #include "ToolboxPanel.h"
-#include "ToolboxModel.h"
 #include <wx/artprov.h>
 #include <wx/dnd.h>
 #include <wx/treectrl.h>

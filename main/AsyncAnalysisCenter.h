@@ -10,8 +10,6 @@
 #include <set>
 #include <map>
 
-#include <slang/driver/Driver.h>
-
 
 struct LintResult {
     std::vector<BlockInfo> block_infos;
@@ -19,15 +17,6 @@ struct LintResult {
     std::vector<int> line_depth;
     std::vector<Stability> line_status;
     std::vector<int> stable_lines;
-};
-
-
-struct SlangProject {
-    std::unique_ptr<slang::driver::Driver> driver;
-    // 这里的 vector 会跟随 bundle 一起存在，保证内存不过期
-    std::vector<std::string> persistentFiles;
-    std::vector<std::string> persistentIncludes;
-    std::vector<std::string> persistentTops;
 };
 
 
@@ -55,11 +44,6 @@ protected:
     virtual wxThread::ExitCode Entry() override;
 
 private:
-    std::unique_ptr<SlangProject> LoadProject(const wxString& projectPath);
-
-
-    
-
     wxEvtHandler* m_parentHandler;  // 接收事件的 UI 窗口句柄
     // 用 wxString 保存：赋给 std::string 会走 locale 转换（Windows 上变 ANSI），
     // 路径/代码里的非 ASCII 字符会被破坏。真正需要字节时再显式 ToUTF8()。

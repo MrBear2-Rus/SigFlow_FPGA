@@ -28,11 +28,16 @@ public:
 
     void SetSimulationBusy(bool busy);
 
+    // P1-8：Toolchain Backends 子菜单（懒构建：Help 菜单打开时按当前插件列表填充）。
+    void RebuildToolchainBackendsMenu();
+
 private:
     MainFrame* m_owner;
     wxFileHistory m_fileHistory;
 
     wxMenu* m_windowMenu;        // 保存指针，方便重建
+    wxMenu* m_helpMenu;          // P1-8：Help 菜单
+    wxMenu* m_helpBackendsMenu;  // P1-8：Toolchain Backends 子菜单
     wxString m_curDocTitle;      // 当前文档标题（不含路径）
 
     /* 六大菜单创建函数 */
@@ -137,5 +142,6 @@ private:
     void OnUserGuide(wxCommandEvent&);
     void OnLibraryRef(wxCommandEvent&);
     void OnAbout(wxCommandEvent&);
+    void OnMenuOpen(wxMenuEvent&);          // P1-8：Help 打开时懒重建后端子菜单
     DECLARE_EVENT_TABLE()
 };

@@ -1,159 +1,71 @@
 #include "FpgaYosysScriptGenerator.h"
 
-#include <wx/filename.h>
+#include "YosysScriptGenerator.h"
+
+#include "platform/PlatformPaths.h"
 
 namespace {
 
-const FpgaYosysStrategyInfo kBaselineStrategy{
-    "baseline", "1.0", "Baseline"
-};
-const FpgaYosysStrategyInfo kDebugStrategy{
-    "debug", "1.0", "Debug"
-};
-const FpgaYosysStrategyInfo kResourceOptimizedStrategy{
-    "resource_optimized", "1.0", "Resource optimized"
-};
+const FpgaYosysStrategyInfo kBaselineStrategy{"baseline", "1.0", "Baseline"};
+const FpgaYosysStrategyInfo kDebugStrategy{"debug", "1.0", "Debug"};
+const FpgaYosysStrategyInfo kResourceOptimizedStrategy{"resource_optimized", "1.0", "Resource optimized"};
 
-bool IsValidVerilogIdentifier(const wxString& value)
-{
-    if (value.IsEmpty()) {
-        return false;
+eda::synth::YosysStrategy ToPluginStrategy(FpgaYosysSynthesisStrategy strategy) {
+    switch (strategy) {
+        case FpgaYosysSynthesisStrategy::Baseline:          return eda::synth::YosysStrategy::Baseline;
+        case FpgaYosysSynthesisStrategy::Debug:             return eda::synth::YosysStrategy::Debug;
+        case FpgaYosysSynthesisStrategy::ResourceOptimized: return eda::synth::YosysStrategy::ResourceOptimized;
     }
-
-    const wxChar first = value[0];
-    if (!(wxIsalpha(first) || first == '_')) {
-        return false;
-    }
-    for (const wxChar character : value) {
-        if (!(wxIsalnum(character) || character == '_' || character == '$')) {
-            return false;
-        }
-    }
-    return true;
-}
-
-bool NormalizeYosysPath(const wxString& path, wxString& normalizedPath, wxString& errorMessage)
-{
-    if (path.IsEmpty()) {
-        errorMessage = "A Yosys file path must not be empty.";
-        return false;
-    }
-    if (path.Find('\r') != wxNOT_FOUND || path.Find('\n') != wxNOT_FOUND ||
-        path.Find('"') != wxNOT_FOUND || path.Find(wxChar(0)) != wxNOT_FOUND) {
-        errorMessage = "A Yosys file path contains a forbidden control or quote character.";
-        return false;
-    }
-
-    wxFileName fileName(path);
-    if (!fileName.MakeAbsolute() || !fileName.Normalize(wxPATH_NORM_DOTS | wxPATH_NORM_ABSOLUTE) ||
-        !fileName.IsAbsolute()) {
-        errorMessage = "Unable to normalize Yosys file path: " + path;
-        return false;
-    }
-
-    normalizedPath = fileName.GetFullPath();
-    normalizedPath.Replace("\\", "/");
-    return true;
-}
-
-bool ValidateRequest(const FpgaYosysScriptRequest& request, wxString& errorMessage)
-{
-    if (request.sourceFiles.empty()) {
-        errorMessage = "At least one RTL source file is required.";
-        return false;
-    }
-    if (!IsValidVerilogIdentifier(request.topModule)) {
-        errorMessage = "The top module is not a valid Verilog identifier.";
-        return false;
-    }
-    if (!IsValidVerilogIdentifier(request.targetProfile.yosysFamily)) {
-        errorMessage = "The target profile has an invalid Yosys family.";
-        return false;
-    }
-    return true;
+    return eda::synth::YosysStrategy::Baseline;
 }
 
 } // namespace
 
-const FpgaYosysStrategyInfo& GetFpgaYosysStrategyInfo(FpgaYosysSynthesisStrategy strategy)
-{
+// P1-1：脚本生成逻辑已移入 InnerPlugin/eda-synth-yosys（wx-free）。
+// 本文件保留同签名的 wx 适配层，供旧调用点（MainFrame / fpga_flow_probe）在迁移期使用。
+const FpgaYosysStrategyInfo& GetFpgaYosysStrategyInfo(FpgaYosysSynthesisStrategy strategy) {
     switch (strategy) {
-    case FpgaYosysSynthesisStrategy::Baseline:
-        return kBaselineStrategy;
-    case FpgaYosysSynthesisStrategy::Debug:
-        return kDebugStrategy;
-    case FpgaYosysSynthesisStrategy::ResourceOptimized:
-        return kResourceOptimizedStrategy;
+        case FpgaYosysSynthesisStrategy::Baseline:          return kBaselineStrategy;
+        case FpgaYosysSynthesisStrategy::Debug:             return kDebugStrategy;
+        case FpgaYosysSynthesisStrategy::ResourceOptimized: return kResourceOptimizedStrategy;
     }
     return kBaselineStrategy;
 }
 
 bool ParseFpgaYosysSynthesisStrategy(const wxString& value,
-                                     FpgaYosysSynthesisStrategy& strategy)
-{
-    if (value == kBaselineStrategy.id) {
-        strategy = FpgaYosysSynthesisStrategy::Baseline;
-        return true;
+                                     FpgaYosysSynthesisStrategy& strategy) {
+    eda::synth::YosysStrategy parsed = eda::synth::YosysStrategy::Baseline;
+    if (!eda::synth::ParseStrategy(sigflow::platform::Utf8String(value), parsed)) {
+        return false;
     }
-    if (value == kDebugStrategy.id) {
-        strategy = FpgaYosysSynthesisStrategy::Debug;
-        return true;
-    }
-    if (value == kResourceOptimizedStrategy.id) {
-        strategy = FpgaYosysSynthesisStrategy::ResourceOptimized;
-        return true;
+    switch (parsed) {
+        case eda::synth::YosysStrategy::Baseline:          strategy = FpgaYosysSynthesisStrategy::Baseline; return true;
+        case eda::synth::YosysStrategy::Debug:             strategy = FpgaYosysSynthesisStrategy::Debug; return true;
+        case eda::synth::YosysStrategy::ResourceOptimized: strategy = FpgaYosysSynthesisStrategy::ResourceOptimized; return true;
     }
     return false;
 }
 
-FpgaYosysScriptResult FpgaYosysScriptGenerator::Generate(const FpgaYosysScriptRequest& request) const
-{
-    FpgaYosysScriptResult result;
-    if (!ValidateRequest(request, result.errorMessage)) {
-        return result;
-    }
-
-    wxString outputPath;
-    if (!NormalizeYosysPath(request.outputJsonPath, outputPath, result.errorMessage)) {
-        return result;
-    }
-
-    const FpgaYosysStrategyInfo& strategyInfo = GetFpgaYosysStrategyInfo(request.strategy);
-    wxString script = "# Generated by SigFlow.\n";
-    script += "# Strategy: " + strategyInfo.id + "@" + strategyInfo.version + "\n";
-    script += "# Target profile: " + request.targetProfile.id + "@" + request.targetProfile.version + "\n";
-
+FpgaYosysScriptResult FpgaYosysScriptGenerator::Generate(
+    const FpgaYosysScriptRequest& request) const {
+    eda::synth::YosysScriptRequest pluginRequest;
+    pluginRequest.sourceFiles.reserve(request.sourceFiles.size());
     for (const wxString& sourceFile : request.sourceFiles) {
-        wxString sourcePath;
-        if (!NormalizeYosysPath(sourceFile, sourcePath, result.errorMessage)) {
-            return result;
-        }
-        script += "read_verilog";
-        if (sourceFile.Lower().EndsWith(".sv")) {
-            script += " -sv";
-        }
-        script += " \"" + sourcePath + "\"\n";
+        pluginRequest.sourceFiles.push_back(sigflow::platform::Utf8String(sourceFile));
     }
+    pluginRequest.topModule = sigflow::platform::Utf8String(request.topModule);
+    pluginRequest.targetProfileId = sigflow::platform::Utf8String(request.targetProfile.id);
+    pluginRequest.targetProfileVersion = sigflow::platform::Utf8String(request.targetProfile.version);
+    pluginRequest.yosysFamily = sigflow::platform::Utf8String(request.targetProfile.yosysFamily);
+    pluginRequest.strategy = ToPluginStrategy(request.strategy);
+    pluginRequest.outputJsonPath = sigflow::platform::Utf8String(request.outputJsonPath);
 
-    script += "hierarchy -check -top " + request.topModule + "\n";
-    switch (request.strategy) {
-    case FpgaYosysSynthesisStrategy::Baseline:
-        break;
-    case FpgaYosysSynthesisStrategy::Debug:
-        script += "check\n";
-        break;
-    case FpgaYosysSynthesisStrategy::ResourceOptimized:
-        script += "opt_clean\n";
-        break;
-    }
-    script += "synth_gowin -family " + request.targetProfile.yosysFamily +
-              " -top " + request.topModule + "\n";
-    if (request.strategy == FpgaYosysSynthesisStrategy::Debug) {
-        script += "stat\n";
-    }
-    script += "write_json \"" + outputPath + "\"\n";
+    const eda::synth::YosysScriptResult pluginResult =
+        eda::synth::YosysScriptGenerator().Generate(pluginRequest);
 
-    result.success = true;
-    result.script = script;
+    FpgaYosysScriptResult result;
+    result.success = pluginResult.success;
+    result.script = wxString::FromUTF8(pluginResult.script.c_str());
+    result.errorMessage = wxString::FromUTF8(pluginResult.errorMessage.c_str());
     return result;
 }

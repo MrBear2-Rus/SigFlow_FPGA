@@ -1,0 +1,11 @@
+id: eda-program-openfpgaloader
+version: 1.0.0
+display_name: openFPGALoader Programmer
+vendor: SigFlow
+location: inner
+runtime: inprocess
+capabilities:
+  - program/openfpgaloader
+jobs:
+  - flash
+confirm: true

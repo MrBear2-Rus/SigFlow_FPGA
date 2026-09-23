@@ -54,7 +54,7 @@
     <ClCompile Include="MainFrame.cpp" />
     <ClCompile Include="MainMenuBar.cpp" />
     <ClCompile Include="PluginManager.cpp" />
-    <ClCompile Include="PluginStore.cpp" />
+    <ClCompile Include="Composer.cpp" />
     <ClCompile Include="ProjectStartWindow.cpp" />
     <ClCompile Include="ProjectTreePanel.cpp" />
     <ClCompile Include="HandyToolKit.cpp" />
@@ -66,7 +66,6 @@
     <ClCompile Include="SVGParser.cpp" />
     <ClCompile Include="TerminalController.cpp" />
     <ClCompile Include="TerminalCtrl.cpp" />
-    <ClCompile Include="ToolboxModel.cpp" />
     <ClCompile Include="ToolboxPanel.cpp" />
     <ClCompile Include="TreeSitterLinter.cpp" />
     <ClCompile Include="CanvasEventHandler.cpp" />
@@ -155,7 +154,7 @@
     <ClInclude Include="my_log.h" />
     <ClInclude Include="HandyToolKit.h" />
     <ClInclude Include="PluginManager.h" />
-    <ClInclude Include="PluginStore.h" />
+    <ClInclude Include="Composer.h" />
     <ClInclude Include="ProjectStartWindow.h" />
     <ClInclude Include="ProjectTreePanel.h" />
     <ClInclude Include="PropertyPanelBuilder.h" />
@@ -167,7 +166,6 @@
     <ClInclude Include="StatementSequence.h" />
     <ClInclude Include="TerminalController.h" />
     <ClInclude Include="TerminalCtrl.h" />
-    <ClInclude Include="ToolboxModel.h" />
     <ClInclude Include="ToolboxPanel.h" />
     <ClInclude Include="CanvasEventHandler.h" />
     <ClInclude Include="ToolStateMachine.h" />

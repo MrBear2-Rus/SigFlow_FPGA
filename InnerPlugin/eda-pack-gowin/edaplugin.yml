@@ -1,0 +1,10 @@
+id: eda-pack-gowin
+version: 1.0.0
+display_name: Apicula Gowin Packer
+vendor: SigFlow
+location: inner
+runtime: inprocess
+capabilities:
+  - pack/gowin
+jobs:
+  - pack

@@ -10,11 +10,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(SIGFLOW_MAIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/main")
 set(SIGFLOW_3RD_DIR "${CMAKE_CURRENT_SOURCE_DIR}/3rd")
 set(SIGFLOW_PLUGIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/plugin_sdk")
-# slang：预编译 SDK（回退用）与本地源码（推荐）
-set(SIGFLOW_SLANG_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/external/slang-sdk" CACHE PATH
-    "GCC-compatible slang prebuilt SDK root (fallback)")
-set(SIGFLOW_SLANG_SRC "${CMAKE_CURRENT_SOURCE_DIR}/external/slang-src" CACHE PATH
-    "slang source tree for a local (from-source) build")
 # wxWidgets：预编译根（回退用）与本地源码（推荐）
 set(SIGFLOW_WX_ROOT "${SIGFLOW_3RD_DIR}/wxWidgets-3.2.9" CACHE PATH
     "Prebuilt wxWidgets root (fallback)")
@@ -24,29 +19,17 @@ set(MINGW_ROOT "" CACHE PATH "MinGW installation root used for GCC runtime DLLs"
 
 # ---------------------------------------------------------------------------
 # 本地源码构建开关（双模式）：
-#   ON  + 源码存在 → 从本地源码编译 wxWidgets / slang（Win/Linux 同一套）
+#   ON  + 源码存在 → 从本地源码编译 wxWidgets（Win/Linux 同一套）
 #   ON  + 源码缺失 → 自动回退到预编译/系统
 #   OFF            → 一律用预编译/系统
 # ---------------------------------------------------------------------------
 option(SIGFLOW_USE_LOCAL_WX
     "Build wxWidgets from SIGFLOW_WX_SRC instead of prebuilt/system wx" ON)
-option(SIGFLOW_BUILD_SLANG_FROM_SOURCE
-    "Build slang from SIGFLOW_SLANG_SRC instead of the prebuilt SDK" OFF)
-option(SIGFLOW_SLANG_FETCH_DEPS
-    "Let slang fetch fmt/boost/tomlplusplus via FetchContent instead of requiring system libs" OFF)
-set(SIGFLOW_SLANG_DEP_URL_PREFIX "" CACHE STRING
-    "Base URL prefix for slang dependency FetchContent (e.g. https://gitclone.com/github.com/)")
 
 if(SIGFLOW_USE_LOCAL_WX AND EXISTS "${SIGFLOW_WX_SRC}/CMakeLists.txt")
     set(SIGFLOW_WX_LOCAL ON)
 else()
     set(SIGFLOW_WX_LOCAL OFF)
-endif()
-
-if(SIGFLOW_BUILD_SLANG_FROM_SOURCE AND EXISTS "${SIGFLOW_SLANG_SRC}/CMakeLists.txt")
-    set(SIGFLOW_SLANG_LOCAL ON)
-else()
-    set(SIGFLOW_SLANG_LOCAL OFF)
 endif()
 
 # ---------------------------------------------------------------------------
@@ -62,7 +45,6 @@ endif()
 
 if(WIN32)
     # ---- MinGW-w64 on Windows ----
-    set(SIGFLOW_SLANG_DIR "${SIGFLOW_SLANG_ROOT}")
     if(NOT SIGFLOW_WX_LOCAL)
         set(SIGFLOW_WX_DIR "${SIGFLOW_WX_ROOT}")
         set(SIGFLOW_WX_INCLUDE_DIR "${SIGFLOW_WX_DIR}/include")
@@ -82,14 +64,8 @@ if(WIN32)
                 "libraries, or enable -DSIGFLOW_USE_LOCAL_WX=ON.")
         endif()
     endif()
-    if(NOT SIGFLOW_SLANG_LOCAL AND NOT EXISTS "${SIGFLOW_SLANG_ROOT}/include/slang/ast/Compilation.h")
-        message(FATAL_ERROR
-            "GCC build requires a slang SDK with GCC-compatible libraries and headers, "
-            "or enable -DSIGFLOW_BUILD_SLANG_FROM_SOURCE=ON with a local slang source tree.")
-    endif()
 else()
     # ---- Linux / 其他 Unix ----
-    set(SIGFLOW_SLANG_DIR "${SIGFLOW_SLANG_ROOT}")
     set(SIGFLOW_WX_INCLUDE_DIR "")
     set(SIGFLOW_WX_CONFIG_DIR "")
     set(SIGFLOW_WX_LIB_DIR "")
@@ -101,12 +77,6 @@ else()
         include(${wxWidgets_USE_FILE})
     endif()
     find_package(Threads REQUIRED)
-
-    if(NOT SIGFLOW_SLANG_LOCAL AND NOT EXISTS "${SIGFLOW_SLANG_ROOT}/include/slang/ast/Compilation.h")
-        message(WARNING
-            "slang SDK headers not found under ${SIGFLOW_SLANG_ROOT}. Configure with "
-            "-DSIGFLOW_SLANG_ROOT=<linux slang SDK> or -DSIGFLOW_BUILD_SLANG_FROM_SOURCE=ON.")
-    endif()
 endif()
 
 # ---------------------------------------------------------------------------
@@ -132,38 +102,115 @@ else()
 endif()
 
 # ---------------------------------------------------------------------------
-# 本地源码构建 slang（推荐路径）
+# P2-6：slang 死链路已删除（`UpdateTreeFromSlang`/`AsyncAnalysisCenter::LoadProject` 移除），
+# 不再构建/链接 slang。`external/slang-src` 保留但不再参与构建。
 # ---------------------------------------------------------------------------
-if(SIGFLOW_SLANG_LOCAL)
-    message(STATUS "slang: building from local source ${SIGFLOW_SLANG_SRC}")
-    set(SLANG_INCLUDE_TOOLS OFF CACHE BOOL "" FORCE)
-    set(SLANG_INCLUDE_TESTS OFF CACHE BOOL "" FORCE)
-    set(SLANG_INCLUDE_EXAMPLES OFF CACHE BOOL "" FORCE)
-    set(SLANG_USE_MIMALLOC OFF CACHE BOOL "" FORCE)
-    # 依赖策略：默认用系统库；SIGFLOW_SLANG_FETCH_DEPS=ON 时改为 FetchContent（可配镜像前缀，先拉再编译）。
-    if(SIGFLOW_SLANG_FETCH_DEPS)
-        if(SIGFLOW_SLANG_DEP_URL_PREFIX)
-            set(SLANG_DEP_URL_PREFIX "${SIGFLOW_SLANG_DEP_URL_PREFIX}" CACHE STRING "" FORCE)
-        endif()
-    else()
-        set(SLANG_USE_SYSTEM_FMT ON CACHE BOOL "" FORCE)
-        set(SLANG_USE_SYSTEM_BOOST ON CACHE BOOL "" FORCE)
-        set(SLANG_USE_SYSTEM_TOMLPLUSPLUS ON CACHE BOOL "" FORCE)
-    endif()
-    set(SLANG_LIB_NAME "svlang" CACHE STRING "" FORCE)
-    add_subdirectory("${SIGFLOW_SLANG_SRC}" "${CMAKE_BINARY_DIR}/slang" EXCLUDE_FROM_ALL)
-endif()
 
-file(GLOB_RECURSE SIGFLOW_MAIN_SOURCES CONFIGURE_DEPENDS
-    "${SIGFLOW_MAIN_DIR}/*.cpp"
+# P0-7（R16）：显式源列表取代 file(GLOB_RECURSE)，消除 CMake/vcxproj 源集合漂移。
+set(SIGFLOW_MAIN_SOURCES
+    "${SIGFLOW_MAIN_DIR}/AsyncAnalysisCenter.cpp"
+    "${SIGFLOW_MAIN_DIR}/BuildProgressBar.cpp"
+    "${SIGFLOW_MAIN_DIR}/CanvasElement.cpp"
+    "${SIGFLOW_MAIN_DIR}/CanvasEventHandler.cpp"
+    "${SIGFLOW_MAIN_DIR}/CanvasModel.cpp"
+    "${SIGFLOW_MAIN_DIR}/CanvasNoteBook.cpp"
+    "${SIGFLOW_MAIN_DIR}/CanvasPanel.cpp"
+    "${SIGFLOW_MAIN_DIR}/CanvasTextElement.cpp"
+    "${SIGFLOW_MAIN_DIR}/cMain.cpp"
+    "${SIGFLOW_MAIN_DIR}/Composer.cpp"
+    "${SIGFLOW_MAIN_DIR}/debug/CaptureDecoder.cpp"
+    "${SIGFLOW_MAIN_DIR}/debug/DebugAcquisition.cpp"
+    "${SIGFLOW_MAIN_DIR}/debug/DebugBehaviorSummary.cpp"
+    "${SIGFLOW_MAIN_DIR}/debug/DebugContract.cpp"
+    "${SIGFLOW_MAIN_DIR}/debug/DebugContractConfigWindow.cpp"
+    "${SIGFLOW_MAIN_DIR}/debug/DebugFingerprint.cpp"
+    "${SIGFLOW_MAIN_DIR}/debug/DebugMappingBuilder.cpp"
+    "${SIGFLOW_MAIN_DIR}/debug/DebugNetlistValidator.cpp"
+    "${SIGFLOW_MAIN_DIR}/debug/DebugOverlayBuilder.cpp"
+    "${SIGFLOW_MAIN_DIR}/debug/DebugProtocol.cpp"
+    "${SIGFLOW_MAIN_DIR}/debug/DebugSession.cpp"
+    "${SIGFLOW_MAIN_DIR}/debug/FtdiTransport.cpp"
+    "${SIGFLOW_MAIN_DIR}/debug/PipeTransport.cpp"
+    "${SIGFLOW_MAIN_DIR}/debug/ReplayScenario.cpp"
+    "${SIGFLOW_MAIN_DIR}/debug/RootCauseGraph.cpp"
+    "${SIGFLOW_MAIN_DIR}/debug/SerialPortEnumerator.cpp"
+    "${SIGFLOW_MAIN_DIR}/debug/SerialTransport.cpp"
+    "${SIGFLOW_MAIN_DIR}/debug/TraceBridgeWindow.cpp"
+    "${SIGFLOW_MAIN_DIR}/debug/WaveformAligner.cpp"
+    "${SIGFLOW_MAIN_DIR}/debug/WaveformComparator.cpp"
+    "${SIGFLOW_MAIN_DIR}/fpga/ArtifactValidator.cpp"
+    "${SIGFLOW_MAIN_DIR}/fpga/CstValidator.cpp"
+    "${SIGFLOW_MAIN_DIR}/fpga/FpgaConstraint.cpp"
+    "${SIGFLOW_MAIN_DIR}/fpga/FpgaPackService.cpp"
+    "${SIGFLOW_MAIN_DIR}/fpga/FpgaPinBindingPanel.cpp"
+    "${SIGFLOW_MAIN_DIR}/fpga/FpgaPinData.cpp"
+    "${SIGFLOW_MAIN_DIR}/fpga/FpgaSynthesisJobsPanel.cpp"
+    "${SIGFLOW_MAIN_DIR}/fpga/FpgaToolWindow.cpp"
+    "${SIGFLOW_MAIN_DIR}/fpga/FpgaYosysLogParser.cpp"
+    "${SIGFLOW_MAIN_DIR}/fpga/FpgaYosysReport.cpp"
+    "${SIGFLOW_MAIN_DIR}/fpga/NextpnrExecutor.cpp"
+    "${SIGFLOW_MAIN_DIR}/fpga/NextpnrJob.cpp"
+    "${SIGFLOW_MAIN_DIR}/fpga/NextpnrJobsPanel.cpp"
+    "${SIGFLOW_MAIN_DIR}/fpga/NextpnrLogParser.cpp"
+    "${SIGFLOW_MAIN_DIR}/fpga/NextpnrReport.cpp"
+    "${SIGFLOW_MAIN_DIR}/FpgaSynthesisJob.cpp"
+    "${SIGFLOW_MAIN_DIR}/FpgaYosysExecutor.cpp"
+    "${SIGFLOW_MAIN_DIR}/FpgaYosysRuntime.cpp"
+    "${SIGFLOW_MAIN_DIR}/FpgaYosysScriptGenerator.cpp"
+    "${SIGFLOW_MAIN_DIR}/HandyToolKit.cpp"
+    "${SIGFLOW_MAIN_DIR}/jobs/JobRegistry.cpp"
+    "${SIGFLOW_MAIN_DIR}/jobs/JobService.cpp"
+    "${SIGFLOW_MAIN_DIR}/jobs/PlatformProcess.cpp"
+    "${SIGFLOW_MAIN_DIR}/jobs/Sha256.cpp"
+    "${SIGFLOW_MAIN_DIR}/jobs/ToolJobs.cpp"
+    "${SIGFLOW_MAIN_DIR}/MainFrame.cpp"
+    "${SIGFLOW_MAIN_DIR}/MainMenuBar.cpp"
+    "${SIGFLOW_MAIN_DIR}/parse_progress.cpp"
+    "${SIGFLOW_MAIN_DIR}/platform/DynamicLibrary.cpp"
+    "${SIGFLOW_MAIN_DIR}/platform/LocalPipe.cpp"
+    "${SIGFLOW_MAIN_DIR}/platform/SerialEnumerator.cpp"
+    "${SIGFLOW_MAIN_DIR}/platform/SerialPort.cpp"
+    "${SIGFLOW_MAIN_DIR}/platform/SimToolchain.cpp"
+    "${SIGFLOW_MAIN_DIR}/PluginManager.cpp"
+    "${SIGFLOW_MAIN_DIR}/ProjectStartWindow.cpp"
+    "${SIGFLOW_MAIN_DIR}/ProjectTreePanel.cpp"
+    "${SIGFLOW_MAIN_DIR}/PropertyPanelBuilder.cpp"
+    "${SIGFLOW_MAIN_DIR}/SFNPropertyPanel.cpp"
+    "${SIGFLOW_MAIN_DIR}/SigFlowTreePanel.cpp"
+    "${SIGFLOW_MAIN_DIR}/SigTextEditor.cpp"
+    "${SIGFLOW_MAIN_DIR}/SigTree.cpp"
+    "${SIGFLOW_MAIN_DIR}/Simulation/SimMainGenerator.cpp"
+    "${SIGFLOW_MAIN_DIR}/Simulation/SimulationEngine.cpp"
+    "${SIGFLOW_MAIN_DIR}/Simulation/StimulusParser.cpp"
+    "${SIGFLOW_MAIN_DIR}/Simulation/TimelineGenerator.cpp"
+    "${SIGFLOW_MAIN_DIR}/SVGParser.cpp"
+    "${SIGFLOW_MAIN_DIR}/TerminalController.cpp"
+    "${SIGFLOW_MAIN_DIR}/TerminalCtrl.cpp"
+    "${SIGFLOW_MAIN_DIR}/ToolboxPanel.cpp"
+    "${SIGFLOW_MAIN_DIR}/ToolStateMachine.cpp"
+    "${SIGFLOW_MAIN_DIR}/trace/TraceCache.cpp"
+    "${SIGFLOW_MAIN_DIR}/trace/TraceMemoryBudget.cpp"
+    "${SIGFLOW_MAIN_DIR}/trace/TraceQueryService.cpp"
+    "${SIGFLOW_MAIN_DIR}/trace/TraceSidecarIndex.cpp"
+    "${SIGFLOW_MAIN_DIR}/trace/VcdLazyTraceSource.cpp"
+    "${SIGFLOW_MAIN_DIR}/trace/WaveformBackendTraceSource.cpp"
+    "${SIGFLOW_MAIN_DIR}/TreeSitterLinter.cpp"
+    "${SIGFLOW_MAIN_DIR}/VerilogManager.cpp"
+    "${SIGFLOW_MAIN_DIR}/VerilogStructuring.cpp"
+    "${SIGFLOW_MAIN_DIR}/wave/TraceViewPanel.cpp"
+    "${SIGFLOW_MAIN_DIR}/wave/WaveAnalysis.cpp"
+    "${SIGFLOW_MAIN_DIR}/wave/WaveCompareHub.cpp"
+    "${SIGFLOW_MAIN_DIR}/wave/WaveformGLCanvas.cpp"
+    "${SIGFLOW_MAIN_DIR}/wave/WaveformGLRenderer.cpp"
+    "${SIGFLOW_MAIN_DIR}/wave/WaveformMiniMap.cpp"
+    "${SIGFLOW_MAIN_DIR}/wave/WaveformRenderData.cpp"
+    "${SIGFLOW_MAIN_DIR}/wave/WaveformTextLayer.cpp"
+    "${SIGFLOW_MAIN_DIR}/wave/WaveformView.cpp"
+    "${SIGFLOW_MAIN_DIR}/wave/WavePatternSearch.cpp"
+    "${SIGFLOW_MAIN_DIR}/wave/WaveSession.cpp"
+    "${SIGFLOW_MAIN_DIR}/wave/WaveUartLane.cpp"
+    "${SIGFLOW_MAIN_DIR}/Wire.cpp"
 )
-list(FILTER SIGFLOW_MAIN_SOURCES EXCLUDE REGEX "/research/")
-list(FILTER SIGFLOW_MAIN_SOURCES EXCLUDE REGEX "/x64/")
-list(FILTER SIGFLOW_MAIN_SOURCES EXCLUDE REGEX "/bin/")
-list(FILTER SIGFLOW_MAIN_SOURCES EXCLUDE REGEX "/archive/")
-list(FILTER SIGFLOW_MAIN_SOURCES EXCLUDE REGEX "/Simulation/sc_time_stub\\.cpp$")
-list(FILTER SIGFLOW_MAIN_SOURCES EXCLUDE REGEX "/SFNodePropertyPanel\\.cpp$")
-list(FILTER SIGFLOW_MAIN_SOURCES EXCLUDE REGEX "/WavePanel\\.cpp$")
 
 set(SIGFLOW_THIRD_PARTY_SOURCES
     "${SIGFLOW_3RD_DIR}/json/jsoncpp.cpp"
@@ -191,15 +238,6 @@ target_include_directories(sigflow PRIVATE
     "${SIGFLOW_3RD_DIR}/tree-sitter-verilog/src"
     "${SIGFLOW_3RD_DIR}/nlohmann"
 )
-
-if(SIGFLOW_SLANG_LOCAL)
-    target_include_directories(sigflow PRIVATE
-        "${SIGFLOW_SLANG_SRC}/include"
-        "${SIGFLOW_SLANG_SRC}/external"      # vendored boost_unordered/expected 等 shim
-        "${CMAKE_BINARY_DIR}/slang/source")   # slang 构建期生成的 slang_export.h 等
-else()
-    target_include_directories(sigflow PRIVATE "${SIGFLOW_SLANG_DIR}/include")
-endif()
 
 if(WIN32 AND NOT SIGFLOW_WX_LOCAL)
     target_include_directories(sigflow PRIVATE
@@ -257,24 +295,6 @@ else()
     else()
         message(WARNING "OpenGL not found; waveform GL rendering may fail to link on Linux.")
     endif()
-endif()
-
-if(SIGFLOW_SLANG_LOCAL)
-    target_link_libraries(sigflow PRIVATE slang::slang)
-elseif(WIN32)
-    find_library(SIGFLOW_SLANG_LIBRARY NAMES svlang slang
-        PATHS "${SIGFLOW_SLANG_ROOT}" "${SIGFLOW_SLANG_ROOT}/lib"
-        NO_DEFAULT_PATH REQUIRED)
-    target_link_libraries(sigflow PRIVATE "${SIGFLOW_SLANG_LIBRARY}")
-else()
-    find_library(SIGFLOW_SLANG_LIBRARY NAMES svlang slang
-        PATHS "${SIGFLOW_SLANG_DIR}/lib" "${SIGFLOW_SLANG_DIR}")
-    if(NOT SIGFLOW_SLANG_LIBRARY)
-        message(WARNING
-            "libslang/svlang not found. Configure with -DSIGFLOW_SLANG_LIBRARY=<path> "
-            "or install slang before building.")
-    endif()
-    target_link_libraries(sigflow PRIVATE ${SIGFLOW_SLANG_LIBRARY})
 endif()
 
 if(WIN32)
@@ -364,6 +384,74 @@ if(WIN32 AND MINGW_ROOT)
         endif()
     endforeach()
 endif()
+
+# ---------------------------------------------------------------------------
+# Harness P0：核心↔插件编译期契约（独立于 sigflow 目标的源集合）
+#   eda_api  —— header-only 契约（include/eda/api）INTERFACE target
+#   eda_core —— 最小内核静态库（Logger / BuildInfo）
+# ---------------------------------------------------------------------------
+add_library(eda_api INTERFACE)
+target_include_directories(eda_api INTERFACE
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${SIGFLOW_3RD_DIR}"
+)
+target_compile_features(eda_api INTERFACE cxx_std_20)
+
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/EdaPlugin.cmake")
+add_subdirectory(core)
+add_subdirectory(InnerPlugin/eda-synth-yosys)
+add_subdirectory(InnerPlugin/eda-pnr-nextpnr)
+add_subdirectory(InnerPlugin/eda-pack-gowin)
+add_subdirectory(InnerPlugin/eda-program-openfpgaloader)
+add_subdirectory(InnerPlugin/eda-sim-verilator)
+add_subdirectory(InnerPlugin/eda-target-tangnano9k)
+add_subdirectory(InnerPlugin/eda-cst-gowin-cst)
+add_subdirectory(InnerPlugin/eda-wave-vcd)
+add_subdirectory(InnerPlugin/eda-lib-basic)
+
+# P0-8：主程序复用核心库（Composer 使用 eda::PluginHost）。
+target_include_directories(sigflow PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/core/src")
+target_link_libraries(sigflow PRIVATE eda_core)
+# P1-1：迁移期 main/ 的 wx 适配层调用插件；后续 P1-8 由 IJobService 取代。
+target_include_directories(sigflow PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/InnerPlugin/eda-synth-yosys/include")
+target_link_libraries(sigflow PRIVATE eda-synth-yosys)
+# P1-2：迁移期 main/ 的 nextpnr 日志/报告 wx 适配层调用插件。
+target_include_directories(sigflow PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/InnerPlugin/eda-pnr-nextpnr/include")
+target_link_libraries(sigflow PRIVATE eda-pnr-nextpnr)
+# P1-3：迁移期 main/ 的 pack 记账 wx 适配层调用插件。
+target_include_directories(sigflow PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/InnerPlugin/eda-pack-gowin/include")
+target_link_libraries(sigflow PRIVATE eda-pack-gowin)
+# P1-5：迁移期 main/ 的目标 profile 解析调用插件。
+target_include_directories(sigflow PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/InnerPlugin/eda-target-tangnano9k/include")
+target_link_libraries(sigflow PRIVATE eda-target-tangnano9k)
+# P1-6：迁移期 main/ 的约束模型/校验 wx 适配层调用插件。
+target_include_directories(sigflow PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/InnerPlugin/eda-cst-gowin-cst/include")
+target_link_libraries(sigflow PRIVATE eda-cst-gowin-cst)
+# P1-4：迁移期 main/ 的仿真模型/生成器 wx 适配层调用插件。
+target_include_directories(sigflow PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/InnerPlugin/eda-sim-verilator/include")
+target_link_libraries(sigflow PRIVATE eda-sim-verilator)
+# P1-8：插件注册锚点（eda_plugin_force_link_*）需要所有官方插件库参与链接，
+# 否则静态自注册 TU 被链接器丢弃，RegisterBuiltins 为空。
+target_include_directories(sigflow PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/InnerPlugin/eda-program-openfpgaloader/include")
+target_link_libraries(sigflow PRIVATE eda-program-openfpgaloader)
+target_include_directories(sigflow PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/InnerPlugin/eda-wave-vcd/include")
+target_link_libraries(sigflow PRIVATE eda-wave-vcd)
+target_include_directories(sigflow PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/InnerPlugin/eda-lib-basic/include")
+target_link_libraries(sigflow PRIVATE eda-lib-basic)
+# P1-5：目标 profile / 引脚库 JSON 随可执行文件分发。
+add_custom_command(TARGET sigflow POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_CURRENT_SOURCE_DIR}/main/fpga/target-profiles"
+        "$<TARGET_FILE_DIR:sigflow>/target-profiles")
 
 option(SIGFLOW_BUILD_TESTS "Build the jobs-layer smoke tests" ON)
 option(SIGFLOW_STRICT_WARNINGS
@@ -504,8 +592,14 @@ else()
     elseif(_sigflow_wx_webrequest STREQUAL "unknown")
         set(_deepseek_reason
             "无法定位 wx/setup.h，无法判定 wxWebRequest（可 -DSIGFLOW_BUILD_DEEPSEEK_PLUGIN=ON 试编）")
+    elseif(_sigflow_wx_webrequest STREQUAL "1")
+        set(_deepseek_reason
+            "缓存中记录为 OFF（当前环境其实已具备条件）：用 "
+            "-U SIGFLOW_BUILD_DEEPSEEK_PLUGIN 清除后重新配置，或 -DSIGFLOW_BUILD_DEEPSEEK_PLUGIN=ON")
     else()
-        set(_deepseek_reason "未知")
+        set(_deepseek_reason
+            "未知（curl=${CURL_FOUND}, wxUSE_WEBREQUEST=${_sigflow_wx_webrequest}, "
+            "setup=${_sigflow_wx_setup}）")
     endif()
     message(STATUS "[edition] ${SIGFLOW_EDITION}（DeepSeek 插件未装配：${_deepseek_reason}）")
 endif()

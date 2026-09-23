@@ -2,6 +2,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cstddef>
 #include <string>
 #include <vector>
 #include <memory>
@@ -9,8 +10,8 @@
 #include <map>
 #include <unordered_map>
 #include <queue>
+#include <type_traits>
 #include <tree_sitter/api.h>
-#include <slang/ast/Compilation.h>
 #include <wx/event.h>
 
 #include "StatementSequence.h"
@@ -21,8 +22,13 @@ wxDECLARE_EVENT(EVT_SIGFLOWNODE_ADD, wxCommandEvent);
 wxDECLARE_EVENT(EVT_SIGFLOWNODE_DEL, wxCommandEvent);
 wxDECLARE_EVENT(EVT_SIGFLOWNODE_CHANGED, wxCommandEvent);
 
-class MainFrame;
 class AlwaysStatement;
+
+// P2-1a：检测类型是否带 uid 成员（供 Arena 在分配时赋稳定标识）。
+template <typename T, typename = void>
+struct HasUidMember : std::false_type {};
+template <typename T>
+struct HasUidMember<T, std::void_t<decltype(std::declval<T&>().uid)>> : std::true_type {};
 
 // ====================  Arena  ====================
 // 以 placement new 在块内存上构造对象。因为对象不是 operator new 分配的，
@@ -35,6 +41,8 @@ class Arena {
     size_t blockSize = 1 << 20; // 1MB
     char* cur = nullptr;
     size_t remaining = 0;
+    // P2-1a：单调 uid 分配（不随 reset 归零，避免与历史引用冲突）。
+    std::uint64_t nextUid_ = 1;
 
 public:
     Arena() = default;
@@ -61,6 +69,10 @@ public:
     T* make(Args&&... args) {
         void* mem = allocate(sizeof(T), alignof(T));
         T* object = new (mem) T(std::forward<Args>(args)...);
+        // 带 uid 成员的类型（SigTreeNode 及其派生）在分配时获得唯一标识。
+        if constexpr (HasUidMember<T>::value) {
+            object->uid = nextUid_++;
+        }
         destructors.emplace_back(static_cast<void*>(object),
                                  [](void* p) { static_cast<T*>(p)->~T(); });
         return object;
@@ -151,6 +163,9 @@ private:
 
 public:
     SigTreeNodeType type;
+    // P2-1a：稳定节点标识（Arena 单调分配；Clone 经拷贝构造复制 uid）。
+    // 供画布 DesignNodeRef 与 outMap 使用，不改变同步算法。
+    std::uint64_t uid = 0;
 
     SigTreeNode() = default;
     SigTreeNode(SigTreeNodeType t) : type(t) {};
@@ -420,7 +435,8 @@ public:
 // ====================  SigFlowTree  ====================
 class SigFlowTree {
 public:
-    MainFrame* m_parent;
+    // P2-1b：不再依赖 MainFrame（仅需一个事件处理器）；MainFrame 隐式转换为 wxEvtHandler*。
+    wxEvtHandler* m_parent;
 
     Arena arena;
     ProjectNode* root;
@@ -440,11 +456,16 @@ public:
     std::map<std::string, TopNode*> DefinitionTable;
     std::map<std::string, ModuleInstNode*> InstanceTable;
 
-    SigFlowTree(MainFrame* parent);
+    // P2-1a：稳定节点标识索引（uid → 节点）。ReindexUids 仅给缺失 uid 的节点分配，不改算法。
+    std::uint64_t nextUid = 1;
+    std::unordered_map<std::uint64_t, SigTreeNode*> uidIndex;
+    void ReindexUids();
+    SigTreeNode* NodeByUid(std::uint64_t uid) const;
+
+    SigFlowTree(wxEvtHandler* parent);
     ~SigFlowTree();
     void LoadProject(std::string projectPath);
-    void UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot, std::string& filePath, std::string& code, std::unordered_map<SigTreeNode*, std::tuple<int, int>>& outMap);
-    void UpdateTreeFromSlang(slang::ast::Compilation* compilation);
+    void UpdateTreeFromTS(TSTreeCursor* cursor, SigTreeNode* SigRoot, std::string& filePath, std::string& code, std::unordered_map<std::uint64_t, std::tuple<int, int>>& outMap);
     void ClearTree();
 
     // 子树管理

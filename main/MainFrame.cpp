@@ -19,6 +19,10 @@
 
 #include "platform/Log.h"
 #include "platform/PlatformPaths.h"
+#include "ISigPlugin.h"
+#include "eda-core/Toolchain.h"
+#include <eda/api/toolchain.hpp>
+#include <filesystem>
 
 using sigflow::platform::JoinPath;
 
@@ -318,79 +322,35 @@ bool LoadFpgaProjectOptions(const wxString& projectPath, FpgaProjectOptions& opt
 wxString FindFpgaTool(const wxString& configuredPath, const wxString& environmentVariable,
                       const wxString& executableName)
 {
+    // P0-6：工具发现链三合一（配置 → 随包 runtime → 环境变量 → PATH）统一由 eda::DefaultToolchain 实现。
+    eda::ToolQuery query;
+    query.name = sigflow::platform::Utf8String(executableName);
     if (!configuredPath.IsEmpty()) {
-        return wxFileExists(configuredPath) ? configuredPath : wxString();
+        query.configuredPath = sigflow::platform::Utf8String(configuredPath);
+    }
+    if (!environmentVariable.IsEmpty()) {
+        query.environmentVariables.push_back(sigflow::platform::Utf8String(environmentVariable));
+    }
+    query.searchPath = true;
+
+    const wxString runtimeRoot = sigflow::platform::FpgaToolRuntimeRoot();
+    if (!runtimeRoot.IsEmpty()) {
+        query.bundledRoots.push_back(sigflow::platform::Utf8Path(runtimeRoot));
+        query.bundledSubdirectories = {
+            std::filesystem::path("yosys") / "bin",
+            std::filesystem::path("nextpnr") / "bin",
+            std::filesystem::path("apicula") / "Scripts",
+            std::filesystem::path("apicula") / "bin",
+            std::filesystem::path("openfpgaloader") / "bin",
+        };
     }
 
-    const wxString fileName = sigflow::platform::WithExecutableSuffix(executableName);
-
-    // Support both IDE launches from the repository and direct launches from bin/x64/<config>.
-    const wxString executableDirectory =
-        wxFileName(wxStandardPaths::Get().GetExecutablePath()).GetPath();
-    for (const wxString& startDirectory : { wxGetCwd(), executableDirectory }) {
-        // 用 WalkUpDirectories 做上溯：到达根目录即停止。
-        // 旧写法 `for (depth < 6) { ...; directory.RemoveLastDir(); }` 在路径层级
-        // 少于 6 层时会越过根目录，触发 wxArrayString 越界断言（见 PlatformPaths.h）。
-        const wxString bundled = sigflow::platform::WalkUpDirectories(
-            startDirectory, 6, [&](const wxString& directory) -> wxString {
-                const wxUniChar separator = sigflow::platform::PathSeparator();
-                const wxString bundledToolRoot =
-                    directory + separator + "external" + separator + "fpga-tools" + separator + "runtime";
-                // apicula 的脚本目录随平台而异：Windows 的 venv 用 Scripts/，
-                // Linux 的 venv 用 bin/ —— 两处都要找，否则 Linux 上源码构建出来的
-                // gowin_pack 永远找不到。
-                const std::vector<wxString> bundledCandidates = {
-                    bundledToolRoot + separator + "yosys" + separator + "bin" + separator + fileName,
-                    bundledToolRoot + separator + "nextpnr" + separator + "bin" + separator + fileName,
-                    bundledToolRoot + separator + "apicula" + separator + "Scripts" + separator + fileName,
-                    bundledToolRoot + separator + "apicula" + separator + "bin" + separator + fileName,
-                    bundledToolRoot + separator + "openfpgaloader" + separator + "bin" + separator + fileName,
-                };
-                for (const wxString& candidate : bundledCandidates) {
-                    if (wxFileExists(candidate)) {
-                        return candidate;
-                    }
-                }
-                return wxString();
-            });
-        if (!bundled.IsEmpty()) {
-            return bundled;
-        }
+    eda::DefaultToolchain toolchain;
+    const eda::ToolResolution resolution = toolchain.Resolve(query);
+    if (resolution.found) {
+        return wxString::FromUTF8(sigflow::platform::PathToUtf8(resolution.path).c_str());
     }
-
-    wxString environmentPath;
-    if (wxGetEnv(environmentVariable, &environmentPath) && !environmentPath.IsEmpty()) {
-        if (wxFileExists(environmentPath)) {
-            return environmentPath;
-        }
-        if (environmentPath.Find('\\') == wxNOT_FOUND && environmentPath.Find('/') == wxNOT_FOUND) {
-            const wxString environmentFileName = sigflow::platform::WithExecutableSuffix(environmentPath);
-            if (wxFileExists(environmentFileName)) {
-                return environmentFileName;
-            }
-        }
-        return wxString();
-    }
-
-    wxString pathVariable;
-    if (!wxGetEnv("PATH", &pathVariable)) {
-        return wxString();
-    }
-
-    for (wxString directory : sigflow::platform::SplitPathVariable(pathVariable)) {
-        directory.Trim(true).Trim(false);
-        if (directory.StartsWith("\"") && directory.EndsWith("\"")) {
-            directory = directory.Mid(1, directory.length() - 2);
-        }
-        if (directory.IsEmpty()) {
-            continue;
-        }
-
-        const wxString candidate = directory + sigflow::platform::PathSeparator() + fileName;
-        if (wxFileExists(candidate)) {
-            return candidate;
-        }
-    }
+    // 保持原有契约：找不到返回空串（调用方检查 IsEmpty）。
     return wxString();
 }
 
@@ -557,7 +517,7 @@ MainFrame::MainFrame()
     m_traceBridgeWindow(nullptr),
     m_debugContractConfigWindow(nullptr),
     m_terminalCtrl(nullptr),
-    m_pluginMgr(nullptr)
+    m_composer(nullptr)
 {
     // 图标（wxApp 初始化时已自动注册全部 image handlers，不要再手动调用 wxInitAllImageHandlers）
     wxBitmapBundle svgIcon = wxBitmapBundle::FromSVGFile(sigflow::platform::ResourcePath("res/svg_icons/icon.svg"), wxSize(24, 24));
@@ -676,7 +636,7 @@ MainFrame::MainFrame()
         wxString projectPath = evt.GetString();
 
         // 原有逻辑（别动）
-        ISigPlugin* p = m_pluginMgr->GetPlugin("DeepSeek_Assistant");
+        ISigPlugin* p = m_composer ? m_composer->LegacyAssistant() : nullptr;
         if (p) {
             p->SetProjectRoot(std::string(projectPath.ToUTF8().data()));
         }
@@ -786,8 +746,8 @@ MainFrame::MainFrame()
     sideBar->SetArtProvider(new MyCustomToolBarArt());
 
 
-    // 插件加载
-    m_pluginMgr = new PluginManager();
+    // 插件加载（P0-8：交由 Composer 组合器统一发现/加载/诊断）
+    m_composer = new sigflow::Composer();
 
     // 1. 获取当前 main.exe 的绝对路径
     wxString exePath = wxStandardPaths::Get().GetExecutablePath();
@@ -799,18 +759,15 @@ MainFrame::MainFrame()
     // 打印出来确认一下（可选）
     m_terminalCtrl->PrintOutput("Plugin Directory: " + pluginDir);
 
-    // 4. 加载插件
-    m_pluginMgr->LoadPlugins(sigflow::platform::Utf8String(pluginDir));
+    // 4. 加载插件（legacy ISigPlugin + 新契约 IPluginInteraction），输出诊断报告
+    const std::string composerReport = m_composer->LoadPlugins(
+        sigflow::platform::Utf8String(pluginDir),
+        sigflow::platform::Utf8String(exeDir),
+        sigflow::platform::Utf8String(m_currentProjectPath));
+    m_terminalCtrl->PrintOutput(wxString::FromUTF8(composerReport));
 
-    // 获取所有插件列表，准备在菜单或工具栏显示
-    const auto& plugins = m_pluginMgr->GetAllPlugins();
-    for (auto* p : plugins) {
-        m_terminalCtrl->PrintOutput(p->GetName() + " Loaded\n");
-    }
-
-    ISigPlugin* pDeepSeek = m_pluginMgr->GetPlugin("DeepSeek_Assistant");
-    
     // 如果插件存在，优先把当前打开的项目路径传递给插件（若 ProjectTreePanel 已加载项目）
+    ISigPlugin* pDeepSeek = m_composer ? m_composer->LegacyAssistant() : nullptr;
     if (pDeepSeek) {
         wxString projRoot = m_projectTreePanel->GetProjectRoot();
         if (!projRoot.IsEmpty()) {
@@ -1310,7 +1267,7 @@ void MainFrame::DoFileOpenProject() {
                         // 4. 更新数据模型
                         // 注意：这里传入的是当前文件的路径 absPath1 和当前文件的代码 stdCode
                         //DumpTree(rootNode, stdCode, 0);
-                        std::unordered_map<SigTreeNode*, std::tuple<int, int>> map;
+                        std::unordered_map<std::uint64_t, std::tuple<int, int>> map;
                         sigTree->UpdateTreeFromTS(&cursor, sigTree->root, absPath1, stdCode, map);
                         maps[absPath1] = map;
                         // 清理 TS 局部资源
@@ -1323,6 +1280,8 @@ void MainFrame::DoFileOpenProject() {
                 // 不要在 for 循环内部 Refresh，否则文件多了会非常卡
                 
                 sigTree->LinkInstsWithDefs();
+                // P2-1a Step3：构建 uid 索引，供 outMap(uid 键) 在 SetFileNode/CollectBlocks 解析。
+                sigTree->ReindexUids();
                 sigTree->PrintTree();
             }
         }
@@ -1444,7 +1403,7 @@ void MainFrame::SetProjectDir(const wxString& projectDir)
                     // 4. 更新数据模型
                     // 注意：这里传入的是当前文件的路径 absPath1 和当前文件的代码 stdCode
                     DumpTree(rootNode, stdCode, 0);
-                    std::unordered_map<SigTreeNode*, std::tuple<int, int>> map;
+                    std::unordered_map<std::uint64_t, std::tuple<int, int>> map;
                     sigTree->UpdateTreeFromTS(&cursor, sigTree->root, absPath1, stdCode, map);
                     maps[absPath1] = map;
 
@@ -1459,6 +1418,8 @@ void MainFrame::SetProjectDir(const wxString& projectDir)
             // 不要在 for 循环内部 Refresh，否则文件多了会非常卡
 
             sigTree->LinkInstsWithDefs();
+            // P2-1a Step3：构建 uid 索引，供 outMap(uid 键) 在 SetFileNode/CollectBlocks 解析。
+            sigTree->ReindexUids();
             sigTree->PrintTree();
         }
     }
@@ -2269,7 +2230,7 @@ void MainFrame::OnOpenFileFromTree(wxCommandEvent& evt) {
     }
 
     const auto mapIt = maps.find(path);
-    const std::unordered_map<SigTreeNode*, std::tuple<int, int>> emptyMap;
+    const std::unordered_map<std::uint64_t, std::tuple<int, int>> emptyMap;
     if (!m_verilogMgr->SetFileNode(fn, mapIt != maps.end() ? mapIt->second : emptyMap)) {
         return;
     }
@@ -2549,6 +2510,62 @@ void MainFrame::KillAsyncToolProcess(long processId)
 void MainFrame::DoFpgaSynthesis()
 {
     ShowFpgaToolWindow(FpgaToolPage::Yosys);
+}
+
+// P1-8：工具链后端能力查询（UI 下拉/管理中心数据源；执行路径仍为 legacy）。
+std::vector<std::string> MainFrame::AvailableToolCapabilities() const {
+    return m_composer ? m_composer->Capabilities() : std::vector<std::string>{};
+}
+
+std::vector<eda::PluginInfo> MainFrame::ToolProviders(const std::string& capability) const {
+    return m_composer ? m_composer->Providers(capability) : std::vector<eda::PluginInfo>{};
+}
+
+eda::PluginInfo MainFrame::DefaultToolProvider(const std::string& capability) const {
+    return m_composer ? m_composer->DefaultProvider(capability) : eda::PluginInfo{};
+}
+
+void MainFrame::SetDefaultToolProvider(const std::string& capability,
+                                       const std::string& pluginId) {
+    sigflow::Composer::StoreDefaultProvider(capability, pluginId);
+}
+
+// P1-8：Help 菜单的 "Toolchain Backends" 子菜单（能力 → 后端 单选）。
+// 菜单 id 约定：wxID_HIGHEST + 3000 + n（见 MainMenuBar::OnToolchainBackend）。
+void MainFrame::BuildToolchainBackendsMenu(wxMenu* menu) {
+    if (menu == nullptr) return;
+    const std::vector<std::string> capabilities = AvailableToolCapabilities();
+    if (capabilities.empty()) {
+        menu->Append(wxID_ANY, wxT("(no toolchain backends found)"))->Enable(false);
+        return;
+    }
+    int counter = 0;
+    for (const std::string& capability : capabilities) {
+        const std::vector<eda::PluginInfo> providers = ToolProviders(capability);
+        if (providers.empty()) continue;
+        const eda::PluginInfo current = DefaultToolProvider(capability);
+        wxMenu* capabilityMenu = new wxMenu;
+        for (const eda::PluginInfo& provider : providers) {
+            const int menuId = wxID_HIGHEST + 3000 + counter;
+            ++counter;
+            wxString label = wxString::FromUTF8(provider.id.c_str());
+            if (!provider.version.empty()) {
+                label += wxString::Format(" (%s)", wxString::FromUTF8(provider.version.c_str()));
+            }
+            wxMenuItem* item = capabilityMenu->AppendRadioItem(menuId, label);
+            item->Check(provider.id == current.id);
+            // 绑定：切换该能力的默认后端（能力 id 通过事件字符串携带）。
+            const std::string cap = capability;
+            const std::string pid = provider.id;
+            Bind(wxEVT_MENU, [this, cap, pid](wxCommandEvent&) {
+                SetDefaultToolProvider(cap, pid);
+                SetStatusText(wxString::Format(
+                    "Default backend for %s set to %s",
+                    wxString::FromUTF8(cap.c_str()), wxString::FromUTF8(pid.c_str())));
+            }, menuId);
+        }
+        menu->AppendSubMenu(capabilityMenu, wxString::FromUTF8(capability.c_str()));
+    }
 }
 
 void MainFrame::DoTraceBridge()
@@ -3202,6 +3219,39 @@ void MainFrame::RunFpgaSynthesis()
         return;
     }
 
+    // P1-8：可选新路径——经核心 IJobService 提交综合（默认仍走 legacy）。
+    if (m_composer && sigflow::Composer::UseJobService()) {
+        std::string submitError;
+        eda::Json synthParams{
+            {"top_module", sigflow::platform::Utf8String(topModule)},
+            {"strategy", sigflow::platform::Utf8String(strategyInfo.id)},
+            {"target_profile", sigflow::platform::Utf8String(targetProfile.id)},
+            {"target_version", sigflow::platform::Utf8String(targetProfile.version)},
+            {"yosys_family", sigflow::platform::Utf8String(targetProfile.yosysFamily)}};
+        eda::Json sources = eda::Json::array();
+        for (const auto& source : sourceFiles) {
+            sources.push_back(sigflow::platform::Utf8String(source));
+        }
+        synthParams["source_files"] = sources;
+        const std::string jobId = m_composer->SubmitJob(
+            "synth", sigflow::platform::Utf8String(m_currentProjectPath), synthParams, false,
+            submitError);
+        if (jobId.empty()) {
+            wxMessageBox(wxString::FromUTF8(submitError.c_str()), "FPGA Synthesis",
+                         wxOK | wxICON_ERROR, this);
+            return;
+        }
+        m_activeYosysJobId = wxString::FromUTF8(jobId.c_str());
+        if (m_terminalCtrl) {
+            m_terminalCtrl->PrintOutput(
+                wxString::Format("[synth] submitted via IJobService: %s\n",
+                                 wxString::FromUTF8(jobId.c_str())));
+        }
+        SetStatusText(wxString::Format("Yosys submitted (job %s)",
+                                       wxString::FromUTF8(jobId.c_str())));
+        return;
+    }
+
     SynthesisJobRequest jobRequest;
     jobRequest.projectPath = m_currentProjectPath;
     jobRequest.sourceFiles = sourceFiles;
@@ -3684,6 +3734,37 @@ void MainFrame::RunFpgaRoute()
         }
     }
 
+    // P1-8：可选新路径——经核心 IJobService 提交布线（默认仍走 legacy）。
+    if (m_composer && sigflow::Composer::UseJobService()) {
+        std::string submitError;
+        eda::Json pnrParams{
+            {"top_module", sigflow::platform::Utf8String(topModule)},
+            {"netlist", sigflow::platform::Utf8String(yosysJson)},
+            {"device", sigflow::platform::Utf8String(targetProfile.device)},
+            {"family", sigflow::platform::Utf8String(targetProfile.family)},
+            {"cst", sigflow::platform::Utf8String(configuredCstPath)}};
+        const std::string jobId = m_composer->SubmitJob(
+            "pnr", sigflow::platform::Utf8String(m_currentProjectPath), pnrParams, false,
+            submitError);
+        if (jobId.empty()) {
+            wxMessageBox(wxString::FromUTF8(submitError.c_str()), "FPGA Place and Route",
+                         wxOK | wxICON_ERROR, this);
+            return;
+        }
+        m_activeNextpnrJobId = wxString::FromUTF8(jobId.c_str());
+        if (m_fpgaToolWindow) {
+            m_fpgaToolWindow->SetRouteActiveJob(m_activeNextpnrJobId);
+        }
+        if (m_terminalCtrl) {
+            m_terminalCtrl->PrintOutput(
+                wxString::Format("[pnr] submitted via IJobService: %s\n",
+                                 wxString::FromUTF8(jobId.c_str())));
+        }
+        SetStatusText(wxString::Format("nextpnr submitted (job %s)",
+                                       wxString::FromUTF8(jobId.c_str())));
+        return;
+    }
+
     // ── 创建 Nextpnr job ──
     NextpnrJob routeJob;
     wxString routeJobId;
@@ -4053,6 +4134,33 @@ void MainFrame::RunFpgaPack()
     jobRequest.arguments = arguments;
     jobRequest.workingDirectory = nextpnrDirectory;
 
+    // P1-8：可选新路径——经核心 IJobService 提交综合/布线/打包/烧录（默认仍走 legacy，
+    // 由 SIGFLOW_USE_JOB_SERVICE=1 启用；GUI 行为等价性验证通过后可改默认）。
+    if (m_composer && sigflow::Composer::UseJobService()) {
+        std::string submitError;
+        eda::Json packParams{
+            {"pnr_json", sigflow::platform::Utf8String(pnrJsonPath)},
+            {"device", sigflow::platform::Utf8String(targetProfile.family)},
+            {"output", sigflow::platform::Utf8String(bitstreamPath)},
+            {"gowin_pack_path", sigflow::platform::Utf8String(packExecutable)}};
+        const std::string jobId = m_composer->SubmitJob(
+            "pack", sigflow::platform::Utf8String(m_currentProjectPath), packParams, false,
+            submitError);
+        if (jobId.empty()) {
+            wxMessageBox(wxString::FromUTF8(submitError.c_str()), "FPGA Build .fs",
+                         wxOK | wxICON_ERROR, this);
+            return;
+        }
+        if (m_terminalCtrl) {
+            m_terminalCtrl->PrintOutput(
+                wxString::Format("[pack] submitted via IJobService: %s\n",
+                                 wxString::FromUTF8(jobId.c_str())));
+        }
+        SetStatusText(wxString::Format("Apicula gowin_pack submitted (job %s)",
+                                       wxString::FromUTF8(jobId.c_str())));
+        return;
+    }
+
     ToolJob packJob;
     wxString jobError;
     if (!PackJob().Submit(jobRequest, packJob, jobError)) {
@@ -4243,6 +4351,33 @@ void MainFrame::RunFpgaProgram(
     jobRequest.workingDirectory = workingDirectory;
     // UI 确认通过后，Job 层仍保留同一确认门；默认调用路径必须经过上面的对话框。
     jobRequest.requireConfirm = confirmProgramming;
+
+    // P1-8：可选新路径——经核心 IJobService 提交烧录（默认仍走 legacy）。
+    if (m_composer && sigflow::Composer::UseJobService()) {
+        std::string submitError;
+        eda::Json flashParams{
+            {"bitstream", sigflow::platform::Utf8String(bitstreamPath)},
+            {"board", sigflow::platform::Utf8String(targetProfile.programmerBoard)},
+            {"openfpgaloader_path", sigflow::platform::Utf8String(loaderExecutable)}};
+        const std::string jobId = m_composer->SubmitJob(
+            "flash", sigflow::platform::Utf8String(m_currentProjectPath), flashParams,
+            confirmProgramming, submitError);
+        if (jobId.empty()) {
+            wxMessageBox(wxString::FromUTF8(submitError.c_str()), "FPGA Program Board",
+                         wxOK | wxICON_ERROR, this);
+            finish(false, wxString::FromUTF8(submitError.c_str()));
+            return;
+        }
+        if (m_terminalCtrl) {
+            m_terminalCtrl->PrintOutput(
+                wxString::Format("[flash] submitted via IJobService: %s\n",
+                                 wxString::FromUTF8(jobId.c_str())));
+        }
+        SetStatusText(wxString::Format("openFPGALoader submitted (job %s)",
+                                       wxString::FromUTF8(jobId.c_str())));
+        finish(true, wxT("已提交烧录任务。"));
+        return;
+    }
 
     ToolJob flashJob;
     wxString jobError;

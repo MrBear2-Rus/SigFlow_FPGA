@@ -27,7 +27,7 @@
 
 #include "TerminalCtrl.h"
 
-#include "PluginManager.h"
+#include "Composer.h"
 
 class ToolBars;
 class CanvasNoteBook;
@@ -83,12 +83,12 @@ private:
     std::vector<std::shared_ptr<JobRunHandle>> m_jobRuns;
     std::vector<wxString> m_activeToolJobIds;
 
-    PluginManager* m_pluginMgr;
+    sigflow::Composer* m_composer;
 
     VerilogManager* m_verilogMgr;
     TSParser* m_parser;
 
-    std::map<wxString, std::unordered_map<SigTreeNode*, std::tuple<int, int>>> maps;
+    std::map<wxString, std::unordered_map<std::uint64_t, std::tuple<int, int>>> maps;
     void RefreshTitle();
     void ShowFpgaToolWindow(FpgaToolPage page);
     void RunFpgaSynthesis();
@@ -97,6 +97,8 @@ private:
     void RunFpgaProgram(const wxString& bitstreamPath,
                         std::function<void(bool, const wxString&)> completion = {},
                         bool confirmProgramming = true);
+
+    // P1-8：工具链后端能力查询（公开给 MainMenuBar 的能力选择子菜单）。
     void RunTraceBridgeCapture(
         const TraceBridgeCaptureRequest& request,
         std::function<void(bool, const wxString&)> completion = {});
@@ -105,7 +107,16 @@ private:
     // 声明事件处理函数
     void OnAnalysisComplete(wxThreadEvent& event);
 
-private:
+public:
+    // P1-8：Help 菜单的 "Toolchain Backends" 子菜单构建（动态；MainMenuBar 调用）。
+    void BuildToolchainBackendsMenu(wxMenu* menu);
+    // P1-8：工具链后端能力查询（供能力选择子菜单/插件管理中心使用）。
+    // 数据源为 Composer 的 eda::PluginHost；执行路径仍为 legacy（迁移中）。
+    std::vector<std::string> AvailableToolCapabilities() const;
+    std::vector<eda::PluginInfo> ToolProviders(const std::string& capability) const;
+    eda::PluginInfo DefaultToolProvider(const std::string& capability) const;
+    // P1-8：切换某能力的默认后端（持久化到应用配置）。
+    void SetDefaultToolProvider(const std::string& capability, const std::string& pluginId);
     bool SaveToFile(const wxString& filePath);
     wxString GenerateFileContent();
 

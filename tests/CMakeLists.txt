@@ -131,3 +131,15 @@ add_custom_command(TARGET fpga_flow_probe POST_BUILD
         "${CMAKE_CURRENT_SOURCE_DIR}/fpga_flow"
         "$<TARGET_FILE_DIR:fpga_flow_probe>/fpga_flow"
 )
+
+# ---------------------------------------------------------------------------
+# Harness P0 契约冒烟测试（无 GUI、无 wx/slang 依赖，仅 STL + nlohmann）
+# ---------------------------------------------------------------------------
+option(SIGFLOW_BUILD_CONTRACT_TESTS "Build the eda API contract smoke test" ON)
+if(SIGFLOW_BUILD_CONTRACT_TESTS)
+    add_subdirectory(contract)
+    add_subdirectory(plugins)
+endif()
+
+# P2 双向同步回归（非 GUI）
+add_subdirectory(ir)

@@ -122,7 +122,7 @@ void VerilogManager::OnTimer(wxTimerEvent&) {
             }
 
             TSTreeCursor cursor = ts_tree_cursor_new(fragmentRoot);
-            std::unordered_map<SigTreeNode*, std::tuple<int, int>> map;
+            std::unordered_map<std::uint64_t, std::tuple<int, int>> map;
 
             // 找到该文件对应的根节点开始同步
             SigTreeNode* fileNode = m_tree->GetFileNode(fp);
@@ -134,6 +134,9 @@ void VerilogManager::OnTimer(wxTimerEvent&) {
             ts_tree_cursor_delete(&cursor);
             ts_tree_delete(fragmentTree);
 
+            // P2-1a Step2：解析后为新建节点分配稳定 uid 并重建索引（仅赋标识，不改同步算法）。
+            m_tree->ReindexUids();
+
             refreshEditorState();
             return;
         }
@@ -141,7 +144,7 @@ void VerilogManager::OnTimer(wxTimerEvent&) {
     refreshEditorState();
 }
 
-bool VerilogManager::SetFileNode(FileNode* n, std::unordered_map<SigTreeNode*, std::tuple<int, int>> map){
+bool VerilogManager::SetFileNode(FileNode* n, std::unordered_map<std::uint64_t, std::tuple<int, int>> map){
     // 成功返回才允许调用者更新界面选择，防止打开失败时“树和编辑器不同步”。
     if (!n || !m_stc || !m_ts_parser) {
         return false;
@@ -175,7 +178,7 @@ bool VerilogManager::SetFileNode(FileNode* n, std::unordered_map<SigTreeNode*, s
 }
 
 
-void VerilogManager::CollectBlocks(std::unordered_map<SigTreeNode*, std::tuple<int, int>>& map) {
+void VerilogManager::CollectBlocks(std::unordered_map<std::uint64_t, std::tuple<int, int>>& map) {
     // 1. 清理旧的标记，防止多次解析后句柄堆积
     m_stc->MarkerDeleteAll(BLOCK_MARKER_ID);
     blocks.clear();
@@ -186,7 +189,7 @@ void VerilogManager::CollectBlocks(std::unordered_map<SigTreeNode*, std::tuple<i
 
     // 2. 为了保持 Print() 时的顺序性，建议先将 map 元素放入 vector 排序
     // 如果不关心顺序，可以直接执行第 3 步的循环
-    std::vector<std::pair<SigTreeNode*, std::tuple<int, int>>> sortedItems(map.begin(), map.end());
+    std::vector<std::pair<std::uint64_t, std::tuple<int, int>>> sortedItems(map.begin(), map.end());
 
     std::sort(sortedItems.begin(), sortedItems.end(), [](const auto& a, const auto& b) {
         return std::get<0>(a.second) < std::get<0>(b.second);
@@ -196,7 +199,8 @@ void VerilogManager::CollectBlocks(std::unordered_map<SigTreeNode*, std::tuple<i
     int maxLine = m_stc->GetLineCount() - 1;
 
     for (const auto& item : sortedItems) {
-        SigTreeNode* node = item.first;
+        SigTreeNode* node = m_tree ? m_tree->NodeByUid(item.first) : nullptr;
+        if (node == nullptr) continue;
         auto [startLine, endLine] = item.second;
 
         // 边界保护：确保行号不会超出当前编辑器的最大行
@@ -209,13 +213,15 @@ void VerilogManager::CollectBlocks(std::unordered_map<SigTreeNode*, std::tuple<i
     }
 }
 
-void VerilogManager::AppendBlocks(std::unordered_map<SigTreeNode*, std::tuple<int, int>>& map) {
+void VerilogManager::AppendBlocks(std::unordered_map<std::uint64_t, std::tuple<int, int>>& map) {
     // 1. 获取当前编辑器的最大行数，用于边界保护
     int maxLine = m_stc->GetLineCount() - 1;
     if (maxLine < 0) maxLine = 0;
 
-    // 2. 遍历传入的 map
-    for (auto const& [node, range] : map) {
+    // 2. 遍历传入的 map（键为节点 uid，经树解析为节点指针）
+    for (auto const& [uid, range] : map) {
+        SigTreeNode* node = m_tree ? m_tree->NodeByUid(uid) : nullptr;
+        if (node == nullptr) continue;
         // 提取起始行和结束行
         int startLine = std::get<0>(range);
         int endLine = std::get<1>(range);

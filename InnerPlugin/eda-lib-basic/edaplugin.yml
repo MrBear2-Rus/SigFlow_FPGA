@@ -1,0 +1,8 @@
+id: eda-lib-basic
+version: 1.0.0
+display_name: Basic Component Library
+vendor: SigFlow
+location: inner
+runtime: inprocess
+capabilities:
+  - lib/basic

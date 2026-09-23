@@ -1,0 +1,8 @@
+id: eda-target-tangnano9k
+version: 1.0.0
+display_name: Tang Nano 9K Target Profile
+vendor: SigFlow
+location: inner
+runtime: inprocess
+capabilities:
+  - target/tangnano9k

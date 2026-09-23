@@ -1,0 +1,10 @@
+id: eda-pnr-nextpnr
+version: 1.0.0
+display_name: nextpnr Place and Route
+vendor: SigFlow
+location: inner
+runtime: inprocess
+capabilities:
+  - pnr/nextpnr
+jobs:
+  - pnr
