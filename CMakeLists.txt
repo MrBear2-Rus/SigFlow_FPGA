@@ -26,6 +26,87 @@ set(MINGW_ROOT "" CACHE PATH "MinGW installation root used for GCC runtime DLLs"
 option(SIGFLOW_USE_LOCAL_WX
     "Build wxWidgets from SIGFLOW_WX_SRC instead of prebuilt/system wx" ON)
 
+# ---------------------------------------------------------------------------
+# wxWidgets 源码获取：FetchContent（取代"系统库 / 预编译库"）
+#
+# 规则：
+#   1) SIGFLOW_WX_SRC 里已有源码（例如 3rd/wxWidgets-src）→ 直接用，不下载；
+#   2) 否则 SIGFLOW_FETCH_WX=ON（默认）→ FetchContent 下载到构建树，并把
+#      SIGFLOW_WX_SRC 指向它 → 于是下面的 SIGFLOW_WX_LOCAL 分支照常生效；
+#   3) 否则（显式关掉下载）→ 回退到原来的"预编译/系统 wx"分支，向后兼容。
+#
+# 两个关键实现细节：
+#   * 这里只用 FetchContent 把源码【取下来】，真正的 add_subdirectory 仍由下面
+#     原有的 SIGFLOW_WX_LOCAL 分支负责 —— 否则同一个 wx 会被加入两次（目标重名）。
+#     CMake 4 已移除单参 FetchContent_Populate()，因此用 SOURCE_SUBDIR 指向一个
+#     不存在的子目录，实现"只下载、不 add_subdirectory"。
+#   * 本块必须放在 SIGFLOW_WX_LOCAL 判定【之前】，否则它仍会是 OFF，下载完也用不上。
+#
+# 离线/内网：-DSIGFLOW_FETCH_WX=OFF 关闭下载；或
+#           -DFETCHCONTENT_SOURCE_DIR_SIGFLOW_WX=<已解压的 wx 源码目录> 直接喂源码。
+# ---------------------------------------------------------------------------
+option(SIGFLOW_FETCH_WX
+    "Fetch wxWidgets source via FetchContent when no local source tree is present" ON)
+set(SIGFLOW_WX_TAG "v3.2.9" CACHE STRING
+    "wxWidgets git tag to fetch (应与 3rd/wxWidgets-* 的版本一致)")
+set(SIGFLOW_WX_URL
+    "https://codeload.github.com/wxWidgets/wxWidgets/tar.gz/refs/tags/${SIGFLOW_WX_TAG}"
+    CACHE STRING "wxWidgets 源码包 URL")
+# wx 的 src/generic/bmpsvg.cpp 需要 3rdparty/nanosvg/src/{nanosvg.h,nanosvgrast.h}，
+# 而 codeload 的 tarball 不含 git 子模块内容。这里额外取一份 nanosvg 源码补进去，
+# 避免依赖 `git submodule update`（也不需要 GitHub API，codeload 直连即可）。
+set(SIGFLOW_NANOSVG_URL
+    "https://codeload.github.com/memononen/nanosvg/tar.gz/refs/heads/master"
+    CACHE STRING "nanosvg 源码包 URL（用于补齐 wx 的 3rdparty/nanosvg）")
+
+if(SIGFLOW_USE_LOCAL_WX AND SIGFLOW_FETCH_WX AND NOT EXISTS "${SIGFLOW_WX_SRC}/CMakeLists.txt")
+    include(FetchContent)
+    message(STATUS "wxWidgets: 本地无源码，改用 FetchContent 下载 ${SIGFLOW_WX_TAG}")
+    FetchContent_Declare(sigflow_wx
+        URL           "${SIGFLOW_WX_URL}"
+        SOURCE_SUBDIR "_sigflow_fetch_only_"   # 不存在的子目录 = 只下载不构建
+    )
+    FetchContent_MakeAvailable(sigflow_wx)
+    if(EXISTS "${sigflow_wx_SOURCE_DIR}/CMakeLists.txt")
+        # 用普通变量覆盖同名 CACHE 项：普通变量优先级更高，且会传递给子目录
+        set(SIGFLOW_WX_SRC "${sigflow_wx_SOURCE_DIR}")
+        message(STATUS "wxWidgets: 源码就绪 -> ${SIGFLOW_WX_SRC}")
+
+        # ---- 补齐 wx 需要的 3rdparty/nanosvg ----
+        # bmpsvg.cpp 的守卫是：
+        #   #if defined(wxHAS_SVG) && !wxUSE_NANOSVG_EXTERNAL
+        #       #if !__has_include("../../3rdparty/nanosvg/src/nanosvg.h")
+        #           #error You need to run "git submodule update --init 3rdparty/nanosvg".
+        # tarball 不含子模块 → 必须自己放进去，否则 wxcore 编不过。
+        # 需要两个头：nanosvg.h（解析）与 nanosvgrast.h（栅格化）。
+        if(NOT EXISTS "${SIGFLOW_WX_SRC}/3rdparty/nanosvg/src/nanosvg.h")
+            FetchContent_Declare(sigflow_nanosvg
+                URL           "${SIGFLOW_NANOSVG_URL}"
+                SOURCE_SUBDIR "_sigflow_fetch_only_"   # 只下载不构建
+            )
+            FetchContent_MakeAvailable(sigflow_nanosvg)
+            if(EXISTS "${sigflow_nanosvg_SOURCE_DIR}/src/nanosvg.h")
+                file(MAKE_DIRECTORY "${SIGFLOW_WX_SRC}/3rdparty/nanosvg/src")
+                file(COPY
+                     "${sigflow_nanosvg_SOURCE_DIR}/src/nanosvg.h"
+                     "${sigflow_nanosvg_SOURCE_DIR}/src/nanosvgrast.h"
+                     DESTINATION "${SIGFLOW_WX_SRC}/3rdparty/nanosvg/src")
+                message(STATUS "wxWidgets: 已补齐 3rdparty/nanosvg（nanosvg.h + nanosvgrast.h）")
+            else()
+                message(WARNING
+                    "wxWidgets: 未能取得 nanosvg 源码，wxcore 编译会报 "
+                    "#error You need to run \"git submodule update --init 3rdparty/nanosvg\"。\n"
+                    "  可手动放置到 ${SIGFLOW_WX_SRC}/3rdparty/nanosvg/src/ ，"
+                    "或改用 -DSIGFLOW_FETCH_WX=OFF -DSIGFLOW_USE_LOCAL_WX=OFF（系统 wx）。")
+            endif()
+        else()
+            message(STATUS "wxWidgets: 3rdparty/nanosvg 已存在，跳过补齐")
+        endif()
+    else()
+        message(WARNING "wxWidgets: FetchContent 未取得源码，将回退到预编译/系统 wx")
+    endif()
+endif()
+
 if(SIGFLOW_USE_LOCAL_WX AND EXISTS "${SIGFLOW_WX_SRC}/CMakeLists.txt")
     set(SIGFLOW_WX_LOCAL ON)
 else()
@@ -84,6 +165,21 @@ endif()
 # ---------------------------------------------------------------------------
 if(SIGFLOW_WX_LOCAL)
     message(STATUS "wxWidgets: building from local source ${SIGFLOW_WX_SRC}")
+    if(UNIX AND NOT APPLE)
+        # wxGTK 的源码构建依赖系统 GTK3 开发包 —— 这部分无法由 FetchContent 提供。
+        # 缺了会在 wx 的 configure 阶段报错，这里提前给出可操作的提示。
+        find_package(PkgConfig QUIET)
+        if(PkgConfig_FOUND)
+            pkg_check_modules(_sigflow_gtk3 QUIET gtk+-3.0)
+            if(NOT _sigflow_gtk3_FOUND)
+                message(WARNING
+                    "wxWidgets 从源码构建需要 GTK3 开发包，但未找到 gtk+-3.0。\n"
+                    "  Arch:   sudo pacman -S gtk3\n"
+                    "  Debian: sudo apt install libgtk-3-dev\n"
+                    "  （若想改用系统 wxWidgets：-DSIGFLOW_FETCH_WX=OFF -DSIGFLOW_USE_LOCAL_WX=OFF）")
+            endif()
+        endif()
+    endif()
     set(wxBUILD_SHARED ON CACHE BOOL "" FORCE)
     set(wxBUILD_MONOLITHIC OFF CACHE BOOL "" FORCE)
     set(wxBUILD_SAMPLES OFF CACHE BOOL "" FORCE)
