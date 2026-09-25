@@ -51,7 +51,11 @@ set(SIGFLOW_YOSYS_REPO   "YosysHQ/yosys"     CACHE STRING "yosys 源码仓库")
 set(SIGFLOW_YOSYS_SUBMODULES "abc"           CACHE STRING "yosys 需要的 git 子模块（abc 提供 yosys-abc）")
 set(SIGFLOW_YOSYS_SHALLOW FALSE             CACHE BOOL
     "yosys 是否浅克隆（快，但浅克隆+子模块在个别 git 版本上不稳，默认关闭）")
-set(SIGFLOW_YOSYS_TAG    "v0.47"             CACHE STRING "yosys git tag/commit")
+# 注意 yosys 的 tag 命名变过：老版本是 0.45/0.46/0.47（无 v），
+# 新版本是 v0.48/v0.49（带 v）。写错会直接报 "无效引用/失败检出 tag"。
+# 默认值取 v0.49：已确认该 tag 存在，且本轮在 Linux 上实测可用
+# （synth_gowin 可用、与 abc + apicula 0.32 组合跑通完整综合流程）。
+set(SIGFLOW_YOSYS_TAG    "v0.49"             CACHE STRING "yosys git tag/commit")
 set(SIGFLOW_NEXTPNR_REPO "YosysHQ/nextpnr"   CACHE STRING "nextpnr 源码仓库")
 set(SIGFLOW_NEXTPNR_TAG  "nextpnr-0.7"       CACHE STRING "nextpnr git tag/commit")
 set(SIGFLOW_APICULA_REPO "YosysHQ/apicula"   CACHE STRING "apicula 源码仓库")
