@@ -5,6 +5,15 @@
 
 using sigflow::platform::JoinPath;
 
+// 路径/字段进 JSON 必须走 UTF-8 转换，不能用 wxString::ToStdString()：
+// 它按当前 locale 转码，LANG=C 时非 ASCII 路径（如 ~/下载/）会静默变空串，
+// manifest 的 project_path/source_files 丢失后，运行期会拼出 "/.sigflow/..."
+// 并报 "No such file or directory"。Utf8String 见 PlatformPaths.h。
+inline std::string JsonStr(const wxString& text)
+{
+    return sigflow::platform::Utf8String(text);
+}
+
 #include <json/json.h>
 
 #include <wx/dir.h>
@@ -79,14 +88,14 @@ bool WriteInputFileList(const SynthesisJob& job, const SynthesisJobPaths& paths,
 {
     Json::Value root(Json::objectValue);
     root["schema_version"] = "1.0";
-    root["project_path"] = NormalizePath(job.request.projectPath).ToStdString();
-    root["top_module"] = job.request.topModule.ToStdString();
+    root["project_path"] = JsonStr(NormalizePath(job.request.projectPath));
+    root["top_module"] = JsonStr(job.request.topModule);
     Json::Value files(Json::arrayValue);
     for (const wxString& source : job.request.sourceFiles) {
         Json::Value item(Json::objectValue);
-        item["path"] = NormalizePath(source).ToStdString();
-        item["name"] = wxFileName(source).GetFullName().ToStdString();
-        item["sha256"] = Sha256File(source).ToStdString();
+        item["path"] = JsonStr(NormalizePath(source));
+        item["name"] = JsonStr(wxFileName(source).GetFullName());
+        item["sha256"] = JsonStr(Sha256File(source));
         files.append(item);
     }
     root["files"] = files;
@@ -124,34 +133,34 @@ Json::Value ToJson(const SynthesisJob& job)
 {
     Json::Value root(Json::objectValue);
     root["schema_version"] = "1.0";
-    root["job_id"] = job.id.ToStdString();
-    root["retry_of"] = job.retryOf.ToStdString();
-    root["state"] = ToString(job.state).ToStdString();
-    root["created_at"] = job.createdAt.ToStdString();
-    root["updated_at"] = job.updatedAt.ToStdString();
+    root["job_id"] = JsonStr(job.id);
+    root["retry_of"] = JsonStr(job.retryOf);
+    root["state"] = JsonStr(ToString(job.state));
+    root["created_at"] = JsonStr(job.createdAt);
+    root["updated_at"] = JsonStr(job.updatedAt);
     root["exit_code"] = job.exitCode;
     Json::Value request(Json::objectValue);
-    request["project_path"] = job.request.projectPath.ToStdString();
-    request["top_module"] = job.request.topModule.ToStdString();
-    request["target_profile"] = job.request.targetProfileId.ToStdString();
-    request["target_profile_version"] = job.request.targetProfileVersion.ToStdString();
-    request["strategy"] = job.request.strategyId.ToStdString();
-    request["strategy_version"] = job.request.strategyVersion.ToStdString();
-    request["operator"] = job.request.operatorName.ToStdString();
-    request["retry_of"] = job.request.retryOf.ToStdString();
+    request["project_path"] = JsonStr(job.request.projectPath);
+    request["top_module"] = JsonStr(job.request.topModule);
+    request["target_profile"] = JsonStr(job.request.targetProfileId);
+    request["target_profile_version"] = JsonStr(job.request.targetProfileVersion);
+    request["strategy"] = JsonStr(job.request.strategyId);
+    request["strategy_version"] = JsonStr(job.request.strategyVersion);
+    request["operator"] = JsonStr(job.request.operatorName);
+    request["retry_of"] = JsonStr(job.request.retryOf);
     Json::Value sourceFiles(Json::arrayValue);
     for (const wxString& sourceFile : job.request.sourceFiles) {
-        sourceFiles.append(sourceFile.ToStdString());
+        sourceFiles.append(JsonStr(sourceFile));
     }
     request["source_files"] = sourceFiles;
     root["request"] = request;
     Json::Value transitions(Json::arrayValue);
     for (const SynthesisJobTransition& transition : job.transitions) {
         Json::Value item(Json::objectValue);
-        item["state"] = ToString(transition.state).ToStdString();
-        item["timestamp"] = transition.timestamp.ToStdString();
-        item["operator"] = transition.operatorName.ToStdString();
-        item["reason"] = transition.reason.ToStdString();
+        item["state"] = JsonStr(ToString(transition.state));
+        item["timestamp"] = JsonStr(transition.timestamp);
+        item["operator"] = JsonStr(transition.operatorName);
+        item["reason"] = JsonStr(transition.reason);
         item["exit_code"] = transition.exitCode;
         transitions.append(item);
     }

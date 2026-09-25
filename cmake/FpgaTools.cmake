@@ -418,18 +418,41 @@ set(_sigflow_nextpnr_cmake_args
     -DAPYCULA_INSTALL_PREFIX=${_sigflow_stage_apicula})
 
 if(SIGFLOW_FETCH_NEXTPNR_DEPS)
-    # 指向本模块自己编译出来的 Boost / Eigen3（不使用系统安装）
+    # 指向本模块自己编译出来的 Boost / Eigen3（不使用系统安装）。
+    # 注意 lib 目录名：Debian 系默认 lib，但装了 lib64 惯例的系统（麒麟等）
+    # Boost 的 GNUInstallDirs 会落到 lib64 —— configure 阶段实测哪个存在用哪个。
+    if(EXISTS "${_sigflow_deps_stage}/boost/lib64/cmake")
+        set(_sigflow_boost_cmake_dir "${_sigflow_deps_stage}/boost/lib64/cmake")
+        set(_sigflow_boost_lib_dir  "${_sigflow_deps_stage}/boost/lib64")
+    else()
+        set(_sigflow_boost_cmake_dir "${_sigflow_deps_stage}/boost/lib/cmake")
+        set(_sigflow_boost_lib_dir  "${_sigflow_deps_stage}/boost/lib")
+    endif()
     list(APPEND _sigflow_nextpnr_cmake_args
         -DBOOST_ROOT=${_sigflow_deps_stage}/boost
-        -DBoost_DIR=${_sigflow_deps_stage}/boost/lib/cmake/Boost-${SIGFLOW_BOOST_VERSION}
+        -DBoost_DIR=${_sigflow_boost_cmake_dir}/Boost-${SIGFLOW_BOOST_VERSION}
+        -DBOOST_LIBRARYDIR=${_sigflow_boost_lib_dir}
         -DBoost_NO_SYSTEM_PATHS=ON
-        -DEigen3_DIR=${_sigflow_deps_stage}/eigen/share/eigen3/cmake)
+        -DEigen3_DIR=${_sigflow_deps_stage}/eigen/share/eigen3/cmake
+        # CONFIG 模式下 BoostConfig.cmake 会 find_dependency(boost_assert 等)，
+        # 这些嵌套查找走 CMAKE_PREFIX_PATH —— Boost_DIR 只对顶层生效。
+        -DCMAKE_PREFIX_PATH=${_sigflow_deps_stage}/boost)
+    # Boost 1.69+ 的 system 是纯头文件库：源码构建只产 INTERFACE 目标，
+    # 不生成 libboost_system.a。而 find_package 的模块模式（CMake 3.28 的
+    # FindBoost.cmake）坚持要找到 .a 才算数 → "missing: system"。
+    # CONFIG 模式走 BoostConfig.cmake，能正确处理头文件组件。
+    list(APPEND _sigflow_nextpnr_cmake_args
+        -DCMAKE_FIND_PACKAGE_PREFER_CONFIG=ON)
 endif()
 
 ExternalProject_Add(sigflow_nextpnr_build
     SOURCE_DIR        "${nextpnr_SOURCE_DIR}"
     DOWNLOAD_COMMAND  ""
     UPDATE_COMMAND    ""
+    # Boost>=1.85 移除了 convenience.hpp，nextpnr 0.7 仍包含它 —— 打兼容补丁
+    PATCH_COMMAND     ${CMAKE_COMMAND}
+                       -DSRC=${nextpnr_SOURCE_DIR}
+                       -P "${CMAKE_CURRENT_LIST_DIR}/FpgaToolsNextpnrBoost185Patch.cmake"
     PATCH_COMMAND     ""
     CMAKE_ARGS        ${_sigflow_nextpnr_cmake_args}
     BUILD_COMMAND     ${CMAKE_COMMAND} --build . -j${_sigflow_tool_jobs}
