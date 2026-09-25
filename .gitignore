@@ -9,3 +9,5 @@
 .debug/
 3rd/
 build_tools/
+_deps/
+CMakeFiles/
