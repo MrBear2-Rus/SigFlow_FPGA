@@ -12,3 +12,5 @@
 !/3rd/httplib/
 !/3rd/httplib/httplib.h
 build_tools/
+_deps/
+CMakeFiles/
