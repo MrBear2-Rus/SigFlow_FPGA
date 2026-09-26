@@ -707,6 +707,38 @@ else()
     message(STATUS "[debug] libftdi 直连传输层: 未找到 libftdi，调试 UART 回退到串口")
 endif()
 
+# =============================================================================
+# 运行库自洽落位（Linux）
+#
+# sigflow 链接的系统库（libpcre2-32、libftdi1 等"不太常用"的包）并非所有
+# 运行环境都装了——典型是 openKylin 的 KARE 沙箱终端，/usr 是独立快照，
+# 启动即报 "cannot open shared object file: libXXX.so.N"。
+# 链接后对二进制做一次 ldd，把非基础、非项目内的依赖整体拷进 RUNPATH
+# 指向的目录（见 cmake/StageRuntimeLibs.cmake），使 build 产物自洽。
+# =============================================================================
+set(SIGFLOW_RUNTIME_LIBS_DIR
+    "${CMAKE_CURRENT_SOURCE_DIR}/external/fpga-tools/runtime/deps/sigflow-libs"
+    CACHE PATH "sigflow 系统侧运行库的落位目录（RPATH 指向）")
+set_property(TARGET sigflow APPEND PROPERTY BUILD_RPATH "${SIGFLOW_RUNTIME_LIBS_DIR}")
+set_property(TARGET sigflow APPEND PROPERTY INSTALL_RPATH "${SIGFLOW_RUNTIME_LIBS_DIR}")
+if(UNIX AND NOT APPLE)
+    # 关键：DT_RUNPATH 只作用于可执行文件的**直接** NEEDED；间接依赖
+    #（如 libpcre2-32，NEEDED 于 libwx_baseu，而 wx 库自身无 RPATH）
+    # 不查主程序的 RUNPATH → 落位目录形同虚设。改用旧式 DT_RPATH
+    #（沿 loader 链继承，对全部传递依赖生效），使落位目录真正兜底。
+    target_link_options(sigflow PRIVATE "-Wl,--disable-new-dtags")
+endif()
+if(UNIX)
+    add_custom_command(TARGET sigflow POST_BUILD
+        COMMAND ${CMAKE_COMMAND}
+                -DBIN=$<TARGET_FILE:sigflow>
+                -DDST=${SIGFLOW_RUNTIME_LIBS_DIR}
+                -DROOT=${CMAKE_CURRENT_SOURCE_DIR}
+                -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/StageRuntimeLibs.cmake"
+        COMMENT "[debug] 运行库自洽落位 -> ${SIGFLOW_RUNTIME_LIBS_DIR}"
+        VERBATIM)
+endif()
+
 # ---------------------------------------------------------------------------
 # 双版本（Edu/Pro）与可选插件
 #
