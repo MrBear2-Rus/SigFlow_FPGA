@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "edu-agent/v1/schemas/capabilities.schema.json",
+  "title": "Capabilities",
+  "description": "GET /capabilities 的 data 载荷。能力来自真实插件/Job provider 的 ready 状态；缺失有可读 reason。教育白名单：eda.sim.build/eda.sim.run/eda.synth。",
+  "type": "object",
+  "required": ["instance_id", "protocol_version", "edition", "capabilities"],
+  "additionalProperties": false,
+  "properties": {
+    "instance_id": { "type": "string", "minLength": 1 },
+    "protocol_version": { "type": "string", "minLength": 1 },
+    "edition": { "type": "string", "enum": ["edu", "pro", "dev"] },
+    "build": { "type": ["string", "null"] },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "ready", "disabled"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "plugin_id": { "type": ["string", "null"] },
+          "plugin_version": { "type": ["string", "null"] },
+          "ready": { "type": "boolean" },
+          "disabled": { "type": "boolean" },
+          "reason": { "type": ["string", "null"] },
+          "input_schema": { "type": ["object", "null"] }
+        }
+      }
+    }
+  }
+}

@@ -18,13 +18,38 @@ set(SIGFLOW_WX_SRC "${SIGFLOW_3RD_DIR}/wxWidgets-src" CACHE PATH
 set(MINGW_ROOT "" CACHE PATH "MinGW installation root used for GCC runtime DLLs")
 
 # ---------------------------------------------------------------------------
+# 第三方获取策略（方案 C：本地优先 → 系统 → FetchContent 兜底）
+#   SIGFLOW_ALLOW_FETCH  缺失时是否允许从网络拉取（麒麟离线交付设 OFF）
+#   SIGFLOW_FETCH_MIRROR 镜像前缀，替换 https://github.com/（空=直连；可指内网镜像）
+# 统一使用 FetchContent_Declare + FetchContent_MakeAvailable
+# （兼容 CMake 3.21–3.28–4.x；不使用已弃用的单参 FetchContent_Populate）。
+# ---------------------------------------------------------------------------
+option(SIGFLOW_ALLOW_FETCH "Allow FetchContent from network when local/system is missing" ON)
+set(SIGFLOW_FETCH_MIRROR "" CACHE STRING
+    "URL prefix that replaces https://github.com/ for FetchContent (e.g. internal mirror)")
+
+# eda_mirror_url(<var>): 就地把 https://github.com/ 前缀替换为镜像前缀。
+function(eda_mirror_url var)
+    if(SIGFLOW_FETCH_MIRROR)
+        string(REPLACE "https://github.com/" "${SIGFLOW_FETCH_MIRROR}/" _u "${${var}}")
+        set(${var} "${_u}" PARENT_SCOPE)
+    endif()
+endfunction()
+
+# ---------------------------------------------------------------------------
 # 本地源码构建开关（双模式）：
 #   ON  + 源码存在 → 从本地源码编译 wxWidgets（Win/Linux 同一套）
-#   ON  + 源码缺失 → 自动回退到预编译/系统
+#   ON  + 源码缺失 → 允许 FetchContent 拉取（受 SIGFLOW_ALLOW_FETCH 约束），
+#                    否则回退预编译/系统 wx
 #   OFF            → 一律用预编译/系统
 # ---------------------------------------------------------------------------
 option(SIGFLOW_USE_LOCAL_WX
-    "Build wxWidgets from SIGFLOW_WX_SRC instead of prebuilt/system wx" ON)
+    "Build wxWidgets from SIGFLOW_WX_SRC (local, or FetchContent fallback)" ON)
+
+# wxWidgets 源码：本地优先；缺失且允许拉取时 FetchContent（3.28/4.x 兼容写法）。
+set(SIGFLOW_WX_FETCH_TAG "v3.2.9" CACHE STRING "wxWidgets git tag for FetchContent fallback")
+set(SIGFLOW_WX_FETCH_REPO "https://github.com/wxWidgets/wxWidgets.git" CACHE STRING
+    "wxWidgets git repository for FetchContent fallback")
 
 # ---------------------------------------------------------------------------
 # wxWidgets 源码获取：FetchContent（取代"系统库 / 预编译库"）
@@ -109,8 +134,28 @@ endif()
 
 if(SIGFLOW_USE_LOCAL_WX AND EXISTS "${SIGFLOW_WX_SRC}/CMakeLists.txt")
     set(SIGFLOW_WX_LOCAL ON)
+    set(SIGFLOW_WX_FETCHED OFF)
+elseif(SIGFLOW_USE_LOCAL_WX AND SIGFLOW_ALLOW_FETCH AND NOT WIN32)
+    # 麒麟/Linux：本地源码缺失时自动拉取 wx 源码（绕开发行版沙箱的运行时路径问题）。
+    include(FetchContent)
+    set(_wx_repo "${SIGFLOW_WX_FETCH_REPO}")
+    eda_mirror_url(_wx_repo)
+    message(STATUS "wxWidgets: local source missing, fetching ${_wx_repo}@${SIGFLOW_WX_FETCH_TAG}")
+    FetchContent_Declare(wxWidgets
+        GIT_REPOSITORY "${_wx_repo}"
+        GIT_TAG "${SIGFLOW_WX_FETCH_TAG}"
+        GIT_SHALLOW TRUE)
+    FetchContent_MakeAvailable(wxWidgets)
+    if(EXISTS "${wxWidgets_SOURCE_DIR}/CMakeLists.txt")
+        set(SIGFLOW_WX_SRC "${wxWidgets_SOURCE_DIR}" CACHE PATH "" FORCE)
+        set(SIGFLOW_WX_LOCAL ON)
+        set(SIGFLOW_WX_FETCHED ON)
+    else()
+        set(SIGFLOW_WX_LOCAL OFF)
+    endif()
 else()
     set(SIGFLOW_WX_LOCAL OFF)
+    set(SIGFLOW_WX_FETCHED OFF)
 endif()
 
 # ---------------------------------------------------------------------------
@@ -192,7 +237,12 @@ if(SIGFLOW_WX_LOCAL)
     # 无后端时自动关闭。强行 set(... CACHE ... FORCE) 会触发 wx 的
     # wx_option_force_value 报 "FORCE specified without CACHE"（见 build/cmake/functions.cmake）。
     # 插件是否装配由下面的 find_package(CURL) 决定。
-    add_subdirectory("${SIGFLOW_WX_SRC}" "${CMAKE_BINARY_DIR}/wxWidgets" EXCLUDE_FROM_ALL)
+    if(SIGFLOW_WX_FETCHED)
+        # 已由 FetchContent_MakeAvailable 加入构建，勿重复 add_subdirectory。
+        message(STATUS "wxWidgets: already added via FetchContent")
+    else()
+        add_subdirectory("${SIGFLOW_WX_SRC}" "${CMAKE_BINARY_DIR}/wxWidgets" EXCLUDE_FROM_ALL)
+    endif()
 else()
     message(STATUS "wxWidgets: using prebuilt/system wx (SIGFLOW_WX_ROOT=${SIGFLOW_WX_ROOT})")
 endif()
@@ -594,6 +644,11 @@ target_link_libraries(sigflow PRIVATE eda-wave-vcd)
 target_include_directories(sigflow PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/InnerPlugin/eda-lib-basic/include")
 target_link_libraries(sigflow PRIVATE eda-lib-basic)
+# 教育版 Agent（SIGFLOW_BUILD_EDU_AGENT=ON 时链接 EDA Gateway）。
+if(TARGET eda_agent_gateway)
+    target_compile_definitions(sigflow PRIVATE SIGFLOW_BUILD_EDU_AGENT=1)
+    target_link_libraries(sigflow PRIVATE eda_agent_gateway)
+endif()
 # P1-5：目标 profile / 引脚库 JSON 随可执行文件分发。
 add_custom_command(TARGET sigflow POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory

@@ -57,6 +57,15 @@ public:
     static std::string StoredDefaultProvider(const std::string& capability);
     static void StoreDefaultProvider(const std::string& capability, const std::string& pluginId);
 
+    // 教育版 Agent：已就绪插件的 (id, version, capabilities) 快照，
+    // 供 EDA Gateway 推导教育能力可用性（不暴露 PluginHost 内部）。
+    struct ReadyPluginInfo {
+        std::string id;
+        std::string version;
+        std::vector<std::string> capabilities;
+    };
+    std::vector<ReadyPluginInfo> ReadyPlugins() const;
+
 private:
     std::unique_ptr<PluginManager> legacyManager_;
     eda::PluginHost pluginHost_;

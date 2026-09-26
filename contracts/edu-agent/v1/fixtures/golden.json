@@ -1,0 +1,75 @@
+[
+  {
+    "name": "capabilities.edu",
+    "schema": "capabilities.schema.json",
+    "document": {
+      "instance_id": "inst-1",
+      "protocol_version": "edu.api.v1",
+      "edition": "edu",
+      "build": "gcc-12.2.0;cxx=202002;abi=1",
+      "capabilities": [
+        { "id": "eda.synth", "plugin_id": "eda-synth-yosys", "plugin_version": "1.0.0", "ready": true, "disabled": false, "reason": null, "input_schema": {} },
+        { "id": "eda.sim.build", "plugin_id": "eda-sim-verilator", "plugin_version": "1.0.0", "ready": true, "disabled": false, "reason": null, "input_schema": {} },
+        { "id": "eda.sim.run", "plugin_id": "eda-sim-verilator-run", "plugin_version": "1.0.0", "ready": true, "disabled": false, "reason": null, "input_schema": {} },
+        { "id": "eda.pnr", "plugin_id": null, "plugin_version": null, "ready": false, "disabled": true, "reason": "not available to educational agent", "input_schema": null }
+      ]
+    }
+  },
+  {
+    "name": "diagnostic.latch",
+    "schema": "diagnostic.schema.json",
+    "document": {
+      "id": "diag-1",
+      "code": "EDU_LATCH_INFERRED",
+      "raw_code": "LATCH",
+      "severity": "warning",
+      "stage": "synth",
+      "summary": "Latch inferred for signal 'q' (missing assignment in some branch).",
+      "origin": "core",
+      "confidence_kind": "tool",
+      "location": null,
+      "evidence_refs": ["ev-1"]
+    }
+  },
+  {
+    "name": "job-report-view.core",
+    "schema": "job-report-view.schema.json",
+    "document": {
+      "schema_version": "edu.jobreport.v1",
+      "job_id": "job-21",
+      "origin": "core",
+      "capability": "eda.synth",
+      "plugin_id": "eda-synth-yosys",
+      "plugin_version": "1.0.0",
+      "project_id": "prj-1",
+      "revision": "rev-12",
+      "snapshot_id": "snap-12",
+      "state": "Succeeded",
+      "exit_code": 0,
+      "diagnostics": [],
+      "metrics": { "lut": { "value": 96, "unit": "cells", "source": "yosys", "availability": "available" } },
+      "artifacts": [],
+      "completeness": "complete",
+      "input_fingerprint": "sha256:abc",
+      "raw_report_schema": "eda.jobreport.v1"
+    }
+  },
+  {
+    "name": "job-report-view.legacy",
+    "schema": "job-report-view.schema.json",
+    "document": {
+      "schema_version": "edu.jobreport.v1",
+      "job_id": "job-legacy-1",
+      "origin": "legacy",
+      "capability": "eda.synth",
+      "project_id": "prj-1",
+      "revision": null,
+      "state": "Succeeded",
+      "diagnostics": [],
+      "metrics": {},
+      "artifacts": [],
+      "completeness": "legacy_unverified",
+      "reason": "legacy job has no input fingerprint or revision"
+    }
+  }
+]

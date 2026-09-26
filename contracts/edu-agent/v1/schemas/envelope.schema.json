@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "edu-agent/v1/schemas/envelope.schema.json",
+  "title": "HTTP Envelope",
+  "description": "统一成功/失败信封。成功含 data（无集合项也返回空数组）；失败含 error{code,message,retryable,details}，details 不得携带 Key 或完整绝对路径。",
+  "$defs": {
+    "success": {
+      "type": "object",
+      "required": ["schema_version", "request_id", "trace_id", "data"],
+      "properties": {
+        "schema_version": { "type": "string" },
+        "request_id": { "type": "string" },
+        "trace_id": { "type": "string" },
+        "data": {}
+      }
+    },
+    "failure": {
+      "type": "object",
+      "required": ["schema_version", "request_id", "trace_id", "error"],
+      "properties": {
+        "schema_version": { "type": "string" },
+        "request_id": { "type": "string" },
+        "trace_id": { "type": "string" },
+        "error": {
+          "type": "object",
+          "required": ["code", "message", "retryable"],
+          "properties": {
+            "code": {
+              "type": "string",
+              "enum": [
+                "INVALID_ARGUMENT", "UNAUTHENTICATED", "POLICY_DENIED", "NOT_FOUND",
+                "STALE_REVISION", "IDEMPOTENCY_CONFLICT", "PROTOCOL_MISMATCH",
+                "CURSOR_EXPIRED", "ARTIFACT_EXPIRED",
+                "CAPABILITY_UNAVAILABLE", "UNSUPPORTED_MAPPING",
+                "RESOURCE_EXHAUSTED", "SERVICE_UNAVAILABLE", "RECOVERY_REQUIRED"
+              ]
+            },
+            "message": { "type": "string" },
+            "retryable": { "type": "boolean" },
+            "details": { "type": ["object", "null"] }
+          }
+        }
+      }
+    }
+  }
+}

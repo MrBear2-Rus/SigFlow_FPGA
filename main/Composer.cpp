@@ -92,6 +92,19 @@ std::vector<eda::PluginInfo> Composer::Providers(const std::string& capability) 
     return pluginHost_.ProvidersOf(capability);
 }
 
+std::vector<Composer::ReadyPluginInfo> Composer::ReadyPlugins() const {
+    std::vector<ReadyPluginInfo> ready;
+    for (const auto& record : pluginHost_.Records()) {
+        if (record.status != eda::PluginStatus::Ready) continue;
+        ReadyPluginInfo info;
+        info.id = record.id;
+        info.version = record.version;
+        info.capabilities = record.capabilities;
+        ready.push_back(std::move(info));
+    }
+    return ready;
+}
+
 eda::PluginInfo Composer::DefaultProvider(const std::string& capability,
                                           const std::string& preferredId) const {
     // 优先级：显式 preferredId → 用户持久化的默认后端 → 该能力首个就绪后端。

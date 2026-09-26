@@ -29,6 +29,11 @@
 
 #include "Composer.h"
 
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+#include "eda-agent-gateway/GatewayServer.h"
+#include <memory>
+#endif
+
 class ToolBars;
 class CanvasNoteBook;
 class HandyToolKit;
@@ -84,6 +89,11 @@ private:
     std::vector<wxString> m_activeToolJobIds;
 
     sigflow::Composer* m_composer;
+
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+    // 教育版 Agent EDA Gateway（sidecar 控制器与 UI 面板在后续 SF-02/09 接入）。
+    std::unique_ptr<eda::agent::GatewayServer> m_agentGateway;
+#endif
 
     VerilogManager* m_verilogMgr;
     TSParser* m_parser;

@@ -41,3 +41,23 @@ target_include_directories(eda_core PRIVATE
 # 静态库需 PIC：动态插件（MODULE）会链接 eda_core（Linux 下必需）。
 set_target_properties(eda_platform PROPERTIES POSITION_INDEPENDENT_CODE ON)
 set_target_properties(eda_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+# ---------------------------------------------------------------------------
+# 教育版 Agent Gateway（D-02 选型：cpp-httplib，单头 MIT，跨平台）
+#   SIGFLOW_BUILD_EDU_AGENT=ON 时装配；依赖 3rd/httplib/httplib.h（随 3rd.zip 分发）。
+# ---------------------------------------------------------------------------
+option(SIGFLOW_BUILD_EDU_AGENT "Build the educational-agent EDA Gateway" ON)
+if(SIGFLOW_BUILD_EDU_AGENT)
+    add_library(eda_agent_gateway STATIC
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-agent-gateway/GatewayDto.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-agent-gateway/GatewayServer.cpp")
+    target_link_libraries(eda_agent_gateway PUBLIC eda_core eda_platform eda_api)
+    target_include_directories(eda_agent_gateway PUBLIC
+        "${CMAKE_CURRENT_SOURCE_DIR}/src")
+    target_include_directories(eda_agent_gateway PRIVATE
+        "${CMAKE_SOURCE_DIR}/3rd/httplib")
+    if(WIN32)
+        target_link_libraries(eda_agent_gateway PRIVATE ws2_32)
+    endif()
+    set_target_properties(eda_agent_gateway PROPERTIES POSITION_INDEPENDENT_CODE ON)
+endif()

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "edu-agent/v1/schemas/diagnostic.schema.json",
+  "title": "Diagnostic",
+  "description": "规范化诊断。origin 标明事实来源；confidence_kind=tool/rule/hypothesis；未知原始码保留在 raw_code。",
+  "type": "object",
+  "required": ["id", "code", "severity", "stage", "summary", "origin", "confidence_kind"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "code": { "type": "string", "minLength": 1 },
+    "raw_code": { "type": ["string", "null"] },
+    "severity": { "type": "string", "enum": ["info", "warning", "error"] },
+    "stage": { "type": "string" },
+    "summary": { "type": "string" },
+    "origin": { "type": "string", "enum": ["core", "legacy"] },
+    "confidence_kind": { "type": "string", "enum": ["tool", "rule", "hypothesis"] },
+    "location": { "type": ["object", "null"] },
+    "evidence_refs": { "type": "array", "items": { "type": "string" } }
+  }
+}

@@ -1,0 +1,70 @@
+openapi: 3.0.3
+info:
+  title: SigFlow EDA Gateway (Educational Agent)
+  version: "1.0.0"
+  description: |
+    SigFlow 教育版 Agent 的本地 EDA Gateway。仅监听 127.0.0.1，端口由系统分配。
+    字段与枚举真源见 `schemas/`；语义见 `docs/edu-agent/sigflow/spec.md §5`。
+    本期路由子集：health、capabilities。其余路由按 spec §5.2 逐步实现。
+servers:
+  - url: http://127.0.0.1:{port}/api/v1
+    variables:
+      port:
+        default: "0"
+        description: 系统分配端口（启动时通过受限管道告知 Python sidecar）
+
+paths:
+  /health:
+    get:
+      summary: 实例存活与协议版本（无需鉴权）
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "schemas/envelope.schema.json#/$defs/success"
+              example:
+                schema_version: edu.api.v1
+                request_id: req-1
+                trace_id: trace-1
+                data:
+                  instance_id: inst-1
+                  protocol_version: edu.api.v1
+                  edition: edu
+                  build: "gcc-12.2.0;cxx=202002;abi=1"
+
+  /capabilities:
+    get:
+      summary: 教育能力可用性（需 Agent→EDA Bearer token）
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "schemas/envelope.schema.json#/$defs/success"
+        "401":
+          description: 缺少或无效 token
+          content:
+            application/json:
+              schema:
+                $ref: "schemas/envelope.schema.json#/$defs/failure"
+              example:
+                schema_version: edu.api.v1
+                request_id: req-2
+                trace_id: trace-2
+                error:
+                  code: UNAUTHENTICATED
+                  message: missing or invalid bearer token
+                  retryable: false
+                  details: null
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Agent→EDA 高熵 token，经受限继承管道传递；不放入 URL/日志。

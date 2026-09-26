@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "edu-agent/v1/schemas/source-ref.schema.json",
+  "title": "SourceRef",
+  "description": "指向工程内一段源码的稳定引用。行号 1 基、包含端点；列为 1 基 Unicode code point（C++ 负责与编辑器字节列转换）。",
+  "type": "object",
+  "required": ["project_id", "revision", "source_id", "file_hash", "start_line", "end_line"],
+  "additionalProperties": false,
+  "properties": {
+    "project_id": { "type": "string", "minLength": 1 },
+    "revision": { "type": "string", "minLength": 1 },
+    "source_id": { "type": "string", "minLength": 1 },
+    "file_hash": { "type": "string", "minLength": 1 },
+    "start_line": { "type": "integer", "minimum": 1 },
+    "end_line": { "type": "integer", "minimum": 1 },
+    "node_id": { "type": ["string", "null"] },
+    "start_column": { "type": ["integer", "null"], "minimum": 1 },
+    "end_column": { "type": ["integer", "null"], "minimum": 1 }
+  }
+}

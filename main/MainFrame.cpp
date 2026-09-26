@@ -1,3 +1,4 @@
+#include <wx/datetime.h>
 #include <wx/msgdlg.h>
 #include <wx/panel.h>
 #include <wx/filename.h> 
@@ -765,6 +766,40 @@ MainFrame::MainFrame()
         sigflow::platform::Utf8String(exeDir),
         sigflow::platform::Utf8String(m_currentProjectPath));
     m_terminalCtrl->PrintOutput(wxString::FromUTF8(composerReport));
+
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+    // 教育版 Agent EDA Gateway：最小脚手架，绑定 127.0.0.1 系统分配端口。
+    // provider 由 Composer 就绪插件快照注入；token/长轮询/grant/sidecar 属后续 SF-02。
+    {
+        eda::agent::GatewayConfig gatewayConfig;
+        gatewayConfig.instanceId = "inst-" + std::string(wxDateTime::UNow().Format("%Y%m%d%H%M%S").ToUTF8().data());
+        gatewayConfig.edition = "edu";
+        gatewayConfig.port = 0;
+        sigflow::Composer* composer = m_composer;
+        m_agentGateway = std::make_unique<eda::agent::GatewayServer>(
+            gatewayConfig, [composer]() {
+                std::vector<eda::agent::ReadyPlugin> ready;
+                if (composer == nullptr) return ready;
+                for (const auto& plugin : composer->ReadyPlugins()) {
+                    ready.push_back({plugin.id, plugin.version, plugin.capabilities});
+                }
+                return ready;
+            });
+        std::string gatewayError;
+        if (m_agentGateway->Start(gatewayError)) {
+            m_agentGateway->RunAsync();
+            m_terminalCtrl->PrintOutput(wxString::Format(
+                "[edu-agent] EDA Gateway listening on 127.0.0.1:%d (instance %s)\n",
+                m_agentGateway->Port(),
+                wxString::FromUTF8(gatewayConfig.instanceId.c_str())));
+        } else {
+            m_terminalCtrl->PrintOutput(wxString::Format(
+                "[edu-agent] EDA Gateway disabled: %s\n",
+                wxString::FromUTF8(gatewayError.c_str())));
+            m_agentGateway.reset();
+        }
+    }
+#endif
 
     // 如果插件存在，优先把当前打开的项目路径传递给插件（若 ProjectTreePanel 已加载项目）
     ISigPlugin* pDeepSeek = m_composer ? m_composer->LegacyAssistant() : nullptr;

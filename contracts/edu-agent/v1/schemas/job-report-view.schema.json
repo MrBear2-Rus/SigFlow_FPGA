@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "edu-agent/v1/schemas/job-report-view.schema.json",
+  "title": "JobReportView",
+  "description": "新旧 Job 报告归一化视图。metrics 每项带 value/unit/source/availability；缺失值用 null+reason，不填 0。旧产物缺指纹时 completeness=legacy_unverified。",
+  "type": "object",
+  "required": [
+    "schema_version", "job_id", "origin", "capability",
+    "project_id", "revision", "state", "completeness"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string", "const": "edu.jobreport.v1" },
+    "job_id": { "type": "string", "minLength": 1 },
+    "origin": { "type": "string", "enum": ["core", "legacy"] },
+    "capability": { "type": "string", "minLength": 1 },
+    "plugin_id": { "type": ["string", "null"] },
+    "plugin_version": { "type": ["string", "null"] },
+    "project_id": { "type": "string", "minLength": 1 },
+    "revision": { "type": ["string", "null"] },
+    "snapshot_id": { "type": ["string", "null"] },
+    "state": { "type": "string", "minLength": 1 },
+    "exit_code": { "type": ["integer", "null"] },
+    "diagnostics": { "type": "array", "items": { "$ref": "diagnostic.schema.json" } },
+    "metrics": { "type": "object" },
+    "artifacts": { "type": "array", "items": { "type": "object" } },
+    "completeness": {
+      "type": "string",
+      "enum": ["complete", "partial", "unavailable", "legacy_unverified"]
+    },
+    "input_fingerprint": { "type": ["string", "null"] },
+    "raw_report_schema": { "type": ["string", "null"] },
+    "reason": { "type": ["string", "null"] }
+  }
+}
