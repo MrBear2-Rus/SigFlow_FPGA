@@ -58,9 +58,23 @@ Error VerilatorRunJob::startJob(const JobRequest& request, JobContext& ctx) {
         return Error{ErrorCode::InvalidArgument, "sim.run requires sim_exe", ""};
     }
     std::filesystem::path workingDir = ParamString(params, "working_dir");
-    if (workingDir.empty()) workingDir = ctx.jobDir() / "sim";
+    // The generated harness intentionally uses a relative waveform/wave.vcd
+    // path.  Run beside the trusted executable by default so the build/run
+    // pair has one stable runtime layout.  Gateway callers cannot set this
+    // field; it is derived from a succeeded sim.build artifact.
+    if (workingDir.empty()) workingDir = std::filesystem::path(simExe).parent_path();
     std::error_code dirError;
     std::filesystem::create_directories(workingDir, dirError);
+    // SimMainCodeGen writes the trace to waveform/wave.vcd relative to the
+    // process working directory.  A run job owns a fresh work directory, so
+    // create that relative destination before starting the trusted executable.
+    // Without this, a successful executable can silently leave no VCD and the
+    // gateway has nothing safe to publish through /waves.
+    if (!dirError) std::filesystem::create_directories(workingDir / "waveform", dirError);
+    if (dirError) {
+        return Error{ErrorCode::Internal,
+                     "unable to create simulation waveform directory: " + dirError.message(), ""};
+    }
 
     ProcessSpec spec;
     spec.executable = simExe;

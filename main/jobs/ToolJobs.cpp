@@ -2,10 +2,7 @@
 
 #include "PlatformProcess.h"
 
-#include "../fpga/ArtifactValidator.h"
 #include "../fpga/FpgaPackService.h"
-#include "../fpga/FpgaYosysLogParser.h"
-#include "../fpga/NextpnrLogParser.h"
 
 #include <wx/datetime.h>
 #include <wx/file.h>
@@ -27,6 +24,18 @@ wxString NowUtc()
 bool Exists(const wxString& path)
 {
     return !path.IsEmpty() && wxFileExists(path);
+}
+
+int DefaultJobTimeoutSeconds(ToolJobType type)
+{
+    switch (type) {
+    case ToolJobType::Simulation:
+    case ToolJobType::Synthesis:
+    case ToolJobType::PnR: return 600;
+    case ToolJobType::Pack:
+    case ToolJobType::Flash: return 300;
+    }
+    return 600;
 }
 
 // 从 openFPGALoader -v 输出里解析 Gowin 配置后的状态寄存器：
@@ -91,32 +100,6 @@ Json::Value ToJson(const FlashJobRequest& request)
     return parameters;
 }
 
-Json::Value ToJson(const SynthJobRequest& request)
-{
-    Json::Value parameters(Json::objectValue);
-    parameters["top_module"] = request.topModule.ToStdString();
-    parameters["executable"] = request.executable.ToStdString();
-    parameters["script_path"] = request.scriptPath.ToStdString();
-    parameters["output_json"] = request.outputJsonPath.ToStdString();
-    parameters["working_directory"] = request.workingDirectory.ToStdString();
-    parameters["timeout_seconds"] = request.timeoutSeconds;
-    parameters["source_files"] = StringArray(request.sourceFiles);
-    parameters["arguments"] = StringArray(request.arguments);
-    return parameters;
-}
-
-Json::Value ToJson(const PnRJobRequest& request)
-{
-    Json::Value parameters(Json::objectValue);
-    parameters["top_module"] = request.topModule.ToStdString();
-    parameters["executable"] = request.executable.ToStdString();
-    parameters["output_json"] = request.outputJsonPath.ToStdString();
-    parameters["working_directory"] = request.workingDirectory.ToStdString();
-    parameters["timeout_seconds"] = request.timeoutSeconds;
-    parameters["arguments"] = StringArray(request.arguments);
-    return parameters;
-}
-
 ToolJobRequest BaseRequest(ToolJobType type, const wxString& projectPath,
                            const Json::Value& parameters)
 {
@@ -135,47 +118,6 @@ void FinishJob(const ToolJob& job, ToolJobState state, int exitCode, const wxStr
     if (!JobService().Load(job.request.projectPath, job.id, current, ignored)) return;
     if (IsTerminalToolJobState(current.state)) return;
     JobService().Transition(job.request.projectPath, job.id, state, reason, exitCode, ignored);
-}
-
-wxString YosysCoordinate(const YosysLogEvent& event)
-{
-    if (event.sourceFile.IsEmpty()) return wxString();
-    return event.sourceFile + wxString::Format(":%d", event.sourceLine);
-}
-
-void AppendYosysErrors(const wxString& combinedLog, JobReport& report)
-{
-    if (combinedLog.IsEmpty()) return;
-    const YosysLogRecord record = FpgaYosysLogParser().Parse(combinedLog);
-    for (const YosysLogEvent& event : record.events) {
-        if (event.severity == YosysLogSeverity::Info) continue;
-        JobError error;
-        error.code = event.ruleId.IsEmpty() ? wxString("YOSYS_DIAGNOSTIC") : event.ruleId;
-        error.severity = event.severity == YosysLogSeverity::Error ? "error" : "warning";
-        error.stage = event.stage.IsEmpty() ? wxString("synthesis") : event.stage;
-        error.irCoordinate = YosysCoordinate(event);
-        error.summary = event.evidence.IsEmpty() ? event.rawLine : event.evidence;
-        error.logLine = event.lineNumber;
-        report.errors.push_back(error);
-    }
-}
-
-void AppendNextpnrErrors(const wxString& combinedLog, JobReport& report, double& maxFrequencyMHz)
-{
-    if (combinedLog.IsEmpty()) return;
-    NextpnrLogParser parser;
-    NextpnrRunRecord record;
-    parser.Parse(combinedLog, wxString(), record);
-    maxFrequencyMHz = record.maxFrequencyMHz;
-    for (const NextpnrLogEvent& event : parser.GetErrors()) {
-        JobError error;
-        error.code = event.category.IsEmpty() ? wxString("NEXTPNR_DIAGNOSTIC") : event.category;
-        error.severity = event.category == "error" ? "error" : "warning";
-        error.stage = event.stage.IsEmpty() ? wxString("pnr") : event.stage;
-        error.summary = event.chineseDesc.IsEmpty() ? event.rawLine : event.chineseDesc;
-        error.logLine = event.lineNumber;
-        report.errors.push_back(error);
-    }
 }
 
 } // namespace
@@ -422,7 +364,6 @@ bool SimulationJob::Execute(const SimulationJobRequest& request, const ToolJob& 
     FinishJob(job, ToolJobState::Succeeded, report.exitCode, report.summary);
     return JobService().WriteReport(request.projectPath, job.id, report, errorMessage);
 }
-
 bool PackJob::Submit(const PackJobRequest& request, ToolJob& job,
                      wxString& errorMessage) const
 {
@@ -480,7 +421,6 @@ bool PackJob::Execute(const PackJobRequest& request, const ToolJob& job,
     FinishJob(job, ToolJobState::Succeeded, report.exitCode, report.summary);
     return JobService().WriteReport(request.projectPath, job.id, report, errorMessage);
 }
-
 bool FlashJob::Submit(const FlashJobRequest& request, ToolJob& job,
                       wxString& errorMessage) const
 {
@@ -552,142 +492,6 @@ bool FlashJob::Execute(const FlashJobRequest& request, const ToolJob& job,
     report = persisted;
     report.state = ToolJobState::Succeeded;
     report.summary = "FPGA flash completed after confirmation.";
-    FinishJob(job, ToolJobState::Succeeded, report.exitCode, report.summary);
-    return JobService().WriteReport(request.projectPath, job.id, report, errorMessage);
-}
-
-bool SynthJob::Submit(const SynthJobRequest& request, ToolJob& job,
-                          wxString& errorMessage) const
-{
-    if (request.projectPath.IsEmpty() || request.topModule.IsEmpty() ||
-        request.executable.IsEmpty() || request.outputJsonPath.IsEmpty()) {
-        errorMessage = "Synthesis Job requires project, top module, executable, and output JSON.";
-        return false;
-    }
-    for (const wxString& source : request.sourceFiles) {
-        if (!Exists(source)) {
-            errorMessage = "RTL source does not exist: " + source;
-            return false;
-        }
-    }
-    if (!request.scriptPath.IsEmpty() && !Exists(request.scriptPath)) {
-        errorMessage = "Yosys script does not exist: " + request.scriptPath;
-        return false;
-    }
-    return JobService().Create(BaseRequest(ToolJobType::Synthesis, request.projectPath,
-                                           ToJson(request)), job, errorMessage);
-}
-
-bool SynthJob::Execute(const SynthJobRequest& request, const ToolJob& job,
-                           const JobExecutionOptions& options, JobReport& report,
-                           wxString& errorMessage) const
-{
-    JobCommand command{ request.executable, request.arguments, request.workingDirectory,
-                        JobService().GetPaths(request.projectPath, ToolJobType::Synthesis,
-                                             job.id).logs + wxFileName::GetPathSeparator() +
-                            "process.log",
-                        request.timeoutSeconds };
-    wxString combinedOutput;
-    if (!ToolJobExecutor().Run(job, command, options, report, errorMessage, &combinedOutput)) {
-        return false;
-    }
-    AppendYosysErrors(combinedOutput, report);
-    ArtifactValidator validator;
-    NetlistArtifactReport artifactReport;
-    if (!validator.ValidateYosysJson(request.outputJsonPath, request.topModule, artifactReport) ||
-        artifactReport.status != ArtifactValidationStatus::Valid) {
-        errorMessage = artifactReport.message.IsEmpty()
-            ? wxString("Synthesis did not produce a valid netlist artifact.")
-            : artifactReport.message;
-        report.state = ToolJobState::Failed;
-        report.summary = errorMessage;
-        report.errors.push_back({ "SYN_ARTIFACT_INVALID", "error", "ValidatingArtifact", "",
-                                  errorMessage, 0 });
-        ToolJobExecutor().Finish(job, report);
-        return false;
-    }
-    if (!JobService().RecordArtifact(request.projectPath, job.id, artifactReport.path,
-                                     "netlist", errorMessage)) {
-        report.state = ToolJobState::Failed;
-        report.summary = errorMessage;
-        report.errors.push_back({ "SYN_ARTIFACT_UNSAFE", "error", "ValidatingArtifact", "",
-                                  errorMessage, 0 });
-        ToolJobExecutor().Finish(job, report);
-        return false;
-    }
-    JobReport persisted;
-    if (!JobService().LoadReport(request.projectPath, job.id, persisted, errorMessage)) {
-        report.state = ToolJobState::Failed;
-        report.summary = errorMessage;
-        ToolJobExecutor().Finish(job, report);
-        return false;
-    }
-    report = persisted;
-    report.state = ToolJobState::Succeeded;
-    report.summary = wxString::Format("Synthesis completed: %llu cells, %llu ports.",
-                                      static_cast<unsigned long long>(artifactReport.cellCount),
-                                      static_cast<unsigned long long>(artifactReport.portCount));
-    FinishJob(job, ToolJobState::Succeeded, report.exitCode, report.summary);
-    return JobService().WriteReport(request.projectPath, job.id, report, errorMessage);
-}
-
-bool PnRJob::Submit(const PnRJobRequest& request, ToolJob& job, wxString& errorMessage) const
-{
-    if (request.projectPath.IsEmpty() || request.topModule.IsEmpty() ||
-        request.executable.IsEmpty() || request.outputJsonPath.IsEmpty()) {
-        errorMessage = "PnR Job requires project, top module, executable, and output JSON.";
-        return false;
-    }
-    return JobService().Create(BaseRequest(ToolJobType::PnR, request.projectPath,
-                                           ToJson(request)), job, errorMessage);
-}
-
-bool PnRJob::Execute(const PnRJobRequest& request, const ToolJob& job,
-                     const JobExecutionOptions& options, JobReport& report,
-                     wxString& errorMessage) const
-{
-    JobCommand command{ request.executable, request.arguments, request.workingDirectory,
-                        JobService().GetPaths(request.projectPath, ToolJobType::PnR,
-                                             job.id).logs + wxFileName::GetPathSeparator() +
-                            "process.log",
-                        request.timeoutSeconds };
-    wxString combinedOutput;
-    if (!ToolJobExecutor().Run(job, command, options, report, errorMessage, &combinedOutput)) {
-        return false;
-    }
-    double maxFrequencyMHz = 0.0;
-    AppendNextpnrErrors(combinedOutput, report, maxFrequencyMHz);
-    const wxULongLong size = wxFileName(request.outputJsonPath).GetSize();
-    if (!Exists(request.outputJsonPath) || size == wxInvalidSize || size.GetValue() == 0) {
-        errorMessage = "PnR did not produce a placed netlist artifact: " + request.outputJsonPath;
-        report.state = ToolJobState::Failed;
-        report.summary = errorMessage;
-        report.errors.push_back({ "PAR_ARTIFACT_MISSING", "error", "ValidatingArtifact", "",
-                                  errorMessage, 0 });
-        ToolJobExecutor().Finish(job, report);
-        return false;
-    }
-    if (!JobService().RecordArtifact(request.projectPath, job.id, request.outputJsonPath,
-                                     "pnr_json", errorMessage)) {
-        report.state = ToolJobState::Failed;
-        report.summary = errorMessage;
-        report.errors.push_back({ "PAR_ARTIFACT_UNSAFE", "error", "ValidatingArtifact", "",
-                                  errorMessage, 0 });
-        ToolJobExecutor().Finish(job, report);
-        return false;
-    }
-    JobReport persisted;
-    if (!JobService().LoadReport(request.projectPath, job.id, persisted, errorMessage)) {
-        report.state = ToolJobState::Failed;
-        report.summary = errorMessage;
-        ToolJobExecutor().Finish(job, report);
-        return false;
-    }
-    report = persisted;
-    report.state = ToolJobState::Succeeded;
-    report.summary = maxFrequencyMHz > 0.0
-        ? wxString::Format("PnR completed; fmax = %.2f MHz.", maxFrequencyMHz)
-        : wxString("PnR completed.");
     FinishJob(job, ToolJobState::Succeeded, report.exitCode, report.summary);
     return JobService().WriteReport(request.projectPath, job.id, report, errorMessage);
 }

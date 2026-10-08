@@ -67,6 +67,21 @@ void NextpnrJobsPanel::SetProjectContext(const wxString& projectPath,
     RefreshJobs();
 }
 
+void NextpnrJobsPanel::SetCoreJobService(eda::IJobService* service,
+                                        const wxString& jobsRoot)
+{
+    m_coreService = service;
+    m_coreJobsRoot = jobsRoot;
+}
+
+wxString NextpnrJobsPanel::CoreJobPath(const wxString& jobId,
+                                      const wxString& child) const
+{
+    return sigflow::platform::JoinPath(
+        sigflow::platform::JoinPath(
+            sigflow::platform::JoinPath(m_coreJobsRoot, "pnr"), jobId), child);
+}
+
 void NextpnrJobsPanel::SetOpenFileHandler(
     std::function<void(const wxString&, long)> handler)
 {
@@ -178,6 +193,7 @@ void NextpnrJobsPanel::RefreshJobs()
     }
 
     m_jobs.clear();
+    m_coreJobs.clear();
     m_jobList->DeleteAllItems();
     SetReportText(wxEmptyString);
 
@@ -194,6 +210,31 @@ void NextpnrJobsPanel::RefreshJobs()
         SetReportText("Unable to load nextpnr jobs.\n\n" + errorMessage);
         UpdateActions();
         return;
+    }
+
+    if (m_coreService) {
+        for (const eda::JobRecord& record : m_coreService->list(
+                 sigflow::platform::Utf8String(m_projectPath))) {
+            if (record.request.jobType != "pnr") continue;
+            NextpnrJob job;
+            job.id = wxString::FromUTF8(record.id.c_str());
+            job.retryOf = wxString::FromUTF8(record.retryOf.c_str());
+            job.state = static_cast<NextpnrJobState>(record.state);
+            job.createdAt = wxString::FromUTF8(record.createdAt.c_str());
+            job.updatedAt = wxString::FromUTF8(record.updatedAt.c_str());
+            job.exitCode = record.exitCode;
+            const auto& params = record.request.params;
+            if (params.is_object()) {
+                if (params.contains("device") && params["device"].is_string())
+                    job.request.deviceName = wxString::FromUTF8(
+                        params["device"].get<std::string>().c_str());
+                if (params.contains("family") && params["family"].is_string())
+                    job.request.familyName = wxString::FromUTF8(
+                        params["family"].get<std::string>().c_str());
+            }
+            m_coreJobs[job.id] = record;
+            m_jobs.push_back(std::move(job));
+        }
     }
 
     SortJobsNewestFirst();
@@ -259,6 +300,22 @@ void NextpnrJobsPanel::RenderSelectedJob()
         return;
     }
 
+    if (m_coreService && m_coreJobs.find(job->id) != m_coreJobs.end()) {
+        const eda::JobReport report = m_coreService->report(
+            sigflow::platform::Utf8String(job->id));
+        wxString summary = "Job: " + job->id + "\nState: " + ToString(job->state) +
+            "\nDevice: " + job->request.deviceName +
+            "\nFamily: " + job->request.familyName + "\n";
+        if (!report.metrics.is_null())
+            summary += "\nMetrics:\n" + wxString::FromUTF8(report.metrics.dump(2).c_str()) + "\n";
+        if (!report.diagnostics.is_null())
+            summary += "\nDiagnostics:\n" +
+                wxString::FromUTF8(report.diagnostics.dump(2).c_str()) + "\n";
+        SetReportText(summary);
+        UpdateActions();
+        return;
+    }
+
     const NextpnrJobPaths paths = NextpnrJobService::GetPaths(m_projectPath, job->id);
 
     wxString reportContent;
@@ -306,6 +363,14 @@ void NextpnrJobsPanel::UpdateActions()
 {
     const NextpnrJob* job = GetSelectedJob();
     const bool hasJob = job != nullptr;
+    if (hasJob && m_coreJobs.find(job->id) != m_coreJobs.end()) {
+        m_openReportButton->Enable(wxFileExists(
+            CoreJobPath(job->id, "reports/job-report.json")));
+        m_openLogButton->Enable(wxFileExists(CoreJobPath(job->id, "logs/process.log")));
+        m_retryButton->Enable(IsTerminalNextpnrJobState(job->state) &&
+                              static_cast<bool>(m_retryHandler));
+        return;
+    }
     const NextpnrJobPaths paths = hasJob
         ? NextpnrJobService::GetPaths(m_projectPath, job->id) : NextpnrJobPaths();
     m_openReportButton->Enable(hasJob && wxFileExists(sigflow::platform::JoinPath(paths.reports, "route.analysis.json")));
@@ -374,6 +439,14 @@ void NextpnrJobsPanel::OnOpenReport(wxCommandEvent&)
 {
     const NextpnrJob* job = GetSelectedJob();
     if (!job) return;
+    if (m_coreJobs.find(job->id) != m_coreJobs.end()) {
+        const wxString filePath = CoreJobPath(job->id, "reports/job-report.json");
+        wxLogNull suppressLog;
+        wxFile file(filePath, wxFile::read);
+        wxString content;
+        if (file.IsOpened() && file.ReadAll(&content)) SetReportText(content);
+        return;
+    }
     const NextpnrJobPaths paths = NextpnrJobService::GetPaths(m_projectPath, job->id);
     const wxString filePath = sigflow::platform::JoinPath(paths.reports, "route.analysis.json");
     if (!wxFileExists(filePath)) {
@@ -395,6 +468,14 @@ void NextpnrJobsPanel::OnOpenLog(wxCommandEvent&)
 {
     const NextpnrJob* job = GetSelectedJob();
     if (!job) return;
+    if (m_coreJobs.find(job->id) != m_coreJobs.end()) {
+        const wxString filePath = CoreJobPath(job->id, "logs/process.log");
+        wxLogNull suppressLog;
+        wxFile file(filePath, wxFile::read);
+        wxString content;
+        if (file.IsOpened() && file.ReadAll(&content)) SetReportText(content);
+        return;
+    }
     const NextpnrJobPaths paths = NextpnrJobService::GetPaths(m_projectPath, job->id);
     const wxString filePath = sigflow::platform::JoinPath(paths.logs, "nextpnr.combined.log");
     if (!wxFileExists(filePath)) {

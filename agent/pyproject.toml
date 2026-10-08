@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sigflow-edu-agent"
+version = "0.1.0"
+description = "SigFlow Edu Agent: self-developed, stdlib-only teaching sidecar for the SigFlow IDE"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+authors = [{ name = "SigFlow Edu Agent contributors" }]
+keywords = ["sigflow", "fpga", "education", "verilog", "sidecar"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: No Input/Output (Daemon)",
+  "Intended Audience :: Education",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Education",
+]
+# No runtime dependencies by design: the standard library only.
+dependencies = []
+
+[project.scripts]
+sigflow-edu-agent = "sigflow_edu_agent.__main__:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+script-files = ["bin/sigflow-edu-agent.cmd", "bin/sigflow-edu-agent"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

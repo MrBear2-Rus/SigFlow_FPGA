@@ -252,8 +252,9 @@ endif()
 # 不再构建/链接 slang。`external/slang-src` 保留但不再参与构建。
 # ---------------------------------------------------------------------------
 
-# P0-7（R16）：显式源列表取代 file(GLOB_RECURSE)，消除 CMake/vcxproj 源集合漂移。
+# P0-7（R16）：显式源列表取代 file(GLOB_RECURSE)。旧 main.vcxproj 不再作为受支持的构建入口。
 set(SIGFLOW_MAIN_SOURCES
+    "${SIGFLOW_MAIN_DIR}/agent/AgentServiceController.cpp"
     "${SIGFLOW_MAIN_DIR}/AsyncAnalysisCenter.cpp"
     "${SIGFLOW_MAIN_DIR}/BuildProgressBar.cpp"
     "${SIGFLOW_MAIN_DIR}/CanvasElement.cpp"
@@ -304,7 +305,6 @@ set(SIGFLOW_MAIN_SOURCES
     "${SIGFLOW_MAIN_DIR}/FpgaYosysRuntime.cpp"
     "${SIGFLOW_MAIN_DIR}/FpgaYosysScriptGenerator.cpp"
     "${SIGFLOW_MAIN_DIR}/HandyToolKit.cpp"
-    "${SIGFLOW_MAIN_DIR}/jobs/JobRegistry.cpp"
     "${SIGFLOW_MAIN_DIR}/jobs/JobService.cpp"
     "${SIGFLOW_MAIN_DIR}/jobs/PlatformProcess.cpp"
     "${SIGFLOW_MAIN_DIR}/jobs/Sha256.cpp"
@@ -326,6 +326,7 @@ set(SIGFLOW_MAIN_SOURCES
     "${SIGFLOW_MAIN_DIR}/SigTextEditor.cpp"
     "${SIGFLOW_MAIN_DIR}/SigTree.cpp"
     "${SIGFLOW_MAIN_DIR}/Simulation/SimMainGenerator.cpp"
+    "${SIGFLOW_MAIN_DIR}/Simulation/GuiSimulationJobProvider.cpp"
     "${SIGFLOW_MAIN_DIR}/Simulation/SimulationEngine.cpp"
     "${SIGFLOW_MAIN_DIR}/Simulation/StimulusParser.cpp"
     "${SIGFLOW_MAIN_DIR}/Simulation/TimelineGenerator.cpp"
@@ -565,7 +566,7 @@ add_subdirectory(InnerPlugin/eda-lib-basic)
 #   main/jobs/Sha256.cpp              -> eda-platform/Sha256.h   (core/src)
 # 这些路径此前只加给了 sigflow 目标，于是【其它目标】(job_tests / fpga_flow_probe ...)
 # 全部编译失败；实现委托给插件静态库后还会出现 undefined reference。
-# 这里统一加入 —— 新增目标不会再漏（Windows 走 main.vcxproj，不受影响）。
+# 这里统一加入 —— 新增 CMake 目标不会再漏（Windows 也由 CMake 构建）。
 # -----------------------------------------------------------------------------
 file(GLOB SIGFLOW_PLUGIN_INCLUDE_DIRS CONFIGURE_DEPENDS
      "${CMAKE_CURRENT_SOURCE_DIR}/InnerPlugin/*/include")
@@ -647,6 +648,8 @@ target_link_libraries(sigflow PRIVATE eda-lib-basic)
 # 教育版 Agent（SIGFLOW_BUILD_EDU_AGENT=ON 时链接 EDA Gateway）。
 if(TARGET eda_agent_gateway)
     target_compile_definitions(sigflow PRIVATE SIGFLOW_BUILD_EDU_AGENT=1)
+    # AgentServiceController also performs authenticated loopback health probes.
+    target_include_directories(sigflow PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/3rd/httplib")
     target_link_libraries(sigflow PRIVATE eda_agent_gateway)
 endif()
 # P1-5：目标 profile / 引脚库 JSON 随可执行文件分发。

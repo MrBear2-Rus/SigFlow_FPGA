@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "edu-agent/v1/schemas/agent-run.schema.json",
+  "title": "AgentRun",
+  "description": "SigFlow Edu Agent 一次教学运行的记录。state=degraded 表示模型不可用（或无 Key）时按确定性规则路径返回；state=failed 时不得携带任何假装读过证据的卡片。",
+  "type": "object",
+  "required": [
+    "run_id", "session_id", "state", "state_version",
+    "cards", "omitted", "model_used"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "pattern": "^run-[1-9][0-9]*$"
+    },
+    "session_id": {
+      "type": "string",
+      "pattern": "^sess-[1-9][0-9]*$"
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["explain", "hint", "plan", "report_review"]
+    },
+    "level": {
+      "type": "string",
+      "enum": ["L1", "L2", "L3", "L4"]
+    },
+    "state": {
+      "type": "string",
+      "enum": ["succeeded", "degraded", "failed"],
+      "description": "degraded = 已降级（例如无模型 Key 时走规则路径）；failed = 未能取得必要证据。"
+    },
+    "state_version": {
+      "type": "string",
+      "pattern": "^[0-9]+$"
+    },
+    "cards": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {
+        "oneOf": [
+          { "$ref": "teaching-card.schema.json" },
+          { "$ref": "plan-card.schema.json" }
+        ]
+      },
+      "description": "单次运行最多 16 张卡片；被丢弃的条目记入 omitted。"
+    },
+    "omitted": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/omitted" }
+    },
+    "model_used": {
+      "type": "boolean",
+      "description": "是否真的使用了模型；无 Key 时恒为 false，绝不伪造模型回答。"
+    },
+    "error": {
+      "type": "object",
+      "description": "仅 state=failed 时出现。",
+      "required": ["code", "message"],
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string",
+          "enum": [
+            "INVALID_ARGUMENT", "UNAUTHENTICATED", "POLICY_DENIED", "NOT_FOUND",
+            "STALE_REVISION", "IDEMPOTENCY_CONFLICT", "CURSOR_EXPIRED",
+            "RESOURCE_EXHAUSTED", "SERVICE_UNAVAILABLE", "MODEL_UNAVAILABLE",
+            "GATEWAY_UNAVAILABLE", "CAPABILITY_UNAVAILABLE"
+          ]
+        },
+        "message": { "type": "string" }
+      }
+    }
+  },
+  "$defs": {
+    "omitted": {
+      "type": "object",
+      "required": ["kind", "reason"],
+      "additionalProperties": true,
+      "properties": {
+        "kind": { "type": "string" },
+        "reason": { "type": "string" }
+      }
+    }
+  }
+}

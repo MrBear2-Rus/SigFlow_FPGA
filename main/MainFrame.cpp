@@ -22,6 +22,7 @@
 #include "platform/PlatformPaths.h"
 #include "ISigPlugin.h"
 #include "eda-core/Toolchain.h"
+#include "eda-platform/Platform.h"
 #include <eda/api/toolchain.hpp>
 #include <filesystem>
 
@@ -35,6 +36,7 @@ using sigflow::platform::JoinPath;
 #include <mutex>
 #include <functional>
 #include <chrono>
+#include <random>
 #include <thread>
 
 #include "MainFrame.h"
@@ -72,11 +74,23 @@ using sigflow::platform::JoinPath;
 #include "fpga/CstValidator.h"
 #include "fpga/NextpnrExecutor.h"
 #include "fpga/NextpnrJob.h"
+#include "Simulation/GuiSimulationJobProvider.h"
+#include "VcdWaveformBackend.h"
 
 extern std::vector<SecondElement> g_elements;
 extern "C" TSLanguage* tree_sitter_verilog();
 
 namespace {
+
+std::string MakeEphemeralGatewayToken() {
+    // 令牌只保留在本进程内，未来 sidecar 通过受限启动通道接收；绝不写入工程、URL 或日志。
+    static constexpr char kHex[] = "0123456789abcdef";
+    std::random_device random;
+    std::string token;
+    token.reserve(64);
+    for (int i = 0; i < 64; ++i) token.push_back(kHex[random() & 0x0f]);
+    return token;
+}
 
 struct FpgaProjectOptions {
     wxString targetProfileId;
@@ -536,6 +550,8 @@ MainFrame::MainFrame()
 
 
     Bind(wxEVT_CLOSE_WINDOW, &MainFrame::OnClose, this);
+    m_coreJobTimer.SetOwner(this);
+    Bind(wxEVT_TIMER, &MainFrame::OnCoreJobTimer, this, m_coreJobTimer.GetId());
 
     // 构造SigTree
     sigTree = new SigFlowTree(this);
@@ -604,6 +620,11 @@ MainFrame::MainFrame()
         RunFpgaSynthesis();
     });
     m_fpgaToolWindow->SetRouteStartHandler([this]() { RunFpgaRoute(); });
+    m_fpgaToolWindow->SetRouteCancelHandler([this]() { DoFpgaCancelRoute(); });
+    m_fpgaToolWindow->SetRouteRetryHandler([this](const wxString& jobId) {
+        m_pendingNextpnrRetryOf = jobId;
+        RunFpgaRoute();
+    });
     m_fpgaToolWindow->SetPackStartHandler([this]() { RunFpgaPack(); });
     m_fpgaToolWindow->SetProgramStartHandler([this](const wxString& bitstreamPath) {
         RunFpgaProgram(bitstreamPath);
@@ -768,13 +789,17 @@ MainFrame::MainFrame()
     m_terminalCtrl->PrintOutput(wxString::FromUTF8(composerReport));
 
 #if defined(SIGFLOW_BUILD_EDU_AGENT)
-    // 教育版 Agent EDA Gateway：最小脚手架，绑定 127.0.0.1 系统分配端口。
-    // provider 由 Composer 就绪插件快照注入；token/长轮询/grant/sidecar 属后续 SF-02。
+    // 教育版 Agent EDA Gateway + Python sidecar：两类 token 都只留在进程内。
+    // sidecar 仅从 stdin bootstrap 获得其所需的 Agent→EDA/UI→Agent token，绝不放进
+    // 命令行、URL、工程文件或终端日志。
     {
         eda::agent::GatewayConfig gatewayConfig;
         gatewayConfig.instanceId = "inst-" + std::string(wxDateTime::UNow().Format("%Y%m%d%H%M%S").ToUTF8().data());
         gatewayConfig.edition = "edu";
         gatewayConfig.port = 0;
+        const std::string gatewayToken = MakeEphemeralGatewayToken();
+        gatewayConfig.token = gatewayToken;
+        gatewayConfig.uiToken = MakeEphemeralGatewayToken();
         sigflow::Composer* composer = m_composer;
         m_agentGateway = std::make_unique<eda::agent::GatewayServer>(
             gatewayConfig, [composer]() {
@@ -785,19 +810,74 @@ MainFrame::MainFrame()
                 }
                 return ready;
             });
+        m_agentGateway->SetJobServiceProvider([composer]() -> eda::IJobService* {
+            return composer == nullptr ? nullptr : &composer->JobService();
+        });
+        // The Gateway owns no wx/trace objects.  It opens only trusted VCD
+        // artifacts registered from a JobReport, using the wx-free backend.
+        // FST/LXT remain explicitly unavailable until a matching backend is
+        // supplied; they are never parsed as text or passed wholesale to Agent.
+        m_agentGateway->SetWaveformBackendFactory([]() -> std::shared_ptr<eda::IWaveformBackend> {
+            return std::make_shared<eda::wave::VcdWaveformBackend>();
+        });
         std::string gatewayError;
         if (m_agentGateway->Start(gatewayError)) {
             m_agentGateway->RunAsync();
+            m_agentEventTimer.SetOwner(this);
+            Bind(wxEVT_TIMER, &MainFrame::OnAgentEventTimer, this, m_agentEventTimer.GetId());
+            m_agentEventTimer.Start(500);
             m_terminalCtrl->PrintOutput(wxString::Format(
                 "[edu-agent] EDA Gateway listening on 127.0.0.1:%d (instance %s)\n",
                 m_agentGateway->Port(),
                 wxString::FromUTF8(gatewayConfig.instanceId.c_str())));
+
+            AgentServiceController::Config sidecarConfig;
+            const std::string configuredSidecar =
+                eda::platform::EnvUtf8("SIGFLOW_EDU_AGENT_EXECUTABLE");
+            sidecarConfig.executable = wxString::FromUTF8(configuredSidecar.c_str());
+            sidecarConfig.instanceId = gatewayConfig.instanceId;
+            sidecarConfig.gatewayUrl = "http://127.0.0.1:" +
+                std::to_string(m_agentGateway->Port());
+            sidecarConfig.gatewayToken = gatewayToken;
+            sidecarConfig.agentUiToken = MakeEphemeralGatewayToken();
+            sidecarConfig.dataDirectory = wxString::FromUTF8(
+                eda::platform::PathToUtf8(eda::platform::AppDataRoot() / "sigflow-edu-agent" /
+                                          gatewayConfig.instanceId).c_str());
+            sidecarConfig.workingDirectory = sidecarConfig.dataDirectory;
+            sidecarConfig.onStatus = [this](const AgentServiceController::Status& status) {
+                if (m_terminalCtrl == nullptr) return;
+                const char* state = "stopped";
+                switch (status.state) {
+                case AgentServiceController::State::Disabled: state = "disabled"; break;
+                case AgentServiceController::State::Starting: state = "starting"; break;
+                case AgentServiceController::State::Ready: state = "ready"; break;
+                case AgentServiceController::State::BackingOff: state = "backing-off"; break;
+                case AgentServiceController::State::Failed: state = "failed"; break;
+                case AgentServiceController::State::Stopped: break;
+                }
+                m_terminalCtrl->PrintOutput(wxString::Format(
+                    "[edu-agent] sidecar %s: %s\n", wxString::FromUTF8(state),
+                    wxString::FromUTF8(status.message.c_str())));
+            };
+            m_agentSidecar = std::make_unique<AgentServiceController>(std::move(sidecarConfig));
+            m_agentSidecar->Start();
         } else {
             m_terminalCtrl->PrintOutput(wxString::Format(
                 "[edu-agent] EDA Gateway disabled: %s\n",
                 wxString::FromUTF8(gatewayError.c_str())));
             m_agentGateway.reset();
         }
+    }
+    if (m_verilogEditor) {
+        m_verilogEditor->Bind(wxEVT_STC_MODIFIED, [this](wxStyledTextEvent& event) {
+            const int modification = event.GetModificationType();
+            if (!m_verilogEditor->m_isLoading &&
+                (modification & (wxSTC_MOD_INSERTTEXT | wxSTC_MOD_DELETETEXT)) != 0 &&
+                m_agentGateway && !m_agentProjectId.empty()) {
+                m_agentGateway->MarkProjectDirty(m_agentProjectId, true);
+            }
+            event.Skip();
+        });
     }
 #endif
 
@@ -1037,6 +1117,15 @@ MainFrame::MainFrame()
 
 MainFrame::~MainFrame()
 {
+    m_coreJobTimer.Stop();
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+    m_agentEventTimer.Stop();
+    if (m_agentSidecar) {
+        m_agentSidecar->Stop();
+        m_agentSidecar.reset();
+    }
+    if (m_agentGateway) m_agentGateway->Stop();
+#endif
     for (const std::shared_ptr<JobRunHandle>& handle : m_jobRuns) {
         if (handle) handle->Join();
     }
@@ -1055,6 +1144,87 @@ MainFrame::~MainFrame()
     m_verilogEditor = nullptr;
 }
 
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+void MainFrame::ConfigureAgentProjectStorage()
+{
+    if (!m_agentGateway || m_currentProjectPath.IsEmpty()) return;
+    const std::filesystem::path projectRoot(sigflow::platform::Utf8Path(m_currentProjectPath));
+    const std::filesystem::path agentRoot = projectRoot / ".sigflow" / "agent";
+    if (m_composer) {
+        const std::string projectKey = eda::platform::StablePathKey(projectRoot);
+        if (!m_composer->ConfigureJobStorage(eda::platform::PathToUtf8(agentRoot), projectKey)) {
+            if (m_terminalCtrl) {
+                m_terminalCtrl->PrintOutput(
+                    "[edu-agent] Job storage root was not switched (existing Job records remain active).\n");
+            }
+        } else {
+            if (m_fpgaToolWindow) {
+                m_fpgaToolWindow->SetCoreJobService(
+                    &m_composer->JobService(),
+                    wxString::FromUTF8(m_composer->JobServiceRoot().c_str()));
+            }
+            if (m_terminalCtrl && !m_composer->JobServiceRootWarning().empty()) {
+                m_terminalCtrl->PrintOutput(
+                    "[edu-agent] Job storage fallback: " +
+                    wxString::FromUTF8(m_composer->JobServiceRootWarning().c_str()) + "\n");
+            }
+        }
+    }
+    const wxString grantPath = JoinPath(
+        JoinPath(JoinPath(m_currentProjectPath, ".sigflow"), "agent"), "grants.json");
+    std::string error;
+    if (!m_agentGateway->ConfigureGrantPersistence(
+            sigflow::platform::Utf8String(grantPath), error)) {
+        if (m_terminalCtrl) {
+            m_terminalCtrl->PrintOutput(
+                "[edu-agent] Grant persistence unavailable; execution grants are disabled: " +
+                wxString::FromUTF8(error.c_str()) + "\n");
+        }
+    }
+}
+
+void MainFrame::OnAgentEventTimer(wxTimerEvent& event)
+{
+    if (m_agentGateway) {
+        m_agentGateway->PollJobEvents();
+        // NG-08：快照保留调度。内部按 5 分钟节流，因此可以跟着 500 ms 定时器一起调用；
+        // 活跃 Job/grant 引用与当前 revision 的快照由 Gateway 固定保留。
+        m_agentGateway->RunSnapshotRetention(20, 7ull * 24ull * 3600ull);
+    }
+    if (m_agentSidecar) m_agentSidecar->Tick();
+    event.Skip();
+}
+
+void MainFrame::RefreshAgentProjectSnapshotState(bool dirty, bool synchronized)
+{
+    if (!m_agentGateway || m_currentProjectPath.IsEmpty()) return;
+    std::string projectId;
+    std::string error;
+    if (!m_agentGateway->RefreshProjectSnapshotStateFromDisk(
+            sigflow::platform::Utf8Path(m_currentProjectPath), dirty, synchronized,
+            projectId, error)) {
+        if (m_terminalCtrl) {
+            m_terminalCtrl->PrintOutput(
+                "[edu-agent] Project context unavailable: " +
+                wxString::FromUTF8(error.c_str()) + "\n");
+        }
+        return;
+    }
+    if (!m_agentProjectId.empty() && m_agentProjectId != projectId) {
+        // 切工程：先按可信事实投递 project/closed，再清理旧工程的运行时状态。
+        m_agentGateway->NotifyProjectClosed(m_agentProjectId);
+    }
+    const bool projectChanged = m_agentProjectId != projectId;
+    m_agentProjectId = std::move(projectId);
+    // NG-08：事件由 Gateway 依据事实生成，UI 不直接拼事件体。
+    if (projectChanged) {
+        m_agentGateway->NotifyProjectOpened(m_agentProjectId);
+    } else {
+        m_agentGateway->NotifyProjectSaved(m_agentProjectId);
+    }
+}
+#endif
+
 void MainFrame::ReapJobRuns()
 {
     m_jobRuns.erase(std::remove_if(m_jobRuns.begin(), m_jobRuns.end(),
@@ -1063,6 +1233,44 @@ void MainFrame::ReapJobRuns()
             handle->Join();
             return true;
         }), m_jobRuns.end());
+}
+
+void MainFrame::EnsureGuiSimProviders()
+{
+    if (!m_composer || m_guiSimProvidersRegistered || !m_simEngine) return;
+    m_composer->RegisterGuiJobProvider(
+        std::make_shared<GuiSimulationJobProvider>(m_simEngine, true));
+    m_composer->RegisterGuiJobProvider(
+        std::make_shared<GuiSimulationJobProvider>(m_simEngine, false));
+    m_guiSimProvidersRegistered = true;
+}
+
+void MainFrame::TrackCoreJob(const std::string& jobId, CoreJobCompletion completion)
+{
+    m_pendingCoreJobs[jobId] = std::move(completion);
+    if (!m_coreJobTimer.IsRunning()) m_coreJobTimer.Start(250);
+}
+
+void MainFrame::OnCoreJobTimer(wxTimerEvent& event)
+{
+    if (!m_composer) return;
+    auto& service = m_composer->JobService();
+    for (auto it = m_pendingCoreJobs.begin(); it != m_pendingCoreJobs.end();) {
+        const std::optional<eda::JobRecord> record = service.get(it->first);
+        if (!record || (record->state != eda::JobState::Succeeded &&
+                        record->state != eda::JobState::Failed &&
+                        record->state != eda::JobState::Cancelled &&
+                        record->state != eda::JobState::TimedOut)) {
+            ++it;
+            continue;
+        }
+        const eda::JobReport report = service.report(it->first);
+        CoreJobCompletion completion = std::move(it->second);
+        it = m_pendingCoreJobs.erase(it);
+        if (completion) completion(*record, report);
+    }
+    if (m_pendingCoreJobs.empty()) m_coreJobTimer.Stop();
+    event.Skip();
 }
 
 void MainFrame::OnToolboxElement(wxCommandEvent& evt)
@@ -1233,6 +1441,9 @@ void MainFrame::DoFileOpenProject() {
 
         m_projectTreePanel->LoadProject(path);
         m_currentProjectPath = path;
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+        ConfigureAgentProjectStorage();
+#endif
         {
             wxString recoverError;
             JobService().RecoverStaleJobs(m_currentProjectPath, m_activeToolJobIds, recoverError);
@@ -1345,6 +1556,9 @@ void MainFrame::DoFileOpenProject() {
         progress.Update(progress.GetRange(), "Load Complete!");
         wxCommandEvent evt;
         OnSFTreeChanged(evt);
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+        RefreshAgentProjectSnapshotState(false, true);
+#endif
     }
 }
 
@@ -1366,6 +1580,9 @@ void MainFrame::SetProjectDir(const wxString& projectDir)
 
     m_projectTreePanel->LoadProject(projectDir);
     m_currentProjectPath = projectDir;
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+    ConfigureAgentProjectStorage();
+#endif
     {
         wxString recoverError;
         JobService().RecoverStaleJobs(m_currentProjectPath, m_activeToolJobIds, recoverError);
@@ -1487,6 +1704,9 @@ void MainFrame::SetProjectDir(const wxString& projectDir)
     // 触发树变更事件（保留你的原有逻辑）
     wxCommandEvent evt;
     OnSFTreeChanged(evt);
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+    RefreshAgentProjectSnapshotState(false, true);
+#endif
 }
 bool MainFrame::DoFileNew() {
     // Create a new project directory with basic structure and open it in the project tree
@@ -1678,6 +1898,9 @@ bool MainFrame::DoFileSave() {
     m_isModified = false;
     SetStatusText(wxString::Format("Saved: %s", m_currentFilePath));
     RefreshTitle();
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+    RefreshAgentProjectSnapshotState(false, true);
+#endif
     return true;
 }
 
@@ -2147,6 +2370,9 @@ bool MainFrame::DoFileSaveAs() {
     static_cast<MainMenuBar*>(GetMenuBar())->AddFileToHistory(newPath);
     SetStatusText(wxString::Format("Saved as: %s", newPath));
     RefreshTitle();
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+    RefreshAgentProjectSnapshotState(false, true);
+#endif
     return true;
 }
 
@@ -2532,6 +2758,11 @@ bool MainFrame::LoadProjectConfig(const wxString& projectPath,
 void MainFrame::ShowFpgaToolWindow(FpgaToolPage page)
 {
     if (!m_fpgaToolWindow) return;
+    if (m_composer) {
+        m_fpgaToolWindow->SetCoreJobService(
+            &m_composer->JobService(),
+            wxString::FromUTF8(m_composer->JobServiceRoot().c_str()));
+    }
     m_fpgaToolWindow->SetProjectContext(m_currentProjectPath, m_activeYosysJobId);
     m_fpgaToolWindow->ShowPage(page);
 }
@@ -3262,21 +3493,54 @@ void MainFrame::RunFpgaSynthesis()
             {"strategy", sigflow::platform::Utf8String(strategyInfo.id)},
             {"target_profile", sigflow::platform::Utf8String(targetProfile.id)},
             {"target_version", sigflow::platform::Utf8String(targetProfile.version)},
-            {"yosys_family", sigflow::platform::Utf8String(targetProfile.yosysFamily)}};
+            {"yosys_family", sigflow::platform::Utf8String(targetProfile.yosysFamily)},
+            {"yosys_path", sigflow::platform::Utf8String(yosysExecutable)},
+            {"output_json", sigflow::platform::Utf8String(
+                JoinPath(yosysDirectory, topModule + ".json"))}};
         eda::Json sources = eda::Json::array();
         for (const auto& source : sourceFiles) {
             sources.push_back(sigflow::platform::Utf8String(source));
         }
         synthParams["source_files"] = sources;
-        const std::string jobId = m_composer->SubmitJob(
-            "synth", sigflow::platform::Utf8String(m_currentProjectPath), synthParams, false,
-            submitError);
+        std::string jobId;
+        if (!m_pendingYosysRetryOf.IsEmpty() &&
+            m_composer->JobService().get(sigflow::platform::Utf8String(m_pendingYosysRetryOf))) {
+            m_composer->JobService().retry(
+                sigflow::platform::Utf8String(m_pendingYosysRetryOf), jobId);
+        } else {
+            jobId = m_composer->SubmitJob(
+                "synth", sigflow::platform::Utf8String(m_currentProjectPath), synthParams,
+                false, submitError);
+        }
+        m_pendingYosysRetryOf.clear();
         if (jobId.empty()) {
+            if (submitError.empty()) submitError = "unable to retry synthesis job";
             wxMessageBox(wxString::FromUTF8(submitError.c_str()), "FPGA Synthesis",
                          wxOK | wxICON_ERROR, this);
             return;
         }
         m_activeYosysJobId = wxString::FromUTF8(jobId.c_str());
+        if (m_fpgaToolWindow && m_fpgaToolWindow->IsShown()) {
+            m_fpgaToolWindow->SetProjectContext(m_currentProjectPath, m_activeYosysJobId);
+        }
+        const wxString projectPath = m_currentProjectPath;
+        TrackCoreJob(jobId, [this, projectPath](const eda::JobRecord& record,
+                                                 const eda::JobReport& report) {
+            m_activeYosysJobId.clear();
+            if (m_currentProjectPath != projectPath) return;
+            const bool success = record.state == eda::JobState::Succeeded;
+            if (m_terminalCtrl) {
+                m_terminalCtrl->PrintOutput(wxString::Format(
+                    "[synth] job %s: %s\n", wxString::FromUTF8(record.id.c_str()),
+                    success ? "completed" : "failed") +
+                    (success ? wxString() : wxString::FromUTF8(report.diagnostics.dump().c_str())));
+            }
+            SetStatusText(success ? "Yosys synthesis completed" : "Yosys synthesis failed");
+            if (m_projectTreePanel) m_projectTreePanel->RefreshTree();
+            if (m_fpgaToolWindow && m_fpgaToolWindow->IsShown()) {
+                m_fpgaToolWindow->SetProjectContext(projectPath, wxEmptyString);
+            }
+        });
         if (m_terminalCtrl) {
             m_terminalCtrl->PrintOutput(
                 wxString::Format("[synth] submitted via IJobService: %s\n",
@@ -3604,6 +3868,14 @@ void SaveNextpnrDiagnosticReport(const wxString& projectPath, int exitCode,
 
 void MainFrame::DoFpgaCancelSynthesis()
 {
+    if (m_composer && sigflow::Composer::UseJobService() &&
+        !m_activeYosysJobId.IsEmpty()) {
+        const std::string jobId = sigflow::platform::Utf8String(m_activeYosysJobId);
+        if (m_composer->JobService().cancel(jobId, "User cancelled synthesis.")) {
+            SetStatusText("Yosys synthesis cancellation requested");
+            return;
+        }
+    }
     if (!m_yosysExecutor || m_yosysExecutor->GetState() != YosysExecutor::State::Running) {
         wxMessageBox("There is no active Yosys synthesis job to cancel.", "FPGA Synthesis",
                      wxOK | wxICON_INFORMATION, this);
@@ -3639,6 +3911,14 @@ void MainFrame::DoFpgaRoute()
 
 void MainFrame::DoFpgaCancelRoute()
 {
+    if (m_composer && sigflow::Composer::UseJobService() &&
+        !m_activeNextpnrJobId.IsEmpty()) {
+        const std::string jobId = sigflow::platform::Utf8String(m_activeNextpnrJobId);
+        if (m_composer->JobService().cancel(jobId, "User cancelled place and route.")) {
+            SetStatusText("nextpnr place and route cancellation requested");
+            return;
+        }
+    }
     if (!m_nextpnrExecutor) {
         wxMessageBox("There is no active nextpnr place and route job to cancel.",
                      "FPGA Place and Route", wxOK | wxICON_INFORMATION, this);
@@ -3777,16 +4057,44 @@ void MainFrame::RunFpgaRoute()
             {"netlist", sigflow::platform::Utf8String(yosysJson)},
             {"device", sigflow::platform::Utf8String(targetProfile.device)},
             {"family", sigflow::platform::Utf8String(targetProfile.family)},
-            {"cst", sigflow::platform::Utf8String(configuredCstPath)}};
-        const std::string jobId = m_composer->SubmitJob(
-            "pnr", sigflow::platform::Utf8String(m_currentProjectPath), pnrParams, false,
-            submitError);
+            {"cst", sigflow::platform::Utf8String(configuredCstPath)},
+            {"nextpnr_path", sigflow::platform::Utf8String(nextpnrExecutable)},
+            {"output", sigflow::platform::Utf8String(
+                JoinPath(nextpnrDirectory, topModule + ".pnr.json"))}};
+        std::string jobId;
+        if (!m_pendingNextpnrRetryOf.IsEmpty() &&
+            m_composer->JobService().get(sigflow::platform::Utf8String(m_pendingNextpnrRetryOf))) {
+            m_composer->JobService().retry(
+                sigflow::platform::Utf8String(m_pendingNextpnrRetryOf), jobId);
+        } else {
+            jobId = m_composer->SubmitJob(
+                "pnr", sigflow::platform::Utf8String(m_currentProjectPath), pnrParams,
+                false, submitError);
+        }
+        m_pendingNextpnrRetryOf.clear();
         if (jobId.empty()) {
+            if (submitError.empty()) submitError = "unable to retry place-and-route job";
             wxMessageBox(wxString::FromUTF8(submitError.c_str()), "FPGA Place and Route",
                          wxOK | wxICON_ERROR, this);
             return;
         }
         m_activeNextpnrJobId = wxString::FromUTF8(jobId.c_str());
+        const wxString projectPath = m_currentProjectPath;
+        TrackCoreJob(jobId, [this, projectPath](const eda::JobRecord& record,
+                                                 const eda::JobReport& report) {
+            m_activeNextpnrJobId.clear();
+            if (m_currentProjectPath != projectPath) return;
+            const bool success = record.state == eda::JobState::Succeeded;
+            if (m_terminalCtrl) {
+                m_terminalCtrl->PrintOutput(wxString::Format(
+                    "[pnr] job %s: %s\n", wxString::FromUTF8(record.id.c_str()),
+                    success ? "completed" : "failed") +
+                    (success ? wxString() : wxString::FromUTF8(report.diagnostics.dump().c_str())));
+            }
+            SetStatusText(success ? "nextpnr completed" : "nextpnr failed");
+            if (m_fpgaToolWindow) m_fpgaToolWindow->SetRouteActiveJob(wxEmptyString);
+            if (m_projectTreePanel) m_projectTreePanel->RefreshTree();
+        });
         if (m_fpgaToolWindow) {
             m_fpgaToolWindow->SetRouteActiveJob(m_activeNextpnrJobId);
         }
@@ -4186,6 +4494,41 @@ void MainFrame::RunFpgaPack()
                          wxOK | wxICON_ERROR, this);
             return;
         }
+        if (m_buildProgressBar) {
+            m_buildProgressBar->BeginOperation(wxT("Apicula gowin_pack"), 0);
+            eda::IJobService* service = &m_composer->JobService();
+            m_buildProgressBar->SetCancelCallback([service, jobId] {
+                service->cancel(jobId, "User cancelled packing.");
+            });
+        }
+        const wxString projectPath = m_currentProjectPath;
+        TrackCoreJob(jobId, [this, projectPath, packRequest, manifestPath]
+                            (const eda::JobRecord& record, const eda::JobReport& jobReport) {
+            if (m_currentProjectPath != projectPath) return;
+            FpgaPackService service;
+            FpgaPackReport report;
+            service.Finalize(packRequest, jobReport.exitCode, report);
+            report.success = record.state == eda::JobState::Succeeded && report.success;
+            wxString manifestError;
+            const bool manifestWritten = service.WriteManifest(manifestPath, report, manifestError);
+            if (m_buildProgressBar) {
+                m_buildProgressBar->FinishOperation(report.success,
+                    report.success ? wxT("Apicula packing completed")
+                                   : wxT("Apicula packing failed"));
+            }
+            if (m_fpgaToolWindow) {
+                m_fpgaToolWindow->SetPackResult(report.bitstreamPath, report.success,
+                                                report.message);
+            }
+            if (m_terminalCtrl) {
+                wxString message = "[gowin_pack] " + report.message + "\n";
+                if (!manifestWritten) message += "Manifest write failed: " + manifestError + "\n";
+                m_terminalCtrl->PrintOutput(message);
+            }
+            SetStatusText(report.success ? "Apicula .fs bitstream created"
+                                         : "Apicula packing failed");
+            if (m_projectTreePanel) m_projectTreePanel->RefreshTree();
+        });
         if (m_terminalCtrl) {
             m_terminalCtrl->PrintOutput(
                 wxString::Format("[pack] submitted via IJobService: %s\n",
@@ -4394,9 +4737,13 @@ void MainFrame::RunFpgaProgram(
             {"bitstream", sigflow::platform::Utf8String(bitstreamPath)},
             {"board", sigflow::platform::Utf8String(targetProfile.programmerBoard)},
             {"openfpgaloader_path", sigflow::platform::Utf8String(loaderExecutable)}};
+        flashParams["arguments"] = eda::Json::array();
+        for (const auto& argument : arguments) {
+            flashParams["arguments"].push_back(sigflow::platform::Utf8String(argument));
+        }
         const std::string jobId = m_composer->SubmitJob(
             "flash", sigflow::platform::Utf8String(m_currentProjectPath), flashParams,
-            confirmProgramming, submitError);
+            true, submitError);
         if (jobId.empty()) {
             wxMessageBox(wxString::FromUTF8(submitError.c_str()), "FPGA Program Board",
                          wxOK | wxICON_ERROR, this);
@@ -4408,9 +4755,28 @@ void MainFrame::RunFpgaProgram(
                 wxString::Format("[flash] submitted via IJobService: %s\n",
                                  wxString::FromUTF8(jobId.c_str())));
         }
+        TrackCoreJob(jobId, [this, programmingProjectPath, programmingSessionId, completion]
+                            (const eda::JobRecord& record, const eda::JobReport& report) {
+            const bool success = record.state == eda::JobState::Succeeded;
+            if (!programmingProjectPath.IsEmpty() && !programmingSessionId.IsEmpty()) {
+                std::string ignored;
+                sigflow::debug::DebugSessionService().Transition(
+                    sigflow::platform::Utf8String(programmingProjectPath),
+                    sigflow::platform::Utf8String(programmingSessionId),
+                    success ? sigflow::debug::DebugSessionState::Armed
+                            : sigflow::debug::DebugSessionState::Failed,
+                    success ? "openFPGALoader programming completed."
+                            : "openFPGALoader programming failed.",
+                    report.exitCode, ignored);
+            }
+            const wxString message = success ? wxT("openFPGALoader programming completed")
+                                             : wxT("openFPGALoader programming failed");
+            if (m_terminalCtrl) m_terminalCtrl->PrintOutput("[openFPGALoader] " + message + "\n");
+            SetStatusText(message);
+            if (completion) completion(success, message);
+        });
         SetStatusText(wxString::Format("openFPGALoader submitted (job %s)",
                                        wxString::FromUTF8(jobId.c_str())));
-        finish(true, wxT("已提交烧录任务。"));
         return;
     }
 
@@ -4638,6 +5004,59 @@ void MainFrame::DoSimCompile()
     menuBar->SetSimulationBusy(true);
     if (!m_buildProgressBar) ShowBusyIndicator(wxT("正在编译仿真模型..."));
 
+    if (m_composer && sigflow::Composer::UseJobService()) {
+        EnsureGuiSimProviders();
+        eda::Json params{{"top_module", sigflow::platform::Utf8String(topModule)}};
+        params["source_files"] = eda::Json::array();
+        for (const auto& file : verilogFiles)
+            params["source_files"].push_back(sigflow::platform::Utf8String(file));
+        std::string submitError;
+        const std::string jobId = m_composer->SubmitJob(
+            "sim.gui.build", sigflow::platform::Utf8String(projectPath), params,
+            false, submitError);
+        if (jobId.empty()) {
+            if (m_buildProgressBar) m_buildProgressBar->FinishOperation(false, wxT("编译提交失败"));
+            else HideBusyIndicator(wxT("编译失败"));
+            menuBar->SetSimulationBusy(false);
+            wxMessageBox(wxString::FromUTF8(submitError.c_str()), wxT("编译失败"),
+                         wxOK | wxICON_ERROR, this);
+            return;
+        }
+        m_activeCoreSimJobId = jobId;
+        if (m_buildProgressBar) {
+            m_buildProgressBar->BeginOperation(wxT("编译仿真模型"), 0);
+            eda::IJobService* service = &m_composer->JobService();
+            m_buildProgressBar->SetCancelCallback([service, jobId] {
+                service->cancel(jobId, "User cancelled GUI simulation compile.");
+            });
+        }
+        const wxString jobsRoot = wxString::FromUTF8(m_composer->JobServiceRoot().c_str());
+        TrackCoreJob(jobId, [this, engine, projectPath, jobsRoot]
+                            (const eda::JobRecord& record, const eda::JobReport& report) {
+            if (m_activeCoreSimJobId == record.id) m_activeCoreSimJobId.clear();
+            if (m_currentProjectPath != projectPath) return;
+            const bool success = record.state == eda::JobState::Succeeded;
+            auto* bar = static_cast<MainMenuBar*>(GetMenuBar());
+            if (bar) bar->SetSimulationBusy(false);
+            if (m_buildProgressBar) m_buildProgressBar->FinishOperation(success,
+                success ? wxT("仿真模型编译完成") : wxT("仿真模型编译失败"));
+            else HideBusyIndicator(success ? wxT("编译完成") : wxT("编译失败"));
+            if (success) {
+                const wxString reportPath = JoinPath(JoinPath(JoinPath(
+                    jobsRoot, "sim.gui.build"), wxString::FromUTF8(record.id.c_str())),
+                    "reports/job-report.json");
+                wxMessageBox(wxT("编译成功!\nDLL路径: ") +
+                    engine->GetLastCompileResult().dllPath + wxT("\nJob 报告: ") + reportPath,
+                    wxT("编译完成"), wxOK | wxICON_INFORMATION, this);
+            } else {
+                wxMessageBox(wxT("编译失败\n\n") +
+                    wxString::FromUTF8(report.diagnostics.dump().c_str()),
+                    wxT("编译失败"), wxOK | wxICON_ERROR, this);
+            }
+        });
+        return;
+    }
+
     SimulationJobRequest simRequest;
     simRequest.projectPath = projectPath;
     simRequest.topModule = topModule;
@@ -4768,6 +5187,59 @@ void MainFrame::DoSimRun()
     if (!m_buildProgressBar) ShowBusyIndicator(wxT("正在运行仿真..."));
 
     const wxString vcdPath = JoinPath(JoinPath(JoinPath(JoinPath(JoinPath(projectPath, ".sigflow"), "sim"), topModule), "waveform"), "wave.vcd");
+    if (m_composer && sigflow::Composer::UseJobService()) {
+        EnsureGuiSimProviders();
+        const eda::Json params{{"top_module", sigflow::platform::Utf8String(topModule)},
+                               {"output_vcd", sigflow::platform::Utf8String(vcdPath)}};
+        std::string submitError;
+        const std::string jobId = m_composer->SubmitJob(
+            "sim.gui.run", sigflow::platform::Utf8String(projectPath), params,
+            false, submitError);
+        if (jobId.empty()) {
+            if (!m_buildProgressBar) HideBusyIndicator(wxT("仿真失败"));
+            menuBar->SetSimulationBusy(false);
+            wxMessageBox(wxString::FromUTF8(submitError.c_str()), wxT("仿真错误"),
+                         wxOK | wxICON_ERROR, this);
+            return;
+        }
+        m_activeCoreSimJobId = jobId;
+        if (m_buildProgressBar) {
+            m_buildProgressBar->BeginOperation(wxT("运行仿真"), 0);
+            eda::IJobService* service = &m_composer->JobService();
+            m_buildProgressBar->SetCancelCallback([service, jobId] {
+                service->cancel(jobId, "User cancelled GUI simulation run.");
+            });
+        }
+        const wxString jobsRoot = wxString::FromUTF8(m_composer->JobServiceRoot().c_str());
+        TrackCoreJob(jobId, [this, projectPath, vcdPath, jobsRoot]
+                            (const eda::JobRecord& record, const eda::JobReport& report) {
+            if (m_activeCoreSimJobId == record.id) m_activeCoreSimJobId.clear();
+            if (m_currentProjectPath != projectPath) return;
+            const bool success = record.state == eda::JobState::Succeeded;
+            auto* bar = static_cast<MainMenuBar*>(GetMenuBar());
+            if (bar) bar->SetSimulationBusy(false);
+            if (m_buildProgressBar) m_buildProgressBar->FinishOperation(success,
+                success ? wxT("仿真运行完成") : wxT("仿真运行失败"));
+            else HideBusyIndicator(success ? wxT("就绪") : wxT("仿真失败"));
+            if (success) {
+                const wxString reportPath = JoinPath(JoinPath(JoinPath(
+                    jobsRoot, "sim.gui.run"), wxString::FromUTF8(record.id.c_str())),
+                    "reports/job-report.json");
+                wxString message = wxT("仿真完成!\n波形文件: ") + vcdPath;
+                message += wxT("\nJob 报告: ") + reportPath;
+                if (m_wavePanel && !m_wavePanel->OpenTrace(
+                        std::string(vcdPath.ToUTF8().data()))) {
+                    message += wxT("\n波形面板加载失败，请检查 VCD 文件。");
+                }
+                wxMessageBox(message, wxT("仿真完成"), wxOK | wxICON_INFORMATION, this);
+            } else {
+                wxMessageBox(wxT("仿真失败!\n") +
+                    wxString::FromUTF8(report.diagnostics.dump().c_str()),
+                    wxT("仿真错误"), wxOK | wxICON_ERROR, this);
+            }
+        });
+        return;
+    }
     SimulationJobRequest simRequest;
     simRequest.projectPath = projectPath;
     simRequest.topModule = topModule;
@@ -4852,6 +5324,14 @@ void MainFrame::DoSimRun()
 
 void MainFrame::DoSimCancel()
 {
+    if (!m_activeCoreSimJobId.empty() && m_composer) {
+        m_composer->JobService().cancel(m_activeCoreSimJobId,
+                                        "User cancelled GUI simulation.");
+        if (m_terminalCtrl)
+            m_terminalCtrl->AppendProcessOutput("[sim] cancellation requested.\n");
+        SetStatusText(wxT("仿真取消请求已发送"));
+        return;
+    }
     if (!m_simEngine || !m_simEngine->HasActiveJob()) {
         SetStatusText(wxT("没有正在运行的仿真作业"));
         return;

@@ -18,9 +18,9 @@ constexpr std::uint64_t kMinimumBitstreamSizeBytes = 32;
 std::string NormalizePath(const std::string& path) {
     std::error_code error;
     const std::filesystem::path normalized =
-        std::filesystem::absolute(std::filesystem::path(path), error).lexically_normal();
+        std::filesystem::absolute(platform::PathFromUtf8(path), error).lexically_normal();
     if (error) return path;
-    return normalized.generic_string();
+    return platform::PathToUtf8(normalized);
 }
 
 bool GetFileSize(const std::string& path, std::uint64_t& sizeBytes) {
@@ -116,8 +116,8 @@ bool PackService::Finalize(const PackRequest& request, int exitCode, PackReport&
 
 bool PackService::WriteManifest(const std::string& manifestPath, const PackReport& report,
                                 std::string& errorMessage) const {
-    const std::filesystem::path target(manifestPath);
-    const std::filesystem::path temporary = std::filesystem::path(manifestPath).concat(".tmp");
+    const std::filesystem::path target = platform::PathFromUtf8(manifestPath);
+    const std::filesystem::path temporary = platform::PathFromUtf8(manifestPath).concat(".tmp");
     std::error_code error;
     std::filesystem::create_directories(target.parent_path(), error);
     {

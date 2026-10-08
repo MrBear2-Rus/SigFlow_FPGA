@@ -19,7 +19,14 @@
     "project_id": { "type": "string", "minLength": 1 },
     "revision": { "type": ["string", "null"] },
     "snapshot_id": { "type": ["string", "null"] },
-    "state": { "type": "string", "minLength": 1 },
+    "state": {
+      "type": "string",
+      "description": "Job 状态。与 CoreJobService 的 9 态映射一一对应，不再把非终态折叠为 Unknown。",
+      "enum": [
+        "Queued", "Running", "Cancelling", "Cancelled",
+        "Succeeded", "Failed", "TimedOut", "Rejected", "Unknown"
+      ]
+    },
     "exit_code": { "type": ["integer", "null"] },
     "diagnostics": { "type": "array", "items": { "$ref": "diagnostic.schema.json" } },
     "metrics": { "type": "object" },

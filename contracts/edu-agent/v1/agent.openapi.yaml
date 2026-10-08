@@ -1,0 +1,738 @@
+openapi: 3.0.3
+info:
+  title: SigFlow Edu Agent Service (self-developed)
+  version: "1.0.0"
+  description: |
+    SigFlow 教育版**自研**教学 Agent（Python sidecar）的本机 HTTP 契约。
+    本服务由 SigFlow 团队自行设计与实现，不依赖 UCAgent 源码、运行时、`UCTool`/`Checker` 类、
+    默认验证流程或上游镜像；仅参考其“分阶段工作流、受限工具、阶段检查、运行记录”的架构思想。
+
+    本服务**不持有 EDA 执行权限**：它从不运行任何 EDA 工具、不读也不写学生的工程文件、
+    不接受客户端提供的路径、脚本、可执行文件名或工作目录。综合/仿真只能由 SigFlow 签发的 grant
+    触发，本服务只生成待批准的 PlanCard。
+
+    协议版本：`edu.api.v1`（与 `sigflow.openapi.yaml` 的 Gateway 契约同主版本）。
+    字段与枚举真源：`schemas/*.schema.json`（本文件只描述路由、参数、状态码、错误码与信封）。
+    实现真源：`agent/src/sigflow_edu_agent/`。启动/就绪握手真源：
+    `docs/edu-agent/sigflow/sidecar-bootstrap.md`。
+
+    信封规则（与 EDA Gateway 完全一致，便于同一 UI 客户端复用解析代码）：
+    - 成功：`{schema_version, request_id, trace_id, data}`。
+    - 失败：`{schema_version, request_id, trace_id, error:{code,message,retryable,details}}`；
+      `details` 当前恒为 null。
+    - 所有时间戳为 UTC ISO 8601；`request_id`/`trace_id` 为本实例内单调的排障 ID
+      （`req-<n>`、`trace-<n>`）。
+    - 所有 64 位数值（`state_version`、`sequence`）一律用十进制字符串承载。
+
+    安全与边界：
+    - 只监听 `127.0.0.1`；Host 头非 loopback → 403 POLICY_DENIED。不启用通配 CORS。
+    - `POST /api/v1/shutdown` 之外的所有路由都要求 `Authorization: Bearer <ui_token>`；
+      `GET /api/v1/health` 是唯一不要求鉴权的路由（带该头也接受）。
+    - token 只经继承管道随 bootstrap 传入，禁止出现在 URL、日志、卡片、错误消息或工程文件中。
+    - **任何响应都不得包含本机绝对路径**；卡片、证据引用与错误消息一律只用 opaque ID、
+      行号、能力名与工具报告的原始字段。
+    - 请求体上限 1 MiB（413 RESOURCE_EXHAUSTED）；`selection.text` 上限 64 KiB（400 INVALID_ARGUMENT）；
+      单次运行卡片上限 16（超出记入 `omitted`）；会话上限 32（LRU 淘汰最旧）。
+
+    已知限制（Known limitations of v1）：
+    - 事件只支持立即返回，**没有长轮询**（没有 `wait_ms`）。
+    - 会话、运行与事件都**只在内存中**，进程退出即丢失；没有跨重启恢复，也没有学习记录数据库。
+    - 没有课程库：`course_refs` 目前恒为空数组，`/capabilities.course.available` 为 false。
+    - 没有波形内联读取：证据只引用 opaque artifact/report 字段，不返回 VCD 内容或绝对路径。
+    - L4 只返回“参考解要点”清单；本服务不代写工程文件，也不生成可直接替换的完整模块。
+    - `--selftest-fail` 与 `--selftest-ready-delay-ms` 是**仅供测试**的故障注入开关，
+      不属于本冻结契约，生产启动不得使用。
+
+servers:
+  - url: http://127.0.0.1:{port}/api/v1
+    variables:
+      port:
+        default: "0"
+        description: 系统分配的 loopback 端口，经 stdout 的 ready 记录告知宿主
+
+paths:
+  /health:
+    get:
+      summary: 实例存活、协议版本与模型可用性（唯一无需鉴权的路由）
+      description: |
+        返回实例身份、协议、包版本与模型状态。仍校验 Host 边界：
+        Host 非 loopback → 403 POLICY_DENIED。
+        `model.available=false` 表示未配置 `SIGFLOW_EDU_MODEL_API_KEY`，此时所有教学请求
+        走确定性规则路径并报告 `state=degraded`；本服务绝不伪造模型回答。
+        错误码：403 POLICY_DENIED。
+      responses:
+        "200":
+          description: 成功信封；data 见下方 example
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthEnvelope"
+              example:
+                schema_version: edu.api.v1
+                request_id: req-1
+                trace_id: trace-1
+                data:
+                  protocol: edu.api.v1
+                  agent_version: 0.1.0
+                  instance_id: inst-0123456789abcdef
+                  ready: true
+                  model:
+                    available: false
+                    provider: null
+                    reason: 未配置模型 Key（SIGFLOW_EDU_MODEL_API_KEY），已降级为确定性规则讲解。
+        "403": { $ref: "#/components/responses/Failure" }
+
+  /capabilities:
+    get:
+      summary: 教学能力与模式可用性
+      description: |
+        `modes` 固定为 L1–L4；`capabilities` 列出本服务的功能就绪状态；
+        `execution.can_run_eda` 恒为 false —— EDA 执行只能由 SigFlow 签发的 grant 触发。
+        `course.available` 在 v1 恒为 false（无课程库）。
+        错误码：
+        - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
+        - 403 POLICY_DENIED：Host 边界校验不通过。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 成功信封
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CapabilitiesEnvelope"
+              example:
+                schema_version: edu.api.v1
+                request_id: req-2
+                trace_id: trace-2
+                data:
+                  protocol: edu.api.v1
+                  agent_version: 0.1.0
+                  modes:
+                    - id: L1
+                      available: true
+                      reason: 该难度由确定性规则引擎提供，无需模型 Key。
+                    - id: L4
+                      available: false
+                      reason: L4 参考解需要策略允许并经过两次明确操作；本服务只提供要点清单，不代写工程文件。
+                  capabilities:
+                    - name: edu.rules.diagnose
+                      ready: true
+                      reason: 确定性规则引擎随服务启动即可用。
+                      plugin_version: 0.1.0
+                  model:
+                    available: false
+                    provider: null
+                    reason: 未配置模型 Key（SIGFLOW_EDU_MODEL_API_KEY），已降级为确定性规则讲解。
+                  course:
+                    available: false
+                    reason: v1 未内置课程库；课程引用由后续版本提供。
+                  execution:
+                    can_run_eda: false
+                    note: EDA 执行只能由 SigFlow 签发的 grant 触发；本服务不持有执行权限
+        "401": { $ref: "#/components/responses/Failure" }
+        "403": { $ref: "#/components/responses/Failure" }
+
+  /sessions:
+    post:
+      summary: 创建一个教学会话（绑定 project + revision）
+      description: |
+        会话只存在内存中；最多 32 个，超出后按 LRU 淘汰最旧会话（淘汰不是错误，旧 session_id
+        随后会返回 404）。创建响应中的 `state_version` 固定为 "1"。
+        错误码：
+        - 400 INVALID_ARGUMENT：`project_id` 或 `revision` 为空/类型不符，或请求体非 JSON 对象。
+        - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
+        - 403 POLICY_DENIED：Host 边界校验不通过。
+        - 413 RESOURCE_EXHAUSTED：请求体超过 1 MiB。
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSessionRequest"
+            example:
+              project_id: project-0123456789abcdef01234567
+              revision: rev-1-0123456789ab
+              top: top
+              target:
+                profile: tang-nano-9k
+              locale: zh-CN
+      responses:
+        "201":
+          description: 会话已创建
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionCreateEnvelope"
+              example:
+                schema_version: edu.api.v1
+                request_id: req-3
+                trace_id: trace-3
+                data:
+                  session_id: sess-1
+                  project_id: project-0123456789abcdef01234567
+                  revision: rev-1-0123456789ab
+                  state_version: "1"
+                  created_at: 2026-10-07T00:00:00Z
+        "400": { $ref: "#/components/responses/Failure" }
+        "401": { $ref: "#/components/responses/Failure" }
+        "403": { $ref: "#/components/responses/Failure" }
+        "413": { $ref: "#/components/responses/Failure" }
+
+  /sessions/{sessionId}:
+    parameters:
+      - $ref: "#/components/parameters/sessionId"
+    get:
+      summary: 读取会话摘要
+      description: |
+        错误码：
+        - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
+        - 403 POLICY_DENIED：Host 边界校验不通过。
+        - 404 NOT_FOUND：未知 session_id，或该会话已被 LRU 淘汰。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 会话摘要；data 见 schemas/agent-session.schema.json
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionEnvelope"
+              example:
+                schema_version: edu.api.v1
+                request_id: req-4
+                trace_id: trace-4
+                data:
+                  session_id: sess-1
+                  project_id: project-0123456789abcdef01234567
+                  revision: rev-1-0123456789ab
+                  top: top
+                  target:
+                    profile: tang-nano-9k
+                  locale: zh-CN
+                  state_version: "2"
+                  created_at: 2026-10-07T00:00:00Z
+                  run_count: 1
+                  event_count: 2
+        "401": { $ref: "#/components/responses/Failure" }
+        "403": { $ref: "#/components/responses/Failure" }
+        "404": { $ref: "#/components/responses/Failure" }
+
+  /sessions/{sessionId}/runs:
+    parameters:
+      - $ref: "#/components/parameters/sessionId"
+    post:
+      summary: 发起一次教学运行并取回卡片
+      description: |
+        `kind` 只接受 `explain`、`hint`、`plan`、`report_review`。`level` 缺省 L1。
+
+        `kind=explain` / `hint`：在 `selection.text` 上运行确定性规则引擎。
+        - 命中锁存器/敏感列表/位宽/结构规则时返回 `source: "rule"` 的 TeachingCard，
+          第一项证据的 `kind` 必须是 `rule_match`；L1–L3 绝不包含完整修正代码。
+        - 未配置模型 Key 时 `model_used=false` 且 `state=degraded`，并把被跳过的模型步骤记入 `omitted`。
+        - `level=L4` 是“参考解”请求，采用两步放行：**第一次必须不带 `more`**，服务返回
+          403 POLICY_DENIED 并在 `error.message` 说明两步策略，响应中不含任何答案；
+          确认学生已自行尝试后，再带 `more=true` 发起第二次请求，才返回 `reference_solution` 卡片。
+
+        `kind=plan`：返回 PlanCard；只使用 `eda.synth`、`eda.sim.build`、`eda.sim.run`
+        三项能力，不含路径/可执行文件/脚本/工作目录，`requires_approval=true`。
+
+        `kind=report_review`：**必须**提供 `job_id`；服务用 gateway_token 调用
+        `GET {gateway_url}/api/v1/jobs/{job_id}/report`，把报告 `diagnostics` 映射为
+        `diagnostic_explanation` 卡片，`code`/`raw_code`/`severity`/`location` 原样保留在证据里，
+        卡片正文不补造报告未给出的根因；报告的 `revision`/`snapshot_id`/`input_fingerprint`/
+        `completeness`/`origin` 一并进入证据引用。`diagnostics` 为空数组时：
+        `completeness` 属于 `complete`/`exact` 且 `origin` 非 `legacy` 才解释为“工具没有报告诊断”；
+        否则返回 `issue_id: null` 的 `source: "rule"` 卡片说明证据不足，绝不宣称“电路没有问题”。
+
+        错误码：
+        - 400 INVALID_ARGUMENT：`kind`/`level` 不在枚举内、`more` 非布尔、
+          `selection`/`selection.text` 类型不符或超过 64 KiB、`kind=report_review` 缺 `job_id`。
+        - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
+        - 403 POLICY_DENIED：Host 边界校验不通过，或 L4 未带 `more=true`（两步放行策略）。
+        - 404 NOT_FOUND：未知 session_id，或 Gateway 报告该 job_id 不存在。
+        - 413 RESOURCE_EXHAUSTED：请求体超过 1 MiB。
+        - 503 GATEWAY_UNAVAILABLE：Gateway 不可达、拒绝 token 或报告服务不可用；
+          此时运行 `state=failed`，**不会**返回任何假装读过报告的卡片。
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRunRequest"
+            examples:
+              explainWithoutModelKey:
+                summary: 无模型 Key 的规则卡（NG-07 验收 a）
+                value:
+                  kind: explain
+                  level: L1
+                  selection:
+                    node_id: node-1
+                    source_id: source-000000000000000000000001
+                    start_line: 1
+                    end_line: 6
+                    text: "always @(*) begin\n  if (en)\n    q = d;\nend"
+              reportReview:
+                summary: 真实报告教学卡（NG-07 验收 b）
+                value:
+                  kind: report_review
+                  job_id: job-21
+                  selection:
+                    source_id: source-000000000000000000000001
+      responses:
+        "201":
+          description: 运行完成（可能为 degraded）；cards 见 schemas/agent-run.schema.json
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunEnvelope"
+              example:
+                schema_version: edu.api.v1
+                request_id: req-5
+                trace_id: trace-5
+                data:
+                  run_id: run-1
+                  session_id: sess-1
+                  state: degraded
+                  state_version: "2"
+                  cards:
+                    - card_id: card-1
+                      kind: rule
+                      level: L1
+                      title: 组合逻辑推断出锁存器：`q` 没有被所有分支赋值
+                      body: 在同一个组合 always 块里，信号 `q` 只在“en”这一条路径上被赋值……
+                      issue_id: issue-latch-q-3
+                      source: rule
+                      evidence:
+                        - kind: rule_match
+                          ref:
+                            rule: RTL_LATCH_INCOMPLETE_BRANCH
+                            issue_id: issue-latch-q-3
+                            signal: q
+                            line_hint: 3
+                            source_id: source-000000000000000000000001
+                            node_id: node-1
+                            detail:
+                              signal: q
+                              covered_path: en
+                              missing_path: 条件不成立（无 else 或缺少默认赋值）
+                          note: 规则引擎在所选片段内命中 RTL_LATCH_INCOMPLETE_BRANCH（未调用模型）
+                        - kind: source_ref
+                          ref:
+                            source_id: source-000000000000000000000001
+                            node_id: node-1
+                            start_line: 1
+                            end_line: 6
+                          note: 规则命中的选中片段
+                      course_refs: []
+                      limitations:
+                        - 本卡片由确定性规则引擎生成，未经过模型推理，也不会给出可直接替换的完整代码。
+                      expired: false
+                      state_version: "2"
+                  omitted:
+                    - kind: model_explanation
+                      reason: 未配置模型 Key（SIGFLOW_EDU_MODEL_API_KEY），已降级为确定性规则讲解。
+                  model_used: false
+        "400": { $ref: "#/components/responses/Failure" }
+        "401": { $ref: "#/components/responses/Failure" }
+        "403": { $ref: "#/components/responses/Failure" }
+        "404": { $ref: "#/components/responses/Failure" }
+        "413": { $ref: "#/components/responses/Failure" }
+        "503": { $ref: "#/components/responses/Failure" }
+
+  /sessions/{sessionId}/events:
+    parameters:
+      - $ref: "#/components/parameters/sessionId"
+    get:
+      summary: 读取会话事件（立即返回，无长轮询）
+      description: |
+        至少一次投递：消费者按 `event_id` 去重，状态事实以资源查询为准。
+        `after` 为会话内单调 sequence 的十进制字符串；缺省 "0" 表示从头。
+        每个会话只保留最新 1000 条事件。`after` 大于 high_watermark（未知游标）或早于
+        `oldest_sequence` 时返回 410 CURSOR_EXPIRED。
+        错误码：
+        - 400 INVALID_ARGUMENT：`after` 不是十进制游标。
+        - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
+        - 403 POLICY_DENIED：Host 边界校验不通过。
+        - 404 NOT_FOUND：未知 session_id。
+        - 410 CURSOR_EXPIRED：游标已超出保留窗口，需重新读取会话后再订阅。
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/eventAfter"
+      responses:
+        "200":
+          description: 事件页；events 见 schemas/agent-event.schema.json
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventsEnvelope"
+              example:
+                schema_version: edu.api.v1
+                request_id: req-6
+                trace_id: trace-6
+                data:
+                  events:
+                    - sequence: "1"
+                      event_id: ev-1
+                      type: session/created
+                      at: 2026-10-07T00:00:00Z
+                      data:
+                        project_id: project-0123456789abcdef01234567
+                        revision: rev-1-0123456789ab
+                    - sequence: "2"
+                      event_id: ev-2
+                      type: run/finished
+                      at: 2026-10-07T00:00:01Z
+                      data:
+                        run_id: run-1
+                        kind: explain
+                        level: L1
+                        state: degraded
+                        card_count: 1
+                  high_watermark: "2"
+                  oldest_sequence: "1"
+        "400": { $ref: "#/components/responses/Failure" }
+        "401": { $ref: "#/components/responses/Failure" }
+        "403": { $ref: "#/components/responses/Failure" }
+        "404": { $ref: "#/components/responses/Failure" }
+        "410": { $ref: "#/components/responses/Failure" }
+
+  /runs/{runId}:
+    parameters:
+      - $ref: "#/components/parameters/runId"
+    get:
+      summary: 读取一次运行的结果
+      description: |
+        返回与创建时相同的运行视图（含 cards/omitted/model_used）。
+        错误码：
+        - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
+        - 403 POLICY_DENIED：Host 边界校验不通过。
+        - 404 NOT_FOUND：未知 run_id。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 运行视图；data 见 schemas/agent-run.schema.json
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunEnvelope"
+        "401": { $ref: "#/components/responses/Failure" }
+        "403": { $ref: "#/components/responses/Failure" }
+        "404": { $ref: "#/components/responses/Failure" }
+
+  /shutdown:
+    post:
+      summary: 请求安全关闭本 sidecar
+      description: |
+        先回 202，再在 3 秒内停止服务并让进程以退出码 0 结束。宿主也会用
+        SIGTERM/SIGINT 达到同样效果；崩溃或关闭只停 Agent 功能，IDE 的编辑与手动 EDA 不受影响。
+        错误码：
+        - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
+        - 403 POLICY_DENIED：Host 边界校验不通过。
+      security:
+        - bearerAuth: []
+      responses:
+        "202":
+          description: 已接受关闭请求
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShutdownEnvelope"
+              example:
+                schema_version: edu.api.v1
+                request_id: req-7
+                trace_id: trace-7
+                data:
+                  state: shutting_down
+        "401": { $ref: "#/components/responses/Failure" }
+        "403": { $ref: "#/components/responses/Failure" }
+
+components:
+  parameters:
+    sessionId:
+      name: sessionId
+      in: path
+      required: true
+      description: 本服务创建的会话 ID
+      schema:
+        type: string
+        pattern: '^sess-[1-9][0-9]*$'
+    runId:
+      name: runId
+      in: path
+      required: true
+      description: 本服务创建的运行 ID
+      schema:
+        type: string
+        pattern: '^run-[1-9][0-9]*$'
+    eventAfter:
+      name: after
+      in: query
+      required: false
+      description: 事件游标（会话内 sequence 的十进制字符串，不含该值）；缺省 "0"
+      schema:
+        type: string
+        pattern: '^[0-9]+$'
+        default: "0"
+
+  responses:
+    Failure:
+      description: |
+        统一失败信封（与 EDA Gateway 同构）：
+        `{schema_version, request_id, trace_id, error:{code,message,retryable,details}}`。
+        `code` 只取下方 FailureEnvelope 的枚举；`details` 当前恒为 null；
+        `retryable` 目前只在 503 时为 true。未匹配路径或方法返回
+        404 NOT_FOUND，请求体超过 1 MiB 返回 413 RESOURCE_EXHAUSTED。
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/FailureEnvelope"
+
+  schemas:
+    Envelope:
+      type: object
+      description: 成功信封骨架
+      required: [schema_version, request_id, trace_id, data]
+      properties:
+        schema_version:
+          type: string
+          enum: [edu.api.v1]
+        request_id: { type: string, minLength: 1 }
+        trace_id: { type: string, minLength: 1 }
+        data: {}
+
+    FailureEnvelope:
+      type: object
+      required: [schema_version, request_id, trace_id, error]
+      properties:
+        schema_version:
+          type: string
+          enum: [edu.api.v1]
+        request_id: { type: string, minLength: 1 }
+        trace_id: { type: string, minLength: 1 }
+        error:
+          type: object
+          required: [code, message, retryable, details]
+          properties:
+            code:
+              type: string
+              enum:
+                - INVALID_ARGUMENT
+                - UNAUTHENTICATED
+                - POLICY_DENIED
+                - NOT_FOUND
+                - STALE_REVISION
+                - IDEMPOTENCY_CONFLICT
+                - CURSOR_EXPIRED
+                - RESOURCE_EXHAUSTED
+                - SERVICE_UNAVAILABLE
+                - MODEL_UNAVAILABLE
+                - GATEWAY_UNAVAILABLE
+                - CAPABILITY_UNAVAILABLE
+            message: { type: string }
+            retryable: { type: boolean }
+            details:
+              nullable: true
+
+    ModelStatus:
+      type: object
+      required: [available, provider, reason]
+      properties:
+        available: { type: boolean }
+        provider:
+          type: ["string", "null"]
+          description: 模型端点（配置值或 null）；不含 API Key。
+        reason: { type: string }
+
+    HealthData:
+      type: object
+      required: [protocol, agent_version, instance_id, ready, model]
+      properties:
+        protocol: { type: string, enum: [edu.api.v1] }
+        agent_version: { type: string, minLength: 1 }
+        instance_id: { type: string, minLength: 1 }
+        ready: { type: boolean }
+        model: { $ref: "#/components/schemas/ModelStatus" }
+
+    HealthEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/HealthData" }
+
+    ModeStatus:
+      type: object
+      required: [id, available, reason]
+      properties:
+        id: { type: string, enum: [L1, L2, L3, L4] }
+        available: { type: boolean }
+        reason: { type: string }
+
+    CapabilityStatus:
+      type: object
+      required: [name, ready, reason, plugin_version]
+      properties:
+        name: { type: string }
+        ready: { type: boolean }
+        reason: { type: string }
+        plugin_version: { type: ["string", "null"] }
+
+    CapabilitiesData:
+      type: object
+      required: [protocol, agent_version, modes, capabilities, model, course, execution]
+      properties:
+        protocol: { type: string, enum: [edu.api.v1] }
+        agent_version: { type: string }
+        modes:
+          type: array
+          items: { $ref: "#/components/schemas/ModeStatus" }
+        capabilities:
+          type: array
+          items: { $ref: "#/components/schemas/CapabilityStatus" }
+        model: { $ref: "#/components/schemas/ModelStatus" }
+        course:
+          type: object
+          required: [available, reason]
+          properties:
+            available: { type: boolean }
+            reason: { type: string }
+        execution:
+          type: object
+          required: [can_run_eda, note]
+          properties:
+            can_run_eda: { type: boolean, enum: [false] }
+            note: { type: string }
+
+    CapabilitiesEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/CapabilitiesData" }
+
+    CreateSessionRequest:
+      type: object
+      required: [project_id, revision]
+      properties:
+        project_id: { type: string, minLength: 1 }
+        revision: { type: string, minLength: 1 }
+        top: { type: string }
+        target: { type: object }
+        locale: { type: string, default: zh-CN }
+
+    SessionCreateData:
+      type: object
+      required: [session_id, project_id, revision, state_version, created_at]
+      properties:
+        session_id: { type: string, pattern: '^sess-[1-9][0-9]*$' }
+        project_id: { type: string, minLength: 1 }
+        revision: { type: string, minLength: 1 }
+        state_version: { type: string, pattern: '^[0-9]+$', description: 新建会话恒为 "1" }
+        created_at: { type: string, description: UTC ISO 8601 }
+
+    SessionCreateEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/SessionCreateData" }
+
+    SessionEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "schemas/agent-session.schema.json" }
+
+    Selection:
+      type: object
+      nullable: true
+      description: |
+        学生选中的受限证据：opaque 的 node_id/source_id、行号范围，以及必要的代码片段。
+        `text` 上限 64 KiB；不得携带路径。未保存缓冲只可用于解释，绝不进入执行快照。
+      properties:
+        node_id: { type: ["string", "null"] }
+        source_id: { type: ["string", "null"] }
+        start_line: { type: ["integer", "null"], minimum: 0 }
+        end_line: { type: ["integer", "null"], minimum: 0 }
+        text: { type: ["string", "null"] }
+
+    CreateRunRequest:
+      type: object
+      required: [kind]
+      properties:
+        kind: { type: string, enum: [explain, hint, plan, report_review] }
+        level: { type: string, enum: [L1, L2, L3, L4], default: L1 }
+        selection: { $ref: "#/components/schemas/Selection" }
+        job_id:
+          type: string
+          description: 仅 kind=report_review 必填；opaque Job ID，不是路径。
+        more:
+          type: boolean
+          default: false
+          description: L4 两步放行的第二步开关；不带它时 L4 一律 403 POLICY_DENIED。
+
+    RunData:
+      allOf:
+        - $ref: "schemas/agent-run.schema.json"
+        - type: object
+          required: [run_id, session_id, state, state_version, cards, omitted, model_used]
+
+    RunEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/RunData" }
+
+    EventsData:
+      type: object
+      required: [events, high_watermark, oldest_sequence]
+      properties:
+        events:
+          type: array
+          items: { $ref: "schemas/agent-event.schema.json" }
+        high_watermark:
+          type: string
+          pattern: '^[0-9]+$'
+          description: 已分配的最大 sequence，供续订游标使用
+        oldest_sequence:
+          type: string
+          pattern: '^[0-9]+$'
+          description: 保留窗口内最旧事件的 sequence；after 早于它必然 410
+
+    EventsEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/EventsData" }
+
+    ShutdownData:
+      type: object
+      required: [state]
+      properties:
+        state: { type: string, enum: [shutting_down] }
+
+    ShutdownEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/ShutdownData" }
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: |
+        UI→Agent 高熵 token（`ui_token`），随 stdin bootstrap 一次性下发；
+        只经 Authorization 头传递，禁止放入 URL、日志、卡片或工程文件。
+        `GET /api/v1/health` 不要求该头（带上也接受）。

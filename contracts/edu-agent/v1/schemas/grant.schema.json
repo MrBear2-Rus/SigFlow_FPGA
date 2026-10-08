@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "edu-agent/v1/schemas/grant.schema.json",
+  "title": "PlanGrant",
+  "description": "POST /projects/{p}/grants 的 data 载荷。grant 只能由 UI 身份签发，绑定 plan_hash/revision/snapshot/steps，受 TTL 与 max_jobs 约束；Agent 只能查询与使用，不能签发。",
+  "type": "object",
+  "required": ["grant_id", "project_id", "plan_hash", "revision", "snapshot_id", "status"],
+  "additionalProperties": false,
+  "properties": {
+    "grant_id": { "type": "string", "minLength": 1 },
+    "project_id": { "type": "string", "minLength": 1 },
+    "plan_hash": { "type": "string", "minLength": 1 },
+    "revision": { "type": "string", "minLength": 1 },
+    "snapshot_id": { "type": "string", "minLength": 1 },
+    "status": { "type": "string", "enum": ["active", "revoked", "expired", "exhausted"] },
+    "max_jobs": { "type": "integer", "minimum": 1 },
+    "used_jobs": { "type": "integer", "minimum": 0 },
+    "steps": { "type": "array", "items": { "type": "string" } },
+    "expires_at": { "type": ["string", "null"] },
+    "issued_at": { "type": ["string", "null"] }
+  }
+}

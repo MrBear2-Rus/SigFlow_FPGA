@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "edu-agent/v1/schemas/legacy-job.schema.json",
+  "title": "LegacyJobEntry",
+  "description": "旧 main/jobs 历史（只读桥）中的一条记录。旧格式缺 input_fingerprint/revision/plugin 版本，因此 completeness 恒为 legacy_unverified，不得冒充当前 revision 的证据；problem 显式表达缺失/不可读，不等于“无问题”。不含本机绝对路径。",
+  "type": "object",
+  "required": ["job_id", "job_type", "state", "origin", "created_at", "updated_at",
+               "has_manifest", "has_report", "completeness", "problem"],
+  "properties": {
+    "job_id": { "type": "string", "minLength": 1 },
+    "job_type": { "type": "string", "minLength": 1 },
+    "state": { "type": "string" },
+    "origin": { "type": "string", "const": "legacy" },
+    "created_at": { "type": ["string", "null"] },
+    "updated_at": { "type": ["string", "null"] },
+    "has_manifest": { "type": "boolean" },
+    "has_report": { "type": "boolean" },
+    "completeness": { "type": "string", "const": "legacy_unverified" },
+    "problem": {
+      "type": ["string", "null"],
+      "enum": [null, "report_missing", "manifest_unreadable", "report_unreadable"]
+    }
+  }
+}

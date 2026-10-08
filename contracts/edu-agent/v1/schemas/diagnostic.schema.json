@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "edu-agent/v1/schemas/diagnostic.schema.json",
   "title": "Diagnostic",
-  "description": "规范化诊断。origin 标明事实来源；confidence_kind=tool/rule/hypothesis；未知原始码保留在 raw_code。",
+  "description": "规范化诊断。origin 标明事实来源；confidence_kind=tool/rule/hypothesis；未知原始码保留在 raw_code，且 code 置为 UNCLASSIFIED（C++ 侧不假定教学根因）。location 保留可定位事实，无法定位时为 null。",
   "type": "object",
   "required": ["id", "code", "severity", "stage", "summary", "origin", "confidence_kind"],
   "additionalProperties": false,
@@ -13,9 +13,23 @@
     "severity": { "type": "string", "enum": ["info", "warning", "error"] },
     "stage": { "type": "string" },
     "summary": { "type": "string" },
+    "summary_paths_redacted": {
+      "type": "boolean",
+      "description": "可选。true 表示 summary 里由工具打印的本机绝对路径已被替换为文件名（Agent 不得看到本机路径）。"
+    },
     "origin": { "type": "string", "enum": ["core", "legacy"] },
     "confidence_kind": { "type": "string", "enum": ["tool", "rule", "hypothesis"] },
-    "location": { "type": ["object", "null"] },
+    "location": {
+      "type": ["object", "null"],
+      "description": "定位事实。字段按来源可用性出现；全部缺失时为 null（不得伪造行号）。",
+      "properties": {
+        "file": { "type": "string", "description": "工程相对 POSIX 路径。" },
+        "line": { "type": "integer", "minimum": 1 },
+        "column": { "type": "integer", "minimum": 1 },
+        "log_line": { "type": "integer", "minimum": 0, "description": "旧 reports 的日志行号。" },
+        "ir_coordinate": { "type": "string", "description": "旧 reports 的 IR 坐标。" }
+      }
+    },
     "evidence_refs": { "type": "array", "items": { "type": "string" } }
   }
 }

@@ -11,6 +11,7 @@ class wxPanel;
 class wxStaticText;
 class wxButton;
 class wxTextCtrl;
+namespace eda { class IJobService; }
 
 enum class FpgaToolPage {
     Yosys,
@@ -24,6 +25,7 @@ public:
 
     void ShowPage(FpgaToolPage page);
     void SetProjectContext(const wxString& projectPath, const wxString& activeYosysJobId);
+    void SetCoreJobService(eda::IJobService* service, const wxString& jobsRoot);
     void RefreshSynthesisJobs();
 
     void SetOpenFileHandler(std::function<void(const wxString&, long)> handler);

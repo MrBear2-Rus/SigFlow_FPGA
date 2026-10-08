@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "edu-agent/v1/schemas/snapshot.schema.json",
+  "title": "Snapshot",
+  "description": "已提交的不可变 EDA 输入。路径始终为快照内相对 POSIX 路径，不暴露本机绝对路径。",
+  "type": "object",
+  "required": ["schema_version", "snapshot_id", "project_id", "revision", "created_at", "created_at_epoch", "input_fingerprint", "top", "sources", "target", "tool_config"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": "edu.snapshot.v1" },
+    "snapshot_id": { "type": "string", "pattern": "^snap-[0-9a-f]{24}$" },
+    "project_id": { "type": "string", "minLength": 1 },
+    "revision": { "type": "string", "minLength": 1 },
+    "created_at": { "type": "string", "minLength": 1 },
+    "created_at_epoch": { "type": "string", "pattern": "^[0-9]+$" },
+    "input_fingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "top": { "type": "string" },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["source_id", "path", "sha256", "size", "origin"],
+        "additionalProperties": false,
+        "properties": {
+          "source_id": { "type": "string", "minLength": 1 },
+          "path": { "type": "string", "minLength": 1 },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "size": { "type": "string", "pattern": "^[0-9]+$" },
+          "origin": { "type": "string", "enum": ["project", "external"] }
+        }
+      }
+    },
+    "target": { "type": "object" },
+    "tool_config": { "type": "object" }
+  }
+}

@@ -77,28 +77,6 @@ struct FlashJobRequest {
     bool requireConfirm = true;
 };
 
-struct SynthJobRequest {
-    wxString projectPath;
-    wxString topModule;
-    std::vector<wxString> sourceFiles;
-    wxString executable;
-    std::vector<wxString> arguments;
-    wxString scriptPath;
-    wxString outputJsonPath;
-    wxString workingDirectory;
-    int timeoutSeconds = 0;
-};
-
-struct PnRJobRequest {
-    wxString projectPath;
-    wxString topModule;
-    wxString executable;
-    std::vector<wxString> arguments;
-    wxString outputJsonPath;
-    wxString workingDirectory;
-    int timeoutSeconds = 0;
-};
-
 class SimulationJob {
 public:
     bool Submit(const SimulationJobRequest& request, ToolJob& job,
@@ -107,7 +85,6 @@ public:
                  const JobExecutionOptions& options, JobReport& report,
                  wxString& errorMessage) const;
 };
-
 class PackJob {
 public:
     bool Submit(const PackJobRequest& request, ToolJob& job,
@@ -122,24 +99,6 @@ public:
     bool Submit(const FlashJobRequest& request, ToolJob& job,
                 wxString& errorMessage) const;
     bool Execute(const FlashJobRequest& request, const ToolJob& job,
-                 const JobExecutionOptions& options, JobReport& report,
-                 wxString& errorMessage) const;
-};
-
-class SynthJob {
-public:
-    bool Submit(const SynthJobRequest& request, ToolJob& job,
-                wxString& errorMessage) const;
-    bool Execute(const SynthJobRequest& request, const ToolJob& job,
-                 const JobExecutionOptions& options, JobReport& report,
-                 wxString& errorMessage) const;
-};
-
-class PnRJob {
-public:
-    bool Submit(const PnRJobRequest& request, ToolJob& job,
-                wxString& errorMessage) const;
-    bool Execute(const PnRJobRequest& request, const ToolJob& job,
                  const JobExecutionOptions& options, JobReport& report,
                  wxString& errorMessage) const;
 };

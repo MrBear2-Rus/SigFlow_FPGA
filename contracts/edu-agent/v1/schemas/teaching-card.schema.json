@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "edu-agent/v1/schemas/teaching-card.schema.json",
+  "title": "TeachingCard",
+  "description": "SigFlow Edu Agent 教学卡片（自研，无 UCAgent 依赖）。卡片不回传本机绝对路径、可执行文件名、脚本或 token；L1–L3 卡片不得包含可直接替换的完整模块。",
+  "type": "object",
+  "required": [
+    "card_id", "kind", "level", "title", "body", "issue_id",
+    "source", "evidence", "course_refs", "limitations", "expired", "state_version"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "card_id": {
+      "type": "string",
+      "pattern": "^card-[1-9][0-9]*$",
+      "description": "该 run 内稳定的卡片 ID（从 card-1 开始）。"
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["rule", "teaching", "reference_solution", "diagnostic_explanation"],
+      "description": "卡片类型。reference_solution 只允许出现在 level=L4 且经过两步放行之后。"
+    },
+    "level": {
+      "type": "string",
+      "enum": ["L1", "L2", "L3", "L4"],
+      "description": "教学难度。L1–L3 只引导，L4 为参考解，需要策略允许与两次明确操作。"
+    },
+    "title": { "type": "string", "minLength": 1 },
+    "body": {
+      "type": "string",
+      "minLength": 1,
+      "description": "面向学生的中文讲解。不得包含本机绝对路径，也不得包含可直接替换的完整模块（L1–L3）。"
+    },
+    "issue_id": {
+      "type": ["string", "null"],
+      "description": "关联的问题 ID；规则/证据不足类卡片在无法归属问题时为 null。"
+    },
+    "source": {
+      "type": "string",
+      "enum": ["rule", "model"],
+      "description": "rule = 确定性规则引擎产出（无模型 Key 时仍然可用）；model = 模型补充讲解。"
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/evidence" },
+      "description": "卡片结论所依据的证据。规则卡片的第一项必须是 rule_match。"
+    },
+    "course_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/courseRef" }
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" },
+      "description": "该卡片不能保证的边界；空数组会被拒绝。"
+    },
+    "expired": {
+      "type": "boolean",
+      "const": false,
+      "description": "v1 不缓存卡片，因此恒为 false；保留字段供后续版本使旧卡片失效。"
+    },
+    "state_version": {
+      "type": "string",
+      "pattern": "^[0-9]+$",
+      "description": "64 位计数器以十进制字符串承载，避免前端精度损失。"
+    }
+  },
+  "$defs": {
+    "evidence": {
+      "type": "object",
+      "required": ["kind", "ref", "note"],
+      "additionalProperties": true,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["diagnostic", "source_ref", "job_report", "waveform", "rule_match"]
+        },
+        "ref": {
+          "type": "object",
+          "description": "证据引用。只允许 opaque ID、行号、以及工具报告的原始字段；不允许路径。",
+          "additionalProperties": true
+        },
+        "note": { "type": "string" }
+      }
+    },
+    "courseRef": {
+      "type": "object",
+      "required": ["course_id", "chapter", "title", "url"],
+      "additionalProperties": true,
+      "properties": {
+        "course_id": { "type": "string" },
+        "chapter": { "type": "string" },
+        "title": { "type": "string" },
+        "url": {
+          "type": ["string", "null"],
+          "description": "课程链接；不指向本机文件。"
+        }
+      }
+    }
+  }
+}

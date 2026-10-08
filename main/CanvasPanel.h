@@ -145,7 +145,8 @@ public:
     // 必须先做边界检查：越界写 std::vector 是 UB（崩溃或堆破坏）。
     void SecondSetPos(int i, wxPoint pos) {
         if (i < 0 || i >= static_cast<int>(m_elems.size())) return;
-        m_elems[i].SetPos(pos); RefreshRect(m_elems[i].GetBounds());
+        m_elems[i].SetPos(pos);
+        RefreshCanvasAfterElementMove();
     };
     void RefreshElem(SecondNode* sn);
     const std::vector<SecondElement>& GetSecond() const { return m_elems; };
@@ -237,6 +238,10 @@ public:
     // 坐标转换
     wxPoint ClientToCanvas(const wxPoint& screenPos) const;
     wxPoint CanvasToClient(const wxPoint& canvasPos) const;
+    // Element labels, selection glow, and connected wire endpoints can lie outside
+    // an element's body bounds. Redraw the complete canvas after a move so no part
+    // of the previous drawing survives as a ghost.
+    void RefreshCanvasAfterElementMove();
     wxPoint LogicToDevice(const wxPoint& logicPoint) const;
     wxPoint DeviceToLogic(const wxPoint& devicePoint) const;
 

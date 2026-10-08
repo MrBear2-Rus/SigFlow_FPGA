@@ -74,6 +74,28 @@ void SimulationEngine::SetJobContext(const wxString& projectPath, const wxString
     std::lock_guard<std::mutex> lock(m_mutex);
     m_jobProjectPath = projectPath;
     m_jobId = jobId;
+    if (!jobId.IsEmpty()) m_cancelRequested.store(false);
+}
+
+void SimulationEngine::BeginCoreJob()
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_jobProjectPath.clear();
+    m_jobId.clear();
+    m_cancelRequested.store(false);
+}
+
+bool SimulationEngine::CancellationRequested() const
+{
+    if (m_cancelRequested.load()) return true;
+    wxString projectPath;
+    wxString jobId;
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        projectPath = m_jobProjectPath;
+        jobId = m_jobId;
+    }
+    return SimCancelRequested(projectPath, jobId);
 }
 
 PlatformProcessResult SimulationEngine::RunTool(const wxString& executable,
@@ -93,11 +115,20 @@ PlatformProcessResult SimulationEngine::RunTool(const wxString& executable,
     request.quoteArguments = !rawCommandLine;
     request.environment = environment;
     request.onStarted = [this](void* handle) {
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_activeProcessHandle = handle;
+            if (m_cancelRequested.load()) PlatformProcess::Terminate(handle);
+        }
         if (!m_jobId.IsEmpty()) {
             JobService::RegisterProcess(m_jobProjectPath, m_jobId, handle);
         }
     };
     request.onFinished = [this]() {
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_activeProcessHandle = nullptr;
+        }
         if (!m_jobId.IsEmpty()) {
             JobService::UnregisterProcess(m_jobProjectPath, m_jobId);
         }
@@ -603,7 +634,7 @@ bool SimulationEngine::CompileToDll(const wxString& topModule, wxString& errorMs
         m_lastCompileLog.Clear();
     }
 
-    if (SimCancelRequested(m_jobProjectPath, m_jobId)) {
+    if (CancellationRequested()) {
         errorMsg = wxT("用户取消仿真作业");
         std::lock_guard<std::mutex> lock(m_mutex);
         m_isCompiling = false;
@@ -618,11 +649,20 @@ bool SimulationEngine::CompileToDll(const wxString& topModule, wxString& errorMs
     toolchainRequest.verilatorIncludeDir = verilatorIncludePath.ToUTF8().data();
     toolchainRequest.workingDirectory = projectRoot.ToUTF8().data();
     toolchainRequest.onStarted = [this](void* handle) {
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_activeProcessHandle = handle;
+            if (m_cancelRequested.load()) PlatformProcess::Terminate(handle);
+        }
         if (!m_jobId.IsEmpty()) {
             JobService::RegisterProcess(m_jobProjectPath, m_jobId, handle);
         }
     };
     toolchainRequest.onFinished = [this]() {
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_activeProcessHandle = nullptr;
+        }
         if (!m_jobId.IsEmpty()) {
             JobService::UnregisterProcess(m_jobProjectPath, m_jobId);
         }
@@ -649,7 +689,7 @@ bool SimulationEngine::CompileToDll(const wxString& topModule, wxString& errorMs
     }
 
     if (!compileSucceeded) {
-        if (SimCancelRequested(m_jobProjectPath, m_jobId)) {
+        if (CancellationRequested()) {
             errorMsg = wxT("用户取消仿真作业");
         } else {
             errorMsg = wxString::FromUTF8(toolchainError.c_str());
@@ -883,7 +923,7 @@ bool SimulationEngine::CompileSimRunner(const wxString& topModule, const wxStrin
     projectRootFn.MakeAbsolute();
     wxString projectRoot = projectRootFn.GetFullPath();
 
-    if (SimCancelRequested(m_jobProjectPath, m_jobId)) {
+    if (CancellationRequested()) {
         errorMsg = wxT("用户取消仿真作业");
         return false;
     }
@@ -902,11 +942,20 @@ bool SimulationEngine::CompileSimRunner(const wxString& topModule, const wxStrin
     toolchainRequest.verilatorIncludeDir = verilatorIncludePath.ToUTF8().data();
     toolchainRequest.workingDirectory = projectRoot.ToUTF8().data();
     toolchainRequest.onStarted = [this](void* handle) {
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_activeProcessHandle = handle;
+            if (m_cancelRequested.load()) PlatformProcess::Terminate(handle);
+        }
         if (!m_jobId.IsEmpty()) {
             JobService::RegisterProcess(m_jobProjectPath, m_jobId, handle);
         }
     };
     toolchainRequest.onFinished = [this]() {
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_activeProcessHandle = nullptr;
+        }
         if (!m_jobId.IsEmpty()) {
             JobService::UnregisterProcess(m_jobProjectPath, m_jobId);
         }
@@ -963,7 +1012,7 @@ bool SimulationEngine::ExecuteSimRunner(const wxString& topModule, wxString& err
     wxString waveDir = JoinPath(cacheDir, "waveform");
     CreateDirectoryRecursive(waveDir);
 
-    if (SimCancelRequested(m_jobProjectPath, m_jobId)) {
+    if (CancellationRequested()) {
         errorMsg = wxT("用户取消仿真作业");
         return false;
     }
@@ -976,7 +1025,7 @@ bool SimulationEngine::ExecuteSimRunner(const wxString& topModule, wxString& err
     // 运行 sim_runner.exe（工作目录设为 cacheDir，因为 VCD 路径是相对的）；60s 上限沿用旧行为
     const PlatformProcessResult runResult = RunTool(exePath, {}, cacheDir, 60, true);
 
-    if (SimCancelRequested(m_jobProjectPath, m_jobId)) {
+    if (CancellationRequested()) {
         errorMsg = wxT("用户取消仿真作业");
         return false;
     }
@@ -1009,10 +1058,19 @@ bool SimulationEngine::IsCompiling() const
 
 void SimulationEngine::CancelCompile()
 {
-    // 进程句柄由 RunTool 登记在 JobService；取消即终止整棵进程树。
-    if (m_jobId.IsEmpty()) return;
-    wxString ignored;
-    JobService().Cancel(m_jobProjectPath, m_jobId, "User cancelled simulation.", ignored);
+    m_cancelRequested.store(true);
+    wxString projectPath;
+    wxString jobId;
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        if (m_activeProcessHandle) PlatformProcess::Terminate(m_activeProcessHandle);
+        projectPath = m_jobProjectPath;
+        jobId = m_jobId;
+    }
+    if (!jobId.IsEmpty()) {
+        wxString ignored;
+        JobService().Cancel(projectPath, jobId, "User cancelled simulation.", ignored);
+    }
 }
 
 // 获取软件自身所在目录（用于找到 sc_time_stub.cpp 等工具文件）

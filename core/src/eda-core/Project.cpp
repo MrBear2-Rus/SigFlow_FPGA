@@ -1,5 +1,7 @@
 #include "Project.h"
 
+#include "Platform.h"
+
 #include <algorithm>
 #include <fstream>
 #include <iterator>
@@ -123,7 +125,11 @@ std::vector<std::filesystem::path> JsonProject::SourceFiles() const {
         document_["paths"].contains("source_files") &&
         document_["paths"]["source_files"].is_array()) {
         for (const auto& entry : document_["paths"]["source_files"]) {
-            if (entry.is_string()) files.emplace_back(entry.get<std::string>());
+            if (entry.is_string()) {
+                // 工程文件里的路径是 UTF-8。Windows 上直接构造 path 会把每个字节
+                // 当成一个宽字符（见 Platform.h），中文/空格路径会因此找不到文件。
+                files.emplace_back(platform::PathFromUtf8(entry.get<std::string>()));
+            }
         }
     }
     return files;
@@ -134,7 +140,7 @@ bool JsonProject::AddSourceFile(const std::filesystem::path& file, std::string& 
         error = "no project loaded";
         return false;
     }
-    const std::string value = file.generic_string();
+    const std::string value = platform::PathToUtf8(file);
     Json& sources = SourceArray();
     for (const auto& entry : sources) {
         if (entry.is_string() && entry.get<std::string>() == value) {
@@ -150,7 +156,7 @@ bool JsonProject::RemoveSourceFile(const std::filesystem::path& file, std::strin
         error = "no project loaded";
         return false;
     }
-    const std::string value = file.generic_string();
+    const std::string value = platform::PathToUtf8(file);
     Json& sources = SourceArray();
     for (auto it = sources.begin(); it != sources.end(); ++it) {
         if (it->is_string() && it->get<std::string>() == value) {

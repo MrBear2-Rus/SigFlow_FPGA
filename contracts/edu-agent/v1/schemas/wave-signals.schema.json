@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "edu-agent/v1/schemas/wave-signals.schema.json",
+  "title": "WaveSignalPage",
+  "description": "GET /waves/{a}/signals 的 data 载荷。分页 cursor 不透明；响应不暴露本机路径（只有 artifact_id 与信号元数据）。",
+  "type": "object",
+  "required": ["artifact_id", "signals", "total"],
+  "additionalProperties": false,
+  "properties": {
+    "artifact_id": { "type": "string", "minLength": 1 },
+    "timescale": { "type": ["string", "null"] },
+    "total": { "type": "integer", "minimum": 0 },
+    "has_more": { "type": "boolean" },
+    "next_cursor": { "type": ["string", "null"] },
+    "signals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["signal_id", "full_name"],
+        "additionalProperties": false,
+        "properties": {
+          "signal_id": { "type": "integer" },
+          "name": { "type": ["string", "null"] },
+          "full_name": { "type": "string" },
+          "scope": { "type": ["string", "null"] },
+          "id_code": { "type": ["string", "null"] },
+          "width": { "type": ["integer", "null"] }
+        }
+      }
+    },
+    "time_range": {
+      "type": ["object", "null"],
+      "required": ["start_tick", "end_tick"],
+      "additionalProperties": false,
+      "properties": {
+        "start_tick": { "type": "string", "pattern": "^[0-9]+$" },
+        "end_tick": { "type": "string", "pattern": "^[0-9]+$" }
+      }
+    }
+  }
+}

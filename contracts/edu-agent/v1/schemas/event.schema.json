@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "edu-agent/v1/schemas/event.schema.json",
+  "title": "ProjectEvent",
+  "description": "GET /projects/{p}/events 的单条事件。至少一次投递：消费者按 event_id 去重，状态事实以资源查询为准。sequence 与 64 位计数一律用十进制字符串。",
+  "type": "object",
+  "required": ["event_id", "sequence", "project_id", "type", "timestamp", "data"],
+  "additionalProperties": false,
+  "properties": {
+    "event_id": { "type": "string", "minLength": 1 },
+    "sequence": { "type": "string", "pattern": "^[0-9]+$" },
+    "project_id": { "type": "string", "minLength": 1 },
+    "type": {
+      "type": "string",
+      "enum": [
+        "project/opened", "project/closed", "project/dirty", "project/saved",
+        "revision/advanced", "snapshot/created",
+        "job/created", "job/state-changed", "job/finished",
+        "artifact/produced", "selection/changed", "agent/state"
+      ]
+    },
+    "trace_id": { "type": ["string", "null"] },
+    "timestamp": { "type": "string", "minLength": 1 },
+    "data": { "type": "object" }
+  }
+}

@@ -205,9 +205,6 @@
     <ClCompile Include="debug\DebugMappingBuilder.cpp">
       <Filter>源代码\debug</Filter>
     </ClCompile>
-    <ClCompile Include="jobs\JobRegistry.cpp">
-      <Filter>源文件\jobs</Filter>
-    </ClCompile>
     <ClCompile Include="jobs\JobService.cpp">
       <Filter>源文件\jobs</Filter>
     </ClCompile>
@@ -592,6 +589,9 @@
     <ClCompile Include="Simulation\SimulationEngine.cpp">
       <Filter>源文件\simulation</Filter>
     </ClCompile>
+    <ClCompile Include="Simulation\GuiSimulationJobProvider.cpp">
+      <Filter>源文件\simulation</Filter>
+    </ClCompile>
     <ClCompile Include="Simulation\StimulusParser.cpp">
       <Filter>源文件\simulation</Filter>
     </ClCompile>
@@ -602,6 +602,9 @@
       <Filter>源文件\simulation</Filter>
     </ClCompile>
     <ClInclude Include="Simulation\SimulationEngine.h">
+      <Filter>头文件\simulation</Filter>
+    </ClInclude>
+    <ClInclude Include="Simulation\GuiSimulationJobProvider.h">
       <Filter>头文件\simulation</Filter>
     </ClInclude>
     <ClInclude Include="Simulation\StimulusParser.h">

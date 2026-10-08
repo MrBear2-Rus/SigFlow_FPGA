@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "edu-agent/v1/schemas/agent-health.schema.json",
+  "title": "AgentHealthData",
+  "description": "GET /api/v1/health 的 data 对象：实例存活、协议版本与模型可用性。本路由不要求 Bearer token，但仍校验 Host 边界。",
+  "type": "object",
+  "required": ["protocol", "agent_version", "instance_id", "ready", "model"],
+  "additionalProperties": true,
+  "properties": {
+    "protocol": {
+      "type": "string",
+      "const": "edu.api.v1",
+      "description": "冻结的协议主版本；宿主据此判定版本兼容。"
+    },
+    "agent_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "instance_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "SigFlow 实例 ID（opaque，非路径）。"
+    },
+    "ready": {
+      "type": "boolean",
+      "const": true,
+      "description": "能响应本路由即视为 ready；ready 记录通过 stdout 单独下发。"
+    },
+    "model": { "$ref": "#/$defs/modelStatus" }
+  },
+  "$defs": {
+    "modelStatus": {
+      "type": "object",
+      "required": ["available", "provider", "reason"],
+      "additionalProperties": true,
+      "properties": {
+        "available": { "type": "boolean" },
+        "provider": {
+          "type": ["string", "null"],
+          "description": "模型端点（配置值或 null）；绝不含 API Key。"
+        },
+        "reason": { "type": "string" }
+      }
+    }
+  }
+}

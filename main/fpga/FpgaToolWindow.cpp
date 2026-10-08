@@ -321,6 +321,12 @@ void FpgaToolWindow::SetProjectContext(const wxString& projectPath,
     UpdateProjectLabels();
 }
 
+void FpgaToolWindow::SetCoreJobService(eda::IJobService* service, const wxString& jobsRoot)
+{
+    m_synthesisJobsPanel->SetCoreJobService(service, jobsRoot);
+    if (m_routeJobsPanel) m_routeJobsPanel->SetCoreJobService(service, jobsRoot);
+}
+
 void FpgaToolWindow::RefreshSynthesisJobs()
 {
     m_synthesisJobsPanel->SetProjectContext(m_projectPath, m_activeYosysJobId);

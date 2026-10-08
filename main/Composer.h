@@ -36,6 +36,7 @@ public:
 
     // P1-8：核心 Job 服务（内置工具插件已注册为 IJobProvider）。
     eda::IJobService& JobService();
+    void RegisterGuiJobProvider(std::shared_ptr<eda::IJobProvider> provider);
     // P1-8：能力选择器数据源（已就绪插件暴露的能力 id）。
     std::vector<std::string> Capabilities() const;
     // P1-8：某能力下可用的后端（插件）列表。
@@ -66,10 +67,22 @@ public:
     };
     std::vector<ReadyPluginInfo> ReadyPlugins() const;
 
+    // SF-03：把 Job 数据根目录切换到受控位置（工程受控目录优先，其次应用数据目录）。
+    // 必须在有任何 Job 提交之前调用；已有内存记录或已注册 provider 时返回 false（拒绝迁移，
+    // 避免运行中把记录写到两处）。成功后可经 JobServiceRoot()/JobServiceRootWarning() 查看结果。
+    bool ConfigureJobStorage(const std::string& projectAgentRootUtf8,
+                             const std::string& projectKey);
+    // 当前 Job 数据根目录（UTF-8）。未配置时为系统临时目录兜底。
+    std::string JobServiceRoot() const;
+    // 根目录解析过程中的降级提示；空表示用的是受控目录。
+    const std::string& JobServiceRootWarning() const { return jobRootWarning_; }
+
 private:
     std::unique_ptr<PluginManager> legacyManager_;
     eda::PluginHost pluginHost_;
     std::unique_ptr<eda::CoreJobService> jobService_;
+    std::vector<std::shared_ptr<eda::IJobProvider>> guiJobProviders_;
+    std::string jobRootWarning_;
 };
 
 } // namespace sigflow

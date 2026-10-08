@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "edu-agent/v1/schemas/design-node.schema.json",
+  "title": "DesignNodeView",
+  "description": "局部设计证据（GET /projects/{p}/design/nodes/{node_id} 的 data）。映射语义由 mapping_status 显式表达：available/ambiguous/stale/unavailable。硬边界：usable_for_execution 恒为 false——设计上下文不是可执行输入，只有 SigFlow 签发的 snapshot 才绑定执行；未保存缓冲（node.origin=unsaved_buffer）只用于解释。响应不含本机绝对路径。",
+  "type": "object",
+  "required": ["project_id", "revision", "mapping_revision", "mapping_status", "reason",
+               "candidates", "unsaved_only", "usable_for_execution", "design_dirty", "node"],
+  "properties": {
+    "project_id": { "type": "string", "minLength": 1 },
+    "revision": { "type": "string", "description": "当前工程 revision" },
+    "mapping_revision": { "type": "string", "description": "抽取该映射时的 revision" },
+    "mapping_status": {
+      "type": "string",
+      "enum": ["available", "ambiguous", "stale", "unavailable"]
+    },
+    "reason": {
+      "type": "string",
+      "enum": ["available", "unsaved_only", "ambiguous_node", "declared_unavailable",
+               "node_not_registered", "project_unknown", "no_source_mapping", "unmapped_path",
+               "revision_changed", "source_changed", "source_missing"]
+    },
+    "candidates": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "unsaved_only": {
+      "type": "boolean",
+      "description": "true 表示该映射只存在于未保存编辑缓冲，仅供解释"
+    },
+    "usable_for_execution": {
+      "type": "boolean",
+      "description": "恒为 false：设计上下文不能作为 snapshot 或工具执行输入"
+    },
+    "design_dirty": { "type": "boolean" },
+    "node": {
+      "type": "object",
+      "required": ["node_id", "kind", "name", "module_name", "instance_path", "origin", "ports",
+                   "source_refs"],
+      "properties": {
+        "node_id": { "type": "string", "minLength": 1 },
+        "kind": {
+          "type": "string",
+          "enum": ["module", "instance", "net", "port", "primitive", "unknown"]
+        },
+        "name": { "type": "string" },
+        "module_name": { "type": "string" },
+        "instance_path": { "type": "string" },
+        "origin": { "type": "string", "enum": ["schematic", "rtl", "unsaved_buffer"] },
+        "ports": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "direction", "width"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "direction": { "type": "string", "enum": ["input", "output", "inout", "unknown"] },
+              "width": { "type": "integer", "minimum": 1 }
+            }
+          }
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["source_id", "path", "file_hash", "start_line", "end_line", "unmapped"],
+            "properties": {
+              "source_id": { "type": "string" },
+              "path": { "type": "string", "description": "工程相对 POSIX 路径" },
+              "file_hash": { "type": "string" },
+              "start_line": { "type": "integer", "minimum": 0 },
+              "end_line": { "type": "integer", "minimum": 0 },
+              "unmapped": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

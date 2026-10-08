@@ -15,3 +15,13 @@ build_tools/
 _deps/
 CMakeFiles/
 gittoken.txt
+# 根目录散落的构建中间产物（曾误入工作区，见 docs/SigFlow-冗余代码与优化建议.md §4）
+/DebugContract.obj
+/jsoncpp.obj
+/out/
+/main/bin/
+/main/main/
+# Python 缓存与 sidecar 的一次性验证脚本（agent/ 包本身仍随仓库分发）
+__pycache__/
+*.pyc
+/agent/.tmp/

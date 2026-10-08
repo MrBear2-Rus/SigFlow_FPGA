@@ -1,5 +1,7 @@
 #include "StimulusModel.h"
 
+#include "eda-platform/Platform.h"
+
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
@@ -14,7 +16,7 @@ StimulusParser::StimulusParser() = default;
 StimulusParser::~StimulusParser() = default;
 
 bool StimulusParser::Parse(const std::string& filePath, TestbenchInfo& result) {
-    std::ifstream file{std::filesystem::path(filePath)};
+    std::ifstream file{platform::PathFromUtf8(filePath)};
     if (!file.is_open()) {
         lastError_ = "Cannot open file: " + filePath;
         return false;

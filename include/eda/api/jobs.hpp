@@ -29,6 +29,10 @@ struct JobRequest {
     std::string pluginId;
     std::string projectId;
     Json params;
+    // Service-owned provenance.  Providers never interpret this field; it is
+    // persisted with the manifest so a host can safely recover ownership after
+    // restart without trusting model-controlled execution parameters.
+    Json metadata = Json::object();
     bool requireConfirm = false;
     // 覆盖服务默认超时；<=0 表示不超时；空表示用服务默认值。
     std::optional<int> timeoutSec;

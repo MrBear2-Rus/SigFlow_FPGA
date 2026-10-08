@@ -3,27 +3,137 @@ info:
   title: SigFlow EDA Gateway (Educational Agent)
   version: "1.0.0"
   description: |
-    SigFlow 教育版 Agent 的本地 EDA Gateway。仅监听 127.0.0.1，端口由系统分配。
-    字段与枚举真源见 `schemas/`；语义见 `docs/edu-agent/sigflow/spec.md §5`。
-    本期路由子集：health、capabilities。其余路由按 spec §5.2 逐步实现。
+    SigFlow 教育版 Agent 的本地 EDA Gateway 契约（交付项 SF-01）。
+    仅监听 127.0.0.1，端口由系统在启动时分配（bind_to_any_port），并经受限继承管道把
+    instance_id、端口、协议版本与 Bearer token 交给 Python sidecar。
+
+    真源划分：
+    - 字段与枚举真源：`schemas/*.schema.json`（本文件只描述路由、参数、状态码、限额与涉及的信封，
+      字段集合一律通过 $ref 引用 schema，不在此重复定义）。
+    - 错误码枚举真源：`schemas/envelope.schema.json`。
+    - 语义真源：`docs/edu-agent/sigflow/spec.md §5`；实现真源：`core/src/eda-agent-gateway/`。
+
+    协议版本与字段演化规则：
+    - 协议主版本锁定 `v1`；成功/失败信封的 `schema_version` 与健康响应的 `protocol_version`
+      固定为 `edu.api.v1`。
+    - 同一主版本内只允许新增可选字段；客户端必须忽略未知可选字段，遇到未知枚举值按
+      unsupported 处理，不得当成功消费。
+    - 删除字段、改变字段语义、改变状态码/错误码语义一律升主版本或新增版本化路径；
+      变更必须同时更新 schema、fixtures 与本文件。
+
+    信封规则（请求与响应）：
+    - 请求：UTF-8 JSON、snake_case，Content-Type 为 application/json。
+    - 成功响应：`{schema_version, request_id, trace_id, data}`；无集合项时 `data` 内的集合也返回空数组。
+    - 失败响应：`{schema_version, request_id, trace_id, error:{code,message,retryable,details}}`；
+      `details` 当前恒为 null，且不得携带 Key、token、完整绝对路径或原始环境变量。
+    - 所有时间戳为 UTC ISO 8601（如 `2026-09-26T10:00:00Z`）；`request_id`/`trace_id` 为
+      实例内单调的排障 ID（`req-<n>`、`trace-<n>`）。
+    - 所有 64 位数值（tick、uid、size、sequence、state_version、epoch）用十进制字符串承载，
+      避免前端精度损失；当前例外见 `GET /waves/{artifactId}/signals` 的 `time_range` 与
+      `POST /waves/{artifactId}/query` 的 `start_tick`/`end_tick` 入参。
+    - 路径一律为工程相对 POSIX 形式或 opaque ID，不返回本机绝对路径。
+
+    鉴权、身份与边界：
+    - Agent→EDA 的 Bearer token 经 `Authorization` 头传递，禁止放入 URL、日志、工程文件或模型上下文。
+    - `GET /health` 是唯一无需鉴权的路由；其余路由都校验 Bearer token。
+    - UI 专用身份（同一 `Authorization: Bearer` 头，但 token 不同）只用于签发/撤销：
+      `POST /projects/{projectId}/grants`、`POST /grants/{grantId}/revoke`、
+      `POST /projects/{projectId}/ui-receipts`。使用 Agent token（或未配置 UI token）时一律
+      `403 POLICY_DENIED`；未配置 UI token 属失败关闭，不会退化为放行。
+    - 实现说明：未配置 Agent token 时网关按最小脚手架放行所有需鉴权路由（仅联调用途）；
+      生产配置必须为非空 token。
+    - Host 头必须是 loopback（`127.0.0.1`、`localhost`、`[::1]`，可带端口）；带 Origin 时必须是
+      loopback 来源，否则 `403 POLICY_DENIED`。不启用通配 CORS。
+    - `Idempotency-Key` 头只对 `POST /projects/{projectId}/jobs` 必填；作用域为 project + capability。
+
+    统一限额（与实现常量一致）：
+    - 请求体上限 1 MiB；超限由 HTTP 层返回 413，兜底映射为 `RESOURCE_EXHAUSTED`（所有 POST 路由）。
+    - 集合分页默认 100、最多 500（`GET /projects/{projectId}/events`、
+      `GET /projects/{projectId}/jobs`）；超限夹紧并显式给出 `has_more`，不静默截断。
+      波形信号列表使用另一组常量：默认 256、最多 4096。
+    - 事件实例流保留最新 10,000 条且不超过 24 小时（两者任一超出即从最旧端裁剪）。
+      游标早于最旧保留事件时返回 `410 CURSOR_EXPIRED`；恢复方式见 `GET /projects/{projectId}/state`
+      的 `oldest_sequence` / `high_watermark` 与 `event_retention`。
+    - 长轮询 `wait_ms` 默认 20000 ms、上限 25000 ms（0 表示立即返回）；HTTP 服务读写超时为 25 s。
+    - `POST /waves/{artifactId}/query` 单次最多 16 路信号、10,000 跳变、约 2 MiB 估算载荷，
+      超限显式分页并给 `completeness=partial`。
+    - `GET /artifacts/{artifactId}/content` 的读取窗口默认 256 KiB（服务层硬上限 1 MiB）；
+      `length` 只能缩小窗口，超出以 `truncated` 标记，不静默丢字节。
+    - grant 默认 TTL 600 s、默认 max_jobs 3；receipt 默认 TTL 900 s，一次性核销。
+    - 普通响应上限 2 MiB：超出时不截断 JSON（截断会破坏可解析性），而是改为
+      `429 RESOURCE_EXHAUSTED`，并在 `error.details` 给出 `limit_bytes` 与 `actual_bytes`。
+      内容型响应另有各自的载荷预算（波形查询、artifact 片段）先于该护栏生效。
+
+    兜底错误处理（未匹配到路由或由 HTTP 层直接拒绝时，仍返回统一失败信封）：
+    - 未知路径或路径不支持该 HTTP 方法 → 404 `NOT_FOUND`（`message` 为 `status 404`）。
+    - 请求体超过 1 MiB → 413 `RESOURCE_EXHAUSTED`。
+    - 不支持的请求体压缩编码（gzip/deflate/br 未编译支持）→ 415 `INVALID_ARGUMENT`。
+    - 处理器未捕获异常 → 500，兜底被映射为 `INVALID_ARGUMENT` 且 `message` 为 `status 500`
+      （无契约语义，客户端不应依赖；可在 `POST /projects/{projectId}/grants`、
+      `POST /projects/{projectId}/ui-receipts`、`POST /ui-receipts/{receiptId}/consume`
+      收到非对象 JSON 体时观察到）。
+    - 429 `RESOURCE_EXHAUSTED`：普通响应超过 2 MiB 护栏，或 HTTP 层限制。
+      `error.details` 携带 `limit_bytes` / `actual_bytes`，客户端应改用分页或受限读取路由。
+      **注意**：该护栏实测返回 `retryable=false`（重试同样的请求不会变小），
+      因此不要按"可重试"处理；需要重试时必须先改分页/窗口参数。
+    - `retryable` 当前仅在 503（服务、存储或 Job 服务不可用）时为 true。
+
+    已知实现与 schema/决策的偏差（只报告，不在本文件新增枚举值或字段）：
+    - 以下错误码由实现回传但不在 `schemas/envelope.schema.json` 枚举内：
+      `PATH_OUTSIDE_PROJECT`（快照源路径越界）、`SOURCE_UNAVAILABLE`（快照源文件不可用）、
+      `PLUGIN_UNAVAILABLE`（波形 backend 不可用）。
+    - `POST /projects/{projectId}/snapshots` 允许省略 `require_saved`（省略即视为 true），
+      而既有客户端约定写为必填 true。
+    - `GET /projects/{projectId}/sources/{sourceId}` 在区间为空时返回 `end_line=0`，与
+      `schemas/source-ref.schema.json` 的 `end_line >= 1` 冲突。
+    - `POST /waves/{artifactId}/query` 的 `start_tick`/`end_tick` 入参必须是 JSON 无符号整数，
+      不接受十进制字符串（响应侧仍是十进制字符串）。
+    - `GET /jobs/{jobId}/report` 的 `project_id`/`revision`/`snapshot_id`/`input_fingerprint`
+      已由可信 Job 绑定与快照填入（NG-01 完成）；`artifacts[]` 只返回 opaque `artifact_id` +
+      `sha256` + `role`，不再返回 `path`。
+    - 报告中的**结构化**本机路径会被替换为文件名并显式标记（`metrics.*.value` 里的路径
+      → `path_redacted=true`；`diagnostics[].location.file` → `file_redacted=true`），
+      因为 Agent 不得看到本机路径。
+      残留风险（已知，尚未消除）：工具自由文本（`diagnostics[].summary`、日志片段）
+      仍可能由工具自己打印出路径；如需彻底消除，应另立任务做文本级证据裁剪。
+    - `GET /projects/{projectId}/legacy/jobs/{jobId}/report` 缺报告或报告损坏时返回 404，
+      原因写在 `error.message`（`report_missing` / `report_unreadable`）；更可靠的区分方式是
+      先看列表路由每条的 `problem` 字段。旧报告恒为 `completeness=legacy_unverified`。
+    - `source_id = source-<sha256(工程相对路径)>`，因此**不是工程作用域**的 ID：
+      两个布局相同的工程会得到同一个 `source_id`。这不构成越权（`/sources/{id}`、
+      `/context/query` 都先按 `project_id` 取该工程自己的摘要，返回的是本工程的
+      `project_id`/`revision`/`file_hash`/正文），但客户端不能把 `source_id` 当全局唯一键。
+    - `POST /jobs/{jobId}/cancel` **不带工程参数**，也不存在
+      `/projects/{projectId}/jobs/{jobId}/cancel`（该路径 404）。因此"跨工程取消"在协议上
+      不可表达：归属在**提交时**（grant→工程，跨工程 403）与按工程列举时校验，
+      取消只作用于本 Gateway 登记归属的 Job。若后续需要按工程取消，应新增版本化路由。
+    - `GET /artifacts/{artifactId}` 与 `/content` 是**全局**（非工程作用域）路由，按契约只认
+      opaque artifact ID；工程隔离通过登记记录自身的 `project_id` 与工程作用域路由体现。
+    - `schemas/wave-signals.schema.json` 的 `time_range{start_tick,end_tick}` 曾与实现不一致
+      （实现发过 `{begin,end,valid}` 数字）；现已对齐为契约形状，运行期测试断言该形状。
+
 servers:
   - url: http://127.0.0.1:{port}/api/v1
     variables:
       port:
         default: "0"
-        description: 系统分配端口（启动时通过受限管道告知 Python sidecar）
+        description: 系统分配端口（启动时通过受限继承管道告知 Python sidecar）
 
 paths:
   /health:
     get:
-      summary: 实例存活与协议版本（无需鉴权）
+      summary: 实例存活与协议版本（唯一无需鉴权的路由）
+      description: |
+        返回实例身份、协议主版本、edition 与 build 串。不校验 Bearer token。
+        仍校验 Host/Origin 边界：Host 非 loopback 或 Origin 非 loopback → 403 POLICY_DENIED。
+        错误码：403 POLICY_DENIED（边界校验不通过）。
       responses:
         "200":
-          description: OK
+          description: 成功信封；data 为 HealthData
           content:
             application/json:
               schema:
-                $ref: "schemas/envelope.schema.json#/$defs/success"
+                $ref: "#/components/schemas/HealthEnvelope"
               example:
                 schema_version: edu.api.v1
                 request_id: req-1
@@ -33,19 +143,28 @@ paths:
                   protocol_version: edu.api.v1
                   edition: edu
                   build: "gcc-12.2.0;cxx=202002;abi=1"
+        "403": { $ref: "#/components/responses/Failure" }
 
   /capabilities:
     get:
       summary: 教育能力可用性（需 Agent→EDA Bearer token）
+      description: |
+        data 为能力清单：三项教育白名单能力 `eda.sim.build`、`eda.sim.run`、`eda.synth`
+        按真实插件 ready 状态给出 `ready`/`plugin_id`/`plugin_version`/`reason`；
+        `eda.pnr`、`eda.pack`、`eda.flash`、`eda.debug` 恒为 `disabled=true` 并带可读 reason。
+        字段真源为 `schemas/capabilities.schema.json`。
+        错误码：
+        - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
+        - 403 POLICY_DENIED：Host/Origin 边界校验不通过。
       security:
         - bearerAuth: []
       responses:
         "200":
-          description: OK
+          description: 成功信封；data 为 Capabilities（见 schemas/capabilities.schema.json）
           content:
             application/json:
               schema:
-                $ref: "schemas/envelope.schema.json#/$defs/success"
+                $ref: "#/components/schemas/CapabilitiesEnvelope"
         "401":
           description: 缺少或无效 token
           content:
@@ -61,10 +180,1902 @@ paths:
                   message: missing or invalid bearer token
                   retryable: false
                   details: null
+        "403": { $ref: "#/components/responses/Failure" }
+
+  /projects/{projectId}/context:
+    parameters:
+      - $ref: "#/components/parameters/projectId"
+    get:
+      summary: 读取已保存工程的 revision、dirty/synchronized 状态与源文件摘要
+      description: |
+        返回 UI 线程发布的不可变工程上下文 DTO（字段真源
+        `schemas/project-context.schema.json`）。`buffer_hash`/`policy_version` 可为 null。
+        `dirty=true` 或 `synchronized=false` 时只允许解释，不得创建执行快照。
+        错误码：
+        - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
+        - 403 POLICY_DENIED：Host/Origin 边界校验不通过。
+        - 404 NOT_FOUND：网关未登记该 projectId（未知工程）。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 当前 UI 线程发布的不可变工程上下文
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectContextEnvelope"
+        "401": { $ref: "#/components/responses/Failure" }
+        "403": { $ref: "#/components/responses/Failure" }
+        "404": { $ref: "#/components/responses/Failure" }
+
+  /projects/{projectId}/state:
+    parameters:
+      - $ref: "#/components/parameters/projectId"
+    get:
+      summary: 工程一致性快照（事件恢复用 high_watermark / oldest_sequence）
+      description: |
+        一次性取回事件水位、保留窗口、进行中的 Agent Job 与能力状态，供客户端先读 state
+        再订阅 events，避免恢复窗口漏事件：`after < oldest_sequence` 的订阅必然过期（410）。
+        `active_jobs` 为本 Gateway 提交且仍在进行中的 Job 摘要（不含 `params`）；
+        `capabilities` 与 /capabilities 的 items 同构。
+        未知工程不报错：`context` 为 null 而非 404。
+        错误码：
+        - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
+        - 403 POLICY_DENIED：Host/Origin 边界校验不通过。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 一致性快照；data 为 ProjectStateData
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectStateEnvelope"
+        "401": { $ref: "#/components/responses/Failure" }
+        "403": { $ref: "#/components/responses/Failure" }
+
+  /projects/{projectId}/events:
+    parameters:
+      - $ref: "#/components/parameters/projectId"
+    get:
+      summary: 读取工程事件流（有界分页 + 长轮询 + 游标恢复）
+      description: |
+        至少一次投递：消费者按 `event_id` 去重，状态事实以资源查询为准（事件不是报告的唯一存储）。
+        `after` 是实例流内的全局 sequence 游标（十进制字符串），不是每工程独立计数。
+        若 `after` 之后暂无该工程的事件，最多等待 `wait_ms`（默认 20000、上限 25000 ms，0 立即返回）。
+        当前网关自产事件类型：`snapshot/created`、`job/created`；宿主还可发布
+        project/job/artifact/selection 类事件。
+        错误码：
+        - 400 INVALID_ARGUMENT：`after` 不是十进制游标。
+        - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
+        - 403 POLICY_DENIED：Host/Origin 边界校验不通过。
+        - 410 CURSOR_EXPIRED：`after` 早于当前保留窗口的最旧事件，需重新取
+          `GET /projects/{projectId}/state` 的 `high_watermark` 后再订阅。
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/eventAfter"
+        - $ref: "#/components/parameters/waitMs"
+        - $ref: "#/components/parameters/collectionLimit"
+      responses:
+        "200":
+          description: 事件页；data 为 EventsData（events/next_cursor/high_watermark/has_more）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventsEnvelope"
+        "400": { $ref: "#/components/responses/Failure" }
+        "401": { $ref: "#/components/responses/Failure" }
+        "403": { $ref: "#/components/responses/Failure" }
+        "410": { $ref: "#/components/responses/Failure" }
+
+  /projects/{projectId}/snapshots:
+    parameters:
+      - $ref: "#/components/parameters/projectId"
+    post:
+      summary: 为指定 revision 提交不可变 EDA 输入快照
+      description: |
+        仅接受已保存（`dirty=false`）且图码同步完成（`synchronized=true`）的工程，且
+        `expected_revision` 必须等于当前 revision；`require_saved` 省略即视为 true，
+        显式传 false 或非布尔值 → 400。快照只复制已登记源文件与显式登记、且解析后仍在工程根内的
+        include 根；快照内的路径一律为快照相对 POSIX 路径（外部 include 改写为
+        `external/<source_id>/<filename>`）。
+        `expected_revision` 必须为字符串。构建期间 revision/保存状态变化 → 409；
+        源文件在构建期间被改写 → 422 SOURCE_CHANGED。
+        错误码：
+        - 400 INVALID_ARGUMENT：请求体非合法 JSON、缺 `expected_revision`、
+          `require_saved` 非布尔或为 false、源文件数超上限（1000）或总字节超上限（64 MiB）。
+          源路径逃逸工程根时实现回传未列入枚举的 `PATH_OUTSIDE_PROJECT`。
+        - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
+        - 403 POLICY_DENIED：Host/Origin 边界校验不通过。
+        - 404 NOT_FOUND：网关未登记该 projectId。
+        - 409 STALE_REVISION：revision 不匹配、工程 dirty 或正在同步（构建期间变化）。
+        - 413 RESOURCE_EXHAUSTED：请求体超过 1 MiB。
+        - 422 SOURCE_CHANGED：源文件 hash/size 在快照构建期间变化。
+          源文件不可用回传未列入枚举的 `SOURCE_UNAVAILABLE`；快照不存在回传 `NOT_FOUND`（同为 422）。
+        - 503 SERVICE_UNAVAILABLE：快照存储写入失败（retryable=true）。
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSnapshotRequest"
+      responses:
+        "201":
+          description: 快照已原子提交；data 为 Snapshot（见 schemas/snapshot.schema.json）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SnapshotEnvelope"
+        "400": { $ref: "#/components/responses/Failure" }
+        "401": { $ref: "#/components/responses/Failure" }
+        "403": { $ref: "#/components/responses/Failure" }
+        "404": { $ref: "#/components/responses/Failure" }
+        "409": { $ref: "#/components/responses/Failure" }
+        "413": { $ref: "#/components/responses/Failure" }
+        "422": { $ref: "#/components/responses/Failure" }
+        "503": { $ref: "#/components/responses/Failure" }
+
+  /projects/{projectId}/sources/{sourceId}:
+    parameters:
+      - $ref: "#/components/parameters/projectId"
+      - $ref: "#/components/parameters/sourceId"
+    get:
+      summary: 读取已登记源文件的有界行区间与 SourceRef
+      description: |
+        只读已登记源文件；读取前重新计算文件 SHA-256，必须与上下文 DTO 记录的 hash 一致。
+        行号 1 基、包含端点；`start_line` 缺省 1，`end_line` 缺省 0 表示到文件末尾，
+        非法值分别回落为 1 与 0。响应同时给出可定位的 `source_ref`。
+        注意：当区间为空（文件行数少于 `start_line`）时实现返回 `end_line=0`、
+        `source_ref.end_line=0`，与 `schemas/source-ref.schema.json` 的 `end_line >= 1` 冲突。
+        错误码：
+        - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
+        - 403 POLICY_DENIED：Host/Origin 边界校验不通过。
+        - 404 NOT_FOUND：未知 projectId 或该工程未登记该 sourceId。
+        - 409 STALE_REVISION：磁盘文件内容与上下文 DTO 记录的 hash 不一致（IDE 外部改写）。
+        - 410 ARTIFACT_EXPIRED：源文件已不存在或不可读。
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/startLine"
+        - $ref: "#/components/parameters/endLine"
+      responses:
+        "200":
+          description: 源码片段；data 为 SourceSliceData
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SourceSliceEnvelope"
+        "401": { $ref: "#/components/responses/Failure" }
+        "403": { $ref: "#/components/responses/Failure" }
+        "404": { $ref: "#/components/responses/Failure" }
+        "409": { $ref: "#/components/responses/Failure" }
+        "410": { $ref: "#/components/responses/Failure" }
+
+  /projects/{projectId}/design/nodes/{nodeId}:
+    parameters:
+      - $ref: "#/components/parameters/projectId"
+      - $ref: "#/components/parameters/nodeId"
+    get:
+      summary: 只读局部设计证据（图元 → 同 revision 源码）
+      description: |
+        回答“这个被选中的图元在当前 revision 下对应哪段源码/端口”。映射语义由
+        `mapping_status` 显式表达：
+
+        - `available`：映射到工程内已登记源文件，且文件当前 SHA-256 与抽取时一致；
+          若该图元只存在于未保存编辑缓冲，则额外带 `unsaved_only=true`、
+          `node.origin="unsaved_buffer"`，`reason="unsaved_only"`。
+        - `ambiguous`：多个候选（`candidates[]`）同样可信，网关**不猜**其中之一。
+        - `stale`：`reason` 说明原因，可能为 `revision_changed`（映射抽取于其它 revision）、
+          `source_changed`（文件在同 revision 内被改写）、`source_missing`、`unmapped_path`
+          （路径越界/符号链接逃逸）。
+        - `unavailable`：`node_not_registered`、`no_source_mapping`、`project_unknown`，
+          或宿主声明的 `declared_reason`（如综合后别名化）。
+
+        硬边界：设计上下文永远 `usable_for_execution=false`。未保存缓冲只用于解释，
+        不能作为 snapshot 或工具执行输入；响应不含本机绝对路径、不含文件正文。
+        错误码：
+        - 400 INVALID_ARGUMENT：nodeId 为空。
+        - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
+        - 403 POLICY_DENIED：Host/Origin 边界校验不通过。
+        - 404 NOT_FOUND：网关未登记该 projectId。
+        - 409 STALE_REVISION：显式 `revision` 与当前 revision 不一致。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: revision
+          in: query
+          required: false
+          description: 显式指定时必须等于当前 revision，否则 409 STALE_REVISION
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 局部设计证据；data 为 DesignNodeData（映射状态在 data 内表达，不借用 404）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DesignNodeEnvelope"
+        "400": { $ref: "#/components/responses/Failure" }
+        "401": { $ref: "#/components/responses/Failure" }
+        "403": { $ref: "#/components/responses/Failure" }
+        "404": { $ref: "#/components/responses/Failure" }
+        "409": { $ref: "#/components/responses/Failure" }
+
+  /projects/{projectId}/context/query:
+    parameters:
+      - $ref: "#/components/parameters/projectId"
+    post:
+      summary: 按需裁剪的局部证据包（强制 max_bytes 预算）
+      description: |
+        `needs` 驱动证据收集，支持四类：
+
+        - `sources`（字符串，或含 `kind`/`source_id` 的对象）：已登记源码片段摘要；
+        - `selection`：宿主登记的当前选择（选中节点 ID、源码 refs、dirty/buffer hash），
+          一律 `usable_for_execution=false`；
+        - `design`：局部设计证据，可用对象形式指定 `node_id`；缺省解析当前选中的全部节点；
+        - `buffer`：未保存编辑缓冲片段，**仅供解释**：只在工程确实 dirty 时返回，
+          每条带 `origin="unsaved_buffer"` 与 `usable_for_execution=false`，且从不带 `source_id`，
+          因此无法被当作快照或执行输入。
+
+        未登记的 need、未知 source、内容已变化、超出 `max_bytes` 预算的条目都会记入
+        `omitted[]` 并带可读 `reason`（如 `no_unsaved_buffer`、`no_selection`、
+        `exceeds max_bytes budget`、`unsupported need in this increment`），不静默丢弃。
+        显式传入的 `revision` 必须等于当前 revision。`max_bytes` 缺省 65536，仅接受 JSON
+        无符号整数。未提供 `needs` 时返回空证据包（仍 200）。
+        错误码：
+        - 400 INVALID_ARGUMENT：请求体非合法 JSON。
+        - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
+        - 403 POLICY_DENIED：Host/Origin 边界校验不通过。
+        - 404 NOT_FOUND：网关未登记该 projectId。
+        - 409 STALE_REVISION：请求显式 revision 与当前 revision 不一致。
+        - 413 RESOURCE_EXHAUSTED：请求体超过 1 MiB。
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ContextQueryRequest"
+      responses:
+        "200":
+          description: 证据包；data 为 ContextQueryData（sources/selection/design_nodes/buffer_excerpts/omitted/used_bytes/max_bytes）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContextQueryEnvelope"
+        "400": { $ref: "#/components/responses/Failure" }
+        "401": { $ref: "#/components/responses/Failure" }
+        "403": { $ref: "#/components/responses/Failure" }
+        "404": { $ref: "#/components/responses/Failure" }
+        "409": { $ref: "#/components/responses/Failure" }
+        "413": { $ref: "#/components/responses/Failure" }
+
+  /projects/{projectId}/grants:
+    parameters:
+      - $ref: "#/components/parameters/projectId"
+    post:
+      summary: 签发执行授权 grant（仅 UI 身份，Agent token 一律 403）
+      description: |
+        仅 UI 专用身份可调用。本路由不做工程存在性校验（未知 projectId 也会签发）。
+        `plan_hash` 必填；`ttl_seconds` 缺省 600（0 → 600）、`max_jobs` 缺省 3（<=0 → 3）、
+        `steps` 缺省空数组。grant 状态为 `active|revoked|expired`，`expires_at` 为 UTC ISO 8601。
+        `ttl_seconds`/`max_jobs` 必须为 JSON 整数（类型不符时当前实现抛异常，客户端会看到 500）。
+        错误码：
+        - 400 INVALID_ARGUMENT：请求体非合法 JSON 或缺少 `plan_hash`。
+        - 403 POLICY_DENIED：使用 Agent token、未配置 UI token 或 Host/Origin 边界不通过。
+        - 413 RESOURCE_EXHAUSTED：请求体超过 1 MiB。
+        - 500：请求体为非对象 JSON（对象取值抛类型异常后被兜底映射为 INVALID_ARGUMENT）。
+        - 503 SERVICE_UNAVAILABLE：grant 索引持久化失败（retryable=true）。
+      security:
+        - uiTokenAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GrantIssueRequest"
+      responses:
+        "201":
+          description: grant 已签发；data 为 GrantIssueData
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrantIssueEnvelope"
+        "400": { $ref: "#/components/responses/Failure" }
+        "403": { $ref: "#/components/responses/Failure" }
+        "413": { $ref: "#/components/responses/Failure" }
+        "500": { $ref: "#/components/responses/Failure" }
+        "503": { $ref: "#/components/responses/Failure" }
+
+  /grants/{grantId}:
+    parameters:
+      - $ref: "#/components/parameters/grantId"
+    get:
+      summary: 查询 grant 状态（Agent 可读自身 grant）
+      description: |
+        返回 grant 状态、绑定 revision、`max_jobs`、`expires_at`。
+        查询时会按 TTL 归一化状态：已过期的 active grant 返回 `status=expired`。
+        响应不返回 `snapshot_id`、`used_jobs`、`steps`。
+        错误码：
+        - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
+        - 403 POLICY_DENIED：Host/Origin 边界校验不通过。
+        - 404 NOT_FOUND：未知 grantId。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: grant 摘要；data 为 GrantQueryData
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrantQueryEnvelope"
+        "401": { $ref: "#/components/responses/Failure" }
+        "403": { $ref: "#/components/responses/Failure" }
+        "404": { $ref: "#/components/responses/Failure" }
+
+  /grants/{grantId}/revoke:
+    parameters:
+      - $ref: "#/components/parameters/grantId"
+    post:
+      summary: 撤销 grant（仅 UI 身份）
+      description: |
+        仅 UI 专用身份可调用。撤销是幂等的：对已撤销或已过期的 grant 再次调用仍返回
+        `status=revoked` 与 200。无请求体。
+        错误码：
+        - 403 POLICY_DENIED：使用 Agent token、未配置 UI token 或 Host/Origin 边界不通过。
+        - 404 NOT_FOUND：未知 grantId。
+        - 503 SERVICE_UNAVAILABLE：撤销结果持久化失败（retryable=true）。
+      security:
+        - uiTokenAuth: []
+      responses:
+        "200":
+          description: 已撤销；data 为 GrantRevokeData
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrantRevokeEnvelope"
+        "403": { $ref: "#/components/responses/Failure" }
+        "404": { $ref: "#/components/responses/Failure" }
+        "503": { $ref: "#/components/responses/Failure" }
+
+  /projects/{projectId}/ui-receipts:
+    parameters:
+      - $ref: "#/components/parameters/projectId"
+    post:
+      summary: 签发 UI 凭据 receipt（仅 UI 身份，Agent token 一律 403）
+      description: |
+        仅 UI 专用身份可调用。`session_id`、`issue`、`level` 必填；`level` 只接受
+        `hint`、`l4`、`teaching`；`ttl_seconds` 缺省 900（0 → 900）；`policy`、`revision`、
+        `challenge_id`、`action_id` 可空（`action_id` 为空表示不绑定动作）。
+        签发时 receipt.state_version 为 0，且只在核销时写入本次 `expected_state_version`，
+        因此首次核销必须传 0。`issue` 摘要只在签发响应出现，查询/核销都不返回（凭据不进入模型上下文）。
+        receipt 随进程/工程切换失效：重启后 active 一律恢复为 invalid。
+        错误码：
+        - 400 INVALID_ARGUMENT：请求体非合法 JSON、缺 `session_id`/`issue`/`level`，
+          或 `level` 不在 `hint|l4|teaching` 内。
+        - 403 POLICY_DENIED：使用 Agent token、未配置 UI token 或 Host/Origin 边界不通过。
+        - 413 RESOURCE_EXHAUSTED：请求体超过 1 MiB。
+        - 500：请求体为非对象 JSON 或字段类型不符（对象取值抛类型异常后被兜底映射）。
+        - 503 SERVICE_UNAVAILABLE：receipt 索引持久化失败（retryable=true）。
+      security:
+        - uiTokenAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReceiptIssueRequest"
+      responses:
+        "201":
+          description: receipt 已签发；data 为 ReceiptIssueData
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReceiptIssueEnvelope"
+        "400": { $ref: "#/components/responses/Failure" }
+        "403": { $ref: "#/components/responses/Failure" }
+        "413": { $ref: "#/components/responses/Failure" }
+        "500": { $ref: "#/components/responses/Failure" }
+        "503": { $ref: "#/components/responses/Failure" }
+
+  /ui-receipts/{receiptId}:
+    parameters:
+      - $ref: "#/components/parameters/receiptId"
+    get:
+      summary: 读取 receipt 状态（Agent 可读，不返回签发内容摘要）
+      description: |
+        查询 receipt 的绑定与状态；查询时按 TTL 归一化：过期的 active → `status=invalid`。
+        为保密起见响应不含 `issue` 摘要与 `state_version`。
+        错误码：
+        - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
+        - 403 POLICY_DENIED：Host/Origin 边界校验不通过。
+        - 404 NOT_FOUND：未知 receiptId。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: receipt 摘要；data 为 ReceiptQueryData
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReceiptQueryEnvelope"
+        "401": { $ref: "#/components/responses/Failure" }
+        "403": { $ref: "#/components/responses/Failure" }
+        "404": { $ref: "#/components/responses/Failure" }
+
+  /ui-receipts/{receiptId}/consume:
+    parameters:
+      - $ref: "#/components/parameters/receiptId"
+    post:
+      summary: 原子核销 receipt（一次性；同 action 重放幂等）
+      description: |
+        `run_id`、`action_id`、`expected_state_version` 必填（后者可为 JSON 无符号整数或十进制字符串，
+        实际必须等于 0）。核销在同一临界区内校验工程归属、有效期、已核销动作与 state version：
+        - 首次核销成功 → 200，`consumed=true`、`replayed=false`、`status=consumed`。
+        - 已核销且 `action_id` 相同 → 200 幂等重放原结果，`replayed=true`。
+        - 已核销但 `action_id` 不同 → 409 POLICY_DENIED。
+        - `expected_state_version` 不符 → 409 POLICY_DENIED。
+        - 工程不符或 receipt 已 invalid/过期 → 403 POLICY_DENIED（注意：TTL 过后即使同 action
+          也不能重放，过期判定先于重放判定）。
+        错误码：
+        - 400 INVALID_ARGUMENT：请求体非合法 JSON、缺 `run_id`/`action_id`，
+          或 `expected_state_version` 缺失/非无符号整数/非十进制字符串。
+        - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
+        - 403 POLICY_DENIED：Host/Origin 边界不通过、工程不符、receipt 已失效或已过期。
+        - 404 NOT_FOUND：未知 receiptId。
+        - 409 POLICY_DENIED：动作不匹配或 state version 冲突。
+        - 413 RESOURCE_EXHAUSTED：请求体超过 1 MiB。
+        - 500：请求体为非对象 JSON 或字段类型不符（对象取值抛类型异常后被兜底映射）。
+        - 503 SERVICE_UNAVAILABLE：核销结果持久化失败（retryable=true）。
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReceiptConsumeRequest"
+      responses:
+        "200":
+          description: 核销或幂等重放；data 为 ReceiptConsumeData
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReceiptConsumeEnvelope"
+        "400": { $ref: "#/components/responses/Failure" }
+        "401": { $ref: "#/components/responses/Failure" }
+        "403": { $ref: "#/components/responses/Failure" }
+        "404": { $ref: "#/components/responses/Failure" }
+        "409": { $ref: "#/components/responses/Failure" }
+        "413": { $ref: "#/components/responses/Failure" }
+        "500": { $ref: "#/components/responses/Failure" }
+        "503": { $ref: "#/components/responses/Failure" }
+
+  /projects/{projectId}/jobs:
+    parameters:
+      - $ref: "#/components/parameters/projectId"
+    post:
+      summary: 在当前 revision 的快照上提交受 grant 约束的 Job（需 Idempotency-Key）
+      description: |
+        `Idempotency-Key` 头必填。只允许 `eda.sim.build`、`eda.sim.run`、`eda.synth`
+        且对应插件必须 ready；请求体字段白名单固定为
+        `snapshot_id`/`expected_revision`/`capability`/`grant_id`/`plugin_id`/`params`，多出字段即 400。
+        提交顺序：校验能力与插件 ready → 校验必填授权标识 → 参数白名单 →
+        校验工程保存/同步/同 revision 与快照归属 → 幂等登记 → 检查 Job 服务 →
+        （sim.run）校验前序 build Job → 原子消耗 grant 配额 → 提交 Job。
+        幂等登记使用 scope=project+capability、请求 hash 覆盖 snapshot/capability/plugin/params
+        （注意不含 expected_revision 与 grant_id）：
+        - 同键同 hash 且已完成 → 202 重放同一 job，不再次消耗 grant 配额（`replayed=true`）。
+        - 同键不同 hash → 409 IDEMPOTENCY_CONFLICT。
+        - 同键同 hash 仍在飞行中 → 409 RECOVERY_REQUIRED（先查询再重试，不自动重投）。
+        参数策略：`sim.build`/`synth` 仅允许 `top_module`、`strategy`、`opts`（字符串数组）；
+        `sim.run` 仅允许 `top_module`、`testbench`、`duration_ticks`（十进制字符串）、`build_job_id`；
+        危险字段（`executable`、`command`、`args`、`script`、`work_dir`、`cwd`、`output`、`env` 等）
+        与未知字段一律 422 UNSUPPORTED_MAPPING，不静默剥离。
+        错误码：
+        - 400 INVALID_ARGUMENT：缺 `Idempotency-Key`、请求体非合法 JSON/非对象、出现未知字段、
+          缺 `snapshot_id`/`expected_revision` 或 `params` 非对象；sim.run 缺 `build_job_id`。
+        - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
+        - 403 POLICY_DENIED：Host/Origin 边界不通过、缺 `grant_id`、grant 已撤销/过期/不属于本工程
+          或与本 revision/snapshot 绑定不符。
+        - 403 RESOURCE_EXHAUSTED：grant 的 `max_jobs` 配额已耗尽。
+        - 404 NOT_FOUND：未知 projectId、快照不可用，或 grant 不存在。
+        - 409 STALE_REVISION：工程 dirty、未同步或 revision 与 `expected_revision` 不符；
+          快照不属于该 project+revision。
+        - 409 IDEMPOTENCY_CONFLICT：同键不同请求内容。
+        - 409 RECOVERY_REQUIRED：同键同内容仍在飞行中。
+        - 413 RESOURCE_EXHAUSTED：请求体超过 1 MiB。
+        - 422 CAPABILITY_UNAVAILABLE：capability 不在教育白名单（如 eda.pnr）或对应插件未 ready。
+        - 422 UNSUPPORTED_MAPPING：params 含危险/未知字段或类型不符；
+          sim.run 的 build_job_id 未指向本快照上成功（Succeeded）的 eda.sim.build。
+        - 503 SERVICE_UNAVAILABLE：Job 服务未接入或提交失败（retryable=true）。
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/idempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateJobRequest"
+      responses:
+        "202":
+          description: 已受理或幂等重放；data 为 JobSubmitData
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobSubmitEnvelope"
+        "400": { $ref: "#/components/responses/Failure" }
+        "401": { $ref: "#/components/responses/Failure" }
+        "403": { $ref: "#/components/responses/Failure" }
+        "404": { $ref: "#/components/responses/Failure" }
+        "409": { $ref: "#/components/responses/Failure" }
+        "413": { $ref: "#/components/responses/Failure" }
+        "422": { $ref: "#/components/responses/Failure" }
+        "503": { $ref: "#/components/responses/Failure" }
+    get:
+      summary: 按项目列出本 Gateway 提交的 Agent Job（集合分页）
+      description: |
+        只列出本 Gateway 登记归属的 Agent Job（不包含手动 Job），按 job_id 升序。
+        摘要不含 `params`（不把执行参数回传给模型）。`limit` 默认 100、最多 500（0 → 100）；
+        `offset` 为从 0 开始的偏移。`total` 为该工程登记的全部 Agent Job 数。
+        错误码：
+        - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
+        - 403 POLICY_DENIED：Host/Origin 边界校验不通过。
+        - 404 NOT_FOUND：网关未登记该 projectId。
+        - 503 SERVICE_UNAVAILABLE：Job 服务未接入（retryable=true）。
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/collectionLimit"
+        - $ref: "#/components/parameters/offset"
+      responses:
+        "200":
+          description: Job 列表；data 为 JobListData
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobListEnvelope"
+        "401": { $ref: "#/components/responses/Failure" }
+        "403": { $ref: "#/components/responses/Failure" }
+        "404": { $ref: "#/components/responses/Failure" }
+        "503": { $ref: "#/components/responses/Failure" }
+
+  /jobs/{jobId}:
+    parameters:
+      - $ref: "#/components/parameters/jobId"
+    get:
+      summary: 查询本 Gateway 提交的 Agent Job 状态
+      description: |
+        只允许查询由本 Gateway 登记归属的 Agent Job。`state` 为 9 态之一：
+        `Created`、`Validating`、`Queued`、`Running`、`ValidatingArtifact`、`Succeeded`、
+        `Failed`、`Cancelled`、`TimedOut`。
+        错误码：
+        - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
+        - 403 POLICY_DENIED：Host/Origin 边界校验不通过。
+        - 404 NOT_FOUND：未知 jobId（非本网关提交或 Job 服务无该记录）。
+        - 503 SERVICE_UNAVAILABLE：Job 服务未接入（retryable=true）。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Job 当前状态；data 为 JobQueryData
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobQueryEnvelope"
+        "401": { $ref: "#/components/responses/Failure" }
+        "403": { $ref: "#/components/responses/Failure" }
+        "404": { $ref: "#/components/responses/Failure" }
+        "503": { $ref: "#/components/responses/Failure" }
+
+  /jobs/{jobId}/report:
+    parameters:
+      - $ref: "#/components/parameters/jobId"
+    get:
+      summary: 查询 Agent Job 的规范报告视图
+      description: |
+        返回归一化报告视图 `edu.jobreport.v1`（字段真源 `schemas/job-report-view.schema.json`）：
+        9 态映射、`diagnostics[]`（数组/对象/多行工具日志升格，无法解析的行不伪造行号）、
+        `metrics`（每项带 value/unit/source/availability，缺失用 null+reason，不填 0）、
+        `artifacts[]`、`completeness`（`diagnostics` 为 null → `unavailable` + reason；
+        空数组视为“完整扫描无诊断” → `complete`）。
+        报告由可信 Job 绑定与快照回填 `project_id`/`revision`/`snapshot_id`/`input_fingerprint`；
+        `artifacts[]` 只给 opaque `artifact_id` + `sha256` + `role`，不返回本机路径。
+        结构化字段中的本机路径会被替换为文件名并标记 `path_redacted`/`file_redacted`。
+        只允许查询本 Gateway 登记归属的 Job。
+        错误码：
+        - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
+        - 403 POLICY_DENIED：Host/Origin 边界校验不通过。
+        - 404 NOT_FOUND：未知 jobId（非本网关提交），或 Job 服务无该报告。
+        - 503 SERVICE_UNAVAILABLE：Job 服务未接入（retryable=true）。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: edu.jobreport.v1 报告视图；data 见 schemas/job-report-view.schema.json
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobReportEnvelope"
+        "401": { $ref: "#/components/responses/Failure" }
+        "403": { $ref: "#/components/responses/Failure" }
+        "404": { $ref: "#/components/responses/Failure" }
+        "503": { $ref: "#/components/responses/Failure" }
+
+  /jobs/{jobId}/cancel:
+    parameters:
+      - $ref: "#/components/parameters/jobId"
+    post:
+      summary: 请求取消本 Gateway 提交的 Agent Job
+      description: |
+        只允许取消由本 Gateway 登记归属的 Job。`accepted=true` 只表示取消请求已被服务接受，
+        不代表进程已退出；真实退出需继续查询 `GET /jobs/{jobId}`。无请求体。
+        错误码：
+        - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
+        - 403 POLICY_DENIED：Host/Origin 边界校验不通过。
+        - 404 NOT_FOUND：未知 jobId（非本网关提交）。
+        - 409 POLICY_DENIED：Job 不可取消（服务拒绝，例如已处于终态）。
+        - 503 SERVICE_UNAVAILABLE：Job 服务未接入（retryable=true）。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 取消已接受；data 为 CancelJobData
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CancelJobEnvelope"
+        "401": { $ref: "#/components/responses/Failure" }
+        "403": { $ref: "#/components/responses/Failure" }
+        "404": { $ref: "#/components/responses/Failure" }
+        "409": { $ref: "#/components/responses/Failure" }
+        "503": { $ref: "#/components/responses/Failure" }
+
+  /projects/{projectId}/legacy/jobs:
+    parameters:
+      - $ref: "#/components/parameters/projectId"
+    get:
+      summary: 旧 main/jobs 历史（只读桥，恒为 legacy_unverified）
+      description: |
+        只读列出 `<project>/.sigflow/jobs/<type>/<jobId>/` 下的旧记录。桥**绝不**修改、
+        迁移或补齐旧格式；旧 manifest 的 `parameters`（含本机绝对路径与可执行文件）
+        永不外泄，产物也只给 opaque ID 与 hash。
+
+        旧记录没有 `input_fingerprint`/`revision`/plugin 版本，因此每条都带
+        `origin="legacy"`、`completeness="legacy_unverified"`，不得被当成当前 revision 的
+        证据；`problem` 显式表达 `report_missing` / `manifest_unreadable` /
+        `report_unreadable`（null 表示可读），缺报告不等于“电路无问题”。
+
+        排序：`created_at` 降序，时间缺失的排最后。分页默认 100、最多 500。
+        错误码：
+        - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
+        - 403 POLICY_DENIED：Host/Origin 边界校验不通过。
+        - 404 NOT_FOUND：网关未登记该 projectId。
+        - 503 SERVICE_UNAVAILABLE：旧历史目录存在但不可读（retryable=true）。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 500, default: 100 }
+        - name: cursor
+          in: query
+          required: false
+          description: 上一页返回的 next_cursor（十进制偏移）
+          schema: { type: string }
+      responses:
+        "200":
+          description: 旧历史页；data 为 LegacyJobListData（jobs[] 每项符合 schemas/legacy-job.schema.json）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LegacyJobListEnvelope"
+        "401": { $ref: "#/components/responses/Failure" }
+        "403": { $ref: "#/components/responses/Failure" }
+        "404": { $ref: "#/components/responses/Failure" }
+        "503": { $ref: "#/components/responses/Failure" }
+
+  /projects/{projectId}/legacy/jobs/{jobId}/report:
+    parameters:
+      - $ref: "#/components/parameters/projectId"
+      - $ref: "#/components/parameters/jobId"
+    get:
+      summary: 旧 Job 报告的归一化视图（只读、legacy_unverified）
+      description: |
+        读取旧 `reports/job-report.json` 并归一化为 `edu.jobreport.v1`：`origin="legacy"`、
+        `completeness="legacy_unverified"`、`revision`/`snapshot_id`/`input_fingerprint` 为 null、
+        `raw_report_schema="main/jobs <旧 schema_version>"`、`reason` 说明为何无法验证。
+        旧 `errors[]` 变成规范 `diagnostics`（保留 `raw_code`、`log_line` 等定位事实）；
+        旧 `artifacts[]` 只给 opaque `artifact_id` + `sha256`，**不返回本机路径**。
+        未知状态串不会被当成 Succeeded。
+
+        缺报告/报告损坏返回 404，并在 `error.message` 中给出 `report_missing` /
+        `report_unreadable`（先用列表路由的 `problem` 字段区分更可靠）。
+        错误码：
+        - 401 UNAUTHENTICATED / 403 POLICY_DENIED / 404 NOT_FOUND（含原因）。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 归一化报告；data 符合 schemas/job-report-view.schema.json
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobReportViewEnvelope"
+        "401": { $ref: "#/components/responses/Failure" }
+        "403": { $ref: "#/components/responses/Failure" }
+        "404": { $ref: "#/components/responses/Failure" }
+
+  /waves/{artifactId}/signals:
+    parameters:
+      - $ref: "#/components/parameters/artifactId"
+    get:
+      summary: 波形信号列表（分页，不暴露本机路径）
+      description: |
+        返回已登记 wave artifact 的信号清单与时间范围。`limit` 默认 256；非数字 → 256；
+        0 或大于 4096 → 4096。`cursor` 为不透明游标（内部编码已消费数量）；
+        `has_more=true` 时给 `next_cursor`。signal_id 只在该 artifact 内有效。
+        `time_range` 为 `{start_tick,end_tick}`，两个值都是**十进制字符串**（64 位 tick 的通用规则）；
+        时间范围不可信时为 `null`。响应不暴露本机路径。
+        错误码：
+        - 400 INVALID_ARGUMENT：分页 cursor 非法。
+        - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
+        - 403 POLICY_DENIED：Host/Origin 边界校验不通过。
+        - 404 NOT_FOUND：未知或未登记的 wave artifact。
+        - 410 ARTIFACT_EXPIRED：artifact 文件已消失，或其 SHA-256 与登记值不符。
+        - 503 PLUGIN_UNAVAILABLE：未注入波形 backend 工厂或 backend 打开失败（retryable=true；
+          该 code 不在 envelope 枚举内）。
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/waveSignalLimit"
+        - $ref: "#/components/parameters/waveCursor"
+      responses:
+        "200":
+          description: 信号页；data 为 WaveSignalsData
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WaveSignalsEnvelope"
+        "400": { $ref: "#/components/responses/Failure" }
+        "401": { $ref: "#/components/responses/Failure" }
+        "403": { $ref: "#/components/responses/Failure" }
+        "404": { $ref: "#/components/responses/Failure" }
+        "410": { $ref: "#/components/responses/Failure" }
+        "503": { $ref: "#/components/responses/Failure" }
+
+  /waves/{artifactId}/query:
+    parameters:
+      - $ref: "#/components/parameters/artifactId"
+    post:
+      summary: 精确区间跳变查询（闭区间，显式限额与分页）
+      description: |
+        对闭区间 `[start_tick, end_tick]` 查询指定信号的区间起点前最后已知值与区间内全部跳变。
+        `start_tick`/`end_tick` 必须为 JSON 无符号整数（不接受十进制字符串），且
+        `end_tick >= start_tick`；`signals` 为 JSON 整数数组（未知信号被忽略、重复去重）。
+        `initial_value` 取 `start_tick-1` 时刻的值；`start_tick=0` 或无前值 → null，不假定 0。
+        单次限额 16 路信号、10,000 跳变、约 2 MiB 估算载荷；超限显式截断并返回
+        `completeness=partial` + `next_cursor`（游标绑定 artifact hash、query hash 与偏移），
+        未截断时为 `exact`（`complete` 已定义但当前实现不产生）。
+        跳变 `tick` 与响应 `start_tick`/`end_tick` 均为十进制字符串；`value` 保留 x/z 四态。
+        错误码：
+        - 400 INVALID_ARGUMENT：请求体非合法 JSON、`start_tick`/`end_tick` 缺失或非无符号整数、
+          `end_tick < start_tick`，或 query cursor 非法/与本次查询不匹配。
+        - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
+        - 403 POLICY_DENIED：Host/Origin 边界校验不通过。
+        - 404 NOT_FOUND：未知或未登记的 wave artifact。
+        - 410 ARTIFACT_EXPIRED：artifact 文件已消失，或其 SHA-256 与登记值不符。
+        - 413 RESOURCE_EXHAUSTED：请求体超过 1 MiB。
+        - 503 PLUGIN_UNAVAILABLE：未注入波形 backend 工厂或 backend 查询失败（retryable=true；
+          该 code 不在 envelope 枚举内）。
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WaveQueryRequest"
+      responses:
+        "200":
+          description: 跳变页；data 为 WaveQueryData
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WaveQueryEnvelope"
+        "400": { $ref: "#/components/responses/Failure" }
+        "401": { $ref: "#/components/responses/Failure" }
+        "403": { $ref: "#/components/responses/Failure" }
+        "404": { $ref: "#/components/responses/Failure" }
+        "410": { $ref: "#/components/responses/Failure" }
+        "413": { $ref: "#/components/responses/Failure" }
+        "503": { $ref: "#/components/responses/Failure" }
+
+  /artifacts/{artifactId}:
+    parameters:
+      - $ref: "#/components/parameters/artifactId"
+    get:
+      summary: 读取已登记 artifact 的受限元数据（不含本机路径）
+      description: |
+        返回 artifact 元数据：`sha256`、`size`（十进制字符串）、`media_type`、
+        `inline_readable`、`role`、归属 project/revision/job 与 schema。
+        描述时复核文件存在与 SHA-256，不一致即视为过期。响应不含本机路径。
+        错误码：
+        - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
+        - 403 POLICY_DENIED：Host/Origin 边界校验不通过。
+        - 404 NOT_FOUND：未知或未登记的 artifactId。
+        - 410 ARTIFACT_EXPIRED：artifact 文件已消失，或其 SHA-256 与登记值不符。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: artifact 元数据；data 为 ArtifactData
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArtifactEnvelope"
+        "401": { $ref: "#/components/responses/Failure" }
+        "403": { $ref: "#/components/responses/Failure" }
+        "404": { $ref: "#/components/responses/Failure" }
+        "410": { $ref: "#/components/responses/Failure" }
+
+  /artifacts/{artifactId}/content:
+    parameters:
+      - $ref: "#/components/parameters/artifactId"
+    get:
+      summary: 读取 artifact 的有界字节内容（默认 256 KiB 窗口）
+      description: |
+        按字节窗口读取允许内联的 artifact 文本/结构化内容。
+        `offset` 缺省 0，`length` 缺省 0 表示用默认窗口；非法值回落为 0。
+        当前实现对该路由固定以 256 KiB 作为窗口上限：`length` 只能缩小窗口，超过即被夹紧，
+        并以 `truncated` 标记是否还有剩余内容（服务层另有 1 MiB 硬上限，该路由不触及）。
+        VCD/FST（波形/大二进制）不内联 → 422，应改走 `/waves/{artifactId}/*`。
+        错误码：
+        - 400 INVALID_ARGUMENT：`offset` 超出文件大小或定位失败（offset/length 越界）。
+        - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
+        - 403 POLICY_DENIED：Host/Origin 边界校验不通过。
+        - 404 NOT_FOUND：未知或未登记的 artifactId。
+        - 410 ARTIFACT_EXPIRED：artifact 文件已消失，或其 SHA-256 与登记值不符。
+        - 422 UNSUPPORTED_MAPPING：该 artifact 类型不允许内联读取（如 VCD/FST）。
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/contentOffset"
+        - $ref: "#/components/parameters/contentLength"
+      responses:
+        "200":
+          description: 内容窗口；data 为 ArtifactContentData
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArtifactContentEnvelope"
+        "400": { $ref: "#/components/responses/Failure" }
+        "401": { $ref: "#/components/responses/Failure" }
+        "403": { $ref: "#/components/responses/Failure" }
+        "404": { $ref: "#/components/responses/Failure" }
+        "410": { $ref: "#/components/responses/Failure" }
+        "422": { $ref: "#/components/responses/Failure" }
 
 components:
+  parameters:
+    projectId:
+      name: projectId
+      in: path
+      required: true
+      description: SigFlow 为规范化工程根目录生成的 opaque ID
+      schema:
+        type: string
+        pattern: '^project-[0-9a-f]{24}$'
+    sourceId:
+      name: sourceId
+      in: path
+      required: true
+      description: 工程内登记源文件的 opaque ID（SHA-256(相对 POSIX 路径) 前 24 位）
+      schema:
+        type: string
+        pattern: '^source-[0-9a-f]{24}$'
+    nodeId:
+      name: nodeId
+      in: path
+      required: true
+      description: |
+        宿主（SigTree/图码同步）抽取出的设计图元 opaque ID。它跨重启不保证稳定，
+        因此每次回答都绑定 `mapping_revision`；无法可靠映射时返回 unavailable/stale，
+        绝不由网关猜测或伪造。
+      schema:
+        type: string
+        minLength: 1
+    jobId:
+      name: jobId
+      in: path
+      required: true
+      description: 本 Gateway 提交并登记归属的 Agent Job ID（由 Job 服务分配）
+      schema:
+        type: string
+        minLength: 1
+    grantId:
+      name: grantId
+      in: path
+      required: true
+      description: UI 签发的 grant ID
+      schema:
+        type: string
+        pattern: '^grant-[1-9][0-9]*$'
+    receiptId:
+      name: receiptId
+      in: path
+      required: true
+      description: UI 签发的 receipt ID
+      schema:
+        type: string
+        pattern: '^ui-receipt-[1-9][0-9]*$'
+    artifactId:
+      name: artifactId
+      in: path
+      required: true
+      description: 宿主登记的 artifact ID（Job 报告 artifact.id 或 wave artifact 的稳定 key）
+      schema:
+        type: string
+        minLength: 1
+    idempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: |
+        同一 Agent action 的稳定不透明键；作用域为 project + capability。
+        禁止复用于不同请求内容（同键不同内容 → 409 IDEMPOTENCY_CONFLICT）。
+      schema:
+        type: string
+        minLength: 1
+    collectionLimit:
+      name: limit
+      in: query
+      required: false
+      description: 集合页大小；缺省/0/非法值按 100 处理，超过 500 夹紧为 500
+      schema:
+        type: integer
+        minimum: 0
+        maximum: 500
+        default: 100
+    offset:
+      name: offset
+      in: query
+      required: false
+      description: Job 列表的起始偏移（0 基）；非法值按 0 处理
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    eventAfter:
+      name: after
+      in: query
+      required: false
+      description: 事件游标（实例流内全局 sequence 的十进制字符串，不含该值）；缺省 "0" 表示从头
+      schema:
+        type: string
+        pattern: '^[0-9]+$'
+        default: "0"
+    waitMs:
+      name: wait_ms
+      in: query
+      required: false
+      description: 长轮询等待上限（毫秒）；缺省/非法值按 20000，夹紧到 [0, 25000]，0 表示立即返回
+      schema:
+        type: integer
+        minimum: 0
+        maximum: 25000
+        default: 20000
+    startLine:
+      name: start_line
+      in: query
+      required: false
+      description: 起始行（1 基、包含端点）；缺省/非法值按 1
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    endLine:
+      name: end_line
+      in: query
+      required: false
+      description: 结束行（1 基、包含端点）；缺省/非法值按 0，0 表示读到文件末尾
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    waveSignalLimit:
+      name: limit
+      in: query
+      required: false
+      description: 波形信号页大小；缺省/非数字按 256，0 或大于 4096 夹紧为 4096
+      schema:
+        type: integer
+        minimum: 0
+        maximum: 4096
+        default: 256
+    waveCursor:
+      name: cursor
+      in: query
+      required: false
+      description: 分页游标（不透明字符串，由上一页 next_cursor 原样回传）
+      schema:
+        type: string
+    contentOffset:
+      name: offset
+      in: query
+      required: false
+      description: 起始字节偏移；缺省/非法值按 0
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    contentLength:
+      name: length
+      in: query
+      required: false
+      description: |
+        期望读取字节数；缺省/非法值按 0（使用默认窗口 256 KiB）。
+        只能缩小窗口：超过窗口值即被夹紧到 256 KiB。
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+
+  responses:
+    Failure:
+      description: |
+        统一失败信封（schema 见 `schemas/envelope.schema.json#/$defs/failure`）：
+        `{schema_version, request_id, trace_id, error:{code,message,retryable,details}}`。
+        `code` 只能取 envelope 枚举值；`message` 为可读短句；`details` 当前恒为 null。
+        `retryable` 仅在 503（服务/存储/Job 服务不可用）时为 true；429 已映射但不会产生。
+        各路由实际使用的状态码与错误码组合见该路由 description 的“错误码”清单；
+        未匹配路径或方法、请求体超限等由 HTTP 层兜底，同样返回本信封
+        （404 NOT_FOUND / 413 RESOURCE_EXHAUSTED / 415 INVALID_ARGUMENT / 500 INVALID_ARGUMENT）。
+      content:
+        application/json:
+          schema:
+            $ref: "schemas/envelope.schema.json#/$defs/failure"
+
+  schemas:
+    Envelope:
+      type: object
+      description: 成功信封骨架；data 的具体形状由各路由引用的 schema 约束
+      required: [schema_version, request_id, trace_id, data]
+      properties:
+        schema_version:
+          type: string
+          enum: [edu.api.v1]
+          description: 协议/信封版本，固定 edu.api.v1
+        request_id:
+          type: string
+          minLength: 1
+        trace_id:
+          type: string
+          minLength: 1
+        data: {}
+
+    LegacyJobListData:
+      type: object
+      description: 旧 main/jobs 历史的一页。恒为只读与 legacy_unverified。
+      required: [project_id, origin, completeness, jobs, total, offset, limit, has_more, next_cursor]
+      properties:
+        project_id: { type: string }
+        origin: { type: string, enum: [legacy] }
+        completeness: { type: string, enum: [legacy_unverified] }
+        jobs:
+          type: array
+          items: { $ref: "schemas/legacy-job.schema.json" }
+        total: { type: integer, minimum: 0 }
+        offset: { type: integer, minimum: 0 }
+        limit: { type: integer, minimum: 1, maximum: 500 }
+        has_more: { type: boolean }
+        next_cursor: { type: [string, "null"] }
+
+    LegacyJobListEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/LegacyJobListData" }
+
+    JobReportViewEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "schemas/job-report-view.schema.json" }
+
+    HealthData:
+      type: object
+      required: [instance_id, protocol_version, edition, build]      properties:
+        instance_id:
+          type: string
+          minLength: 1
+        protocol_version:
+          type: string
+          enum: [edu.api.v1]
+        edition:
+          type: string
+          enum: [edu, pro, dev]
+        build:
+          type: ["string", "null"]
+
+    HealthEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/HealthData" }
+
+    CapabilitiesEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "schemas/capabilities.schema.json" }
+
+    ProjectContextEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "schemas/project-context.schema.json" }
+
+    SnapshotEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "schemas/snapshot.schema.json" }
+
+    ProjectStateData:
+      type: object
+      required: [project_id, high_watermark, oldest_sequence, active_jobs, capabilities, context]
+      properties:
+        project_id: { type: string }
+        high_watermark:
+          type: string
+          pattern: '^[0-9]+$'
+          description: 已分配的最大事件 sequence（十进制字符串），用作续订点
+        oldest_sequence:
+          type: string
+          pattern: '^[0-9]+$'
+          description: 保留窗口内最旧事件的 sequence；after 早于它必然 410 CURSOR_EXPIRED
+        event_retention:
+          type: object
+          description: 事件保留窗口（条数与时长任一超出即从最旧端裁剪）
+          properties:
+            max_events: { type: integer, minimum: 1 }
+            max_age_seconds: { type: string, pattern: '^[0-9]+$' }
+        active_jobs:
+          type: array
+          description: 本 Gateway 提交且进行中的 Agent Job 摘要（不含 params）
+          items:
+            type: object
+            required: [job_id, state]
+            properties:
+              job_id: { type: string }
+              job_type: { type: string }
+              capability: { type: string }
+              state: { type: string }
+        capabilities:
+          type: array
+          items: { $ref: "schemas/capabilities.schema.json#/properties/capabilities/items" }
+        context:
+          type: object
+          nullable: true
+          description: 工程上下文摘要；网关未登记该工程时为 null
+          properties:
+            revision: { type: string }
+            dirty: { type: boolean }
+            synchronized: { type: boolean }
+            top: { type: string }
+            target: { type: object }
+            sources: { type: array, items: { type: object } }
+
+    ProjectStateEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/ProjectStateData" }
+
+    Event:
+      type: object
+      required: [event_id, sequence, project_id, type, trace_id, timestamp, data]
+      properties:
+        event_id:
+          type: string
+          pattern: '^ev-[1-9][0-9]*$'
+        sequence:
+          type: string
+          pattern: '^[0-9]+$'
+          description: 实例流内单调序号（十进制字符串），即 after 游标取值
+        project_id: { type: string }
+        type: { type: string, description: 事件类型，如 snapshot/created、job/created }
+        trace_id: { type: string }
+        timestamp: { type: string, description: UTC ISO 8601 }
+        data: { type: object }
+
+    EventsData:
+      type: object
+      required: [events, next_cursor, high_watermark]
+      properties:
+        events:
+          type: array
+          items: { $ref: "#/components/schemas/Event" }
+        next_cursor:
+          type: string
+          pattern: '^[0-9]+$'
+          description: 下一页游标；无新事件时等于请求的 after
+        high_watermark:
+          type: string
+          pattern: '^[0-9]+$'
+        has_more: { type: boolean }
+
+    EventsEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/EventsData" }
+
+    SourceSliceData:
+      type: object
+      required: [project_id, revision, source_id, file_hash, path, start_line, end_line, text, source_ref]
+      properties:
+        project_id: { type: string }
+        revision: { type: string }
+        source_id: { type: string }
+        file_hash: { type: string, pattern: '^[0-9a-f]{64}$' }
+        path: { type: string, description: 工程相对 POSIX 路径 }
+        start_line: { type: integer, minimum: 1 }
+        end_line:
+          type: integer
+          minimum: 0
+          description: 实际返回的末行号；区间为空时为 0（与 source-ref schema 的 end_line>=1 冲突）
+        text: { type: string }
+        source_ref:
+          allOf:
+            - $ref: "schemas/source-ref.schema.json"
+            - description: 区间为空时 end_line 为 0
+
+    SourceSliceEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/SourceSliceData" }
+
+    ContextQueryData:
+      type: object
+      required: [project_id, revision, top, dirty, synchronized, sources, selection, design_nodes,
+                 buffer_excerpts, omitted, used_bytes, max_bytes]
+      properties:
+        project_id: { type: string }
+        revision: { type: string }
+        top: { type: string }
+        dirty: { type: boolean }
+        synchronized: { type: boolean }
+        sources:
+          type: array
+          items:
+            type: object
+            required: [source_id, path, sha256, size, usable_for_execution]
+            properties:
+              source_id: { type: string }
+              path: { type: string }
+              sha256: { type: string }
+              size: { type: string, pattern: '^[0-9]+$' }
+              usable_for_execution:
+                type: boolean
+                description: 工程 dirty 时为 false（内容仅供解释）
+        selection:
+          description: 未请求 selection、或工程没有登记选择上下文时为 null
+          oneOf:
+            - type: "null"
+            - type: object
+              required: [revision, state_version, dirty, buffer_hash, selected_node_ids,
+                         source_refs, status, usable_for_execution]
+              properties:
+                revision: { type: string }
+                state_version: { type: string, pattern: '^[0-9]+$' }
+                dirty: { type: boolean }
+                buffer_hash: { type: [string, "null"] }
+                selected_node_ids: { type: array, items: { type: string } }
+                source_refs: { type: array, items: { type: object } }
+                status: { type: string, enum: [ok, no_selection, project_unknown, revision_changed] }
+                usable_for_execution:
+                  type: boolean
+                  description: 恒为 false：选择上下文永不是执行输入
+        design_nodes:
+          type: array
+          description: 局部设计证据；每项与 GET /design/nodes/{nodeId} 的 data 同构
+          items: { $ref: "#/components/schemas/DesignNodeData" }
+        buffer_excerpts:
+          type: array
+          description: 未保存编辑缓冲片段；仅解释用途，永不带 source_id
+          items: { $ref: "#/components/schemas/BufferExcerptData" }
+        omitted:
+          type: array
+          description: 被裁剪的 need 及可读原因（不支持、未知 source、内容已变化、超预算、无缓冲）
+          items:
+            type: object
+            required: [kind, reason]
+            properties:
+              kind: { type: string }
+              source_id: { type: string }
+              node_id: { type: string }
+              reason: { type: string }
+        used_bytes: { type: integer, minimum: 0 }
+        max_bytes: { type: integer, minimum: 0 }
+
+    DesignNodeData:
+      type: object
+      description: |
+        局部设计证据。`usable_for_execution` 恒为 false：设计上下文不是可执行输入，
+        只有 SigFlow 签发的 snapshot 才绑定执行。
+      required: [project_id, revision, mapping_revision, mapping_status, reason, candidates,
+                 unsaved_only, usable_for_execution, design_dirty, node]
+      properties:
+        project_id: { type: string }
+        revision: { type: string, description: 当前 revision }
+        mapping_revision: { type: string, description: 抽取该映射时的 revision }
+        mapping_status:
+          type: string
+          enum: [available, ambiguous, stale, unavailable]
+        reason:
+          type: string
+          enum: [available, unsaved_only, ambiguous_node, declared_unavailable,
+                 node_not_registered, project_unknown, no_source_mapping, unmapped_path,
+                 revision_changed, source_changed, source_missing]
+        candidates: { type: array, items: { type: string } }
+        unsaved_only: { type: boolean }
+        usable_for_execution: { type: boolean }
+        design_dirty: { type: boolean }
+        node:
+          type: object
+          required: [node_id, kind, name, module_name, instance_path, origin, ports, source_refs]
+          properties:
+            node_id: { type: string }
+            kind:
+              type: string
+              enum: [module, instance, net, port, primitive, unknown]
+            name: { type: string }
+            module_name: { type: string }
+            instance_path: { type: string }
+            origin: { type: string, enum: [schematic, rtl, unsaved_buffer] }
+            ports:
+              type: array
+              items:
+                type: object
+                required: [name, direction, width]
+                properties:
+                  name: { type: string }
+                  direction: { type: string, enum: [input, output, inout, unknown] }
+                  width: { type: integer, minimum: 1 }
+            source_refs:
+              type: array
+              items:
+                type: object
+                required: [source_id, path, file_hash, start_line, end_line, unmapped]
+                properties:
+                  source_id: { type: string }
+                  path: { type: string, description: 工程相对 POSIX 路径 }
+                  file_hash: { type: string }
+                  start_line: { type: integer, minimum: 0 }
+                  end_line: { type: integer, minimum: 0 }
+                  unmapped: { type: boolean }
+
+    DesignNodeEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/DesignNodeData" }
+
+    BufferExcerptData:
+      type: object
+      description: 未保存编辑缓冲片段。只用于只读解释；没有 source_id，故无法进入 snapshot。
+      required: [origin, path, buffer_hash, start_line, end_line, text, truncated,
+                 usable_for_execution]
+      properties:
+        origin: { type: string, enum: [unsaved_buffer] }
+        path: { type: string, description: 工程相对 POSIX 路径（仅标注） }
+        buffer_hash: { type: string }
+        start_line: { type: integer, minimum: 0 }
+        end_line: { type: integer, minimum: 0 }
+        text: { type: string, description: 单条最多 64 KiB，超出部分截断并置 truncated=true }
+        truncated: { type: boolean }
+        usable_for_execution: { type: boolean, description: 恒为 false }
+
+    ContextQueryEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/ContextQueryData" }
+
+    GrantIssueData:
+      type: object
+      required: [grant_id, status, plan_hash, revision, snapshot_id, expires_at, max_jobs]
+      properties:
+        grant_id: { type: string, pattern: '^grant-[1-9][0-9]*$' }
+        status: { type: string, enum: [active, revoked, expired] }
+        plan_hash: { type: string }
+        revision: { type: string }
+        snapshot_id: { type: string }
+        expires_at: { type: string, description: UTC ISO 8601 }
+        max_jobs: { type: integer, minimum: 1 }
+
+    GrantIssueEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/GrantIssueData" }
+
+    GrantQueryData:
+      type: object
+      required: [grant_id, status, project_id, plan_hash, revision, max_jobs, expires_at]
+      properties:
+        grant_id: { type: string, pattern: '^grant-[1-9][0-9]*$' }
+        status: { type: string, enum: [active, revoked, expired] }
+        project_id: { type: string }
+        plan_hash: { type: string }
+        revision: { type: string }
+        max_jobs: { type: integer, minimum: 1 }
+        expires_at: { type: string, description: UTC ISO 8601 }
+
+    GrantQueryEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/GrantQueryData" }
+
+    GrantRevokeData:
+      type: object
+      required: [grant_id, status]
+      properties:
+        grant_id: { type: string, pattern: '^grant-[1-9][0-9]*$' }
+        status: { type: string, enum: [revoked] }
+
+    GrantRevokeEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/GrantRevokeData" }
+
+    ReceiptIssueData:
+      type: object
+      required: [receipt_id, project_id, session_id, level, policy, revision, challenge_id, action_id, status, state_version, expires_at]
+      properties:
+        receipt_id: { type: string, pattern: '^ui-receipt-[1-9][0-9]*$' }
+        project_id: { type: string }
+        session_id: { type: string }
+        level: { type: string, enum: [hint, l4, teaching] }
+        policy: { type: string }
+        revision: { type: string }
+        challenge_id: { type: string }
+        action_id: { type: string }
+        status: { type: string, enum: [active, consumed, invalid] }
+        state_version: { type: string, pattern: '^[0-9]+$', description: 签发时为 "0" }
+        expires_at: { type: string, description: UTC ISO 8601 }
+
+    ReceiptIssueEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/ReceiptIssueData" }
+
+    ReceiptQueryData:
+      type: object
+      description: 不含签发内容摘要（issue）与 state_version，凭据不进入模型上下文
+      required: [receipt_id, project_id, session_id, level, policy, revision, challenge_id, action_id, status, expires_at]
+      properties:
+        receipt_id: { type: string, pattern: '^ui-receipt-[1-9][0-9]*$' }
+        project_id: { type: string }
+        session_id: { type: string }
+        level: { type: string, enum: [hint, l4, teaching] }
+        policy: { type: string }
+        revision: { type: string }
+        challenge_id: { type: string }
+        action_id: { type: string }
+        status: { type: string, enum: [active, consumed, invalid] }
+        expires_at: { type: string, description: UTC ISO 8601 }
+
+    ReceiptQueryEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/ReceiptQueryData" }
+
+    ReceiptConsumeData:
+      type: object
+      required: [receipt_id, status, action_id, consumed, replayed]
+      properties:
+        receipt_id: { type: string, pattern: '^ui-receipt-[1-9][0-9]*$' }
+        status: { type: string, enum: [active, consumed, invalid] }
+        action_id: { type: string, description: 实际完成核销的 action（重放时为原 action） }
+        consumed: { type: boolean, enum: [true] }
+        replayed: { type: boolean, description: 同 action 重复核销时为 true }
+
+    ReceiptConsumeEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/ReceiptConsumeData" }
+
+    JobSubmitData:
+      type: object
+      required: [job_id, state]
+      properties:
+        job_id: { type: string, minLength: 1 }
+        state: { type: string, enum: [Queued] }
+        revision: { type: string, description: 仅首次提交返回 }
+        replayed: { type: boolean, description: 幂等重放时为 true（重放响应不含 revision） }
+
+    JobSubmitEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/JobSubmitData" }
+
+    JobQueryData:
+      type: object
+      required: [job_id, project_id, job_type, state, exit_code, created_at, updated_at]
+      properties:
+        job_id: { type: string }
+        project_id: { type: string }
+        job_type: { type: string, description: 内部 jobType（sim.build/sim.run/synth） }
+        state:
+          type: string
+          enum: [Created, Validating, Queued, Running, ValidatingArtifact, Succeeded, Failed, Cancelled, TimedOut]
+        exit_code: { type: ["integer", "null"] }
+        created_at: { type: string, description: UTC ISO 8601 }
+        updated_at: { type: string, description: UTC ISO 8601 }
+
+    JobQueryEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/JobQueryData" }
+
+    JobSummary:
+      type: object
+      description: Job 列表项；不回传 params
+      required: [job_id, job_type, plugin_id, capability, state, exit_code, created_at, updated_at]
+      properties:
+        job_id: { type: string }
+        job_type: { type: string }
+        plugin_id: { type: string }
+        capability: { type: string, description: 提交时绑定的教育能力名 }
+        state:
+          type: string
+          enum: [Created, Validating, Queued, Running, ValidatingArtifact, Succeeded, Failed, Cancelled, TimedOut]
+        exit_code: { type: ["integer", "null"] }
+        created_at: { type: string }
+        updated_at: { type: string }
+
+    JobListData:
+      type: object
+      required: [jobs, total, offset, has_more]
+      properties:
+        jobs:
+          type: array
+          items: { $ref: "#/components/schemas/JobSummary" }
+        total: { type: integer, minimum: 0, description: 该工程登记的全部 Agent Job 数 }
+        offset: { type: integer, minimum: 0 }
+        has_more: { type: boolean }
+
+    JobListEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/JobListData" }
+
+    JobReportEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "schemas/job-report-view.schema.json" }
+
+    CancelJobData:
+      type: object
+      required: [job_id, accepted]
+      properties:
+        job_id: { type: string }
+        accepted: { type: boolean, enum: [true], description: 仅表示取消请求已被服务接受 }
+
+    CancelJobEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/CancelJobData" }
+
+    WaveSignal:
+      type: object
+      required: [signal_id, name, scope, full_name, width, id_code]
+      properties:
+        signal_id: { type: integer, description: 仅在该 artifact 内有效 }
+        name: { type: string }
+        scope: { type: string }
+        full_name: { type: string }
+        width: { type: integer, minimum: 1 }
+        id_code: { type: string, description: VCD 标识符 }
+
+    WaveSignalsData:
+      type: object
+      required: [artifact_id, timescale, time_range, signals, total, has_more]
+      properties:
+        artifact_id: { type: string }
+        timescale: { type: string, description: 如 "1ns" }
+        time_range:
+          type: object
+          required: [begin, end, valid]
+          properties:
+            begin: { type: integer, minimum: 0, description: uint64 以 JSON 数字返回（偏差见 info.description） }
+            end: { type: integer, minimum: 0 }
+            valid: { type: boolean }
+        signals:
+          type: array
+          items: { $ref: "#/components/schemas/WaveSignal" }
+        total: { type: integer, minimum: 0 }
+        has_more: { type: boolean }
+        next_cursor: { type: ["string", "null"], description: has_more=false 时为 null }
+
+    WaveSignalsEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/WaveSignalsData" }
+
+    WaveTransition:
+      type: object
+      required: [tick, value]
+      properties:
+        tick: { type: string, pattern: '^[0-9]+$', description: 64 位 tick 的十进制字符串 }
+        value: { type: string, description: 标量 0/1/x/z；向量为二进制串，保留 x/z }
+
+    WaveQuerySignal:
+      type: object
+      required: [signal_id, transitions]
+      properties:
+        signal_id: { type: integer }
+        initial_value:
+          type: ["string", "null"]
+          description: 区间起点前的最后已知值；start_tick=0 或无前值时为 null（不假定 0）
+        transitions:
+          type: array
+          items: { $ref: "#/components/schemas/WaveTransition" }
+
+    WaveQueryData:
+      type: object
+      required: [artifact_id, start_tick, end_tick, timescale, signals, completeness, has_more, transition_count, omitted_signals]
+      properties:
+        artifact_id: { type: string }
+        start_tick: { type: string, pattern: '^[0-9]+$' }
+        end_tick: { type: string, pattern: '^[0-9]+$' }
+        timescale: { type: string }
+        signals:
+          type: array
+          items: { $ref: "#/components/schemas/WaveQuerySignal" }
+        completeness:
+          type: string
+          enum: [exact, complete, partial]
+          description: 未截断为 exact；超限分页为 partial；complete 已定义但当前实现不产生
+        has_more: { type: boolean }
+        next_cursor: { type: ["string", "null"], description: has_more=false 时为 null }
+        transition_count: { type: integer, minimum: 0 }
+        omitted_signals: { type: integer, minimum: 0 }
+
+    WaveQueryEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/WaveQueryData" }
+
+    ArtifactData:
+      type: object
+      description: artifact 元数据；不含本机路径
+      required: [artifact_id, project_id, revision, job_id, schema, sha256, role, size, media_type, inline_readable]
+      properties:
+        artifact_id: { type: string }
+        project_id: { type: string }
+        revision: { type: string }
+        job_id: { type: string }
+        schema: { type: string }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        role: { type: string }
+        size: { type: string, pattern: '^[0-9]+$' }
+        media_type: { type: string }
+        inline_readable: { type: boolean }
+
+    ArtifactEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/ArtifactData" }
+
+    ArtifactContentData:
+      type: object
+      required: [artifact_id, schema, sha256, media_type, offset, size, truncated, content]
+      properties:
+        artifact_id: { type: string }
+        schema: { type: string }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        media_type: { type: string }
+        offset: { type: string, pattern: '^[0-9]+$' }
+        size: { type: string, pattern: '^[0-9]+$', description: artifact 总字节数 }
+        truncated: { type: boolean, description: offset+读入长度 < size 时为 true }
+        content: { type: string }
+
+    ArtifactContentEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/ArtifactContentData" }
+
+    CreateSnapshotRequest:
+      type: object
+      description: |
+        `expected_revision` 必填且必须为字符串；`require_saved` 可省略（省略即视为 true），
+        显式 false 或非布尔值会被拒绝。额外字段当前被忽略。
+      required: [expected_revision]
+      properties:
+        expected_revision:
+          type: string
+          minLength: 1
+        require_saved:
+          type: boolean
+          enum: [true]
+
+    CreateJobRequest:
+      type: object
+      description: |
+        字段白名单固定，多出字段 → 400。`capability` 只接受教育白名单三项；
+        `params` 按能力限制键集合（sim.build/synth: top_module/strategy/opts；
+        sim.run: top_module/testbench/duration_ticks/build_job_id），危险或未知键 → 422。
+      required: [snapshot_id, expected_revision, capability, grant_id, params]
+      additionalProperties: false
+      properties:
+        snapshot_id: { type: string, minLength: 1 }
+        expected_revision: { type: string, minLength: 1 }
+        capability:
+          type: string
+          enum: [eda.sim.build, eda.sim.run, eda.synth]
+        grant_id: { type: string, minLength: 1 }
+        plugin_id: { type: string }
+        params:
+          type: object
+          description: 能力参数白名单；duration_ticks 必须为十进制字符串，opts 必须为字符串数组
+
+    ContextQueryRequest:
+      type: object
+      description: |
+        额外字段当前被忽略。`needs` 支持 `sources` / `selection` / `design` / `buffer`，
+        其余显式记入 `omitted[]`。`buffer` 仅在工程 dirty 时返回内容，且永远只用于解释。
+      properties:
+        revision:
+          type: string
+          description: 显式指定时必须等于当前 revision，否则 409 STALE_REVISION
+        needs:
+          type: array
+          items:
+            oneOf:
+              - type: string
+                enum: [sources, selection, design, buffer]
+              - type: object
+                required: [kind]
+                properties:
+                  kind: { type: string, enum: [sources, selection, design, buffer] }
+                  source_id: { type: string, description: 仅 kind=sources 有意义 }
+                  node_id: { type: string, description: 仅 kind=design 有意义；缺省解析选中节点 }
+        max_bytes:
+          type: integer
+          minimum: 0
+          default: 65536
+
+    GrantIssueRequest:
+      type: object
+      description: |
+        仅 UI 身份可调用。`plan_hash` 必填；`ttl_seconds`/`max_jobs` 必须为 JSON 整数
+        （类型不符时当前实现抛异常 → 500）。
+      required: [plan_hash]
+      properties:
+        plan_hash: { type: string, minLength: 1 }
+        revision: { type: string }
+        snapshot_id: { type: string }
+        steps: { type: array, items: { type: object } }
+        ttl_seconds:
+          type: integer
+          minimum: 0
+          default: 600
+        max_jobs:
+          type: integer
+          minimum: 1
+          default: 3
+
+    ReceiptIssueRequest:
+      type: object
+      description: |
+        仅 UI 身份可调用。`session_id`/`issue`/`level` 必填且必须为字符串；
+        `ttl_seconds` 必须为 JSON 无符号整数（否则回落 900）。
+      required: [session_id, issue, level]
+      properties:
+        session_id: { type: string, minLength: 1 }
+        issue: { type: string, minLength: 1 }
+        level: { type: string, enum: [hint, l4, teaching] }
+        policy: { type: string }
+        revision: { type: string }
+        challenge_id: { type: string }
+        action_id: { type: string }
+        ttl_seconds:
+          type: integer
+          minimum: 0
+          default: 900
+
+    ReceiptConsumeRequest:
+      type: object
+      description: |
+        `run_id`/`action_id` 必填；`expected_state_version` 必填，可为 JSON 无符号整数或
+        十进制字符串，且必须等于 receipt 的 state_version（签发后恒为 0）。
+        `project_id` 可空，为空时跳过工程归属校验。
+      required: [run_id, action_id, expected_state_version]
+      properties:
+        run_id: { type: string, minLength: 1 }
+        action_id: { type: string, minLength: 1 }
+        expected_state_version:
+          oneOf:
+            - type: integer
+              minimum: 0
+            - type: string
+              pattern: '^[0-9]+$'
+        project_id: { type: string }
+
+    WaveQueryRequest:
+      type: object
+      description: |
+        `start_tick`/`end_tick` 必须为 JSON 无符号整数（不接受十进制字符串）；
+        `signals` 为 JSON 整数数组（未知信号忽略、重复去重）；`cursor` 为上一页 next_cursor。
+      required: [start_tick, end_tick]
+      properties:
+        start_tick: { type: integer, minimum: 0 }
+        end_tick: { type: integer, minimum: 0 }
+        signals:
+          type: array
+          items: { type: integer }
+        cursor: { type: string }
+
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       description: Agent→EDA 高熵 token，经受限继承管道传递；不放入 URL/日志。
+    uiTokenAuth:
+      type: http
+      scheme: bearer
+      description: |
+        UI 专用高熵 token（同一 Authorization 头，独立 token）。只用于 grant/receipt 的签发与撤销；
+        使用 Agent token 或未配置 UI token 时一律 403 POLICY_DENIED。

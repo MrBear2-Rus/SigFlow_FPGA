@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <map>
 #include <utility>
 #include <vector>
 
@@ -12,6 +13,7 @@
 
 #include "../FpgaSynthesisJob.h"
 #include "FpgaYosysLogParser.h"
+#include <eda/api/jobs.hpp>
 
 class wxStyledTextCtrl;
 
@@ -20,6 +22,7 @@ public:
     explicit FpgaSynthesisJobsPanel(wxWindow* parent);
 
     void SetProjectContext(const wxString& projectPath, const wxString& activeJobId);
+    void SetCoreJobService(eda::IJobService* service, const wxString& jobsRoot);
     void RefreshJobs();
     void SetOpenFileHandler(std::function<void(const wxString&, long)> handler);
     void SetRetryHandler(std::function<void(const wxString&)> handler);
@@ -29,6 +32,9 @@ private:
     wxString m_activeJobId;
     wxString m_selectedJobId;
     std::vector<SynthesisJob> m_jobs;
+    eda::IJobService* m_coreService = nullptr;
+    wxString m_coreJobsRoot;
+    std::map<wxString, eda::JobRecord> m_coreJobs;
     YosysLogRecord m_parsedLog;
 
     wxListCtrl* m_jobList = nullptr;
@@ -57,6 +63,7 @@ private:
     void UpdateActions();
     void ShowInfo(const wxString& message) const;
     bool HasRunningJob() const;
+    wxString CoreJobPath(const wxString& jobId, const wxString& child) const;
 
     static wxString RelativeTime(const wxString& isoUtc);
     static wxColour StateColour(SynthesisJobState state);

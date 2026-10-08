@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "edu-agent/v1/schemas/agent-session.schema.json",
+  "title": "AgentSession",
+  "description": "SigFlow Edu Agent 教学会话摘要。会话只在内存中存活（v1 已知限制）：最多 32 个，超出后按 LRU 淘汰最旧会话。",
+  "type": "object",
+  "required": ["session_id", "project_id", "revision", "state_version", "created_at"],
+  "additionalProperties": true,
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "pattern": "^sess-[1-9][0-9]*$"
+    },
+    "project_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "SigFlow 生成的 opaque 工程 ID，不是路径。"
+    },
+    "revision": {
+      "type": "string",
+      "minLength": 1
+    },
+    "state_version": {
+      "type": "string",
+      "pattern": "^[0-9]+$",
+      "description": "创建响应固定为 \"1\"；每次运行后自增。"
+    },
+    "created_at": {
+      "type": "string",
+      "description": "UTC ISO 8601，如 2026-10-07T00:00:00Z。"
+    },
+    "top": { "type": "string" },
+    "target": {
+      "type": "object",
+      "description": "工程目标配置摘要；只包含标量与非路径字段。"
+    },
+    "locale": { "type": "string" },
+    "run_count": { "type": "integer", "minimum": 0 },
+    "event_count": { "type": "integer", "minimum": 0 }
+  }
+}

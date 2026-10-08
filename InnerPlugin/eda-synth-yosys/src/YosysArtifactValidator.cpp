@@ -35,9 +35,8 @@ void InitializeReport(const std::string& jsonPath, const std::string& expectedTo
     report.validatedAt = NowUtc();
 
     std::error_code error;
-    report.path = std::filesystem::absolute(std::filesystem::path(jsonPath), error)
-                      .lexically_normal()
-                      .generic_string();
+    report.path = platform::PathToUtf8(
+        std::filesystem::absolute(platform::PathFromUtf8(jsonPath), error).lexically_normal());
     if (error) report.path = jsonPath;
 }
 
@@ -60,8 +59,8 @@ Json ToJson(const NetlistArtifactReport& report) {
 }
 
 bool WriteJsonAtomically(const std::string& path, const Json& value, std::string& errorMessage) {
-    const std::filesystem::path target(path);
-    const std::filesystem::path temporary = std::filesystem::path(path).concat(".tmp");
+    const std::filesystem::path target = platform::PathFromUtf8(path);
+    const std::filesystem::path temporary = platform::PathFromUtf8(path).concat(".tmp");
     std::error_code error;
     std::filesystem::create_directories(target.parent_path(), error);
     {

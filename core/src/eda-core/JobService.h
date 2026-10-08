@@ -69,6 +69,19 @@ public:
                             std::filesystem::path jobsRoot = {});
     ~CoreJobService() override;
 
+    // SF-03：受控 Job 数据根目录解析（不依赖默认系统临时目录，重启后可作为可恢复来源）。
+    // 优先顺序：projectAgentRoot/<projectKey> > appDataRoot/sigflow-jobs > 系统临时目录兜底。
+    // 返回值即实际使用的根目录；warning 非空表示落到了兜底路径（调用方应记录/降级提示）。
+    static std::filesystem::path ResolveJobRoot(const std::filesystem::path& projectAgentRoot,
+                                                const std::filesystem::path& appDataRoot,
+                                                const std::string& projectKey,
+                                                std::string& warning);
+
+    // 实际使用的 Job 数据根目录（构造后只读，便于宿主记录/排障）。
+    std::filesystem::path JobRoot() const { return jobsRoot_; }
+    // 该根目录是否为"受控"目录（非系统临时目录兜底）。
+    bool IsControlledRoot() const { return controlledRoot_; }
+
     void RegisterProvider(std::shared_ptr<IJobProvider> provider);
     void SetDefaultTimeoutSeconds(int seconds); // <=0：不超时（默认 0）
     void SetLogSink(JobLogSink sink);
@@ -95,13 +108,18 @@ private:
     bool IsCancelRequested(const std::string& jobId) const;
     JobReport BuildReport(const std::string& jobId, const CoreJobContext& ctx,
                           const Error& error, bool timedOut);
-    void PersistRecord(const JobRecord& record);
+    // 返回 false 表示记录未能落盘。submit() 必须在向调用方暴露 job_id 前检查它，
+    // 否则进程在首次状态迁移前退出会留下“已接受但不可恢复”的 Job。
+    bool PersistRecord(const JobRecord& record);
     void PersistReport(const JobReport& report);
     void EnsureWorkersLocked();
+    // 重启恢复：扫描 jobsRoot_ 下的 manifest/report，非终态 Job 标记为 Failed。
+    void LoadExistingJobs();
 
     ProcessHostFactory factory_;
     JobLogSink logSink_;
     std::filesystem::path jobsRoot_;
+    bool controlledRoot_ = false;
 
     mutable std::mutex mutex_;
     std::condition_variable cv_;

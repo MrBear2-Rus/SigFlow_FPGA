@@ -8,8 +8,11 @@
 #include <eda/api/toolchain.hpp>
 
 #include <cstdint>
+#include <algorithm>
+#include <cstdlib>
 #include <filesystem>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <utility>
 #include <vector>
@@ -25,6 +28,16 @@ std::string ParamString(const Json& params, const char* key, const std::string& 
     return fallback;
 }
 
+bool GowinCrcError(const std::string& output) {
+    constexpr const char* marker = "after program sram: displayReadReg ";
+    const std::size_t at = output.rfind(marker);
+    if (at == std::string::npos) return false;
+    const char* hex = output.c_str() + at + std::char_traits<char>::length(marker);
+    char* end = nullptr;
+    const unsigned long status = std::strtoul(hex, &end, 16);
+    return end != hex && (status & 1UL) != 0;
+}
+
 } // namespace
 
 Json OpenFpgaLoaderProgrammer::paramsSchema() const {
@@ -35,6 +48,7 @@ Json OpenFpgaLoaderProgrammer::paramsSchema() const {
             {"bitstream", {{"type", "string"}}},
             {"board", {{"type", "string"}}},
             {"openfpgaloader_path", {{"type", "string"}}},
+            {"arguments", {{"type", "array"}}},
         }},
     };
 }
@@ -68,10 +82,30 @@ Error OpenFpgaLoaderProgrammer::startJob(const JobRequest& request, JobContext& 
 
     ProcessSpec spec;
     spec.executable = loaderPath;
-    spec.arguments = {"-b", board, bitstream};
+    if (params.is_object() && params.contains("arguments") && params["arguments"].is_array()) {
+        for (const auto& argument : params["arguments"]) {
+            if (argument.is_string()) spec.arguments.push_back(argument.get<std::string>());
+        }
+    }
+    if (spec.arguments.empty()) spec.arguments = {"-b", board, bitstream};
+    if (std::find(spec.arguments.begin(), spec.arguments.end(), "-v") == spec.arguments.end()) {
+        spec.arguments.insert(spec.arguments.begin(), "-v");
+    }
+    if (std::find(spec.arguments.begin(), spec.arguments.end(), bitstream) == spec.arguments.end()) {
+        spec.arguments.push_back(bitstream);
+    }
     spec.workingDirectory = ctx.jobDir();
+    std::string output;
+    std::mutex outputMutex;
     const ProcessResult process = ctx.processHost().Run(
-        spec, [&ctx](const std::string& line, bool isError) { ctx.log(line, isError); });
+        spec, [&ctx, &output, &outputMutex](const std::string& line, bool isError) {
+            {
+                std::lock_guard<std::mutex> lock(outputMutex);
+                output += line;
+                if (output.size() > 1024 * 1024) output.erase(0, output.size() - 1024 * 1024);
+            }
+            ctx.log(line, isError);
+        });
 
     ctx.emitMetric(Json{{"exit_code", process.exitCode}});
     if (process.outcome == ProcessOutcome::Cancelled) {
@@ -86,6 +120,10 @@ Error OpenFpgaLoaderProgrammer::startJob(const JobRequest& request, JobContext& 
     if (process.exitCode != 0) {
         return Error{ErrorCode::Internal,
                      "openFPGALoader exited with code " + std::to_string(process.exitCode), ""};
+    }
+    if (GowinCrcError(output)) {
+        return Error{ErrorCode::Internal,
+                     "FPGA rejected bitstream: Gowin status register reports CRC Error", ""};
     }
 
     ctx.progress(100, "flash complete");

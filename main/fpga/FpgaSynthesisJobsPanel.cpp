@@ -67,6 +67,21 @@ void FpgaSynthesisJobsPanel::SetProjectContext(const wxString& projectPath,
     m_activeJobId = activeJobId;
 }
 
+void FpgaSynthesisJobsPanel::SetCoreJobService(eda::IJobService* service,
+                                                const wxString& jobsRoot)
+{
+    m_coreService = service;
+    m_coreJobsRoot = jobsRoot;
+}
+
+wxString FpgaSynthesisJobsPanel::CoreJobPath(const wxString& jobId,
+                                              const wxString& child) const
+{
+    return sigflow::platform::JoinPath(
+        sigflow::platform::JoinPath(
+            sigflow::platform::JoinPath(m_coreJobsRoot, "synth"), jobId), child);
+}
+
 void FpgaSynthesisJobsPanel::SetOpenFileHandler(
     std::function<void(const wxString&, long)> handler)
 {
@@ -195,6 +210,7 @@ void FpgaSynthesisJobsPanel::RefreshJobs()
     } refreshGuard{ m_refreshing };
 
     m_jobs.clear();
+    m_coreJobs.clear();
     m_jobList->DeleteAllItems();
     SetReportText(wxEmptyString);
     m_parsedLog = YosysLogRecord();
@@ -212,6 +228,28 @@ void FpgaSynthesisJobsPanel::RefreshJobs()
         SetReportText("Unable to load synthesis jobs.\n\n" + errorMessage);
         UpdateActions();
         return;
+    }
+
+    if (m_coreService) {
+        for (const eda::JobRecord& record : m_coreService->list(
+                 sigflow::platform::Utf8String(m_projectPath))) {
+            if (record.request.jobType != "synth") continue;
+            SynthesisJob job;
+            job.id = wxString::FromUTF8(record.id.c_str());
+            job.retryOf = wxString::FromUTF8(record.retryOf.c_str());
+            job.state = static_cast<SynthesisJobState>(record.state);
+            job.createdAt = wxString::FromUTF8(record.createdAt.c_str());
+            job.updatedAt = wxString::FromUTF8(record.updatedAt.c_str());
+            job.exitCode = record.exitCode;
+            const auto& params = record.request.params;
+            if (params.is_object() && params.contains("strategy") &&
+                params["strategy"].is_string()) {
+                job.request.strategyId = wxString::FromUTF8(
+                    params["strategy"].get<std::string>().c_str());
+            }
+            m_coreJobs[job.id] = record;
+            m_jobs.push_back(std::move(job));
+        }
     }
 
     // 最新在前：按创建时间倒序排列
@@ -272,6 +310,34 @@ void FpgaSynthesisJobsPanel::RenderSelectedJob()
     const SynthesisJob* job = GetSelectedJob();
     if (!job) {
         SetReportText(wxEmptyString);
+        UpdateActions();
+        return;
+    }
+
+    if (m_coreService && m_coreJobs.find(job->id) != m_coreJobs.end()) {
+        const eda::JobReport report = m_coreService->report(
+            sigflow::platform::Utf8String(job->id));
+        wxString combinedLog;
+        {
+            wxLogNull suppressLog;
+            wxFile logFile(CoreJobPath(job->id, "logs/process.log"), wxFile::read);
+            if (logFile.IsOpened()) logFile.ReadAll(&combinedLog);
+        }
+        m_parsedLog = FpgaYosysLogParser().Parse(combinedLog);
+        if (m_filter->GetSelection() == 0) {
+            wxString summary = "Job: " + job->id + "\nState: " + ToString(job->state) +
+                "\nStrategy: " + job->request.strategyId + "\n";
+            if (!report.metrics.is_null()) {
+                summary += "\nMetrics:\n" + wxString::FromUTF8(report.metrics.dump(2).c_str()) + "\n";
+            }
+            if (!report.diagnostics.is_null()) {
+                summary += "\nDiagnostics:\n" +
+                    wxString::FromUTF8(report.diagnostics.dump(2).c_str()) + "\n";
+            }
+            SetReportText(summary);
+        } else {
+            RenderDiagnostics();
+        }
         UpdateActions();
         return;
     }
@@ -351,6 +417,20 @@ void FpgaSynthesisJobsPanel::UpdateActions()
 {
     const SynthesisJob* job = GetSelectedJob();
     const bool hasJob = job != nullptr;
+    if (hasJob && m_coreJobs.find(job->id) != m_coreJobs.end()) {
+        m_openReportButton->Enable(wxFileExists(
+            CoreJobPath(job->id, "reports/job-report.json")));
+        m_openLogButton->Enable(wxFileExists(CoreJobPath(job->id, "logs/process.log")));
+        const auto source = std::find_if(m_parsedLog.events.begin(), m_parsedLog.events.end(),
+            [](const YosysLogEvent& event) {
+                return event.severity == YosysLogSeverity::Error && !event.sourceFile.IsEmpty();
+            });
+        m_openSourceButton->Enable(source != m_parsedLog.events.end() &&
+                                   static_cast<bool>(m_openFileHandler));
+        m_retryButton->Enable(IsTerminalSynthesisJobState(job->state) &&
+                              static_cast<bool>(m_retryHandler));
+        return;
+    }
     const SynthesisJobPaths paths = hasJob
         ? FpgaSynthesisJobService::GetPaths(m_projectPath, job->id) : SynthesisJobPaths();
     m_openReportButton->Enable(hasJob && wxFileExists(sigflow::platform::JoinPath(paths.reports, "synthesis.summary.md")));
@@ -435,6 +515,10 @@ void FpgaSynthesisJobsPanel::OnOpenReport(wxCommandEvent&)
 {
     const SynthesisJob* job = GetSelectedJob();
     if (!job || !m_openFileHandler) return;
+    if (m_coreJobs.find(job->id) != m_coreJobs.end()) {
+        m_openFileHandler(CoreJobPath(job->id, "reports/job-report.json"), 0);
+        return;
+    }
     const SynthesisJobPaths paths = FpgaSynthesisJobService::GetPaths(m_projectPath, job->id);
     m_openFileHandler(sigflow::platform::JoinPath(paths.reports, "synthesis.summary.md"), 0);
 }
@@ -443,6 +527,10 @@ void FpgaSynthesisJobsPanel::OnOpenLog(wxCommandEvent&)
 {
     const SynthesisJob* job = GetSelectedJob();
     if (!job || !m_openFileHandler) return;
+    if (m_coreJobs.find(job->id) != m_coreJobs.end()) {
+        m_openFileHandler(CoreJobPath(job->id, "logs/process.log"), 0);
+        return;
+    }
     const SynthesisJobPaths paths = FpgaSynthesisJobService::GetPaths(m_projectPath, job->id);
     m_openFileHandler(sigflow::platform::JoinPath(paths.logs, "yosys.combined.log"), 0);
 }

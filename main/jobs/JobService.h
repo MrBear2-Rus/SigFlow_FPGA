@@ -104,29 +104,11 @@ struct JobExecutionOptions {
     std::uint64_t memoryLimitBytes = 0;
 };
 
-// 工具运行体：注册表通过它把 JobType + 参数对象变成一次真实执行。
-using JobRunHandler = std::function<bool(const ToolJob& job, const JobExecutionOptions& options,
-                                         JobReport& report, wxString& errorMessage)>;
-
-struct JobToolDescriptor {
-    ToolJobType type = ToolJobType::Simulation;
-    wxString name;
-    wxString description;
-    Json::Value inputSchema = Json::objectValue;
-    std::size_t maxConcurrent = 1;
-    // 仿真/综合/PnR 跑一两分钟很正常，默认给足时间；0 表示不超时。
-    int defaultTimeoutSeconds = 600;
-    JobRunHandler handler;
-};
-
 wxString ToString(ToolJobType type);
 bool ParseToolJobType(const wxString& value, ToolJobType& type);
 wxString ToString(ToolJobState state);
 bool ParseToolJobState(const wxString& value, ToolJobState& state);
 bool IsTerminalToolJobState(ToolJobState state);
-
-// 默认超时（秒）：仿真/综合/PnR 跑一两分钟很正常，给足余量；0 表示不超时。
-int DefaultJobTimeoutSeconds(ToolJobType type);
 
 class JobService {
 public:
@@ -169,7 +151,7 @@ public:
     static bool IsCancelRequested(const wxString& projectPath, const wxString& jobId);
     static void ClearCancelRequested(const wxString& projectPath, const wxString& jobId);
 
-    // 并发上限（B-04）：默认同类 1 个 Running，由注册表按描述符设置。
+    // 并发上限：默认同类 1 个 Running。
     static void SetConcurrencyLimit(ToolJobType type, std::size_t limit);
     static std::size_t ConcurrencyLimit(ToolJobType type);
 
@@ -177,26 +159,3 @@ private:
     static bool IsLegalTransition(ToolJobState source, ToolJobState target);
     static bool IsSafeJobId(const wxString& value);
 };
-
-class JobServiceRegistry {
-public:
-    bool Register(const JobToolDescriptor& descriptor, wxString& errorMessage);
-    bool Find(ToolJobType type, JobToolDescriptor& descriptor) const;
-    std::vector<JobToolDescriptor> List() const;
-
-    // DS-02：按描述符的 inputSchema 校验参数（必填/类型/枚举），AI 与 UI 共用。
-    static bool ValidateParameters(const JobToolDescriptor& descriptor,
-                                   const Json::Value& parameters, wxString& errorMessage);
-
-    // 建 manifest（含参数校验），不执行。
-    bool Submit(const ToolJobRequest& request, ToolJob& job, wxString& errorMessage) const;
-
-    // 提交并执行：注册表是"AI 只拿 JobType + 参数"的唯一入口（B-04/T-01）。
-    bool Run(const ToolJobRequest& request, const JobExecutionOptions& options, ToolJob& job,
-             JobReport& report, wxString& errorMessage) const;
-
-private:
-    std::vector<JobToolDescriptor> descriptors_;
-};
-
-JobServiceRegistry CreateDefaultJobServiceRegistry();

@@ -23,6 +23,8 @@ add_library(eda_core STATIC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-core/Logger.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-core/Version.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-core/EventBus.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-core/JobsMigration.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-core/LegacyJobHistory.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-core/SchemaRegistry.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-core/CoreSchemas.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-core/JobService.cpp"
@@ -50,7 +52,20 @@ option(SIGFLOW_BUILD_EDU_AGENT "Build the educational-agent EDA Gateway" ON)
 if(SIGFLOW_BUILD_EDU_AGENT)
     add_library(eda_agent_gateway STATIC
         "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-agent-gateway/GatewayDto.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-agent-gateway/GatewayServer.cpp")
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-agent-gateway/GatewayServer.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-agent-gateway/EventStore.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-agent-gateway/JobEventSource.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-agent-gateway/IdempotencyStore.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-agent-gateway/GrantStore.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-agent-gateway/ReceiptStore.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-agent-gateway/SnapshotService.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-agent-gateway/ReportNormalizer.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-agent-gateway/DiagnosticParser.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-agent-gateway/WaveformService.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-agent-gateway/ArtifactService.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-agent-gateway/DesignContextService.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-agent-gateway/LegacyJobBridge.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-agent-gateway/PathRedaction.cpp")
     target_link_libraries(eda_agent_gateway PUBLIC eda_core eda_platform eda_api)
     target_include_directories(eda_agent_gateway PUBLIC
         "${CMAKE_CURRENT_SOURCE_DIR}/src")

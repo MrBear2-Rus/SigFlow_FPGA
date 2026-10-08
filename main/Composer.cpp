@@ -4,11 +4,14 @@
 #include "PluginManager.h"
 
 #include <eda/api/process.hpp>
+#include <eda-platform/Platform.h>
 
 #include <wx/config.h>
 #include <wx/string.h>
 
+#include <algorithm>
 #include <cstdlib>
+#include <filesystem>
 #include <sstream>
 
 namespace sigflow {
@@ -34,9 +37,17 @@ void ForceLinkOfficialPlugins() {
 }
 } // namespace
 
-Composer::Composer()
-    : jobService_(std::make_unique<eda::CoreJobService>(
-          []() { return eda::CreatePlatformProcessHost(); })) {}
+Composer::Composer() {
+    std::filesystem::path root;
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+    // 教育版在打开工程后由 ConfigureJobStorage 切到工程目录。
+#else
+    root = eda::CoreJobService::ResolveJobRoot({}, eda::platform::AppDataRoot(), {},
+                                               jobRootWarning_);
+#endif
+    jobService_ = std::make_unique<eda::CoreJobService>(
+        []() { return eda::CreatePlatformProcessHost(); }, root);
+}
 Composer::~Composer() = default;
 
 std::string Composer::LoadPlugins(const std::string& pluginDirectoryUtf8,
@@ -77,6 +88,50 @@ std::string Composer::LoadPlugins(const std::string& pluginDirectoryUtf8,
 
 eda::IJobService& Composer::JobService() { return *jobService_; }
 
+void Composer::RegisterGuiJobProvider(std::shared_ptr<eda::IJobProvider> provider) {
+    if (!provider || !jobService_) return;
+    jobService_->RegisterProvider(provider);
+    guiJobProviders_.push_back(std::move(provider));
+}
+
+// SF-03：把 Job 数据根目录切到受控位置。
+// 拒绝在已有 Job 记录/providers 时迁移——运行中迁移会让记录分落两处，恢复语义无法保证。
+bool Composer::ConfigureJobStorage(const std::string& projectAgentRootUtf8,
+                                   const std::string& projectKey) {
+    if (jobService_ == nullptr) return false;
+    if (!jobService_->list(std::string()).empty()) return false;
+    const std::filesystem::path projectAgentRoot =
+        projectAgentRootUtf8.empty() ? std::filesystem::path()
+                                     : eda::platform::PathFromUtf8(projectAgentRootUtf8);
+    const std::filesystem::path appData = eda::platform::AppDataRoot();
+    std::string warning;
+    const std::filesystem::path root = eda::CoreJobService::ResolveJobRoot(
+        projectAgentRoot, appData, projectKey, warning);
+
+    auto replacement = std::make_unique<eda::CoreJobService>(
+        []() { return eda::CreatePlatformProcessHost(); }, root);
+    // 保留已注册的 provider（切换根目录不应丢失插件能力）。
+    for (const auto& record : pluginHost_.Records()) {
+        if (record.status != eda::PluginStatus::Ready) continue;
+        eda::IPluginInteraction* instance = pluginHost_.Get(record.id);
+        if (instance == nullptr) continue;
+        if (auto* provider = dynamic_cast<eda::IJobProvider*>(instance)) {
+            replacement->RegisterProvider(
+                std::shared_ptr<eda::IJobProvider>(provider, [](eda::IJobProvider*) {}));
+        }
+    }
+    for (const auto& provider : guiJobProviders_) replacement->RegisterProvider(provider);
+    replacement->SetLogSink(nullptr);
+    jobService_ = std::move(replacement);
+    jobRootWarning_ = warning;
+    return true;
+}
+
+std::string Composer::JobServiceRoot() const {
+    if (jobService_ == nullptr) return {};
+    return eda::platform::PathToUtf8(jobService_->JobRoot());
+}
+
 std::vector<std::string> Composer::Capabilities() const {
     std::vector<std::string> capabilities;
     for (const auto& record : pluginHost_.Records()) {
@@ -99,7 +154,20 @@ std::vector<Composer::ReadyPluginInfo> Composer::ReadyPlugins() const {
         ReadyPluginInfo info;
         info.id = record.id;
         info.version = record.version;
+        // 教育能力的判定依据必须是**真实 Job 执行体**（IJobProvider::jobType），
+        // 而不是插件信息里的装饰性 capability 串（如 "synth/yosys"）——后者与
+        // 教育白名单 "synth"/"sim.build"/"sim.run" 不同名，会导致能力被误判为缺失。
         info.capabilities = record.capabilities;
+        if (eda::IPluginInteraction* instance = pluginHost_.Get(record.id)) {
+            if (auto* provider = dynamic_cast<eda::IJobProvider*>(instance)) {
+                const std::string jobType = provider->jobType();
+                if (!jobType.empty() &&
+                    std::find(info.capabilities.begin(), info.capabilities.end(), jobType) ==
+                        info.capabilities.end()) {
+                    info.capabilities.push_back(jobType);
+                }
+            }
+        }
         ready.push_back(std::move(info));
     }
     return ready;

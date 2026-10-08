@@ -150,6 +150,14 @@ wxPoint CanvasPanel::CanvasToClient(const wxPoint& canvasPos) const
     );
 }
 
+void CanvasPanel::RefreshCanvasAfterElementMove()
+{
+    // wxWidgets merges repeated Refresh calls from one mouse event. This is more
+    // reliable than a partial invalidation because Draw() also paints labels and
+    // selection effects outside GetBounds().
+    Refresh(false);
+}
+
 void CanvasPanel::OnPaint(wxPaintEvent&) {
     LayoutScrollbars();
     wxAutoBufferedPaintDC dc(this);
@@ -1630,7 +1638,7 @@ void CanvasPanel::AddSecondElement(SecondNode* sn) {
     }
     else  s.SetPos(wxPoint(0, 0));
     m_elems.push_back(s);
-    RefreshRect(s.GetBounds());
+    RefreshCanvasAfterElementMove();
     //触发改变
     SetModified(1);
 }
@@ -1650,7 +1658,7 @@ void CanvasPanel::SetPreview(wxString type) {
         SecondElement se = SecondElement(m_previewNode.get(), g_elements);
         se.SetPos(wxPoint(0, 0));
         m_previewElement = se;
-        RefreshRect(se.GetBounds());
+        RefreshCanvasAfterElementMove();
     }
     else {
         extern std::vector<SecondElement> g_elements;
@@ -1676,7 +1684,7 @@ void CanvasPanel::SetPreview(wxString type) {
 
 void CanvasPanel::SetPreviewPos(wxPoint pos) {
     m_previewElement.SetPos(pos);
-    RefreshRect(m_previewElement.GetBounds());
+    RefreshCanvasAfterElementMove();
 }
 
 void CanvasPanel::DelSecondNode(int id) {

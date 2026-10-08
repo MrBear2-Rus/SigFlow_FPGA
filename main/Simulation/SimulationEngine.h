@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <atomic>
 #include <mutex>
 #include "../jobs/PlatformProcess.h"
 
@@ -98,6 +99,9 @@ public:
 
     // 取消当前编译
     void CancelCompile();
+    // 新 Job 服务的 GUI 执行体使用现有仿真引擎，但自行管理进程树取消。
+    void BeginCoreJob();
+    bool CancellationRequested() const;
 
 private:
     wxString m_projectRoot;         // 项目根目录
@@ -113,6 +117,8 @@ private:
 
     wxString m_jobProjectPath;
     wxString m_jobId;
+    std::atomic<bool> m_cancelRequested{false};
+    void* m_activeProcessHandle = nullptr; // 由 m_mutex 保护，PlatformProcess 拥有生命周期
 
     // 统一进程执行入口：PlatformProcess 是唯一触碰系统调用的地方。
     // streamOutput=true 时把输出增量写入 m_lastCompileLog 并转发 m_outputCallback。

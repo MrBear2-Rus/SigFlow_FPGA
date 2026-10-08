@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "edu-agent/v1/schemas/plan-card.schema.json",
+  "title": "PlanCard",
+  "description": "SigFlow Edu Agent 教学计划卡片。只允许 eda.synth / eda.sim.build / eda.sim.run 三项教育能力，且绝不携带文件系统路径、可执行文件名、脚本或工作目录；服务本身不持有执行权限，执行只能由 SigFlow 签发的 grant 触发。",
+  "type": "object",
+  "required": [
+    "plan_id", "goal", "steps", "max_jobs", "stop_conditions",
+    "snapshot_required", "revision", "requires_approval", "state_version"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "plan_id": {
+      "type": "string",
+      "pattern": "^plan-[1-9][0-9]*$"
+    },
+    "goal": { "type": "string", "minLength": 1 },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "items": { "$ref": "#/$defs/step" }
+    },
+    "max_jobs": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 16,
+      "description": "该计划允许提交的 Job 数上限，与 grant 的 max_jobs 一致。"
+    },
+    "stop_conditions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" },
+      "description": "失败即停条件；空数组会被拒绝。"
+    },
+    "snapshot_required": {
+      "type": "boolean",
+      "const": true,
+      "description": "执行必须绑定不可变快照；v1 恒为 true。"
+    },
+    "revision": {
+      "type": "string",
+      "minLength": 1,
+      "description": "该计划绑定并需审批的 revision。"
+    },
+    "requires_approval": {
+      "type": "boolean",
+      "const": true,
+      "description": "计划必须经过用户批准；v1 恒为 true。"
+    },
+    "state_version": {
+      "type": "string",
+      "pattern": "^[0-9]+$"
+    }
+  },
+  "$defs": {
+    "step": {
+      "type": "object",
+      "required": ["step_id", "capability", "description", "params", "depends_on", "max_jobs"],
+      "additionalProperties": true,
+      "properties": {
+        "step_id": { "type": "string", "pattern": "^s[1-9][0-9]*$" },
+        "capability": {
+          "type": "string",
+          "enum": ["eda.synth", "eda.sim.build", "eda.sim.run"]
+        },
+        "description": { "type": "string", "minLength": 1 },
+        "params": {
+          "type": "object",
+          "description": "受限标量参数（如 top_module）；不得出现路径、可执行文件、命令、脚本、环境变量或输出目录等键。",
+          "additionalProperties": false,
+          "properties": {
+            "top_module": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_$]*$" },
+            "strategy": { "type": "string" },
+            "opts": { "type": "array", "items": { "type": "string" } },
+            "testbench": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_$]*$" },
+            "duration_ticks": { "type": "string", "pattern": "^[0-9]+$" },
+            "build_step_id": { "type": "string", "pattern": "^s[1-9][0-9]*$" }
+          }
+        },
+        "depends_on": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^s[1-9][0-9]*$" },
+          "description": "前序步骤 ID；必须已被批准且成功。"
+        },
+        "max_jobs": {
+          "type": "integer",
+          "const": 1,
+          "description": "每个步骤最多提交一次，v1 恒为 1。"
+        }
+      }
+    }
+  }
+}

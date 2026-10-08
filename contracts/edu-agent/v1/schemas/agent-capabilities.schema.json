@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "edu-agent/v1/schemas/agent-capabilities.schema.json",
+  "title": "AgentCapabilitiesData",
+  "description": "GET /api/v1/capabilities 的 data 对象。execution.can_run_eda 恒为 false：EDA 执行只能由 SigFlow 签发的 grant 触发，本服务不持有执行权限。",
+  "type": "object",
+  "required": ["protocol", "agent_version", "modes", "capabilities", "model", "course", "execution"],
+  "additionalProperties": true,
+  "properties": {
+    "protocol": { "type": "string", "const": "edu.api.v1" },
+    "agent_version": { "type": "string", "minLength": 1 },
+    "modes": {
+      "type": "array",
+      "minItems": 4,
+      "items": { "$ref": "#/$defs/mode" }
+    },
+    "capabilities": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/capability" }
+    },
+    "model": { "$ref": "agent-health.schema.json#/$defs/modelStatus" },
+    "course": {
+      "type": "object",
+      "required": ["available", "reason"],
+      "additionalProperties": true,
+      "properties": {
+        "available": { "type": "boolean" },
+        "reason": { "type": "string" }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "required": ["can_run_eda", "note"],
+      "additionalProperties": true,
+      "properties": {
+        "can_run_eda": {
+          "type": "boolean",
+          "const": false,
+          "description": "本服务没有任何 EDA 执行权限；v1 恒为 false。"
+        },
+        "note": { "type": "string" }
+      }
+    }
+  },
+  "$defs": {
+    "mode": {
+      "type": "object",
+      "required": ["id", "available", "reason"],
+      "additionalProperties": true,
+      "properties": {
+        "id": { "type": "string", "enum": ["L1", "L2", "L3", "L4"] },
+        "available": { "type": "boolean" },
+        "reason": { "type": "string" }
+      }
+    },
+    "capability": {
+      "type": "object",
+      "required": ["name", "ready", "reason", "plugin_version"],
+      "additionalProperties": true,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "ready": { "type": "boolean" },
+        "reason": { "type": "string" },
+        "plugin_version": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

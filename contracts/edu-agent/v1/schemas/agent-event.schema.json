@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "edu-agent/v1/schemas/agent-event.schema.json",
+  "title": "AgentEvent",
+  "description": "SigFlow Edu Agent 会话事件。事件按 sequence 单调递增，只保留每个会话最新 1000 条；after 早于 oldest_sequence 时按 CURSOR_EXPIRED(410) 处理。",
+  "type": "object",
+  "required": ["sequence", "event_id", "type", "at", "data"],
+  "additionalProperties": true,
+  "properties": {
+    "sequence": {
+      "type": "string",
+      "pattern": "^[0-9]+$",
+      "description": "会话内单调序号（十进制字符串），即 events?after 的游标取值。"
+    },
+    "event_id": {
+      "type": "string",
+      "pattern": "^ev-[1-9][0-9]*$",
+      "description": "实例内唯一事件 ID，供消费者去重。"
+    },
+    "type": {
+      "type": "string",
+      "minLength": 1,
+      "description": "事件类型，例如 session/created、run/finished、run/failed。"
+    },
+    "at": {
+      "type": "string",
+      "description": "UTC ISO 8601 时间戳。"
+    },
+    "data": {
+      "type": "object",
+      "description": "事件负载。不含 token、不含本机绝对路径。"
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "edu-agent/v1/schemas/ui-receipt.schema.json",
+  "title": "UiReceipt",
+  "description": "UI 专用一次性凭据（POST /projects/{p}/ui-receipts 签发、GET /ui-receipts/{id} 只读、POST /ui-receipts/{id}/consume 原子核销）。凭据不进入模型上下文：只读查询不返回 issue 内容摘要。同 action 重放幂等返回原结果；其他 action 重用一律拒绝。",
+  "type": "object",
+  "required": ["receipt_id", "project_id", "level", "status"],
+  "additionalProperties": false,
+  "properties": {
+    "receipt_id": { "type": "string", "minLength": 1 },
+    "project_id": { "type": "string", "minLength": 1 },
+    "session_id": { "type": ["string", "null"] },
+    "issue": { "type": ["string", "null"] },
+    "level": { "type": "string", "enum": ["hint", "l4", "teaching"] },
+    "policy": { "type": ["string", "null"] },
+    "revision": { "type": ["string", "null"] },
+    "challenge_id": { "type": ["string", "null"] },
+    "action_id": { "type": ["string", "null"] },
+    "status": { "type": "string", "enum": ["active", "consumed", "invalid", "expired"] },
+    "state_version": { "type": "string", "pattern": "^[0-9]+$" },
+    "expires_at": { "type": ["string", "null"] },
+    "consumed": { "type": "boolean" },
+    "replayed": { "type": "boolean" }
+  }
+}

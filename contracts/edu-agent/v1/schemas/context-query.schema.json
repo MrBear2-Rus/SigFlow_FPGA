@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "edu-agent/v1/schemas/context-query.schema.json",
+  "title": "ContextQueryData",
+  "description": "POST /projects/{p}/context/query 的 data。needs 支持 sources/selection/design/buffer；被裁剪项必须出现在 omitted[] 并带可读 reason。selection 与 design_nodes 一律 usable_for_execution=false；buffer_excerpts 为未保存缓冲，仅解释用途且不带 source_id，无法成为快照或执行输入。",
+  "type": "object",
+  "required": ["project_id", "revision", "top", "dirty", "synchronized", "sources", "selection",
+               "design_nodes", "buffer_excerpts", "omitted", "used_bytes", "max_bytes"],
+  "properties": {
+    "project_id": { "type": "string", "minLength": 1 },
+    "revision": { "type": "string" },
+    "top": { "type": "string" },
+    "dirty": { "type": "boolean" },
+    "synchronized": { "type": "boolean" },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["source_id", "path", "sha256", "size", "usable_for_execution"],
+        "properties": {
+          "source_id": { "type": "string" },
+          "path": { "type": "string" },
+          "sha256": { "type": "string" },
+          "size": { "type": "string", "pattern": "^[0-9]+$" },
+          "usable_for_execution": { "type": "boolean" }
+        }
+      }
+    },
+    "selection": {
+      "type": ["object", "null"],
+      "description": "未请求或未登记时为 null",
+      "required": ["revision", "state_version", "dirty", "buffer_hash", "selected_node_ids",
+                   "source_refs", "status", "usable_for_execution"],
+      "properties": {
+        "revision": { "type": "string" },
+        "state_version": { "type": "string", "pattern": "^[0-9]+$" },
+        "dirty": { "type": "boolean" },
+        "buffer_hash": { "type": ["string", "null"] },
+        "selected_node_ids": { "type": "array", "items": { "type": "string" } },
+        "source_refs": { "type": "array" },
+        "status": { "type": "string", "enum": ["ok", "no_selection", "project_unknown", "revision_changed"] },
+        "usable_for_execution": { "type": "boolean" }
+      }
+    },
+    "design_nodes": {
+      "type": "array",
+      "items": { "$ref": "design-node.schema.json" }
+    },
+    "buffer_excerpts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["origin", "path", "buffer_hash", "start_line", "end_line", "text",
+                     "truncated", "usable_for_execution"],
+        "properties": {
+          "origin": { "type": "string", "enum": ["unsaved_buffer"] },
+          "path": { "type": "string" },
+          "buffer_hash": { "type": "string" },
+          "start_line": { "type": "integer", "minimum": 0 },
+          "end_line": { "type": "integer", "minimum": 0 },
+          "text": { "type": "string", "maxLength": 65536 },
+          "truncated": { "type": "boolean" },
+          "usable_for_execution": { "type": "boolean", "const": false }
+        }
+      }
+    },
+    "omitted": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind", "reason"],
+        "properties": {
+          "kind": { "type": "string" },
+          "source_id": { "type": "string" },
+          "node_id": { "type": "string" },
+          "reason": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "used_bytes": { "type": "integer", "minimum": 0 },
+    "max_bytes": { "type": "integer", "minimum": 0 }
+  }
+}

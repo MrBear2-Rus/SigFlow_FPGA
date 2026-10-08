@@ -1,5 +1,7 @@
 #include "SimMainCodeGen.h"
 
+#include "eda-platform/Platform.h"
+
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
@@ -15,7 +17,7 @@ SimMainGenerator::~SimMainGenerator() = default;
 
 bool SimMainGenerator::Generate(const Timeline& timeline, const std::string& outputPath,
                                 const std::string& /*vcdRelativePath*/) {
-    std::ofstream file{std::filesystem::path(outputPath)};
+    std::ofstream file{platform::PathFromUtf8(outputPath)};
     if (!file.is_open()) {
         lastError_ = "cannot create file: " + outputPath;
         return false;

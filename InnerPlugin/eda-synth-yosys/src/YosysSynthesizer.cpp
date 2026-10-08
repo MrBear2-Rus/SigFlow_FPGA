@@ -4,6 +4,7 @@
 #include "YosysScriptGenerator.h"
 
 #include "eda-core/Toolchain.h"
+#include "eda-platform/Platform.h"
 
 #include <eda/api/abi.h>
 #include <eda/api/plugin_registry.h>
@@ -73,7 +74,15 @@ Error YosysSynthesizer::startJob(const JobRequest& request, JobContext& ctx) {
         }
     }
     if (scriptRequest.outputJsonPath.empty()) {
-        scriptRequest.outputJsonPath = (ctx.jobDir() / "artifacts" / "top.json").string();
+        scriptRequest.outputJsonPath = platform::PathToUtf8(
+            ctx.jobDir() / "artifacts" / "top.json");
+    }
+    std::error_code outputDirectoryError;
+    const std::filesystem::path outputPath =
+        platform::PathFromUtf8(scriptRequest.outputJsonPath);
+    std::filesystem::create_directories(outputPath.parent_path(), outputDirectoryError);
+    if (outputDirectoryError) {
+        return Error{ErrorCode::Internal, "unable to create Yosys output directory", ""};
     }
 
     const YosysScriptResult generated = YosysScriptGenerator().Generate(scriptRequest);
@@ -91,7 +100,7 @@ Error YosysSynthesizer::startJob(const JobRequest& request, JobContext& ctx) {
         }
         out << generated.script;
     }
-    ctx.log("Yosys script written: " + scriptPath.string(), false);
+    ctx.log("Yosys script written: " + platform::PathToUtf8(scriptPath), false);
 
     std::string yosysPath = ParamString(params, "yosys_path");
     if (yosysPath.empty()) {
@@ -103,12 +112,12 @@ Error YosysSynthesizer::startJob(const JobRequest& request, JobContext& ctx) {
         if (!resolution.found) {
             return Error{ErrorCode::NotFound, "yosys not found: " + resolution.reason, ""};
         }
-        yosysPath = resolution.path.string();
+        yosysPath = platform::PathToUtf8(resolution.path);
     }
 
     ProcessSpec spec;
     spec.executable = yosysPath;
-    spec.arguments = {"-s", scriptPath.string()};
+    spec.arguments = {"-s", platform::PathToUtf8(scriptPath)};
     spec.workingDirectory = ctx.jobDir();
     const ProcessResult process = ctx.processHost().Run(
         spec, [&ctx](const std::string& line, bool isError) { ctx.log(line, isError); });
@@ -129,7 +138,7 @@ Error YosysSynthesizer::startJob(const JobRequest& request, JobContext& ctx) {
     }
 
     std::error_code existsError;
-    if (!std::filesystem::exists(scriptRequest.outputJsonPath, existsError)) {
+    if (!std::filesystem::exists(outputPath, existsError)) {
         return Error{ErrorCode::Internal,
                      "yosys did not produce the expected netlist: " + scriptRequest.outputJsonPath,
                      ""};
@@ -143,7 +152,8 @@ Error YosysSynthesizer::startJob(const JobRequest& request, JobContext& ctx) {
     }
     std::string manifestError;
     validator.WriteManifest(
-        (ctx.jobDir() / "artifacts" / (scriptRequest.topModule + ".manifest.json")).string(),
+        platform::PathToUtf8(
+            ctx.jobDir() / "artifacts" / (scriptRequest.topModule + ".manifest.json")),
         validation, manifestError);
     ctx.emitMetric(Json{{"ports", validation.portCount},
                         {"cells", validation.cellCount},

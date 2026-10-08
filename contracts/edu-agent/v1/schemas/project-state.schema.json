@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "edu-agent/v1/schemas/project-state.schema.json",
+  "title": "ProjectState",
+  "description": "GET /projects/{p}/state 的一致性快照。UI/Agent 先取 state + high_watermark 再续订事件；after < oldest_sequence 的游标必然过期（410 CURSOR_EXPIRED）。",
+  "type": "object",
+  "required": ["project_id", "high_watermark", "oldest_sequence", "capabilities"],
+  "additionalProperties": false,
+  "properties": {
+    "project_id": { "type": "string", "minLength": 1 },
+    "high_watermark": { "type": "string", "pattern": "^[0-9]+$" },
+    "oldest_sequence": { "type": "string", "pattern": "^[0-9]+$" },
+    "event_retention": {
+      "type": "object",
+      "required": ["max_events", "max_age_seconds"],
+      "additionalProperties": false,
+      "properties": {
+        "max_events": { "type": "integer", "minimum": 1 },
+        "max_age_seconds": { "type": "string", "pattern": "^[0-9]+$" }
+      }
+    },
+    "capabilities": { "type": "array" },
+    "active_jobs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["job_id", "state"],
+        "additionalProperties": false,
+        "properties": {
+          "job_id": { "type": "string", "minLength": 1 },
+          "job_type": { "type": ["string", "null"] },
+          "capability": { "type": ["string", "null"] },
+          "state": { "type": "string" }
+        }
+      }
+    },
+    "context": {
+      "type": ["object", "null"],
+      "properties": {
+        "revision": { "type": ["string", "null"] },
+        "dirty": { "type": "boolean" },
+        "synchronized": { "type": "boolean" },
+        "top": { "type": ["string", "null"] },
+        "target": { "type": ["object", "null"] },
+        "sources": { "type": "array" }
+      }
+    }
+  }
+}

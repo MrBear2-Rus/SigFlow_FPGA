@@ -1,0 +1,16 @@
+#!/bin/sh
+# SigFlow Edu Agent launcher (POSIX).
+#
+# The host sets SIGFLOW_EDU_AGENT_EXECUTABLE to this file and starts it with a
+# single argument, --bootstrap-stdin.  The bootstrap line arrives on stdin.
+#
+# SIGFLOW_EDU_AGENT_PYTHON selects the interpreter; default is "python3".
+# The package is imported from the adjacent src/ tree via PYTHONPATH, so no
+# installation step is required for development or for a portable install.
+
+set -eu
+here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+PY=${SIGFLOW_EDU_AGENT_PYTHON:-python3}
+PYTHONPATH="$here/../src${PYTHONPATH:+:$PYTHONPATH}"
+export PYTHONPATH
+exec "$PY" -m sigflow_edu_agent "$@"

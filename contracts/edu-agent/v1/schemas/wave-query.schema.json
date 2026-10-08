@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "edu-agent/v1/schemas/wave-query.schema.json",
+  "title": "WaveQueryPage",
+  "description": "POST /waves/{a}/query 的 data 载荷。闭区间 [start_tick,end_tick] 精确跳变：initial_value 为区间起点前的最后值（start_tick=0 或无前值时为 null），transitions 保留 x/z。completeness=partial 表示命中限额被显式分页，绝不当 exact。",
+  "type": "object",
+  "required": ["artifact_id", "start_tick", "end_tick", "signals", "completeness"],
+  "additionalProperties": false,
+  "properties": {
+    "artifact_id": { "type": "string", "minLength": 1 },
+    "start_tick": { "type": "string", "pattern": "^[0-9]+$" },
+    "end_tick": { "type": "string", "pattern": "^[0-9]+$" },
+    "timescale": { "type": ["string", "null"] },
+    "signals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["signal_id", "initial_value", "transitions"],
+        "additionalProperties": false,
+        "properties": {
+          "signal_id": { "type": "integer" },
+          "full_name": { "type": ["string", "null"] },
+          "width": { "type": ["integer", "null"] },
+          "initial_value": { "type": ["string", "null"] },
+          "initial_known": { "type": "boolean" },
+          "transitions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["tick", "value"],
+              "additionalProperties": false,
+              "properties": {
+                "tick": { "type": "string", "pattern": "^[0-9]+$" },
+                "value": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "completeness": { "type": "string", "enum": ["exact", "complete", "partial"] },
+    "has_more": { "type": "boolean" },
+    "next_cursor": { "type": ["string", "null"] },
+    "transition_count": { "type": "integer", "minimum": 0 },
+    "omitted_signals": { "type": "integer", "minimum": 0 }
+  }
+}

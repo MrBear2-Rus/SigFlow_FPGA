@@ -9,6 +9,8 @@
 
 #include <memory>
 #include <functional>
+#include <map>
+#include <string>
 #include <vector>
 
 #include <json/json.h>
@@ -31,6 +33,7 @@
 
 #if defined(SIGFLOW_BUILD_EDU_AGENT)
 #include "eda-agent-gateway/GatewayServer.h"
+#include "agent/AgentServiceController.h"
 #include <memory>
 #endif
 
@@ -87,12 +90,23 @@ private:
     wxString m_pendingYosysRetryOf;
     std::vector<std::shared_ptr<JobRunHandle>> m_jobRuns;
     std::vector<wxString> m_activeToolJobIds;
+    wxTimer m_coreJobTimer;
+    using CoreJobCompletion = std::function<void(const eda::JobRecord&, const eda::JobReport&)>;
+    std::map<std::string, CoreJobCompletion> m_pendingCoreJobs;
+    void TrackCoreJob(const std::string& jobId, CoreJobCompletion completion);
+    void OnCoreJobTimer(wxTimerEvent& event);
 
     sigflow::Composer* m_composer;
 
 #if defined(SIGFLOW_BUILD_EDU_AGENT)
-    // 教育版 Agent EDA Gateway（sidecar 控制器与 UI 面板在后续 SF-02/09 接入）。
+    // Gateway 与 Python sidecar 都由 IDE 生命周期持有；sidecar 不可用不影响既有 EDA 流程。
     std::unique_ptr<eda::agent::GatewayServer> m_agentGateway;
+    std::unique_ptr<AgentServiceController> m_agentSidecar;
+    std::string m_agentProjectId;
+    wxTimer m_agentEventTimer;
+    void ConfigureAgentProjectStorage();
+    void RefreshAgentProjectSnapshotState(bool dirty, bool synchronized);
+    void OnAgentEventTimer(wxTimerEvent& event);
 #endif
 
     VerilogManager* m_verilogMgr;
@@ -259,6 +273,9 @@ public:
 
     // 仿真引擎
     std::shared_ptr<SimulationEngine> m_simEngine;
+    bool m_guiSimProvidersRegistered = false;
+    std::string m_activeCoreSimJobId;
+    void EnsureGuiSimProviders();
 
     void OnToolboxElement(wxCommandEvent& evt);
     

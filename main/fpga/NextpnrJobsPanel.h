@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <map>
 #include <vector>
 
 #include <wx/button.h>
@@ -10,6 +11,7 @@
 #include <wx/timer.h>
 
 #include "NextpnrJob.h"
+#include <eda/api/jobs.hpp>
 
 class wxStyledTextCtrl;
 
@@ -18,6 +20,7 @@ public:
     explicit NextpnrJobsPanel(wxWindow* parent);
 
     void SetProjectContext(const wxString& projectPath, const wxString& activeJobId);
+    void SetCoreJobService(eda::IJobService* service, const wxString& jobsRoot);
     void RefreshJobs();
     void SetOpenFileHandler(std::function<void(const wxString&, long)> handler);
     void SetRetryHandler(std::function<void(const wxString&)> handler);
@@ -27,6 +30,9 @@ private:
     wxString m_activeJobId;
     wxString m_selectedJobId;
     std::vector<NextpnrJob> m_jobs;
+    eda::IJobService* m_coreService = nullptr;
+    wxString m_coreJobsRoot;
+    std::map<wxString, eda::JobRecord> m_coreJobs;
 
     wxListCtrl* m_jobList = nullptr;
     wxChoice* m_filter = nullptr;
@@ -49,6 +55,7 @@ private:
     void UpdateActions();
     void ShowInfo(const wxString& message) const;
     bool HasRunningJob() const;
+    wxString CoreJobPath(const wxString& jobId, const wxString& child) const;
 
     static wxString RelativeTime(const wxString& isoUtc);
     static wxColour StateColour(NextpnrJobState state);

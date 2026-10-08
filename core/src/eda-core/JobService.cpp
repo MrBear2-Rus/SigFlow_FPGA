@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <chrono>
 #include <fstream>
+#include <random>
 #include <stdexcept>
 #include <system_error>
 #include <utility>
@@ -49,6 +50,7 @@ Json RecordToJson(const JobRecord& record) {
     j["updated_at"] = record.updatedAt;
     j["exit_code"] = record.exitCode;
     j["parameters"] = record.request.params;
+    j["metadata"] = record.request.metadata;
     Json transitions = Json::array();
     for (const auto& transition : record.transitions) {
         transitions.push_back(Json{{"state", ToString(transition.state)},
@@ -86,10 +88,84 @@ Json ReportToJson(const JobReport& report) {
 bool WriteJsonFile(const std::filesystem::path& path, const Json& value) {
     std::error_code ec;
     std::filesystem::create_directories(path.parent_path(), ec);
-    std::ofstream out(path, std::ios::trunc | std::ios::binary);
-    if (!out) return false;
-    out << value.dump(2);
-    return static_cast<bool>(out);
+    // 原子写：先写临时文件，fsync 后 rename 覆盖，避免崩溃留下半截 manifest。
+    const std::filesystem::path temp = path.parent_path() / (path.filename().string() + ".tmp");
+    {
+        std::ofstream out(temp, std::ios::trunc | std::ios::binary);
+        if (!out) return false;
+        out << value.dump(2);
+        out.flush();
+        if (!out) return false;
+    }
+    std::filesystem::rename(temp, path, ec);
+    if (ec) {
+        std::filesystem::remove(temp, ec);
+        return false;
+    }
+    return true;
+}
+
+bool ReadJsonFile(const std::filesystem::path& path, Json& out) {
+    std::ifstream in(path, std::ios::binary);
+    if (!in) return false;
+    try {
+        out = Json::parse(in);
+    } catch (const std::exception&) {
+        return false;
+    }
+    return true;
+}
+
+bool StateFromString(const std::string& text, JobState& out) {
+    static const std::pair<const char*, JobState> table[] = {
+        {"Created", JobState::Created},
+        {"Validating", JobState::Validating},
+        {"Queued", JobState::Queued},
+        {"Running", JobState::Running},
+        {"ValidatingArtifact", JobState::ValidatingArtifact},
+        {"Succeeded", JobState::Succeeded},
+        {"Failed", JobState::Failed},
+        {"Cancelled", JobState::Cancelled},
+        {"TimedOut", JobState::TimedOut},
+    };
+    for (const auto& entry : table) {
+        if (text == entry.first) {
+            out = entry.second;
+            return true;
+        }
+    }
+    return false;
+}
+
+bool JsonToRecord(const Json& j, JobRecord& out) {
+    if (!j.is_object() || !j.contains("job_id")) return false;
+    out.id = j.value("job_id", std::string());
+    out.retryOf = j.value("retry_of", std::string());
+    out.request.jobType = j.value("job_type", std::string());
+    out.request.pluginId = j.value("plugin_id", std::string());
+    out.request.projectId = j.value("project_id", std::string());
+    out.request.params = j.contains("parameters") ? j["parameters"] : Json::object();
+    out.request.metadata = j.contains("metadata") && j["metadata"].is_object()
+                               ? j["metadata"]
+                               : Json::object();
+    out.createdAt = j.value("created_at", std::string());
+    out.updatedAt = j.value("updated_at", std::string());
+    out.exitCode = j.value("exit_code", 0);
+    JobState state = JobState::Created;
+    if (StateFromString(j.value("state", std::string()), state)) out.state = state;
+    if (j.contains("transitions") && j["transitions"].is_array()) {
+        for (const auto& t : j["transitions"]) {
+            JobTransition transition;
+            JobState ts = JobState::Created;
+            if (StateFromString(t.value("state", std::string()), ts)) transition.state = ts;
+            transition.timestamp = t.value("timestamp", std::string());
+            transition.op = t.value("op", std::string());
+            transition.reason = t.value("reason", std::string());
+            transition.exitCode = t.value("exit_code", 0);
+            out.transitions.push_back(std::move(transition));
+        }
+    }
+    return !out.id.empty();
 }
 
 } // namespace
@@ -105,6 +181,17 @@ void CoreJobContext::log(const std::string& line, bool isError) {
     {
         std::lock_guard<std::mutex> lock(mutex_);
         logs_.push_back((isError ? "[err] " : "") + line);
+        const std::filesystem::path logPath = jobDir_ / "logs" / "process.log";
+        std::error_code error;
+        std::filesystem::create_directories(logPath.parent_path(), error);
+        if (!error) {
+            std::ofstream out(logPath, std::ios::binary | std::ios::app);
+            if (out) {
+                if (isError) out << "[err] ";
+                out << line;
+                if (line.empty() || line.back() != '\n') out << '\n';
+            }
+        }
     }
     if (logSink_) logSink_(line, isError);
 }
@@ -181,8 +268,60 @@ std::string CoreJobContext::ProgressStatus() const {
 CoreJobService::CoreJobService(ProcessHostFactory factory, std::filesystem::path jobsRoot)
     : factory_(std::move(factory)), jobsRoot_(std::move(jobsRoot)) {
     if (jobsRoot_.empty()) {
+        // 未显式指定根目录：仍可用，但明确标记为非受控（调用方应改用 ResolveJobRoot）。
         jobsRoot_ = std::filesystem::temp_directory_path() / "sigflow-jobs";
+        controlledRoot_ = false;
+    } else {
+        controlledRoot_ = true;
     }
+    LoadExistingJobs();
+}
+
+// SF-03：受控 Job 数据根目录。
+// 1) 项目受控目录（<project>/.sigflow/agent/jobs/<projectKey>）：可随工程迁移、与手动 Job 并存；
+// 2) 应用数据目录（<appData>/sigflow-jobs）：工程不可写时的退路；
+// 3) 系统临时目录：仅在以上都不可用时兜底，并通过 warning 显式告知不可作为可恢复来源。
+std::filesystem::path CoreJobService::ResolveJobRoot(const std::filesystem::path& projectAgentRoot,
+                                                     const std::filesystem::path& appDataRoot,
+                                                     const std::string& projectKey,
+                                                     std::string& warning) {
+    warning.clear();
+    const auto usable = [](const std::filesystem::path& candidate) {
+        if (candidate.empty()) return false;
+        std::error_code ec;
+        std::filesystem::create_directories(candidate, ec);
+        if (ec) return false;
+        // 目录必须真的可写：临时探测文件，避免"能创建但不可写"的只读挂载。
+        const std::filesystem::path probe =
+            candidate / (".write-probe-" + std::to_string(std::random_device{}()));
+        {
+            std::ofstream out(probe, std::ios::trunc | std::ios::binary);
+            if (!out) return false;
+            out << "probe";
+            if (!out) return false;
+        }
+        std::error_code removeError;
+        std::filesystem::remove(probe, removeError);
+        return true;
+    };
+
+    if (!projectAgentRoot.empty() && !projectKey.empty()) {
+        const std::filesystem::path projectRoot = projectAgentRoot / "jobs" / projectKey;
+        if (usable(projectRoot)) return projectRoot;
+        warning = "project job directory is not writable; falling back to application data";
+    }
+    if (!appDataRoot.empty()) {
+        const std::filesystem::path appRoot = appDataRoot / "sigflow-jobs";
+        if (usable(appRoot)) return appRoot;
+        warning = "application data job directory is not writable; falling back to system temp";
+    }
+    if (warning.empty()) {
+        warning = "no controlled job directory is available; using the system temp directory";
+    }
+    const std::filesystem::path fallback = std::filesystem::temp_directory_path() / "sigflow-jobs";
+    std::error_code ec;
+    std::filesystem::create_directories(fallback, ec);
+    return fallback;
 }
 
 CoreJobService::~CoreJobService() {
@@ -237,6 +376,11 @@ std::string CoreJobService::submit(const JobRequest& request) {
     }
     record.transitions.push_back(
         {JobState::Created, record.createdAt, "service", "Job submitted.", 0});
+
+    // 持久化是提交事务的一部分：必须发生在 records_/queue_ 可被 worker 或调用方观察到
+    // 之前。否则 submit() 已返回 job_id 但尚未来得及第一次 Transition() 时崩溃，
+    // 重启便无从恢复该 Job。
+    if (!PersistRecord(record)) return {};
     records_[id] = record;
     queue_.push_back(id);
     EnsureWorkersLocked();
@@ -304,6 +448,22 @@ JobReport CoreJobService::report(const std::string& jobId) {
         report.pluginId = recordIt->second.request.pluginId;
         report.state = recordIt->second.state;
         report.exitCode = recordIt->second.exitCode;
+        // Terminal state is published immediately after the provider returns,
+        // while BuildReport/PersistReport run a few instructions later.  A
+        // concurrent GET /report must still expose the actual failure instead
+        // of returning an empty, misleading diagnostics payload during that
+        // small window.
+        if (recordIt->second.state == JobState::Failed ||
+            recordIt->second.state == JobState::TimedOut) {
+            for (auto transition = recordIt->second.transitions.rbegin();
+                 transition != recordIt->second.transitions.rend(); ++transition) {
+                if (transition->state == recordIt->second.state &&
+                    !transition->reason.empty()) {
+                    report.diagnostics = Json{{"error", transition->reason}};
+                    break;
+                }
+            }
+        }
     }
     return report;
 }
@@ -382,10 +542,10 @@ bool CoreJobService::Transition(const std::string& jobId, JobState to,
     return true;
 }
 
-void CoreJobService::PersistRecord(const JobRecord& record) {
-    if (jobsRoot_.empty()) return;
-    WriteJsonFile(JobDirectory(record.request, record.id) / "manifest.json",
-                  RecordToJson(record));
+bool CoreJobService::PersistRecord(const JobRecord& record) {
+    if (jobsRoot_.empty()) return false;
+    return WriteJsonFile(JobDirectory(record.request, record.id) / "manifest.json",
+                         RecordToJson(record));
 }
 
 void CoreJobService::PersistReport(const JobReport& report) {
@@ -398,6 +558,73 @@ void CoreJobService::PersistReport(const JobReport& report) {
         dir = JobDirectory(it->second.request, report.jobId) / "reports";
     }
     WriteJsonFile(dir / "job-report.json", ReportToJson(report));
+}
+
+void CoreJobService::LoadExistingJobs() {
+    std::error_code ec;
+    if (!std::filesystem::is_directory(jobsRoot_, ec)) return;
+    std::uint64_t maxSequence = 0;
+    for (const auto& typeEntry : std::filesystem::directory_iterator(jobsRoot_, ec)) {
+        if (ec || !typeEntry.is_directory()) continue;
+        for (const auto& jobEntry : std::filesystem::directory_iterator(typeEntry.path(), ec)) {
+            if (ec || !jobEntry.is_directory()) continue;
+            const std::filesystem::path manifest = jobEntry.path() / "manifest.json";
+            Json j;
+            if (!ReadJsonFile(manifest, j)) continue;
+            JobRecord record;
+            if (!JsonToRecord(j, record)) continue;
+            // 恢复 64 位 sequence，避免新 Job 撞 ID。
+            const std::size_t dash = record.id.rfind('-');
+            if (dash != std::string::npos) {
+                try {
+                    maxSequence = std::max(
+                        maxSequence,
+                        static_cast<std::uint64_t>(std::stoull(record.id.substr(dash + 1))));
+                } catch (const std::exception&) {
+                }
+            }
+            // 恢复报告（若存在）。
+            Json reportJson;
+            if (ReadJsonFile(jobEntry.path() / "reports" / "job-report.json", reportJson)) {
+                JobReport report;
+                report.schemaVersion = reportJson.value("schema_version", "eda.jobreport.v1");
+                report.jobId = reportJson.value("job_id", record.id);
+                report.jobType = reportJson.value("job_type", record.request.jobType);
+                report.pluginId = reportJson.value("plugin_id", record.request.pluginId);
+                JobState state = record.state;
+                StateFromString(reportJson.value("state", std::string()), state);
+                report.state = state;
+                report.exitCode = reportJson.value("exit_code", 0);
+                if (reportJson.contains("artifacts") && reportJson["artifacts"].is_array()) {
+                    for (const auto& a : reportJson["artifacts"]) {
+                        Artifact artifact;
+                        artifact.id = a.value("id", std::string());
+                        artifact.path = a.value("path", std::string());
+                        artifact.schema = a.value("schema", std::string());
+                        artifact.sha256 = a.value("sha256", std::string());
+                        artifact.role = a.value("role", std::string());
+                        report.artifacts.push_back(std::move(artifact));
+                    }
+                }
+                report.metrics = reportJson.contains("metrics") ? reportJson["metrics"]
+                                                               : Json::object();
+                report.diagnostics = reportJson.contains("diagnostics") ? reportJson["diagnostics"]
+                                                                        : Json::object();
+                reports_[report.jobId] = std::move(report);
+            }
+            // 非终态 Job：上次进程在运行/排队中崩溃，重启后不得伪装为运行中。
+            if (!IsTerminal(record.state)) {
+                record.state = JobState::Failed;
+                record.updatedAt = NowUtc();
+                record.transitions.push_back({JobState::Failed, record.updatedAt, "service",
+                                              "Interrupted by service restart.", 0});
+                WriteJsonFile(manifest, RecordToJson(record));
+            }
+            records_[record.id] = std::move(record);
+        }
+        if (ec) break;
+    }
+    sequence_ = maxSequence;
 }
 
 JobReport CoreJobService::BuildReport(const std::string& jobId, const CoreJobContext& ctx,
