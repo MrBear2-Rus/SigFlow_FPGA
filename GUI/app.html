@@ -1,0 +1,1773 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="auto"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SigFlow · 完整应用原型（自适应 · 可调画布 · Apple 液态玻璃）</title>
+<style>
+/* OD-LAYOUT-PRIMITIVES v1 — structure only: display, flex/grid, overflow, wrapping, ratio.
+   Put this @layer first; product CSS outside the layer always wins. */
+@layer od-layout {
+  :where(.od-stack,.od-row,.od-row-top,.od-cluster,.od-grid,.od-field,.od-stat,.od-cell,.od-tile) > :where(*) { min-width: 0; }
+  .od-stack   { display: flex; flex-direction: column; gap: var(--od-gap, 8px); }
+  .od-row     { display: flex; align-items: center; gap: var(--od-gap, 8px); }
+  .od-row-top { display: flex; align-items: flex-start; gap: var(--od-gap, 8px); }
+  .od-cluster { display: flex; flex-wrap: wrap; align-items: center; gap: var(--od-gap, 8px); }
+  .od-fill    { flex: 1 1 0; min-width: 0; }
+  .od-fixed   { flex: none; }
+  .od-grid    { display: grid; gap: var(--od-gap, 12px); grid-template-columns: repeat(var(--od-cols, 3), minmax(0, 1fr)); }
+  .od-stat, .od-field, .od-cell { display: grid; gap: var(--od-gap, 2px); }
+  :where(.od-stat,.od-field,.od-cell) > :where(*) { display: block; }
+  .od-tile { display: grid; grid-template-rows: auto 1fr; }
+  :where(.od-tile) > :where(*) { display: block; }
+  .od-media { display: block; width: 100%; height: auto; aspect-ratio: var(--od-ratio, auto); }
+  .od-media-cover { object-fit: cover; }
+  .od-truncate { display: block; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .od-clamp-2, .od-clamp-3 { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+  .od-clamp-2 { -webkit-line-clamp: 2; }
+  .od-clamp-3 { -webkit-line-clamp: 3; }
+  .od-lines-2 { min-height: calc(2 * 1.4em); }
+  .od-nowrap  { white-space: nowrap; }
+  .od-keep    { word-break: keep-all; overflow-wrap: anywhere; }
+  .od-screen { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: 100%; }
+  .od-scroll { overflow-y: auto; overscroll-behavior: contain; min-height: 0; }
+  .od-rail { display: flex; gap: var(--od-gap, 8px); overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none;
+             padding-inline: var(--od-rail-pad, 16px); scroll-padding-inline: var(--od-rail-pad, 16px); }
+  .od-rail::-webkit-scrollbar { display: none; }
+  :where(.od-rail) > :where(*) { flex: none; scroll-snap-align: start; }
+  :where(.od-rail) > :where(:last-child) { margin-inline-end: var(--od-rail-pad, 16px); }
+  .od-spacer { flex: none; visibility: hidden; pointer-events: none; }
+  .od-touch  { min-width: 44px; min-height: 44px; }
+}
+/* /OD-LAYOUT-PRIMITIVES v1 */
+
+/* ==========================================================================
+   SigFlow — Apple 液态玻璃设计系统 (design tokens)
+   token 名与 docs/design/README.md 的 CSS 变量一一对应；请勿改名。
+   本轮（sigflow-apple-glass-2）新增：窗口外壳（Windows 原生）、菜单栏、竖排图标栏、
+   画布浮动工具条。素材/结构不变，只换视觉语言与动效。
+   ========================================================================== */
+:root{
+  /* ---- 浅/深两套调色板 ---- */
+  --l-hue-bg-1:#fbfbfd;  --d-hue-bg-1:#0a0b0e;
+  --l-hue-bg-2:#f5f5f7;  --d-hue-bg-2:#111216;
+  --l-hue-bg-3:#e8e8ed;  --d-hue-bg-3:#050506;
+
+  --l-surface:rgba(245,245,247,.66);        --d-surface:rgba(33,34,38,.60);
+  --l-surface-strong:rgba(255,255,255,.86); --d-surface-strong:rgba(41,42,47,.80);
+  --l-surface-sunken:rgba(29,29,31,.045);   --d-surface-sunken:rgba(0,0,0,.30);
+
+  --l-stroke:rgba(18,24,40,.10);            --d-stroke:rgba(255,255,255,.10);
+  --l-stroke-strong:rgba(18,24,40,.18);     --d-stroke-strong:rgba(255,255,255,.18);
+  --l-specular:rgba(255,255,255,.90);       --d-specular:rgba(255,255,255,.16);
+
+  --l-text-1:#1d1d1f;  --d-text-1:#f4f5f7;
+  --l-text-2:#565a66;  --d-text-2:#9a9da8;
+  --l-text-3:#878c99;  --d-text-3:#6f7380;
+
+  --l-canvas:#ffffff;     --d-canvas:#141519;
+  --l-grid:#eef0f4;       --d-grid:#1e2026;
+  --l-grid-strong:#e0e4ea;--d-grid-strong:#272a31;
+  --l-wire:#1c1f26;       --d-wire:#d7dae2;
+
+  /* 品牌绿取自 SigFlow 图标（主行动）；蓝为交互/焦点色 */
+  --l-brand:#1f8a4c;  --d-brand:#3ed37c;
+  --l-accent:#0071e3; --d-accent:#0a84ff;
+  --l-warn:#b25000;   --d-warn:#ff9f0a;
+  --l-danger:#c1121f; --d-danger:#ff5b52;
+
+  --l-sel:rgba(0,113,227,.11);  --d-sel:rgba(10,132,255,.18);
+  --l-hover:rgba(16,24,45,.05); --d-hover:rgba(255,255,255,.06);
+
+  /* ---- 圆角 / 间距 / 阴影 ---- */
+  --r-xs:6px; --r-sm:9px; --r-md:13px; --r-lg:18px; --r-xl:24px;
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:22px; --sp-6:30px;
+
+  --l-shadow-1:0 1px 2px rgba(16,18,27,.06),0 6px 18px rgba(16,18,27,.07);
+  --l-shadow-2:0 2px 3px rgba(16,18,27,.08),0 16px 44px rgba(16,18,27,.12);
+  --d-shadow-1:0 1px 2px rgba(0,0,0,.46),0 8px 24px rgba(0,0,0,.36);
+  --d-shadow-2:0 2px 4px rgba(0,0,0,.52),0 22px 64px rgba(0,0,0,.50);
+
+  /* ---- 动效曲线 ---- */
+  --ease-out:cubic-bezier(.23,1,.32,1);
+  --ease-in-out:cubic-bezier(.77,0,.175,1);
+  --ease-standard:cubic-bezier(.4,0,.2,1);
+  --t-press:140ms; --t-quick:180ms; --t-panel:260ms;
+
+  --blur-sm:16px; --blur-md:28px; --blur-lg:44px;
+
+  /* ---- 窗口骨架尺寸 / 面板轨道宽度（可拖拽调整） ---- */
+  --titlebar-h:38px; --menubar-h:32px; --toolbar-h:48px; --rail-w:46px;
+  --left-w:282px; --right-w:132px; --bottom-h:174px;
+
+  color-scheme:light dark;
+}
+
+/* ---- 主题映射：语义变量 <- 调色板 ---- */
+:root{
+  --bg-1:var(--l-hue-bg-1); --bg-2:var(--l-hue-bg-2); --bg-3:var(--l-hue-bg-3);
+  --surface:var(--l-surface); --surface-strong:var(--l-surface-strong); --surface-sunken:var(--l-surface-sunken);
+  --stroke:var(--l-stroke); --stroke-strong:var(--l-stroke-strong); --specular:var(--l-specular);
+  --text-1:var(--l-text-1); --text-2:var(--l-text-2); --text-3:var(--l-text-3);
+  --canvas:var(--l-canvas); --grid:var(--l-grid); --grid-strong:var(--l-grid-strong); --wire:var(--l-wire);
+  --brand:var(--l-brand); --accent:var(--l-accent); --warn:var(--l-warn); --danger:var(--l-danger);
+  --sel:var(--l-sel); --hover:var(--l-hover);
+  --shadow-1:var(--l-shadow-1); --shadow-2:var(--l-shadow-2);
+}
+html[data-theme="dark"]{
+  --bg-1:var(--d-hue-bg-1); --bg-2:var(--d-hue-bg-2); --bg-3:var(--d-hue-bg-3);
+  --surface:var(--d-surface); --surface-strong:var(--d-surface-strong); --surface-sunken:var(--d-surface-sunken);
+  --stroke:var(--d-stroke); --stroke-strong:var(--d-stroke-strong); --specular:var(--d-specular);
+  --text-1:var(--d-text-1); --text-2:var(--d-text-2); --text-3:var(--d-text-3);
+  --canvas:var(--d-canvas); --grid:var(--d-grid); --grid-strong:var(--d-grid-strong); --wire:var(--d-wire);
+  --brand:var(--d-brand); --accent:var(--d-accent); --warn:var(--d-warn); --danger:var(--d-danger);
+  --sel:var(--d-sel); --hover:var(--d-hover);
+  --shadow-1:var(--d-shadow-1); --shadow-2:var(--d-shadow-2);
+}
+@media (prefers-color-scheme: dark){
+  html[data-theme="auto"]{
+    --bg-1:var(--d-hue-bg-1); --bg-2:var(--d-hue-bg-2); --bg-3:var(--d-hue-bg-3);
+    --surface:var(--d-surface); --surface-strong:var(--d-surface-strong); --surface-sunken:var(--d-surface-sunken);
+    --stroke:var(--d-stroke); --stroke-strong:var(--d-stroke-strong); --specular:var(--d-specular);
+    --text-1:var(--d-text-1); --text-2:var(--d-text-2); --text-3:var(--d-text-3);
+    --canvas:var(--d-canvas); --grid:var(--d-grid); --grid-strong:var(--d-grid-strong); --wire:var(--d-wire);
+    --brand:var(--d-brand); --accent:var(--d-accent); --warn:var(--d-warn); --danger:var(--d-danger);
+    --sel:var(--d-sel); --hover:var(--d-hover);
+    --shadow-1:var(--d-shadow-1); --shadow-2:var(--d-shadow-2);
+  }
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  /* Apple 亮色：安静中性底（壁纸彩色色域按设计规范移除，深色沿用同结构灰阶） */
+  background:linear-gradient(160deg, var(--bg-1), var(--bg-2) 55%, var(--bg-3));
+  color:var(--text-1);
+  font:100%/1.45 -apple-system, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI",
+        "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+  -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+h1,h2,h3{margin:0;font-weight:600}
+button{font:inherit}
+.mono{font-family:"SF Mono",ui-monospace,Menlo,Consolas,"Cascadia Mono",monospace}
+.num{font-variant-numeric:tabular-nums}
+
+/* ==========================================================================
+   玻璃材质 —— 材质重量 = 层级
+   .glass       交互表面（工具栏/卡片）
+   .glass-thick 结构性表面（侧栏/底栏/窗口外壳）—— 更强模糊 + 更深阴影
+   ========================================================================== */
+.glass{
+  background:var(--surface);
+  backdrop-filter:blur(var(--blur-md)) saturate(180%);
+  -webkit-backdrop-filter:blur(var(--blur-md)) saturate(180%);
+  border:1px solid var(--stroke);
+  box-shadow:var(--shadow-1), inset 0 1px 0 var(--specular);
+}
+.glass-thick{
+  background:var(--surface-strong);
+  backdrop-filter:blur(var(--blur-lg)) saturate(170%);
+  -webkit-backdrop-filter:blur(var(--blur-lg)) saturate(170%);
+  border:1px solid var(--stroke);
+  box-shadow:var(--shadow-2), inset 0 1px 0 var(--specular);
+}
+@keyframes materialize{from{opacity:0;transform:scale(.988)} to{opacity:1;transform:scale(1)}}
+@keyframes rise{from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)}}
+
+/* ==========================================================================
+   窗口骨架
+   ========================================================================== */
+.window{
+  position:fixed; inset:18px;
+  display:grid;
+  grid-template-rows:auto auto auto minmax(0,1fr) auto auto;
+  border-radius:var(--r-lg);
+  overflow:hidden;
+  animation:materialize var(--t-panel) var(--ease-out) both;
+}
+
+/* ---- 标题栏：Windows 原生窗口控件 ---- */
+.titlebar{
+  height:var(--titlebar-h);
+  display:grid; grid-template-columns:auto 1fr auto; align-items:center;
+  border-bottom:1px solid var(--stroke);
+  background:linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 92%, transparent), transparent);
+}
+.brandmark{display:flex;align-items:center;gap:9px;padding-left:14px}
+.brandmark .logo{
+  width:19px;height:19px;border-radius:var(--r-xs);display:grid;place-items:center;
+  background:linear-gradient(160deg, color-mix(in srgb,var(--brand) 88%, #fff), var(--brand));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.4), 0 1px 2px rgba(0,0,0,.2);
+}
+.brandmark .logo svg{width:12px;height:12px;color:#fff}
+.brandmark .name{font-size:13px;font-weight:650;letter-spacing:-.01em}
+.title .path{font-size:12.5px;color:var(--text-2);display:flex;align-items:center;gap:6px}
+.title .path b{color:var(--text-1);font-weight:600}
+.title .dot{opacity:.4}
+.title .modified{color:var(--warn);font-size:11px;font-variant-numeric:tabular-nums}
+.titlebar>.title{justify-self:start;padding-left:16px}
+
+.win-controls{display:flex;height:100%}
+.wc{
+  width:46px;height:100%;border:0;background:transparent;color:var(--text-2);
+  display:grid;place-items:center;cursor:pointer;transition:background var(--t-press) linear,color var(--t-press) linear;
+}
+.wc:hover{background:var(--hover);color:var(--text-1)}
+.wc.close:hover{background:var(--danger);color:#fff}
+.wc svg{width:11px;height:11px;stroke:currentColor;stroke-width:1.4;fill:none}
+
+/* ---- 菜单栏 ---- */
+.menubar{
+  height:var(--menubar-h);display:flex;align-items:center;gap:1px;padding:0 6px;
+  border-bottom:1px solid var(--stroke);
+  background:linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 70%, transparent), transparent);
+}
+.menu{position:relative}
+.menu>button{
+  border:0;background:transparent;color:var(--text-2);font-size:12.5px;letter-spacing:.004em;
+  height:24px;padding:0 10px;border-radius:var(--r-xs);cursor:pointer;
+  transition:background var(--t-press) linear,color var(--t-press) linear;
+}
+/* 只在选中（菜单展开）时高亮：平时纯文字，不做按键底色/描边/按压设计；
+   点空白处收起即取消（document click 清除 data-open） */
+.menu>button:hover{color:var(--text-1)}
+.menu[data-open="true"]>button{background:var(--sel);color:var(--accent)}
+.menu-panel{
+  position:absolute;top:calc(100% + 5px);left:0;min-width:232px;z-index:60;
+  padding:6px;border-radius:var(--r-md);
+  background:var(--surface-strong);backdrop-filter:blur(var(--blur-md)) saturate(180%);
+  border:1px solid var(--stroke);box-shadow:var(--shadow-2), inset 0 1px 0 var(--specular);
+  display:none;
+}
+.menu[data-open="true"] .menu-panel{display:block;animation:rise var(--t-quick) var(--ease-out)}
+.mi{display:flex;align-items:center;gap:10px;width:100%;border:0;background:transparent;color:var(--text-1);
+    font-size:12px;padding:6px 9px;border-radius:var(--r-sm);cursor:pointer;text-align:left}
+.mi:hover{background:var(--sel);color:var(--accent)}
+.mi .k{margin-left:auto;color:var(--text-3);font-size:11px;font-variant-numeric:tabular-nums}
+.mi[disabled]{opacity:.45;cursor:default}
+.mi[disabled]:hover{background:transparent;color:var(--text-1)}
+.msep{height:1px;background:var(--stroke);margin:5px 6px}
+
+/* ---- 顶端工具栏 ---- */
+.toolbar{height:var(--toolbar-h);display:flex;align-items:center;gap:6px;padding:0 14px;border-bottom:1px solid var(--stroke)}
+.chip{
+  display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 13px;
+  border-radius:999px;border:1px solid var(--stroke);background:var(--surface);color:var(--text-1);
+  font-size:12.5px;font-weight:510;cursor:pointer;white-space:nowrap;
+  transition:transform var(--t-press) var(--ease-out),background var(--t-press) linear,border-color var(--t-press) linear;
+}
+.chip:hover{background:var(--surface-strong)}
+.chip:active{transform:scale(.97)}
+.chip.primary{
+  background:linear-gradient(180deg, color-mix(in srgb,var(--brand) 92%, #fff), var(--brand));
+  border-color:color-mix(in srgb,var(--brand) 70%, #000);color:#fff;
+  box-shadow:0 1px 2px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.30);
+}
+.chip .k{font-size:11px;color:var(--text-3);font-variant-numeric:tabular-nums}
+.chip.primary .k{color:rgba(255,255,255,.78)}
+.chip.warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 34%, transparent)}
+.chip svg{width:14px;height:14px;flex:none}
+.chip.steady{cursor:default;color:var(--text-2)}
+.chip.steady:hover{background:var(--surface)}
+
+/* 图标按钮（工具栏/HUD/浮动条共用） */
+.tbtn{
+  border:1px solid transparent;background:transparent;color:var(--text-2);
+  width:30px;height:28px;border-radius:var(--r-xs);display:grid;place-items:center;cursor:pointer;
+  transition:transform var(--t-press) var(--ease-out),background var(--t-press) linear,color var(--t-press) linear;
+}
+.tbtn:hover{background:var(--hover);color:var(--text-1)}
+.tbtn:active{transform:scale(.94)}
+.tbtn svg{width:16px;height:16px;display:block}
+.tbtn.on,.tbtn[aria-pressed="true"]{background:var(--sel);color:var(--accent);border-color:color-mix(in srgb,var(--accent) 26%, transparent)}
+.sep{width:1px;height:18px;background:var(--stroke);margin:0 4px}
+.spacer{flex:1}
+
+/* ==========================================================================
+   主工作区
+   ========================================================================== */
+.workspace{
+  position:relative;
+  display:grid;
+  grid-template-columns:var(--rail-w) var(--left-w) minmax(0,1fr) var(--right-w);
+  gap:12px;padding:12px;min-height:0;
+}
+
+/* ---- 可拖拽面板分隔条（自适应布局可自由调整） ---- */
+.dock-resizer{
+  position:absolute;top:12px;bottom:12px;width:15px;z-index:8;cursor:col-resize;
+  display:grid;place-items:center;touch-action:none;
+}
+.dock-resizer.left{left:calc(12px + var(--rail-w) + 12px + var(--left-w) - 7.5px)}
+.dock-resizer.right{right:calc(12px + var(--right-w) - 7.5px)}
+.dock-resizer::before{content:"";width:3px;height:100%;max-height:100%;border-radius:3px;background:transparent;transition:background var(--t-quick) var(--ease-out)}
+.dock-resizer:hover::before,.dock-resizer.dragging::before{background:color-mix(in srgb,var(--accent) 55%, transparent)}
+.dock-resizer:focus-visible{outline:none}
+.dock-resizer:focus-visible::before{background:var(--accent)}
+
+/* ---- 竖排图标栏（三页互斥，对应原工程 sideBar） ---- */
+.rail{
+  border-radius:var(--r-md);display:flex;flex-direction:column;align-items:center;
+  gap:6px;padding:8px 0;min-height:0;
+  animation:materialize var(--t-panel) var(--ease-out) both;
+}
+.rail .rtb{
+  position:relative;width:34px;height:34px;border-radius:var(--r-sm);border:1px solid transparent;
+  background:transparent;color:var(--text-2);display:grid;place-items:center;cursor:pointer;
+  transition:transform var(--t-press) var(--ease-out),background var(--t-press) linear,color var(--t-press) linear,border-color var(--t-press) linear;
+}
+.rail .rtb:hover{background:var(--hover);color:var(--text-1)}
+.rail .rtb:active{transform:scale(.94)}
+.rail .rtb svg{width:18px;height:18px}
+.rail .rtb[aria-pressed="true"]{background:var(--sel);color:var(--accent);border-color:color-mix(in srgb,var(--accent) 28%, transparent)}
+.rail .rtb[aria-pressed="true"]::before{
+  content:"";position:absolute;left:-8px;top:50%;transform:translateY(-50%);
+  width:3px;height:18px;border-radius:2px;background:var(--accent);
+}
+.rail .rlabel{
+  writing-mode:vertical-rl;font-size:10px;letter-spacing:.14em;color:var(--text-3);text-transform:uppercase;
+  margin-top:auto;padding-bottom:8px;
+}
+
+/* ---- 停靠面板 ---- */
+.dock{
+  border-radius:var(--r-lg);display:grid;grid-template-rows:auto minmax(0,1fr);
+  min-height:0;overflow:hidden;animation:materialize var(--t-panel) var(--ease-out) both;
+}
+.tabs{display:flex;align-items:center;gap:2px;padding:9px 10px 0}
+.tab{
+  border:0;background:transparent;color:var(--text-2);font-size:11.5px;font-weight:530;letter-spacing:.004em;
+  padding:6px 11px;border-radius:var(--r-xs) var(--r-xs) 0 0;cursor:pointer;position:relative;
+  transition:color var(--t-quick) linear;
+}
+.tab:hover{color:var(--text-1)}
+.tab[aria-selected="true"]{color:var(--text-1)}
+.tab[aria-selected="true"]::after{content:"";position:absolute;left:11px;right:11px;bottom:-1px;height:2px;border-radius:2px;background:var(--brand)}
+.pane{padding:10px;overflow:auto;min-height:0;animation:rise var(--t-quick) var(--ease-out)}
+.pane[hidden]{display:none}
+.pane::-webkit-scrollbar{width:10px;height:10px}
+.pane::-webkit-scrollbar-thumb{background:var(--stroke-strong);border:3px solid transparent;background-clip:content-box;border-radius:8px}
+
+/* 树 / 列表 */
+.tree{font-size:11.5px}
+.grp{display:flex;align-items:center;gap:6px;padding:6px 8px 4px;margin-top:6px;color:var(--text-3);font-size:9.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase}
+.grp::before{content:"";width:10px;height:1px;background:var(--stroke-strong)}
+.node{
+  display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:var(--r-sm);cursor:default;
+  transition:background var(--t-press) linear,transform var(--t-press) var(--ease-out);
+}
+.node:hover{background:var(--hover)}
+.node:active{transform:scale(.99)}
+.node.sel{background:var(--sel);color:var(--accent)}
+.node .ic{width:16px;height:16px;color:var(--text-3);flex:none}
+.node.sel .ic{color:var(--accent)}
+.node .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.node .badge{font-size:9.5px;color:var(--text-3);font-variant-numeric:tabular-nums;border:1px solid var(--stroke);border-radius:999px;padding:1px 7px}
+
+/* 表单属性 */
+.field{display:grid;grid-template-columns:88px 1fr;align-items:center;gap:10px;padding:7px 6px}
+.field+.field{border-top:1px solid var(--stroke)}
+.field label{font-size:11px;font-weight:500;color:var(--text-3)}
+.input{
+  height:28px;border-radius:var(--r-sm);border:1px solid var(--stroke);background:var(--surface-sunken);
+  color:var(--text-1);font:inherit;font-size:11.5px;padding:0 9px;width:100%;font-variant-numeric:tabular-nums;
+  transition:box-shadow var(--t-quick) var(--ease-out),border-color var(--t-quick) var(--ease-out);
+}
+.input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%, transparent)}
+select.input{
+  appearance:none;
+  background-image:linear-gradient(45deg,transparent 50%,var(--text-3) 50%),linear-gradient(135deg,var(--text-3) 50%,transparent 50%);
+  background-position:calc(100% - 14px) 12px,calc(100% - 9px) 12px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;
+}
+
+/* ==========================================================================
+   中间：画布 + 代码编辑器（上下可拖分栏）
+   ========================================================================== */
+.center{display:flex;flex-direction:column;min-height:0;gap:0}
+.split{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.split.top{flex:1 1 62%;border-radius:var(--r-lg) var(--r-lg) 0 0}
+.split.bottom{flex:1 1 38%;border-radius:0 0 var(--r-lg) var(--r-lg)}
+.split .pane{padding:0}
+
+.canvas-wrap{position:relative;height:100%;background:var(--canvas);overflow:hidden}
+.canvas-wrap svg{display:block;width:100%;height:100%}
+.canvas-tabs{padding:2px 6px 0}
+.hud{
+  position:absolute;left:12px;bottom:12px;display:flex;gap:4px;align-items:center;
+  padding:5px;border-radius:999px;font-size:11.5px;
+}
+.hud .z{color:var(--text-2);font-variant-numeric:tabular-nums;padding:0 8px;min-width:44px;text-align:center}
+
+/* 画布浮动快捷工具条（HandyToolKit） */
+.handytools{
+  position:absolute;left:50%;top:12px;transform:translateX(-50%);
+  display:flex;gap:3px;padding:5px;border-radius:999px;
+}
+.ghost{opacity:0;pointer-events:none;transition:opacity 120ms var(--ease-out)}
+.ghost.on{opacity:.6}
+.placeable{cursor:crosshair}
+
+/* 代码编辑器 */
+.code{display:grid;grid-template-columns:auto 1fr;height:100%;background:var(--canvas);overflow:auto;font:12.5px/1.7 "SF Mono",ui-monospace,Menlo,Consolas,"Cascadia Mono",monospace}
+.code .gutter{padding:8px 10px;text-align:right;color:var(--text-3);border-right:1px solid var(--stroke);user-select:none;background:var(--surface-sunken);font-variant-numeric:tabular-nums}
+.code .src{padding:8px 12px;white-space:pre;color:var(--text-1)}
+.code .kw{color:var(--accent)}
+.code .ty{color:var(--brand)}
+.code .st{color:var(--warn)}
+.code .cm{color:var(--text-3);font-style:italic}
+.code .nu{color:var(--danger)}
+.editor-head{display:flex;align-items:center;gap:8px;padding:8px 12px 0;font-size:12px;color:var(--text-2)}
+.editor-head b{color:var(--text-1);font-weight:600}
+.editor-head .badge{margin-left:auto;font-size:10.5px;color:var(--text-3)}
+
+/* 自定义分栏拖拽条 */
+.vsplit{
+  height:9px;flex:none;cursor:row-resize;position:relative;background:transparent;
+  display:grid;place-items:center;
+}
+.vsplit::before{content:"";width:44px;height:3px;border-radius:2px;background:var(--stroke-strong);transition:background var(--t-quick) linear}
+.vsplit:hover::before,.vsplit.dragging::before{background:var(--accent)}
+
+/* ==========================================================================
+   底栏（Terminal / Waveform） + 状态栏
+   ========================================================================== */
+.bottomwrap{display:grid;grid-template-columns:minmax(0,1fr);padding:0 12px 12px}
+.bottom{border-radius:var(--r-lg);overflow:hidden;display:grid;grid-template-rows:auto minmax(0,1fr);height:var(--bottom-h)}
+.term{font:11.5px/1.7 "SF Mono",ui-monospace,Menlo,Consolas,"Cascadia Mono",monospace;padding:10px 12px;overflow:auto}
+.term .ok{color:var(--brand)}
+.term .dim{color:var(--text-3)}
+.term .wrn{color:var(--warn)}
+.term .cmd{color:var(--accent)}
+
+.statusbar{
+  display:flex;align-items:center;gap:16px;padding:7px 16px;font-size:10.5px;color:var(--text-2);
+  border-top:1px solid var(--stroke);
+  background:linear-gradient(0deg, color-mix(in srgb,var(--surface-strong) 78%, transparent), transparent);
+  font-variant-numeric:tabular-nums;
+}
+.statusbar .pill{display:inline-flex;align-items:center;gap:6px}
+.statusbar .led{width:7px;height:7px;border-radius:50%;background:var(--brand);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 22%, transparent)}
+.statusbar .led.warn{background:var(--warn);box-shadow:0 0 0 3px color-mix(in srgb,var(--warn) 22%, transparent)}
+
+/* 波形 */
+.wave{display:grid;gap:4px;padding:8px 10px}
+.wave .row{display:grid;grid-template-columns:78px 1fr;align-items:center;gap:10px}
+.wave .lbl{font-size:10.5px;color:var(--text-2);text-align:right;font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace}
+.wave svg{width:100%;height:34px;display:block}
+
+/* ==========================================================================
+   可调画布（自由平移 / 缩放） + 标签指示条滑移
+   ========================================================================== */
+#scene{transform-origin:0 0;transition:transform var(--t-quick) var(--ease-out);will-change:transform}
+#scene.panning{transition:none;cursor:grabbing}
+.canvas-wrap.tool-pan{cursor:grab}
+.canvas-wrap.tool-pan.grabbing{cursor:grabbing}
+
+.tabs{position:relative}
+.tab-ink{
+  position:absolute;bottom:0;left:0;height:2px;border-radius:2px;background:var(--brand);
+  width:0;opacity:0;pointer-events:none;
+  transition:transform var(--t-panel) var(--ease-out),width var(--t-panel) var(--ease-out),opacity var(--t-quick) linear;
+}
+.tabs .tab[aria-selected="true"]::after{display:none}
+
+/* ==========================================================================
+   无障碍
+   ========================================================================== */
+:where(button,a,input,select):focus-visible{outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 45%, transparent);border-radius:var(--r-xs)}
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:.001ms !important;transition-duration:120ms !important}
+  .window,.dock,.rail{animation:none}
+  .node:active,.chip:active,.tbtn:active,.rtb:active{transform:none}
+}
+@media (prefers-reduced-transparency: reduce){
+  .glass,.glass-thick,.menu-panel{backdrop-filter:none !important;-webkit-backdrop-filter:none !important;background:var(--canvas)}
+  body{background:var(--bg-2)}
+}
+@media (prefers-contrast: more){
+  .glass,.glass-thick,.menu-panel{background:var(--canvas);border-color:var(--text-1)}
+  .node.sel{outline:2px solid var(--accent);outline-offset:-2px}
+}
+
+/* 窄屏兜底：桌面工具为主，窄视口不横向滚动，收起右栏与图标栏文字 */
+@media (max-width:1023px){
+  .window{inset:0;border-radius:0}
+  .workspace{grid-template-columns:40px minmax(0,1fr) 260px;padding:8px;gap:8px}
+  .dock-resizer{display:none}
+  .bottomwrap{padding:0 8px 8px}
+}
+@media (max-width:760px){
+  .workspace{grid-template-columns:40px minmax(0,1fr)}
+  .dock.right{display:none}
+  .dock-resizer{display:none}
+  .title .path{display:none}
+  .toolbar{overflow-x:auto;scrollbar-width:none}
+  .toolbar::-webkit-scrollbar{display:none}
+}
+@media (max-width:560px){
+  .brandmark .name{display:none}
+  .chip .k{display:none}
+}
+
+/* ==========================================================================
+   玻璃修正封板：仅 Synthesize 保留亮色系液态玻璃模块（完整复用）；
+   其余按键与模块背景取消玻璃化，回退玻璃化前的历史版本样式（普通阴影）。
+   token 名与语义不变；.lg-glass 配方与 --glass-* token 仅服务该按钮。
+   ========================================================================== */
+:root{
+  --glass-edge:rgba(255,255,255,.80);
+  --glass-edge-strong:rgba(255,255,255,.90);
+  --glass-edge-soft:rgba(255,255,255,.55);
+  --glass-rim:rgba(255,255,255,.20);
+  --glass-ring:rgba(0,0,0,.80);
+  --glass-shadow:rgba(0,0,0,.20);
+  --glass-border:rgba(51,51,51,.08);
+  --glass-contrast:3;
+}
+html[data-theme="dark"]{
+  --glass-edge:rgba(255,255,255,.30);
+  --glass-edge-strong:rgba(255,255,255,.42);
+  --glass-edge-soft:rgba(255,255,255,.18);
+  --glass-rim:rgba(255,255,255,.14);
+  --glass-ring:rgba(0,0,0,.65);
+  --glass-shadow:rgba(0,0,0,.55);
+  --glass-border:rgba(255,255,255,.12);
+  --glass-contrast:3;
+}
+@media (prefers-color-scheme: dark){
+  html[data-theme="auto"]{
+    --glass-edge:rgba(255,255,255,.30);
+    --glass-edge-strong:rgba(255,255,255,.42);
+    --glass-edge-soft:rgba(255,255,255,.18);
+    --glass-rim:rgba(255,255,255,.14);
+    --glass-ring:rgba(0,0,0,.65);
+    --glass-shadow:rgba(0,0,0,.55);
+    --glass-border:rgba(255,255,255,.12);
+  }
+}
+
+/* -- 外壳/面板/工具栏水面：回退历史版本基础磨砂材质（普通阴影，无立体玻璃层）；
+      下方仅保留 Synthesize 按钮使用的液态玻璃配方与 token -- */
+
+/* -- 参考液态玻璃配方（与 index.html `.lg-glass` 同款工艺，亮/暗 token 齐备） -- */
+.lg-glass{
+  position:relative;isolation:isolate;overflow:hidden;
+  border-radius:var(--lg-r,var(--r-xl));
+  background:linear-gradient(45deg,
+    var(--glass-edge) 0%, transparent 25%, transparent 75%, var(--glass-edge) 100%);
+  box-shadow:
+    inset 2px -2px 1px -1px var(--glass-edge-strong),
+    inset -2px 2px 1px -1px var(--glass-edge-strong),
+    inset 6px -6px 1px -6px var(--glass-edge-soft),
+    inset -6px 6px 1px -6px var(--glass-edge-soft),
+    inset 0 0 2px var(--glass-ring),
+    0 4px 8px var(--glass-shadow);
+  border:1px double var(--glass-border);
+}
+.lg-glass::before{
+  content:"";position:absolute;z-index:0;top:35%;left:50%;transform:translateX(-50%);
+  width:calc(100% - 16px);height:calc(100% - 16px);border-radius:inherit;
+  border:1px solid var(--glass-ring);filter:blur(8px);pointer-events:none;
+}
+.lg-glass::after{
+  content:"";position:absolute;z-index:0;inset:4.5px;border-radius:inherit;
+  border:1px solid var(--glass-rim);filter:blur(1px);pointer-events:none;
+}
+.lg-glass > *{position:relative;z-index:1}
+.lg-boost{filter:contrast(var(--glass-contrast))}
+
+/* -- 其余按键（chip / tbtn / 图标按钮 / 菜单触发 / 布局开关 / 表单）：全部取消玻璃化，
+      回退历史版本样式（半透明面 + 柔和模糊 + 常规软阴影）——直接沿用上方基础规则 -- */
+
+/* Synthesize 行：完整复用亮色系液态玻璃模块（与 index.html .lg-glass 同款工艺，
+   45° 边缘高光 + 右上/左下白内影压暗内环 + 次级内影 + 外投影 + 1px double 弱描边；
+   ::after 内缩高光光环 + ::before 内缩模糊暗环） */
+.chip.primary.lg-glass{
+  --lg-r:999px;
+  background:linear-gradient(45deg,
+    var(--glass-edge) 0%, transparent 25%, transparent 75%, var(--glass-edge) 100%);
+  border:1px double var(--glass-border);
+  color:var(--text-1);
+  box-shadow:
+    inset 2px -2px 1px -1px var(--glass-edge-strong),
+    inset -2px 2px 1px -1px var(--glass-edge-strong),
+    inset 6px -6px 1px -6px var(--glass-edge-soft),
+    inset -6px 6px 1px -6px var(--glass-edge-soft),
+    inset 0 0 2px var(--glass-ring),
+    0 4px 8px var(--glass-shadow);
+}
+.chip.primary.lg-glass .k{color:var(--text-3)}
+.chip.primary.lg-glass:hover{
+  background:linear-gradient(45deg,
+    var(--glass-edge) 0%, transparent 25%, transparent 75%, var(--glass-edge) 100%);
+}
+.chip.primary.lg-glass:focus-visible{outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 45%, transparent);z-index:2}
+
+/* -- VSCode 式面板显隐开关（顶部右侧布局簇） -- */
+.topbar-right{display:flex;align-items:center;height:100%}
+.layout-controls{display:flex;align-items:center;gap:1px;padding:0 6px}
+.lc{
+  width:28px;height:26px;border-radius:var(--r-xs);display:grid;place-items:center;cursor:pointer;
+  border:0;background:transparent;
+  color:var(--text-2);
+  transition:background var(--t-press) linear,color var(--t-press) linear,transform var(--t-press) var(--ease-out);
+}
+.lc:hover{background:var(--hover);color:var(--text-1)}
+.lc:active{transform:scale(.94)}
+.lc[aria-pressed="false"]{color:var(--text-3)}
+.lc svg{width:16px;height:16px}
+#win.panel-left-hidden .workspace > .dock:first-of-type,
+#win.panel-left-hidden .dock-resizer.left{display:none}
+#win.panel-left-hidden .workspace{grid-template-columns:var(--rail-w) minmax(0,1fr) var(--right-w)}
+#win.panel-right-hidden .workspace > .dock:last-of-type,
+#win.panel-right-hidden .dock-resizer.right{display:none}
+#win.panel-right-hidden .workspace{grid-template-columns:var(--rail-w) var(--left-w) minmax(0,1fr)}
+#win.panel-left-hidden.panel-right-hidden .workspace{grid-template-columns:var(--rail-w) minmax(0,1fr)}
+#win.panel-bottom-hidden .bottomwrap{display:none}
+@media (max-width:1023px){
+  #win.panel-left-hidden .workspace,
+  #win.panel-right-hidden .workspace,
+  #win.panel-left-hidden.panel-right-hidden .workspace{grid-template-columns:40px minmax(0,1fr) 260px}
+}
+
+/* -- 降透明度兜底 -- */
+@media (prefers-reduced-transparency:reduce){
+  .glass,.glass-thick,.menu-panel,.chip,.tbtn,.rtb,.input,.lc
+  {backdrop-filter:none !important;-webkit-backdrop-filter:none !important;background:var(--surface-strong)}
+  body{background:var(--bg-2)}
+}
+
+/* 页面背景回退历史版本：桌面壁纸色域（供磨砂水面"透"环境光），主体读作 --bg-1 */
+
+
+
+
+
+
+
+/* ==========================================================================
+   自定义布局（VS Code 式 quick pick + 预设 + 独立窗口）—— Apple 亮色材质
+   状态类挂 #win：panel-{menubar,rail,left,right,bottom,statusbar}-hidden 显隐；
+   lay-side-right 主侧栏右对齐；lay-bal-{left,right,center,just} 面板对齐；
+   lay-panel-top 面板移到顶部；lay-out-{code,canvas,chat} 区已拖出为独立窗口。
+   ========================================================================== */
+#win.panel-menubar-hidden .menubar{display:none}
+#win.panel-statusbar-hidden .statusbar{display:none}
+/* 窗口骨架改弹性顺序（order 语义），显隐类直接 display:none 即可联动 */
+#win > .titlebar{order:0}
+#win > .menubar{order:1}
+#win > .toolbar{order:2}
+#win > .workspace{order:3}
+#win > .bottomwrap{order:4}
+#win > .statusbar{order:5}
+/* 主工作区：flex 取代 grid，全部面板统一轨道 */
+.workspace{position:relative;display:flex;gap:12px;padding:12px;min-height:0}
+.workspace > .rail{order:0;flex:none;width:var(--rail-w)}
+.workspace > .dock:not(.right){order:1;flex:none;width:var(--left-w)}
+.workspace > .center{order:2;flex:1 1 0;min-width:0}
+.workspace > .dock.right{order:3;flex:none;width:var(--right-w)}
+/* 主侧栏位置：右对齐 —— 辅助侧边栏(右 dock)回到主侧栏旧位，主侧栏移动最右 */
+/* 主侧栏位置：右对齐 —— 主侧栏移至画布右侧；辅助侧边栏永远保持在最右侧 */
+#win.lay-side-right .workspace > .rail{order:0}
+#win.lay-side-right .workspace > .center{order:1}
+#win.lay-side-right .workspace > .dock:not(.right){order:2}
+#win.lay-side-right .workspace > .dock.right{order:3}
+#win.lay-side-right .dock-resizer{display:none}
+/* 面板对齐方式（底部面板） */
+#win.lay-bal-left .bottomwrap{grid-template-columns:minmax(420px,760px) minmax(0,1fr)}
+#win.lay-bal-left .bottomwrap > .dock{grid-column:1}
+#win.lay-bal-right .bottomwrap{grid-template-columns:minmax(0,1fr) minmax(420px,760px)}
+#win.lay-bal-right .bottomwrap > .dock{grid-column:2}
+#win.lay-bal-center .bottomwrap > .dock{width:min(840px,88%);margin-inline:auto}
+/* 面板位置：顶部 */
+#win.lay-panel-top > .bottomwrap{order:3}
+#win.lay-panel-top > .workspace{order:4}
+#win.lay-panel-top .bottomwrap #splitBottom, #win.lay-panel-top .workspace .split.top{border-radius:var(--r-lg)}
+/* 独立窗口（真实弹出子窗口）：主窗口区显示已分离占位 */
+#win.lay-out-code #splitBottom .pane,#win.lay-out-code #splitBottom .editor-head{display:none}
+#win.lay-out-code #splitBottom{display:grid;place-items:center;border-radius:var(--r-lg);flex:1 1 38%}
+.workspace > .center.split-top-out .split.top .pane,
+.workspace > .center.split-top-out .split.top .hud,.workspace > .center.split-top-out .split.top .handytools{display:none}
+.workspace > .center.split-top-out .split.top{display:grid;place-items:center}
+#win.lay-out-chat .dock.right .tabs,#win.lay-out-chat .dock.right .pane{display:none}
+#win.lay-out-chat .dock.right{display:grid;place-items:center;grid-template-rows:none}
+.out-note{display:grid;gap:10px;justify-items:center;color:var(--text-3);font-size:11.5px;text-align:center}
+.out-note .lp-k{font-size:10.5px}
+.out-back{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 14px;border-radius:999px;
+  border:1px solid var(--border);background:var(--surface-strong);color:var(--text-1);font-size:12px;cursor:pointer}
+.out-back:hover{border-color:var(--meta);background:var(--sel)}
+/* 拖出按钮 */
+.detach{margin-left:auto;flex:none}
+.canvaspop{position:absolute;top:12px;right:12px;z-index:5;padding:5px;border-radius:999px}
+.tabs .detach{margin-left:auto}
+/* 自定义布局 quick pick 面板：Apple 亮色浮层（浅面 + 描边 + 软阴影） */
+.layout-controls{position:relative}
+.layout-pick{
+  position:absolute;top:calc(100% + 8px);right:6px;z-index:80;width:340px;
+  padding:6px;border-radius:var(--r-md);
+  background:var(--surface-strong);backdrop-filter:blur(var(--blur-md)) saturate(180%);
+  -webkit-backdrop-filter:blur(var(--blur-md)) saturate(180%);
+  border:1px solid var(--stroke);box-shadow:var(--shadow-2);
+  display:grid;grid-template-columns:1fr;gap:2px;
+  animation:rise var(--t-quick) var(--ease-out);
+}
+.layout-pick[hidden]{display:none}
+.lp-head{display:flex;align-items:center;gap:8px;height:34px;padding:0 8px;font-size:12px;color:var(--text-2);border-bottom:1px solid var(--stroke);margin-bottom:4px}
+.lp-head b{font-size:12.5px;font-weight:600;color:var(--text-1)}
+.lp-close{margin-left:auto;width:24px;height:24px;border:0;border-radius:var(--r-xs);background:transparent;color:var(--text-3);cursor:pointer;display:grid;place-items:center}
+.lp-close:hover{background:var(--hover);color:var(--text-1)}
+.lp-grp{padding:5px 8px 3px;font-size:9.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3)}
+.lp-item{display:flex;align-items:center;gap:9px;width:100%;height:28px;padding:0 8px;border:0;border-radius:var(--r-sm);
+  background:transparent;color:var(--text-1);font-size:12px;cursor:pointer;text-align:left}
+.lp-item:hover{background:var(--hover)}
+#win.panel-rail-hidden .workspace > .rail{display:none}
+.lp-item[aria-checked="true"],.lp-chip[aria-pressed="true"]{background:var(--sel)}
+.lp-item[aria-pressed="false"]{color:var(--text-3)}
+.lp-item .lp-tick{margin-left:auto;font-size:11px;color:var(--accent);opacity:0}
+.lp-item[aria-checked="true"] .lp-tick{opacity:1}
+.lp-item svg{width:15px;height:15px;flex:none;color:var(--text-3)}
+.lp-k{margin-left:auto;display:inline-flex;gap:3px}
+.lp-k b{font:500 10px/1.6 var(--font, "SF Mono");font-family:"SF Mono",ui-monospace,Menlo,monospace;color:var(--text-3);
+  border:1px solid var(--stroke);border-radius:4px;padding:0 5px;background:var(--surface-sunken)}
+.lp-chips{display:flex;gap:6px;flex-wrap:wrap;padding:6px 8px}
+.lp-chip{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 11px;border-radius:999px;
+  border:1px solid var(--stroke);background:var(--surface);color:var(--text-1);font-size:11.5px;cursor:pointer}
+.lp-chip:hover{background:var(--surface-strong)}
+.lp-chip[aria-pressed="true"]{background:var(--sel);color:var(--accent);border-color:color-mix(in srgb,var(--accent) 26%, transparent)}
+body.popout .pop-head{height:34px;display:flex;align-items:center;gap:8px;padding:0 12px;font-size:11.5px;color:var(--text-2);border-bottom:1px solid var(--stroke);background:var(--surface-strong)}
+body.popout .pop-head b{font-weight:600;color:var(--text-1)}
+body.popout .pop-head .out-back{margin-left:auto;height:24px;font-size:11px}
+@media (max-width:1023px){
+  .layout-pick{position:fixed;right:10px;top:60px}
+  .workspace > .dock:not(.right){width:clamp(210px,24vw,282px)}
+  .workspace > .dock.right{width:clamp(108px,14vw,240px)}
+}
+/* 独立弹出子窗口（?panel=…）：单区视图 */
+body.popout{overflow:auto}
+body.popout .titlebar,body.popout .menubar,body.popout .toolbar,
+body.popout .statusbar,body.popout .workspace > .rail,
+body.popout .bottomwrap{display:none !important}
+body.popout .window{position:fixed;inset:0;display:flex;flex-direction:column;border-radius:0;grid-template-rows:none}
+body.popout .workspace{flex:1;display:flex;padding:12px}
+body.popout .workspace > *{display:none !important}
+body.popout .split{flex:none}
+body.popout.popout-code .workspace > .center{display:block !important;flex:1}
+body.popout.popout-code .workspace .center > .split.top{display:none !important}
+body.popout.popout-code .workspace > .center .split.bottom{border-radius:var(--r-lg);flex:1 1 auto !important}
+body.popout.popout-canvas .workspace > .center{display:block !important;flex:1}
+body.popout.popout-canvas .workspace > .center > .split.bottom{display:none !important}
+body.popout.popout-canvas .workspace > .center .split.top{border-radius:var(--r-lg);flex:1 1 auto !important}
+body.popout.popout-chat .workspace > .dock.right{display:block !important;flex:1;width:auto}
+body.popout .vsplit,body.popout .detach{display:none !important}
+body.popout .tabs{padding:9px 10px 0}
+@media (prefers-reduced-motion:reduce){
+  .layout-pick{animation:none}
+}
+
+
+</style>
+</head>
+<body>
+
+<div class="window glass-thick" id="win">
+
+  <!-- ============================ 标题栏（Windows 原生控件） ============================ -->
+  <header class="titlebar">
+    <div class="brandmark">
+      <span class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h4l2-6 3 12 2-8 2 5h5"></path></svg>
+      </span>
+      <span class="name">SigFlow</span>
+    </div>
+    <div class="title">
+      <span class="path"><b>26_9_29_test</b><span class="dot">·</span>src / top.v<span class="dot">·</span><span class="modified">● 未保存</span></span>
+    </div>
+    <div class="topbar-right">
+      <div class="layout-controls" role="group" aria-label="面板显隐（VSCode 式布局开关）">
+        <button class="lc" id="panelLeftToggle" aria-pressed="true" title="显示 / 隐藏左侧面板" aria-label="显示或隐藏左侧面板">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.8" fill="none" stroke="currentColor" stroke-width="1.2"></rect><rect x="2.2" y="3.2" width="4.6" height="9.6" rx="1.2" fill="currentColor" opacity=".38"></rect></svg>
+        </button>
+        <button class="lc" id="panelBottomToggle" aria-pressed="true" title="显示 / 隐藏底部面板" aria-label="显示或隐藏底部面板">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.8" fill="none" stroke="currentColor" stroke-width="1.2"></rect><rect x="2.2" y="9" width="11.6" height="3.8" rx="1.2" fill="currentColor" opacity=".38"></rect></svg>
+        </button>
+        <button class="lc" id="panelRightToggle" aria-pressed="true" title="显示 / 隐藏右侧面板" aria-label="显示或隐藏右侧面板">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.8" fill="none" stroke="currentColor" stroke-width="1.2"></rect><rect x="9.2" y="3.2" width="4.6" height="9.6" rx="1.2" fill="currentColor" opacity=".38"></rect></svg>
+        </button>
+        <button class="lc" id="layoutPickerBtn" aria-haspopup="true" aria-expanded="false" title="自定义布局" aria-label="自定义布局">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.8" fill="none" stroke="currentColor" stroke-width="1.2"></rect><path d="M4.5 5.4h6M4.5 7.9h6M4.5 10.4h3.4" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round"></path></svg>
+        </button>
+        <div class="layout-pick" id="layoutPicker" role="dialog" aria-label="自定义布局" hidden="">
+          <div class="lp-head"><b>自定义布局</b><button class="lp-close" title="关闭" aria-label="关闭自定义布局">✕</button></div>
+          <div class="lp-grp">布局预设</div>
+          <div class="lp-chips" role="group" aria-label="布局预设">
+            <button class="lp-chip" data-preset="classic" aria-pressed="true">经典</button>
+            <button class="lp-chip" data-preset="code" aria-pressed="false">编码优先</button>
+            <button class="lp-chip" data-preset="canvas" aria-pressed="false">画布优先</button>
+            <button class="lp-chip" data-preset="chat" aria-pressed="false">Chat 分离</button>
+          </div>
+          <div class="lp-grp">可见性</div>
+          <button class="lp-item" data-vis="menubar" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"></path></svg><span>菜单栏</span><span class="lp-k"><b>Ctrl</b><b>Shift</b><b>M</b></span><span class="lp-tick">✓</span></button>
+          <button class="lp-item" data-vis="rail" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="3" y="4" width="5" height="17" rx="1.5"></rect><path d="M11 4h10v17H11z" opacity=".4"></path></svg><span>活动栏</span><span class="lp-k"><b>Ctrl</b><b>Shift</b><b>A</b></span><span class="lp-tick">✓</span></button>
+          <button class="lp-item" data-vis="left" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="3" y="4" width="8" height="17" rx="1.5"></rect><path d="M14 4h7v17h-7z" opacity=".4"></path></svg><span>主侧栏</span><span class="lp-k"><b>Ctrl</b><b>B</b></span><span class="lp-tick">✓</span></button>
+          <button class="lp-item" data-vis="right" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="13" y="4" width="8" height="17" rx="1.5"></rect><path d="M3 4h7v17H3z" opacity=".4"></path></svg><span>辅助侧边栏</span><span class="lp-k"><b>Ctrl</b><b>Alt</b><b>B</b></span><span class="lp-tick">✓</span></button>
+          <button class="lp-item" data-vis="bottom" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="3" y="4" width="18" height="10" rx="1.5"></rect><path d="M3 17h18v2.5a1.5 1.5 0 01-1.5 1.5h-15A1.5 1.5 0 013 19.5z" opacity=".4"></path></svg><span>面板</span><span class="lp-k"><b>Ctrl</b><b>J</b></span><span class="lp-tick">✓</span></button>
+          <button class="lp-item" data-vis="statusbar" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M3 20h18" opacity=".4"></path><rect x="3" y="4" width="18" height="13" rx="1.5" opacity=".4"></rect></svg><span>状态栏</span><span class="lp-tick">✓</span></button>
+          <div class="lp-grp">主侧栏位置</div>
+          <button class="lp-item" data-side="left" aria-checked="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="3" y="4" width="8" height="17" rx="1.5"></rect><path d="M14 4h7v17h-7z" opacity=".35"></path></svg><span>左对齐</span><span class="lp-tick">✓</span></button>
+          <button class="lp-item" data-side="right" aria-checked="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="13" y="4" width="8" height="17" rx="1.5"></rect><path d="M3 4h7v17H3z" opacity=".35"></path></svg><span>右对齐</span><span class="lp-tick">✓</span></button>
+          <div class="lp-grp">面板对齐方式</div>
+          <button class="lp-item" data-bal="left" aria-checked="false"><span>左对齐</span><span class="lp-tick">✓</span></button>
+          <button class="lp-item" data-bal="right" aria-checked="false"><span>右对齐</span><span class="lp-tick">✓</span></button>
+          <button class="lp-item" data-bal="center" aria-checked="false"><span>居中</span><span class="lp-tick">✓</span></button>
+          <button class="lp-item" data-bal="just" aria-checked="true"><span>两端对齐</span><span class="lp-tick">✓</span></button>
+          <div class="lp-grp">面板位置</div>
+          <button class="lp-item" data-pos="bottom" aria-checked="true"><span>底部</span><span class="lp-tick">✓</span></button>
+          <button class="lp-item" data-pos="top" aria-checked="false"><span>顶部对齐</span><span class="lp-tick">✓</span></button>
+          <div class="lp-grp">工作区拖出（支持多显示器）</div>
+          <button class="lp-item" data-out="canvas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="1.8"></rect><path d="M14 21l4-3 4 3" transform="scale(.7) translate(6 5)"></path></svg><span>绘图窗口 → 独立窗口</span></button>
+          <button class="lp-item" data-out="code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M4 4h16a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V5a1 1 0 011-1z"></path><path d="M8 9h8M8 13h5" opacity=".5"></path></svg><span>代码编辑窗口 → 独立窗口</span></button>
+          <button class="lp-item" data-out="chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"></path></svg><span>Agent Chat → 独立窗口</span></button>
+        </div>
+      </div>
+      <div class="win-controls" role="group" aria-label="窗口控件">
+      <button class="wc" title="最小化" aria-label="最小化"><svg viewBox="0 0 12 12"><line x1="2" y1="6" x2="10" y2="6"></line></svg></button>
+      <button class="wc" title="最大化" aria-label="最大化"><svg viewBox="0 0 12 12"><rect x="2.2" y="2.2" width="7.6" height="7.6" rx="1"></rect></svg></button>
+      <button class="wc close" title="关闭" aria-label="关闭"><svg viewBox="0 0 12 12"><line x1="2.5" y1="2.5" x2="9.5" y2="9.5"></line><line x1="9.5" y1="2.5" x2="2.5" y2="9.5"></line></svg></button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============================ 菜单栏 ============================ -->
+  <nav class="menubar" id="menubar" aria-label="主菜单">
+    <div class="menu" data-menu="">
+      <button aria-haspopup="true">File</button>
+      <div class="menu-panel" role="menu">
+        <button class="mi" role="menuitem">Open Project…<span class="k">Ctrl+Shift+O</span></button>
+        <button class="mi" role="menuitem">New Project<span class="k">Ctrl+N</span></button>
+        <button class="mi" role="menuitem">Open…<span class="k">Ctrl+O</span></button>
+        <button class="mi" role="menuitem">Open Recent ▸</button>
+        <div class="msep"></div>
+        <button class="mi" role="menuitem">Save<span class="k">Ctrl+S</span></button>
+        <button class="mi" role="menuitem">Save As…<span class="k">Ctrl+Shift+S</span></button>
+        <button class="mi" role="menuitem">Export Image…</button>
+        <div class="msep"></div>
+        <button class="mi" role="menuitem">Preferences…</button>
+        <button class="mi" role="menuitem">Exit<span class="k">Ctrl+Q</span></button>
+      </div>
+    </div>
+    <div class="menu" data-menu="">
+      <button aria-haspopup="true">Edit</button>
+      <div class="menu-panel" role="menu">
+        <button class="mi" role="menuitem" disabled="">Can't Undo</button>
+        <button class="mi" role="menuitem">Cut<span class="k">Ctrl+X</span></button>
+        <button class="mi" role="menuitem">Copy<span class="k">Ctrl+C</span></button>
+        <button class="mi" role="menuitem">Paste<span class="k">Ctrl+V</span></button>
+        <div class="msep"></div>
+        <button class="mi" role="menuitem">Delete<span class="k">Del</span></button>
+        <button class="mi" role="menuitem">Duplicate<span class="k">Ctrl+D</span></button>
+        <button class="mi" role="menuitem">Select All<span class="k">Ctrl+A</span></button>
+      </div>
+    </div>
+    <div class="menu" data-menu="">
+      <button aria-haspopup="true">Project</button>
+      <div class="menu-panel" role="menu">
+        <button class="mi" role="menuitem">Add Circuit…</button>
+        <button class="mi" role="menuitem">Load Library ▸</button>
+        <button class="mi" role="menuitem">Analyze Circuit</button>
+        <button class="mi" role="menuitem">Get Circuit Statistics</button>
+        <button class="mi" role="menuitem">Edit Circuit Appearance</button>
+      </div>
+    </div>
+    <div class="menu" data-menu="">
+      <button aria-haspopup="true">Simulate</button>
+      <div class="menu-panel" role="menu">
+        <button class="mi" role="menuitem">Compile Simulation Model<span class="k">F5</span></button>
+        <button class="mi" role="menuitem">Run Simulation<span class="k">F6</span></button>
+        <button class="mi" role="menuitem">Cancel Simulation<span class="k">Shift+F5</span></button>
+        <div class="msep"></div>
+        <button class="mi" role="menuitem">Reset Simulation<span class="k">Ctrl+R</span></button>
+        <button class="mi" role="menuitem">Tick Once<span class="k">Ctrl+T</span></button>
+        <button class="mi" role="menuitem">Tick Frequency ▸</button>
+      </div>
+    </div>
+    <div class="menu" data-menu="">
+      <button aria-haspopup="true">FPGA</button>
+      <div class="menu-panel" role="menu">
+        <button class="mi" role="menuitem">FPGA Tools…</button>
+        <button class="mi" role="menuitem">Pin Binding…</button>
+        <button class="mi" role="menuitem">debug_contract…</button>
+        <button class="mi" role="menuitem">TraceBridge Hardware Capture…</button>
+      </div>
+    </div>
+    <div class="menu" data-menu="">
+      <button aria-haspopup="true">Help</button>
+      <div class="menu-panel" role="menu">
+        <button class="mi" role="menuitem">Documentation</button>
+        <button class="mi" role="menuitem">About SigFlow</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ============================ 顶端工具栏 ============================ -->
+  <div class="toolbar">
+    <button class="chip primary lg-glass" title="综合 (Yosys)" data-tooltip="综合 (Yosys)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4l14 8-14 8z"></path></svg>
+      <span>Synthesize</span> <span class="k">⌘R</span>    </button>
+    <button class="chip" title="布局布线 (nextpnr)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect><path d="M10 6.5h5a2 2 0 012 2v5"></path></svg>
+      Place &amp; Route
+    </button>
+    <button class="chip warn" title="烧录 (openFPGALoader)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M12 3v10"></path><path d="M8 11l4 4 4-4"></path><path d="M4 20h16"></path></svg>
+      Program
+    </button>
+    <span class="sep"></span>
+    <button class="chip" title="仿真 (Verilator)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5v14l11-7z"></path></svg>
+      Simulate
+    </button>
+    <button class="chip" title="波形 (VCD)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h3l2-6 3 12 3-9 2 3h5"></path></svg>
+      Waveform
+    </button>
+    <div class="spacer"></div>
+    <span class="chip steady" title="当前作业">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+      PnR 运行中 <span class="k num" id="pnrTimer">00:00:42</span>
+    </span>
+    <span class="sep"></span>
+    <a class="chip" href="index.html" title="查看各组件模块图" style="text-decoration:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="7" height="7" rx="1.4"></rect><rect x="14" y="4" width="7" height="7" rx="1.4"></rect><rect x="3" y="14" width="7" height="7" rx="1.4"></rect><rect x="14" y="14" width="7" height="7" rx="1.4"></rect></svg>
+      组件库
+    </a>
+    <button class="tbtn" id="themeBtn" title="主题：跟随系统 / 浅色 / 深色" aria-label="切换主题">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"></path></svg>
+    </button>
+  </div>
+
+  <!-- ============================ 主工作区 ============================ -->
+  <main class="workspace">
+
+    <!-- 竖排图标栏（三页互斥） -->
+    <aside class="rail glass-thick" role="tablist" aria-orientation="vertical" aria-label="左侧面板切换">
+      <button class="rtb" data-rail="proj" aria-pressed="false" aria-label="Project Manager" title="Project Manager">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path></svg>
+      </button>
+      <button class="rtb" data-rail="tree" aria-pressed="false" aria-label="SigFlow Tree" title="SigFlow Tree">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2-6 3 12 2-6h5"></path></svg>
+      </button>
+      <button class="rtb" data-rail="lib" aria-pressed="true" aria-label="Component Library" title="Component Library">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="7" height="7" rx="1.4"></rect><rect x="14" y="4" width="7" height="7" rx="1.4"></rect><rect x="3" y="14" width="7" height="7" rx="1.4"></rect><rect x="14" y="14" width="7" height="7" rx="1.4"></rect></svg>
+      </button>
+      <span class="rlabel">Panels</span>
+    </aside>
+
+    <!-- 左栏（simplebook：3 页互斥） -->
+    <section class="dock glass-thick">
+      <div class="tabs" data-tabs="left">
+        <button class="tab" data-tab="proj">Project</button>
+        <button class="tab" data-tab="tree">SigFlow Tree</button>
+        <button class="tab" aria-selected="true" data-tab="lib">Component Library</button>
+      </div>
+      <div class="pane" data-panes="left">
+        <!-- Project Manager -->
+        <div data-pane="proj" hidden="">
+          <div class="tree">
+            <div class="grp">26_9_29_test</div>
+            <div class="node"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path></svg><span class="nm">src</span></div>
+            <div class="node sel"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7 3h7l5 5v13H7z"></path><path d="M14 3v5h5"></path></svg><span class="nm">top.v</span><span class="badge">59 B</span></div>
+            <div class="node"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path></svg><span class="nm">lib</span></div>
+            <div class="node"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 3h9l4 4v14H6z"></path><path d="M9 12h6M9 16h6"></path></svg><span class="nm">sigflow.project</span></div>
+            <div class="node"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 3h9l4 4v14H6z"></path></svg><span class="nm">README.md</span></div>
+          </div>
+        </div>
+        <!-- SigFlow Tree -->
+        <div data-pane="tree" hidden="">
+          <div class="tree">
+            <div class="grp">Project top</div>
+            <div class="node"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="4" width="18" height="16" rx="2"></rect></svg><span class="nm">top</span></div>
+            <div class="node sel"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M4 12h4l2-6 3 12 2-6h5"></path></svg><span class="nm">u1 · and</span></div>
+            <div class="node"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M4 12h4l2-6 3 12 2-6h5"></path></svg><span class="nm">u2 · xnor</span></div>
+            <div class="grp">Signals</div>
+            <div class="node"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 12h18"></path></svg><span class="nm">a</span><span class="badge">wire</span></div>
+            <div class="node"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 12h18"></path></svg><span class="nm">b</span><span class="badge">wire</span></div>
+            <div class="node"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 12h18"></path></svg><span class="nm">y</span><span class="badge">wire</span></div>
+          </div>
+        </div>
+        <!-- Component Library -->
+        <div data-pane="lib">
+          <div class="tree">
+            <div class="grp">Input/Output</div>
+            <div class="node" data-comp="pinInput"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="8" cy="12" r="3"></circle><path d="M11 12h9"></path></svg><span class="nm">Pin (Input)</span></div>
+            <div class="node" data-comp="pinOutput"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="16" cy="12" r="3"></circle><path d="M4 12h9"></path></svg><span class="nm">Pin (Output)</span></div>
+            <div class="node" data-comp="led"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="6"></circle></svg><span class="nm">LED</span></div>
+
+            <div class="grp">Wiring</div>
+            <div class="node" data-comp="splitter"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M4 12h6l4-6h6M10 12l4 6h6"></path></svg><span class="nm">Splitter</span></div>
+            <div class="node" data-comp="probe"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 12h8"></path><circle cx="16" cy="12" r="4"></circle></svg><span class="nm">Probe</span></div>
+            <div class="node" data-comp="clock"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M3 12h4V7h6v10h6v-5h2"></path></svg><span class="nm">Clock</span></div>
+
+            <div class="grp">Gates</div>
+            <div class="node" data-comp="and"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 6h8a6 6 0 010 12H4z"></path></svg><span class="nm">AND Gate</span></div>
+            <div class="node" data-comp="nand"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 6h8a6 6 0 010 12H4z"></path><circle cx="19.6" cy="12" r="1.8"></circle></svg><span class="nm">NAND Gate</span></div>
+            <div class="node" data-comp="or"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 6c4 0 8 2 8 6s-4 6-8 6c3-4 3-8 0-12z"></path></svg><span class="nm">OR Gate</span></div>
+            <div class="node" data-comp="xor"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 6c4 0 8 2 8 6s-4 6-8 6c3-4 3-8 0-12z"></path><path d="M3 6c1 4 1 8 0 12"></path></svg><span class="nm">XOR Gate</span></div>
+            <div class="node" data-comp="xnor"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 6c4 0 8 2 8 6s-4 6-8 6c3-4 3-8 0-12z"></path><path d="M3 6c1 4 1 8 0 12"></path><circle cx="19.4" cy="12" r="1.8"></circle></svg><span class="nm">XNOR Gate</span></div>
+
+            <div class="grp">Plexers</div>
+            <div class="node" data-comp="multiplexer"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M4 5h16l-6 7 6 7H4z"></path></svg><span class="nm">Multiplexer</span></div>
+            <div class="node" data-comp="decoder"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="6" width="18" height="12" rx="1.5"></rect></svg><span class="nm">Decoder</span></div>
+
+            <div class="grp">Memory</div>
+            <div class="node" data-comp="register"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="7" width="18" height="10" rx="1.5"></rect><path d="M8 7v10M16 7v10"></path></svg><span class="nm">Register</span></div>
+            <div class="node" data-comp="ram"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M7 9h10M7 13h10M7 17h6"></path></svg><span class="nm">RAM</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 左栏宽度可拖拽调整 -->
+    <div class="dock-resizer left" data-resize="left" role="separator" aria-orientation="vertical" aria-label="调整左栏宽度" tabindex="0" title="拖拽调整左栏宽度"></div>
+
+    <!-- 中间：画布 + 编辑器 -->
+    <section class="center" id="center">
+      <!-- 上：画布 -->
+      <div class="split top dock glass-thick" id="splitTop">
+        <div class="tabs canvas-tabs" data-tabs="canvas" style="padding:8px 8px 0">
+          <button class="tab" aria-selected="true" data-tab="c1">top</button>
+          <button class="tab" data-tab="c2">blink</button>
+          <span class="spacer"></span>
+          <span class="chip steady" style="height:24px;font-size:11.5px">Top module: <b style="color:var(--text-1);font-weight:600;margin-left:2px">top</b></span>
+        </div>
+        <div class="pane" style="padding:0">
+          <div class="canvas-wrap" id="canvasWrap">
+            <svg id="scene" viewBox="0 0 1040 620" preserveAspectRatio="xMidYMid meet">
+              <defs>
+                <pattern id="g20" width="20" height="20" patternUnits="userSpaceOnUse">
+                  <path d="M20 0H0V20" fill="none" stroke="var(--grid)" stroke-width="1"></path>
+                </pattern>
+                <pattern id="g100" width="100" height="100" patternUnits="userSpaceOnUse">
+                  <path d="M100 0H0V100" fill="none" stroke="var(--grid-strong)" stroke-width="1"></path>
+                </pattern>
+                <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+                  <feDropShadow dx="0" dy="1.6" stdDeviation="2.2" flood-color="#000" flood-opacity=".16"></feDropShadow>
+                </filter>
+              </defs>
+
+              <rect width="1040" height="620" fill="url(#g20)"></rect>
+              <rect width="1040" height="620" fill="url(#g100)"></rect>
+
+              <!-- 导线 -->
+              <g fill="none" stroke="var(--wire)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M124 185 H240"></path>
+                <path d="M124 315 H190 V265 H240"></path>
+                <path d="M375 225 H432 V330 H470"></path>
+                <path d="M124 185 H150 V280 H470"></path>
+                <path d="M612 305 H690"></path>
+              </g>
+              <circle cx="150" cy="185" r="3.6" fill="var(--wire)"></circle>
+
+              <!-- 输入引脚 -->
+              <g filter="url(#soft)">
+                <rect x="70" y="170" width="54" height="30" rx="8" fill="var(--surface-strong)" stroke="var(--stroke)"></rect>
+                <rect x="70" y="300" width="54" height="30" rx="8" fill="var(--surface-strong)" stroke="var(--stroke)"></rect>
+              </g>
+              <text x="97" y="190" text-anchor="middle" font-size="13" fill="var(--text-1)" font-family="ui-monospace,Menlo,monospace">a</text>
+              <text x="97" y="320" text-anchor="middle" font-size="13" fill="var(--text-1)" font-family="ui-monospace,Menlo,monospace">b</text>
+
+              <!-- 选中元件 AND + 手柄 -->
+              <g filter="url(#soft)">
+                <rect x="240" y="150" width="135" height="150" rx="12" fill="var(--canvas)" stroke="var(--accent)" stroke-width="1.6"></rect>
+                <path d="M240 178 H286 A47 47 0 0 1 286 272 H240 Z" fill="none" stroke="var(--accent)" stroke-width="1.6"></path>
+                <text x="258" y="212" font-size="13" font-weight="600" fill="var(--accent)">and</text>
+                <text x="258" y="230" font-size="10.5" fill="var(--text-3)" font-family="ui-monospace,Menlo,monospace">u1</text>
+              </g>
+              <g fill="var(--accent)">
+                <rect x="235.5" y="145.5" width="7" height="7" rx="1.5"></rect><rect x="303.5" y="145.5" width="7" height="7" rx="1.5"></rect><rect x="372.5" y="145.5" width="7" height="7" rx="1.5"></rect>
+                <rect x="235.5" y="221.5" width="7" height="7" rx="1.5"></rect><rect x="372.5" y="221.5" width="7" height="7" rx="1.5"></rect>
+                <rect x="235.5" y="296.5" width="7" height="7" rx="1.5"></rect><rect x="303.5" y="296.5" width="7" height="7" rx="1.5"></rect><rect x="372.5" y="296.5" width="7" height="7" rx="1.5"></rect>
+              </g>
+
+              <!-- XNOR -->
+              <g filter="url(#soft)">
+                <rect x="470" y="252" width="122" height="106" rx="12" fill="var(--canvas)" stroke="var(--stroke-strong)"></rect>
+                <path d="M486 264 Q540 264 580 305 Q540 346 486 346 Q512 305 486 264 Z" fill="none" stroke="var(--text-2)" stroke-width="1.5"></path>
+                <circle cx="588" cy="305" r="6.5" fill="var(--canvas)" stroke="var(--text-2)" stroke-width="1.5"></circle>
+              </g>
+              <text x="536" y="300" text-anchor="middle" font-size="12.5" fill="var(--text-1)">xnor</text>
+              <text x="536" y="316" text-anchor="middle" font-size="10.5" fill="var(--text-3)" font-family="ui-monospace,Menlo,monospace">u2</text>
+
+              <!-- 输出引脚 -->
+              <g filter="url(#soft)">
+                <rect x="690" y="290" width="56" height="30" rx="8" fill="var(--surface-strong)" stroke="var(--stroke)"></rect>
+              </g>
+              <text x="718" y="310" text-anchor="middle" font-size="13" fill="var(--text-1)" font-family="ui-monospace,Menlo,monospace">y</text>
+
+              <!-- 幽灵放置预览 -->
+              <g class="ghost" id="ghost">
+                <rect x="-46" y="-40" width="92" height="80" rx="10" fill="none" stroke="var(--brand)" stroke-width="1.6" stroke-dasharray="6 5"></rect>
+                <text id="ghostLabel" y="4" text-anchor="middle" font-size="13" fill="var(--brand)">and</text>
+              </g>
+            </svg>
+
+            <!-- 拖出为独立窗口 -->
+            <button class="tbtn glass canvaspop" id="popCanvas" title="拖出为独立窗口（支持拖到另一块显示器）" aria-label="将绘图窗口拖出为独立窗口">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6"></path><path d="M20 4l-8 8"></path><path d="M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5"></path></svg>
+            </button>
+            <!-- 画布浮动快捷工具条（HandyToolKit） -->
+            <div class="handytools glass" role="toolbar" aria-label="画布工具">
+              <button class="tbtn" data-tool="select" aria-pressed="true" title="选择 (S)" aria-label="选择工具">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M5 3l14 8-6 1.5L10 19z"></path></svg>
+              </button>
+              <button class="tbtn" data-tool="text" aria-pressed="false" title="文本 (T)" aria-label="文本工具">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M5 6h14M12 6v13M9 19h6"></path></svg>
+              </button>
+              <button class="tbtn" data-tool="component" aria-pressed="false" title="元件 (C)" aria-label="元件工具">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M9 9h6v6H9z"></path></svg>
+              </button>
+              <button class="tbtn" data-tool="wire" aria-pressed="false" title="导线 (W)" aria-label="导线工具">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M4 18V8a3 3 0 013-3h6"></path><circle cx="18" cy="6" r="2.4"></circle><circle cx="5" cy="18" r="2.4"></circle></svg>
+              </button>
+              <button class="tbtn" data-tool="pan" aria-pressed="false" title="平移 (空格拖拽)" aria-label="平移工具">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M3 12h18"></path><path d="M12 3l-2.5 2.5M12 3l2.5 2.5M12 21l-2.5-2.5M12 21l2.5-2.5M3 12l2.5-2.5M3 12l2.5 2.5M21 12l-2.5-2.5M21 12l-2.5 2.5"></path></svg>
+              </button>
+              <button class="tbtn" data-tool="eraser" aria-pressed="false" title="擦除 (E)" aria-label="擦除工具">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M4 16l8-8 5 5-4 4H6z"></path><path d="M11 20h9"></path></svg>
+              </button>
+            </div>
+
+            <!-- 缩放 HUD -->
+            <div class="hud glass">
+              <button class="tbtn" id="zoomOut" title="缩小">−</button>
+              <span class="z num" id="zoomVal">100%</span>
+              <button class="tbtn" id="zoomIn" title="放大">+</button>
+              <span class="sep"></span>
+              <button class="tbtn" id="zoomFit" title="适应窗口">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 自定义分栏拖拽条 -->
+      <div class="vsplit" id="vsplit" role="separator" aria-orientation="horizontal" aria-label="调整画布与编辑器高度" tabindex="0"></div>
+
+      <!-- 下：代码编辑器 -->
+      <div class="split bottom dock glass-thick" id="splitBottom">
+        <div class="editor-head">
+          <svg class="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="color:var(--text-3)"><path d="M7 3h7l5 5v13H7z"></path><path d="M14 3v5h5"></path></svg>
+          <b>top.v</b><span style="color:var(--text-3)">— Verilog</span>
+          <span class="badge">Tree-sitter · 已校验</span>
+          <button class="tbtn detach" id="popCode" title="拖出为独立窗口（支持拖到另一块显示器）" aria-label="将代码编辑器拖出为独立窗口">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6"></path><path d="M20 4l-8 8"></path><path d="M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5"></path></svg>
+          </button>
+        </div>
+        <div class="pane">
+          <div class="code" aria-label="top.v 源码">
+            <div class="gutter">1<br>2<br>3<br>4<br>5<br>6<br>7<br>8<br>9<br>10</div>
+            <div class="src"><span class="kw">module</span> <span class="ty">top</span> (
+  <span class="kw">input</span>  <span class="kw">wire</span> a,
+  <span class="kw">input</span>  <span class="kw">wire</span> b,
+  <span class="kw">output</span> <span class="kw">wire</span> y
+);
+  <span class="kw">wire</span> n1;
+  <span class="ty">and</span>  u1 (.A(a), .B(b), .Y(n1));
+  <span class="ty">xnor</span> u2 (.A(a), .B(n1), .Y(y));
+<span class="kw">endmodule</span> <span class="cm">// 2 instances · 3 signals</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 右栏宽度可拖拽调整 -->
+    <div class="dock-resizer right" data-resize="right" role="separator" aria-orientation="vertical" aria-label="调整右栏宽度" tabindex="0" title="拖拽调整右栏宽度"></div>
+
+    <!-- 右栏（auiNotebook：3 页） -->
+    <section class="dock right glass-thick">
+      <div class="tabs" data-tabs="right">
+        <button class="tab" aria-selected="true" data-tab="prop">Property</button>
+        <button class="tab" data-tab="pin">Pin Binding</button>
+        <button class="tab" data-tab="ai">DeepSeek</button>
+        <button class="tbtn detach" id="popChat" title="拖出为独立窗口（支持拖到另一块显示器）" aria-label="将 Agent Chat 拖出为独立窗口">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6"></path><path d="M20 4l-8 8"></path><path d="M18 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V7a1 1 0 011-1h5"></path></svg>
+        </button>
+      </div>
+      <div class="pane" data-panes="right" style="transform: translate(2px, -2px);">
+        <div data-pane="prop">
+          <div class="field"><label>Name</label><input class="input" value="u1"></div>
+          <div class="field"><label>Module</label><input class="input" value="and"></div>
+          <div class="field"><label>Direction</label>
+            <select class="input"><option>in</option><option>out</option><option selected="">inout</option></select>
+          </div>
+          <div class="field"><label>Width</label><input class="input" value="1"></div>
+          <div class="field"><label>Position</label><input class="input" value="240, 150"></div>
+          <div class="field"><label>In pins</label><input class="input" value="2" readonly=""></div>
+          <div class="field"><label>Out pins</label><input class="input" value="1" readonly=""></div>
+        </div>
+        <div data-pane="pin" hidden="">
+          <div class="field"><label>Package</label><input class="input" value="GW1NR-LV9QN88PC6/I5"></div>
+          <div class="field"><label>a</label><select class="input"><option selected="">IOB_25</option><option>IOB_26</option></select></div>
+          <div class="field"><label>b</label><select class="input"><option>IOB_27</option><option selected="">IOB_28</option></select></div>
+          <div class="field"><label>y</label><select class="input"><option selected="">IOB_31</option><option>IOB_32</option></select></div>
+        </div>
+        <div data-pane="ai" hidden="">
+          <div class="node" style="color:var(--text-2);font-size:12.5px;padding:8px">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z"></path></svg>
+            <span class="nm">问：帮我给 top 加一个 2 位计数器</span>
+          </div>
+          <div class="node sel" style="font-size:12.5px;padding:8px;display:block;line-height:1.55">
+            建议：在 Pin (Input) 增加 <b class="mono">clk</b>，插入两个 <b>Register</b> 串联，输出接 <b>Pin (Output)</b>。
+            <div style="color:var(--text-3);font-size:11.5px;margin-top:4px">已生成对应的 Verilog 片段，可一键插入编辑器。</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============================ 底栏 ============================ -->
+  <div class="bottomwrap">
+    <section class="dock glass-thick bottom">
+      <div class="tabs" data-tabs="bottom">
+        <button class="tab" aria-selected="true" data-tab="term">Terminal</button>
+        <button class="tab" data-tab="wave">Waveform</button>
+      </div>
+      <div class="pane" data-panes="bottom" style="padding:0">
+        <div data-pane="term">
+          <div class="term">
+            <div><span class="dim">$</span> <span class="cmd">sigflow</span> --open 26_9_29_test</div>
+            <div class="dim">plugin host diagnostics:</div>
+            <div><span class="ok">[Ready]</span> eda-synth-yosys 1.0</div>
+            <div><span class="ok">[Ready]</span> eda-pnr-nextpnr 1.0</div>
+            <div><span class="ok">[Ready]</span> eda-pack-gowin 1.0</div>
+            <div><span class="ok">[Ready]</span> eda-program-openfpgaloader 1.0</div>
+            <div><span class="ok">[Ready]</span> eda-sim-verilator 1.0</div>
+            <div><span class="ok">[Ready]</span> eda-target-tangnano9k 1.0</div>
+            <div><span class="wrn">[WARN]</span> libftdi not found — falling back to UART transport</div>
+            <div>Opening project: D:\Sigflow\26_9_29_test</div>
+            <div>Parsing: src/top.v — 1 module, 2 instances, 3 signals</div>
+          </div>
+        </div>
+        <div data-pane="wave" hidden="">
+          <div class="wave">
+            <div class="row"><span class="lbl">clk</span><svg viewBox="0 0 600 34" preserveAspectRatio="none"><path d="M0 28h20V6h20v22h20V6h20v22h20V6h20v22h20V6h20v22h20V6h20v22h20V6h20v22h20V6h20v22h20V6h20v22h20V6h20v22h20V6h20v22h20V6h20v22h20V6h20v22h20V6h20v22" fill="none" stroke="var(--brand)" stroke-width="2"></path></svg></div>
+            <div class="row"><span class="lbl">rst_n</span><svg viewBox="0 0 600 34" preserveAspectRatio="none"><path d="M0 28h120V6h480" fill="none" stroke="var(--accent)" stroke-width="2"></path></svg></div>
+            <div class="row"><span class="lbl">a[1:0]</span><svg viewBox="0 0 600 34" preserveAspectRatio="none"><path d="M0 26h60v-8h60v8h60v-8h60v8h60v-8h60v8h60v-8h60v8h60" fill="none" stroke="var(--warn)" stroke-width="2"></path></svg></div>
+            <div class="row"><span class="lbl">y</span><svg viewBox="0 0 600 34" preserveAspectRatio="none"><path d="M0 28h180v-22h120v22h300" fill="none" stroke="var(--text-1)" stroke-width="2" opacity=".82"></path></svg></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============================ 状态栏 ============================ -->
+  <footer class="statusbar">
+    <span class="pill"><i class="led" id="statusLed"></i> <span id="statusText">Component Tool · 就绪</span></span>
+    <span class="spacer" style="flex:1"></span>
+    <span class="pill mono" id="coords">x 240  y 150</span>
+    <span class="pill">Grid 20</span>
+    <span class="pill" id="zoomStatus">Zoom 100%</span>
+    <span class="pill">dev · gcc-16.2.0</span>
+  </footer>
+</div>
+
+<script>
+/* --------------------------------------------------------------------------
+   仅用于演示状态切换；真实还原时这些逻辑在 wxWidgets 侧（见 design-notes.md）
+   -------------------------------------------------------------------------- */
+
+/* 主题：auto -> light -> dark -> auto */
+const themeBtn = document.getElementById('themeBtn');
+const order = ['auto','light','dark'];
+document.documentElement.dataset.theme = localStorage.getItem('sigflow-theme') || 'auto';
+themeBtn.classList.toggle('on', document.documentElement.dataset.theme !== 'auto');
+themeBtn.addEventListener('click', () => {
+  const cur = document.documentElement.dataset.theme;
+  const next = order[(order.indexOf(cur) + 1) % order.length];
+  document.documentElement.dataset.theme = next;
+  localStorage.setItem('sigflow-theme', next);
+  themeBtn.classList.toggle('on', next !== 'auto');
+});
+
+/* 菜单栏：点击展开，点击外部/再次点击关闭 */
+const menubar = document.getElementById('menubar');
+menubar.querySelectorAll('[data-menu]').forEach(menu => {
+  const btn = menu.querySelector('button');
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const willOpen = menu.dataset.open !== 'true';
+    menubar.querySelectorAll('[data-menu]').forEach(m => m.dataset.open = 'false');
+    menu.dataset.open = willOpen ? 'true' : 'false';
+  });
+  menu.querySelector('.menu-panel').addEventListener('click', e => {
+    const item = e.target.closest('.mi');
+    if (!item || item.disabled) return;
+    setStatus('执行菜单命令：' + item.textContent.replace(/\s+/g,' ').trim());
+    menu.dataset.open = 'false';
+  });
+});
+document.addEventListener('click', () => {
+  menubar.querySelectorAll('[data-menu]').forEach(m => m.dataset.open = 'false');
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') menubar.querySelectorAll('[data-menu]').forEach(m => m.dataset.open = 'false'); });
+
+/* 标签页切换（左 / 右 / 底 / 画布） */
+document.querySelectorAll('[data-tabs]').forEach(group => {
+  const key = group.dataset.tabs;
+  const panes = document.querySelector(`[data-panes="${key}"]`);
+  if (!panes) return;
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => t.removeAttribute('aria-selected'));
+    tab.setAttribute('aria-selected', 'true');
+    panes.querySelectorAll('[data-pane]').forEach(p => p.hidden = p.dataset.pane !== tab.dataset.tab);
+  });
+});
+
+/* 竖排图标栏：三页互斥，联动左栏标签 */
+const railButtons = document.querySelectorAll('.rail .rtb');
+const leftTabs = document.querySelectorAll('[data-tabs="left"] .tab');
+railButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    railButtons.forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
+    leftTabs.forEach(t => t.setAttribute('aria-selected', String(t.dataset.tab === btn.dataset.rail)));
+    const panes = document.querySelector('[data-panes="left"]');
+    panes.querySelectorAll('[data-pane]').forEach(p => p.hidden = p.dataset.pane !== btn.dataset.rail);
+    setStatus('面板：' + btn.getAttribute('aria-label'));
+  });
+});
+
+/* 状态栏 */
+const statusText = document.getElementById('statusText');
+const statusLed = document.getElementById('statusLed');
+function setStatus(msg, warn) {
+  statusText.textContent = msg;
+  statusLed.classList.toggle('warn', !!warn);
+}
+
+/* 画布工具切换（HandyToolKit） */
+const toolButtons = document.querySelectorAll('.handytools .tbtn');
+const toolNames = { select:'Select Tool', text:'Text Tool', component:'Component Tool', wire:'Wire Tool', pan:'Pan Tool', eraser:'Eraser Tool' };
+let currentTool = 'select';
+function selectTool(name) {
+  currentTool = name;
+  toolButtons.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tool === name)));
+  canvasWrap.classList.toggle('tool-pan', name === 'pan');
+}
+toolButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    selectTool(btn.dataset.tool);
+    setStatus(toolNames[btn.dataset.tool] + ' · 就绪');
+  });
+});
+
+/* 画布视图：自由平移 + 缩放（scale = zoom/100） */
+const svg = document.getElementById('scene');
+const canvasWrap = document.getElementById('canvasWrap');
+let view = { x:0, y:0 };
+let zoom = 100;
+let spaceDown = false;
+let dragView = null, dragMoved = false;
+const zoomVal = document.getElementById('zoomVal');
+const zoomStatus = document.getElementById('zoomStatus');
+function applyView() {
+  const s = zoom / 100;
+  svg.style.transform = `translate(${view.x}px, ${view.y}px) scale(${s})`;
+  zoomVal.textContent = Math.round(zoom) + '%';
+  zoomStatus.textContent = 'Zoom ' + Math.round(zoom) + '%';
+}
+function setZoom(next) { zoom = Math.max(25, Math.min(400, next)); applyView(); }
+document.getElementById('zoomIn').addEventListener('click', () => setZoom(zoom + 25));
+document.getElementById('zoomOut').addEventListener('click', () => setZoom(zoom - 25));
+document.getElementById('zoomFit').addEventListener('click', () => { zoom = 100; view = { x:0, y:0 }; applyView(); setStatus('适应窗口：100%'); });
+canvasWrap.addEventListener('wheel', e => {
+  if (e.target.closest('.handytools, .hud')) return;
+  e.preventDefault();
+  const rect = svg.getBoundingClientRect();
+  const cx = e.clientX - rect.left, cy = e.clientY - rect.top;
+  const old = zoom / 100;
+  setZoom(zoom * (e.deltaY < 0 ? 1.12 : 1 / 1.12));
+  const ratio = (zoom / 100) / old;
+  view.x += cx * (1 - ratio);
+  view.y += cy * (1 - ratio);
+  applyView();
+}, { passive:false });
+
+/* 画布平移：平移工具 / 空格 + 拖拽 / 中键拖拽 */
+document.addEventListener('keydown', e => { if (e.code === 'Space') spaceDown = true; });
+document.addEventListener('keyup', e => { if (e.code === 'Space') spaceDown = false; });
+svg.addEventListener('pointerdown', e => {
+  if (!(spaceDown || e.button === 1 || currentTool === 'pan')) return;
+  dragView = { x:e.clientX, y:e.clientY, vx:view.x, vy:view.y };
+  dragMoved = false;
+  svg.classList.add('panning'); canvasWrap.classList.add('grabbing');
+  try { svg.setPointerCapture(e.pointerId); } catch (_) {}
+  e.preventDefault();
+});
+svg.addEventListener('pointermove', e => {
+  if (!dragView) return;
+  dragMoved = true;
+  view.x = dragView.vx + (e.clientX - dragView.x);
+  view.y = dragView.vy + (e.clientY - dragView.y);
+  applyView();
+});
+function endViewDrag(e) {
+  if (!dragView) return;
+  dragView = null;
+  svg.classList.remove('panning'); canvasWrap.classList.remove('grabbing');
+  try { svg.releasePointerCapture(e.pointerId); } catch (_) {}
+}
+svg.addEventListener('pointerup', endViewDrag);
+svg.addEventListener('pointercancel', endViewDrag);
+applyView();
+
+/* 元件库 -> 选中 -> 画布跟随预览 -> 单击落下（20px 网格吸附） */
+const ghost = document.getElementById('ghost');
+const ghostLabel = document.getElementById('ghostLabel');
+const coords = document.getElementById('coords');
+let pending = null;
+
+document.querySelectorAll('.node[data-comp]').forEach(node => {
+  node.addEventListener('click', () => {
+    document.querySelectorAll('.node.sel').forEach(n => n.classList.remove('sel'));
+    node.classList.add('sel');
+    pending = node.dataset.comp;
+    ghostLabel.textContent = pending;
+    selectTool('component');
+    setStatus(`Ready to place: ${pending} — 移到画布上单击放置`);
+  });
+});
+
+function toSvg(evt) {
+  const r = svg.getBoundingClientRect();
+  const vb = svg.viewBox.baseVal;
+  return { x: (evt.clientX - r.left) / r.width * vb.width, y: (evt.clientY - r.top) / r.height * vb.height };
+}
+function snap(v) { return Math.round(v / 20) * 20; }
+
+svg.addEventListener('pointermove', e => {
+  const p = toSvg(e);
+  const sx = snap(p.x), sy = snap(p.y);
+  coords.textContent = `x ${sx}  y ${sy}`;
+  if (!pending) return;
+  ghost.classList.add('on');
+  ghost.setAttribute('transform', `translate(${sx} ${sy})`);
+  svg.classList.add('placeable');
+});
+svg.addEventListener('pointerleave', () => {
+  ghost.classList.remove('on');
+  svg.classList.remove('placeable');
+});
+svg.addEventListener('click', e => {
+  if (dragMoved) { dragMoved = false; return; }
+  if (!pending) return;
+  const p = toSvg(e);
+  const sx = snap(p.x), sy = snap(p.y);
+  const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+  g.setAttribute('filter','url(#soft)');
+  g.setAttribute('transform',`translate(${sx} ${sy})`);
+  g.innerHTML = '<rect x="-46" y="-40" width="92" height="80" rx="10" fill="var(--canvas)" stroke="var(--stroke-strong)"/>'
+              + `<text y="4" text-anchor="middle" font-size="13" fill="var(--text-1)">${pending}</text>`;
+  svg.appendChild(g);
+  setStatus(`Placed ${pending} @ (${sx}, ${sy})`);
+  pending = null;
+  ghost.classList.remove('on');
+  document.querySelectorAll('.node.sel').forEach(n => n.classList.remove('sel'));
+});
+
+/* 分栏拖拽（画布 / 编辑器） */
+const center = document.getElementById('center');
+const splitTop = document.getElementById('splitTop');
+const vsplit = document.getElementById('vsplit');
+let dragging = false;
+vsplit.addEventListener('pointerdown', e => {
+  dragging = true;
+  vsplit.classList.add('dragging');
+  vsplit.setPointerCapture(e.pointerId);
+  e.preventDefault();
+});
+vsplit.addEventListener('pointermove', e => {
+  if (!dragging) return;
+  const rect = center.getBoundingClientRect();
+  const ratio = (e.clientY - rect.top) / rect.height;
+  const clamped = Math.max(0.25, Math.min(0.8, ratio));
+  splitTop.style.flexBasis = (clamped * 100) + '%';
+});
+vsplit.addEventListener('pointerup', e => {
+  dragging = false;
+  vsplit.classList.remove('dragging');
+  try { vsplit.releasePointerCapture(e.pointerId); } catch (_) {}
+});
+vsplit.addEventListener('keydown', e => {
+  if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+  const cur = parseFloat(splitTop.style.flexBasis) || 62;
+  splitTop.style.flexBasis = Math.max(25, Math.min(80, cur + (e.key === 'ArrowUp' ? -3 : 3))) + '%';
+  e.preventDefault();
+});
+
+/* 工具链计时器（演示） */
+let secs = 42;
+const pnrTimer = document.getElementById('pnrTimer');
+setInterval(() => {
+  secs = (secs + 1) % 7200;
+  const m = String(Math.floor(secs / 60)).padStart(2, '0');
+  const s = String(secs % 60).padStart(2, '0');
+  pnrTimer.textContent = `00:${m}:${s}`;
+}, 1000);
+
+/* --------------------------------------------------------------------------
+   自适应：面板宽度拖拽（左/右栏）+ 标签指示条滑移（apple 风格）
+   -------------------------------------------------------------------------- */
+const rootStyle = document.documentElement.style;
+function panelWidth(v) { return parseInt(v) || 0; }
+
+document.querySelectorAll('.dock-resizer').forEach(handle => {
+  const side = handle.dataset.resize;
+  const varName = side === 'left' ? '--left-w' : '--right-w';
+  const min = side === 'left' ? 210 : 108;
+  const max = side === 'left' ? 460 : 520;
+  let dragging = false, startX = 0, startW = 0;
+  const getW = () => panelWidth(getComputedStyle(document.documentElement).getPropertyValue(varName)) || (side === 'left' ? 282 : 304);
+  const setW = w => rootStyle.setProperty(varName, Math.max(min, Math.min(max, w)) + 'px');
+  handle.addEventListener('pointerdown', e => {
+    dragging = true; startX = e.clientX; startW = getW();
+    handle.classList.add('dragging');
+    try { handle.setPointerCapture(e.pointerId); } catch (_) {}
+    e.preventDefault();
+  });
+  handle.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    const delta = side === 'left' ? (e.clientX - startX) : (startX - e.clientX);
+    setW(startW + delta);
+    requestAnimationFrame(moveInks);
+  });
+  const stop = e => {
+    if (!dragging) return;
+    dragging = false; handle.classList.remove('dragging');
+    try { handle.releasePointerCapture(e.pointerId); } catch (_) {}
+    try { localStorage.setItem('sigflow-' + side + '-w', String(getW())); } catch (_) {}
+    requestAnimationFrame(moveInks);
+  };
+  handle.addEventListener('pointerup', stop);
+  handle.addEventListener('pointercancel', stop);
+  handle.addEventListener('keydown', e => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    const step = e.key === 'ArrowRight' ? 12 : -12;
+    setW(getW() + (side === 'left' ? step : -step));
+    e.preventDefault();
+    requestAnimationFrame(moveInks);
+  });
+});
+try {
+  const lw = localStorage.getItem('sigflow-left-w'); if (lw) rootStyle.setProperty('--left-w', lw + 'px');
+  const rw = localStorage.getItem('sigflow-right-w'); if (rw) rootStyle.setProperty('--right-w', rw + 'px');
+} catch (_) {}
+
+function moveInks() {
+  document.querySelectorAll('[data-tabs]').forEach(group => {
+    if (!group._ink) {
+      const ink = document.createElement('span');
+      ink.className = 'tab-ink';
+      group.appendChild(ink);
+      group._ink = ink;
+      group.addEventListener('click', () => requestAnimationFrame(moveInks));
+    }
+    const active = group.querySelector('.tab[aria-selected="true"]');
+    if (!active) { group._ink.style.opacity = '0'; return; }
+    const gr = group.getBoundingClientRect(), tr = active.getBoundingClientRect();
+    group._ink.style.opacity = '1';
+    group._ink.style.width = tr.width + 'px';
+    group._ink.style.transform = `translateX(${tr.left - gr.left}px)`;
+  });
+}
+window.addEventListener('resize', () => requestAnimationFrame(moveInks));
+window.addEventListener('load', () => requestAnimationFrame(moveInks));
+requestAnimationFrame(moveInks);
+
+/* VSCode 式面板折叠：顶部布局开关 + 状态反馈 + 持久化（落工程 = 每区可见性开关） */
+const winEl = document.getElementById('win');
+
+/* ------------------------------------------------------------------
+   自定义布局引擎：显隐 / 主侧栏位置 / 面板对齐与位置 / 预设 / 快捷键 / 独立窗口
+   ------------------------------------------------------------------ */
+const LAYOUT_KEY = 'sigflow-layout-v2';
+const layoutState = Object.assign(
+  { menubar:true, rail:true, left:true, right:true, bottom:true, statusbar:true, side:'left', bal:'just', pos:'bottom' },
+  (()=>{ try { return JSON.parse(localStorage.getItem(LAYOUT_KEY) || '{}'); } catch (_) { return {}; } })()
+);
+const VIS_CLS = {
+  menubar:'panel-menubar-hidden', rail:'panel-rail-hidden', left:'panel-left-hidden',
+  right:'panel-right-hidden', bottom:'panel-bottom-hidden', statusbar:'panel-statusbar-hidden'
+};
+const VIS_LABEL = { menubar:'菜单栏', rail:'活动栏', left:'主侧栏', right:'辅助侧边栏', bottom:'面板', statusbar:'状态栏' };
+const PRESETS = {
+  classic:{ menubar:true, rail:true,  left:true,  right:true, bottom:true, statusbar:true, side:'left',  bal:'just',   pos:'bottom' },
+  code:   { menubar:true, rail:false, left:true,  right:true, bottom:true, statusbar:true, side:'left',  bal:'just',   pos:'bottom' },
+  canvas: { menubar:true, rail:false, left:false, right:true, bottom:true, statusbar:true, side:'left',  bal:'just',   pos:'bottom' },
+  chat:   { menubar:true, rail:true,  left:true,  right:false, bottom:true, statusbar:true, side:'left', bal:'just',   pos:'bottom' },
+};
+const popRefs = {};
+
+function applyLayout(){
+  Object.entries(VIS_CLS).forEach(([k, cls]) => winEl.classList.toggle(cls, !layoutState[k]));
+  winEl.classList.toggle('lay-side-right', layoutState.side === 'right');
+  winEl.classList.toggle('lay-bal-left',   layoutState.bal === 'left');
+  winEl.classList.toggle('lay-bal-right',  layoutState.bal === 'right');
+  winEl.classList.toggle('lay-bal-center', layoutState.bal === 'center');
+  winEl.classList.toggle('lay-panel-top',  layoutState.pos === 'top');
+  try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(layoutState)); } catch (_) {}
+}
+
+const layoutPicker = document.getElementById('layoutPicker');
+const layoutPickerBtn = document.getElementById('layoutPickerBtn');
+
+function syncPicker(){
+  layoutPicker.querySelectorAll('[data-vis]').forEach(b =>
+      b.setAttribute('aria-pressed', String(!!layoutState[b.dataset.vis])));
+  layoutPicker.querySelectorAll('[data-side]').forEach(b =>
+      b.setAttribute('aria-checked', String(layoutState.side === b.dataset.side)));
+  layoutPicker.querySelectorAll('[data-bal]').forEach(b =>
+      b.setAttribute('aria-checked', String(layoutState.bal === b.dataset.bal)));
+  layoutPicker.querySelectorAll('[data-pos]').forEach(b =>
+      b.setAttribute('aria-checked', String(layoutState.pos === b.dataset.pos)));
+  layoutPicker.querySelectorAll('[data-preset]').forEach(b =>
+      b.setAttribute('aria-pressed', String(Object.entries(PRESETS[b.dataset.preset]).every(([k,v]) => layoutState[k] === v))));
+  const map = { left:'panelLeftToggle', bottom:'panelBottomToggle', right:'panelRightToggle' };
+  Object.entries(map).forEach(([k, id]) => {
+    const el = document.getElementById(id); if (el) el.setAttribute('aria-pressed', String(!!layoutState[k]));
+  });
+}
+
+function setPickerOpen(open){
+  layoutPicker.hidden = !open;
+  layoutPickerBtn.setAttribute('aria-expanded', String(open));
+}
+layoutPickerBtn.addEventListener('click', e => { e.stopPropagation(); setPickerOpen(layoutPicker.hidden); });
+layoutPicker.addEventListener('click', e => e.stopPropagation());
+layoutPicker.querySelector('.lp-close').addEventListener('click', () => setPickerOpen(false));
+document.addEventListener('click', () => setPickerOpen(false));
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { setPickerOpen(false); return; }
+  if (!(e.ctrlKey || e.metaKey)) return;
+  const alone = !e.shiftKey && !e.altKey;
+  let key = null;
+  if (e.shiftKey && !e.altKey) {
+    if (e.key.toLowerCase() === 'm') key = 'menubar';
+    if (e.key.toLowerCase() === 'a') key = 'rail';
+  }
+  if (alone) {
+    if (e.key.toLowerCase() === 'b') key = 'left';
+    if (e.key.toLowerCase() === 'j') key = 'bottom';
+  }
+  if (e.altKey && !e.shiftKey && e.key.toLowerCase() === 'b') key = 'right';
+  if (!key) return;
+  e.preventDefault();
+  layoutState[key] = !layoutState[key];
+  applyLayout(); syncPicker();
+  setStatus(layoutState[key] ? '已显示：' + VIS_LABEL[key] : '已折叠：' + VIS_LABEL[key]);
+});
+
+layoutPicker.querySelectorAll('[data-preset]').forEach(b => b.addEventListener('click', () => {
+  Object.assign(layoutState, PRESETS[b.dataset.preset]);
+  applyLayout(); syncPicker();
+  setStatus('布局预设：' + b.textContent.trim());
+  if (b.dataset.preset === 'chat') popOut('chat');
+}));
+
+layoutPicker.querySelectorAll('[data-vis]').forEach(b => b.addEventListener('click', () => {
+  layoutState[b.dataset.vis] = !layoutState[b.dataset.vis];
+  applyLayout(); syncPicker();
+}));
+
+layoutPicker.querySelectorAll('[data-side]').forEach(b => b.addEventListener('click', () => {
+  layoutState.side = b.dataset.side; applyLayout(); syncPicker();
+  setStatus('主侧栏位置：' + (layoutState.side === 'right' ? '右对齐' : '左对齐'));
+}));
+layoutPicker.querySelectorAll('[data-bal]').forEach(b => b.addEventListener('click', () => {
+  layoutState.bal = b.dataset.bal; applyLayout(); syncPicker();
+  setStatus('面板对齐：' + b.textContent.trim());
+}));
+layoutPicker.querySelectorAll('[data-pos]').forEach(b => b.addEventListener('click', () => {
+  layoutState.pos = b.dataset.pos; applyLayout(); syncPicker();
+  setStatus('面板位置：' + (layoutState.pos === 'top' ? '顶部对齐' : '底部'));
+}));
+
+/* 工作区拖出为独立窗口：真实弹出，可分配到多台显示器 */
+const OUT_LABEL = { canvas:'draw-window', code:'code-editor', chat:'agent-chat' };
+function outHost(region){
+  return region === 'canvas' ? document.querySelector('.workspace > .center .split.top')
+       : region === 'code'   ? document.getElementById('splitBottom')
+       : document.querySelector('.workspace > .dock.right');
+}
+function outStateClass(region, on){
+  if (region === 'canvas') { document.querySelector('.workspace > .center').classList.toggle('split-top-out', on); }
+  else if (region === 'code')   { winEl.classList.toggle('lay-out-code', on); }
+  else { winEl.classList.toggle('lay-out-chat', on); }
+}
+function popOut(region){
+  if (popRefs[region] && !popRefs[region].closed) { popRefs[region].focus(); return; }
+  const url = new URL(location.href);
+  url.searchParams.set('panel', region);
+  popRefs[region] = window.open(url.href, 'sigflow-' + region, 'width=880,height=620,left=80,top=60');
+  outStateClass(region, true);
+  outHost(region).insertAdjacentHTML('beforeend',
+    '<div class="out-note"><span>已拖出为独立窗口 —— 可拖到另一块显示器</span>'
+    + '<button class="out-back" data-back="' + region + '">回归主窗口</button></div>');
+  outHost(region).querySelector('[data-back]').addEventListener('click', () => {
+    outStateClass(region, false);
+    popRefs[region].close(); delete popRefs[region];
+    const host = outHost(region); host.querySelectorAll('.out-note').forEach(n => n.remove());
+    setStatus('已回归：' + (OUT_LABEL[region] || region));
+  });
+  setStatus('已拖出：' + OUT_LABEL[region] + ' —— 可自由分配显示器');
+}
+document.querySelectorAll('[data-out]').forEach(b =>
+  b.addEventListener('click', () => { popOut(b.dataset.out); setPickerOpen(false); }));
+document.getElementById('popCanvas').addEventListener('click', () => popOut('canvas'));
+document.getElementById('popCode').addEventListener('click', () => popOut('code'));
+document.getElementById('popChat').addEventListener('click', () => popOut('chat'));
+
+/* 独立子窗口模式：单工作区视图 + 回到主窗口 */
+const panelParam = new URLSearchParams(location.search).get('panel');
+if (panelParam && OUT_LABEL[panelParam]) {
+  document.body.classList.add('popout', 'popout-' + panelParam);
+  document.body.insertAdjacentHTML('afterbegin',
+    '<div class="pop-head"><b>SigFlow</b><span>· ' + OUT_LABEL[panelParam] + '（独立窗口）</span>'
+    + '<button class="out-back" id="popBack">回到主窗口</button></div>');
+  document.getElementById('popBack').addEventListener('click', () => {
+    if (window.opener) { try { window.opener.focus(); } catch (_) {} }
+    window.close();
+  });
+  const lp = document.getElementById('layoutPicker'); if (lp) lp.remove();
+}
+
+/* 布局状态恢复（含旧 sigflow-panel-* 键迁移） */
+Object.keys(VIS_CLS).forEach(k => {
+  try { if (localStorage.getItem('sigflow-panel-' + k + '-hidden') === '1') layoutState[k] = false; } catch (_) {}
+});
+applyLayout();
+syncPicker();
+
+const layoutToggles = [
+  { btn: 'panelLeftToggle', cls: 'panel-left-hidden', store: 'left', label: '左侧面板' },
+  { btn: 'panelBottomToggle', cls: 'panel-bottom-hidden', store: 'bottom', label: '底部面板' },
+  { btn: 'panelRightToggle', cls: 'panel-right-hidden', store: 'right', label: '右侧面板' },
+];
+/* 布局开关（标题栏 lc 三键）走统一 layoutState；面板显隐与其余布局状态同源 */
+layoutToggles.forEach(t => {
+  const b = document.getElementById(t.btn);
+  if (!b) return;
+  const key = { left:'left', bottom:'bottom', right:'right' }[t.store];
+  b.addEventListener('click', () => {
+    layoutState[key] = !layoutState[key];
+    applyLayout(); syncPicker();
+    setStatus((layoutState[key] ? '已显示：' : '已折叠：') + t.label);
+    requestAnimationFrame(moveInks);
+  });
+});
+</script>
+
+
+</body></html>
