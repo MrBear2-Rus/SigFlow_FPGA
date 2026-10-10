@@ -3,6 +3,9 @@
 #include "jobs/JobService.h"
 #include "jobs/ToolJobs.h"
 #include "jobs/JobRunner.h"
+#include "eda-core/Toolchain.h"
+#include "eda-core/JobsMigration.h"
+#include "eda-core/LegacyJobHistory.h"
 
 #include "platform/PlatformPaths.h"
 #include "platform/DynamicLibrary.h"
@@ -13,11 +16,13 @@
 #include <wx/dir.h>
 
 #include <filesystem>
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
 #include <ctime>
 #include <atomic>
 #include <chrono>
+#include <fstream>
 #include <memory>
 #include <string>
 #include <thread>
@@ -409,8 +414,209 @@ static void TestJobHandleLifecycle()
     std::filesystem::remove_all(std::filesystem::path(project.ToStdString()), ec);
 }
 
+void TestJobsMigrationStateMap()
+{
+    struct Case {
+        const char* legacyName;
+        ToolJobState legacyState;
+        eda::JobState state;
+    };
+    const Case cases[] = {
+        {"Created",             ToolJobState::Created,            eda::JobState::Created},
+        {"Validating",          ToolJobState::Validating,         eda::JobState::Validating},
+        {"Queued",              ToolJobState::Queued,             eda::JobState::Queued},
+        {"Running",             ToolJobState::Running,            eda::JobState::Running},
+        {"ValidatingArtifact",  ToolJobState::ValidatingArtifact, eda::JobState::ValidatingArtifact},
+        {"Succeeded",           ToolJobState::Succeeded,          eda::JobState::Succeeded},
+        {"Failed",              ToolJobState::Failed,             eda::JobState::Failed},
+        {"Cancelled",           ToolJobState::Cancelled,          eda::JobState::Cancelled},
+        {"TimedOut",            ToolJobState::TimedOut,           eda::JobState::TimedOut},
+    };
+    for (const Case& probe : cases) {
+        CHECK(ToString(probe.legacyState) == probe.legacyName,
+              "legacy state serialization matches the migration name");
+        const auto mapped = eda::jobs_migration::LegacyJobStateFromName(probe.legacyName);
+        CHECK(mapped.has_value() && *mapped == probe.state,
+              "legacy->contract state maps to itself");
+        const auto back = eda::jobs_migration::JobStateToLegacyName(probe.state);
+        CHECK(back.has_value() && *back == std::string(probe.legacyName),
+              "contract->legacy state maps back to the same serialized name");
+    }
+    CHECK(!eda::jobs_migration::LegacyJobStateFromName("Paused").has_value(),
+          "unknown legacy state name is rejected");
+    CHECK(!eda::jobs_migration::LegacyJobStateFromName("running").has_value(),
+          "state mapping is case-sensitive");
+}
+
+void TestJobsMigrationTypeMap()
+{
+    const auto synth = eda::jobs_migration::LegacyJobTypeToJobType("synthesis");
+    CHECK(synth.has_value() && *synth == "synth", "legacy synthesis->synth");
+    const auto sim = eda::jobs_migration::LegacyJobTypeToJobType("simulation");
+    CHECK(sim.has_value() && *sim == "sim.build", "legacy simulation->sim.build");
+    const auto pnr = eda::jobs_migration::LegacyJobTypeToJobType("pnr");
+    CHECK(pnr.has_value() && *pnr == "pnr", "legacy pnr->pnr");
+    const auto pack = eda::jobs_migration::LegacyJobTypeToJobType("pack");
+    CHECK(pack.has_value() && *pack == "pack", "legacy pack->pack");
+    const auto flash = eda::jobs_migration::LegacyJobTypeToJobType("flash");
+    CHECK(flash.has_value() && *flash == "flash", "legacy flash->flash");
+    CHECK(!eda::jobs_migration::LegacyJobTypeToJobType("wipe").has_value(),
+          "unknown legacy type is rejected");
+
+    const auto backSim = eda::jobs_migration::JobTypeToLegacyJobType("sim.build");
+    CHECK(backSim.has_value() && *backSim == "simulation", "sim.build->legacy simulation");
+    const auto backRun =
+        eda::jobs_migration::JobTypeToLegacyJobType("sim.run");
+    CHECK(backRun.has_value() && *backRun == "simulation", "sim.run->legacy simulation");
+    CHECK(!eda::jobs_migration::JobTypeToLegacyJobType("synthesis").has_value(),
+          "legacy-only names are not contract job types");
+}
+
+void TestLegacyJobHistory()
+{
+    namespace fs = std::filesystem;
+    const fs::path root = fs::temp_directory_path() / "sigflow_test_legacy_history";
+    std::error_code ec;
+    fs::remove_all(root, ec);
+    const fs::path jobs = root / ".sigflow" / "jobs";
+    const std::string kManifest = R"JSON({
+        "schema_version": "1.0",
+        "job_type": "synthesis",
+        "job_id": "job-synth-1",
+        "retry_of": "",
+        "state": "Succeeded",
+        "created_at": "2026-10-01T10:00:00Z",
+        "updated_at": "2026-10-01T10:02:00Z",
+        "exit_code": 0,
+        "operator": "local",
+        "parameters": {"top_module": "top"},
+        "transitions": [
+            {"state": "Created", "timestamp": "2026-10-01T10:00:00Z", "operator": "local", "reason": "submit", "exit_code": 0},
+            {"state": "Succeeded", "timestamp": "2026-10-01T10:02:00Z", "operator": "local", "reason": "", "exit_code": 0}
+        ]
+    })JSON";
+
+    // 合法合成 Job + 报告
+    const fs::path synthJob = jobs / "synthesis" / "job-synth-1";
+    fs::create_directories(synthJob / "reports", ec);
+    {
+        std::ofstream(synthJob / "manifest.json", std::ios::binary) << kManifest;
+        std::ofstream(synthJob / "reports" / "job-report.json", std::ios::binary) << R"JSON({
+            "schema_version": "1.0",
+            "job_type": "synthesis",
+            "job_id": "job-synth-1",
+            "state": "Succeeded",
+            "started_at": "2026-10-01T10:00:00Z",
+            "completed_at": "2026-10-01T10:02:00Z",
+            "duration_ms": 120000,
+            "exit_code": 0,
+            "summary": "synthesis finished",
+            "artifacts": [{"path": "reports/netlist.json", "kind": "primary", "size_bytes": 10, "sha256": ""}],
+            "errors": [{"code": "Yosys-INFO", "severity": "info", "stage": "synth", "ir_coordinate": "", "summary": "note", "log_line": 3}]
+        })JSON";
+    }
+    // 状态非法的 simulation Job → 必须被跳过并上报 id。
+    const fs::path simJob = jobs / "simulation" / "job-sim-1";
+    fs::create_directories(simJob, ec);
+    {
+        std::ofstream(simJob / "manifest.json", std::ios::binary) << R"JSON({
+            "job_id": "job-sim-1", "state": "Paused"
+        })JSON";
+    }
+    // JSON 语法合法但字段类型错误：不能抛异常并中断整个历史加载。
+    const fs::path wrongTypeJob = jobs / "simulation" / "job-sim-2";
+    fs::create_directories(wrongTypeJob, ec);
+    {
+        std::ofstream(wrongTypeJob / "manifest.json", std::ios::binary) << R"JSON({
+            "job_type": "simulation", "job_id": "job-sim-2",
+            "state": "Succeeded", "created_at": 12345
+        })JSON";
+    }
+    // 报告损坏时仍保留可读的 manifest，并向调用方报告损坏的 id。
+    const fs::path badReportJob = jobs / "pnr" / "job-pnr-1";
+    fs::create_directories(badReportJob / "reports", ec);
+    {
+        std::ofstream(badReportJob / "manifest.json", std::ios::binary) << R"JSON({
+            "job_type": "pnr", "job_id": "job-pnr-1", "state": "Succeeded",
+            "created_at": "2026-10-02T10:00:00Z"
+        })JSON";
+        std::ofstream(badReportJob / "reports" / "job-report.json", std::ios::binary)
+            << R"JSON({"job_type":"pnr","job_id":"job-pnr-1","state":"Succeeded","summary":12345})JSON";
+    }
+    // 空白工程（无 .sigflow/jobs）→ 空历史不是错误。
+
+    std::vector<eda::LegacyJobHistoryEntry> entries;
+    std::vector<std::string> unreadable;
+    std::string error;
+    bool ok = eda::LoadLegacyJobHistory(root / "empty-project", entries, unreadable, error);
+    CHECK(ok && entries.empty(), "blank project history is not an error");
+
+    ok = eda::LoadLegacyJobHistory(root, entries, unreadable, error);
+    CHECK(ok, "legacy history loads");
+    CHECK(unreadable.size() == 3 &&
+              std::find(unreadable.begin(), unreadable.end(), "job-sim-1") != unreadable.end() &&
+              std::find(unreadable.begin(), unreadable.end(), "job-sim-2") != unreadable.end() &&
+              std::find(unreadable.begin(), unreadable.end(), "job-pnr-1") != unreadable.end(),
+          "invalid manifests and report ids are reported without aborting the scan");
+    CHECK(entries.size() == 2, "valid manifests remain visible after malformed entries");
+    if (!entries.empty()) {
+        const auto& entry = entries.front();
+        CHECK(entry.record.id == "job-synth-1", "history id round-trips");
+        CHECK(entry.record.request.jobType == "synth", "legacy synthesis maps to contract synth");
+        CHECK(entry.record.state == eda::JobState::Succeeded, "legacy state maps to contract state");
+        CHECK(entry.record.transitions.size() == 2, "transitions survive the translation");
+        CHECK(entry.report.schemaVersion == "edu.jobreport.v1", "legacy report normalized to v1");
+        CHECK(entry.report.artifacts.size() == 1 &&
+              !entry.report.artifacts[0].path.empty(),
+              "legacy artifact path translates");
+        CHECK(entry.report.diagnostics.size() == 2,
+              "legacy errors plus summary become two diagnostics");
+    }
+    if (entries.size() == 2) {
+        CHECK(entries[1].record.id == "job-pnr-1" && entries[1].report.jobId.empty(),
+              "malformed optional report does not hide a valid job manifest");
+    }
+
+    const fs::path legacySynth = root / ".sigflow" / "fpga" / "runs" / "synth-old-1";
+    fs::create_directories(legacySynth / "reports", ec);
+    std::ofstream(legacySynth / "manifest.json") << R"JSON({
+        "job_id":"synth-old-1", "state":"Succeeded", "created_at":"2026-10-01T10:00:00Z",
+        "request":{"top_module":"top","strategy":"baseline"}
+    })JSON";
+    std::ofstream(legacySynth / "reports" / "synthesis.analysis.json") <<
+        R"JSON({"root_cause":"none"})JSON";
+    const fs::path legacyRoute = root / ".sigflow" / "fpga" / "runs-nextpnr" / "route-old-1";
+    fs::create_directories(legacyRoute, ec);
+    std::ofstream(legacyRoute / "manifest.json") << R"JSON({
+        "job_id":"route-old-1", "state":"Failed", "created_at":"2026-10-02T10:00:00Z",
+        "request":{"top_module":"top","device_name":"GW1NR-9"}
+    })JSON";
+    const fs::path badFpga = root / ".sigflow" / "fpga" / "runs" / "bad-old-1";
+    fs::create_directories(badFpga, ec);
+    std::ofstream(badFpga / "manifest.json") <<
+        R"JSON({"job_id":"bad-old-1","state":"Paused","request":{}})JSON";
+    ok = eda::LoadLegacyFpgaJobHistory(root, entries, unreadable, error);
+    CHECK(ok && entries.size() == 2, "specialized FPGA histories load without the old services");
+    CHECK(unreadable.size() == 1 && unreadable[0] == "bad-old-1",
+          "invalid specialized FPGA manifest is reported");
+    if (entries.size() == 2) {
+        CHECK(entries[0].record.request.jobType == "synth" &&
+                  entries[0].record.request.params.value("strategy", std::string()) == "baseline" &&
+                  entries[0].report.diagnostics.value("root_cause", std::string()) == "none",
+              "specialized synthesis manifest and report remain readable");
+        CHECK(entries[1].record.request.jobType == "pnr" &&
+                  entries[1].record.state == eda::JobState::Failed,
+              "specialized place-and-route state translates");
+    }
+
+    fs::remove_all(root, ec);
+}
+
 int main()
 {
+    TestJobsMigrationStateMap();
+    TestJobsMigrationTypeMap();
+    TestLegacyJobHistory();
     TestPlatformProcess();
     TestProcessEnvironment();
     TestOutputDecoding();

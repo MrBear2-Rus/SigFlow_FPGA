@@ -42,10 +42,10 @@ from .model_client import ModelAnswer, ModelClient, ModelStatus
 from .rules import RuleFinding, Selection, analyse
 from .util import contains_absolute_path
 
-TRUSTED_COMPLETENESS: frozenset[str] = frozenset({"complete", "exact"})
+TRUSTED_COMPLETENESS: frozenset[str] = frozenset({"complete"})
 """Report completeness values trustworthy enough to explain an empty diagnostic list."""
 
-_CONTEXT_TRUSTED = frozenset({"core", "gateway"})
+_CONTEXT_TRUSTED = frozenset({"core"})
 """Report origins considered attributable to this instance's real run."""
 
 _PLAN_TOP_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
@@ -101,6 +101,7 @@ class RunRequest:
     top: str = ""
     """Top module name taken from the session; used only after identifier validation."""
     revision: str = ""
+    project_id: str = ""
     """Session revision, carried into a PlanCard so approval binds to a version."""
 
 
@@ -133,10 +134,18 @@ def sufficient_report(report: Mapping[str, Any]) -> tuple[bool, list[str]]:
         )
     if origin == "legacy":
         reasons.append("报告的 origin 是 legacy：它来自旧数据，没有可信的 revision/输入指纹绑定。")
-    elif origin and origin not in _CONTEXT_TRUSTED:
+    elif not origin:
+        # AD-05：fail-closed。缺 origin 说明这份报告不是本实例经 Gateway 取得的可信证据；
+        # 不能因为"字段没写"就当成可信（旧实现只拒绝 legacy 与"有值但未知"）。
+        reasons.append("报告没有 origin，无法确认它来自本次实例的真实运行。")
+    elif origin not in _CONTEXT_TRUSTED:
         reasons.append("报告的 origin 是 %r，无法确认它来自本次实例的真实运行。" % origin)
     if not report.get("revision"):
         reasons.append("报告没有 revision，无法确认它对应的是学生当前看到的代码版本。")
+    if report.get("state") != "Succeeded":
+        reasons.append("本次工具没有成功完成，不能把空诊断当作验证结果。")
+    if not report.get("snapshot_id") or not report.get("input_fingerprint"):
+        reasons.append("报告缺少快照或输入指纹，无法确认实际执行输入。")
     return (not reasons, reasons)
 
 
@@ -326,6 +335,10 @@ class RunDispatcher:
                     "（这不是答案，只是让你自己找到答案的下一步。）",
                 ]
             )
+            if request.level == "L2":
+                body += "\n\n第二层：按输入条件画出每一条控制路径，标注当前输出在各路径上是否被赋值；再对照规则证据中的位置。"
+            elif request.level == "L3":
+                body += "\n\n第三层：自行列检查清单：分支覆盖、保持旧值的条件、信号敏感性、操作数位宽。逐项给出反例输入并手工修改，保存后用新版本综合与仿真复测。"
             cards = [
                 build_teaching_card(
                     card_id="card-1",
@@ -453,6 +466,7 @@ class RunDispatcher:
                 depends_on=("s2",),
             )
         )
+        steps[-1].params["build_step_id"] = "s2"
         card = build_plan_card(
             plan_id="plan-1",
             goal=goal,
@@ -491,6 +505,39 @@ class RunDispatcher:
                 or "无法从 EDA Gateway 读取该 Job 的报告，本次不提供任何报告解读。",
             )
         report = outcome.report
+        required = ("schema_version", "job_id", "origin", "capability", "project_id",
+                    "revision", "state", "completeness")
+        if (any(name not in report for name in required)
+                or report.get("schema_version") != "edu.jobreport.v1"
+                or report.get("origin") not in ("core", "legacy")
+                or report.get("completeness") not in
+                    ("complete", "partial", "unavailable", "legacy_unverified")
+                or report.get("state") not in
+                    ("Queued", "Running", "Cancelling", "Cancelled", "Succeeded",
+                     "Failed", "TimedOut", "Rejected", "Unknown")
+                or not isinstance(report.get("diagnostics"), list)):
+            raise AgentError("GATEWAY_UNAVAILABLE", "报告格式无效或证据不完整。",
+                             http_status=503, retryable=True)
+        if report.get("job_id") != job_id or report.get("project_id") != request.project_id:
+            raise AgentError("POLICY_DENIED", "报告不属于本会话的工程或任务。", http_status=403)
+        if report.get("revision") != request.revision:
+            raise AgentError("STALE_REVISION", "报告不是本会话绑定的代码版本，请切换到历史视图。",
+                             http_status=409)
+        for diagnostic in report["diagnostics"]:
+            if (not isinstance(diagnostic, Mapping) or
+                    any(not isinstance(diagnostic.get(key), str) for key in
+                        ("id", "code", "severity", "stage", "summary", "origin", "confidence_kind")) or
+                    diagnostic["severity"] not in ("info", "warning", "error") or
+                    diagnostic["origin"] not in ("core", "legacy") or
+                    diagnostic["confidence_kind"] not in ("tool", "rule", "hypothesis")):
+                raise AgentError("GATEWAY_UNAVAILABLE", "报告包含格式无效的诊断。", http_status=503)
+        def unsafe(value):
+            if isinstance(value, str): return contains_absolute_path(value)
+            if isinstance(value, Mapping): return any(unsafe(item) for item in value.values())
+            if isinstance(value, list): return any(unsafe(item) for item in value)
+            return False
+        if unsafe(report):
+            raise AgentError("GATEWAY_UNAVAILABLE", "报告包含未脱敏的路径，拒绝输出。", http_status=503)
         report_ref = _report_reference(job_id, report)
         diagnostics = report.get("diagnostics")
         cards: list[dict[str, Any]] = []

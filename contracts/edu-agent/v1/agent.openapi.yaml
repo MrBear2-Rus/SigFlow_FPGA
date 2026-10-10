@@ -7,9 +7,9 @@ info:
     本服务由 SigFlow 团队自行设计与实现，不依赖 UCAgent 源码、运行时、`UCTool`/`Checker` 类、
     默认验证流程或上游镜像；仅参考其“分阶段工作流、受限工具、阶段检查、运行记录”的架构思想。
 
-    本服务**不持有 EDA 执行权限**：它从不运行任何 EDA 工具、不读也不写学生的工程文件、
+    本服务**没有独立 EDA 执行权限**：它从不运行任何 EDA 工具、不读也不写学生的工程文件、
     不接受客户端提供的路径、脚本、可执行文件名或工作目录。综合/仿真只能由 SigFlow 签发的 grant
-    触发，本服务只生成待批准的 PlanCard。
+    触发。基础 runs 只生成 PlanCard；协商教学扩展可以按精确授权请求 Gateway Job。
 
     协议版本：`edu.api.v1`（与 `sigflow.openapi.yaml` 的 Gateway 契约同主版本）。
     字段与枚举真源：`schemas/*.schema.json`（本文件只描述路由、参数、状态码、错误码与信封）。
@@ -26,7 +26,7 @@ info:
 
     安全与边界：
     - 只监听 `127.0.0.1`；Host 头非 loopback → 403 POLICY_DENIED。不启用通配 CORS。
-    - `POST /api/v1/shutdown` 之外的所有路由都要求 `Authorization: Bearer <ui_token>`；
+    - 除 health 外的所有路由（包括 shutdown）都要求 `Authorization: Bearer <ui_token>`；
       `GET /api/v1/health` 是唯一不要求鉴权的路由（带该头也接受）。
     - token 只经继承管道随 bootstrap 传入，禁止出现在 URL、日志、卡片、错误消息或工程文件中。
     - **任何响应都不得包含本机绝对路径**；卡片、证据引用与错误消息一律只用 opaque ID、
@@ -36,8 +36,8 @@ info:
 
     已知限制（Known limitations of v1）：
     - 事件只支持立即返回，**没有长轮询**（没有 `wait_ms`）。
-    - 会话、运行与事件都**只在内存中**，进程退出即丢失；没有跨重启恢复，也没有学习记录数据库。
-    - 没有课程库：`course_refs` 目前恒为空数组，`/capabilities.course.available` 为 false。
+    - 会话、运行与事件只在内存，退出即失效；扩展仅持久化最小学习元数据/执行检查点，不自动续跑。
+    - 扩展包含 4 篇项目自编基础材料，可查询并引用；没有外部认证，不等于完整审校课程库。
     - 没有波形内联读取：证据只引用 opaque artifact/report 字段，不返回 VCD 内容或绝对路径。
     - L4 只返回“参考解要点”清单；本服务不代写工程文件，也不生成可直接替换的完整模块。
     - `--selftest-fail` 与 `--selftest-ready-delay-ms` 是**仅供测试**的故障注入开关，
@@ -87,8 +87,7 @@ paths:
       summary: 教学能力与模式可用性
       description: |
         `modes` 固定为 L1–L4；`capabilities` 列出本服务的功能就绪状态；
-        `execution.can_run_eda` 恒为 false —— EDA 执行只能由 SigFlow 签发的 grant 触发。
-        `course.available` 在 v1 恒为 false（无课程库）。
+        `execution.can_run_eda=false` 表示本服务不持有 EDA 执行权限。
         错误码：
         - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
         - 403 POLICY_DENIED：Host 边界校验不通过。
@@ -112,6 +111,12 @@ paths:
                     - id: L1
                       available: true
                       reason: 该难度由确定性规则引擎提供，无需模型 Key。
+                    - id: L2
+                      available: true
+                      reason: 确定性规则提示；逐级使用需协商教学动作。
+                    - id: L3
+                      available: true
+                      reason: 自行检查要点，不提供替换代码。
                     - id: L4
                       available: false
                       reason: L4 参考解需要策略允许并经过两次明确操作；本服务只提供要点清单，不代写工程文件。
@@ -125,8 +130,8 @@ paths:
                     provider: null
                     reason: 未配置模型 Key（SIGFLOW_EDU_MODEL_API_KEY），已降级为确定性规则讲解。
                   course:
-                    available: false
-                    reason: v1 未内置课程库；课程引用由后续版本提供。
+                    available: true
+                    reason: 项目自编版本化基础材料；未经外部课程认证。
                   execution:
                     can_run_eda: false
                     note: EDA 执行只能由 SigFlow 签发的 grant 触发；本服务不持有执行权限
@@ -232,9 +237,7 @@ paths:
         - 命中锁存器/敏感列表/位宽/结构规则时返回 `source: "rule"` 的 TeachingCard，
           第一项证据的 `kind` 必须是 `rule_match`；L1–L3 绝不包含完整修正代码。
         - 未配置模型 Key 时 `model_used=false` 且 `state=degraded`，并把被跳过的模型步骤记入 `omitted`。
-        - `level=L4` 是“参考解”请求，采用两步放行：**第一次必须不带 `more`**，服务返回
-          403 POLICY_DENIED 并在 `error.message` 说明两步策略，响应中不含任何答案；
-          确认学生已自行尝试后，再带 `more=true` 发起第二次请求，才返回 `reference_solution` 卡片。
+        - `level=L4` 需 `more=true` 的两步策略；未确认时返回 403 POLICY_DENIED。
 
         `kind=plan`：返回 PlanCard；只使用 `eda.synth`、`eda.sim.build`、`eda.sim.run`
         三项能力，不含路径/可执行文件/脚本/工作目录，`requires_approval=true`。
@@ -251,7 +254,7 @@ paths:
         - 400 INVALID_ARGUMENT：`kind`/`level` 不在枚举内、`more` 非布尔、
           `selection`/`selection.text` 类型不符或超过 64 KiB、`kind=report_review` 缺 `job_id`。
         - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
-        - 403 POLICY_DENIED：Host 边界校验不通过，或 L4 未带 `more=true`（两步放行策略）。
+        - 403 POLICY_DENIED：Host/Origin 边界不通过，或在本路由请求 L4。
         - 404 NOT_FOUND：未知 session_id，或 Gateway 报告该 job_id 不存在。
         - 413 RESOURCE_EXHAUSTED：请求体超过 1 MiB。
         - 503 GATEWAY_UNAVAILABLE：Gateway 不可达、拒绝 token 或报告服务不可用；
@@ -702,11 +705,13 @@ components:
         high_watermark:
           type: string
           pattern: '^[0-9]+$'
-          description: 已分配的最大 sequence，供续订游标使用
+          description: 已分配的最大 sequence，仅作水位；分页续订必须使用 next_after 或最后实际消费的 sequence
         oldest_sequence:
           type: string
           pattern: '^[0-9]+$'
           description: 保留窗口内最旧事件的 sequence；after 早于它必然 410
+        next_after: { type: string, pattern: '^[0-9]+$', description: 最后实际返回的事件游标；无事件沿用请求游标 }
+        has_more: { type: boolean }
 
     EventsEnvelope:
       allOf:

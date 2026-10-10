@@ -1,5 +1,7 @@
 # SigFlow 构建指南（Windows 为主）
 
+> Agent 10.8 调整的当前构建/回归见 [10.10 实现与验收](edu-agent/sigflow/10.10-Agent接口调整实现与验收.md)。本轮开发产物在 build-agent，未覆盖 build-contract 的可用 exe、未修改 ACL/SmartScreen。宿主读取 SIGFLOW_EDU_AGENT_EXECUTABLE；POSIX shell 是 Windows Verilator 工具链依赖，不代表要把 IDE 跑在 WSL/Docker。
+
 > 目标：从 clone 到跑起来。**支持 CMake + MinGW-w64 GCC**（不再支持 Visual Studio/MSVC 构建）。
 > 已验证：Windows（MinGW-w64 GCC）+ CMake；Linux（系统 wxGTK）已在真机跑通。
 >
@@ -47,6 +49,9 @@ Expand-Archive -Force wx-mingw.zip 3rd\
 | `tools.zip` | `tools\verilator` + 脚本 | 仿真用 Verilator（Windows） |
 | `wx-mingw.zip`（项目负责人分发） | `3rd\wx-mingw\{include,debug,bin,...}` | **MinGW 版 wxWidgets**（Windows 构建必须，见 §3） |
 
+> **`3rd\httplib\httplib.h`（cpp-httplib，单头 MIT）已随仓库提交**，无需解压，clone 即有。
+> 供教育版 Agent 的 EDA Gateway 使用（见 §5 与 `docs/edu-agent/`）。
+
 ## 3. MinGW 版 wxWidgets（Windows 构建必需）
 
 `3rd/wxWidgets-3.2.9` 只有 MSVC 库，**MinGW 链接不了**。请使用项目负责人分发的 `wx-mingw.zip`，解压到 **`3rd\wx-mingw\`**（`3rd/` 已被 `.gitignore` 忽略，无需改 ignore；内含 `include\`、`debug\lib\`、`bin\`）。
@@ -63,6 +68,7 @@ $WX    = "E:/path/to/repo/3rd/wx-mingw"            # MinGW 版 wx 根目录（�
 cmake -S . -B build-gcc -G "MinGW Makefiles" `
   -DCMAKE_TOOLCHAIN_FILE="cmake/toolchains/mingw-gcc.cmake" `
   -DMINGW_ROOT="$MINGW" `
+  -DSIGFLOW_USE_LOCAL_WX=OFF `
   -DSIGFLOW_WX_ROOT="$WX" `
   -DSIGFLOW_WX_CONFIG_DIR="$WX/debug/lib/mswud" `
   -DSIGFLOW_WX_LIB_DIR="$WX/debug/lib"
@@ -76,6 +82,8 @@ cmake --build build-gcc --target sigflow --parallel
 
 - 若 wx 目录结构不同（如 `lib/gcc_x64_dll`），把 `SIGFLOW_WX_CONFIG_DIR` 指到含 `wx/setup.h` 的目录、`SIGFLOW_WX_LIB_DIR` 指到含 `libwx*.a/.dll` 的目录。
 - **不再需要 `-DSIGFLOW_SLANG_ROOT`**：slang 死链路已移除，构建不再编译/链接 slang（见 §7）。
+- Windows 的设置和启动日志分别写入 `%LOCALAPPDATA%\Sigflow\settings.ini` 与 `%LOCALAPPDATA%\Sigflow\sigflow.log`；不要求对安装目录或 `HKCU\Software\Sigflow\Sigflow` 有写权限。首次切换到文件配置时会只读迁移可访问的旧注册表最近项目；若旧键不可访问，会尝试从旧 `sigflow.log` 恢复最近项目。
+- 本地开发构建未签名，下载或首次运行时可能出现 SmartScreen 的“Windows 已保护你的电脑”。正式对外发布需用可信代码签名证书签名发布产物并逐步建立发行信誉；项目当前构建流程尚未配置签名，不应把开发构建当成已签名发行版。
 
 ### 插件化（P0/P1）后的构建产物
 
@@ -115,6 +123,7 @@ CMake 构建下已注册以下测试目标（`ctest`）：
 cmake -S . -B build-contract -G "MinGW Makefiles" `
   -DCMAKE_TOOLCHAIN_FILE="cmake/toolchains/mingw-gcc.cmake" `
   -DMINGW_ROOT="$MINGW" `
+  -DSIGFLOW_USE_LOCAL_WX=OFF `
   -DSIGFLOW_WX_ROOT="$WX" -DSIGFLOW_WX_CONFIG_DIR="$WX/debug/lib/mswud" -DSIGFLOW_WX_LIB_DIR="$WX/debug/lib"
 
 cmake --build build-contract --parallel
@@ -166,6 +175,43 @@ bash tools/smoke_linux.sh build-linux/sigflow 20
 > - `-DSIGFLOW_SLANG_*` 已废弃（slang 死码移除，见 §7）。
 > - GCC ≥ 14 追加：`-DCMAKE_C_FLAGS="-Wno-error=implicit-function-declaration -Wno-error=implicit-int"`。
 > - 可选跑测试：`cmake -S . -B build-contract -DSIGFLOW_USE_LOCAL_WX=OFF && cmake --build build-contract -j && ctest --test-dir build-contract -R "eda_|sig_tree"`。
+
+### 麒麟 / openKylin 等沙箱发行版（关键）
+
+openKylin 2.0 的 **KARE 沙箱**把系统 wx 库放在 shadow overlay（不在 `ldconfig` 缓存/标准路径），
+会出现**链接期通过、运行期 `libwx_gtk3u_core-3.2.so.0: cannot open shared object file`**。
+
+**推荐：本地/自动拉取 wx 源码编译**（CMake 管理 RPATH，绕开沙箱路径）。默认 `SIGFLOW_USE_LOCAL_WX=ON`：
+
+- **有网**：本地 `3rd/wxWidgets-src` 缺失时自动 `FetchContent` 拉取（3.28/4.x 兼容写法）：
+  ```bash
+  cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+  cmake --build build -j$(nproc)
+  ```
+- **离线**（内网/禁用外网）：把 `3rd/wxWidgets-src` 目录放好（从已有机器 `tar` 拷贝），或指向镜像：
+  ```bash
+  cmake -S . -B build \
+    -DSIGFLOW_WX_SRC=/path/to/wxWidgets-src \
+    -DSIGFLOW_ALLOW_FETCH=OFF
+  ```
+- **镜像加速**（内网镜像替换 github）：
+  ```bash
+  cmake -S . -B build -DSIGFLOW_FETCH_MIRROR=https://gitclone.com/github.com
+  ```
+
+相关开关：
+
+| 变量 | 默认 | 说明 |
+|---|---|---|
+| `SIGFLOW_USE_LOCAL_WX` | `ON` | 本地源码 / FetchContent 编译 wx（推荐） |
+| `SIGFLOW_ALLOW_FETCH` | `ON` | 本地/系统缺失时是否允许从网络拉取；麒麟离线交付设 `OFF` |
+| `SIGFLOW_FETCH_MIRROR` | 空 | 替换 `https://github.com/`（内网镜像） |
+| `SIGFLOW_WX_SRC` | `3rd/wxWidgets-src` | wx 源码目录 |
+| `SIGFLOW_WX_FETCH_TAG` | `v3.2.9` | FetchContent 的 wx tag |
+
+wx 源码编译仍需开发包：`pkg-config libgtk-3-dev libgl1-mesa-dev libglu1-mesa-dev libcurl4-openssl-dev`（+ 可选 `libftdi1-dev`）。
+
+> 临时绕过（不推荐长期用）：`LD_LIBRARY_PATH=/var/opt/kare-applications/shadow/merge/usr/lib/x86_64-linux-gnu build/sigflow`。
 
 ---
 

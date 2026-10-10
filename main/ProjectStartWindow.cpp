@@ -6,6 +6,12 @@
 #include <wx/msgdlg.h>
 #include <wx/dirdlg.h>
 #include <wx/filefn.h>
+#include <wx/log.h>
+#include <wx/stdpaths.h>
+#include <wx/tokenzr.h>
+
+#include <algorithm>
+#include <vector>
 
 // 事件ID
 enum
@@ -28,17 +34,80 @@ wxEND_EVENT_TABLE()
 
 namespace {
 
-// 启动日志的固定位置。
-//
-// 不能再用相对路径 "sigflow.log"：它解析到**当前工作目录**，
-// 从桌面项/快捷方式/其它目录启动时启动日志面板永远是空的，
-// 而 CWD 只读时写入还会静默失败（本仓 PlatformPaths.h 也明确要求
-// 不要用 CWD 定位随程序分发的文件）。与 canvas_elements.json 一致，
-// 放到可执行文件目录旁边。
+// Logs belong to the user's profile.  The executable directory is often
+// read-only (and may be protected by Windows), including for portable builds.
 wxString StartupLogPath()
+{
+    const wxString directory = wxStandardPaths::Get().GetUserLocalDataDir();
+    return directory.empty() ? wxString() : wxFileName(directory, "sigflow.log").GetFullPath();
+}
+
+wxString LegacyStartupLogPath()
 {
     return sigflow::platform::JoinPath(sigflow::platform::ExecutableDir(), "sigflow.log");
 }
+
+#ifdef _WIN32
+void RecoverHistoryFromLegacyLog(wxConfigBase& config)
+{
+    bool migrated = false;
+    if (config.Read("/Migration/LegacyLogHistoryV1", &migrated) && migrated) return;
+    if (config.Read("/Migration/RegistryHistoryV1", &migrated) && migrated) return;
+
+    wxLogNull suppressExpectedFileErrors;
+    wxFile oldLog(LegacyStartupLogPath());
+    if (!oldLog.IsOpened() || oldLog.Length() > 2 * 1024 * 1024) return;
+    wxString contents;
+    if (!oldLog.ReadAll(&contents)) return;
+
+    std::vector<wxString> recovered;
+    wxStringTokenizer lines(contents, "\r\n", wxTOKEN_STRTOK);
+    const wxString addMarker = "[INFO] Add to history: ";
+    const wxString removeMarker = "[INFO] Removed from history: ";
+    while (lines.HasMoreTokens()) {
+        const wxString line = lines.GetNextToken();
+        const int addAt = line.Find(addMarker);
+        const int removeAt = line.Find(removeMarker);
+        if (addAt == wxNOT_FOUND && removeAt == wxNOT_FOUND) continue;
+        const bool added = addAt != wxNOT_FOUND;
+        wxString path = line.Mid((added ? addAt : removeAt) +
+                                 (added ? addMarker : removeMarker).length());
+        path.Trim(true).Trim(false);
+        if (path.empty()) continue;
+        recovered.erase(std::remove_if(recovered.begin(), recovered.end(),
+                                       [&path](const wxString& item) {
+                                           return item.CmpNoCase(path) == 0;
+                                       }), recovered.end());
+        if (added) recovered.insert(recovered.begin(), path);
+    }
+
+    // Keep the new file's history in front.  The old log is a recovery source,
+    // not the authority once the user has opened projects with this build.
+    std::vector<wxString> merged;
+    for (int index = 1; index <= 9; ++index) {
+        wxString path;
+        if (config.Read(wxString::Format("/file%d", index), &path) && !path.empty()) {
+            merged.push_back(path);
+        }
+    }
+    const std::size_t currentCount = merged.size();
+    for (const wxString& path : recovered) {
+        const bool duplicate = std::any_of(merged.begin(), merged.end(),
+                                           [&path](const wxString& item) {
+                                               return item.CmpNoCase(path) == 0;
+                                           });
+        if (!duplicate && merged.size() < 9) merged.push_back(path);
+    }
+    if (merged.size() > currentCount) {
+        for (int index = 1; index <= 9; ++index) {
+            config.Write(wxString::Format("/file%d", index),
+                         index <= static_cast<int>(merged.size()) ? merged[index - 1] : wxString());
+        }
+    }
+    config.Write("/Migration/LegacyLogHistoryV1", true);
+    config.Flush();
+}
+#endif
 
 } // namespace
 
@@ -47,8 +116,12 @@ ProjectStartWindow::ProjectStartWindow(wxWindow* parent, wxWindowID id, const wx
     const wxPoint& pos, const wxSize& size, long style)
     : wxDialog(parent, id, title, pos, size, style)
 {
-    // 加载历史记录：从配置文件读取到内存
+    // Migrate old Windows registry history first; if that key is inaccessible,
+    // recover the remaining recent-project events from the old startup log.
     wxConfigBase* config = wxConfig::Get();  // 统一身份，见 MainMenuBar::LoadHistory 的说明
+#ifdef _WIN32
+    RecoverHistoryFromLegacyLog(*config);
+#endif
     m_fileHistory.Load(*config);
 
    
@@ -75,9 +148,11 @@ void ProjectStartWindow::LoadLogFromFile()
 {
     if (!m_logCtrl) return;
 
-    const wxString logPath = StartupLogPath();
+    wxString logPath = StartupLogPath();
+    if (logPath.empty() || !wxFileExists(logPath)) logPath = LegacyStartupLogPath();
     if (!wxFileExists(logPath)) return;
 
+    wxLogNull suppressExpectedFileErrors;
     wxFile file(logPath);
     if (!file.IsOpened()) return;
 
@@ -198,9 +273,14 @@ void ProjectStartWindow::Log(const wxString& msg, const wxString& level)
     if (m_logCtrl)
         m_logCtrl->AppendText(line);
 
-    // 写文件（可选但强烈建议）。写入失败不再静默：
-    // 日志目录不可写时至少让调用方知道（这里是启动窗口，只发到 stderr）。
-    wxFile file(StartupLogPath(), wxFile::write_append);
+    // The in-window log remains useful if the profile itself is read-only.
+    const wxString logPath = StartupLogPath();
+    if (logPath.empty()) return;
+    wxLogNull suppressExpectedFileErrors;
+    const wxString directory = wxFileName(logPath).GetPath();
+    if (!wxDirExists(directory) &&
+        !wxFileName::Mkdir(directory, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL)) return;
+    wxFile file(logPath, wxFile::write_append);
     if (!file.IsOpened()) {
         SIGFLOW_LOG("ProjectStartWindow: cannot open startup log for append\n");
         return;

@@ -1,0 +1,270 @@
+{
+  "cards": [
+    {
+      "card_id": "card-1",
+      "kind": "rule",
+      "level": "L1",
+      "title": "组合逻辑推断出锁存器：`q` 没有被所有分支赋值",
+      "body": "在同一个组合 always 块里，信号 `q` 只在“en”这一条路径上被赋值，其它路径（包括条件不成立时）没有给它赋任何值。\n\n综合工具会认为“没有赋值”意味着“保持上一次的值”，于是为 `q` 推断出一个锁存器（latch），而不是你想要的纯组合逻辑。这就是“推断值”和“锁存器”的区别：组合块的输出必须只由当前输入决定，所以每一条控制路径都要显式给出结果。\n\n请先自己检查两点：\n1. 条件不成立时，`q` 本来应该是什么值？\n2. 这个块里是否还有别的信号也只覆盖了部分路径？\n\n（本卡片只定位问题，不提供可直接替换的完整代码。）",
+      "issue_id": "issue-latch-q-2",
+      "source": "rule",
+      "evidence": [
+        {
+          "kind": "rule_match",
+          "ref": {
+            "rule": "RTL_LATCH_INCOMPLETE_BRANCH",
+            "issue_id": "issue-latch-q-2",
+            "signal": "q",
+            "line_hint": 2,
+            "detail": {
+              "signal": "q",
+              "covered_path": "en",
+              "missing_path": "条件不成立（无 else 或缺少默认赋值）"
+            },
+            "node_id": "node-1",
+            "source_id": "source-000000000000000000000001"
+          },
+          "note": "规则引擎在所选片段内命中 RTL_LATCH_INCOMPLETE_BRANCH（未调用模型）"
+        },
+        {
+          "kind": "source_ref",
+          "ref": {
+            "source_id": "source-000000000000000000000001",
+            "node_id": "node-1",
+            "start_line": 1,
+            "end_line": 6
+          },
+          "note": "规则命中的选中片段"
+        }
+      ],
+      "course_refs": [],
+      "limitations": [
+        "本卡片由确定性规则引擎生成，未经过模型推理，也不会给出可直接替换的完整代码。",
+        "规则结论只对上面给出的证据范围有效；请结合仿真波形与综合报告自行确认。"
+      ],
+      "expired": false,
+      "state_version": "2"
+    },
+    {
+      "card_id": "card-1",
+      "kind": "diagnostic_explanation",
+      "level": "L1",
+      "title": "诊断解读：EDU_LATCH_INFERRED",
+      "body": "工具在 synth 阶段报告了一条 warning 级诊断：\n\nEDU_LATCH_INFERRED：Latch inferred for signal 'q' (missing assignment in some branch).\n\n定位：file=top.v, start_line=7, end_line=7\n\n报告只提供了以上内容。请先回到定位到的位置自行阅读代码，确认这条诊断描述的现象是否真的存在；本卡片不会替你推断报告之外的根因，也不会给出完整修正代码。",
+      "issue_id": "diag-1",
+      "source": "rule",
+      "evidence": [
+        {
+          "kind": "diagnostic",
+          "ref": {
+            "id": "diag-1",
+            "code": "EDU_LATCH_INFERRED",
+            "raw_code": "LATCH",
+            "severity": "warning",
+            "stage": "synth",
+            "location": {
+              "file": "rtl/top.v",
+              "start_line": 7,
+              "end_line": 7
+            },
+            "origin": "core",
+            "confidence_kind": "tool",
+            "summary": "Latch inferred for signal 'q' (missing assignment in some branch)."
+          },
+          "note": "工具报告的原始诊断字段，未经改写"
+        },
+        {
+          "kind": "job_report",
+          "ref": {
+            "job_id": "job-21",
+            "origin": "core",
+            "completeness": "complete",
+            "revision": "rev-12",
+            "snapshot_id": "snap-12",
+            "input_fingerprint": "sha256:abc",
+            "capability": "eda.synth",
+            "plugin_id": "eda-synth-yosys",
+            "state": "Succeeded",
+            "raw_report_schema": "eda.jobreport.v1"
+          },
+          "note": "该诊断所属的归一化 Job 报告"
+        }
+      ],
+      "course_refs": [],
+      "limitations": [
+        "本卡片只复述工具报告的字段；报告没有给出的根因不作补充推断。",
+        "报告的可信度受其 completeness/origin 限制，请对照 /health 与报告字段自行判断。"
+      ],
+      "expired": false,
+      "state_version": "3"
+    },
+    {
+      "card_id": "card-1",
+      "kind": "rule",
+      "level": "L1",
+      "title": "证据不足：不能由空诊断得出“电路正常”",
+      "body": "本次工具报告里 `diagnostics` 是空数组，但这份报告**不足以**支持“电路没有问题”的结论。\n\n原因：\n- 报告的 origin 是 legacy：它来自旧数据，没有可信的 revision/输入指纹绑定。\n- 报告没有 revision，无法确认它对应的是学生当前看到的代码版本。\n\n“没有诊断”只说明这次工具运行在它自己的覆盖范围内没有报出问题，它不等于设计正确。空诊断的可信度和报告本身一样高，所以在证据补齐之前不能下任何结论。\n\n建议的下一步：确认该 Job 是否与当前 revision/快照绑定、报告是否来自本次真实的综合或仿真运行，再决定是否需要重跑。",
+      "issue_id": null,
+      "source": "rule",
+      "evidence": [
+        {
+          "kind": "job_report",
+          "ref": {
+            "job_id": "job-21",
+            "origin": "core",
+            "completeness": "complete",
+            "revision": "rev-12",
+            "snapshot_id": "snap-12",
+            "input_fingerprint": "sha256:abc",
+            "capability": "eda.synth",
+            "plugin_id": "eda-synth-yosys",
+            "state": "Succeeded",
+            "raw_report_schema": "eda.jobreport.v1"
+          },
+          "note": "工具报告本身：诊断为空，但完整性/来源不足以支撑结论"
+        },
+        {
+          "kind": "source_ref",
+          "ref": {
+            "source_id": "source-000000000000000000000001",
+            "node_id": "node-1",
+            "start_line": 1,
+            "end_line": 6
+          },
+          "note": "报告关联的选中片段"
+        }
+      ],
+      "course_refs": [],
+      "limitations": [
+        "本卡片拒绝给出结论，因为报告的可信度不足；这不是“无问题”的证明。"
+      ],
+      "expired": false,
+      "state_version": "2"
+    }
+  ],
+  "plan_cards": [
+    {
+      "plan_id": "plan-1",
+      "goal": "在不改动工程文件的前提下，用受限能力复现并定位当前问题",
+      "steps": [
+        {
+          "step_id": "s1",
+          "capability": "eda.synth",
+          "description": "对当前 revision 的不可变快照做综合，拿到综合报告与资源占用。",
+          "params": {
+            "top_module": "top",
+            "build_step_id": "s2"
+          },
+          "depends_on": [],
+          "max_jobs": 1
+        },
+        {
+          "step_id": "s2",
+          "capability": "eda.sim.build",
+          "description": "在同一个快照上编译仿真可执行文件，确认 testbench 可以构建。",
+          "params": {
+            "top_module": "top"
+          },
+          "depends_on": [
+            "s1"
+          ],
+          "max_jobs": 1
+        },
+        {
+          "step_id": "s3",
+          "capability": "eda.sim.run",
+          "description": "运行上一步构建出的仿真，产出波形后回到代码对照观察。",
+          "params": {
+            "top_module": "top"
+          },
+          "depends_on": [
+            "s2"
+          ],
+          "max_jobs": 1
+        }
+      ],
+      "max_jobs": 3,
+      "stop_conditions": [
+        "任何一步失败即停止，不自动重跑或换参数重试",
+        "revision 或快照发生变化即停止，需重新确认计划"
+      ],
+      "snapshot_required": true,
+      "revision": "rev-1-0123456789ab",
+      "requires_approval": true,
+      "state_version": "2"
+    }
+  ],
+  "negative": {
+    "bad_unknown_kind": {
+      "card_id": "card-1",
+      "kind": "quiz",
+      "level": "L1",
+      "title": "未知卡片类型",
+      "body": "kind 不在冻结枚举内，客户端必须拒绝。",
+      "issue_id": null,
+      "source": "rule",
+      "evidence": [
+        {
+          "kind": "rule_match",
+          "ref": {
+            "rule": "RTL_LATCH_INCOMPLETE_BRANCH"
+          },
+          "note": "负例 fixture"
+        }
+      ],
+      "course_refs": [],
+      "limitations": [
+        "负例 fixture：kind 不在枚举内"
+      ],
+      "expired": false,
+      "state_version": "1"
+    },
+    "bad_absolute_path_in_body": {
+      "card_id": "card-1",
+      "kind": "rule",
+      "level": "L1",
+      "title": "正文泄露本机绝对路径",
+      "body": "请打开 C:\\Users\\tester\\project\\rtl\\top.v 再检查一次。",
+      "issue_id": null,
+      "source": "rule",
+      "evidence": [
+        {
+          "kind": "rule_match",
+          "ref": {
+            "rule": "RTL_LATCH_INCOMPLETE_BRANCH"
+          },
+          "note": "负例 fixture"
+        }
+      ],
+      "course_refs": [],
+      "limitations": [
+        "负例 fixture：正文不得含本机绝对路径"
+      ],
+      "expired": false,
+      "state_version": "1"
+    },
+    "bad_missing_card_id": {
+      "kind": "rule",
+      "level": "L1",
+      "title": "缺少 card_id",
+      "body": "缺少必填字段 card_id。",
+      "issue_id": null,
+      "source": "rule",
+      "evidence": [
+        {
+          "kind": "rule_match",
+          "ref": {
+            "rule": "RTL_LATCH_INCOMPLETE_BRANCH"
+          },
+          "note": "负例 fixture"
+        }
+      ],
+      "course_refs": [],
+      "limitations": [
+        "负例 fixture：缺少必填字段"
+      ],
+      "expired": false,
+      "state_version": "1"
+    }
+  }
+}

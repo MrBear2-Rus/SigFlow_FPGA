@@ -6,6 +6,8 @@
 #include <wx/aui/aui.h>
 #include <wx/progdlg.h>
 #include <wx/filedlg.h>
+#include <wx/textdlg.h>
+#include <wx/textctrl.h>
 #include <wx/filefn.h>
 #include <wx/stc/stc.h>
 #include <wx/stdpaths.h>
@@ -23,6 +25,7 @@
 #include "ISigPlugin.h"
 #include "eda-core/Toolchain.h"
 #include "eda-platform/Platform.h"
+#include "eda-platform/Sha256.h"
 #include <eda/api/toolchain.hpp>
 #include <filesystem>
 
@@ -794,7 +797,7 @@ MainFrame::MainFrame()
     // 命令行、URL、工程文件或终端日志。
     {
         eda::agent::GatewayConfig gatewayConfig;
-        gatewayConfig.instanceId = "inst-" + std::string(wxDateTime::UNow().Format("%Y%m%d%H%M%S").ToUTF8().data());
+        gatewayConfig.instanceId = "inst-" + MakeEphemeralGatewayToken().substr(0, 32);
         gatewayConfig.edition = "edu";
         gatewayConfig.port = 0;
         const std::string gatewayToken = MakeEphemeralGatewayToken();
@@ -806,7 +809,15 @@ MainFrame::MainFrame()
                 std::vector<eda::agent::ReadyPlugin> ready;
                 if (composer == nullptr) return ready;
                 for (const auto& plugin : composer->ReadyPlugins()) {
-                    ready.push_back({plugin.id, plugin.version, plugin.capabilities});
+                    eda::agent::ReadyPlugin entry;
+                    entry.id = plugin.id;
+                    entry.version = plugin.version;
+                    entry.capabilities = plugin.capabilities;
+                    // AD-12：把"插件在册但工具不可用"如实转给 Gateway，
+                    // 让它把对应能力报成 ready=false + 可读原因。
+                    entry.ready = plugin.ready;
+                    entry.reason = plugin.reason;
+                    ready.push_back(std::move(entry));
                 }
                 return ready;
             });
@@ -842,7 +853,7 @@ MainFrame::MainFrame()
             sidecarConfig.agentUiToken = MakeEphemeralGatewayToken();
             sidecarConfig.dataDirectory = wxString::FromUTF8(
                 eda::platform::PathToUtf8(eda::platform::AppDataRoot() / "sigflow-edu-agent" /
-                                          gatewayConfig.instanceId).c_str());
+                                          "local").c_str());
             sidecarConfig.workingDirectory = sidecarConfig.dataDirectory;
             sidecarConfig.onStatus = [this](const AgentServiceController::Status& status) {
                 if (m_terminalCtrl == nullptr) return;
@@ -1281,52 +1292,6 @@ void MainFrame::OnToolboxElement(wxCommandEvent& evt)
     m_canvas->SetCurrentComponent(name);  
 }
 
-bool MirrorDirectory(const wxString& source, const wxString& dest) {
-    if (!wxDir::Exists(dest)) {
-        if (!wxFileName::Mkdir(dest, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL)) {
-            SIGFLOW_LOG("MirrorDirectory: cannot create destination '" + dest + "'\n");
-            return false;
-        }
-    }
-
-    wxDir dir(source);
-    if (!dir.IsOpened()) {
-        SIGFLOW_LOG("MirrorDirectory: cannot open source '" + source + "'\n");
-        return false;
-    }
-
-    wxString filename;
-    // 1. 复制所有文件。任何失败都必须向上传播。
-    bool cont = dir.GetFirst(&filename, wxEmptyString, wxDIR_FILES);
-    while (cont) {
-        wxString srcFile = source + wxFileName::GetPathSeparator() + filename;
-        wxString dstFile = dest + wxFileName::GetPathSeparator() + filename;
-
-        if (!wxCopyFile(srcFile, dstFile, true)) {
-            // 指明是哪一个文件失败：此前只返回 false，调用方也无提示，
-            // 用户只会看到"标题不刷新/镜像静默失败"，完全无从排查。
-            SIGFLOW_LOG("MirrorDirectory: copy failed '" + srcFile + "' -> '" + dstFile + "'\n");
-            return false;
-        }
-        cont = dir.GetNext(&filename);
-    }
-
-    // 2. 递归处理子目录 (跳过 .git 和 .sigflow 自身，防止无限递归)
-    cont = dir.GetFirst(&filename, wxEmptyString, wxDIR_DIRS);
-    while (cont) {
-        if (filename != ".sigflow" && filename != ".git" && filename != ".cache") {
-            if (!MirrorDirectory(source + wxFileName::GetPathSeparator() + filename,
-                                 dest + wxFileName::GetPathSeparator() + filename)) {
-                return false;
-            }
-        }
-        cont = dir.GetNext(&filename);
-    }
-    return true;
-}
-
-
-
 void DumpTree(TSNode node, const wxString& src, int indent) {
     wxString line;
 
@@ -1473,7 +1438,7 @@ void MainFrame::DoFileOpenProject() {
             if (root["paths"].isMember("source_files")) {
                 auto& sourceFiles = root["paths"]["source_files"];
                 int totalFiles = sourceFiles.size();
-                progress.SetRange(totalFiles + 2); // 文件数 + 解析JSON(1) + 镜像(1)
+                progress.SetRange(totalFiles + 1); // 文件数 + 完成(1)
 
                 int currentStep = 0;
 
@@ -1535,20 +1500,6 @@ void MainFrame::DoFileOpenProject() {
             m_toolbox->AddDefinition(defId);
         }
 
-        progress.Update(progress.GetRange() - 1, "Creating Workspace Mirror...");
-
-        wxString workspacePath = JoinPath(JoinPath(m_currentProjectPath, ".sigflow"), "workspace");
-
-        //wxLogStatus("Mirroring project to workspace...");
-
-        // 工程镜像只是给编译器用的副本，属于"尽力而为"：
-        // 失败不应影响"项目已经打开"这一事实，更不能因此跳过项目名/标题更新
-        // （原实现把 RefreshTitle 放在 if 内部，镜像一旦失败标题就永远停在 "[no project]"）。
-        if (MirrorDirectory(m_currentProjectPath, workspacePath)) {
-            m_workspacePath = workspacePath;
-        } else {
-            SIGFLOW_LOG("MainFrame: project mirror failed; continuing without workspace copy.\n");
-        }
         m_projectName = wxFileName(path).GetFullName();
         m_projectTreePanel->LoadProject(m_currentProjectPath);
         RefreshTitle();
@@ -1610,7 +1561,7 @@ void MainFrame::SetProjectDir(const wxString& projectDir)
         if (root["paths"].isMember("source_files")) {
             auto& sourceFiles = root["paths"]["source_files"];
             int totalFiles = sourceFiles.size();
-            progress.SetRange(totalFiles + 2); // 文件数 + 解析JSON(1) + 镜像(1)
+            progress.SetRange(totalFiles + 1); // 文件数 + 完成(1)
 
             int currentStep = 0;
 
@@ -1681,19 +1632,6 @@ void MainFrame::SetProjectDir(const wxString& projectDir)
         m_toolbox->AddDefinition(defId);
     }
 
-    // 进度条更新：创建工作区镜像
-    progress.Update(progress.GetRange() - 1, "Creating Workspace Mirror...");
-
-    // 构造工作区路径
-    wxString workspacePath = JoinPath(JoinPath(m_currentProjectPath, ".sigflow"), "workspace");
-
-    // 镜像目录（复用你的 MirrorDirectory 函数）
-    // 同上：镜像失败不应阻止标题/项目名更新，否则界面会一直显示 "[no project]"。
-    if (MirrorDirectory(m_currentProjectPath, workspacePath)) {
-        m_workspacePath = workspacePath;
-    } else {
-        SIGFLOW_LOG("MainFrame: project mirror failed; continuing without workspace copy.\n");
-    }
     m_projectName = wxFileName(projectDir).GetFullName();
     m_projectTreePanel->LoadProject(m_currentProjectPath);
     RefreshTitle();
@@ -2568,24 +2506,6 @@ void MainFrame::OnClose(wxCloseEvent& event) {
         // ��ִ�� Skip()����ֹ���ڹر�
         break;
     }
-}
-
-wxString MainFrame::GetWorkspaceCopyPath(const wxString& m_currentFilePath) {
-    // 1. 创建文件对象
-    wxFileName fileObj(m_currentFilePath);
-
-    // 2. 计算相对于项目根目录的相对路径
-    // 执行后，fileObj 将不再存有绝对路径，而是变为 "src/top.v" 这种形式
-    if (fileObj.MakeRelativeTo(m_currentProjectPath)) {
-
-        // 3. 将相对路径拼接到工作区根目录下
-        // 这里的路径加法会自动处理反斜杠
-        wxString targetPath = m_workspacePath + wxFileName::GetPathSeparator() + fileObj.GetFullPath();
-
-        return targetPath;
-    }
-
-    return wxEmptyString; // 如果不在项目内，返回空
 }
 
 void MainFrame::OnAnalysisComplete(wxThreadEvent& event) {

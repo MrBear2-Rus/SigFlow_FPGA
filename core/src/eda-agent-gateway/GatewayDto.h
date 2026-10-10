@@ -29,10 +29,16 @@ struct CapabilityStatus {
 
 // 能力解析：从一批"已就绪插件"（id/version/capabilities）推导教育能力可用性。
 // 插件以 (id, version, capabilities) 描述，避免依赖 wx/Composer。
+//
+// AD-12：`ready=false` 表示"插件已注册但当前不可用"（例如工具链没装或不可执行）。
+// 这类插件仍会出现在能力列表里，但对应能力必须是 ready=false + 可读 reason，
+// 不能让 Agent 以为可以执行。
 struct ReadyPlugin {
     std::string id;
     std::string version;
     std::vector<std::string> capabilities;
+    bool ready = true;
+    std::string reason;
 };
 
 std::vector<CapabilityStatus> ResolveEducationCapabilities(const std::vector<ReadyPlugin>& ready);

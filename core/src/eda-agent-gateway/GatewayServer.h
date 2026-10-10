@@ -58,6 +58,8 @@ struct ProjectSnapshotState {
     Json sourceSummary = Json::array();
     std::string policyVersion;
     std::string bufferHash;
+    // Host-only tool locations, never serialized into context/snapshot/card DTOs.
+    Json trustedToolPaths = Json::object();
 };
 
 // 最小 EDA Gateway：绑定 127.0.0.1，提供 GET /api/v1/health、GET /api/v1/capabilities。
@@ -112,6 +114,7 @@ public:
     bool MarkProjectDirty(const std::string& projectId, bool dirty,
                           const std::string& bufferHash = {});
     void RemoveProjectSnapshotState(const std::string& projectId);
+    bool ProjectState(const std::string& projectId, ProjectSnapshotState& out) const;
 
     // NG-05：局部设计证据。宿主在 UI/设计模型线程上抽取不可变 DTO 后注入；
     // 图形/源码映射不可靠时必须由宿主给出 Ambiguous/Unavailable，不允许由 Gateway 猜测。

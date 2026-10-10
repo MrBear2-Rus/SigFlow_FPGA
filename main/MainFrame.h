@@ -9,6 +9,7 @@
 
 #include <memory>
 #include <functional>
+#include <chrono>
 #include <map>
 #include <string>
 #include <vector>
@@ -63,8 +64,6 @@ private:
     wxString m_projectName;
     wxString m_currentFilePath;
     wxString m_currentProjectPath;
-    wxString m_workspacePath;
-    wxString GetWorkspaceCopyPath(const wxString& m_currentFilePath);
     bool m_isModified;
     SigTextEditor* m_verilogEditor;
     AsyncAnalysisCenter* m_analysisCenter; // 异步中心指针

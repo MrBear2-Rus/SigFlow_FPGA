@@ -1,6 +1,9 @@
 #include "SchemaRegistry.h"
 
 #include <utility>
+#include <regex>
+#include <set>
+#include <cmath>
 
 namespace eda {
 namespace {
@@ -79,7 +82,34 @@ bool ValidateValue(const Json& schema, const Json& rootSchema, const Json& value
                    const std::string& path,
                    const SimpleSchemaRegistry::RefResolver& resolver, bool strictRefs, int depth,
                    std::string& error) {
-    if (!schema.is_object()) return true;
+    if (schema.is_boolean()) {
+        if (!schema.get<bool>()) error = "false schema at " + path;
+        return schema.get<bool>();
+    }
+    if (!schema.is_object()) { error = "invalid schema at " + path; return false; }
+    if (depth >= 64) { error = "schema nesting too deep"; return false; }
+    for (const char* keyword : {"allOf", "anyOf", "oneOf"}) {
+        if (!schema.contains(keyword)) continue;
+        if (!schema[keyword].is_array() || schema[keyword].empty()) {
+            error = "invalid combinator at " + path; return false;
+        }
+        std::size_t matches = 0;
+        for (const auto& branch : schema[keyword]) {
+            std::string branchError;
+            if (ValidateValue(branch, rootSchema, value, path, resolver, strictRefs,
+                              depth + 1, branchError)) ++matches;
+        }
+        if ((std::string(keyword) == "allOf" && matches != schema[keyword].size()) ||
+            (std::string(keyword) == "anyOf" && matches == 0) ||
+            (std::string(keyword) == "oneOf" && matches != 1)) {
+            error = std::string(keyword) + " mismatch at " + path; return false;
+        }
+    }
+    if (schema.contains("not")) {
+        std::string ignored;
+        if (ValidateValue(schema["not"], rootSchema, value, path, resolver, strictRefs,
+                          depth + 1, ignored)) { error = "not mismatch at " + path; return false; }
+    }
 
     // `$ref`：解析后按目标 schema 继续校验（深度上限同时充当循环保护）。
     //   "#/$defs/x"                 -> 当前 schema 文档内部指针
@@ -118,8 +148,8 @@ bool ValidateValue(const Json& schema, const Json& rootSchema, const Json& value
             }
             return true;
         }
-        return ValidateValue(target, targetRoot, value, path, resolver, strictRefs, depth + 1,
-                             error);
+        if (!ValidateValue(target, targetRoot, value, path, resolver, strictRefs, depth + 1,
+                           error)) return false;
     }
 
     if (schema.contains("type")) {
@@ -185,13 +215,61 @@ bool ValidateValue(const Json& schema, const Json& rootSchema, const Json& value
         }
     }
 
+    if (value.is_number()) {
+        for (const char* keyword : {"minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum"}) {
+            if (!schema.contains(keyword) || !schema[keyword].is_number()) continue;
+            const auto& bound = schema[keyword];
+            const std::string key(keyword);
+            const bool invalid = key == "minimum" ? value < bound :
+                                 key == "maximum" ? value > bound :
+                                 key == "exclusiveMinimum" ? value <= bound : value >= bound;
+            if (invalid) { error = key + " mismatch at " + path; return false; }
+        }
+    }
+    if (value.is_string()) {
+        const std::string text = value.get<std::string>();
+        std::size_t length = 0;
+        for (unsigned char byte : text) if ((byte & 0xc0) != 0x80) ++length;
+        if ((schema.contains("minLength") && length < schema["minLength"].get<std::size_t>()) ||
+            (schema.contains("maxLength") && length > schema["maxLength"].get<std::size_t>())) {
+            error = "string length mismatch at " + path; return false;
+        }
+        if (schema.contains("pattern")) {
+            try {
+                if (!std::regex_search(text, std::regex(schema["pattern"].get<std::string>()))) {
+                    error = "pattern mismatch at " + path; return false;
+                }
+            } catch (const std::regex_error&) { error = "invalid schema pattern"; return false; }
+        }
+    }
+    if (value.is_array()) {
+        if ((schema.contains("minItems") && value.size() < schema["minItems"].get<std::size_t>()) ||
+            (schema.contains("maxItems") && value.size() > schema["maxItems"].get<std::size_t>())) {
+            error = "array length mismatch at " + path; return false;
+        }
+        if (schema.value("uniqueItems", false)) {
+            std::set<std::string> seen;
+            for (const auto& item : value) if (!seen.insert(item.dump()).second) {
+                error = "duplicate array item at " + path; return false;
+            }
+        }
+    }
+    if (value.is_object() && schema.contains("additionalProperties")) {
+        const Json properties = schema.value("properties", Json::object());
+        for (auto it = value.begin(); it != value.end(); ++it) {
+            if (properties.contains(it.key())) continue;
+            if (!ValidateValue(schema["additionalProperties"], rootSchema, it.value(),
+                               path + "." + it.key(), resolver, strictRefs, depth + 1, error)) return false;
+        }
+    }
+
     if (value.is_object() && schema.contains("properties") && schema["properties"].is_object()) {
         const Json& propertySchema = schema["properties"];
         for (auto it = value.begin(); it != value.end(); ++it) {
             const auto found = propertySchema.find(it.key());
             if (found == propertySchema.end()) continue;  // 未声明字段：按契约忽略
             if (!ValidateValue(*found, rootSchema, it.value(), path + "." + it.key(), resolver,
-                               strictRefs, depth, error)) {
+                               strictRefs, depth + 1, error)) {
                 return false;
             }
         }
@@ -202,7 +280,7 @@ bool ValidateValue(const Json& schema, const Json& rootSchema, const Json& value
         for (std::size_t index = 0; index < value.size(); ++index) {
             if (!ValidateValue(itemSchema, rootSchema, value[index],
                                path + "[" + std::to_string(index) + "]", resolver, strictRefs,
-                               depth, error)) {
+                               depth + 1, error)) {
                 return false;
             }
         }
@@ -258,22 +336,6 @@ bool SimpleSchemaRegistry::Validate(const std::string& id, const Json& document,
         schema = it->second;
         resolver = refResolver_;
         strictRefs = strictRefs_;
-    }
-
-    if (schema.contains("type") && schema["type"].is_string()) {
-        const std::string expected = schema["type"].get<std::string>();
-        const std::string actual = JsonTypeName(document);
-        if (expected != actual) {
-            error = "type mismatch: expected '" + expected + "', got '" + actual + "'";
-            return false;
-        }
-    }
-
-    if (schema.contains("required") && schema["required"].is_array()) {
-        if (!document.is_object()) {
-            error = "'required' present but document is not an object";
-            return false;
-        }
     }
 
     // 值域校验：type/required/enum/const/properties/items（含可解析的 $ref）。
