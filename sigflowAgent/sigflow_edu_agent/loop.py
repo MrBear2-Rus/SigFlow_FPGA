@@ -3,17 +3,19 @@
 from copy import deepcopy
 from uuid import uuid4
 
-from .domain import (Card, CardContext, EvidenceError, Plan, ProviderError, RunRequest,
+from .domain import (Card, CardContext, Evidence, EvidenceError, Plan, ProviderError, RunRequest,
                      RunState, Status, Trace, VerificationResult)
 from .pedagogy import RuleProvider, checked_card, valid_evidence
 from .ports import CardProvider, DenyVerification, EvidenceSource, VerificationPort
+from .checkers import DetailedPlan, PlanChecker, OutcomeChecker
+from .patterns import assess
 
 
 class TeachingLoop:
     def __init__(self, request: RunRequest, source: EvidenceSource,
-                 provider: CardProvider | None = None, *, plan: Plan | None = None,
+                 provider: CardProvider | None = None, *, plan: Plan | DetailedPlan | None = None,
                  verification: VerificationPort | None = None,
-                 max_steps: int = 32, max_model_calls: int = 4):
+                 max_steps: int = 32, max_model_calls: int = 4, baseline_evidence=None):
         if type(max_steps) is not int or not 1 <= max_steps <= 1000:
             raise ValueError('invalid_step_budget')
         if type(max_model_calls) is not int or not 0 <= max_model_calls <= 100:
@@ -22,6 +24,14 @@ class TeachingLoop:
             raise ValueError('plan_required')
         if plan is not None and (plan.project_id, plan.revision) != (request.project_id, request.revision):
             raise ValueError('stale_plan')
+        if isinstance(plan, DetailedPlan):
+            plan = PlanChecker().check(plan)
+        if baseline_evidence is not None:
+            if not isinstance(baseline_evidence, Evidence):
+                raise ValueError('invalid_baseline_evidence')
+            baseline_request = RunRequest(request.project_id, baseline_evidence.revision, request.issue_id, request.question)
+            if not valid_evidence(baseline_evidence, baseline_request):
+                raise ValueError('invalid_baseline_evidence')
         self.request, self.source, self.provider = request, source, provider
         self.plan, self.verification = plan, verification or DenyVerification()
         self.max_steps, self.max_model_calls = max_steps, max_model_calls
@@ -31,6 +41,8 @@ class TeachingLoop:
         self._grant_ref = ''
         self._job_index = 0
         self._results = []
+        self._baseline_evidence = baseline_evidence
+        self._needs_replan = False
 
     @property
     def state(self) -> RunState:
@@ -76,7 +88,7 @@ class TeachingLoop:
                 state.status = Status.COMPLETED
             else:
                 state.stage = 'E5'
-                state.status = (Status.WAITING_APPROVAL if self.request.intent == 'verify'
+                state.status = (Status.WAITING_APPROVAL if self.request.intent == 'verify' and not self._needs_replan
                                 else Status.WAITING_STUDENT)
         elif stage == 'E6':
             self._execute_step()
@@ -91,7 +103,10 @@ class TeachingLoop:
     def _generate_card(self) -> Card:
         state = self._state
         context = CardContext(self.request.question, state.level, self._evidence)
-        if self.provider is not None:
+        assessment = assess(context.evidence)
+        if assessment.status != 'supported':
+            state.reason = assessment.reason
+        if self.provider is not None and assessment.status == 'supported':
             for attempt in range(2):
                 if state.model_calls >= self.max_model_calls:
                     state.reason = 'model_budget_exceeded'
@@ -162,6 +177,8 @@ class TeachingLoop:
         if not isinstance(grant_ref, str) or not grant_ref or len(grant_ref) > 512 or self.plan is None:
             return False
         try:
+            if isinstance(self.plan, DetailedPlan):
+                PlanChecker().check(self.plan)
             return self.verification.authorized(self.plan, grant_ref) is True
         except Exception:
             return False
@@ -172,6 +189,10 @@ class TeachingLoop:
             current = self.source.collect(self.request.project_id, self.request.revision)
             if not valid_evidence(current, self.request):
                 state.status, state.reason = Status.FAILED, 'stale_execution_evidence'
+                return
+            if isinstance(self.plan, DetailedPlan) and (current.anchor is None or
+                    current.anchor.snapshot_id != self.plan.snapshot_id):
+                state.status, state.reason = Status.FAILED, 'snapshot_mismatch'
                 return
             if not self._authorized(self._grant_ref):
                 state.status, state.reason = Status.FAILED, 'approval_denied'
@@ -188,26 +209,47 @@ class TeachingLoop:
         if not valid_evidence(result.evidence, self.request):
             state.status, state.reason = Status.FAILED, 'invalid_result_evidence'
             return
+        outcome = OutcomeChecker().compare(
+            self._baseline_evidence or self._evidence, result.evidence, self.request.revision,
+            project_id=self.request.project_id, matches_expected=result.matches_expected,
+            seen_job_ids=(current.job_id,) + tuple(r.evidence.job_id for r in self._results),
+            snapshot_id=self.plan.snapshot_id if isinstance(self.plan, DetailedPlan) else None)
+        if outcome.state == 'rejected':
+            state.status, state.reason = Status.FAILED, outcome.reason
+            return
         seen_jobs = {self._evidence.job_id} | {r.evidence.job_id for r in self._results}
-        if result.evidence.job_id in seen_jobs:
+        if (result.evidence.job_id in seen_jobs
+                or result.evidence.evidence_id in {current.evidence_id, self._evidence.evidence_id}
+                or any(result.evidence.evidence_id == r.evidence.evidence_id for r in self._results)):
             state.status, state.reason = Status.FAILED, 'reused_job_result'
             return
         self._results.append(result)
         self._job_index += 1
-        if self._job_index == len(self.plan.steps):
+        if (self._job_index == len(self.plan.steps) or
+                outcome.state == 'mismatch' and isinstance(self.plan, DetailedPlan)
+                and 'observation_mismatch' in self.plan.stop_conditions):
             state.stage = 'E7'
 
     def _feedback(self):
-        last = self._results[-1]
-        if last.matches_expected is True:
+        flags = [result.matches_expected for result in self._results]
+        matches = False if any(flag is False for flag in flags) else (
+            True if all(flag is True for flag in flags) else None)
+        if matches is True:
             hint = '本次测试覆盖范围内的观察与预期一致；不能据此认定整个设计正确或已掌握概念。'
-        elif last.matches_expected is False:
+        elif matches is False:
             hint = '本次测试覆盖范围内的观察与预期不一致，请重新核对假设与证据。'
         else:
             hint = '工具任务已完成，但没有完整的功能判定；不能据此认定功能正确或已掌握概念。'
         limits = ('仅覆盖当前计划与当前版本。',)
-        if last.evidence.origin == 'fixture':
+        if any(result.evidence.origin == 'fixture' for result in self._results):
             limits += ('离线示例结果，不是真实 EDA 验证。',)
         self._state.cards.append(Card(self._state.level, hint, '你如何解释这次观察？',
-                                      (last.evidence.evidence_id,), 'rule', limits))
-        self._state.status = Status.COMPLETED
+                                      tuple(result.evidence.evidence_id for result in self._results), 'rule', limits))
+        if matches is False:
+            self._grant_ref = ''
+            self._needs_replan = True
+            self._state.status, self._state.reason = Status.WAITING_EVIDENCE, 'recollect_and_replan'
+        else:
+            self._state.status = Status.COMPLETED
+            if matches is None:
+                self._state.reason = 'outcome_indeterminate'

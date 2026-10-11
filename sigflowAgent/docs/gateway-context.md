@@ -1,5 +1,8 @@
 # Part 3：Gateway、报告与上下文
 
+> 本文保留 Part 3 的设计与历史验证范围。后续已新增只读 Job 报告路由，
+> 当前接口及 artifact 字段映射以 [阶段 8 报告](stage-8-gateway-report.md) 为准。
+
 ## HTTP 边界
 
 `clients/gateway.py` 仅实现已冻结的 `GET /api/v1/health` 和 `GET /api/v1/capabilities`，对应共享协议 `edu.api.v1`。连接固定到 127.0.0.1；端口、token、预期实例由可信宿主配置。health 不附 token，capabilities 附 Bearer token。成功信封必须匹配协议、预期 instance_id 和 edu edition。

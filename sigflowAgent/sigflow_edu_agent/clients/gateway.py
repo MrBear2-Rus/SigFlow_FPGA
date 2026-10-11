@@ -4,9 +4,23 @@ from dataclasses import dataclass, field
 import http.client
 import json
 import math
+import re
 
 PROTOCOL = 'edu.api.v1'
 EDUCATIONAL_CAPABILITIES = ('eda.synth', 'eda.sim.build', 'eda.sim.run')
+
+
+def _json_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError('duplicate_key')
+        result[key] = value
+    return result
+
+
+def _json_constant(value):
+    raise ValueError('invalid_number')
 
 
 class GatewayError(ValueError):
@@ -68,15 +82,28 @@ class GatewayClient:
     def __init__(self, config: GatewayConfig):
         self.config = config
 
-    def _get(self, route):
-        if route not in ('health', 'capabilities'):
+    @staticmethod
+    def _identifier(value):
+        if (type(value) is not str or len(value) > 256
+                or re.fullmatch(r'[A-Za-z0-9_-]+(?:[.:][A-Za-z0-9_-]+)*', value) is None):
+            raise GatewayError('INVALID_ARGUMENT')
+        return value
+
+    def _get(self, route, *, job_id=None):
+        # Only these route factories can reach the transport; no caller URL,
+        # query string, redirect, or alternate HTTP method is accepted.
+        if route in ('health', 'capabilities') and job_id is None:
+            path = '/api/v1/' + route
+        elif route == 'job_report':
+            path = '/api/v1/jobs/' + self._identifier(job_id) + '/report'
+        else:
             raise GatewayError('UNSUPPORTED_MAPPING')
         connection = http.client.HTTPConnection('127.0.0.1', self.config.port, timeout=self.config.timeout)
         headers = {'Accept': 'application/json'}
-        if route == 'capabilities':
+        if route != 'health':
             headers['Authorization'] = 'Bearer ' + self.config.token
         try:
-            connection.request('GET', '/api/v1/' + route, headers=headers)
+            connection.request('GET', path, headers=headers)
             response = connection.getresponse()
             if 300 <= response.status < 400:
                 raise GatewayError('REDIRECT_DENIED')
@@ -91,7 +118,7 @@ class GatewayClient:
         finally:
             connection.close()
         try:
-            envelope = json.loads(raw)
+            envelope = json.loads(raw, object_pairs_hook=_json_object, parse_constant=_json_constant)
         except (ValueError, RecursionError):
             raise GatewayError('INVALID_RESPONSE') from None
         if not isinstance(envelope, dict):
@@ -109,6 +136,8 @@ class GatewayClient:
         data = envelope.get('data')
         if 'error' in envelope or not isinstance(data, dict):
             raise GatewayError('INVALID_RESPONSE')
+        if route == 'job_report':
+            return data
         if data.get('protocol_version') != PROTOCOL:
             raise GatewayError('PROTOCOL_MISMATCH')
         if data.get('instance_id') != self.config.instance_id:
@@ -119,6 +148,34 @@ class GatewayClient:
 
     def health(self):
         return self._get('health')
+
+    def job_report(self, job_id, *, project_id, revision, snapshot_id):
+        """Fetch a bound raw report; this does not certify evidence or anchors."""
+        for value in (job_id, project_id, revision, snapshot_id):
+            self._identifier(value)
+        self.health()
+        data = self._get('job_report', job_id=job_id)
+        if data.get('schema_version') != 'edu.jobreport.v1':
+            raise GatewayError('PROTOCOL_MISMATCH')
+        if data.get('job_id') != job_id or data.get('project_id') != project_id:
+            raise GatewayError('INVALID_RESPONSE')
+        if data.get('revision') != revision or data.get('snapshot_id') != snapshot_id:
+            raise GatewayError('STALE_REVISION')
+        if (data.get('origin') != 'core'
+                or data.get('completeness') not in ('complete', 'partial', 'unavailable')
+                or data.get('state') not in ('Queued', 'Running', 'Cancelling', 'Cancelled',
+                                           'Succeeded', 'Failed', 'TimedOut', 'Rejected', 'Unknown')
+                or type(data.get('capability')) is not str or not data['capability']):
+            raise GatewayError('INVALID_RESPONSE')
+        for key, expected in (('diagnostics', list), ('metrics', dict), ('artifacts', list)):
+            if key in data and type(data[key]) is not expected:
+                raise GatewayError('INVALID_RESPONSE')
+        for key in ('plugin_id', 'plugin_version', 'input_fingerprint', 'raw_report_schema', 'reason'):
+            if data.get(key) is not None and type(data[key]) is not str:
+                raise GatewayError('INVALID_RESPONSE')
+        if data.get('exit_code') is not None and type(data['exit_code']) is not int:
+            raise GatewayError('INVALID_RESPONSE')
+        return data
 
     def capabilities(self):
         data = self._get('capabilities')

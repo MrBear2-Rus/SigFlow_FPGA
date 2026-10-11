@@ -1,0 +1,205 @@
+{
+  "suite_version": "development-v1",
+  "cases": [
+    {
+      "probe": "card_level4",
+      "expected": true,
+      "case_id": "dev-001"
+    },
+    {
+      "probe": "card_level2",
+      "expected": true,
+      "case_id": "dev-002"
+    },
+    {
+      "probe": "card_bool_level",
+      "expected": true,
+      "case_id": "dev-003"
+    },
+    {
+      "probe": "card_forged_reference",
+      "expected": true,
+      "case_id": "dev-004"
+    },
+    {
+      "probe": "card_extra_reference",
+      "expected": true,
+      "case_id": "dev-005"
+    },
+    {
+      "probe": "card_code_fence",
+      "expected": true,
+      "case_id": "dev-006"
+    },
+    {
+      "probe": "card_rtl",
+      "expected": true,
+      "case_id": "dev-007"
+    },
+    {
+      "probe": "card_extra_tool",
+      "expected": true,
+      "case_id": "dev-008"
+    },
+    {
+      "probe": "card_blank_question",
+      "expected": true,
+      "case_id": "dev-009"
+    },
+    {
+      "probe": "card_oversized",
+      "expected": true,
+      "case_id": "dev-010"
+    },
+    {
+      "probe": "evidence_cross_project",
+      "expected": true,
+      "case_id": "dev-011"
+    },
+    {
+      "probe": "evidence_stale",
+      "expected": true,
+      "case_id": "dev-012"
+    },
+    {
+      "probe": "evidence_partial",
+      "expected": true,
+      "case_id": "dev-013"
+    },
+    {
+      "probe": "evidence_hypothesis",
+      "expected": true,
+      "case_id": "dev-014"
+    },
+    {
+      "probe": "plan_shell",
+      "expected": true,
+      "case_id": "dev-015"
+    },
+    {
+      "probe": "plan_unbuilt_sim",
+      "expected": true,
+      "case_id": "dev-016"
+    },
+    {
+      "probe": "plan_over_budget",
+      "expected": true,
+      "case_id": "dev-017"
+    },
+    {
+      "probe": "reference_request",
+      "expected": true,
+      "case_id": "dev-018"
+    },
+    {
+      "probe": "reference_confirm",
+      "expected": true,
+      "case_id": "dev-019"
+    },
+    {
+      "probe": "teacher_text",
+      "expected": true,
+      "case_id": "dev-020"
+    },
+    {
+      "probe": "repeat_action",
+      "expected": true,
+      "case_id": "dev-021"
+    },
+    {
+      "probe": "stale_action",
+      "expected": true,
+      "case_id": "dev-022"
+    },
+    {
+      "probe": "hint_cap",
+      "expected": true,
+      "case_id": "dev-023"
+    },
+    {
+      "probe": "cancel_stops",
+      "expected": true,
+      "case_id": "dev-024"
+    },
+    {
+      "probe": "step_budget",
+      "expected": true,
+      "case_id": "dev-025"
+    },
+    {
+      "probe": "model_budget",
+      "expected": true,
+      "case_id": "dev-026"
+    },
+    {
+      "probe": "repair_limit",
+      "expected": true,
+      "case_id": "dev-027"
+    },
+    {
+      "probe": "provider_error",
+      "expected": true,
+      "case_id": "dev-028"
+    },
+    {
+      "probe": "source_injection",
+      "expected": true,
+      "case_id": "dev-029"
+    },
+    {
+      "probe": "course_injection",
+      "expected": true,
+      "case_id": "dev-030"
+    },
+    {
+      "probe": "log_injection",
+      "expected": true,
+      "case_id": "dev-031"
+    },
+    {
+      "case_id": "dev-032",
+      "probe": "detailed_unknown_parameter",
+      "expected": true
+    },
+    {
+      "case_id": "dev-033",
+      "probe": "detailed_forward_dependency",
+      "expected": true
+    },
+    {
+      "case_id": "dev-034",
+      "probe": "detailed_hash_binding",
+      "expected": true
+    },
+    {
+      "case_id": "dev-035",
+      "probe": "outcome_reused_job",
+      "expected": true
+    },
+    {
+      "case_id": "dev-036",
+      "probe": "outcome_cross_project",
+      "expected": true
+    },
+    {
+      "case_id": "dev-037",
+      "probe": "outcome_old_revision",
+      "expected": true
+    },
+    {
+      "case_id": "dev-038",
+      "probe": "pattern_fake_detector",
+      "expected": true
+    },
+    {
+      "case_id": "dev-039",
+      "probe": "pattern_cross_anchor",
+      "expected": true
+    },
+    {
+      "case_id": "dev-040",
+      "probe": "pattern_partial_wave",
+      "expected": true
+    }
+  ]
+}

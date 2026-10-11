@@ -48,16 +48,20 @@ def valid_evidence(evidence: Evidence | None, request: RunRequest) -> bool:
 
 
 class RuleProvider:
+    def __init__(self, facts_source=None):
+        # Optional trusted host port; never populated from model output or text.
+        self.facts_source = facts_source
+
     def generate(self, context: CardContext) -> dict:
-        if context.evidence.concept != 'latch' or not context.evidence.combinational_goal:
+        from .patterns import assess
+        facts = self.facts_source(context.evidence) if self.facts_source else None
+        assessment = assess(context.evidence, facts)
+        if (assessment.status != 'supported' or type(context.level) is not int
+                or context.level not in (1, 2, 3)):
             hint = '先核对已观察到的现象与预期，当前信息不足以将它判定为设计错误。'
             question = '你的设计目标是什么？当前行为与它有什么差异？'
         else:
-            hint, question = {
-                1: ('报告观察到了存储行为。', '你期望输出只依赖当前输入，还是需要记住过去？'),
-                2: ('可以检查相关组合逻辑块的赋值覆盖范围。', '每一种输入条件下，输出是否都有定义？'),
-                3: ('沿着条件不成立的路径检查输出赋值。', '该路径期望输出什么，代码是否描述了这个情况？'),
-            }[context.level]
+            hint, question = assessment.pattern.prompts[context.level - 1]
         return {'level': context.level, 'hint': hint, 'question': question,
                 'evidence_ids': [context.evidence.evidence_id]}
 
