@@ -17,11 +17,70 @@
 
 #include "platform/PlatformPaths.h"
 
+// T-310：元件库树的字号/配色一律经唯一 Token 层取用（红线 SAFE-012 / THE-001）。
+#include "ui/UiTheme.h"
+
 using sigflow::platform::JoinPath;
 
 
 
 #define SVG_FOLDER wxT("res/svg/")
+
+namespace {
+
+// T-310 / CMP-035：树项 12 DIP；分组头 10 DIP / Semibold（THE-017 的 DIP 整数档）。
+// 分类节点当前是 Input/Output、Wiring、Gates、Block、Definition 五个，按文案判别即可，
+// 不需要额外的分类字段（避免触碰树的数据模型）。
+wxFont ToolboxItemFont(const wxWindow* window)
+{
+    return UiTheme::UiFont(window, UiTheme::TextSize::P12, UiTheme::Weight::Normal);
+}
+
+wxFont ToolboxGroupFont(const wxWindow* window)
+{
+    return UiTheme::UiFont(window, UiTheme::TextSize::P10, UiTheme::Weight::Semibold);
+}
+
+bool IsToolboxGroupLabel(const wxString& label)
+{
+    return label == "Input/Output" || label == "Wiring" || label == "Gates" ||
+           label == "Block" || label == "Definition";
+}
+
+// T-310 / DES-011：分组头大写（wxTreeCtrl 无字距 API，不伪造 .07em 字距）。
+wxString GroupHeaderDisplayLabel(const wxString& label)
+{
+    return IsToolboxGroupLabel(label) ? label.Upper() : label;
+}
+
+// 应用整棵树的 chrome 配色（node 现取色 = 0，此前全部走系统默认）。
+// 说明：wxTreeCtrl 是原生控件（MSW 仅提供 CDDS_ITEMPREPAINT 逐项定制），
+// 没有 hover 态入口，选中底也不可指定为 sel/hover token（见证据文件「未实现」清单），
+// 故此处只设置可表达的部分：控件底 surfaceOnPanel、正文 text1、分组头 text3。
+void ApplyToolboxTreeLook(wxTreeCtrl* tree)
+{
+    if (!tree) {
+        return;
+    }
+
+    const UiTheme::Colours& colours = UiTheme::Palette();
+    tree->SetBackgroundColour(colours.surfaceOnPanel);
+    tree->SetForegroundColour(colours.text1);
+    tree->SetFont(ToolboxItemFont(tree));
+    tree->SetIndent(tree->FromDIP(UiTheme::Spacing::S2));  // CMP-035 缩进：8 DIP
+}
+
+// CMP-035 的分组头样式：10 DIP / Semibold + text3；文案大写由 Rebuild() 写入。
+void ApplyToolboxGroupLook(wxTreeCtrl* tree, const wxTreeItemId& item)
+{
+    if (!item.IsOk()) {
+        return;
+    }
+    tree->SetItemFont(item, ToolboxGroupFont(tree));
+    tree->SetItemTextColour(item, UiTheme::Palette().text3);
+}
+
+}  // namespace
 
 
 static void MY_LOG(const wxString & s)
@@ -61,14 +120,18 @@ ToolboxPanel::ToolboxPanel(wxWindow* parent)
 
     // 初始化工具树
     m_tree = new wxTreeCtrl(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
-        wxTR_DEFAULT_STYLE | wxTR_HIDE_ROOT | wxTR_FULL_ROW_HIGHLIGHT);
+        wxTR_DEFAULT_STYLE | wxTR_HIDE_ROOT | wxTR_FULL_ROW_HIGHLIGHT | wxBORDER_NONE);
     mainSizer->Add(m_tree, 1, wxEXPAND | wxALL, 0);
 
     SetSizer(mainSizer);
 
     // 初始化图像列表
-    m_imgList = new wxImageList(24, 24, true, 500);
-    m_imgList->Add(wxArtProvider::GetBitmap(wxART_FOLDER, wxART_OTHER, wxSize(24, 24))); // 0: 文件夹图标
+    const wxSize iconSize = FromDIP(wxSize(24, 24));
+    m_imgList = new wxImageList(iconSize.x, iconSize.y, true, 500);
+    const wxBitmap folderFallback = wxArtProvider::GetBitmap(wxART_FOLDER, wxART_OTHER, iconSize);
+    wxBitmapBundle folderBundle = wxBitmapBundle::FromSVGFile(
+        sigflow::platform::ResourcePath("res\\icons\\project.svg"), iconSize);
+    m_imgList->Add(folderBundle.IsOk() ? folderBundle.GetBitmap(iconSize) : folderFallback);
 
     // 加载所有工具图标
     LoadToolIcon("Wire", "wiring.svg");               // 1: Wiring-Wire
@@ -220,19 +283,52 @@ ToolboxPanel::ToolboxPanel(wxWindow* parent)
     m_displayToFile["Always Block"] = "always_block";
 
     m_tree->AssignImageList(m_imgList);
-    // 字体样式
-    wxFont font(wxFontInfo(11).FaceName("Segoe UI"));
-    m_tree->SetFont(font);
-    m_tree->SetIndent(20);
+    // T-310 / CMP-035：12 DIP 正文、surfaceOnPanel 底；不再硬编码像素字号与字体族名
+    //（PLT-001 尺寸走 FromDIP、PLT-002 字体族取系统 GUI 字体，由 UiTheme::UiFont 保证）。
+    ApplyToolboxTreeLook(m_tree);
 
     // 构建工具树
     Rebuild();
+
+    // T-140 / THE-030：构造末尾建立订阅并立即重施一次（首帧正确），
+    // 此后每次主题切换都会按新调色板重取色。回调只做取色 + Refresh(false)。
+    m_themeSubscription = UiTheme::Subscribe([this] {
+        ReapplyTheme();
+        Refresh(false);
+    });
+    ReapplyTheme();
     //测试函数，测试Definition
     //AddDefinition("TestModule1");
     //AddDefinition("TestModule2");
     //AddDefinition("MyBlackBox");
     // 绑定事件
     m_tree->Bind(wxEVT_TREE_SEL_CHANGED, &ToolboxPanel::OnToolSelected, this);
+    // INT-008：每次单击库项都进入预览，包括再次点击已选中的同一项。
+    m_tree->Bind(wxEVT_LEFT_DOWN,[this](wxMouseEvent& evt) {
+        const auto item=m_tree->HitTest(evt.GetPosition());
+        if (item.IsOk() && !m_tree->ItemHasChildren(item)) {
+            if (auto* data=dynamic_cast<wxStringTreeItemData*>(m_tree->GetItemData(item))) {
+                wxCommandEvent place(wxEVT_COMMAND_MENU_SELECTED,wxID_HIGHEST+900);
+                place.SetString(data->GetStr());
+                if (auto* target=wxGetTopLevelParent(this)) wxPostEvent(target,place);
+            }
+        }
+        evt.Skip();
+    });
+}
+
+// T-140 / THE-030：面板级主题重施入口。
+// 逐项重取 UiTheme token 并写回**已存在**的控件；不做任何重布局（不调 Layout / SetSize /
+// SendSizeEvent），不改树的数据模型与事件绑定，不重建任何树项。
+void ToolboxPanel::ReapplyTheme()
+{
+    ApplyToolboxTreeLook(m_tree);
+
+    // 分组头（10 DIP / Semibold + text3）此前只在构造期 Rebuild() 里逐个写入一次；
+    // 这里对记下的 5 个分类头重施。只读取已有句柄，不新增/删除树项。
+    for (const wxTreeItemId& item : m_groupItems) {
+        ApplyToolboxGroupLook(m_tree, item);
+    }
 }
 
 void ToolboxPanel::LoadToolIcon(const wxString& toolName, const wxString& svgFileName)
@@ -249,7 +345,7 @@ void ToolboxPanel::LoadToolIcon(const wxString& toolName, const wxString& svgFil
     }
 
     // 先渲染为较大的尺寸，避免被裁剪
-    const int targetSize = 24;
+    const int targetSize = FromDIP(24);
     const int renderSize = 64;  // 先大尺寸渲染
 
     wxBitmapBundle bundle = wxBitmapBundle::FromSVGFile(fullPath, wxSize(renderSize, renderSize));
@@ -321,6 +417,9 @@ void ToolboxPanel::LoadToolIcon(const wxString& toolName, const wxString& svgFil
 void ToolboxPanel::Rebuild()
 {
     m_tree->DeleteAllItems();
+    // T-140：树已被清空，之前记录的分类头句柄（id 即指针）全部失效，必须一并清掉，
+    // 否则主题重施会拿悬空 id 去 SetItemTextColour。
+    m_groupItems.clear();
     wxTreeItemId root = m_tree->AddRoot("Logisim Tools", 0, 0);
 
     // ========== Input/Output 分类 ==========
@@ -340,8 +439,10 @@ void ToolboxPanel::Rebuild()
     ioDisplayNames.Add("LED Matrix");
     ioDisplayNames.Add("TTY");
 
-    wxTreeItemId ioId = m_tree->AppendItem(root, "Input/Output", 0, 0);
+    wxTreeItemId ioId = m_tree->AppendItem(root, GroupHeaderDisplayLabel("Input/Output"), 0, 0);
     m_tree->SetItemBold(ioId, true);
+    ApplyToolboxGroupLook(m_tree, ioId);
+    m_groupItems.push_back(ioId);  // T-140：登记分类头，供主题切换时重施
     for (const auto& displayName : ioDisplayNames) {
         wxString fileName = m_displayToFile[displayName];
         int iconIdx = GetToolIconIndex(displayName);
@@ -358,8 +459,10 @@ void ToolboxPanel::Rebuild()
     wiringDisplayNames.Add("Transmission Gate");
     wiringDisplayNames.Add("Bit Extender");
 
-    wxTreeItemId wiringId = m_tree->AppendItem(root, "Wiring", 0, 0);
+    wxTreeItemId wiringId = m_tree->AppendItem(root, GroupHeaderDisplayLabel("Wiring"), 0, 0);
     m_tree->SetItemBold(wiringId, true);
+    ApplyToolboxGroupLook(m_tree, wiringId);
+    m_groupItems.push_back(wiringId);  // T-140
     for (const auto& displayName : wiringDisplayNames) {
         wxString fileName = m_displayToFile[displayName];
         int iconIdx = GetToolIconIndex(displayName);
@@ -387,8 +490,10 @@ void ToolboxPanel::Rebuild()
     //gatesDisplayNames.Add("Controlled Buffer");
     //gatesDisplayNames.Add("Controlled Inverter");
 
-    wxTreeItemId gatesId = m_tree->AppendItem(root, "Gates", 0, 0);
+    wxTreeItemId gatesId = m_tree->AppendItem(root, GroupHeaderDisplayLabel("Gates"), 0, 0);
     m_tree->SetItemBold(gatesId, true);
+    ApplyToolboxGroupLook(m_tree, gatesId);
+    m_groupItems.push_back(gatesId);  // T-140
     for (const auto& displayName : gatesDisplayNames) {
         wxString fileName = m_displayToFile[displayName];
         int iconIdx = GetToolIconIndex(displayName);
@@ -402,8 +507,10 @@ void ToolboxPanel::Rebuild()
     blockDisplayNames.Add("Always Block");
 
 
-    wxTreeItemId blockId = m_tree->AppendItem(root, "Block", 0, 0);
+    wxTreeItemId blockId = m_tree->AppendItem(root, GroupHeaderDisplayLabel("Block"), 0, 0);
     m_tree->SetItemBold(blockId, true);
+    ApplyToolboxGroupLook(m_tree, blockId);
+    m_groupItems.push_back(blockId);  // T-140
     for (const auto& displayName : blockDisplayNames) {
         wxString fileName = m_displayToFile[displayName];
         int iconIdx = GetToolIconIndex(displayName);
@@ -416,9 +523,11 @@ void ToolboxPanel::Rebuild()
     wxArrayString defDisplayNames;
 
 
-    wxTreeItemId defId = m_tree->AppendItem(root, "Definition", 0, 0);
+    wxTreeItemId defId = m_tree->AppendItem(root, GroupHeaderDisplayLabel("Definition"), 0, 0);
     m_def = defId;
     m_tree->SetItemBold(defId, true);
+    ApplyToolboxGroupLook(m_tree, defId);
+    m_groupItems.push_back(defId);  // T-140
     for (const auto& displayName : defDisplayNames) {
         wxString fileName = m_displayToFile[displayName];
         int iconIdx = GetToolIconIndex(displayName);

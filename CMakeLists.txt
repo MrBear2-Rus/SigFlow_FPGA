@@ -342,6 +342,13 @@ set(SIGFLOW_MAIN_SOURCES
     "${SIGFLOW_MAIN_DIR}/trace/VcdLazyTraceSource.cpp"
     "${SIGFLOW_MAIN_DIR}/trace/WaveformBackendTraceSource.cpp"
     "${SIGFLOW_MAIN_DIR}/TreeSitterLinter.cpp"
+    "${SIGFLOW_MAIN_DIR}/ui/UiDockArt.cpp"
+    "${SIGFLOW_MAIN_DIR}/ui/UiLayoutState.cpp"
+    "${SIGFLOW_MAIN_DIR}/ui/UiLayoutPicker.cpp"
+    "${SIGFLOW_MAIN_DIR}/ui/UiRegionHost.cpp"
+    "${SIGFLOW_MAIN_DIR}/ui/UiTabArt.cpp"
+    "${SIGFLOW_MAIN_DIR}/ui/UiTheme.cpp"
+    "${SIGFLOW_MAIN_DIR}/ui/UiToolBarArt.cpp"
     "${SIGFLOW_MAIN_DIR}/VerilogManager.cpp"
     "${SIGFLOW_MAIN_DIR}/VerilogStructuring.cpp"
     "${SIGFLOW_MAIN_DIR}/wave/TraceViewPanel.cpp"
@@ -646,10 +653,10 @@ target_include_directories(sigflow PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/InnerPlugin/eda-lib-basic/include")
 target_link_libraries(sigflow PRIVATE eda-lib-basic)
 # 教育版 Agent（SIGFLOW_BUILD_EDU_AGENT=ON 时链接 EDA Gateway）。
+# AgentServiceController is compiled even when the optional gateway is disabled.
+target_include_directories(sigflow PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/3rd/httplib")
 if(TARGET eda_agent_gateway)
     target_compile_definitions(sigflow PRIVATE SIGFLOW_BUILD_EDU_AGENT=1)
-    # AgentServiceController also performs authenticated loopback health probes.
-    target_include_directories(sigflow PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/3rd/httplib")
     target_link_libraries(sigflow PRIVATE eda_agent_gateway)
 endif()
 # P1-5：目标 profile / 引脚库 JSON 随可执行文件分发。

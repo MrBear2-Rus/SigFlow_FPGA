@@ -1,6 +1,7 @@
 #include "FpgaPinBindingPanel.h"
 #include "../platform/PlatformPaths.h"
 #include "FpgaConstraint.h"
+#include "FpgaTheme.h"   // T-140 / DEC-01：配色统一经 FPGA 适配层取 token（SAFE-012）
 #include <wx/msgdlg.h>
 #include <wx/panel.h>
 #include <wx/datetime.h>
@@ -157,7 +158,7 @@ int PackageView::HitTestPin(const wxPoint& pt) const {
 
 void PackageView::OnPaint(wxPaintEvent&) {
     wxAutoBufferedPaintDC dc(this);
-    dc.SetBackground(wxBrush(wxColour(30, 30, 32)));
+    dc.SetBackground(wxBrush(FpgaTheme::kBackground()));
     dc.Clear();
 
     wxSize sz = GetClientSize();
@@ -166,12 +167,12 @@ void PackageView::OnPaint(wxPaintEvent&) {
     int chipH = sz.GetHeight() - 2 * margin;
 
     // 芯片主体
-    dc.SetPen(wxPen(wxColour(80, 80, 90), 2));
-    dc.SetBrush(wxBrush(wxColour(45, 45, 50)));
+    dc.SetPen(wxPen(FpgaTheme::kBorder(), 2));
+    dc.SetBrush(wxBrush(FpgaTheme::kPanel()));
     dc.DrawRoundedRectangle(margin, margin, chipW, chipH, 6);
 
     // 芯片标签
-    dc.SetTextForeground(wxColour(180, 180, 190));
+    dc.SetTextForeground(FpgaTheme::kTextSecondary());
     wxFont font(7, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD);
     dc.SetFont(font);
     dc.DrawText("GW1NR-9", margin + 8, margin + chipH / 2 - 20);
@@ -185,23 +186,23 @@ void PackageView::OnPaint(wxPaintEvent&) {
         // 颜色: 可用 = 按Bank着色, 不可用 = 暗灰, 已绑定 = 绿色高亮, 选中 = 橙色边框
         wxColour fillColor;
         if (!pin || !pin->available) {
-            fillColor = wxColour(60, 60, 65);
+            fillColor = FpgaTheme::kTextMuted();   // 保留 / 不可用引脚
         } else if (m_highlightedPins.count(i)) {
-            fillColor = wxColour(34, 197, 94);
+            fillColor = FpgaTheme::kGreen();       // 已绑定引脚（成功语义）
         } else {
             switch (pin->bank) {
-            case 0: fillColor = wxColour(59, 130, 246); break;
-            case 1: fillColor = wxColour(168, 85, 247); break;
-            default: fillColor = wxColour(234, 179, 8); break;
+            case 0: fillColor = FpgaTheme::kBlue(); break;
+            case 1: fillColor = FpgaTheme::kPurple(); break;   // 保留语义色（无对应 token）
+            default: fillColor = FpgaTheme::kAmber(); break;
             }
         }
 
-        dc.SetPen(wxPen(wxColour(0, 0, 0), 1));
+        dc.SetPen(wxPen(FpgaTheme::kText(), 1));
         dc.SetBrush(wxBrush(fillColor));
 
         if (i == m_selectedPin || i == m_hoveredPin) {
             wxRect bigR = r; bigR.Inflate(2);
-            dc.SetPen(wxPen(wxColour(251, 146, 60), 2));
+            dc.SetPen(wxPen(FpgaTheme::kOrange(), 2));   // 选中 / 悬停环（保留语义色）
             dc.DrawRoundedRectangle(bigR, 2);
         } else {
             dc.DrawRoundedRectangle(r, 2);
@@ -274,10 +275,10 @@ void PortListCtrl::PopulatePorts(
         const auto* binding = sheet.FindBinding(name, 0);
         if (binding && binding->packagePin > 0) {
             SetItem(idx, 3, wxString::Format("%d", binding->packagePin));
-            SetItemTextColour(idx, wxColour(34, 197, 94));
+            SetItemTextColour(idx, FpgaTheme::kGreen());
         } else {
-            // 未绑定 = 橙色
-            SetItemTextColour(idx, wxColour(234, 179, 8));
+            // 未绑定 = 警告色
+            SetItemTextColour(idx, FpgaTheme::kAmber());
         }
     }
 
@@ -303,8 +304,25 @@ FpgaPinBindingPanel::FpgaPinBindingPanel(wxWindow* parent, MainFrame* mainFrame)
       m_validator(m_pinDb)
 {
     SetScrollRate(10, 10);
-    SetBackgroundColour(wxColour(30, 30, 32));
+    // T-140 / DEC-01：原先硬编码 #1E1E20（浅色外壳里可见的深色页）→ 改经适配层取 token，
+    // 与所在外壳同档，深浅切换后随主题重取。页面底取"面板底"kPanel（bgPanel），
+    // 与继承它的列表/输入面形成可辨层级（THE-034 适配层输出，非同值巧合）。
+    FpgaTheme::ApplyBackground(m_repaint, this, &FpgaTheme::kPanel);
     BuildUI();
+    // T-140 / THE-030：订阅主题变化（句柄随本面板析构释放，THE-028）
+    m_themeSub = UiTheme::Subscribe([this] { ApplyTheme(); });
+}
+
+// T-140 / THE-030：主题变化时重放登记表 + 自绘控件重绘。
+// 状态行的语义色由 RefreshStatus 决定；仅在已有内容时重算，避免主题切换凭空
+// 生成一行状态文本（未加载工程时该行为空）。
+void FpgaPinBindingPanel::ApplyTheme()
+{
+    UiTheme::RemapStaleTokenColours(this);  // T-140 F-140-01/02：跨档 token 重映射
+    FpgaTheme::Replay(m_repaint);
+    if (m_packageView) m_packageView->Refresh();
+    if (m_statusLabel && !m_statusLabel->GetLabel().IsEmpty()) RefreshStatus();
+    Refresh();
 }
 
 void FpgaPinBindingPanel::BuildUI() {
@@ -316,14 +334,14 @@ void FpgaPinBindingPanel::BuildUI() {
         wxDefaultPosition, wxDefaultSize, wxALIGN_LEFT);
     wxFont titleFont(12, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD);
     m_titleLabel->SetFont(titleFont);
-    m_titleLabel->SetForegroundColour(wxColour(226, 232, 240));
+    FpgaTheme::ApplyForeground(m_repaint, m_titleLabel, &FpgaTheme::kText);
     titleBar->Add(m_titleLabel, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, 8);
 
     titleBar->AddStretchSpacer();
 
     m_statusLabel = new wxStaticText(this, wxID_ANY, "", wxDefaultPosition,
         wxDefaultSize, wxALIGN_RIGHT | wxST_NO_AUTORESIZE);
-    m_statusLabel->SetForegroundColour(wxColour(148, 163, 184));
+    FpgaTheme::ApplyForeground(m_repaint, m_statusLabel, &FpgaTheme::kTextSecondary);
     titleBar->Add(m_statusLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
     m_mainSizer->Add(titleBar, 0, wxEXPAND | wxTOP | wxBOTTOM, 6);
 
@@ -335,7 +353,7 @@ void FpgaPinBindingPanel::BuildUI() {
     // 左侧: 端口列表
     wxBoxSizer* portCol = new wxBoxSizer(wxVERTICAL);
     wxStaticText* portLabel = new wxStaticText(this, wxID_ANY, " Netlist Ports");
-    portLabel->SetForegroundColour(wxColour(203, 213, 225));
+    FpgaTheme::ApplyForeground(m_repaint, portLabel, &FpgaTheme::kTextSecondary);
     wxFont sectFont(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD);
     portLabel->SetFont(sectFont);
     portCol->Add(portLabel, 0, wxBOTTOM, 4);
@@ -349,7 +367,7 @@ void FpgaPinBindingPanel::BuildUI() {
     // 右侧: 封装视图
     wxBoxSizer* pkgCol = new wxBoxSizer(wxVERTICAL);
     wxStaticText* pkgLabel = new wxStaticText(this, wxID_ANY, " QFN88 Package (Tang Nano 9K)");
-    pkgLabel->SetForegroundColour(wxColour(203, 213, 225));
+    FpgaTheme::ApplyForeground(m_repaint, pkgLabel, &FpgaTheme::kTextSecondary);
     pkgLabel->SetFont(sectFont);
     pkgCol->Add(pkgLabel, 0, wxBOTTOM, 4);
 
@@ -359,18 +377,18 @@ void FpgaPinBindingPanel::BuildUI() {
 
     // Bank 图例
     wxBoxSizer* legend = new wxBoxSizer(wxHORIZONTAL);
-    auto addLegend = [&](wxColour c, const wxString& text) {
+    auto addLegend = [&](wxColour (*pick)(), const wxString& text) {
         wxWindow* dot = new wxWindow(this, wxID_ANY, wxDefaultPosition, wxSize(10, 10));
-        dot->SetBackgroundColour(c);
+        FpgaTheme::ApplyBackground(m_repaint, dot, pick);
         legend->Add(dot, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 2);
         wxStaticText* lt = new wxStaticText(this, wxID_ANY, text);
-        lt->SetForegroundColour(wxColour(148, 163, 184));
+        FpgaTheme::ApplyForeground(m_repaint, lt, &FpgaTheme::kTextSecondary);
         legend->Add(lt, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 10);
     };
-    addLegend(wxColour(59, 130, 246), "Bank 0");
-    addLegend(wxColour(168, 85, 247), "Bank 1");
-    addLegend(wxColour(34, 197, 94), "Bound");
-    addLegend(wxColour(60, 60, 65), "Reserved");
+    addLegend(&FpgaTheme::kBlue, "Bank 0");
+    addLegend(&FpgaTheme::kPurple, "Bank 1");
+    addLegend(&FpgaTheme::kGreen, "Bound");
+    addLegend(&FpgaTheme::kTextMuted, "Reserved");
     pkgCol->Add(legend, 0, wxTOP, 4);
     workArea->Add(pkgCol, 1, wxEXPAND | wxLEFT | wxRIGHT, 4);
 
@@ -379,13 +397,13 @@ void FpgaPinBindingPanel::BuildUI() {
     // --- 板级资源快捷选择 ---
     wxBoxSizer* boardBar = new wxBoxSizer(wxHORIZONTAL);
     wxStaticText* brdLabel = new wxStaticText(this, wxID_ANY, "Board Resources: ");
-    brdLabel->SetForegroundColour(wxColour(148, 163, 184));
+    FpgaTheme::ApplyForeground(m_repaint, brdLabel, &FpgaTheme::kTextSecondary);
     boardBar->Add(brdLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 6);
 
     auto mkSmallBtn = [&](const wxString& label, wxButton*& btn) -> wxButton* {
         btn = new wxButton(this, wxID_ANY, label, wxDefaultPosition, wxSize(50, 22));
-        btn->SetBackgroundColour(wxColour(51, 65, 85));
-        btn->SetForegroundColour(wxColour(226, 232, 240));
+        FpgaTheme::ApplyBackground(m_repaint, btn, &FpgaTheme::kButton);
+        FpgaTheme::ApplyForeground(m_repaint, btn, &FpgaTheme::kText);
         btn->Bind(wxEVT_BUTTON, [this](wxCommandEvent& e) { OnBoardQuickSelect(e); });
         boardBar->Add(btn, 0, wxRIGHT, 4);
         return btn;
@@ -399,12 +417,12 @@ void FpgaPinBindingPanel::BuildUI() {
 
     // --- 引脚表 ---
     wxStaticText* pinTblLabel = new wxStaticText(this, wxID_ANY, " Pin Table");
-    pinTblLabel->SetForegroundColour(wxColour(203, 213, 225));
+    FpgaTheme::ApplyForeground(m_repaint, pinTblLabel, &FpgaTheme::kTextSecondary);
     pinTblLabel->SetFont(sectFont);
     m_mainSizer->Add(pinTblLabel, 0, wxLEFT | wxRIGHT | wxBOTTOM, 4);
 
-    m_pinTable = new wxListCtrl(this, wxID_ANY, wxDefaultPosition, wxSize(-1, 150),
-        wxLC_REPORT | wxLC_SINGLE_SEL | wxBORDER_SIMPLE);
+    m_pinTable = new wxListCtrl(this, wxID_ANY, wxDefaultPosition, wxSize(-1, FromDIP(150)),
+        wxLC_REPORT | wxLC_SINGLE_SEL | wxBORDER_NONE);
     m_pinTable->AppendColumn("Pin#", wxLIST_FORMAT_LEFT, 45);
     m_pinTable->AppendColumn("Bank", wxLIST_FORMAT_LEFT, 40);
     m_pinTable->AppendColumn("IOLoc", wxLIST_FORMAT_LEFT, 70);
@@ -418,7 +436,7 @@ void FpgaPinBindingPanel::BuildUI() {
     wxBoxSizer* propBar = new wxBoxSizer(wxHORIZONTAL);
     auto mkLabel = [&](const wxString& text) -> wxStaticText* {
         auto* l = new wxStaticText(this, wxID_ANY, text);
-        l->SetForegroundColour(wxColour(148, 163, 184));
+        FpgaTheme::ApplyForeground(m_repaint, l, &FpgaTheme::kTextSecondary);
         propBar->Add(l, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 2);
         return l;
     };
@@ -426,7 +444,9 @@ void FpgaPinBindingPanel::BuildUI() {
 
     // Pin number
     mkLabel("Pin:");
-    m_pinNumberText = new wxTextCtrl(this, wxID_ANY, "", wxDefaultPosition, wxSize(40, 22));
+    m_pinNumberText = new wxTextCtrl(this, wxID_ANY, "", wxDefaultPosition,
+        wxSize(FromDIP(40), FromDIP(UiTheme::RegionMetrics::FieldHeight)), wxBORDER_NONE);
+    FpgaTheme::ApplyForeground(m_repaint, m_pinNumberText, &FpgaTheme::kText);
     propBar->Add(m_pinNumberText, 0, wxRIGHT, 6);
 
     mkSpacer();
@@ -434,7 +454,8 @@ void FpgaPinBindingPanel::BuildUI() {
     // IO_TYPE
     mkLabel("IO_TYPE:");
     m_ioTypeCombo = new wxComboBox(this, wxID_ANY, "LVCMOS33",
-        wxDefaultPosition, wxSize(90, 22));
+        wxDefaultPosition, wxSize(FromDIP(90), FromDIP(UiTheme::RegionMetrics::FieldHeight)),
+        0, nullptr, wxBORDER_NONE);
     for (const auto& t : GetKnownIOTypes()) m_ioTypeCombo->Append(t);
     m_ioTypeCombo->Bind(wxEVT_COMBOBOX,
         [this](wxCommandEvent& e) { OnPropertyChanged(e); e.Skip(); });
@@ -444,7 +465,9 @@ void FpgaPinBindingPanel::BuildUI() {
 
     // Drive
     mkLabel("Drive:");
-    m_driveCombo = new wxComboBox(this, wxID_ANY, "", wxDefaultPosition, wxSize(50, 22));
+    m_driveCombo = new wxComboBox(this, wxID_ANY, "", wxDefaultPosition,
+        wxSize(FromDIP(50), FromDIP(UiTheme::RegionMetrics::FieldHeight)),
+        0, nullptr, wxBORDER_NONE);
     m_driveCombo->Append(""); m_driveCombo->Append("4"); m_driveCombo->Append("8");
     m_driveCombo->Append("12"); m_driveCombo->Append("16"); m_driveCombo->Append("24");
     m_driveCombo->Bind(wxEVT_COMBOBOX,
@@ -468,22 +491,26 @@ void FpgaPinBindingPanel::BuildUI() {
 
     // Comment
     mkLabel("Comment:");
-    m_commentText = new wxTextCtrl(this, wxID_ANY, "", wxDefaultPosition, wxSize(120, 22));
+    m_commentText = new wxTextCtrl(this, wxID_ANY, "", wxDefaultPosition,
+        wxSize(FromDIP(120), FromDIP(UiTheme::RegionMetrics::FieldHeight)), wxBORDER_NONE);
+    FpgaTheme::ApplyForeground(m_repaint, m_commentText, &FpgaTheme::kText);
     m_commentText->Bind(wxEVT_TEXT,
         [this](wxCommandEvent& e) { OnPropertyChanged(e); e.Skip(); });
     propBar->Add(m_commentText, 0, wxRIGHT, 6);
 
     // Bind / Clear buttons
-    m_bindBtn = new wxButton(this, wxID_ANY, "Bind", wxDefaultPosition, wxSize(50, 22));
-    m_bindBtn->SetBackgroundColour(wxColour(34, 197, 94));
-    m_bindBtn->SetForegroundColour(*wxBLACK);
+    m_bindBtn = new wxButton(this, wxID_ANY, "Bind", wxDefaultPosition,
+        wxSize(FromDIP(50), FromDIP(UiTheme::RegionMetrics::FieldHeight)), wxBORDER_NONE);
+    FpgaTheme::ApplyBackground(m_repaint, m_bindBtn, &FpgaTheme::kGreen);
+    FpgaTheme::ApplyForeground(m_repaint, m_bindBtn, &FpgaTheme::kOnAccent);
     m_bindBtn->Bind(wxEVT_BUTTON,
         [this](wxCommandEvent& e) { OnBindPin(e); });
     propBar->Add(m_bindBtn, 0, wxRIGHT, 4);
 
-    m_clearBtn = new wxButton(this, wxID_ANY, "Clear", wxDefaultPosition, wxSize(50, 22));
-    m_clearBtn->SetBackgroundColour(wxColour(239, 68, 68));
-    m_clearBtn->SetForegroundColour(*wxWHITE);
+    m_clearBtn = new wxButton(this, wxID_ANY, "Clear", wxDefaultPosition,
+        wxSize(FromDIP(50), FromDIP(UiTheme::RegionMetrics::FieldHeight)), wxBORDER_NONE);
+    FpgaTheme::ApplyBackground(m_repaint, m_clearBtn, &FpgaTheme::kRed);
+    FpgaTheme::ApplyForeground(m_repaint, m_clearBtn, &FpgaTheme::kOnAccent);
     m_clearBtn->Bind(wxEVT_BUTTON,
         [this](wxCommandEvent& e) { OnClearBinding(e); });
     propBar->Add(m_clearBtn, 0, wxRIGHT, 10);
@@ -492,22 +519,24 @@ void FpgaPinBindingPanel::BuildUI() {
 
     // --- 底部操作栏 ---
     wxBoxSizer* actionBar = new wxBoxSizer(wxHORIZONTAL);
-    auto mkActionBtn = [&](const wxString& label, wxColour bg, wxColour fg,
+    auto mkActionBtn = [&](const wxString& label, wxColour (*bg)(), wxColour (*fg)(),
         wxButton*& btn) -> wxButton* {
-        btn = new wxButton(this, wxID_ANY, label, wxDefaultPosition, wxSize(80, 26));
-        btn->SetBackgroundColour(bg);
-        btn->SetForegroundColour(fg);
+        btn = new wxButton(this, wxID_ANY, label, wxDefaultPosition,
+                           wxSize(FromDIP(80), FromDIP(UiTheme::RegionMetrics::FieldHeight)),
+                           wxBORDER_NONE);
+        FpgaTheme::ApplyBackground(m_repaint, btn, bg);
+        FpgaTheme::ApplyForeground(m_repaint, btn, fg);
         actionBar->Add(btn, 0, wxRIGHT, 6);
         return btn;
     };
-    mkActionBtn("Validate", wxColour(59, 130, 246), *wxWHITE, m_validateBtn);
+    mkActionBtn("Validate", &FpgaTheme::kBlue, &FpgaTheme::kOnAccent, m_validateBtn);
     m_validateBtn->Bind(wxEVT_BUTTON, [this](wxCommandEvent& e) { OnValidate(e); });
-    mkActionBtn("Generate CST", wxColour(34, 197, 94), *wxBLACK, m_generateCstBtn);
+    mkActionBtn("Generate CST", &FpgaTheme::kGreen, &FpgaTheme::kOnAccent, m_generateCstBtn);
     m_generateCstBtn->Bind(wxEVT_BUTTON, [this](wxCommandEvent& e) { OnGenerateCst(e); });
-    mkActionBtn("Import CST", wxColour(234, 179, 8), *wxBLACK, m_importCstBtn);
+    mkActionBtn("Import CST", &FpgaTheme::kAmber, &FpgaTheme::kOnAccent, m_importCstBtn);
     m_importCstBtn->Bind(wxEVT_BUTTON, [this](wxCommandEvent& e) { OnImportCst(e); });
     actionBar->AddStretchSpacer();
-    mkActionBtn("Save", wxColour(51, 65, 85), wxColour(226, 232, 240), m_saveBtn);
+    mkActionBtn("Save", &FpgaTheme::kButton, &FpgaTheme::kText, m_saveBtn);
     m_saveBtn->Bind(wxEVT_BUTTON, [this](wxCommandEvent& e) { OnSave(e); });
     m_mainSizer->Add(actionBar, 0, wxEXPAND | wxALL, 6);
 
@@ -630,7 +659,7 @@ void FpgaPinBindingPanel::RefreshPinTable(const wxString& filter) {
 
         if (!pin.available) {
             m_pinTable->SetItem(idx, 3, pin.reservedReason);
-            m_pinTable->SetItemTextColour(idx, wxColour(100, 100, 105));
+            m_pinTable->SetItemTextColour(idx, FpgaTheme::kTextMuted());
         } else {
             // 检查是否已绑定
             bool bound = false;
@@ -640,10 +669,10 @@ void FpgaPinBindingPanel::RefreshPinTable(const wxString& filter) {
             }
             if (bound) {
                 m_pinTable->SetItem(idx, 3, wxString("Bound: ") + resName);
-                m_pinTable->SetItemTextColour(idx, wxColour(34, 197, 94));
+                m_pinTable->SetItemTextColour(idx, FpgaTheme::kGreen());
             } else {
                 m_pinTable->SetItem(idx, 3, "Available");
-                m_pinTable->SetItemTextColour(idx, wxColour(226, 232, 240));
+                m_pinTable->SetItemTextColour(idx, FpgaTheme::kText());
             }
         }
 
@@ -672,8 +701,8 @@ void FpgaPinBindingPanel::RefreshStatus() {
         }
     }
 
-    wxColour statusColor = conflicts > 0 ? wxColour(239, 68, 68) :
-        (unbound > 0 ? wxColour(234, 179, 8) : wxColour(34, 197, 94));
+    wxColour statusColor = conflicts > 0 ? FpgaTheme::kRed() :
+        (unbound > 0 ? FpgaTheme::kAmber() : FpgaTheme::kGreen());
     wxString conflictText;
     if (conflicts > 0) {
         conflictText = wxString::Format(" | %d conflicts!", conflicts);
@@ -1070,7 +1099,7 @@ void FpgaPinBindingPanel::OnBoardQuickSelect(wxCommandEvent& evt) {
         m_pinTable->SetItem(idx, 2, pin->ioLocation);
         m_pinTable->SetItem(idx, 3, "Available");
         m_pinTable->SetItem(idx, 4, res->alias + ": " + res->description);
-        m_pinTable->SetItemTextColour(idx, wxColour(34, 197, 94));
+        m_pinTable->SetItemTextColour(idx, FpgaTheme::kGreen());
     }
     m_pinTable->Thaw();
 }

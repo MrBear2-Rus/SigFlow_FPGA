@@ -1,10 +1,78 @@
-﻿#include "SigFlowTreePanel.h"
+#include "SigFlowTreePanel.h"
 #include "platform/PlatformPaths.h"
 #include "PropertyPanelBuilder.h"
 #include <wx/statline.h>
 #include <wx/artprov.h>
 
+// T-310：逻辑树字号/配色一律经唯一 Token 层取用（红线 SAFE-012 / THE-001）。
+#include "ui/UiTheme.h"
+
 namespace {
+
+// T-310 / CMP-035：树项 12 DIP；空状态说明 12 DIP（DES-015 一句说明文案）。
+wxFont SigTreeItemFont(const wxWindow* window)
+{
+    return UiTheme::UiFont(window, UiTheme::TextSize::P12, UiTheme::Weight::Normal);
+}
+
+// 应用整棵树的 chrome 配色（本面板树节点改造前取色 = 0，全部走系统默认）。
+// 说明：wxTreeCtrl 是原生控件，没有 hover 态入口，选中底也不能指定为 `sel`/`hover`
+// token（MSW 在 CDIS_SELECTED 时以系统高亮覆盖逐项底色），详见证据文件「未实现」清单。
+void ApplySigTreeLook(wxTreeCtrl* tree)
+{
+    if (!tree) {
+        return;
+    }
+
+    const UiTheme::Colours& colours = UiTheme::Palette();
+    tree->SetBackgroundColour(colours.surfaceOnPanel);
+    tree->SetForegroundColour(colours.text1);
+    tree->SetFont(SigTreeItemFont(tree));
+    tree->SetIndent(tree->FromDIP(UiTheme::Spacing::S2));  // CMP-035 缩进：8 DIP
+}
+
+// CMP-040 / DES-015 / INT-016：无工程（或逻辑树尚未建立根）时不留纯空白，
+// 用一行 text2 / 12 DIP 的说明文案占位。占位项不带 SigTreeItemData，
+// 因此不会进入节点激活/新增/删除等业务分支。
+void ShowSigTreeEmptyState(wxTreeCtrl* tree, const wxString& message)
+{
+    if (!tree) {
+        return;
+    }
+
+    const wxTreeItemId emptyItem = tree->AddRoot(message, -1, -1);
+    tree->SetItemTextColour(emptyItem, UiTheme::Palette().text2);
+    tree->SetItemFont(emptyItem, SigTreeItemFont(tree));
+}
+
+// T-310 / SAFE-012：对话框按钮取色改由 token 提供（改前为字面量蓝 / 字面量红，
+// 见证据 `docs/GUI-CHUGAO/_evidence/T310-sidebar-token-map.md` §2 #6-#9）。
+// 主辑：动作蓝原值为饱和蓝 rgb(0,120,215) → 对应 token 是 **accent 本身**；
+// 不要用焦点环合成色（= accent 45% 合成于 bgPanel 的浅蓝 #87baee）——它作为按钮文字
+// 会发白、对比度不足（THE-023）。删除语义用 danger。
+wxColour DialogActionColour()
+{
+    return UiTheme::Palette().accent;
+}
+
+wxColour DialogDangerColour()
+{
+    return UiTheme::Palette().danger;
+}
+
+// T-310 / CMP-035：树面板上的 Add/Delete 按钮统一中性底 + 语义前景
+//（与 T-330 `ApplyPropertyPanelLook` 同一规格，不改动按钮文案与事件绑定）。
+void ApplySigPanelButtonLook(wxButton* button, const wxColour& foreground)
+{
+    if (!button) {
+        return;
+    }
+
+    button->SetFont(UiTheme::UiFont(button, UiTheme::TextSize::P12, UiTheme::Weight::Normal));
+    button->SetBackgroundColour(UiTheme::Palette().strongOnPanel);
+    button->SetForegroundColour(foreground);
+}
+
 
 // Create Module 对话框在真正创建树节点前复用的两项 Verilog 名称规则。
 bool IsSimpleVerilogIdentifier(const wxString& value)
@@ -55,10 +123,13 @@ SigFlowTreePanel::SigFlowTreePanel(wxWindow* parent, SigFlowTree* sfTree)
     this->sfTree = sfTree;
     tree = new wxTreeCtrl(this, wxID_ANY,
         wxDefaultPosition, wxDefaultSize,
-        wxTR_DEFAULT_STYLE | wxTR_HAS_BUTTONS | wxTR_LINES_AT_ROOT);
+        wxTR_DEFAULT_STYLE | wxTR_HAS_BUTTONS | wxTR_LINES_AT_ROOT | wxBORDER_NONE);
 
     addBtn = new wxButton(this, wxID_ANY, "Add Node");
     delBtn = new wxButton(this, wxID_ANY, "Delete Node");
+    // T-310：按钮中性底 + 语义前景（删除用 danger；文案与事件绑定不变）。
+    ApplySigPanelButtonLook(addBtn, UiTheme::Palette().text1);
+    ApplySigPanelButtonLook(delBtn, UiTheme::Palette().danger);
 
     auto* btnSizer = new wxBoxSizer(wxHORIZONTAL);
     btnSizer->Add(addBtn, 0, wxRIGHT, 6);
@@ -74,8 +145,36 @@ SigFlowTreePanel::SigFlowTreePanel(wxWindow* parent, SigFlowTree* sfTree)
     addBtn->Bind(wxEVT_BUTTON, &SigFlowTreePanel::OnAdd, this);
     delBtn->Bind(wxEVT_BUTTON, &SigFlowTreePanel::OnDelete, this);
 
+    // T-310 / CMP-035：逻辑树按 12 DIP + surfaceOnPanel 底呈现（此前为系统默认字号）。
+    ApplySigTreeLook(tree);
+
     InitTreeIcons();
     Fresh();
+
+    // T-140 / THE-030：构造末尾建立订阅 + 立即重施一次（首帧正确）。
+    // 置于 Fresh() 之后：重施只读已有树项，不新建/删除任何节点。
+    m_themeSubscription = UiTheme::Subscribe([this] {
+        ReapplyTheme();
+        Refresh(false);
+    });
+    ReapplyTheme();
+}
+
+// T-140 / THE-030：面板级主题重施入口。
+// 只做取色 + 写回，不做重布局（不调 Layout / SetSize / SendSizeEvent）、不改树的数据模型。
+void SigFlowTreePanel::ReapplyTheme()
+{
+    // 树 chrome：surfaceOnPanel 底 + text1 正文 + 字体档 + 8 DIP 缩进
+    ApplySigTreeLook(tree);
+    // Add/Delete 按钮：strongOnPanel 底 + 语义前景（Add = text1，Delete = danger）
+    ApplySigPanelButtonLook(addBtn, UiTheme::Palette().text1);
+    ApplySigPanelButtonLook(delBtn, UiTheme::Palette().danger);
+
+    // 空状态占位项（ShowSigTreeEmptyState 只写一次文字色，需要重施）。
+    // 只读已有项：不改文案、不加删节点、不触达任何业务分支。
+    if (tree && tree->GetRootItem().IsOk()) {
+        tree->SetItemTextColour(tree->GetRootItem(), UiTheme::Palette().text2);
+    }
 }
 
 void SigFlowTreePanel::BuildBranch(wxTreeItemId uiParent, SigTreeNode* logicParent) {
@@ -156,12 +255,18 @@ void SigFlowTreePanel::Fresh() {
     tree->DeleteAllItems();
 
     if (!sfTree || !sfTree->root) {
+        // T-310 / CMP-040：空状态说明（DES-015），不留纯空白。
+        ShowSigTreeEmptyState(tree, "No project tree loaded \xE2\x80\x94 open a project to build the tree.");
         tree->Thaw();
         return;
     }
 
     SigTreeNode* logicRoot = sfTree->root;
-    if (!logicRoot) return;
+    if (!logicRoot) {
+        ShowSigTreeEmptyState(tree, "No project tree loaded \xE2\x80\x94 open a project to build the tree.");
+        tree->Thaw();
+        return;
+    }
 
     wxString rootLabel;
     if (sfTree->root->type == SigTreeNodeType::Project) {
@@ -261,7 +366,8 @@ void SigFlowTreePanel::OnAddMenu(wxCommandEvent& e) {
 }
 
 void SigFlowTreePanel::InitTreeIcons() {
-    wxSize sz = wxSize(24, 24);
+    // T-310 / PLT-001：图标与行高基准由硬编码 24px 改为 24 DIP。
+    const wxSize sz = tree->FromDIP(wxSize(24, 24));
     wxImageList* images = new wxImageList(sz.x, sz.y, true);
 
     // 添加图标（可以从艺术资源、图标文件或位图加载）
@@ -272,7 +378,10 @@ void SigFlowTreePanel::InitTreeIcons() {
         };
 
     images->Add(GetIcon("res\\icons\\project.svg")); // Proj 0
-    images->Add(wxArtProvider::GetBitmap(wxART_FOLDER, wxART_OTHER, wxSize(24, 24))); // File 1
+    const wxBitmap folderFallback = wxArtProvider::GetBitmap(wxART_FOLDER, wxART_OTHER, sz);
+    wxBitmapBundle folderBundle = wxBitmapBundle::FromSVGFile(
+        sigflow::platform::ResourcePath("res\\icons\\project.svg"), sz);
+    images->Add(folderBundle.IsOk() ? folderBundle.GetBitmap(sz) : folderFallback); // File 1
     images->Add(GetIcon("res\\svg_icons\\module.svg")); // Module 2
     images->Add(GetIcon("res\\svg_icons\\secondary.svg")); // Sec 3
     images->Add(GetIcon("res\\svg\\wiring.svg")); // Sig 4
@@ -319,8 +428,8 @@ TopNode* SigFlowTreePanel::ShowCreateTopDialog(TopNodeType type, SigTreeNode* pa
     topSizer->Add(scrolled, 1, wxEXPAND | wxLEFT | wxRIGHT, 10);
 
     auto* btnSizer = new wxBoxSizer(wxHORIZONTAL);
-    auto* addInBtn = PropertyPanelBuilder::CreateButton(&dlg, "+ Add In", wxColour(0, 120, 215));
-    auto* addOutBtn = PropertyPanelBuilder::CreateButton(&dlg, "+ Add Out", wxColour(0, 120, 215));
+    auto* addInBtn = PropertyPanelBuilder::CreateButton(&dlg, "+ Add In", DialogActionColour());
+    auto* addOutBtn = PropertyPanelBuilder::CreateButton(&dlg, "+ Add Out", DialogActionColour());
     btnSizer->Add(addInBtn, 0, wxRIGHT, 10);
     btnSizer->Add(addOutBtn, 0);
     topSizer->Add(btnSizer, 0, wxALIGN_CENTER_HORIZONTAL | wxTOP | wxBOTTOM, 10);
@@ -686,8 +795,8 @@ SecondNode* SigFlowTreePanel::CreateContiniousAssignDialog(SigTreeNode* parent) 
     topSizer->Add(scrolled, 1, wxEXPAND | wxLEFT | wxRIGHT, 10);
 
     auto* btnSizer = new wxBoxSizer(wxHORIZONTAL);
-    auto* addBtn = PropertyPanelBuilder::CreateButton(&dlg, "+ Add Port", wxColour(0, 120, 215));
-    auto* delBtn = PropertyPanelBuilder::CreateButton(&dlg, "- Delete Port", wxColour(200, 0, 0));
+    auto* addBtn = PropertyPanelBuilder::CreateButton(&dlg, "+ Add Port", DialogActionColour());
+    auto* delBtn = PropertyPanelBuilder::CreateButton(&dlg, "- Delete Port", DialogDangerColour());
     btnSizer->Add(addBtn, 0, wxRIGHT, 10);
     btnSizer->Add(delBtn, 0);
     topSizer->Add(btnSizer, 0, wxALIGN_CENTER_HORIZONTAL | wxTOP | wxBOTTOM, 10);
