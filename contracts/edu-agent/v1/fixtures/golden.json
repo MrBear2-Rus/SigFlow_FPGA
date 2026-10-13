@@ -1,5 +1,20 @@
 [
   {
+    "name": "teaching-action.observe",
+    "schema": "teaching-action.schema.json",
+    "document": {"kind": "observe", "action_id": "observe-1", "expected_state_version": "1", "selection": {"text": "always @(*) begin if(en) q=d; end", "source_id": "source-1", "start_line": 1, "end_line": 1}}
+  },
+  {
+    "name": "teaching-action.poll-bound-execution",
+    "schema": "teaching-action.schema.json",
+    "document": {"kind": "poll_execution", "action_id": "poll-1", "expected_state_version": "5", "execution_id": "exec-0123456789abcdef01234567"}
+  },
+  {
+    "name": "teaching-action-result.course-query",
+    "schema": "teaching-action-result.schema.json",
+    "document": {"action_id": "course-1", "action_kind": "course_search", "session_id": "sess-1", "state_version": "2", "phase": "E0", "phase_name": "CollectEvidence", "issue_id": null, "level": "L0", "courses": []}
+  },
+  {
     "name": "capabilities.edu",
     "schema": "capabilities.schema.json",
     "document": {
@@ -70,6 +85,912 @@
       "artifacts": [],
       "completeness": "legacy_unverified",
       "reason": "legacy job has no input fingerprint or revision"
+    }
+  },
+  {
+    "name": "project-context.saved",
+    "schema": "project-context.schema.json",
+    "document": {
+      "project_id": "project-0123456789abcdef01234567",
+      "revision": "rev-1-0123456789ab",
+      "dirty": false,
+      "synchronized": true,
+      "top": "top",
+      "target": { "profile": "tang-nano-9k" },
+      "sources": [
+        {
+          "source_id": "source-0123456789abcdef01234567",
+          "path": "rtl/top.v",
+          "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+          "size": "128",
+          "origin": "project"
+        }
+      ],
+      "buffer_hash": null,
+      "policy_version": "edu-policy-v1"
+    }
+  },
+  {
+    "name": "snapshot.saved",
+    "schema": "snapshot.schema.json",
+    "document": {
+      "schema_version": "edu.snapshot.v1",
+      "snapshot_id": "snap-0123456789abcdef01234567",
+      "project_id": "project-0123456789abcdef01234567",
+      "revision": "rev-1-0123456789ab",
+      "created_at": "2026-09-26T00:00:00Z",
+      "created_at_epoch": "1790380800",
+      "input_fingerprint": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+      "top": "top",
+      "sources": [
+        {
+          "source_id": "source-0123456789abcdef01234567",
+          "path": "rtl/top.v",
+          "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+          "size": "128",
+          "origin": "project"
+        }
+      ],
+      "target": { "profile": "tang-nano-9k" },
+      "tool_config": { "yosys_strategy": "baseline" }
+    }
+  },
+  {
+    "name": "event.job-finished",
+    "schema": "event.schema.json",
+    "document": {
+      "event_id": "ev-42",
+      "sequence": "42",
+      "project_id": "project-0123456789abcdef01234567",
+      "type": "job/finished",
+      "trace_id": "trace-7",
+      "timestamp": "2026-10-01T00:00:00Z",
+      "data": { "job_id": "job-21", "capability": "eda.synth" }
+    }
+  },
+  {
+    "name": "event.empty-data",
+    "schema": "event.schema.json",
+    "document": {
+      "event_id": "ev-43",
+      "sequence": "43",
+      "project_id": "project-0123456789abcdef01234567",
+      "type": "project/saved",
+      "trace_id": null,
+      "timestamp": "2026-10-01T00:00:01Z",
+      "data": {}
+    }
+  },
+  {
+    "name": "event.job-state-changed",
+    "schema": "event.schema.json",
+    "document": {
+      "event_id": "ev-44",
+      "sequence": "44",
+      "project_id": "project-0123456789abcdef01234567",
+      "type": "job/state-changed",
+      "trace_id": "trace-8",
+      "timestamp": "2026-10-01T00:00:02Z",
+      "data": {
+        "job_id": "job-21",
+        "state": "Running",
+        "exit_code": 0,
+        "capability": "eda.synth",
+        "snapshot_id": "snap-0123456789abcdef01234567",
+        "revision": "rev-1-0123456789ab"
+      }
+    }
+  },
+  {
+    "name": "project-state.ready",
+    "schema": "project-state.schema.json",
+    "document": {
+      "project_id": "project-0123456789abcdef01234567",
+      "high_watermark": "18446744073709551615",
+      "oldest_sequence": "1",
+      "event_retention": { "max_events": 10000, "max_age_seconds": "86400" },
+      "capabilities": [],
+      "active_jobs": [
+        { "job_id": "job-21", "job_type": "synth", "capability": "eda.synth", "state": "Running" }
+      ],
+      "context": {
+        "revision": "rev-1-0123456789ab",
+        "dirty": false,
+        "synchronized": true,
+        "top": "top",
+        "target": { "profile": "tang-nano-9k" },
+        "sources": []
+      }
+    }
+  },
+  {
+    "name": "project-state.no-context",
+    "schema": "project-state.schema.json",
+    "document": {
+      "project_id": "project-0123456789abcdef01234567",
+      "high_watermark": "0",
+      "oldest_sequence": "1",
+      "event_retention": { "max_events": 10000, "max_age_seconds": "86400" },
+      "capabilities": [],
+      "active_jobs": [],
+      "context": null
+    }
+  },
+  {
+    "name": "grant.active",
+    "schema": "grant.schema.json",
+    "document": {
+      "grant_id": "grant-000000000000000000000001",
+      "project_id": "project-0123456789abcdef01234567",
+      "plan_hash": "ph-1",
+      "revision": "rev-1-0123456789ab",
+      "snapshot_id": "snap-0123456789abcdef01234567",
+      "status": "active",
+      "max_jobs": 3,
+      "used_jobs": 0,
+      "steps": ["eda.synth"],
+      "expires_at": "2026-10-01T00:10:00Z",
+      "issued_at": "2026-10-01T00:00:00Z"
+    }
+  },
+  {
+    "name": "grant.revoked",
+    "schema": "grant.schema.json",
+    "document": {
+      "grant_id": "grant-000000000000000000000002",
+      "project_id": "project-0123456789abcdef01234567",
+      "plan_hash": "ph-1",
+      "revision": "rev-1-0123456789ab",
+      "snapshot_id": "snap-0123456789abcdef01234567",
+      "status": "revoked",
+      "max_jobs": 1,
+      "used_jobs": 1,
+      "steps": [],
+      "expires_at": null,
+      "issued_at": "2026-10-01T00:00:00Z"
+    }
+  },
+  {
+    "name": "ui-receipt.active",
+    "schema": "ui-receipt.schema.json",
+    "document": {
+      "receipt_id": "receipt-000000000000000000000001",
+      "project_id": "project-0123456789abcdef01234567",
+      "session_id": "sess-1",
+      "issue": "latch",
+      "level": "l4",
+      "policy": "edu-policy-v1",
+      "revision": "rev-1-0123456789ab",
+      "challenge_id": "ch-1",
+      "action_id": "act-1",
+      "status": "active",
+      "state_version": "7",
+      "expires_at": "2026-10-01T00:15:00Z",
+      "consumed": false,
+      "replayed": false
+    }
+  },
+  {
+    "name": "ui-receipt.consumed-replay",
+    "schema": "ui-receipt.schema.json",
+    "document": {
+      "receipt_id": "receipt-000000000000000000000001",
+      "project_id": "project-0123456789abcdef01234567",
+      "session_id": "sess-1",
+      "issue": "latch",
+      "level": "l4",
+      "policy": "edu-policy-v1",
+      "revision": "rev-1-0123456789ab",
+      "challenge_id": "ch-1",
+      "action_id": "act-1",
+      "status": "consumed",
+      "state_version": "7",
+      "expires_at": "2026-10-01T00:15:00Z",
+      "consumed": true,
+      "replayed": true
+    }
+  },
+  {
+    "name": "wave-signals.page",
+    "schema": "wave-signals.schema.json",
+    "document": {
+      "artifact_id": "wave-main",
+      "timescale": "1ns",
+      "total": 5,
+      "has_more": true,
+      "next_cursor": "s:2",
+      "signals": [
+        { "signal_id": 0, "name": "clk", "full_name": "TOP.clk", "scope": "TOP",
+          "id_code": "!", "width": 1 }
+      ],
+      "time_range": { "start_tick": "0", "end_tick": "18446744073709551615" }
+    }
+  },
+  {
+    "name": "wave-query.exact",
+    "schema": "wave-query.schema.json",
+    "document": {
+      "artifact_id": "wave-main",
+      "start_tick": "0",
+      "end_tick": "100",
+      "timescale": "1ns",
+      "signals": [
+        {
+          "signal_id": 0,
+          "full_name": "TOP.clk",
+          "width": 1,
+          "initial_value": null,
+          "initial_known": false,
+          "transitions": [
+            { "tick": "0", "value": "1" },
+            { "tick": "1", "value": "0" }
+          ]
+        }
+      ],
+      "completeness": "exact",
+      "has_more": false,
+      "next_cursor": null,
+      "transition_count": 2,
+      "omitted_signals": 0
+    }
+  },
+  {
+    "name": "wave-query.partial-xz",
+    "schema": "wave-query.schema.json",
+    "document": {
+      "artifact_id": "wave-main",
+      "start_tick": "10",
+      "end_tick": "18446744073709551615",
+      "timescale": "1ps",
+      "signals": [
+        {
+          "signal_id": 3,
+          "full_name": "TOP.state",
+          "width": 8,
+          "initial_value": "x",
+          "initial_known": true,
+          "transitions": [
+            { "tick": "16", "value": "8'hzz" },
+            { "tick": "17", "value": "8'h0f" }
+          ]
+        }
+      ],
+      "completeness": "partial",
+      "has_more": true,
+      "next_cursor": "q:1:0123456789abcdef",
+      "transition_count": 10000,
+      "omitted_signals": 4
+    }
+  },
+
+  {
+    "name": "agent-health",
+    "schema": "agent-health.schema.json",
+    "document": {
+      "protocol": "edu.api.v1",
+      "agent_version": "0.1.0",
+      "instance_id": "inst-0123456789abcdef",
+      "ready": true,
+      "model": {
+        "available": false,
+        "provider": null,
+        "reason": "未配置模型 Key（SIGFLOW_EDU_MODEL_API_KEY），已降级为确定性规则讲解。"
+      }
+    }
+  },
+  {
+    "name": "agent-capabilities",
+    "schema": "agent-capabilities.schema.json",
+    "document": {
+      "protocol": "edu.api.v1",
+      "agent_version": "0.1.0",
+      "modes": [
+        {
+          "id": "L1",
+          "available": true,
+          "reason": "该难度由确定性规则引擎提供，无需模型 Key。"
+        },
+        {
+          "id": "L2",
+          "available": true,
+          "reason": "该难度由确定性规则引擎提供，无需模型 Key。"
+        },
+        {
+          "id": "L3",
+          "available": true,
+          "reason": "该难度由确定性规则引擎提供，无需模型 Key。"
+        },
+        {
+          "id": "L4",
+          "available": false,
+          "reason": "L4 参考解需要策略允许并经过两次明确操作；本服务只提供要点清单，不代写工程文件。"
+        }
+      ],
+      "capabilities": [
+        {
+          "name": "edu.rules.diagnose",
+          "ready": true,
+          "reason": "确定性规则引擎随服务启动即可用。",
+          "plugin_version": "0.1.0"
+        },
+        {
+          "name": "edu.report.review",
+          "ready": true,
+          "reason": "需要 EDA Gateway 可达；不可达时本次运行失败并明确报错。",
+          "plugin_version": "0.1.0"
+        },
+        {
+          "name": "edu.plan.propose",
+          "ready": true,
+          "reason": "只生成计划卡片，不持有执行权限。",
+          "plugin_version": "0.1.0"
+        },
+        {
+          "name": "edu.model.explain",
+          "ready": false,
+          "reason": "未配置模型 Key（SIGFLOW_EDU_MODEL_API_KEY），已降级为确定性规则讲解。",
+          "plugin_version": null
+        }
+      ],
+      "model": {
+        "available": false,
+        "provider": null,
+        "reason": "未配置模型 Key（SIGFLOW_EDU_MODEL_API_KEY），已降级为确定性规则讲解。"
+      },
+      "course": {
+        "available": false,
+        "reason": "v1 未内置课程库；课程引用由后续版本提供。"
+      },
+      "execution": {
+        "can_run_eda": false,
+        "note": "EDA 执行只能由 SigFlow 签发的 grant 触发；本服务不持有执行权限"
+      }
+    }
+  },
+  {
+    "name": "agent-teaching-card-latch-rule",
+    "schema": "teaching-card.schema.json",
+    "document": {
+      "card_id": "card-1",
+      "kind": "rule",
+      "level": "L1",
+      "title": "组合逻辑推断出锁存器：`q` 没有被所有分支赋值",
+      "body": "在同一个组合 always 块里，信号 `q` 只在“en”这一条路径上被赋值，其它路径（包括条件不成立时）没有给它赋任何值。\n\n综合工具会认为“没有赋值”意味着“保持上一次的值”，于是为 `q` 推断出一个锁存器（latch），而不是你想要的纯组合逻辑。这就是“推断值”和“锁存器”的区别：组合块的输出必须只由当前输入决定，所以每一条控制路径都要显式给出结果。\n\n请先自己检查两点：\n1. 条件不成立时，`q` 本来应该是什么值？\n2. 这个块里是否还有别的信号也只覆盖了部分路径？\n\n（本卡片只定位问题，不提供可直接替换的完整代码。）",
+      "issue_id": "issue-latch-q-2",
+      "source": "rule",
+      "evidence": [
+        {
+          "kind": "rule_match",
+          "ref": {
+            "rule": "RTL_LATCH_INCOMPLETE_BRANCH",
+            "issue_id": "issue-latch-q-2",
+            "signal": "q",
+            "line_hint": 2,
+            "detail": {
+              "signal": "q",
+              "covered_path": "en",
+              "missing_path": "条件不成立（无 else 或缺少默认赋值）"
+            },
+            "node_id": "node-1",
+            "source_id": "source-000000000000000000000001"
+          },
+          "note": "规则引擎在所选片段内命中 RTL_LATCH_INCOMPLETE_BRANCH（未调用模型）"
+        },
+        {
+          "kind": "source_ref",
+          "ref": {
+            "source_id": "source-000000000000000000000001",
+            "node_id": "node-1",
+            "start_line": 1,
+            "end_line": 6
+          },
+          "note": "规则命中的选中片段"
+        }
+      ],
+      "course_refs": [],
+      "limitations": [
+        "本卡片由确定性规则引擎生成，未经过模型推理，也不会给出可直接替换的完整代码。",
+        "规则结论只对上面给出的证据范围有效；请结合仿真波形与综合报告自行确认。"
+      ],
+      "expired": false,
+      "state_version": "2"
+    }
+  },
+  {
+    "name": "agent-teaching-card-report-diagnostic",
+    "schema": "teaching-card.schema.json",
+    "document": {
+      "card_id": "card-1",
+      "kind": "diagnostic_explanation",
+      "level": "L1",
+      "title": "诊断解读：EDU_LATCH_INFERRED",
+      "body": "工具在 synth 阶段报告了一条 warning 级诊断：\n\nEDU_LATCH_INFERRED：Latch inferred for signal 'q' (missing assignment in some branch).\n\n定位：file=top.v, start_line=7, end_line=7\n\n报告只提供了以上内容。请先回到定位到的位置自行阅读代码，确认这条诊断描述的现象是否真的存在；本卡片不会替你推断报告之外的根因，也不会给出完整修正代码。",
+      "issue_id": "diag-1",
+      "source": "rule",
+      "evidence": [
+        {
+          "kind": "diagnostic",
+          "ref": {
+            "id": "diag-1",
+            "code": "EDU_LATCH_INFERRED",
+            "raw_code": "LATCH",
+            "severity": "warning",
+            "stage": "synth",
+            "location": {
+              "file": "rtl/top.v",
+              "start_line": 7,
+              "end_line": 7
+            },
+            "origin": "core",
+            "confidence_kind": "tool",
+            "summary": "Latch inferred for signal 'q' (missing assignment in some branch)."
+          },
+          "note": "工具报告的原始诊断字段，未经改写"
+        },
+        {
+          "kind": "job_report",
+          "ref": {
+            "job_id": "job-21",
+            "origin": "core",
+            "completeness": "complete",
+            "revision": "rev-12",
+            "snapshot_id": "snap-12",
+            "input_fingerprint": "sha256:abc",
+            "capability": "eda.synth",
+            "plugin_id": "eda-synth-yosys",
+            "state": "Succeeded",
+            "raw_report_schema": "eda.jobreport.v1"
+          },
+          "note": "该诊断所属的归一化 Job 报告"
+        }
+      ],
+      "course_refs": [],
+      "limitations": [
+        "本卡片只复述工具报告的字段；报告没有给出的根因不作补充推断。",
+        "报告的可信度受其 completeness/origin 限制，请对照 /health 与报告字段自行判断。"
+      ],
+      "expired": false,
+      "state_version": "3"
+    }
+  },
+  {
+    "name": "agent-teaching-card-insufficient-evidence",
+    "schema": "teaching-card.schema.json",
+    "document": {
+      "card_id": "card-1",
+      "kind": "rule",
+      "level": "L1",
+      "title": "证据不足：不能由空诊断得出“电路正常”",
+      "body": "本次工具报告里 `diagnostics` 是空数组，但这份报告**不足以**支持“电路没有问题”的结论。\n\n原因：\n- 报告的 origin 是 legacy：它来自旧数据，没有可信的 revision/输入指纹绑定。\n- 报告没有 revision，无法确认它对应的是学生当前看到的代码版本。\n\n“没有诊断”只说明这次工具运行在它自己的覆盖范围内没有报出问题，它不等于设计正确。空诊断的可信度和报告本身一样高，所以在证据补齐之前不能下任何结论。\n\n建议的下一步：确认该 Job 是否与当前 revision/快照绑定、报告是否来自本次真实的综合或仿真运行，再决定是否需要重跑。",
+      "issue_id": null,
+      "source": "rule",
+      "evidence": [
+        {
+          "kind": "job_report",
+          "ref": {
+            "job_id": "job-21",
+            "origin": "core",
+            "completeness": "complete",
+            "revision": "rev-12",
+            "snapshot_id": "snap-12",
+            "input_fingerprint": "sha256:abc",
+            "capability": "eda.synth",
+            "plugin_id": "eda-synth-yosys",
+            "state": "Succeeded",
+            "raw_report_schema": "eda.jobreport.v1"
+          },
+          "note": "工具报告本身：诊断为空，但完整性/来源不足以支撑结论"
+        },
+        {
+          "kind": "source_ref",
+          "ref": {
+            "source_id": "source-000000000000000000000001",
+            "node_id": "node-1",
+            "start_line": 1,
+            "end_line": 6
+          },
+          "note": "报告关联的选中片段"
+        }
+      ],
+      "course_refs": [],
+      "limitations": [
+        "本卡片拒绝给出结论，因为报告的可信度不足；这不是“无问题”的证明。"
+      ],
+      "expired": false,
+      "state_version": "2"
+    }
+  },
+  {
+    "name": "agent-plan-card",
+    "schema": "plan-card.schema.json",
+    "document": {
+      "plan_id": "plan-1",
+      "goal": "在不改动工程文件的前提下，用受限能力复现并定位当前问题",
+      "steps": [
+        {
+          "step_id": "s1",
+          "capability": "eda.synth",
+          "description": "对当前 revision 的不可变快照做综合，拿到综合报告与资源占用。",
+          "params": {
+            "top_module": "top"
+          },
+          "depends_on": [],
+          "max_jobs": 1
+        },
+        {
+          "step_id": "s2",
+          "capability": "eda.sim.build",
+          "description": "在同一个快照上编译仿真可执行文件，确认 testbench 可以构建。",
+          "params": {
+            "top_module": "top"
+          },
+          "depends_on": [
+            "s1"
+          ],
+          "max_jobs": 1
+        },
+        {
+          "step_id": "s3",
+          "capability": "eda.sim.run",
+          "description": "运行上一步构建出的仿真，产出波形后回到代码对照观察。",
+           "params": {
+             "top_module": "top",
+             "build_step_id": "s2"
+           },
+          "depends_on": [
+            "s2"
+          ],
+          "max_jobs": 1
+        }
+      ],
+      "max_jobs": 3,
+      "stop_conditions": [
+        "任何一步失败即停止，不自动重跑或换参数重试",
+        "revision 或快照发生变化即停止，需重新确认计划"
+      ],
+      "snapshot_required": true,
+      "revision": "rev-1-0123456789ab",
+      "requires_approval": true,
+      "state_version": "2"
+    }
+  },
+  {
+    "name": "agent-run",
+    "schema": "agent-run.schema.json",
+    "document": {
+      "run_id": "run-1",
+      "session_id": "sess-1",
+      "kind": "explain",
+      "level": "L1",
+      "state": "degraded",
+      "state_version": "2",
+      "cards": [
+        {
+          "card_id": "card-1",
+          "kind": "rule",
+          "level": "L1",
+          "title": "组合逻辑推断出锁存器：`q` 没有被所有分支赋值",
+          "body": "在同一个组合 always 块里，信号 `q` 只在“en”这一条路径上被赋值，其它路径（包括条件不成立时）没有给它赋任何值。\n\n综合工具会认为“没有赋值”意味着“保持上一次的值”，于是为 `q` 推断出一个锁存器（latch），而不是你想要的纯组合逻辑。这就是“推断值”和“锁存器”的区别：组合块的输出必须只由当前输入决定，所以每一条控制路径都要显式给出结果。\n\n请先自己检查两点：\n1. 条件不成立时，`q` 本来应该是什么值？\n2. 这个块里是否还有别的信号也只覆盖了部分路径？\n\n（本卡片只定位问题，不提供可直接替换的完整代码。）",
+          "issue_id": "issue-latch-q-2",
+          "source": "rule",
+          "evidence": [
+            {
+              "kind": "rule_match",
+              "ref": {
+                "rule": "RTL_LATCH_INCOMPLETE_BRANCH",
+                "issue_id": "issue-latch-q-2",
+                "signal": "q",
+                "line_hint": 2,
+                "detail": {
+                  "signal": "q",
+                  "covered_path": "en",
+                  "missing_path": "条件不成立（无 else 或缺少默认赋值）"
+                },
+                "node_id": "node-1",
+                "source_id": "source-000000000000000000000001"
+              },
+              "note": "规则引擎在所选片段内命中 RTL_LATCH_INCOMPLETE_BRANCH（未调用模型）"
+            },
+            {
+              "kind": "source_ref",
+              "ref": {
+                "source_id": "source-000000000000000000000001",
+                "node_id": "node-1",
+                "start_line": 1,
+                "end_line": 6
+              },
+              "note": "规则命中的选中片段"
+            }
+          ],
+          "course_refs": [],
+          "limitations": [
+            "本卡片由确定性规则引擎生成，未经过模型推理，也不会给出可直接替换的完整代码。",
+            "规则结论只对上面给出的证据范围有效；请结合仿真波形与综合报告自行确认。"
+          ],
+          "expired": false,
+          "state_version": "2"
+        }
+      ],
+      "omitted": [
+        {
+          "kind": "model_explanation",
+          "reason": "未配置模型 Key（SIGFLOW_EDU_MODEL_API_KEY），已降级为确定性规则讲解。"
+        }
+      ],
+      "model_used": false
+    }
+  },
+  {
+    "name": "agent-session",
+    "schema": "agent-session.schema.json",
+    "document": {
+      "session_id": "sess-1",
+      "project_id": "project-0123456789abcdef01234567",
+      "revision": "rev-1-0123456789ab",
+      "top": "top",
+      "target": {
+        "profile": "tang-nano-9k"
+      },
+      "locale": "zh-CN",
+      "state_version": "2",
+      "created_at": "2026-10-07T00:00:00Z",
+      "run_count": 1,
+      "event_count": 2
+    }
+  },
+  {
+    "name": "agent-event",
+    "schema": "agent-event.schema.json",
+    "document": {
+      "sequence": "2",
+      "event_id": "ev-2",
+      "type": "run/finished",
+      "at": "2026-10-07T00:00:01Z",
+      "data": {
+        "run_id": "run-1",
+        "kind": "explain",
+        "level": "L1",
+        "state": "degraded",
+        "card_count": 1
+      }
+    }
+  },
+  {
+    "name": "design-node.available",
+    "schema": "design-node.schema.json",
+    "document": {
+      "project_id": "project-0123456789abcdef01234567",
+      "revision": "rev-1-0123456789ab",
+      "mapping_revision": "rev-1-0123456789ab",
+      "mapping_status": "available",
+      "reason": "available",
+      "candidates": [],
+      "unsaved_only": false,
+      "usable_for_execution": false,
+      "design_dirty": false,
+      "node": {
+        "node_id": "node-1",
+        "kind": "instance",
+        "name": "u_latch",
+        "module_name": "top",
+        "instance_path": "top.u_latch",
+        "origin": "schematic",
+        "ports": [
+          { "name": "d", "direction": "input", "width": 1 },
+          { "name": "q", "direction": "output", "width": 1 }
+        ],
+        "source_refs": [
+          {
+            "source_id": "source-0123456789abcdef01234567",
+            "path": "rtl/top.v",
+            "file_hash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+            "start_line": 1,
+            "end_line": 3,
+            "unmapped": false
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "design-node.buffer-only",
+    "schema": "design-node.schema.json",
+    "document": {
+      "project_id": "project-0123456789abcdef01234567",
+      "revision": "rev-1-0123456789ab",
+      "mapping_revision": "rev-1-0123456789ab",
+      "mapping_status": "available",
+      "reason": "unsaved_only",
+      "candidates": [],
+      "unsaved_only": true,
+      "usable_for_execution": false,
+      "design_dirty": true,
+      "node": {
+        "node_id": "node-2",
+        "kind": "net",
+        "name": "q_n",
+        "module_name": "top",
+        "instance_path": "top.q_n",
+        "origin": "unsaved_buffer",
+        "ports": [],
+        "source_refs": []
+      }
+    }
+  },
+  {
+    "name": "design-node.ambiguous",
+    "schema": "design-node.schema.json",
+    "document": {
+      "project_id": "project-0123456789abcdef01234567",
+      "revision": "rev-1-0123456789ab",
+      "mapping_revision": "rev-1-0123456789ab",
+      "mapping_status": "ambiguous",
+      "reason": "ambiguous_node",
+      "candidates": ["node-1", "node-3"],
+      "unsaved_only": false,
+      "usable_for_execution": false,
+      "design_dirty": false,
+      "node": {
+        "node_id": "node-4",
+        "kind": "instance",
+        "name": "u_dup",
+        "module_name": "top",
+        "instance_path": "top.u_dup",
+        "origin": "rtl",
+        "ports": [],
+        "source_refs": []
+      }
+    }
+  },
+  {
+    "name": "design-node.stale-source-changed",
+    "schema": "design-node.schema.json",
+    "document": {
+      "project_id": "project-0123456789abcdef01234567",
+      "revision": "rev-1-0123456789ab",
+      "mapping_revision": "rev-1-0123456789ab",
+      "mapping_status": "stale",
+      "reason": "source_changed",
+      "candidates": [],
+      "unsaved_only": false,
+      "usable_for_execution": false,
+      "design_dirty": false,
+      "node": {
+        "node_id": "node-5",
+        "kind": "instance",
+        "name": "u_stale",
+        "module_name": "top",
+        "instance_path": "top.u_stale",
+        "origin": "rtl",
+        "ports": [],
+        "source_refs": [
+          {
+            "source_id": "source-0123456789abcdef01234567",
+            "path": "rtl/top.v",
+            "file_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "start_line": 1,
+            "end_line": 3,
+            "unmapped": false
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "design-node.unavailable",
+    "schema": "design-node.schema.json",
+    "document": {
+      "project_id": "project-0123456789abcdef01234567",
+      "revision": "rev-1-0123456789ab",
+      "mapping_revision": "rev-1-0123456789ab",
+      "mapping_status": "unavailable",
+      "reason": "node_not_registered",
+      "candidates": [],
+      "unsaved_only": false,
+      "usable_for_execution": false,
+      "design_dirty": false,
+      "node": {
+        "node_id": "node-404",
+        "kind": "unknown",
+        "name": "",
+        "module_name": "",
+        "instance_path": "",
+        "origin": "schematic",
+        "ports": [],
+        "source_refs": []
+      }
+    }
+  },
+  {
+    "name": "context-query.selection-buffer",
+    "schema": "context-query.schema.json",
+    "document": {
+      "project_id": "project-0123456789abcdef01234567",
+      "revision": "rev-1-0123456789ab",
+      "top": "top",
+      "dirty": true,
+      "synchronized": true,
+      "sources": [],
+      "selection": {
+        "revision": "rev-1-0123456789ab",
+        "state_version": "7",
+        "dirty": true,
+        "buffer_hash": "buffer-hash-1",
+        "selected_node_ids": ["node-1"],
+        "source_refs": [],
+        "status": "ok",
+        "usable_for_execution": false
+      },
+      "design_nodes": [
+        {
+          "project_id": "project-0123456789abcdef01234567",
+          "revision": "rev-1-0123456789ab",
+          "mapping_revision": "rev-1-0123456789ab",
+          "mapping_status": "available",
+          "reason": "unsaved_only",
+          "candidates": [],
+          "unsaved_only": true,
+          "usable_for_execution": false,
+          "design_dirty": true,
+          "node": {
+            "node_id": "node-1",
+            "kind": "net",
+            "name": "q_n",
+            "module_name": "top",
+            "instance_path": "top.q_n",
+            "origin": "unsaved_buffer",
+            "ports": [],
+            "source_refs": []
+          }
+        }
+      ],
+      "buffer_excerpts": [
+        {
+          "origin": "unsaved_buffer",
+          "path": "rtl/top.v",
+          "buffer_hash": "buffer-hash-1",
+          "start_line": 1,
+          "end_line": 3,
+          "text": "module top; endmodule\n",
+          "truncated": false,
+          "usable_for_execution": false
+        }
+      ],
+      "omitted": [],
+      "used_bytes": 128,
+      "max_bytes": 65536
+    }
+  },
+  {
+    "name": "legacy-job.readable",
+    "schema": "legacy-job.schema.json",
+    "document": {
+      "job_id": "20260913T164120-000001",
+      "job_type": "simulation",
+      "state": "Failed",
+      "origin": "legacy",
+      "created_at": "2026-09-13T08:41:20Z",
+      "updated_at": "2026-09-13T08:41:21Z",
+      "has_manifest": true,
+      "has_report": true,
+      "completeness": "legacy_unverified",
+      "problem": null
+    }
+  },
+  {
+    "name": "legacy-job.report-missing",
+    "schema": "legacy-job.schema.json",
+    "document": {
+      "job_id": "20260915T120000-000001",
+      "job_type": "pack",
+      "state": "Succeeded",
+      "origin": "legacy",
+      "created_at": "2026-09-15T12:00:00Z",
+      "updated_at": null,
+      "has_manifest": true,
+      "has_report": false,
+      "completeness": "legacy_unverified",
+      "problem": "report_missing"
     }
   }
 ]

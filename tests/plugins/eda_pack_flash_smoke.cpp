@@ -43,11 +43,13 @@ bool WaitUntil(F predicate, int timeoutMs = 20000) {
 
 class FakeToolHost final : public eda::IProcessHost {
 public:
-    explicit FakeToolHost(std::string artifact = {}) : artifact_(std::move(artifact)) {}
+    explicit FakeToolHost(std::string artifact = {},
+                          std::string output = "simulated tool\n")
+        : artifact_(std::move(artifact)), output_(std::move(output)) {}
 
     eda::ProcessResult Run(const eda::ProcessSpec&,
                            const eda::ProcessOutputCallback& onOutput) override {
-        if (onOutput) onOutput("simulated tool\n", false);
+        if (onOutput) onOutput(output_, false);
         if (!artifact_.empty()) {
             std::error_code error;
             fs::create_directories(fs::path(artifact_).parent_path(), error);
@@ -65,6 +67,7 @@ public:
 
 private:
     std::string artifact_;
+    std::string output_;
 };
 
 } // namespace
@@ -139,6 +142,17 @@ int main() {
                   return service.report(confirmed).state == eda::JobState::Succeeded;
               }),
               "flash with requireConfirm succeeds");
+
+        eda::CoreJobService rejectedService([]() {
+            return std::make_unique<FakeToolHost>(
+                "", "after program sram: displayReadReg 0003f021\n");
+        });
+        rejectedService.RegisterProvider(
+            std::make_shared<eda::program::OpenFpgaLoaderProgrammer>());
+        const std::string rejected = rejectedService.submit(request);
+        Check(WaitUntil([&]() {
+                  return rejectedService.report(rejected).state == eda::JobState::Failed;
+              }), "flash rejects Gowin CRC error even when process exits 0");
     }
 
     fs::remove_all(dir, cleanupError);

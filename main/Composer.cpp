@@ -2,8 +2,11 @@
 
 #include "ISigPlugin.h"
 #include "PluginManager.h"
+#include "eda-core/Toolchain.h"
+#include "VerilatorSimulator.h"
 
 #include <eda/api/process.hpp>
+#include <eda/api/toolchain.hpp>
 #include <eda-platform/Platform.h>
 
 #include <wx/config.h>
@@ -13,6 +16,8 @@
 #include <cstdlib>
 #include <filesystem>
 #include <sstream>
+#include <chrono>
+#include <map>
 
 namespace sigflow {
 
@@ -166,11 +171,72 @@ std::vector<Composer::ReadyPluginInfo> Composer::ReadyPlugins() const {
                         info.capabilities.end()) {
                     info.capabilities.push_back(jobType);
                 }
+                // AD-12：插件在册 ≠ 现在能跑。工具链缺失时把该插件标记为不可用，
+                // 让 Gateway 的能力列表给出 ready=false + 可读原因（Agent 据此拒绝计划）。
+                std::string toolReason;
+                if (!ToolAvailableForJobType(jobType, toolReason)) {
+                    info.ready = false;
+                    info.reason = toolReason;
+                }
             }
         }
         ready.push_back(std::move(info));
     }
     return ready;
+}
+
+void Composer::SetAgentToolConfig(const eda::Json& config) {
+    std::lock_guard<std::mutex> lock(toolConfigMutex_);
+    agentToolConfig_ = config;
+}
+
+bool Composer::ToolAvailableForJobType(const std::string& jobType, std::string& reason) const {
+    // 只覆盖教育版三项能力需要的工具；其它 jobType 不做猜测（返回可用）。
+    eda::ToolQuery query;
+    if (jobType == "synth") {
+        query.name = "yosys";
+        query.environmentVariables = {"SIGFLOW_YOSYS"};
+    } else if (jobType == "sim.build" || jobType == "sim.run") {
+        query.name = "verilator_bin";
+        query.alternativeNames = {"verilator_bin_dbg", "verilator"};
+        query.environmentVariables = {"SIGFLOW_VERILATOR", "VERILATOR_BIN"};
+    } else {
+        return true;
+    }
+    query.searchPath = true;
+    {
+        std::lock_guard<std::mutex> lock(toolConfigMutex_);
+        const char* name = jobType == "synth" ? "yosys_path" : "verilator_path";
+        if (agentToolConfig_.contains(name) && agentToolConfig_[name].is_string()) query.configuredPath = agentToolConfig_[name];
+    }
+    const eda::ToolResolution resolution = eda::DefaultToolchain().Resolve(query);
+    if (resolution.found) {
+        // Version probes run in Gateway workers, not on the GUI thread. Cache
+        // briefly to avoid a process storm when capability discovery is polled.
+        static std::mutex cacheMutex;
+        static std::map<std::string, std::tuple<std::chrono::steady_clock::time_point, bool, std::string>> cache;
+        const std::string key = eda::platform::PathToUtf8(resolution.path) + jobType + eda::platform::EnvUtf8("PATH") +
+            eda::platform::EnvUtf8("SIGFLOW_SH") + eda::platform::EnvUtf8("SIGFLOW_PYTHON");
+        std::lock_guard<std::mutex> lock(cacheMutex);
+        const auto now = std::chrono::steady_clock::now();
+        const auto prior = cache.find(key);
+        if (prior != cache.end() && now - std::get<0>(prior->second) < std::chrono::seconds(10)) {
+            reason = std::get<2>(prior->second); return std::get<1>(prior->second);
+        }
+        bool ready = false;
+        if (jobType == "synth") {
+            auto host = eda::CreatePlatformProcessHost();
+            eda::ProcessSpec spec; spec.executable = resolution.path; spec.arguments = {"-V"};
+            spec.timeoutSeconds = 1; spec.maxOutputBytes = 8192;
+            ready = host->Run(spec, {}).outcome == eda::ProcessOutcome::Success;
+            reason = ready ? "" : "yosys version probe failed";
+        } else ready = eda::sim::CheckVerilatorToolchain(resolution.path, reason);
+        if (cache.size() >= 32) cache.clear();
+        cache[key] = {now, ready, reason}; return ready;
+    }
+    reason = "tool for '" + jobType + "' is not available: " +
+             (resolution.reason.empty() ? query.name + " was not found" : resolution.reason);
+    return false;
 }
 
 eda::PluginInfo Composer::DefaultProvider(const std::string& capability,

@@ -9,12 +9,20 @@
 
 #include <memory>
 #include <functional>
+#include <chrono>
+#include <algorithm>
 #include <map>
 #include <string>
 #include <vector>
 
 #include <json/json.h>
 #include <wx/stc/stc.h>
+#include "ui/UiDockArt.h"
+#include "ui/UiLayoutState.h"
+#include "ui/UiTabArt.h"
+#include "ui/UiTheme.h"
+#include "ui/UiToolBarArt.h"
+#include "ui/UiRegionHost.h"
 #include "AsyncAnalysisCenter.h"
 #include "SigTextEditor.h"
 #include "ProjectTreePanel.h"
@@ -39,6 +47,7 @@
 
 class ToolBars;
 class CanvasNoteBook;
+class CanvasPanel;
 class HandyToolKit;
 class ToolboxPanel;
 class Structuring;
@@ -49,6 +58,12 @@ class FpgaToolWindow;
 class TraceBridgeWindow;
 class DebugContractConfigWindow;
 class JobRunHandle;
+class EditorChrome;
+class UiAlignedPanel;
+class UiLayoutPicker;
+class UiLayoutChoice;
+class UiToolBarKeyboard;
+class UiToolBarArt;
 enum class FpgaToolPage;
 struct TraceBridgeCaptureRequest;
 struct TraceBridgeDebugBuildRequest;
@@ -63,10 +78,9 @@ private:
     wxString m_projectName;
     wxString m_currentFilePath;
     wxString m_currentProjectPath;
-    wxString m_workspacePath;
-    wxString GetWorkspaceCopyPath(const wxString& m_currentFilePath);
     bool m_isModified;
     SigTextEditor* m_verilogEditor;
+    EditorChrome* m_editorChrome = nullptr;
     AsyncAnalysisCenter* m_analysisCenter; // 异步中心指针
     ProjectTreePanel* m_projectTreePanel;
     SigFlowTree* sigTree;
@@ -162,6 +176,38 @@ public:
     wxString GetTopModuleName();
 
     void OnUndoStackChanged();
+
+    /* 主题（T-120；SPEC THE-006…THE-009 / THE-028…THE-030） */
+    void SetThemeMode(UiTheme::Mode mode);  ///< 设置并持久化主题，随后刷新全部窗口
+    void ApplyTheme();                      ///< 把当前主题应用到主窗、AUI 外壳、pane 与状态栏
+
+    /* 布局引擎：六栏显隐（T-510；SPEC LAY-020…LAY-024、KEY-002、INT-020） */
+    void SetPanelVisibility(UiTheme::Visibility which, bool visible, bool announce = true);
+    void TogglePanelVisibility(UiTheme::Visibility which);
+    bool IsPanelVisible(UiTheme::Visibility which);
+    void ApplyLayoutVisibility();  ///< 按 m_layoutState 一次性施加六栏显隐（启动恢复用，不写状态栏）
+    void ApplyLayoutPreset(const wxString& presetId);  ///< 应用布局预设（LAY-025；菜单入口）
+    void SaveLayoutNow();                              ///< 立即保存布局（LAY-031；菜单入口）
+    void ResetLayout();                                ///< 恢复默认布局（LAY-032；不触碰业务状态）
+    void SetPrimarySide(UiTheme::Side side);
+    void SetPanelAlignment(UiTheme::Balance balance);
+    void SetPanelPosition(UiTheme::PanelPos position);
+    void ShowLayoutPicker();
+
+    /* 窄屏断点与最小窗口（T-520；SPEC LAY-019 / PLT-006 / TEST-020 / A11Y-010） */
+    /// 按客户区宽度（DIP）施加断点：<1024 两 dock 用 clamp、<760 辅助侧栏自动隐藏。
+    /// 只在宽度真正变化时重算，避免 SendSizeEvent 引起的重入与抖动。
+    void ApplyResponsiveLayout();
+
+    /* DPI / 显示器 / 系统配色（T-660；SPEC PLT-009 / PLT-010 / THE-033）---- */
+    /// DPI 或显示器变化后的全量重算：Art 度量 → 配色 → DIP 骨架尺寸 → 控件字体 → 工作区校验。
+    void OnDpiOrDisplayChanged(const char* reason);
+    /// 重设以 FromDIP 计算字体的控件（编辑器 / 终端），避免字号滞留旧 DPI 的像素值。
+    void ReapplyDpiDependentFonts();
+    /// PLT-010：几何恢复后校验窗口/浮动 pane 仍在某个显示器的可见工作区内。
+    void EnsureWindowsOnScreen();
+    /// 只读访问布局状态（供菜单同步预设勾选态，LAY-025）
+    const UiTheme::LayoutState& GetLayoutState() const { return m_layoutState; }
     void OnOpenFileFromTree(wxCommandEvent& evt);
     void SetProjectDir(const wxString& projectDir);
     /* File 菜单业务接口 */
@@ -244,6 +290,7 @@ public:
     void DoWindowCombinationalAnalysis();
     void DoWindowPreferences();
     void DoWindowSwitchToDoc(const wxString& title);
+    void ShowComponentLibrary();
 
     /* Help 菜单业务接口 */
     void DoHelpTutorial();
@@ -260,6 +307,69 @@ public:
 
 private:
     wxAuiManager m_auiMgr;
+
+    // ---- 自定义布局状态与持久化（T-250；SPEC LAY-020…LAY-032）----
+    UiTheme::LayoutState m_layoutState;
+    wxString m_defaultPerspective;  ///< 本版本默认 AUI perspective（恢复失败时回退用）
+    void RestoreLayoutState();
+    void SaveLayoutState();
+
+    // ---- 主题订阅（T-120；SPEC THE-028：必须可解绑）----
+    UiTheme::Subscription m_themeSubscription;
+
+    /* 布局引擎内部（T-510）---- */
+    void SetPaneVisible(const char* paneName, bool visible);
+    void SyncPanelMenuChecks();
+    /// T-720 / F-720-01：菜单栏显隐。MSW 上 `wxMenuBar::Show()` 是**空操作**（菜单栏无窗口句柄），
+    /// 必须走 Win32 `SetMenu`/`DrawMenuBar`；其它平台走原生 `Show()`。实现见 .cpp。
+    void ApplyMenuBarVisibility(bool visible);
+    void ApplyLayoutGeometry();
+    void OnLayoutKey(wxKeyEvent& event);
+
+    /* 键盘可达与无障碍内部（T-620；SPEC KEY-007…KEY-011 / A11Y-001…A11Y-006 / INT-019）---- */
+    /// CHAR_HOOK：记录输入来源（键盘/鼠标），并把工具栏内方向键/Space 路由给 UiToolBarKeyboard。
+    /// 永不消费 Tab / Ctrl+Tab / Esc / 编辑器按键（KEY-007、KEY-009、INT-019）。
+    void OnKeyboardCharHook(wxKeyEvent& event);
+    /// Tab 顺序 = 视觉顺序（KEY-007/A11Y-003）：菜单→工具栏→活动栏→主侧栏→画布→编辑器→辅助→底部→状态栏。
+    void SetupTabOrder();
+    /// Tab/Shift+Tab 显式走位（等效手段：wxFrame 在 MSW 上不是 Tab 域）。返回 true 表示已消费。
+    bool AdvanceKeyboardFocus(bool backward);
+    /// KEY-008：主侧栏宽度键盘步进（每次 12 DIP，遵守 pane 自身的最小/最大保护）。
+    void StepPrimarySideBarWidth(int step);
+    std::unique_ptr<UiToolBarKeyboard> m_topBarKeyboard;
+    std::unique_ptr<UiToolBarKeyboard> m_railKeyboard;
+    UiToolBarArt* m_topBarArt = nullptr;  ///< 非拥有；由 topBar 的 art provider 持有（THE-032）
+    UiToolBarArt* m_railArt = nullptr;    ///< 非拥有；由 sideNav 的 art provider 持有（THE-032）
+
+    /* 窄屏断点内部（T-520）---- */
+    int m_lastResponsiveWidthDip = -1;   ///< 上次施加断点时的客户区宽度（DIP）
+    bool m_rightNarrowOverride = false;  ///< 窄屏下用户显式打开过辅助侧栏（覆盖 LAY-019 自动隐藏）
+    wxControl* m_synthesizeCta = nullptr;  ///< 工具栏内嵌主 CTA（缺陷 B：窄屏放不下时隐藏而非压成 0 宽）
+    /* T-520 性能闸门：本函数的下半段每次都要多次全量 AUI 重排，必须只在"布局结果会变"时执行。
+     * 不加这道闸会把 T-510 的「预设应用 ≤150ms」预算顶爆（实测 4 个预设全部超时）。 */
+    UiTheme::Breakpoint m_lastBreakpoint = UiTheme::Breakpoint::Wide;
+    int m_lastClampedLeft = -1;          ///< 上次 clamp 后的左 dock 宽度（DIP）
+    int m_lastClampedRight = -1;         ///< 上次 clamp 后的右 dock 宽度（DIP）
+    bool m_lastAutoHidden = false;       ///< 上次是否处于"辅助侧栏自动隐藏"
+    UiTheme::Breakpoint m_lastProbeBreakpoint = UiTheme::Breakpoint::Wide;
+    int m_lastProbeWidthDip = -1000;     ///< 内嵌控件探测的宽度量化（8 DIP），避免逐像素重排
+    /* PERF-005 性能闸门：ApplyLayoutGeometry() 每次都做一次全量 AUI 重排 + Tab 顺序重排，
+     * 而**纯显隐变化不改几何**。缓存几何签名后，纯显隐的预设/切换只走一次重排。 */
+    int m_lastGeometrySignature = -1;    ///< side/pos/bal 的组合签名；-1 表示尚未施加过
+    UiRegionHost* m_bottomHost = nullptr;
+    wxAuiNotebook* m_bottomNotebook = nullptr;
+    wxControl* m_layoutControls = nullptr;
+    UiLayoutChoice* m_layoutButtons[3] = {};
+    UiLayoutPicker* m_layoutPicker = nullptr;
+    /// T-620：Tab 顺序（KEY-007）用的非拥有窗指针：工具栏→活动栏→主侧栏→中区→辅助侧栏→底部面板。
+    wxWindow* m_tabOrder[6] = {};
+
+    /* 状态栏右区（T-340；SPEC CMP-070…CMP-073）---- */
+    CanvasPanel* m_activeCanvas = nullptr;  ///< 当前画布页（非拥有）
+    wxPoint m_lastCanvasCursor{ 0, 0 };     ///< 最近一次鼠标所在的画布坐标（已按网格吸附）
+    void SyncActiveCanvas();                ///< 把回报回调接到当前画布页，并刷新状态栏
+    void UpdateCanvasStatus();              ///< 刷新 坐标 / Grid / Zoom / 工具链 四个字段
+
     wxActivityIndicator* m_busyIndicator = nullptr;
     void LayoutBusyIndicator();
 
@@ -289,55 +399,11 @@ public:
 // 注意：不要在类的声明内部定义事件表
 
 
-class ModernDockArt : public wxAuiDefaultDockArt {
-public:
-    ModernDockArt() {
-        // --- 静态属性：这些不随 DPI 改变 ---
-        SetMetric(wxAUI_DOCKART_GRADIENT_TYPE, wxAUI_GRADIENT_NONE);
-        SetMetric(wxAUI_DOCKART_PANE_BORDER_SIZE, 1);
-        SetMetric(wxAUI_DOCKART_GRIPPER_SIZE, 0); // 彻底干掉神人拖拽柄
-        SetMetric(wxAUI_DOCKART_SASH_SIZE, wxWindow::FromDIP(16, nullptr));
+// T-130：原 `ModernDockArt`（AUI 停靠外观，含 6 处硬编码颜色）已移出本头文件，
+//        改为 token 驱动的 `UiDockArt`（main/ui/UiDockArt.h/.cpp）。
+//        Art provider 仍由 wxAUI 接管所有权（THE-032）；获取时必须用 dynamic_cast（THE-033 / GAP-E2）。
 
 
-        // --- 颜色属性：通常颜色不随 DPI 缩放 ---
-        SetColour(wxAUI_DOCKART_BACKGROUND_COLOUR, wxColour(255, 255, 255));
-        SetColour(wxAUI_DOCKART_SASH_COLOUR, wxColour(230, 230, 230));
-        SetColour(wxAUI_DOCKART_INACTIVE_CAPTION_COLOUR, wxColour(225, 230, 235));
-        SetColor(wxAUI_DOCKART_ACTIVE_CAPTION_COLOUR, wxColour(225, 230, 235));
-        SetColour(wxAUI_DOCKART_INACTIVE_CAPTION_TEXT_COLOUR, wxColour(120, 130, 140));
-        SetColour(wxAUI_DOCKART_ACTIVE_CAPTION_TEXT_COLOUR, wxColour(120, 130, 140));
-    }
-
-    // --- 动态属性：在 MainFrame 中调用这个函数 ---
-    void UpdateMetrics(wxWindow* parent) {
-        // 关键：根据传入的 parent 动态计算像素
-        SetMetric(wxAUI_DOCKART_SASH_SIZE, parent->FromDIP(2));
-
-        // 标题栏文字适配
-        wxFont captionFont = wxSystemSettings::GetFont(wxSYS_DEFAULT_GUI_FONT);
-        captionFont.SetFractionalPointSize(captionFont.GetFractionalPointSize() * 1.05);
-        SetFont(wxAUI_DOCKART_CAPTION_FONT, captionFont);
-    }
-};
-
-
-class MyCustomToolBarArt : public wxAuiDefaultToolBarArt {
-public:
-    void DrawButton(wxDC& dc, wxWindow* wnd, const wxAuiToolBarItem& item,
-        const wxRect& rect) override {
-        // 如果这个按钮被选中了 (Toggle 状态)
-        if (item.GetState() & wxAUI_BUTTON_STATE_CHECKED) {
-            // 1. 画你想要的背景，比如一个圆角矩形，或者干脆纯色
-            dc.SetPen(*wxTRANSPARENT_PEN);
-            dc.SetBrush(wxBrush(wxColour(255, 255, 255))); // 选中变白
-            dc.DrawRectangle(rect);
-
-            // 2. 甚至可以画一根侧边的“指示条”（像 VS Code 那样）
-            dc.SetBrush(wxBrush(wxColour(0, 120, 215))); // 蓝色指示条
-            dc.DrawRectangle(rect.x, rect.y + 2, 3, rect.height - 4);
-        }
-
-        // 最后调用基类画图标，或者你自己画图标
-        wxAuiDefaultToolBarArt::DrawButton(dc, wnd, item, rect);
-    }
-};
+// T-230：原 `MyCustomToolBarArt`（仅实现 checked 态，且基类随平台别名化）已移出本头文件，
+//        改为 token 驱动的 chip 绘制 `UiToolBarArt`（main/ui/UiToolBarArt.h/.cpp），
+//        并同时安装到 `topBar` 与 `sideNav`（GAP-C3：原实现只装了 sideBar）。

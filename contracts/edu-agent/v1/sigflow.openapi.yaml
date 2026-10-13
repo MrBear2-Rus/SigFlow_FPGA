@@ -29,8 +29,7 @@ info:
     - 所有时间戳为 UTC ISO 8601（如 `2026-09-26T10:00:00Z`）；`request_id`/`trace_id` 为
       实例内单调的排障 ID（`req-<n>`、`trace-<n>`）。
     - 所有 64 位数值（tick、uid、size、sequence、state_version、epoch）用十进制字符串承载，
-      避免前端精度损失；当前例外见 `GET /waves/{artifactId}/signals` 的 `time_range` 与
-      `POST /waves/{artifactId}/query` 的 `start_tick`/`end_tick` 入参。
+      避免前端精度损失；wave query 入参推荐十进制字符串，并兼容 uint64 JSON 整数。
     - 路径一律为工程相对 POSIX 形式或 opaque ID，不返回本机绝对路径。
 
     鉴权、身份与边界：
@@ -59,7 +58,7 @@ info:
       超限显式分页并给 `completeness=partial`。
     - `GET /artifacts/{artifactId}/content` 的读取窗口默认 256 KiB（服务层硬上限 1 MiB）；
       `length` 只能缩小窗口，超出以 `truncated` 标记，不静默丢字节。
-    - grant 默认 TTL 600 s、默认 max_jobs 3；receipt 默认 TTL 900 s，一次性核销。
+    - grant 默认 TTL 600 s、默认 max_jobs 3、最多 16；receipt 默认 TTL 900 s，一次性核销。
     - 普通响应上限 2 MiB：超出时不截断 JSON（截断会破坏可解析性），而是改为
       `429 RESOURCE_EXHAUSTED`，并在 `error.details` 给出 `limit_bytes` 与 `actual_bytes`。
       内容型响应另有各自的载荷预算（波形查询、artifact 片段）先于该护栏生效。
@@ -69,9 +68,7 @@ info:
     - 请求体超过 1 MiB → 413 `RESOURCE_EXHAUSTED`。
     - 不支持的请求体压缩编码（gzip/deflate/br 未编译支持）→ 415 `INVALID_ARGUMENT`。
     - 处理器未捕获异常 → 500，兜底被映射为 `INVALID_ARGUMENT` 且 `message` 为 `status 500`
-      （无契约语义，客户端不应依赖；可在 `POST /projects/{projectId}/grants`、
-      `POST /projects/{projectId}/ui-receipts`、`POST /ui-receipts/{receiptId}/consume`
-      收到非对象 JSON 体时观察到）。
+      （无契约语义，客户端不应依赖）；POST 非对象 JSON 体在变更状态前返回 400 INVALID_ARGUMENT。
     - 429 `RESOURCE_EXHAUSTED`：普通响应超过 2 MiB 护栏，或 HTTP 层限制。
       `error.details` 携带 `limit_bytes` / `actual_bytes`，客户端应改用分页或受限读取路由。
       **注意**：该护栏实测返回 `retryable=false`（重试同样的请求不会变小），
@@ -79,27 +76,24 @@ info:
     - `retryable` 当前仅在 503（服务、存储或 Job 服务不可用）时为 true。
 
     已知实现与 schema/决策的偏差（只报告，不在本文件新增枚举值或字段）：
-    - 以下错误码由实现回传但不在 `schemas/envelope.schema.json` 枚举内：
-      `PATH_OUTSIDE_PROJECT`（快照源路径越界）、`SOURCE_UNAVAILABLE`（快照源文件不可用）、
-      `PLUGIN_UNAVAILABLE`（波形 backend 不可用）。
+    - 波形 backend 不可用返回冻结枚举 CAPABILITY_UNAVAILABLE；路径越界/不可用转换为
+      POLICY_DENIED / SERVICE_UNAVAILABLE，不向客户端新增内部错误枚举。
     - `POST /projects/{projectId}/snapshots` 允许省略 `require_saved`（省略即视为 true），
       而既有客户端约定写为必填 true。
-    - `GET /projects/{projectId}/sources/{sourceId}` 在区间为空时返回 `end_line=0`，与
-      `schemas/source-ref.schema.json` 的 `end_line >= 1` 冲突。
-    - `POST /waves/{artifactId}/query` 的 `start_tick`/`end_tick` 入参必须是 JSON 无符号整数，
-      不接受十进制字符串（响应侧仍是十进制字符串）。
+    - `GET /projects/{projectId}/sources/{sourceId}` 空区间返回 422 INVALID_ARGUMENT，不返回 end_line=0。
+    - `POST /waves/{artifactId}/query` 的 `start_tick`/`end_tick` 推荐十进制字符串（uint64），兼容 JSON 无符号整数，
+      拒绝负数、浮点数、溢出和倒置区间；响应侧仍是十进制字符串。
     - `GET /jobs/{jobId}/report` 的 `project_id`/`revision`/`snapshot_id`/`input_fingerprint`
       已由可信 Job 绑定与快照填入（NG-01 完成）；`artifacts[]` 只返回 opaque `artifact_id` +
       `sha256` + `role`，不再返回 `path`。
     - 报告中的**结构化**本机路径会被替换为文件名并显式标记（`metrics.*.value` 里的路径
       → `path_redacted=true`；`diagnostics[].location.file` → `file_redacted=true`），
       因为 Agent 不得看到本机路径。
-      残留风险（已知，尚未消除）：工具自由文本（`diagnostics[].summary`、日志片段）
-      仍可能由工具自己打印出路径；如需彻底消除，应另立任务做文本级证据裁剪。
+      工具自由文本另有路径裁剪与回归，Python 输出侧也失败关闭；不把这些规则视为完整 DLP。
     - `GET /projects/{projectId}/legacy/jobs/{jobId}/report` 缺报告或报告损坏时返回 404，
       原因写在 `error.message`（`report_missing` / `report_unreadable`）；更可靠的区分方式是
       先看列表路由每条的 `problem` 字段。旧报告恒为 `completeness=legacy_unverified`。
-    - `source_id = source-<sha256(工程相对路径)>`，因此**不是工程作用域**的 ID：
+    - `source_id = source-<sha256(工程相对路径)>`，因此**不是全局唯一**的 ID，必须按工程作用域使用：
       两个布局相同的工程会得到同一个 `source_id`。这不构成越权（`/sources/{id}`、
       `/context/query` 都先按 `project_id` 取该工程自己的摘要，返回的是本工程的
       `project_id`/`revision`/`file_hash`/正文），但客户端不能把 `source_id` 当全局唯一键。
@@ -673,7 +667,7 @@ paths:
         - 同键不同 hash → 409 IDEMPOTENCY_CONFLICT。
         - 同键同 hash 仍在飞行中 → 409 RECOVERY_REQUIRED（先查询再重试，不自动重投）。
         参数策略：`sim.build`/`synth` 仅允许 `top_module`、`strategy`、`opts`（字符串数组）；
-        `sim.run` 仅允许 `top_module`、`testbench`、`duration_ticks`（十进制字符串）、`build_job_id`；
+        `sim.run` 仅允许 `top_module`、`testbench`、`build_job_id`；`duration_ticks` 为保留字段，当前 harness 不支持，显式 422 拒绝；
         危险字段（`executable`、`command`、`args`、`script`、`work_dir`、`cwd`、`output`、`env` 等）
         与未知字段一律 422 UNSUPPORTED_MAPPING，不静默剥离。
         错误码：
@@ -930,7 +924,7 @@ paths:
         - 403 POLICY_DENIED：Host/Origin 边界校验不通过。
         - 404 NOT_FOUND：未知或未登记的 wave artifact。
         - 410 ARTIFACT_EXPIRED：artifact 文件已消失，或其 SHA-256 与登记值不符。
-        - 503 PLUGIN_UNAVAILABLE：未注入波形 backend 工厂或 backend 打开失败（retryable=true；
+        - 503 CAPABILITY_UNAVAILABLE：未注入波形 backend 工厂或 backend 打开失败（retryable=true；
           该 code 不在 envelope 枚举内）。
       security:
         - bearerAuth: []
@@ -958,7 +952,7 @@ paths:
       summary: 精确区间跳变查询（闭区间，显式限额与分页）
       description: |
         对闭区间 `[start_tick, end_tick]` 查询指定信号的区间起点前最后已知值与区间内全部跳变。
-        `start_tick`/`end_tick` 必须为 JSON 无符号整数（不接受十进制字符串），且
+        `start_tick`/`end_tick` 推荐十进制字符串（uint64），兼容 JSON 无符号整数，且
         `end_tick >= start_tick`；`signals` 为 JSON 整数数组（未知信号被忽略、重复去重）。
         `initial_value` 取 `start_tick-1` 时刻的值；`start_tick=0` 或无前值 → null，不假定 0。
         单次限额 16 路信号、10,000 跳变、约 2 MiB 估算载荷；超限显式截断并返回
@@ -966,14 +960,14 @@ paths:
         未截断时为 `exact`（`complete` 已定义但当前实现不产生）。
         跳变 `tick` 与响应 `start_tick`/`end_tick` 均为十进制字符串；`value` 保留 x/z 四态。
         错误码：
-        - 400 INVALID_ARGUMENT：请求体非合法 JSON、`start_tick`/`end_tick` 缺失或非无符号整数、
+        - 400 INVALID_ARGUMENT：请求体非合法 JSON、`start_tick`/`end_tick` 缺失或不是 uint64 十进制字符串/无符号整数、
           `end_tick < start_tick`，或 query cursor 非法/与本次查询不匹配。
         - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
         - 403 POLICY_DENIED：Host/Origin 边界校验不通过。
         - 404 NOT_FOUND：未知或未登记的 wave artifact。
         - 410 ARTIFACT_EXPIRED：artifact 文件已消失，或其 SHA-256 与登记值不符。
         - 413 RESOURCE_EXHAUSTED：请求体超过 1 MiB。
-        - 503 PLUGIN_UNAVAILABLE：未注入波形 backend 工厂或 backend 查询失败（retryable=true；
+        - 503 CAPABILITY_UNAVAILABLE：未注入波形 backend 工厂或 backend 查询失败（retryable=true；
           该 code 不在 envelope 枚举内）。
       security:
         - bearerAuth: []
@@ -1956,7 +1950,7 @@ components:
       description: |
         字段白名单固定，多出字段 → 400。`capability` 只接受教育白名单三项；
         `params` 按能力限制键集合（sim.build/synth: top_module/strategy/opts；
-        sim.run: top_module/testbench/duration_ticks/build_job_id），危险或未知键 → 422。
+        sim.run: top_module/testbench/build_job_id），危险或未知键 → 422；duration_ticks 当前不支持，显式拒绝。
       required: [snapshot_id, expected_revision, capability, grant_id, params]
       additionalProperties: false
       properties:
@@ -1969,7 +1963,7 @@ components:
         plugin_id: { type: string }
         params:
           type: object
-          description: 能力参数白名单；duration_ticks 必须为十进制字符串，opts 必须为字符串数组
+          description: 能力参数白名单；duration_ticks 当前保留但不支持，opts 必须为字符串数组
 
     ContextQueryRequest:
       type: object
@@ -2001,7 +1995,7 @@ components:
       type: object
       description: |
         仅 UI 身份可调用。`plan_hash` 必填；`ttl_seconds`/`max_jobs` 必须为 JSON 整数
-        （类型不符时当前实现抛异常 → 500）。
+        （类型不符或超限先返回 400 INVALID_ARGUMENT）。
       required: [plan_hash]
       properties:
         plan_hash: { type: string, minLength: 1 }
@@ -2010,11 +2004,13 @@ components:
         steps: { type: array, items: { type: object } }
         ttl_seconds:
           type: integer
-          minimum: 0
+          minimum: 1
+          maximum: 3600
           default: 600
         max_jobs:
           type: integer
           minimum: 1
+          maximum: 16
           default: 3
 
     ReceiptIssueRequest:
@@ -2057,12 +2053,12 @@ components:
     WaveQueryRequest:
       type: object
       description: |
-        `start_tick`/`end_tick` 必须为 JSON 无符号整数（不接受十进制字符串）；
+        `start_tick`/`end_tick` 推荐十进制字符串并检查 uint64 范围；兼容 JSON 无符号整数；
         `signals` 为 JSON 整数数组（未知信号忽略、重复去重）；`cursor` 为上一页 next_cursor。
       required: [start_tick, end_tick]
       properties:
-        start_tick: { type: integer, minimum: 0 }
-        end_tick: { type: integer, minimum: 0 }
+        start_tick: { oneOf: [{ type: string, pattern: '^[0-9]{1,20}$' }, { type: integer, minimum: 0, maximum: 18446744073709551615 }] }
+        end_tick: { oneOf: [{ type: string, pattern: '^[0-9]{1,20}$' }, { type: integer, minimum: 0, maximum: 18446744073709551615 }] }
         signals:
           type: array
           items: { type: integer }

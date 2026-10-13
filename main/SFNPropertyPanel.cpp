@@ -1,14 +1,92 @@
-﻿#include "SFNPropertyPanel.h"
+#include "SFNPropertyPanel.h"
 #include "PropertyPanelBuilder.h"
 #include "platform/PlatformPaths.h"
+#include "ui/UiTheme.h"
 #include <wx/statline.h>
 
 wxDEFINE_EVENT(EVT_SFTREE_CHANGED, wxCommandEvent);
 
+// T-330：仅视觉 token 化（字体 + 颜色 + 只读态），不改动任何业务路径。
+// 字体档：label 11 DIP/Medium（text3）；输入控件文字 12 DIP（P12）。
+static wxFont PropertyLabelFont(const wxWindow* parent) {
+    return UiTheme::UiFont(parent, UiTheme::TextSize::P11, UiTheme::Weight::Medium);
+}
+
+static wxFont PropertyInputFont(const wxWindow* parent) {
+    return UiTheme::UiFont(parent, UiTheme::TextSize::P12, UiTheme::Weight::Normal);
+}
+
+// 本面板内自建的按钮/静态标签统一外观（文字档 + 中性底/前景）
+static void ApplyPropertyPanelLook(wxWindow* wnd, const wxColour& fg) {
+    wnd->SetFont(PropertyInputFont(wnd));
+    wnd->SetBackgroundColour(UiTheme::Palette().strongOnPanel);
+    wnd->SetForegroundColour(fg);
+}
+
+// ---------------------------------------------------------------------------
+// T-140 / THE-030：本面板的按钮是**在 LoadNode 里即时创建**的，颜色只写一次，
+// 主题切换后不会更新。为让 ReapplyTheme() 能无歧义地重取前景 token，
+// 创建时把"语义角色"挂在按钮的 client data 上（wxButton::SetClientData 是
+// 展示用途的挂点，与 wxEVT_BUTTON 事件绑定 / LoadNode 业务路径完全无关）。
+// ---------------------------------------------------------------------------
+enum : long {
+    kButtonRoleNeutral = 1,  ///< Add/Delete Node 之类的默认按钮 → text1
+    kButtonRoleAction  = 2,  ///< 主行动（+ Add Port / Add Expression）→ accent
+    kButtonRoleDanger  = 3   ///< 删除语义（- Delete Port 等）→ danger
+};
+
+/// 无 client data 的按钮（PropertyPanelBuilder::CreateButton 直出的那些）按
+/// 文案判定语义：`-`/Delete 系 → danger，其余 → accent（两者都是本文件既有取值）。
+static wxColour ButtonForegroundFor(wxAnyButton* button, const UiTheme::Colours& colours) {
+    if (button == nullptr) {
+        return colours.text1;
+    }
+    void* role = button->GetClientData();
+    if (role == reinterpret_cast<void*>(kButtonRoleDanger)) {
+        return colours.danger;
+    }
+    if (role == reinterpret_cast<void*>(kButtonRoleAction)) {
+        return colours.accent;
+    }
+    if (role == reinterpret_cast<void*>(kButtonRoleNeutral)) {
+        return colours.text1;
+    }
+    const wxString label = button->GetLabel();
+    if (label.StartsWith("-") || label.Contains("Delete")) {
+        return colours.danger;
+    }
+    return colours.accent;
+}
+
+// 1px 分隔线：strokeOnPanel
+static wxStaticLine* MakePropertySeparator(wxWindow* parent) {
+    auto* line = new wxStaticLine(parent, wxID_ANY);
+    line->SetForegroundColour(UiTheme::Palette().strokeOnPanel);
+    return line;
+}
+
+// "Add Expression" / "Delete Last Expression" 底改为中性合成实色（THE-021），
+// 删除语义改由 danger 前景色佐证（THE-024：状态不裸靠颜色）。
+static void StylePropertyButton(wxButton* btn, bool danger) {
+    ApplyPropertyPanelLook(btn, danger ? UiTheme::Palette().danger
+                                       : UiTheme::Palette().text1);
+    // T-140：登记语义角色 → ReapplyTheme() 能按 token 重取同一前景色。
+    if (btn) {
+        btn->SetClientData(reinterpret_cast<void*>(danger ? kButtonRoleDanger
+                                                          : kButtonRoleNeutral));
+    }
+}
+
 // 辅助函数：创建带前景色的添加按钮并绑定事件
 static wxButton* CreateAddButton(wxWindow* parent, const wxString& label,
     std::function<void()> handler) {
-    auto btn = PropertyPanelBuilder::CreateButton(parent, label, wxColour(0, 120, 215));
+    // 主辑：原色为饱和蓝 rgb(0,120,215)，对应 token 是 accent 本身。
+    // 注意不要用焦点环合成色 —— 那是 accent 45% 与面板底合成后的**浅**蓝 (#87baee)，
+    // 作为按钮文字会发白且对比度不足（THE-023）。
+    auto btn = PropertyPanelBuilder::CreateButton(parent, label, UiTheme::Palette().accent);
+    ApplyPropertyPanelLook(btn, UiTheme::Palette().accent);
+    // T-140：主行动按钮的语义角色（重施时取 accent，不再依赖文案猜色）。
+    btn->SetClientData(reinterpret_cast<void*>(kButtonRoleAction));
     btn->Bind(wxEVT_BUTTON, [handler](wxCommandEvent&) { handler(); });
     return btn;
 }
@@ -20,6 +98,128 @@ SFNPropertyPanel::SFNPropertyPanel(wxWindow* parent, SigFlowTree* tree)
     SetSizer(m_mainSizer);
     SetScrollRate(5, 5);
     SetTargetWindow(this);
+
+    // T-140 / THE-030：构造末尾建立订阅 + 立即重施一次。此时表单尚未构建（LoadNode 为空
+    // 操作），重施是幂等的自底色写入；真正的表单取色发生在 LoadNode，之后由本订阅重施。
+    // 回调只做取色 + Refresh(false)：**不**调用 LoadNode()（那会 Layout/FitInside 并重建
+    // 表单，违反"不重布局/不改业务状态"），也**不**调用 Layout/SetSize/SendSizeEvent。
+    m_themeSubscription = UiTheme::Subscribe([this] {
+        ReapplyTheme();
+        Refresh(false);
+    });
+    ReapplyTheme();
+}
+
+// T-140 / THE-030：面板级主题重施入口（对外唯一入口）。
+// 只递归重写**已存在**控件的 token 色，不重建表单、不改 LoadNode 路径/业务状态、
+// 不做任何重布局。
+void SFNPropertyPanel::ReapplyTheme()
+{
+    SetBackgroundColour(UiTheme::Palette().bgPanel);
+    for (wxWindow* child : GetChildren()) {
+        ReapplyTheme(child);
+    }
+}
+
+// —— 按控件类型重施（父重载：递归下探子窗口）——
+void SFNPropertyPanel::ReapplyTheme(wxWindow* window)
+{
+    if (window == nullptr) {
+        return;
+    }
+    if (auto* button = dynamic_cast<wxButton*>(window)) {
+        ReapplyTheme(button);
+        return;
+    }
+    if (auto* text = dynamic_cast<wxTextCtrl*>(window)) {
+        ReapplyTheme(text);
+        return;
+    }
+    if (auto* label = dynamic_cast<wxStaticText*>(window)) {
+        ReapplyTheme(label);
+        return;
+    }
+    if (auto* line = dynamic_cast<wxStaticLine*>(window)) {
+        ReapplyTheme(line);
+        return;
+    }
+    if (auto* choice = dynamic_cast<wxChoice*>(window)) {
+        ReapplyTheme(choice);
+        return;
+    }
+    for (wxWindow* child : window->GetChildren()) {
+        ReapplyTheme(child);
+    }
+}
+
+// 按钮：中性底 strongOnPanel + 语义前景（accent / danger / text1）。
+// 语义角色优先取 client data（CreateAddButton / StylePropertyButton 登记），
+// 未登记的按钮（PropertyPanelBuilder 直出，如 "- Delete Port"）按文案判定，
+// 两者都落在本文件既有的 token 取值上，不引入任何新颜色字面量。
+void SFNPropertyPanel::ReapplyTheme(wxButton* button)
+{
+    if (button == nullptr) {
+        return;
+    }
+    const UiTheme::Colours& colours = UiTheme::Palette();
+    button->SetFont(PropertyInputFont(button));
+    button->SetBackgroundColour(colours.strongOnPanel);
+    button->SetForegroundColour(ButtonForegroundFor(button, colours));
+    for (wxWindow* child : button->GetChildren()) {
+        ReapplyTheme(child);
+    }
+}
+
+// 文本框：可编辑 → text1 on sunkenOnPanel；只读 → text3 on bgPanel（与
+// PropertyPanelBuilder 的 SetReadOnlyBackground / ApplyInputLook 同一规格）。
+void SFNPropertyPanel::ReapplyTheme(wxTextCtrl* text)
+{
+    if (text == nullptr) {
+        return;
+    }
+    const UiTheme::Colours& colours = UiTheme::Palette();
+    text->SetFont(PropertyInputFont(text));
+    if (text->IsEditable()) {
+        text->SetBackgroundColour(colours.sunkenOnPanel);
+        text->SetForegroundColour(colours.text1);
+    } else {
+        text->SetBackgroundColour(colours.bgPanel);
+        text->SetForegroundColour(colours.text3);
+    }
+}
+
+// 静态标签：text2 是行内正文（只读取值行）与章节标题，
+// 而被 CreateTextRow 直接赋色的标签也统一取该 token。
+void SFNPropertyPanel::ReapplyTheme(wxStaticText* label)
+{
+    if (label == nullptr) {
+        return;
+    }
+    label->SetFont(PropertyLabelFont(label));
+    label->SetForegroundColour(UiTheme::Palette().text2);
+}
+
+// 1px 分隔线：strokeOnPanel
+void SFNPropertyPanel::ReapplyTheme(wxStaticLine* line)
+{
+    if (line == nullptr) {
+        return;
+    }
+    line->SetForegroundColour(UiTheme::Palette().strokeOnPanel);
+}
+
+// 下拉框：与可编辑输入同一规格（text1 on sunkenOnPanel）
+void SFNPropertyPanel::ReapplyTheme(wxChoice* choice)
+{
+    if (choice == nullptr) {
+        return;
+    }
+    choice->SetFont(PropertyInputFont(choice));
+    choice->SetForegroundColour(UiTheme::Palette().text1);
+    choice->SetBackgroundColour(UiTheme::Palette().sunkenOnPanel);
+    for (wxWindow* child : choice->GetChildren()) {
+        ReapplyTheme(child);
+    }
 }
 
 void SFNPropertyPanel::ClearForm() {
@@ -156,12 +356,12 @@ void SFNPropertyPanel::LoadNode(SigTreeNode* node) {
 
             // 输入端口
             for (auto& p : sn->in_ports) {
-                m_mainSizer->Add(new wxStaticLine(this, wxID_ANY), 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 5);
+                m_mainSizer->Add(MakePropertySeparator(this), 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 5);
                 m_mainSizer->Add(CreateSecondPortRowSizer(sn, p.identifier, p.direction, p.conn), 0, wxEXPAND | wxLEFT | wxRIGHT, 5);
             }
             // 输出端口
             for (auto& p : sn->out_ports) {
-                m_mainSizer->Add(new wxStaticLine(this, wxID_ANY), 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 5);
+                m_mainSizer->Add(MakePropertySeparator(this), 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 5);
                 m_mainSizer->Add(CreateSecondPortRowSizer(sn, p.identifier, p.direction, p.conn), 0, wxEXPAND | wxLEFT | wxRIGHT, 5);
             }
         }
@@ -185,11 +385,11 @@ void SFNPropertyPanel::LoadNode(SigTreeNode* node) {
             }
 
             for (auto& p : sn->in_ports) {
-                m_mainSizer->Add(new wxStaticLine(this, wxID_ANY), 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 5);
+                m_mainSizer->Add(MakePropertySeparator(this), 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 5);
                 m_mainSizer->Add(CreateSecondPortRowSizer(sn, p.identifier, p.direction, p.conn), 0, wxEXPAND | wxLEFT | wxRIGHT, 5);
             }
             for (auto& p : sn->out_ports) {
-                m_mainSizer->Add(new wxStaticLine(this, wxID_ANY), 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 5);
+                m_mainSizer->Add(MakePropertySeparator(this), 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 5);
                 m_mainSizer->Add(CreateSecondPortRowSizer(sn, p.identifier, p.direction, p.conn), 0, wxEXPAND | wxLEFT | wxRIGHT, 5);
             }
         }
@@ -340,7 +540,7 @@ wxSizer* SFNPropertyPanel::CreateContinuousAssignPortsSizer(ContinuousAssignNode
         m_tree->AddInPort(cn);
         LoadNode(m_node);
         });
-    auto delBtn = PropertyPanelBuilder::CreateButton(this, "- Delete Port", wxColour(200, 0, 0));
+    auto delBtn = PropertyPanelBuilder::CreateButton(this, "- Delete Port", UiTheme::Palette().danger);
     delBtn->Bind(wxEVT_BUTTON, [this, cn](wxCommandEvent&) {
         if (!cn->in_ports.empty()) {
             m_tree->SecondDelLastInPort(cn);
@@ -373,18 +573,18 @@ wxSizer* SFNPropertyPanel::Add_BN_OR_B_Expressions(AlwaysNode* an) {
         Add_BN_OR_B_Ports(groupWrapper, an, stmt, static_cast<int>(i));
 
         if (i < an->getStatementCount() - 1)
-            groupWrapper->Add(new wxStaticLine(this, wxID_ANY), 0, wxEXPAND | wxTOP | wxBOTTOM, 10);
+            groupWrapper->Add(MakePropertySeparator(this), 0, wxEXPAND | wxTOP | wxBOTTOM, 10);
 
         mainSizer->Add(groupWrapper, 0, wxEXPAND | wxALL, 10);
     }
 
     // 全局按钮（添加表达式、删除最后一个表达式）保持不变
-    mainSizer->Add(new wxStaticLine(this, wxID_ANY), 0, wxEXPAND | wxTOP | wxBOTTOM, 5);
+    mainSizer->Add(MakePropertySeparator(this), 0, wxEXPAND | wxTOP | wxBOTTOM, 5);
     auto globalBtnSizer = new wxBoxSizer(wxHORIZONTAL);
     auto addExpBtn = PropertyPanelBuilder::CreateButton(this, "Add Expression");
-    addExpBtn->SetBackgroundColour(wxColour(230, 255, 230));
+    StylePropertyButton(addExpBtn, false);
     auto delLastExpBtn = PropertyPanelBuilder::CreateButton(this, "Delete Last Expression");
-    delLastExpBtn->SetBackgroundColour(wxColour(255, 230, 230));
+    StylePropertyButton(delLastExpBtn, true);
     globalBtnSizer->Add(addExpBtn, 1, wxEXPAND | wxALL, 5);
     globalBtnSizer->Add(delLastExpBtn, 1, wxEXPAND | wxALL, 5);
     mainSizer->Add(globalBtnSizer, 0, wxEXPAND | wxLEFT | wxRIGHT, 10);

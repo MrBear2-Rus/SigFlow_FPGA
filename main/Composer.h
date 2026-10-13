@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <mutex>
 
 #include "eda-core/JobService.h"
 #include "eda-core/PluginHost.h"
@@ -60,12 +61,19 @@ public:
 
     // 教育版 Agent：已就绪插件的 (id, version, capabilities) 快照，
     // 供 EDA Gateway 推导教育能力可用性（不暴露 PluginHost 内部）。
+    // AD-12：`ready=false` + `reason` 表示"插件注册了但当前不可执行"（工具链缺失等），
+    // 能力必须据此报为不可用，而不是只要插件在册就算就绪。
     struct ReadyPluginInfo {
         std::string id;
         std::string version;
         std::vector<std::string> capabilities;
+        bool ready = true;
+        std::string reason;
     };
     std::vector<ReadyPluginInfo> ReadyPlugins() const;
+    // AD-12：某个 jobType 需要的工具链现在是否可解析（不可用时给出可读原因）。
+    bool ToolAvailableForJobType(const std::string& jobType, std::string& reason) const;
+    void SetAgentToolConfig(const eda::Json& config);
 
     // SF-03：把 Job 数据根目录切换到受控位置（工程受控目录优先，其次应用数据目录）。
     // 必须在有任何 Job 提交之前调用；已有内存记录或已注册 provider 时返回 false（拒绝迁移，
@@ -83,6 +91,8 @@ private:
     std::unique_ptr<eda::CoreJobService> jobService_;
     std::vector<std::shared_ptr<eda::IJobProvider>> guiJobProviders_;
     std::string jobRootWarning_;
+    mutable std::mutex toolConfigMutex_;
+    eda::Json agentToolConfig_ = eda::Json::object();
 };
 
 } // namespace sigflow

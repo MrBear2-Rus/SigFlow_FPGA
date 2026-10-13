@@ -1,0 +1,1582 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SigFlow · 组件模块库（Apple 液态玻璃 · 模块图）</title>
+<style>
+/* OD-LAYOUT-PRIMITIVES v1 — structure only: display, flex/grid, overflow, wrapping, ratio.
+   Put this @layer first; product CSS outside the layer always wins. */
+@layer od-layout {
+  :where(.od-stack,.od-row,.od-row-top,.od-cluster,.od-grid,.od-field,.od-stat,.od-cell,.od-tile) > :where(*) { min-width: 0; }
+  .od-stack   { display: flex; flex-direction: column; gap: var(--od-gap, 8px); }
+  .od-row     { display: flex; align-items: center; gap: var(--od-gap, 8px); }
+  .od-row-top { display: flex; align-items: flex-start; gap: var(--od-gap, 8px); }
+  .od-cluster { display: flex; flex-wrap: wrap; align-items: center; gap: var(--od-gap, 8px); }
+  .od-fill    { flex: 1 1 0; min-width: 0; }
+  .od-fixed   { flex: none; }
+  .od-grid    { display: grid; gap: var(--od-gap, 12px); grid-template-columns: repeat(var(--od-cols, 3), minmax(0, 1fr)); }
+  .od-stat, .od-field, .od-cell { display: grid; gap: var(--od-gap, 2px); }
+  :where(.od-stat,.od-field,.od-cell) > :where(*) { display: block; }
+  .od-tile { display: grid; grid-template-rows: auto 1fr; }
+  :where(.od-tile) > :where(*) { display: block; }
+  .od-media { display: block; width: 100%; height: auto; aspect-ratio: var(--od-ratio, auto); }
+  .od-media-cover { object-fit: cover; }
+  .od-truncate { display: block; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .od-clamp-2, .od-clamp-3 { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+  .od-clamp-2 { -webkit-line-clamp: 2; }
+  .od-clamp-3 { -webkit-line-clamp: 3; }
+  .od-lines-2 { min-height: calc(2 * 1.4em); }
+  .od-nowrap  { white-space: nowrap; }
+  .od-keep    { word-break: keep-all; overflow-wrap: anywhere; }
+  .od-screen { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: 100%; }
+  .od-scroll { overflow-y: auto; overscroll-behavior: contain; min-height: 0; }
+  .od-rail { display: flex; gap: var(--od-gap, 8px); overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none;
+             padding-inline: var(--od-rail-pad, 16px); scroll-padding-inline: var(--od-rail-pad, 16px); }
+  .od-rail::-webkit-scrollbar { display: none; }
+  :where(.od-rail) > :where(*) { flex: none; scroll-snap-align: start; }
+  :where(.od-rail) > :where(:last-child) { margin-inline-end: var(--od-rail-pad, 16px); }
+  .od-spacer { flex: none; visibility: hidden; pointer-events: none; }
+  .od-touch  { min-width: 44px; min-height: 44px; }
+}
+/* /OD-LAYOUT-PRIMITIVES v1 */
+
+/* ==========================================================================
+   SigFlow — Apple 设计系统 token（对齐 active-design-system: Apple）
+   配色/字体/圆角/间距全部走 token，组件内不写死颜色。
+   ========================================================================== */
+:root{
+  /* 面 / 文字 / 描边 */
+  --bg:#ffffff;
+  --surface:#f5f5f7;
+  --surface-warm:#fbfbfd;
+  --fg:#1d1d1f;
+  --fg-2:#424245;
+  --muted:#6e6e73;
+  --meta:#86868b;
+  --border:#d2d2d7;
+  --border-soft:#e8e8ed;
+
+  /* 行动色（唯一持久彩色） */
+  --accent:#0071e3;
+  --accent-on:#ffffff;
+  --accent-hover:#0077ed;
+  --accent-active:#0066cc;
+
+  /* 工具状态色（克制） */
+  --success:#16a34a;
+  --warn:#eab308;
+  --danger:#dc2626;
+
+  /* 字体 */
+  --font-display:"SF Pro Display","SF Pro Icons","Helvetica Neue",Helvetica,Arial,system-ui,sans-serif;
+  --font-body:"SF Pro Text","SF Pro Icons","Helvetica Neue",Helvetica,Arial,system-ui,sans-serif;
+  --font-mono:"SF Mono",ui-monospace,"JetBrains Mono",Menlo,Monaco,Consolas,monospace;
+
+  /* 字号 */
+  --text-xs:12px; --text-sm:14px; --text-base:17px; --text-lg:21px;
+  --text-xl:28px; --text-2xl:40px; --text-3xl:56px;
+  --leading-body:1.47; --leading-tight:1.08; --tracking-display:-0.015em;
+
+  /* 间距（8px 基线） */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px; --sp-8:32px; --sp-12:48px;
+
+  /* 圆角（分层级，不统一） */
+  --r-sm:8px; --r-md:12px; --r-lg:18px; --r-pill:980px;
+
+  /* 层级 */
+  --elev-flat:none;
+  --elev-ring:0 0 0 1px var(--border);
+  --elev-raised:0 12px 32px rgba(0,0,0,.08);
+  --focus-ring:0 0 0 4px color-mix(in oklab, var(--accent), transparent 65%);
+
+  /* 动效 */
+  --motion-fast:150ms; --motion-base:220ms;
+  --ease-standard:cubic-bezier(.28,0,.22,1);
+  --ease-out:cubic-bezier(.23,1,.32,1);
+
+  /* ---- 液态玻璃专用 token（来自参考图工艺） ---- */
+  --glass-edge:rgba(255,255,255,.80);
+  --glass-edge-strong:rgba(255,255,255,.90);
+  --glass-edge-soft:rgba(255,255,255,.55);
+  --glass-rim:rgba(255,255,255,.20);
+  --glass-ring:rgba(0,0,0,.80);
+  --glass-shadow:rgba(0,0,0,.20);
+  --glass-border:rgba(51,51,51,.08);
+  --glass-contrast:3;
+
+  color-scheme:light dark;
+}
+html[data-theme="dark"]{
+  --bg:#000000;
+  --surface:#1d1d1f;
+  --surface-warm:#161617;
+  --fg:#f5f5f7;
+  --fg-2:#d2d2d7;
+  --muted:#a1a1a6;
+  --meta:#86868b;
+  --border:rgba(255,255,255,.18);
+  --border-soft:rgba(255,255,255,.10);
+  --accent:#2997ff;
+  --accent-hover:#4aa8ff;
+  --accent-active:#0071e3;
+  --glass-edge:rgba(255,255,255,.30);
+  --glass-edge-strong:rgba(255,255,255,.42);
+  --glass-edge-soft:rgba(255,255,255,.18);
+  --glass-rim:rgba(255,255,255,.14);
+  --glass-ring:rgba(0,0,0,.65);
+  --glass-shadow:rgba(0,0,0,.55);
+  --glass-border:rgba(255,255,255,.12);
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--fg);
+  font:400 var(--text-base)/var(--leading-body) var(--font-body);
+  letter-spacing:-.022em;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+h1,h2,h3{margin:0;font-family:var(--font-display);font-weight:600;color:var(--fg)}
+button{font:inherit;color:inherit}
+a{color:inherit}
+.mono{font-family:var(--font-mono)}
+.num{font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+
+/* ==========================================================================
+   液态玻璃材质（严格按参考工艺）
+   .lg-glass  玻璃本体：45° 边缘高光 + 白色内阴影(压在暗环之上) + 暗内环 + 外投影 + 1px double 描边
+   .lg-glass::before  内缩 16px、top35%、blur 8px 的模糊暗环
+   .lg-glass::after   内缩 4.5px 的 1px 高光光环
+   .lg-boost          容器整体 contrast() 对比滤镜（只包裹玻璃元素，勿作用大面）
+   ========================================================================== */
+.lg-glass{
+  position:relative;isolation:isolate;overflow:hidden;
+  border-radius:var(--lg-r,var(--r-pill));
+  background:linear-gradient(45deg,
+    var(--glass-edge) 0%, transparent 25%, transparent 75%, var(--glass-edge) 100%);
+  box-shadow:
+    inset 2px -2px 1px -1px var(--glass-edge-strong),
+    inset -2px 2px 1px -1px var(--glass-edge-strong),
+    inset 6px -6px 1px -6px var(--glass-edge-soft),
+    inset -6px 6px 1px -6px var(--glass-edge-soft),
+    inset 0 0 2px var(--glass-ring),
+    0 4px 8px var(--glass-shadow);
+  border:1px double var(--glass-border);
+}
+.lg-glass::before{
+  content:"";position:absolute;z-index:0;top:35%;left:50%;transform:translateX(-50%);
+  width:calc(100% - 16px);height:calc(100% - 16px);border-radius:inherit;
+  border:1px solid var(--glass-ring);filter:blur(8px);pointer-events:none;
+}
+.lg-glass::after{
+  content:"";position:absolute;z-index:0;inset:4.5px;border-radius:inherit;
+  border:1px solid var(--glass-rim);filter:blur(1px);pointer-events:none;
+}
+.lg-glass > *{position:relative;z-index:1}
+.lg-boost{filter:contrast(var(--glass-contrast))}
+
+/* 环境光：玻璃需要有东西"透" */
+.lg-stage{
+  background:
+    radial-gradient(520px 300px at 12% -20%, color-mix(in oklab,#0a84ff 10%,transparent), transparent 60%),
+    radial-gradient(460px 300px at 110% 120%, color-mix(in oklab,#1d1d1f 6%,transparent), transparent 60%),
+    linear-gradient(155deg,var(--surface-warm),var(--surface));
+}
+
+/* ==========================================================================
+   组件库页面骨架
+   ========================================================================== */
+.lib{max-width:1360px;margin:0 auto;padding:0 22px 40px}
+.libtop{
+  position:sticky;top:0;z-index:40;
+  display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:16px;
+  padding:12px 0;margin-bottom:20px;
+  background:color-mix(in oklab,var(--bg),transparent 18%);
+  -webkit-backdrop-filter:saturate(180%) blur(20px);
+  backdrop-filter:saturate(180%) blur(20px);
+  border-bottom:1px solid var(--border-soft);
+}
+.brand{display:flex;align-items:center;gap:11px}
+.brand .logo{
+  width:30px;height:30px;border-radius:var(--r-sm);display:grid;place-items:center;
+  background:linear-gradient(160deg,#2bb865,#1f8a4c);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 1px 3px rgba(0,0,0,.18);
+}
+.brand .logo svg{width:18px;height:18px;color:#fff}
+.brand h1{font-size:19px;letter-spacing:var(--tracking-display);line-height:1.15}
+.brand .sub{font-size:var(--text-sm);color:var(--muted);margin-top:1px}
+.top-actions{display:flex;align-items:center;gap:10px}
+
+.libgrid{display:grid;grid-template-columns:212px minmax(0,1fr);gap:32px;align-items:start}
+.libnav{position:sticky;top:76px;display:grid;gap:1px;padding-bottom:20px}
+.libnav .nhead{font-size:var(--text-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--meta);padding:14px 10px 6px}
+.libnav a{display:flex;align-items:center;gap:9px;text-decoration:none;color:var(--fg-2);font-size:var(--text-sm);
+  padding:6px 10px;border-radius:var(--r-sm);transition:background-color var(--motion-fast) var(--ease-standard),color var(--motion-fast) var(--ease-standard)}
+.libnav a:hover{background:var(--surface);color:var(--fg)}
+.libnav a .d{width:5px;height:5px;border-radius:50%;background:var(--border);flex:none}
+.libnav a:hover .d{background:var(--accent)}
+
+.libmain{display:grid;gap:64px;min-width:0}
+.group>.ghead{display:grid;gap:8px;margin-bottom:20px}
+.group>.ghead .eyebrow{font-family:var(--font-display);font-size:var(--text-xs);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.group>.ghead h2{font-size:var(--text-2xl);line-height:1.1;letter-spacing:var(--tracking-display)}
+.group>.ghead p{margin:0;color:var(--muted);font-size:var(--text-base);max-width:64ch}
+.group>.gbody{display:grid;gap:20px;border-top:1px solid var(--border-soft);padding-top:20px}
+
+/* ---- 模块卡 ---- */
+.mod{background:var(--bg);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;
+  transition:box-shadow var(--motion-base) var(--ease-standard)}
+.mod:hover{box-shadow:var(--elev-raised)}
+.mod-head{display:flex;align-items:flex-start;gap:14px;padding:18px 22px;border-bottom:1px solid var(--border-soft)}
+.mod-head .num{flex:none;width:26px;height:26px;border-radius:var(--r-sm);display:grid;place-items:center;
+  font-size:var(--text-xs);font-weight:600;color:var(--accent);background:color-mix(in oklab,var(--accent),transparent 90%)}
+.mod-head h3{font-size:var(--text-base);letter-spacing:-.01em}
+.mod-head .sub{font-size:var(--text-sm);color:var(--muted);margin-top:2px}
+.mod-head .tag{margin-left:auto;flex:none;font-size:var(--text-xs);color:var(--muted);
+  border:1px solid var(--border);border-radius:var(--r-pill);padding:3px 11px;white-space:nowrap}
+.mod-body{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr)}
+.mod-stage{position:relative;padding:26px;min-height:190px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;
+  border-right:1px solid var(--border-soft)}
+.mod-side{padding:18px 22px;display:grid;gap:18px;align-content:start}
+.mod-side .sect>h4{font-size:var(--text-xs);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--meta);margin:0 0 10px}
+
+.anat{list-style:none;margin:0;padding:0;display:grid;gap:9px}
+.anat li{display:grid;grid-template-columns:18px 1fr;gap:10px;font-size:var(--text-sm);color:var(--fg-2);line-height:1.45}
+.anat li b{color:var(--fg);font-weight:600}
+.anat .n{display:grid;place-items:center;width:18px;height:18px;border-radius:50%;
+  background:color-mix(in oklab,var(--accent),transparent 90%);color:var(--accent);font-size:10px;font-weight:700;font-variant-numeric:tabular-nums}
+
+.spec{display:grid;gap:8px;font-size:var(--text-sm);color:var(--fg-2)}
+.spec .r{display:grid;grid-template-columns:92px 1fr;gap:10px;align-items:baseline}
+.spec .r>span:first-child{color:var(--meta);font-size:var(--text-xs)}
+.spec code{font-family:var(--font-mono);font-size:11.5px;color:var(--fg);
+  background:var(--surface);border:1px solid var(--border-soft);border-radius:5px;padding:1px 6px}
+.states{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end}
+.state{display:grid;gap:6px;justify-items:center}
+.state .lab{font-size:10.5px;color:var(--meta)}
+
+.note{font-size:var(--text-sm);color:var(--fg-2);line-height:1.55;background:var(--surface);
+  border:1px solid var(--border-soft);border-radius:var(--r-md);padding:12px 14px}
+.note b{color:var(--fg)}
+
+/* ==========================================================================
+   组件（与 app.html 同名）
+   ========================================================================== */
+/* 胶囊按钮 */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:38px;padding:0 20px;border-radius:var(--r-pill);
+  font:500 var(--text-sm)/1 var(--font-body);letter-spacing:-.01em;cursor:pointer;text-decoration:none;border:1px solid transparent;
+  transition:background-color var(--motion-fast) var(--ease-standard),color var(--motion-fast) var(--ease-standard),
+             transform var(--motion-fast) var(--ease-standard),box-shadow var(--motion-fast) var(--ease-standard)}
+.btn:active{transform:scale(.98)}
+.btn:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+.btn-primary{background:var(--accent);color:var(--accent-on)}
+.btn-primary:hover{background:var(--accent-hover)}
+.btn-primary:active{background:var(--accent-active)}
+.btn-secondary{background:transparent;color:var(--fg);border-color:var(--border)}
+.btn-secondary:hover{background:var(--surface);border-color:var(--meta)}
+.btn svg{width:15px;height:15px;flex:none}
+
+/* 玻璃胶囊 CTA（含尾随深色圆形箭头） */
+.btn-glass{height:46px;padding:0 8px 0 22px;color:var(--fg)}
+.btn-glass .arrow{width:32px;height:32px;border-radius:50%;background:var(--fg);color:var(--bg);display:grid;place-items:center;margin-left:6px}
+.btn-glass .arrow svg{width:15px;height:15px}
+.btn-glass:hover .arrow{transform:translateX(2px)}
+.btn-glass .arrow{transition:transform var(--motion-fast) var(--ease-standard)}
+
+/* Synthesize 主按钮：完整复用液态玻璃模块（工艺见 #m-glass，白玻璃无彩） */
+.btn-synth{height:46px;padding:0 26px}
+
+/* 圆形玻璃图标按钮 */
+.icon-btn{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:var(--fg);cursor:pointer;--lg-r:50%}
+.icon-btn svg{width:18px;height:18px}
+.icon-btn.sm{width:34px;height:34px}
+.icon-btn.sm svg{width:15px;height:15px}
+
+/* 窗口外壳 / 标题栏 */
+.titlebar{width:100%;height:40px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;
+  border-radius:var(--r-md) var(--r-md) 0 0;border:1px solid var(--border-soft);background:var(--surface-warm)}
+.brandmark{display:flex;align-items:center;gap:9px;padding-left:14px}
+.brandmark .logo{width:18px;height:18px;border-radius:6px;display:grid;place-items:center;background:linear-gradient(160deg,#2bb865,#1f8a4c)}
+.brandmark .logo svg{width:12px;height:12px;color:#fff}
+.brandmark .name{font-size:var(--text-sm);font-weight:600;color:var(--fg)}
+.titlebar .path{font-size:var(--text-sm);color:var(--muted);display:flex;align-items:center;gap:7px;justify-self:start;padding-left:16px}
+.titlebar .path b{color:var(--fg);font-weight:600}
+.titlebar .path .dot{opacity:.45}
+.titlebar .path .modified{color:var(--warn)}
+.win-controls{display:flex;height:100%}
+.wc{width:46px;height:100%;border:0;background:transparent;color:var(--muted);display:grid;place-items:center;cursor:pointer;
+  transition:background-color var(--motion-fast) linear,color var(--motion-fast) linear}
+.wc:hover{background:var(--surface);color:var(--fg)}
+.wc.close:hover{background:var(--danger);color:#fff}
+.wc svg{width:11px;height:11px;stroke:currentColor;stroke-width:1.4;fill:none}
+
+/* 菜单栏 */
+.menubar{height:34px;display:flex;align-items:center;gap:1px;padding:0 8px;border:1px solid var(--border-soft);border-top:0;
+  border-radius:0 0 var(--r-md) var(--r-md);background:var(--surface-warm)}
+.menu{position:relative}
+.menu>button{border:0;background:transparent;color:var(--fg-2);font-size:var(--text-sm);height:26px;padding:0 11px;border-radius:var(--r-sm);cursor:pointer;
+  transition:background-color var(--motion-fast) linear,color var(--motion-fast) linear}
+/* 顶层条目不做按键设计：平时纯文字，仅在选中（菜单展开）时高亮；点空白收起即取消 */
+.menu>button:hover{color:var(--fg)}
+.menu[data-open="true"]>button{background:var(--surface);color:var(--fg)}
+.menu-panel{position:absolute;top:calc(100% + 6px);left:0;min-width:230px;z-index:60;padding:6px;border-radius:var(--r-md);
+  background:color-mix(in oklab,var(--bg),transparent 8%);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);
+  border:1px solid var(--border);box-shadow:var(--elev-raised);display:none}
+.menu[data-open="true"] .menu-panel{display:block;animation:rise var(--motion-base) var(--ease-out)}
+.mi{display:flex;align-items:center;gap:10px;width:100%;border:0;background:transparent;color:var(--fg);font-size:var(--text-sm);
+  padding:7px 10px;border-radius:var(--r-sm);cursor:pointer;text-align:left}
+.mi:hover{background:var(--surface);color:var(--accent)}
+.mi .k{margin-left:auto;color:var(--meta);font-size:var(--text-xs);font-variant-numeric:tabular-nums}
+.mi[disabled]{opacity:.4;cursor:default}
+.msep{height:1px;background:var(--border-soft);margin:5px 6px}
+
+/* 竖排活动栏 */
+.rail{display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px 8px;border-radius:var(--r-lg);
+  border:1px solid var(--border-soft);background:color-mix(in oklab,var(--bg),transparent 6%);
+  -webkit-backdrop-filter:saturate(180%) blur(16px);backdrop-filter:saturate(180%) blur(16px)}
+.rail .rtb{position:relative;width:38px;height:38px;border-radius:var(--r-md);border:1px solid transparent;background:transparent;
+  color:var(--muted);display:grid;place-items:center;cursor:pointer;
+  transition:background-color var(--motion-fast) var(--ease-standard),color var(--motion-fast) var(--ease-standard),transform var(--motion-fast) var(--ease-standard)}
+.rail .rtb:hover{background:var(--surface);color:var(--fg)}
+.rail .rtb:active{transform:scale(.94)}
+.rail .rtb svg{width:19px;height:19px}
+.rail .rtb[aria-pressed="true"]{background:color-mix(in oklab,var(--accent),transparent 88%);color:var(--accent)}
+.rail .rtb[aria-pressed="true"]::before{content:"";position:absolute;left:-8px;top:50%;transform:translateY(-50%);
+  width:3px;height:20px;border-radius:2px;background:var(--accent)}
+.rail .rlabel{writing-mode:vertical-rl;font-size:10px;letter-spacing:.14em;color:var(--meta);text-transform:uppercase;margin-top:8px}
+
+/* Dock */
+.dock{border-radius:var(--r-lg);display:grid;grid-template-rows:auto minmax(0,1fr);overflow:hidden;
+  border:1px solid var(--border-soft);background:color-mix(in oklab,var(--bg),transparent 8%);
+  -webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);box-shadow:var(--elev-raised)}
+.tabs{position:relative;display:flex;align-items:center;gap:2px;padding:10px 12px 0}
+.tab{border:0;background:transparent;color:var(--muted);font-size:var(--text-sm);font-weight:500;padding:7px 12px;border-radius:var(--r-sm) var(--r-sm) 0 0;
+  cursor:pointer;position:relative;transition:color var(--motion-base) linear}
+.tab:hover{color:var(--fg)}
+.tab[aria-selected="true"]{color:var(--fg)}
+.tab-ink{position:absolute;bottom:0;left:0;height:2px;border-radius:2px;background:var(--accent);width:0;opacity:0;pointer-events:none;
+  transition:transform var(--motion-base) var(--ease-standard),width var(--motion-base) var(--ease-standard),opacity var(--motion-fast) linear}
+.tabs .tab[aria-selected="true"]::after{display:none}
+.pane{padding:12px;overflow:auto;min-height:0}
+
+/* 树 / 列表 */
+.tree{font-size:var(--text-sm)}
+.grp{display:flex;align-items:center;gap:8px;padding:8px;color:var(--meta);font-size:var(--text-xs);font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+.node{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:var(--r-sm);cursor:default;
+  transition:background-color var(--motion-fast) linear}
+.node:hover{background:var(--surface)}
+.node.sel{background:color-mix(in oklab,var(--accent),transparent 90%);color:var(--accent)}
+.node .ic{width:16px;height:16px;color:var(--meta);flex:none}
+.node.sel .ic{color:var(--accent)}
+.node .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.node .badge{font-size:10.5px;color:var(--meta);border:1px solid var(--border);border-radius:var(--r-pill);padding:1px 8px;font-variant-numeric:tabular-nums}
+
+/* 输入 */
+.field{display:grid;grid-template-columns:88px 1fr;align-items:center;gap:12px;padding:8px 4px}
+.field+.field{border-top:1px solid var(--border-soft)}
+.field label{font-size:var(--text-sm);color:var(--fg-2);font-weight:500}
+.input{height:36px;border-radius:var(--r-sm);border:1px solid var(--border);background:var(--bg);color:var(--fg);
+  font:400 var(--text-sm)/1 var(--font-body);padding:0 11px;width:100%;outline:none;
+  transition:border-color var(--motion-fast) var(--ease-standard),box-shadow var(--motion-fast) var(--ease-standard)}
+.input:hover{border-color:var(--meta)}
+.input:focus{border-color:var(--accent);box-shadow:var(--focus-ring)}
+.input[readonly]{color:var(--muted);background:var(--surface)}
+select.input{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--meta) 50%),linear-gradient(135deg,var(--meta) 50%,transparent 50%);
+  background-position:calc(100% - 16px) 15px,calc(100% - 11px) 15px;background-size:5px 5px,5px 5px;background-repeat:no-repeat}
+
+/* 画布 */
+.canvas-wrap{position:relative;width:100%;background:var(--bg);border-radius:var(--r-md);overflow:hidden;border:1px solid var(--border-soft)}
+.canvas-wrap svg{display:block;width:100%;height:100%}
+.hud{position:absolute;left:12px;bottom:12px;display:flex;gap:2px;align-items:center;padding:4px;border-radius:var(--r-pill);
+  background:color-mix(in oklab,var(--bg),transparent 8%);-webkit-backdrop-filter:saturate(180%) blur(16px);backdrop-filter:saturate(180%) blur(16px);border:1px solid var(--border-soft)}
+.hud .z{color:var(--fg-2);font-variant-numeric:tabular-nums;padding:0 8px;min-width:46px;text-align:center;font-size:var(--text-sm)}
+.handytools{position:absolute;left:50%;top:14px;transform:translateX(-50%);display:flex;gap:4px;padding:5px;border-radius:var(--r-pill);
+  background:color-mix(in oklab,var(--bg),transparent 8%);-webkit-backdrop-filter:saturate(180%) blur(16px);backdrop-filter:saturate(180%) blur(16px);border:1px solid var(--border-soft)}
+
+/* 代码 */
+.code{display:grid;grid-template-columns:auto 1fr;background:var(--bg);overflow:auto;border-radius:var(--r-md);border:1px solid var(--border-soft);
+  font:13px/1.7 var(--font-mono)}
+.code .gutter{padding:10px 12px;text-align:right;color:var(--meta);border-right:1px solid var(--border-soft);user-select:none;font-variant-numeric:tabular-nums}
+.code .src{padding:10px 14px;white-space:pre;color:var(--fg)}
+.code .kw{color:var(--accent)}.code .ty{color:#1f8a4c}.code .st{color:#b25000}.code .cm{color:var(--meta);font-style:italic}
+
+/* 终端 */
+.term{font:13px/1.7 var(--font-mono);padding:12px 14px;background:#0d0d0f;color:#e8e8ed;border-radius:var(--r-md);overflow:auto}
+.term .ok{color:#40d17b}.term .dim{color:#8a8a8f}.term .wrn{color:#ffd60a}.term .cmd{color:#4aa8ff}
+html[data-theme="light"] .term{background:#1d1d1f}
+
+/* 波形 */
+.wave{display:grid;gap:5px;padding:10px 12px;background:var(--bg);border-radius:var(--r-md);border:1px solid var(--border-soft)}
+.wave .row{display:grid;grid-template-columns:64px 1fr;align-items:center;gap:12px}
+.wave .lbl{font-size:var(--text-xs);color:var(--muted);text-align:right;font-family:var(--font-mono)}
+.wave svg{width:100%;height:32px;display:block}
+
+/* 状态栏 */
+.statusbar{display:flex;align-items:center;gap:16px;padding:10px 16px;font-size:var(--text-xs);color:var(--muted);
+  border:1px solid var(--border-soft);border-radius:var(--r-md);background:var(--surface-warm);font-variant-numeric:tabular-nums;flex-wrap:wrap}
+.statusbar .pill{display:inline-flex;align-items:center;gap:7px}
+.statusbar .led{width:7px;height:7px;border-radius:50%;background:var(--success);box-shadow:0 0 0 3px color-mix(in oklab,var(--success),transparent 78%)}
+.statusbar .led.warn{background:var(--warn);box-shadow:0 0 0 3px color-mix(in oklab,var(--warn),transparent 78%)}
+.statusbar .spacer{flex:1}
+
+/* 分隔条 */
+.vsplit{height:10px;flex:none;cursor:row-resize;position:relative;display:grid;place-items:center;touch-action:none}
+.vsplit::before{content:"";width:46px;height:3px;border-radius:2px;background:var(--border);transition:background-color var(--motion-fast) linear}
+.vsplit:hover::before,.vsplit.dragging::before{background:var(--accent)}
+.hsample{display:flex;flex-direction:column;height:180px;border:1px solid var(--border-soft);border-radius:var(--r-md);overflow:hidden}
+.hpane{display:grid;place-items:center;font-size:var(--text-sm);color:var(--muted);background:var(--bg)}
+.hpane:last-child{background:var(--surface);border-top:1px solid var(--border-soft)}
+
+/* 工具提示 */
+.tip{position:relative;display:inline-flex}
+.tip .bubble{position:absolute;bottom:calc(100% + 9px);left:50%;transform:translateX(-50%);white-space:nowrap;font-size:var(--text-xs);
+  color:var(--accent-on);background:var(--fg);padding:5px 10px;border-radius:var(--r-sm);box-shadow:var(--elev-raised);animation:rise var(--motion-base) var(--ease-out)}
+.tip .bubble::after{content:"";position:absolute;top:100%;left:50%;transform:translateX(-50%);border:4px solid transparent;border-top-color:var(--fg)}
+
+/* 徽章 */
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:var(--text-xs);font-weight:500;border-radius:var(--r-pill);padding:3px 11px;line-height:1.4}
+.badge-muted{color:var(--muted);background:var(--surface)}
+.badge-success{color:var(--success);background:color-mix(in oklab,var(--success),transparent 90%)}
+.badge-info{color:var(--accent);background:color-mix(in oklab,var(--accent),transparent 90%)}
+.badge-dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+
+/* 断点线框 */
+.breakpoints{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;width:100%}
+.bp{display:grid;gap:8px;justify-items:center}
+.bp .frame{width:100%;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--surface);padding:6px;display:grid;gap:4px}
+.bp .frame .bar{height:6px;border-radius:3px;background:var(--border)}
+.bp .frame .cols{display:grid;gap:4px;height:38px}
+.bp.wide .cols{grid-template-columns:9px 1fr 24px}
+.bp.mid .cols,.bp.narrow .cols{grid-template-columns:9px 1fr}
+.bp .frame .col{background:var(--bg);border:1px solid var(--border-soft);border-radius:3px}
+.bp .frame .col.a{background:color-mix(in oklab,var(--accent),transparent 88%);border-color:transparent}
+.bp .lab{font-size:var(--text-xs);color:var(--meta);font-variant-numeric:tabular-nums;text-align:center}
+
+/* 动效演示 */
+.motion-demo{display:flex;flex-wrap:wrap;gap:24px;align-items:center}
+.mdot{width:64px;height:64px;display:grid;place-items:center;color:var(--fg);font-size:var(--text-sm);font-weight:600;cursor:pointer;
+  background:var(--surface);border:1px solid var(--border-soft);
+  border-radius:var(--r-lg);transition:transform var(--motion-fast) var(--ease-standard)}
+.mdot:active{transform:scale(.94)}
+.mdot.sp{transition:transform 420ms cubic-bezier(.34,1.56,.64,1)}
+.mdot.sp:hover{transform:translateY(-6px)}
+.curve{font-family:var(--font-mono);font-size:11.5px;color:var(--fg-2)}
+
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* 无障碍 */
+:where(button,a,input,select):focus-visible{outline:none;box-shadow:var(--focus-ring);border-radius:var(--r-sm)}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.001ms !important;transition-duration:120ms !important}
+  .mdot,.icon-btn,.btn{transform:none !important}
+}
+@media (prefers-reduced-transparency:reduce){
+  .libtop,.menu-panel,.dock,.rail,.hud,.handytools{backdrop-filter:none !important;-webkit-backdrop-filter:none !important;background:var(--bg)}
+}
+@media (prefers-contrast:more){
+  .mod,.dock{border-color:var(--fg)}
+  .node.sel{outline:2px solid var(--accent);outline-offset:-2px}
+}
+
+/* 响应式 */
+@media (max-width:1023px){
+  .libgrid{grid-template-columns:minmax(0,1fr)}
+  .libnav{position:static;display:flex;overflow-x:auto;scrollbar-width:none;gap:2px;border-bottom:1px solid var(--border-soft);padding-bottom:10px}
+  .libnav::-webkit-scrollbar{display:none}
+  .libnav .nhead{display:none}
+  .libnav a{white-space:nowrap}
+  .mod-body{grid-template-columns:minmax(0,1fr)}
+  .mod-stage{border-right:0;border-bottom:1px solid var(--border-soft)}
+  .breakpoints{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:600px){
+  .lib{padding:0 14px 32px}
+  .libtop{grid-template-columns:auto 1fr;row-gap:10px}
+  .top-actions{grid-column:1/-1}
+  .brand .sub{display:none}
+  .breakpoints{grid-template-columns:minmax(0,1fr)}
+  .group>.ghead h2{font-size:var(--text-2xl)}
+}
+
+/* 亮色系液态玻璃模块（被 Synthesize CTA 复用的同款工艺，见 #m-glass） */
+
+/* 页面背景保持历史版本中性白，不再为玻璃垫色域 */
+
+
+/* 模块卡回退历史版本：实体面 + 1px 描边 + 悬停普通软阴影 */
+
+
+
+
+
+/* ===== 自定义布局 quick pick（与 app.html 同款，Apple 亮色材质） ===== */
+.lp-head{display:flex;align-items:center;gap:8px;height:34px;padding:0 8px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--border-soft);margin-bottom:4px}
+.lp-head b{font-size:12.5px;font-weight:600;color:var(--fg)}
+.lp-grp{padding:5px 8px 3px;font-size:9.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--meta)}
+.lp-item{display:flex;align-items:center;gap:9px;width:100%;height:28px;padding:0 8px;border:0;border-radius:var(--r-sm);
+  background:transparent;color:var(--fg);font-size:var(--text-sm);cursor:pointer;text-align:left}
+.lp-item:hover{background:var(--surface)}
+.lp-item[aria-checked="true"]{background:var(--surface)}
+.lp-item[aria-pressed="false"]{color:var(--meta)}
+.lp-item .lp-tick{margin-left:auto;font-size:11px;color:var(--accent);opacity:0}
+.lp-item[aria-checked="true"] .lp-tick{opacity:1}
+.lp-item svg{width:15px;height:15px;flex:none;color:var(--meta)}
+.lp-k{margin-left:auto;display:inline-flex;gap:3px}
+.lp-k b{font:500 10px/1.6 "SF Mono";font-family:var(--font-mono);color:var(--muted);
+  border:1px solid var(--border);border-radius:4px;padding:0 5px;background:var(--bg)}
+.lp-chips{display:flex;gap:6px;flex-wrap:wrap;padding:6px 8px}
+.lp-chip{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 11px;border-radius:999px;
+  border:1px solid var(--border);background:var(--bg);color:var(--fg);font-size:11.5px;font-weight:500;cursor:pointer}
+.lp-chip:hover{background:var(--surface)}
+.lp-chip[aria-pressed="true"]{background:color-mix(in oklab,var(--accent),transparent 88%);color:var(--accent);border-color:transparent}
+.out-back{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 14px;border-radius:999px;
+  border:1px solid var(--border);background:var(--bg);color:var(--fg);font-size:12px;cursor:pointer}
+.out-back:hover{border-color:var(--meta);background:var(--surface)}
+</style>
+
+</head>
+<body>
+
+<!-- 共享 SVG 定义（网格 / 软阴影） -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <pattern id="g20" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="#ececef" stroke-width="1"/></pattern>
+  <pattern id="g100" width="100" height="100" patternUnits="userSpaceOnUse"><path d="M100 0H0V100" fill="none" stroke="#e2e2e6" stroke-width="1"/></pattern>
+  <filter id="soft" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="0" dy="1.6" stdDeviation="2.2" flood-color="#000" flood-opacity=".12"/></filter>
+</defs></svg>
+
+<div class="lib">
+  <header class="libtop">
+    <div class="brand">
+      <span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h4l2-6 3 12 2-8 2 5h5"/></svg></span>
+      <div>
+        <h1>SigFlow · 组件模块库</h1>
+        <div class="sub">Apple 设计系统 · 纯 CSS 液态玻璃 · 实时部件 + 解剖 + 状态 + Token</div>
+      </div>
+    </div>
+    <div></div>
+    <div class="top-actions">
+      <a class="btn btn-primary" href="app.html" style="text-decoration:none" title="打开完整应用原型">
+        <span>完整应用原型</span>
+        <span class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      </a>
+      <button class="icon-btn sm" id="themeBtn" title="浅色 / 深色" aria-label="切换主题">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="libgrid">
+    <nav class="libnav" aria-label="组件索引">
+      <span class="nhead">液态玻璃</span>
+      <a href="#m-glass"><span class="d"></span>玻璃工艺</a>
+      <span class="nhead">外壳与全局</span>
+      <a href="#m-shell"><span class="d"></span>窗口外壳</a>
+      <a href="#m-menu"><span class="d"></span>菜单栏</a>
+      <a href="#m-btn"><span class="d"></span>按钮（胶囊 / 玻璃）</a>
+      <a href="#m-icon"><span class="d"></span>圆形图标按钮</a>
+      <a href="#m-rail"><span class="d"></span>竖排活动栏</a>
+      <a href="#m-dock"><span class="d"></span>面板容器</a>
+      <a href="#m-tabs"><span class="d"></span>标签页</a>
+      <a href="#m-split"><span class="d"></span>分隔条</a>
+      <a href="#m-status"><span class="d"></span>状态栏</a>
+      <span class="nhead">导航与数据</span>
+      <a href="#m-tree"><span class="d"></span>树节点</a>
+      <a href="#m-input"><span class="d"></span>输入控件</a>
+      <a href="#m-tip"><span class="d"></span>工具提示</a>
+      <span class="nhead">画布</span>
+      <a href="#m-node"><span class="d"></span>画布图元</a>
+      <a href="#m-wire"><span class="d"></span>导线与结点</a>
+      <a href="#m-handles"><span class="d"></span>选中手柄</a>
+      <a href="#m-ghost"><span class="d"></span>幽灵预览</a>
+      <a href="#m-tools"><span class="d"></span>浮动工具条</a>
+      <a href="#m-zoom"><span class="d"></span>缩放 HUD</a>
+      <span class="nhead">输出与反馈</span>
+      <a href="#m-term"><span class="d"></span>终端</a>
+      <a href="#m-wave"><span class="d"></span>波形</a>
+      <a href="#m-badge"><span class="d"></span>徽章</a>
+      <span class="nhead">布局与动效</span>
+      <a href="#m-bp"><span class="d"></span>响应式断点</a>
+      <a href="#m-motion"><span class="d"></span>动效规范</a>
+      <a href="#m-layout"><span class="d"></span>自定义布局</a>
+    </nav>
+
+    <main class="libmain">
+
+      <!-- ================= 液态玻璃 ================= -->
+      <section class="group">
+        <div class="ghead">
+          <span class="eyebrow">材质基础</span>
+          <h2>液态玻璃工艺</h2>
+          <p>严格按参考实现：45° 边缘高光渐变、白色内阴影压在暗色内环之上、柔和外投影、<code>contrast()</code> 对比滤镜、1px 双层低透明描边、内缩模糊光环。整套玻璃不依赖 <code>backdrop-filter</code>，因此同样可被 wxWidgets 自绘近似。</p>
+        </div>
+        <div class="gbody">
+          <article class="mod" id="m-glass">
+            <div class="mod-head">
+              <span class="num">01</span>
+              <div><h3>玻璃单元</h3><div class="sub">圆形玻璃按钮与玻璃胶囊 CTA（含尾随深色箭头）</div></div>
+              <span class="tag">Glass</span>
+            </div>
+            <div class="mod-body">
+              <div class="mod-stage lg-stage" style="justify-content:center;align-items:center;flex-direction:row;gap:32px;flex-wrap:wrap">
+                <div class="lg-boost" style="display:flex;gap:32px;align-items:center;flex-wrap:wrap">
+                  <button class="icon-btn lg-glass" title="Add"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+                  <button class="btn btn-glass lg-glass">
+                    <span>Get started</span>
+                    <span class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+                  </button>
+                </div>
+              </div>
+              <div class="mod-side">
+                <div class="sect"><h4>工艺拆解</h4>
+                  <ul class="anat">
+                    <li><span class="n">1</span><span><b>边缘高光</b> <code>linear-gradient(45deg, #fff 0%, transparent 25%, transparent 75%, #fff 100%)</code></span></li>
+                    <li><span class="n">2</span><span><b>白色内阴影</b>（右上/左下）<b>压在</b>暗色内环 <code>inset 0 0 2px rgba(0,0,0,.8)</code> 之上</span></li>
+                    <li><span class="n">3</span><span><b>外投影</b> <code>0 4px 8px rgba(0,0,0,.2)</code></span></li>
+                    <li><span class="n">4</span><span><b>双描边</b> <code>border:1px double rgba(51,51,51,.08)</code></span></li>
+                    <li><span class="n">5</span><span><b>模糊光环</b>：<code>::before</code> 内缩 16px、<code>top:35%</code>、<code>blur(8px)</code>；<code>::after</code> 内缩 4.5px、<code>blur(1px)</code></span></li>
+                    <li><span class="n">6</span><span><b>对比滤镜</b>：容器 <code>filter: contrast(3)</code></span></li>
+                  </ul>
+                </div>
+                <div class="sect"><h4>规格</h4>
+                  <div class="spec">
+                    <div class="r"><span>圆角</span><span>圆 <code>50%</code>；胶囊 <code>--r-pill</code> 980px</span></div>
+                    <div class="r"><span>Token</span><span><code>--glass-edge / --glass-ring / --glass-contrast</code></span></div>
+                    <div class="r"><span>按压</span><span><code>scale(.98)</code> · <code>--motion-fast</code></span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ================= 外壳与全局 ================= -->
+      <section class="group">
+        <div class="ghead">
+          <span class="eyebrow">外壳与全局</span>
+          <h2>窗口骨架与全局控件</h2>
+          <p>中性面、细描边、单一行动蓝；窗口 chrome 保持克制，结构面用半透明磨砂 + 常规软阴影，液态玻璃只保留在 Synthesize 主按钮。</p>
+        </div>
+        <div class="gbody">
+
+          <article class="mod" id="m-shell">
+            <div class="mod-head">
+              <span class="num">02</span>
+              <div><h3>窗口外壳 / 标题栏</h3><div class="sub">品牌标识 + 当前工程路径 + Windows 原生窗口控件</div></div>
+              <span class="tag">Shell</span>
+            </div>
+            <div class="mod-body">
+              <div class="mod-stage">
+                <div class="titlebar">
+                  <div class="brandmark">
+                    <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h4l2-6 3 12 2-8 2 5h5"/></svg></span>
+                    <span class="name">SigFlow</span>
+                  </div>
+                  <div class="path"><b>26_9_29_test</b><span class="dot">·</span>src / top.v<span class="dot">·</span><span class="modified">● 未保存</span></div>
+                  <div class="win-controls" role="group" aria-label="窗口控件">
+                    <button class="wc" title="最小化"><svg viewBox="0 0 12 12"><line x1="2" y1="6" x2="10" y2="6"/></svg></button>
+                    <button class="wc" title="最大化"><svg viewBox="0 0 12 12"><rect x="2.2" y="2.2" width="7.6" height="7.6" rx="1"/></svg></button>
+                    <button class="wc close" title="关闭"><svg viewBox="0 0 12 12"><line x1="2.5" y1="2.5" x2="9.5" y2="9.5"/><line x1="9.5" y1="2.5" x2="2.5" y2="9.5"/></svg></button>
+                  </div>
+                </div>
+              </div>
+              <div class="mod-side">
+                <div class="sect"><h4>解剖</h4>
+                  <ul class="anat">
+                    <li><span class="n">1</span><span><b>品牌标</b>：SigFlow 绿渐变方牌 + 波形图标（品牌色仅用于标识）</span></li>
+                    <li><span class="n">2</span><span><b>路径</b>：工程 · 文件 · 未保存（<code>--warn</code>）</span></li>
+                    <li><span class="n">3</span><span><b>窗口控件</b>：Windows 原生三键，关闭悬停 <code>--danger</code></span></li>
+                  </ul>
+                </div>
+                <div class="sect"><h4>规格</h4>
+                  <div class="spec">
+                    <div class="r"><span>背景</span><span><code>--surface-warm</code> #fbfbfd</span></div>
+                    <div class="r"><span>描边</span><span><code>--border-soft</code> #e8e8ed</span></div>
+                    <div class="r"><span>文字</span><span><code>--fg</code> / <code>--muted</code></span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="mod" id="m-menu">
+            <div class="mod-head">
+              <span class="num">03</span>
+              <div><h3>菜单栏</h3><div class="sub">工程命令入口，浮层为磨砂玻璃，右侧标快捷键</div></div>
+              <span class="tag">Menu</span>
+            </div>
+            <div class="mod-body">
+              <div class="mod-stage" style="align-items:stretch;padding-bottom:64px">
+                <div class="menubar" id="demoMenubar" style="border-radius:var(--r-md);border-top:1px solid var(--border-soft)">
+                  <div class="menu" data-menu data-open="true">
+                    <button aria-haspopup="true">File</button>
+                    <div class="menu-panel" role="menu">
+                      <button class="mi" role="menuitem">Open Project…<span class="k">⌘⇧O</span></button>
+                      <button class="mi" role="menuitem">New Project<span class="k">⌘N</span></button>
+                      <button class="mi" role="menuitem" disabled>Can't Undo</button>
+                      <div class="msep"></div>
+                      <button class="mi" role="menuitem">Save<span class="k">⌘S</span></button>
+                    </div>
+                  </div>
+                  <div class="menu" data-menu><button aria-haspopup="true">Edit</button><div class="menu-panel" role="menu"><button class="mi">Copy<span class="k">⌘C</span></button><button class="mi">Paste<span class="k">⌘V</span></button></div></div>
+                  <div class="menu" data-menu><button aria-haspopup="true">Project</button><div class="menu-panel" role="menu"><button class="mi">Add Circuit…</button></div></div>
+                  <div class="menu" data-menu><button aria-haspopup="true">Simulate</button><div class="menu-panel" role="menu"><button class="mi">Run Simulation<span class="k">F6</span></button></div></div>
+                  <div class="menu" data-menu><button aria-haspopup="true">FPGA</button><div class="menu-panel" role="menu"><button class="mi">Pin Binding…</button></div></div>
+                  <div class="menu" data-menu><button aria-haspopup="true">Help</button><div class="menu-panel" role="menu"><button class="mi">About SigFlow</button></div></div>
+                </div>
+              </div>
+              <div class="mod-side">
+                <div class="sect"><h4>解剖</h4>
+                  <ul class="anat">
+                    <li><span class="n">1</span><span><b>顶层条目</b>：纯文字，不做按键设计；展开（选中）时 <code>--surface</code> 底高亮，点空白收起即取消</span></li>
+                    <li><span class="n">2</span><span><b>浮层</b>：<code>backdrop-filter</code> 磨砂 + <code>--elev-raised</code></span></li>
+                    <li><span class="n">3</span><span><b>菜单项</b>：悬停 <code>--surface</code> + <code>--accent</code></span></li>
+                  </ul>
+                </div>
+                <div class="sect"><h4>规格</h4>
+                  <div class="spec">
+                    <div class="r"><span>高度</span><span>34px</span></div>
+                    <div class="r"><span>浮层</span><span>圆角 <code>--r-md</code> 12px，最小宽 230px</span></div>
+                    <div class="r"><span>动效</span><span><code>rise</code> <code>--motion-base</code></span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="mod" id="m-btn">
+            <div class="mod-head">
+              <span class="num">04</span>
+              <div><h3>按钮</h3><div class="sub">胶囊语言：液态玻璃主按钮（Synthesize，完整复用液态玻璃模块）· 描边次按钮 · 行动蓝基准</div></div>
+              <span class="tag">Button</span>
+            </div>
+            <div class="mod-body">
+              <div class="mod-stage lg-stage">
+                <div class="lg-boost" style="display:flex;flex-wrap:wrap;gap:18px;align-items:center">
+                  <button class="btn btn-synth lg-glass">Synthesize</button>
+                  <button class="btn btn-secondary">Place &amp; Route</button>
+                  <button class="btn btn-secondary">Simulate</button>
+                </div>
+              </div>
+              <div class="mod-side">
+                <div class="sect"><h4>状态 / 变体</h4>
+                  <div class="states">
+                    <span class="state"><button class="btn btn-primary" style="height:34px;padding:0 16px">主行动</button><span class="lab">Primary 行动蓝</span></span>
+                    <span class="state"><button class="btn btn-secondary" style="height:34px;padding:0 16px">次行动</button><span class="lab">Secondary 描边</span></span>
+                  </div>
+                </div>
+                <div class="sect"><h4>规格</h4>
+                  <div class="spec">
+                    <div class="r"><span>形状</span><span>胶囊 <code>--r-pill</code></span></div>
+                    <div class="r"><span>主行动</span><span><code>.btn-synth.lg-glass</code> 亮色系液态玻璃（工艺同 #m-glass），白玻璃无彩</span></div>
+                    <div class="r"><span>按压</span><span><code>scale(.98)</code> · 150ms</span></div>
+                    <div class="r"><span>次行动</span><span>描边胶囊，历史版本材质（1px 描边 + 常规阴影）</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="mod" id="m-icon">
+            <div class="mod-head">
+              <span class="num">05</span>
+              <div><h3>圆形图标按钮</h3><div class="sub">工具栏/HUD/浮动条共用；常规材质（无玻璃层）</div></div>
+              <span class="tag">Button</span>
+            </div>
+            <div class="mod-body">
+              <div class="mod-stage lg-stage">
+                <div class="lg-boost" style="display:flex;gap:16px;align-items:center">
+                  <button class="icon-btn" title="添加"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+                  <button class="icon-btn" title="缩放"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></button>
+                  <button class="icon-btn sm" title="更多"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button>
+                </div>
+              </div>
+              <div class="mod-side">
+                <div class="sect"><h4>规格</h4>
+                  <div class="spec">
+                    <div class="r"><span>尺寸</span><span>44×44 / 34×34（紧凑）</span></div>
+                    <div class="r"><span>圆角</span><span><code>50%</code>，常规材质（1px 描边 + 常规阴影）</span></div>
+                    <div class="r"><span>图标</span><span>18 / 15px，<code>stroke 1.8–2</code></span></div>
+                    <div class="r"><span>命中</span><span>≥ 44px（触摸达标）</span></div>
+                  </div>
+                </div>
+                <div class="note">图标按钮已回退历史版本材质（普通阴影）；液态玻璃仅保留在 Synthesize 主按钮，工艺见 #m-glass。</div>
+              </div>
+            </div>
+          </article>
+
+          <article class="mod" id="m-rail">
+            <div class="mod-head">
+              <span class="num">06</span>
+              <div><h3>竖排活动栏</h3><div class="sub">VS Code 式活动栏：Project / SigFlow Tree / Component Library 三页互斥</div></div>
+              <span class="tag">VS-ref</span>
+            </div>
+            <div class="mod-body">
+              <div class="mod-stage" style="align-items:center">
+                <aside class="rail" role="tablist" aria-orientation="vertical">
+                  <button class="rtb" aria-pressed="false" title="Project Manager"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg></button>
+                  <button class="rtb" aria-pressed="false" title="SigFlow Tree"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M4 12h4l2-6 3 12 2-6h5"/></svg></button>
+                  <button class="rtb" aria-pressed="true" title="Component Library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="3" y="4" width="7" height="7" rx="1.4"/><rect x="14" y="4" width="7" height="7" rx="1.4"/><rect x="3" y="14" width="7" height="7" rx="1.4"/><rect x="14" y="14" width="7" height="7" rx="1.4"/></svg></button>
+                  <span class="rlabel">Panels</span>
+                </aside>
+              </div>
+              <div class="mod-side">
+                <div class="sect"><h4>规格</h4>
+                  <div class="spec">
+                    <div class="r"><span>项</span><span>38×38，选中左侧 3px <code>--accent</code> 指示条</span></div>
+                    <div class="r"><span>选中底</span><span><code>color-mix(accent 12%)</code></span></div>
+                    <div class="r"><span>材质</span><span>磨砂玻璃面板</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="mod" id="m-dock">
+            <div class="mod-head">
+              <span class="num">07</span>
+              <div><h3>面板容器 Dock</h3><div class="sub">磨砂玻璃大面：头部标签 + 可滚动内容区</div></div>
+              <span class="tag">Container</span>
+            </div>
+            <div class="mod-body">
+              <div class="mod-stage lg-stage">
+                <section class="dock" style="height:172px">
+                  <div class="tabs" data-tabs="dockdemo">
+                    <button class="tab" aria-selected="true">Property</button>
+                    <button class="tab">Pin Binding</button>
+                    <button class="tab">DeepSeek</button>
+                  </div>
+                  <div class="pane">
+                    <div class="node sel"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="4" width="16" height="16" rx="2"/></svg><span class="nm">u1 · and</span><span class="badge">inout</span></div>
+                    <div class="node"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="4" width="16" height="16" rx="2"/></svg><span class="nm">u2 · xnor</span><span class="badge">inout</span></div>
+                  </div>
+                </section>
+              </div>
+              <div class="mod-side">
+                <div class="sect"><h4>规格</h4>
+                  <div class="spec">
+                    <div class="r"><span>材质</span><span><code>backdrop-filter</code> 磨砂 + 1px 描边</span></div>
+                    <div class="r"><span>圆角</span><span><code>--r-lg</code> 18px</span></div>
+                    <div class="r"><span>层级</span><span><code>--elev-raised</code> 柔和投影</span></div>
+                  </div>
+                </div>
+                <div class="note">大面用磨砂（Apple nav 做法），不叠 <code>contrast()</code>，避免文字与内容被过度对比。</div>
+              </div>
+            </div>
+          </article>
+
+          <article class="mod" id="m-tabs">
+            <div class="mod-head">
+              <span class="num">08</span>
+              <div><h3>标签页 Tabs</h3><div class="sub">文字型标签，选中态下划线平滑滑移</div></div>
+              <span class="tag">Navigation</span>
+            </div>
+            <div class="mod-body">
+              <div class="mod-stage">
+                <div class="tabs" data-tabs="inkdemo" style="padding:0">
+                  <button class="tab" aria-selected="true">Project</button>
+                  <button class="tab">SigFlow Tree</button>
+                  <button class="tab">Component Library</button>
+                </div>
+              </div>
+              <div class="mod-side">
+                <div class="sect"><h4>规格</h4>
+                  <div class="spec">
+                    <div class="r"><span>指示条</span><span>2px <code>--accent</code>，<code>translateX</code> 滑移</span></div>
+                    <div class="r"><span>动效</span><span><code>--motion-base</code> <code>--ease-standard</code></span></div>
+                    <div class="r"><span>语义</span><span><code>role=tab</code> + <code>aria-selected</code></span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="mod" id="m-split">
+            <div class="mod-head">
+              <span class="num">09</span>
+              <div><h3>分隔条 Splitter</h3><div class="sub">可拖拽调整面板尺寸（画布/编辑器、左/右栏、底栏）</div></div>
+              <span class="tag">Layout</span>
+            </div>
+            <div class="mod-body">
+              <div class="mod-stage">
+                <div class="hsample" id="splitDemo">
+                  <div class="hpane" id="splitPaneTop">画布区域（拖拽下方横条调整）</div>
+                  <div class="vsplit" role="separator" aria-orientation="horizontal" tabindex="0" aria-label="调整上下高度"></div>
+                  <div class="hpane">代码编辑器区域</div>
+                </div>
+              </div>
+              <div class="mod-side">
+                <div class="sect"><h4>规格</h4>
+                  <div class="spec">
+                    <div class="r"><span>把手</span><span>46×3 <code>--border</code>，悬停 <code>--accent</code></span></div>
+                    <div class="r"><span>命中区</span><span>10px 高，<code>row-resize</code></span></div>
+                    <div class="r"><span>范围</span><span>25% – 80%</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="mod" id="m-status">
+            <div class="mod-head">
+              <span class="num">10</span>
+              <div><h3>状态栏</h3><div class="sub">左侧状态灯 + 当前操作；右侧坐标/网格/缩放/工具链版本</div></div>
+              <span class="tag">Shell</span>
+            </div>
+            <div class="mod-body">
+              <div class="mod-stage">
+                <footer class="statusbar" style="width:100%">
+                  <span class="pill"><i class="led"></i> <span>Component Tool · 就绪</span></span>
+                  <span class="spacer"></span>
+                  <span class="pill mono">x 240  y 150</span>
+                  <span class="pill">Grid 20</span>
+                  <span class="pill">Zoom 100%</span>
+                  <span class="pill">dev · gcc-16.2.0</span>
+                </footer>
+              </div>
+              <div class="mod-side">
+                <div class="sect"><h4>状态灯</h4>
+                  <div class="states">
+                    <span class="state"><span class="pill" style="display:inline-flex;align-items:center;gap:7px;font-size:var(--text-sm);color:var(--muted)"><i class="led"></i> 就绪</span><span class="lab">Ready</span></span>
+                    <span class="state"><span class="pill" style="display:inline-flex;align-items:center;gap:7px;font-size:var(--text-sm);color:var(--muted)"><i class="led warn"></i> 运行中</span><span class="lab">Busy</span></span>
+                  </div>
+                </div>
+                <div class="sect"><h4>规格</h4>
+                  <div class="spec">
+                    <div class="r"><span>字号</span><span>12px · <code>tabular-nums</code></span></div>
+                    <div class="r"><span>底</span><span><code>--surface-warm</code></span></div>
+                    <div class="r"><span>对应</span><span>MainFrame::SetStatusText</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ================= 导航与数据 ================= -->
+      <section class="group">
+        <div class="ghead">
+          <span class="eyebrow">导航与数据</span>
+          <h2>树、表单与提示</h2>
+          <p>信息输入保持安静：细描边、浅灰面、聚焦时行动蓝光环。</p>
+        </div>
+        <div class="gbody">
+
+          <article class="mod" id="m-tree">
+            <div class="mod-head">
+              <span class="num">11</span>
+              <div><h3>树节点</h3><div class="sub">工程文件树 / 结构树：悬停、选中、右侧徽章</div></div>
+              <span class="tag">Navigation</span>
+            </div>
+            <div class="mod-body">
+              <div class="mod-stage">
+                <div class="tree" style="width:100%;max-width:320px">
+                  <div class="grp">26_9_29_test</div>
+                  <div class="node"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg><span class="nm">src</span></div>
+                  <div class="node sel"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/></svg><span class="nm">top.v</span><span class="badge">59 B</span></div>
+                  <div class="node"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 3h9l4 4v14H6z"/></svg><span class="nm">sigflow.project</span></div>
+                </div>
+              </div>
+              <div class="mod-side">
+                <div class="sect"><h4>规格</h4>
+                  <div class="spec">
+                    <div class="r"><span>圆角</span><span><code>--r-sm</code> 8px</span></div>
+                    <div class="r"><span>选中</span><span><code>color-mix(accent 10%)</code> + <code>--accent</code></span></div>
+                    <div class="r"><span>徽章</span><span>10.5px 胶囊描边</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="mod" id="m-input">
+            <div class="mod-head">
+              <span class="num">12</span>
+              <div><h3>输入控件</h3><div class="sub">属性表单：文本 / 下拉 / 只读；聚焦时行动蓝描边 + 光环</div></div>
+              <span class="tag">Form</span>
+            </div>
+            <div class="mod-body">
+              <div class="mod-stage">
+                <div style="width:100%;max-width:360px">
+                  <div class="field"><label>Name</label><input class="input" value="u1"></div>
+                  <div class="field"><label>Direction</label><select class="input"><option>in</option><option>out</option><option selected>inout</option></select></div>
+                  <div class="field"><label>Position</label><input class="input" value="240, 150" readonly></div>
+                </div>
+              </div>
+              <div class="mod-side">
+                <div class="sect"><h4>状态</h4>
+                  <div class="states">
+                    <span class="state"><input class="input" value="常态" style="width:100px"><span class="lab">Default</span></span>
+                    <span class="state"><input class="input" value="聚焦" style="width:100px;border-color:var(--accent);box-shadow:var(--focus-ring)"><span class="lab">Focus</span></span>
+                  </div>
+                </div>
+                <div class="sect"><h4>规格</h4>
+                  <div class="spec">
+                    <div class="r"><span>高度</span><span>36px · 圆角 <code>--r-sm</code></span></div>
+                    <div class="r"><span>底/边</span><span><code>--bg</code> / <code>--border</code></span></div>
+                    <div class="r"><span>聚焦</span><span><code>--accent</code> + <code>--focus-ring</code></span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="mod" id="m-tip">
+            <div class="mod-head">
+              <span class="num">13</span>
+              <div><h3>工具提示</h3><div class="sub">图标按钮与工具条的悬停说明（含快捷键）</div></div>
+              <span class="tag">Feedback</span>
+            </div>
+            <div class="mod-body">
+              <div class="mod-stage lg-stage" style="padding-top:64px;align-items:center">
+                <span class="tip">
+                  <span class="bubble">缩放 100% · <span class="mono">⌘0</span></span>
+                  <button class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></button>
+                </span>
+              </div>
+              <div class="mod-side">
+                <div class="sect"><h4>规格</h4>
+                  <div class="spec">
+                    <div class="r"><span>气泡</span><span><code>--fg</code> 底 + <code>--accent-on</code> 字</span></div>
+                    <div class="r"><span>箭头</span><span>4px 三角</span></div>
+                    <div class="r"><span>对应</span><span>wxToolTip / 自绘浮层</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ================= 画布 ================= -->
+      <section class="group">
+        <div class="ghead">
+          <span class="eyebrow">画布</span>
+          <h2>画布组件</h2>
+          <p>20px 网格、正交导线、8 手柄选中、幽灵预览；浅/深底均保持辨识度。</p>
+        </div>
+        <div class="gbody">
+
+          <article class="mod" id="m-node">
+            <div class="mod-head">
+              <span class="num">14</span>
+              <div><h3>画布图元</h3><div class="sub">元件节点：圆角卡 + 名称/实例号；20px 吸附网格</div></div>
+              <span class="tag">Canvas</span>
+            </div>
+            <div class="mod-body">
+              <div class="mod-stage">
+                <div class="canvas-wrap" style="height:180px">
+                  <svg viewBox="0 0 420 180" preserveAspectRatio="xMidYMid meet">
+                    <rect width="420" height="180" fill="url(#g20)"/><rect width="420" height="180" fill="url(#g100)"/>
+                    <g filter="url(#soft)"><rect x="60" y="50" width="120" height="80" rx="12" fill="var(--bg)" stroke="var(--accent)" stroke-width="1.6"/></g>
+                    <path d="M60 74 H110 A36 36 0 0 1 110 106 H60 Z" fill="none" stroke="var(--accent)" stroke-width="1.6"/>
+                    <text x="78" y="86" font-size="13" font-weight="600" fill="var(--accent)">and</text>
+                    <text x="78" y="104" font-size="10.5" fill="var(--muted)" font-family="ui-monospace,monospace">u1</text>
+                  </svg>
+                </div>
+              </div>
+              <div class="mod-side">
+                <div class="sect"><h4>规格</h4>
+                  <div class="spec">
+                    <div class="r"><span>吸附</span><span>20px</span></div>
+                    <div class="r"><span>选中描边</span><span><code>--accent</code> 1.6px</span></div>
+                    <div class="r"><span>网格</span><span>20px 细 + 100px 粗</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="mod" id="m-wire">
+            <div class="mod-head">
+              <span class="num">15</span>
+              <div><h3>导线与结点</h3><div class="sub">正交走线 + 圆角折角 + 连接结点</div></div>
+              <span class="tag">Canvas</span>
+            </div>
+            <div class="mod-body">
+              <div class="mod-stage">
+                <div class="canvas-wrap" style="height:170px">
+                  <svg viewBox="0 0 420 170">
+                    <rect width="420" height="170" fill="url(#g20)"/>
+                    <g fill="none" stroke="var(--fg)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M60 85 H140"/><path d="M60 45 H100 V85"/><path d="M200 85 H260 V120 H340"/>
+                    </g>
+                    <circle cx="140" cy="85" r="3.6" fill="var(--fg)"/><circle cx="100" cy="85" r="3.6" fill="var(--fg)"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="mod-side">
+                <div class="sect"><h4>规格</h4>
+                  <div class="spec">
+                    <div class="r"><span>线宽</span><span>2px，<code>linejoin:round</code></span></div>
+                    <div class="r"><span>颜色</span><span><code>--fg</code>（随主题）</span></div>
+                    <div class="r"><span>结点</span><span>3.6px 实心圆</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="mod" id="m-handles">
+            <div class="mod-head">
+              <span class="num">16</span>
+              <div><h3>选中手柄</h3><div class="sub">8 个缩放/连接手柄，标记当前选中元件</div></div>
+              <span class="tag">Canvas</span>
+            </div>
+            <div class="mod-body">
+              <div class="mod-stage">
+                <div class="canvas-wrap" style="height:170px">
+                  <svg viewBox="0 0 420 170">
+                    <rect x="150" y="40" width="120" height="90" rx="12" fill="var(--bg)" stroke="var(--accent)" stroke-width="1.6"/>
+                    <text x="210" y="90" text-anchor="middle" font-size="12.5" fill="var(--fg)">xnor · u2</text>
+                    <g fill="var(--accent)">
+                      <rect x="145.5" y="35.5" width="7" height="7" rx="1.5"/><rect x="206.5" y="35.5" width="7" height="7" rx="1.5"/><rect x="266.5" y="35.5" width="7" height="7" rx="1.5"/>
+                      <rect x="145.5" y="81.5" width="7" height="7" rx="1.5"/><rect x="266.5" y="81.5" width="7" height="7" rx="1.5"/>
+                      <rect x="145.5" y="126.5" width="7" height="7" rx="1.5"/><rect x="206.5" y="126.5" width="7" height="7" rx="1.5"/><rect x="266.5" y="126.5" width="7" height="7" rx="1.5"/>
+                    </g>
+                  </svg>
+                </div>
+              </div>
+              <div class="mod-side">
+                <div class="sect"><h4>规格</h4>
+                  <div class="spec">
+                    <div class="r"><span>数量</span><span>8（四角 + 四边中点）</span></div>
+                    <div class="r"><span>尺寸</span><span>7×7 · 圆角 1.5 · <code>--accent</code></span></div>
+                    <div class="r"><span>命中</span><span>≥ 11px</span></div>
+                  </div>
+                </div>
+                <div class="note">绿＝行动（品牌），蓝＝交互/选中——两色语义分离，全站一致。</div>
+              </div>
+            </div>
+          </article>
+
+          <article class="mod" id="m-ghost">
+            <div class="mod-head">
+              <span class="num">17</span>
+              <div><h3>幽灵放置预览</h3><div class="sub">从元件库选件后，画布上跟随光标的虚线放置框</div></div>
+              <span class="tag">Canvas</span>
+            </div>
+            <div class="mod-body">
+              <div class="mod-stage">
+                <div class="canvas-wrap" style="height:170px">
+                  <svg viewBox="0 0 420 170">
+                    <rect width="420" height="170" fill="url(#g20)"/>
+                    <g transform="translate(210 85)" style="opacity:.62">
+                      <rect x="-46" y="-40" width="92" height="80" rx="10" fill="none" stroke="#1f8a4c" stroke-width="1.6" stroke-dasharray="6 5"/>
+                      <text y="4" text-anchor="middle" font-size="13" fill="#1f8a4c">and</text>
+                    </g>
+                  </svg>
+                </div>
+              </div>
+              <div class="mod-side">
+                <div class="sect"><h4>规格</h4>
+                  <div class="spec">
+                    <div class="r"><span>描边</span><span>品牌绿 1.6px 虚线 <code>6 5</code></span></div>
+                    <div class="r"><span>透明</span><span>62%</span></div>
+                    <div class="r"><span>对应</span><span>CanvasPanel::SetPreview</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="mod" id="m-tools">
+            <div class="mod-head">
+              <span class="num">18</span>
+              <div><h3>浮动工具条（HandyToolKit）</h3><div class="sub">画布顶部悬浮：选择/文本/元件/导线/平移/擦除</div></div>
+              <span class="tag">Canvas</span>
+            </div>
+            <div class="mod-body">
+              <div class="mod-stage">
+                <div class="canvas-wrap" style="height:140px">
+                  <svg viewBox="0 0 420 140"><rect width="420" height="140" fill="url(#g20)"/></svg>
+                  <div class="handytools" role="toolbar" aria-label="画布工具">
+                    <button class="icon-btn sm" aria-pressed="true" title="选择" style="background:color-mix(in oklab,var(--accent),transparent 88%);color:var(--accent)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M5 3l14 8-6 1.5L10 19z"/></svg></button>
+                    <button class="icon-btn sm" title="文本"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M5 6h14M12 6v13M9 19h6"/></svg></button>
+                    <button class="icon-btn sm" title="元件"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/></svg></button>
+                    <button class="icon-btn sm" title="导线"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M4 18V8a3 3 0 013-3h6"/><circle cx="18" cy="6" r="2.4"/><circle cx="5" cy="18" r="2.4"/></svg></button>
+                    <button class="icon-btn sm" title="平移"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M3 12h18"/><path d="M12 3l-2.5 2.5M12 3l2.5 2.5M12 21l-2.5-2.5M12 21l2.5-2.5M3 12l2.5-2.5M3 12l2.5 2.5M21 12l-2.5-2.5M21 12l-2.5 2.5"/></svg></button>
+                    <button class="icon-btn sm" title="擦除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M4 16l8-8 5 5-4 4H6z"/><path d="M11 20h9"/></svg></button>
+                  </div>
+                </div>
+              </div>
+              <div class="mod-side">
+                <div class="sect"><h4>规格</h4>
+                  <div class="spec">
+                    <div class="r"><span>容器</span><span>磨砂胶囊 + 细描边</span></div>
+                    <div class="r"><span>项</span><span>34px 圆形图标按钮</span></div>
+                    <div class="r"><span>选中</span><span><code>accent 12%</code> 底 + <code>--accent</code> 图标</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="mod" id="m-zoom">
+            <div class="mod-head">
+              <span class="num">19</span>
+              <div><h3>缩放 HUD</h3><div class="sub">左下角：缩小 / 当前百分比 / 放大 / 适应窗口</div></div>
+              <span class="tag">Canvas</span>
+            </div>
+            <div class="mod-body">
+              <div class="mod-stage">
+                <div class="canvas-wrap" style="height:140px">
+                  <svg viewBox="0 0 420 140"><rect width="420" height="140" fill="url(#g20)"/></svg>
+                  <div class="hud" id="hudDemo">
+                    <button class="icon-btn sm" id="hudOut" title="缩小"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
+                    <span class="z num" id="hudVal">100%</span>
+                    <button class="icon-btn sm" id="hudIn" title="放大"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+                    <button class="icon-btn sm" id="hudFit" title="适应窗口"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+                  </div>
+                </div>
+              </div>
+              <div class="mod-side">
+                <div class="sect"><h4>规格</h4>
+                  <div class="spec">
+                    <div class="r"><span>范围</span><span>25% – 400%（演示步进 25%）</span></div>
+                    <div class="r"><span>真实</span><span>滚轮缩放（锚定光标）+ 拖拽平移</span></div>
+                    <div class="r"><span>数字</span><span><code>tabular-nums</code></span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ================= 输出与反馈 ================= -->
+      <section class="group">
+        <div class="ghead">
+          <span class="eyebrow">输出与反馈</span>
+          <h2>终端、波形与徽章</h2>
+          <p>等宽字体、按级别着色；终端保留深底以贴近真实 IDE 观感。</p>
+        </div>
+        <div class="gbody">
+
+          <article class="mod" id="m-term">
+            <div class="mod-head">
+              <span class="num">20</span>
+              <div><h3>终端 / 输出</h3><div class="sub">插件诊断与工具链日志；等宽、按级别着色</div></div>
+              <span class="tag">Output</span>
+            </div>
+            <div class="mod-body">
+              <div class="mod-stage">
+                <div class="term" style="width:100%">
+                  <div><span class="dim">$</span> <span class="cmd">sigflow</span> --open 26_9_29_test</div>
+                  <div class="dim">plugin host diagnostics:</div>
+                  <div><span class="ok">[Ready]</span> eda-synth-yosys 1.0</div>
+                  <div><span class="ok">[Ready]</span> eda-pnr-nextpnr 1.0</div>
+                  <div><span class="wrn">[WARN]</span> libftdi not found — falling back to UART transport</div>
+                </div>
+              </div>
+              <div class="mod-side">
+                <div class="sect"><h4>级别色</h4>
+                  <div class="spec">
+                    <div class="r"><span>命令</span><span>#4aa8ff（终端内）</span></div>
+                    <div class="r"><span>成功</span><span>#40d17b（[Ready]）</span></div>
+                    <div class="r"><span>告警</span><span>#ffd60a（[WARN]）</span></div>
+                    <div class="r"><span>底</span><span>#0d0d0f 深底</span></div>
+                  </div>
+                </div>
+                <div class="note">红线：插件 <b>[Ready] eda-…</b> 必须可见。</div>
+              </div>
+            </div>
+          </article>
+
+          <article class="mod" id="m-wave">
+            <div class="mod-head">
+              <span class="num">21</span>
+              <div><h3>波形</h3><div class="sub">信号名 + 波形轨迹；数字信号方波、总线分组步进</div></div>
+              <span class="tag">Output</span>
+            </div>
+            <div class="mod-body">
+              <div class="mod-stage">
+                <div class="wave" style="width:100%">
+                  <div class="row"><span class="lbl">clk</span><svg viewBox="0 0 600 30" preserveAspectRatio="none"><path d="M0 26h20V4h20v22h20V4h20v22h20V4h20v22h20V4h20v22h20V4h20v22h20V4h20v22h20V4h20v22h20" fill="none" stroke="#1f8a4c" stroke-width="2"/></svg></div>
+                  <div class="row"><span class="lbl">rst_n</span><svg viewBox="0 0 600 30" preserveAspectRatio="none"><path d="M0 26h120V4h480" fill="none" stroke="var(--accent)" stroke-width="2"/></svg></div>
+                  <div class="row"><span class="lbl">y</span><svg viewBox="0 0 600 30" preserveAspectRatio="none"><path d="M0 26h180V4h120v22h300" fill="none" stroke="var(--fg)" stroke-width="2" opacity=".82"/></svg></div>
+                </div>
+              </div>
+              <div class="mod-side">
+                <div class="sect"><h4>规格</h4>
+                  <div class="spec">
+                    <div class="r"><span>行高</span><span>32px</span></div>
+                    <div class="r"><span>线宽</span><span>2px，自适应宽</span></div>
+                    <div class="r"><span>对应</span><span>WavePanel（VCD 渲染）</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="mod" id="m-badge">
+            <div class="mod-head">
+              <span class="num">22</span>
+              <div><h3>徽章 / 状态</h3><div class="sub">轻量状态指示：中性 / 成功 / 信息</div></div>
+              <span class="tag">Feedback</span>
+            </div>
+            <div class="mod-body">
+              <div class="mod-stage">
+                <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center">
+                  <span class="badge badge-muted">59 B</span>
+                  <span class="badge badge-muted">inout</span>
+                  <span class="badge badge-success"><span class="badge-dot"></span>通过</span>
+                  <span class="badge badge-info">已校验</span>
+                </div>
+              </div>
+              <div class="mod-side">
+                <div class="sect"><h4>规格</h4>
+                  <div class="spec">
+                    <div class="r"><span>形状</span><span>胶囊 <code>--r-pill</code></span></div>
+                    <div class="r"><span>语义</span><span>中性 / 成功 / 信息</span></div>
+                    <div class="r"><span>数字</span><span><code>tabular-nums</code></span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ================= 布局与动效 ================= -->
+      <section class="group">
+        <div class="ghead">
+          <span class="eyebrow">布局与动效</span>
+          <h2>响应式与动效</h2>
+          <p>断点 375 / 768 / 1024 / 1440；动效克制，只在状态变化时出现。</p>
+        </div>
+        <div class="gbody">
+
+          <article class="mod" id="m-bp">
+            <div class="mod-head">
+              <span class="num">23</span>
+              <div><h3>响应式断点</h3><div class="sub">VS 式骨架随视口自适应：面板折叠、工具条横向滚动、无横向溢出</div></div>
+              <span class="tag">Layout</span>
+            </div>
+            <div class="mod-body">
+              <div class="mod-stage">
+                <div class="breakpoints">
+                  <div class="bp wide"><div class="frame"><div class="bar" style="width:60%"></div><div class="cols"><div class="col"></div><div class="col a"></div><div class="col"></div></div></div><span class="lab">≥1024 · 四栏</span></div>
+                  <div class="bp mid"><div class="frame"><div class="bar" style="width:50%"></div><div class="cols"><div class="col"></div><div class="col a"></div></div></div><span class="lab">768–1023 · 三栏</span></div>
+                  <div class="bp narrow"><div class="frame"><div class="bar" style="width:42%"></div><div class="cols"><div class="col"></div><div class="col a"></div></div></div><span class="lab">≤760 · 两栏</span></div>
+                  <div class="bp narrow"><div class="frame"><div class="bar" style="width:34%"></div><div class="cols"><div class="col"></div><div class="col a"></div></div></div><span class="lab">≤560 · 紧凑</span></div>
+                </div>
+              </div>
+              <div class="mod-side">
+                <div class="sect"><h4>可调</h4>
+                  <div class="spec">
+                    <div class="r"><span>左右栏</span><span>拖拽分隔条 210/230 – 460/520px</span></div>
+                    <div class="r"><span>上下</span><span>拖拽画布/编辑器 25%–80%</span></div>
+                    <div class="r"><span>画布</span><span>滚轮缩放 + 拖拽平移</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="mod" id="m-motion">
+            <div class="mod-head">
+              <span class="num">24</span>
+              <div><h3>动效规范</h3><div class="sub">来源：apple-design + emil-design-eng</div></div>
+              <span class="tag">Motion</span>
+            </div>
+            <div class="mod-body">
+              <div class="mod-stage lg-stage">
+                <div class="motion-demo">
+                  <span class="state"><span class="mdot">按压</span><span class="lab">:active scale(.94) · 150ms</span></span>
+                  <span class="state"><span class="mdot sp">悬停</span><span class="lab">spring 上浮 · 420ms</span></span>
+                </div>
+              </div>
+              <div class="mod-side">
+                <div class="sect"><h4>曲线</h4>
+                  <div class="spec">
+                    <div class="r"><span>标准</span><span class="curve">cubic-bezier(.28,0,.22,1)</span></div>
+                    <div class="r"><span>进场</span><span class="curve">--ease-out</span></div>
+                    <div class="r"><span>时长</span><span>fast 150ms / base 220ms</span></div>
+                  </div>
+                </div>
+                <div class="sect"><h4>规则</h4>
+                  <ul class="anat">
+                    <li><span class="n">1</span><span>按压即时反馈，<b>不用</b> ease-in</span></li>
+                    <li><span class="n">2</span><span>UI 动效 &lt; 300ms，进场从 <code>scale(.985)</code> 起</span></li>
+                    <li><span class="n">3</span><span>只动 <code>transform</code>/<code>opacity</code></span></li>
+                    <li><span class="n">4</span><span><code>prefers-reduced-motion</code> 时去掉位移</span></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="mod" id="m-layout">
+            <div class="mod-head">
+              <span class="num">25</span>
+              <div><h3>自定义布局</h3><div class="sub">VS Code 式 quick pick：显隐 + 主侧栏位置 + 面板对齐/位置 + 预设 + 独立窗口</div></div>
+              <span class="tag">Layout</span>
+            </div>
+            <div class="mod-body">
+              <div class="mod-stage" style="padding-bottom:64px">
+                <div style="width:100%;max-width:420px;display:grid;gap:10px">
+                  <div>
+                    <div class="grp" style="text-transform:none">布局预设</div>
+                    <div class="lp-chips" style="padding:6px 0 2px">
+                      <button class="lp-chip" aria-pressed="true">经典</button>
+                      <button class="lp-chip" aria-pressed="false">编码优先</button>
+                      <button class="lp-chip" aria-pressed="false">画布优先</button>
+                      <button class="lp-chip" aria-pressed="false">Chat 分离</button>
+                    </div>
+                  </div>
+                  <div class="layout-pick" style="position:static;width:100%;animation:none">
+                    <div class="lp-head"><b>自定义布局</b><span class="lp-k"><b>Esc</b></span></div>
+                    <div class="lp-grp">可见性</div>
+                    <button class="lp-item" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span>菜单栏</span><span class="lp-k"><b>Ctrl</b><b>Shift</b><b>M</b></span><span class="lp-tick">✓</span></button>
+                    <button class="lp-item" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="3" y="4" width="5" height="17" rx="1.5"/><path d="M11 4h10v17H11z" opacity=".4"/></svg><span>活动栏</span><span class="lp-tick">✓</span></button>
+                    <button class="lp-item" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="3" y="4" width="8" height="17" rx="1.5"/><path d="M14 4h7v17h-7z" opacity=".4"/></svg><span>主侧栏</span><span class="lp-k"><b>Ctrl</b><b>B</b></span><span class="lp-tick">✓</span></button>
+                    <button class="lp-item" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="13" y="4" width="8" height="17" rx="1.5"/><path d="M3 4h7v17H3z" opacity=".4"/></svg><span>辅助侧边栏</span><span class="lp-k"><b>Ctrl</b><b>Alt</b><b>B</b></span><span class="lp-tick">✓</span></button>
+                    <button class="lp-item" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="3" y="4" width="18" height="10" rx="1.5"/><path d="M3 18h18v3H3z" opacity=".4"/></svg><span>面板</span><span class="lp-k"><b>Ctrl</b><b>J</b></span><span class="lp-tick">✓</span></button>
+                    <button class="lp-item" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M3 20h18"/><rect x="3" y="4" width="18" height="13" rx="1.5" opacity=".4"/></svg><span>状态栏</span><span class="lp-tick">✓</span></button>
+                    <div class="lp-grp">主侧栏位置</div>
+                    <button class="lp-item" aria-checked="true"><span>左对齐</span><span class="lp-tick">✓</span></button>
+                    <button class="lp-item" aria-checked="false"><span>右对齐</span><span class="lp-tick">✓</span></button>
+                    <div class="lp-grp">面板对齐方式</div>
+                    <button class="lp-item" aria-checked="false"><span>左对齐</span><span class="lp-tick">✓</span></button>
+                    <button class="lp-item" aria-checked="false"><span>右对齐</span><span class="lp-tick">✓</span></button>
+                    <button class="lp-item" aria-checked="true"><span>居中</span><span class="lp-tick">✓</span></button>
+                    <button class="lp-item" aria-checked="false"><span>两端对齐</span><span class="lp-tick">✓</span></button>
+                    <div class="lp-grp">面板位置</div>
+                    <button class="lp-item" aria-checked="true"><span>底部</span><span class="lp-tick">✓</span></button>
+                    <button class="lp-item" aria-checked="false"><span>顶部对齐</span><span class="lp-tick">✓</span></button>
+                  </div>
+                </div>
+              </div>
+              <div class="mod-side">
+                <div class="sect"><h4>解剖</h4>
+                  <ul class="anat">
+                    <li><span class="n">1</span><span><b>可见性行</b>：图标 + 名称 + 右侧快捷键 kbd；隐藏项整行转灰，再次点击恢复</span></li>
+                    <li><span class="n">2</span><span><b>单选组</b>：左/右对齐、面板四向对齐、顶部/底部 —— 当前项 <code>--surface</code> 底 + <code>--accent</code> 勾</span></li>
+                    <li><span class="n">3</span><span><b>拖出组</b>：绘图 / 代码 / Agent Chat 弹出真实独立窗口，可分配多显示器</span></li>
+                    <li><span class="n">4</span><span><b>预设</b>：与显隐/对齐状态实时比对，全部命中才亮</span></li>
+                  </ul>
+                </div>
+                <div class="sect"><h4>规格</h4>
+                  <div class="spec">
+                    <div class="r"><span>面板宽</span><span>340px · 行高 28px</span></div>
+                    <div class="r"><span>快捷键</span><span>Ctrl+B / Ctrl+Alt+B / Ctrl+J / Ctrl+Shift+M / Ctrl+Shift+A</span></div>
+                    <div class="r"><span>材质</span><span>浅面磨砂 + 1px 描边 + <code>--elev-raised</code> 软阴影</span></div>
+                    <div class="r"><span>持久化</span><span><code>localStorage: sigflow-layout-v2</code></span></div>
+                    <div class="r"><span>对应</span><span>wxWidgets 落地 = AUI pane persist（保存/恢复 perspective）</span></div>
+                  </div>
+                </div>
+                <div class="note">独立窗口在原型中是真实弹出的浏览器窗口（<code>app.html?panel=…</code>）；wxWidgets 落地对应 <b>wxFrame</b> 浮动窗格 / 多显示器排布。</div>
+              </div>
+            </div>
+          </article>
+
+          <div class="note" style="max-width:none">
+            <b>落地提示：</b>本页为设计交付物（自包含 HTML），不改变实际程序。真实落地对照
+            <code>design-notes.md</code> 的 wxWidgets 映射；token 名请保持稳定。完整可交互应用见
+            <a href="app.html" style="color:var(--accent)">app.html</a>。
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script>
+/* 主题：light <-> dark（与 app.html 共用键） */
+const themeBtn = document.getElementById('themeBtn');
+document.documentElement.dataset.theme = localStorage.getItem('sigflow-theme') || 'light';
+themeBtn.addEventListener('click', () => {
+  const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  localStorage.setItem('sigflow-theme', next);
+});
+
+/* 菜单栏演示 */
+document.querySelectorAll('#demoMenubar [data-menu]').forEach(menu => {
+  const btn = menu.querySelector('button');
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const willOpen = menu.dataset.open !== 'true';
+    document.querySelectorAll('#demoMenubar [data-menu]').forEach(m => m.dataset.open = 'false');
+    menu.dataset.open = willOpen ? 'true' : 'false';
+  });
+});
+document.addEventListener('click', () => document.querySelectorAll('#demoMenubar [data-menu]').forEach(m => m.dataset.open = 'false'));
+
+/* 标签页切换 + 滑移指示条 */
+document.querySelectorAll('[data-tabs]').forEach(group => {
+  group.addEventListener('click', e => {
+    const tab = e.target.closest('.tab');
+    if (!tab) return;
+    group.querySelectorAll('.tab').forEach(t => t.removeAttribute('aria-selected'));
+    tab.setAttribute('aria-selected', 'true');
+    requestAnimationFrame(() => moveInk(group));
+  });
+});
+function moveInk(group) {
+  if (!group._ink) { const ink = document.createElement('span'); ink.className = 'tab-ink'; group.appendChild(ink); group._ink = ink; }
+  const active = group.querySelector('.tab[aria-selected="true"]');
+  if (!active) { group._ink.style.opacity = '0'; return; }
+  const gr = group.getBoundingClientRect(), tr = active.getBoundingClientRect();
+  group._ink.style.opacity = '1';
+  group._ink.style.width = tr.width + 'px';
+  group._ink.style.transform = `translateX(${tr.left - gr.left}px)`;
+}
+function moveAllInks() { document.querySelectorAll('[data-tabs]').forEach(moveInk); }
+window.addEventListener('resize', () => requestAnimationFrame(moveAllInks));
+window.addEventListener('load', () => requestAnimationFrame(moveAllInks));
+requestAnimationFrame(moveAllInks);
+
+/* 活动栏演示 */
+document.querySelectorAll('#m-rail .rtb').forEach(btn => btn.addEventListener('click', () => {
+  document.querySelectorAll('#m-rail .rtb').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
+}));
+
+/* 树节点演示 */
+document.querySelectorAll('#m-tree .node').forEach(node => node.addEventListener('click', () => {
+  document.querySelectorAll('#m-tree .node').forEach(n => n.classList.remove('sel'));
+  node.classList.add('sel');
+}));
+
+/* 分隔条演示 */
+const splitDemo = document.getElementById('splitDemo');
+const splitPaneTop = document.getElementById('splitPaneTop');
+const splitHandle = splitDemo.querySelector('.vsplit');
+let splitDrag = false;
+splitHandle.addEventListener('pointerdown', e => { splitDrag = true; splitHandle.classList.add('dragging'); try { splitHandle.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault(); });
+splitHandle.addEventListener('pointermove', e => {
+  if (!splitDrag) return;
+  const r = splitDemo.getBoundingClientRect();
+  const ratio = Math.max(.25, Math.min(.8, (e.clientY - r.top) / r.height));
+  splitPaneTop.style.flexBasis = (ratio * 100) + '%';
+});
+function endSplit(e) { if (!splitDrag) return; splitDrag = false; splitHandle.classList.remove('dragging'); try { splitHandle.releasePointerCapture(e.pointerId); } catch (_) {} }
+splitHandle.addEventListener('pointerup', endSplit);
+splitHandle.addEventListener('pointercancel', endSplit);
+
+/* 缩放 HUD 演示 */
+let hudZoom = 100;
+const hudVal = document.getElementById('hudVal');
+function hudApply() { hudZoom = Math.max(25, Math.min(400, hudZoom)); hudVal.textContent = hudZoom + '%'; }
+document.getElementById('hudIn').addEventListener('click', () => { hudZoom += 25; hudApply(); });
+document.getElementById('hudOut').addEventListener('click', () => { hudZoom -= 25; hudApply(); });
+document.getElementById('hudFit').addEventListener('click', () => { hudZoom = 100; hudApply(); });
+
+/* 平滑锚点 */
+document.querySelectorAll('.libnav a[href^="#"]').forEach(a => a.addEventListener('click', e => {
+  const t = document.querySelector(a.getAttribute('href'));
+  if (!t) return;
+  e.preventDefault();
+  t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}));
+</script>
+</body>
+</html>

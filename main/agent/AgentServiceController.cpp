@@ -14,6 +14,7 @@
 #include <future>
 #include <random>
 #include <utility>
+#include <thread>
 
 namespace {
 
@@ -48,6 +49,10 @@ bool ParseReady(const std::string& line, const std::string& expectedNonce,
         error = "sidecar did not emit a JSON ready record";
         return false;
     }
+    if (!root["type"].isString() || !root["nonce"].isString() ||
+        !root["protocol"].isString() || !root["agent_version"].isString()) {
+        error = "invalid ready field types"; return false;
+    }
     if (root.get("type", "").asString() != "ready" ||
         root.get("nonce", "").asString() != expectedNonce) {
         error = "sidecar ready nonce did not match this IDE instance";
@@ -71,25 +76,40 @@ bool ParseReady(const std::string& line, const std::string& expectedNonce,
     return true;
 }
 
-bool ProbeHealth(int port, const std::string& token, const std::string& protocol) {
+bool ProbeHealth(int port, const std::string& token, const std::string& protocol,
+                 const std::string& instance, const std::string& version) {
     httplib::Client client("127.0.0.1", port);
     client.set_connection_timeout(0, 300000);
     client.set_read_timeout(0, 500000);
-    httplib::Headers headers;
-    headers.emplace("Authorization", "Bearer " + token);
-    const auto response = client.Get("/api/v1/health", headers);
+    client.set_follow_location(false);
+    httplib::Request request; request.method = "GET"; request.path = "/api/v1/health";
+    request.headers.emplace("Authorization", "Bearer " + token);
+    std::string bytes;
+    request.content_receiver = [&](const char* data, std::size_t length, std::uint64_t, std::uint64_t) {
+        if (length > 64 * 1024 - bytes.size()) return false;
+        bytes.append(data, length); return true;
+    };
+    const auto response = client.send(request);
     if (!response || response->status != 200) return false;
 
     Json::Value root;
     Json::CharReaderBuilder builder;
     std::string parseError;
     const std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
-    if (!reader->parse(response->body.data(), response->body.data() + response->body.size(),
+    if (!reader->parse(bytes.data(), bytes.data() + bytes.size(),
                        &root, &parseError)) {
         return false;
     }
-    const Json::Value& data = root.isMember("data") ? root["data"] : root;
-    return data.isObject() && data.get("protocol", "").asString() == protocol;
+    if (!root.isObject() || !root["data"].isObject() || !root["schema_version"].isString()) return false;
+    const Json::Value& data = root["data"];
+    if (!data["protocol"].isString() || !data["instance_id"].isString() || !data["agent_version"].isString()) return false;
+    return root.isObject() && root.get("schema_version", "").asString() == protocol &&
+           root["request_id"].isString() && !root["request_id"].asString().empty() &&
+           root["trace_id"].isString() && !root["trace_id"].asString().empty() &&
+           !root.isMember("error") && data.isObject() && data["ready"].isBool() &&
+           data["ready"].asBool() && data.get("protocol", "").asString() == protocol &&
+           data.get("instance_id", "").asString() == instance &&
+           data.get("agent_version", "").asString() == version;
 }
 
 bool IsWindowsCommandScript(const wxString& executable) {
@@ -172,13 +192,21 @@ bool AgentServiceController::Start() {
 
 void AgentServiceController::Stop() {
     desiredRunning_ = false;
-    if (healthProbe_.valid()) healthProbe_.wait();
-    if (process_ != nullptr) {
-        process_->DetachController();
-        wxProcess::Kill(static_cast<int>(processId_), wxSIGKILL, wxKILL_CHILDREN);
-        process_ = nullptr;
-        processId_ = 0;
+    if (status_.port > 0) {
+        // Best-effort bounded shutdown; normal business requests are never replayed.
+        httplib::Client shutdown("127.0.0.1", status_.port);
+        shutdown.set_connection_timeout(0, 200000);
+        shutdown.set_read_timeout(0, 300000);
+        shutdown.set_write_timeout(0, 200000);
+        shutdown.Post("/api/v1/shutdown", {{"Authorization", "Bearer " + config_.agentUiToken}},
+                      "{}", "application/json");
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(300);
+        while (processId_ && wxProcess::Exists(static_cast<int>(processId_)) &&
+               std::chrono::steady_clock::now() < deadline)
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
+    if (healthProbe_.valid()) healthProbe_.wait();
+    KillCurrentProcess();
     nonce_.clear();
     Publish(State::Stopped, "Agent sidecar stopped.");
 }
@@ -206,6 +234,11 @@ bool AgentServiceController::Launch() {
     healthFailures_ = 0;
     stdoutBuffer_.clear();
     stderrTail_.clear();
+    // AD-02：每代进程有自己的 generation；上一代的 ready/health 结果不得影响这一代。
+    ++generation_;
+    status_.generation = generation_;
+    pendingPort_ = 0;
+    pendingVersion_.clear();
 
     const std::vector<wxString> command =
         BuildLaunchCommand(config_.executable, config_.arguments);
@@ -214,7 +247,10 @@ bool AgentServiceController::Launch() {
     for (const wxString& argument : command) argv.push_back(argument.wc_str());
     argv.push_back(nullptr);
 
-    auto* child = new SidecarProcess([this](int exitCode) { HandleTerminated(exitCode); });
+    const auto launchedGeneration = generation_;
+    auto* child = new SidecarProcess([this, launchedGeneration](int exitCode) {
+        if (launchedGeneration == generation_) HandleTerminated(exitCode);
+    });
     wxExecuteEnv environment;
     environment.cwd = config_.workingDirectory.empty() ? config_.dataDirectory : config_.workingDirectory;
     const long pid = wxExecute(argv.data(), wxEXEC_ASYNC | wxEXEC_HIDE_CONSOLE, child, &environment);
@@ -229,38 +265,51 @@ bool AgentServiceController::Launch() {
     processId_ = pid;
     wxOutputStream* input = child->GetOutputStream();
     std::string bootstrap = BootstrapPayload();
-    if (input == nullptr) {
-        child->DetachController();
-        wxProcess::Kill(static_cast<int>(pid), wxSIGKILL, wxKILL_CHILDREN);
-        process_ = nullptr;
-        processId_ = 0;
+    if (input == nullptr || bootstrap.size() > 64 * 1024) {
+        KillCurrentProcess();
         std::fill(bootstrap.begin(), bootstrap.end(), '\0');
         ScheduleRestart("Agent sidecar stdin bootstrap pipe is unavailable.");
         return false;
     }
     input->Write(bootstrap.data(), bootstrap.size());
+    const bool written = input->LastWrite() == bootstrap.size() && input->IsOk();
     input->Sync();
     std::fill(bootstrap.begin(), bootstrap.end(), '\0');
+    if (!written || !input->IsOk()) {
+        KillCurrentProcess();
+        ScheduleRestart("Agent bootstrap write failed.");
+        return false;
+    }
 
     readyDeadline_ = std::chrono::steady_clock::now() + kReadyTimeout;
     Publish(State::Starting, "Agent sidecar started; waiting for authenticated readiness.");
     return true;
 }
 
+void AgentServiceController::KillCurrentProcess() {
+    if (process_ == nullptr) return;
+    process_->DetachController();
+    const int pid = static_cast<int>(processId_);
+    process_ = nullptr;
+    processId_ = 0;
+    if (pid != 0 && wxProcess::Exists(pid)) {
+        wxProcess::Kill(pid, wxSIGKILL, wxKILL_CHILDREN);
+    }
+}
+
 void AgentServiceController::Tick() {
     DrainOutput();
     const auto now = std::chrono::steady_clock::now();
     if (status_.state == State::Starting && now >= readyDeadline_) {
-        if (process_ != nullptr) {
-            process_->DetachController();
-            wxProcess::Kill(static_cast<int>(processId_), wxSIGKILL, wxKILL_CHILDREN);
-            process_ = nullptr;
-            processId_ = 0;
-        }
+        KillCurrentProcess();
         ScheduleRestart("Agent sidecar did not return a valid ready record before timeout.");
     }
     ConsumeHealthProbe();
-    if (status_.state == State::Ready && !healthProbe_.valid() && now >= nextHealthAt_) {
+    // AD-02：ready 行之后必须先通过一次真实 health，才允许进入 Ready；
+    // 之后的周期性 health 只在 Ready 状态下做。
+    if (!healthProbe_.valid() && now >= nextHealthAt_ &&
+        (status_.state == State::Ready ||
+         (status_.state == State::Starting && receivedReady_))) {
         StartHealthProbe();
     }
     if (status_.state == State::BackingOff && now >= restartAt_) Launch();
@@ -286,6 +335,7 @@ void AgentServiceController::DrainOutput() {
             if (count == 0) break;
             destination.append(buffer.data(), count);
             if (destination.size() > limit) {
+                if (limit == kOutputBufferLimit) { destination.resize(limit + 1); break; }
                 destination.erase(0, destination.size() - limit);
             }
         }
@@ -294,6 +344,9 @@ void AgentServiceController::DrainOutput() {
           stdoutBuffer_, kOutputBufferLimit);
     drain(process_->GetErrorStream(), [this]() { return process_ && process_->IsErrorAvailable(); },
           stderrTail_, kStderrTailLimit);
+    if (stdoutBuffer_.size() > kOutputBufferLimit) {
+        KillCurrentProcess(); ScheduleRestart("Agent stdout exceeded protocol budget."); return;
+    }
 
     std::size_t newline = 0;
     while ((newline = stdoutBuffer_.find('\n')) != std::string::npos) {
@@ -305,15 +358,23 @@ void AgentServiceController::DrainOutput() {
 }
 
 void AgentServiceController::HandleOutputLine(const std::string& line) {
-    if (receivedReady_ || status_.state != State::Starting) return;
+    if (receivedReady_) {
+        KillCurrentProcess(); ScheduleRestart("Unexpected Agent stdout after ready."); return;
+    }
+    if (status_.state != State::Starting) return;
     ReadyRecord record;
     std::string error;
-    if (!ValidateReadyLine(line, nonce_, config_.protocol, record, error)) return;
+    if (!ValidateReadyLine(line, nonce_, config_.protocol, record, error)) {
+        KillCurrentProcess(); ScheduleRestart("Invalid Agent ready record."); return;
+    }
     receivedReady_ = true;
     nonce_.clear();
-    status_.port = record.port;
+    // AD-02：这里**不**进入 Ready。ready 行只证明进程起来了；先做一次真实 health 校验，
+    // 通过后才发布 Ready（否则 UI 会在服务其实不可用时显示"已就绪"）。
+    pendingPort_ = record.port;
+    pendingVersion_ = record.agentVersion;
     nextHealthAt_ = std::chrono::steady_clock::now();
-    Publish(State::Ready, "Agent sidecar is ready.");
+    Publish(State::Starting, "Agent sidecar reported ready; verifying health before enabling it.");
 }
 
 bool AgentServiceController::ValidateReadyLine(const std::string& line,
@@ -326,11 +387,14 @@ bool AgentServiceController::ValidateReadyLine(const std::string& line,
 }
 
 void AgentServiceController::StartHealthProbe() {
-    const int port = status_.port;
+    const int port = pendingPort_ != 0 ? pendingPort_ : status_.port;
     const std::string token = config_.agentUiToken;
     const std::string protocol = config_.protocol;
-    healthProbe_ = std::async(std::launch::async, [port, token, protocol]() {
-        return ProbeHealth(port, token, protocol);
+    const auto instance = config_.instanceId;
+    const auto version = pendingVersion_;
+    healthProbeGeneration_ = generation_;
+    healthProbe_ = std::async(std::launch::async, [port, token, protocol, instance, version]() {
+        return ProbeHealth(port, token, protocol, instance, version);
     });
     nextHealthAt_ = std::chrono::steady_clock::now() + kHealthInterval;
 }
@@ -341,18 +405,27 @@ void AgentServiceController::ConsumeHealthProbe() {
         return;
     }
     const bool healthy = healthProbe_.get();
+    // AD-02：上一代进程的探测结果必须失效，不能影响这一代的状态。
+    if (healthProbeGeneration_ != generation_) return;
     if (healthy) {
         healthFailures_ = 0;
+        if (status_.state == State::Starting && receivedReady_) {
+            // 首次 health 通过：这时才允许对外宣布就绪。
+            status_.port = pendingPort_;
+            status_.agentVersion = pendingVersion_;
+            Publish(State::Ready, "Agent sidecar is ready (health verified).");
+        }
+        return;
+    }
+    if (status_.state == State::Starting && receivedReady_) {
+        // 首次 health 就失败：进程虽然写了 ready，但服务不可用，按失败处理并重启。
+        KillCurrentProcess();
+        ScheduleRestart("Agent sidecar failed its first health check.");
         return;
     }
     ++healthFailures_;
     if (healthFailures_ < 2) return;
-    if (process_ != nullptr) {
-        process_->DetachController();
-        wxProcess::Kill(static_cast<int>(processId_), wxSIGKILL, wxKILL_CHILDREN);
-        process_ = nullptr;
-        processId_ = 0;
-    }
+    KillCurrentProcess();
     ScheduleRestart("Agent sidecar health check failed twice.");
 }
 
@@ -375,15 +448,48 @@ void AgentServiceController::Publish(State state, std::string message) {
     if (config_.onStatus) config_.onStatus(status_);
 }
 
-std::string AgentServiceController::BootstrapPayload() const {
+std::string AgentServiceController::SerializeBootstrapLine(const BootstrapFields& fields) {
     Json::Value payload(Json::objectValue);
     payload["type"] = "sigflow-bootstrap";
-    payload["protocol"] = config_.protocol;
-    payload["instance_id"] = config_.instanceId;
-    payload["nonce"] = nonce_;
-    payload["gateway_url"] = config_.gatewayUrl;
-    payload["gateway_token"] = config_.gatewayToken;
-    payload["ui_token"] = config_.agentUiToken;
-    payload["data_directory"] = Utf8(config_.dataDirectory);
-    return Json::writeString(Json::StreamWriterBuilder(), payload) + "\n";
+    payload["protocol"] = fields.protocol;
+    payload["instance_id"] = fields.instanceId;
+    payload["nonce"] = fields.nonce;
+    payload["gateway_url"] = fields.gatewayUrl;
+    payload["gateway_token"] = fields.gatewayToken;
+    payload["ui_token"] = fields.uiToken;
+    payload["data_directory"] = fields.dataDirectory;
+
+    // AD-01：JsonCpp 的 StreamWriterBuilder 默认 indentation 是制表符，直接 writeString
+    // 会输出多行；而 sidecar 只 readline() 一次，它拿到的是被截断的 "{"，于是永远不 ready。
+    // 这里显式关闭缩进与注释，保证输出**恰好一行**。
+    Json::StreamWriterBuilder builder;
+    builder["indentation"] = "";
+    builder["commentStyle"] = "None";
+    const std::string serialized = Json::writeString(builder, payload);
+    // 防御：任何字段值里若混入裸换行（例如数据目录带换行），同样会破坏"一行"契约。
+    std::string line;
+    line.reserve(serialized.size() + 1);
+    for (char character : serialized) {
+        if (character == '\n' || character == '\r') {
+            line.push_back(' ');
+            continue;
+        }
+        line.push_back(character);
+    }
+    line.push_back('\n');
+    return line;
+}
+
+std::string AgentServiceController::BootstrapLineForTest() const { return BootstrapPayload(); }
+
+std::string AgentServiceController::BootstrapPayload() const {
+    BootstrapFields fields;
+    fields.protocol = config_.protocol;
+    fields.instanceId = config_.instanceId;
+    fields.nonce = nonce_;
+    fields.gatewayUrl = config_.gatewayUrl;
+    fields.gatewayToken = config_.gatewayToken;
+    fields.uiToken = config_.agentUiToken;
+    fields.dataDirectory = Utf8(config_.dataDirectory);
+    return SerializeBootstrapLine(fields);
 }

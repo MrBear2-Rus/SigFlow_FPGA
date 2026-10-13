@@ -4,6 +4,8 @@
 #include <wx/fswatcher.h>
 #include <wx/timer.h>
 
+#include "ui/UiTheme.h"   // T-140：主题订阅句柄（析构自动解绑）
+
 #define ID_OPEN_FILE_FROM_TREE (wxID_HIGHEST + 100)
 
 // 当项目被加载时会发送该事件（Event string = project root path）
@@ -25,6 +27,10 @@ private:
     wxTreeCtrl* m_tree;
     wxString m_projectRoot;
     wxFileSystemWatcher* watcher = nullptr;
+
+    // T-140 / THE-030：主题重施（只重取 token 色 + 写回已有树项，不重建树/不触达文件监视）。
+    void ReapplyTheme();
+    UiTheme::Subscription m_themeSubscription;
 
     // 文件系统事件去抖：把短时间内的密集事件合并为一次重建。
     wxTimer m_refreshTimer;

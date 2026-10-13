@@ -10,8 +10,9 @@
 namespace eda {
 
 // JSON Schema 子集实现：支持 "type"（object/array/string/number/boolean/null）、
-// "enum"、"required"、"properties"、"items"，以及**可解析的 `$ref`**（一层展开，
-// 带深度上限与循环保护）。其余关键字忽略；完整校验后续替换实现。
+// enum/const/required/properties/items/$ref、oneOf/anyOf/allOf/not、pattern、
+// 字符/数组长度、数值边界、uniqueItems/additionalProperties。不是完整 Draft 2020-12
+// 实现；安全请求仍须作领域校验。递归和引用均有深度上限。
 //
 // `$ref` 解析由调用方注入（RefResolver）：核心不假设 schema 一定来自文件系统。
 // 默认**不**开启严格模式——无法解析的 `$ref` 按"未知关键字"跳过，保持既有行为的

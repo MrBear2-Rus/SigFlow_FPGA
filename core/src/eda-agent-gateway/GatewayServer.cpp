@@ -15,6 +15,12 @@
 #include "eda-platform/Platform.h"
 #include "eda-platform/Sha256.h"
 
+// cpp-httplib 在非 Windows 上默认的监听 backlog 只有 5。20 个并发客户端同时连接时，
+// accept 队列会溢出，客户端直接拿不到响应（表现为连接失败，而不是 5xx）。
+// 这里在包含头之前放宽 backlog；只影响本 TU 里创建的那个 Server。
+#ifndef CPPHTTPLIB_LISTEN_BACKLOG
+#define CPPHTTPLIB_LISTEN_BACKLOG 128
+#endif
 #include <httplib.h>
 
 #include <atomic>
@@ -81,6 +87,7 @@ bool ValidateCapabilityParams(const std::string& capability, const Json& params,
     std::set<std::string> allowed;
     if (capability == "eda.sim.build" || capability == "eda.synth") {
         allowed = {"top_module", "strategy", "opts"};
+        if (capability == "eda.sim.build") allowed.insert("testbench");
     } else if (capability == "eda.sim.run") {
         allowed = {"top_module", "testbench", "duration_ticks", "build_job_id"};
     } else {
@@ -106,10 +113,10 @@ bool ValidateCapabilityParams(const std::string& capability, const Json& params,
                 }
             }
         } else if (it.key() == "duration_ticks") {
-            if (!value.is_string()) {  // 64 位计数用十进制字符串。
-                error = "duration_ticks must be a decimal string";
-                return false;
-            }
+            // The current trace harness has a build-time bound, not a run-time
+            // duration switch. Never accept a parameter that would be ignored.
+            error = "duration_ticks is not supported by the current simulation harness";
+            return false;
         } else if (!value.is_string()) {
             error = "params field '" + it.key() + "' must be a string";
             return false;
@@ -127,7 +134,9 @@ bool ValidatePlanSteps(const Json& steps, std::string& error) {
         error = "steps must be an array";
         return false;
     }
+    if (steps.size() > 16) { error = "at most 16 plan steps"; return false; }
     std::set<std::string> seenStepIds;
+    std::unordered_map<std::string, std::string> stepCapabilities;
     for (const Json& step : steps) {
         if (!step.is_object()) {
             error = "each plan step must be an object";
@@ -139,8 +148,30 @@ bool ValidatePlanSteps(const Json& steps, std::string& error) {
             error = "each plan step needs a unique step_id and capability";
             return false;
         }
-        const Json params = step.value("params", Json::object());
+        Json params = step.value("params", Json::object());
+        if (params.is_object() && params.contains("build_step_id")) {
+            if (capability != "eda.sim.run" || !params["build_step_id"].is_string() || params.contains("build_job_id")) {
+                error = "build_step_id is only valid for a symbolic sim.run dependency"; return false;
+            }
+            const std::string build = params["build_step_id"];
+            const auto previous = stepCapabilities.find(build);
+            const auto dependencies = step.value("depends_on", Json::array());
+            if (previous == stepCapabilities.end() || previous->second != "eda.sim.build" ||
+                !dependencies.is_array() || std::find(dependencies.begin(), dependencies.end(), Json(build)) == dependencies.end()) {
+                error = "run must depend on a preceding approved sim.build step"; return false;
+            }
+            params.erase("build_step_id"); params["build_job_id"] = "approved-build";
+        }
         if (!params.is_object() || !ValidateCapabilityParams(capability, params, error)) return false;
+        if (step.contains("depends_on")) {
+            if (!step["depends_on"].is_array()) { error = "invalid plan dependencies"; return false; }
+            for (const auto& dependency : step["depends_on"]) {
+                if (!dependency.is_string() || dependency == stepId ||
+                    !seenStepIds.count(dependency.get<std::string>())) {
+                    error = "plan dependencies must refer to preceding steps"; return false;
+                }
+            }
+        }
         if (step.contains("depends_on_job_ids")) {
             if (!step["depends_on_job_ids"].is_array()) {
                 error = "depends_on_job_ids must be an array";
@@ -153,6 +184,7 @@ bool ValidatePlanSteps(const Json& steps, std::string& error) {
                 }
             }
         }
+        stepCapabilities[stepId] = capability;
     }
     return true;
 }
@@ -186,11 +218,25 @@ bool ValidateGrantStep(const Grant& grant, const Json& request,
         return false;
     }
     if (step->contains("params") && (*step)["params"].is_object()) {
-        if (params.size() != (*step)["params"].size()) {
+        Json approved = (*step)["params"];
+        if (approved.contains("build_step_id")) {
+            if (capability != "eda.sim.run" || !approved["build_step_id"].is_string()) {
+                error = "invalid build dependency"; return false;
+            }
+            const std::string buildJob = OptionalString(params, "build_job_id");
+            const auto binding = jobBindings.find(buildJob);
+            if (binding == jobBindings.end() || binding->second.value("grant_id", "") != grant.id ||
+                binding->second.value("step_id", "") != approved["build_step_id"] ||
+                binding->second.value("capability", "") != "eda.sim.build") {
+                error = "build_job_id is not the approved build step"; return false;
+            }
+            approved.erase("build_step_id"); approved["build_job_id"] = buildJob;
+        }
+        if (params.size() != approved.size()) {
             error = "requested params do not exactly match the approved plan step";
             return false;
         }
-        for (auto allowed = (*step)["params"].begin(); allowed != (*step)["params"].end();
+        for (auto allowed = approved.begin(); allowed != approved.end();
              ++allowed) {
             const auto supplied = params.find(allowed.key());
             if (supplied == params.end() || *supplied != allowed.value()) {
@@ -198,6 +244,17 @@ bool ValidateGrantStep(const Grant& grant, const Json& request,
                 return false;
             }
         }
+    }
+    if (step->contains("depends_on")) for (const auto& dependency : (*step)["depends_on"]) {
+        bool succeeded = false;
+        for (const auto& entry : jobBindings) {
+            const auto& binding = entry.second;
+            if (binding.value("grant_id", "") != grant.id || binding.value("step_id", Json()) != dependency ||
+                binding.value("project_id", "") != projectId || binding.value("snapshot_id", "") != snapshotId) continue;
+            const auto record = service ? service->get(entry.first) : std::nullopt;
+            if (record && record->state == JobState::Succeeded) succeeded = true;
+        }
+        if (!succeeded) { error = "approved step dependency has not succeeded"; return false; }
     }
     if (!step->contains("depends_on_job_ids")) return true;
     if (!(*step)["depends_on_job_ids"].is_array() || service == nullptr) {
@@ -231,7 +288,7 @@ bool ValidateGrantStep(const Grant& grant, const Json& request,
 bool BuildTrustedJobParams(const std::string& capability, const Json& requested,
                            const SnapshotRecord& snapshot,
                            const SnapshotService& snapshots, IJobService* service,
-                           Json& trusted, std::string& error) {
+                           Json& trusted, std::string& error, const Json& tools) {
     trusted = Json::object();
     error.clear();
     const std::string requestedTop = OptionalString(requested, "top_module");
@@ -260,22 +317,23 @@ bool BuildTrustedJobParams(const std::string& capability, const Json& requested,
     }
 
     if (capability == "eda.synth") {
+        if (tools.contains("yosys_path") && tools["yosys_path"].is_string()) trusted["yosys_path"] = tools["yosys_path"];
         const std::string strategy = OptionalString(requested, "strategy");
         trusted["strategy"] = strategy.empty() ? "baseline" : strategy;
         return true;
     }
 
     if (capability == "eda.sim.build") {
+        if (tools.contains("verilator_path") && tools["verilator_path"].is_string()) trusted["verilator_path"] = tools["verilator_path"];
         const std::string testbench = OptionalString(requested, "testbench");
         if (!testbench.empty()) {
-            const auto match = std::find_if(snapshot.sources.begin(), snapshot.sources.end(),
-                [&testbench](const SnapshotSource& source) { return source.relativePath == testbench; });
-            if (match == snapshot.sources.end()) {
-                error = "testbench must be a source in the approved snapshot";
+            if (!std::regex_match(testbench, std::regex("[A-Za-z_][A-Za-z0-9_$]*"))) {
+                error = "testbench must be a module identifier, never a file path";
                 return false;
             }
-            trusted["testbench"] = platform::PathToUtf8(
-                snapshots.SnapshotDirectory(snapshot.id) / "files" / match->relativePath);
+            // All inputs still come from the approved snapshot. Verilator checks
+            // whether this module actually exists; no Agent-supplied path is used.
+            trusted["top_module"] = testbench;
         }
         return true;
     }
@@ -329,13 +387,21 @@ bool IsUiAuthorized(const httplib::Request& req, const GatewayConfig& config) {
 // 允许的 Host 头：loopback 地址（含端口）。
 bool IsLoopbackHost(const std::string& host) {
     if (host.empty()) return false;
-    const std::string value = host;
+    std::string value = host;
+    for (char& c : value) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     const char* prefixes[] = {"127.0.0.1", "localhost", "[::1]"};
     for (const char* prefix : prefixes) {
         const std::size_t length = std::strlen(prefix);
         if (value.size() >= length && value.compare(0, length, prefix) == 0) {
             // 之后必须是空（无端口）或 ':'（端口）。
-            if (value.size() == length || value[length] == ':') return true;
+            if (value.size() == length) return true;
+            if (value[length] != ':' || value.size() <= length + 1 || value.size() > length + 6) continue;
+            unsigned port = 0;
+            for (std::size_t i = length + 1; i < value.size(); ++i) {
+                if (value[i] < '0' || value[i] > '9') return false;
+                port = port * 10 + static_cast<unsigned>(value[i] - '0');
+            }
+            return port > 0 && port <= 65535;
         }
     }
     return false;
@@ -349,14 +415,9 @@ bool IsAllowedOrigin(const std::string& origin) {
         for (char& c : value) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         return value;
     }();
-    const char* prefixes[] = {"http://127.0.0.1", "https://127.0.0.1", "http://localhost",
-                              "https://localhost", "http://[::1]", "https://[::1]"};
-    for (const char* prefix : prefixes) {
-        const std::size_t length = std::strlen(prefix);
-        if (lower.size() >= length && lower.compare(0, length, prefix) == 0) {
-            if (lower.size() == length || lower[length] == ':') return true;
-        }
-    }
+    for (const std::string prefix : {"http://", "https://"})
+        if (lower.compare(0, prefix.size(), prefix) == 0)
+            return IsLoopbackHost(lower.substr(prefix.size()));
     return false;
 }
 
@@ -364,6 +425,31 @@ bool IsAllowedOrigin(const std::string& origin) {
 bool PassesBoundary(const httplib::Request& req, const GatewayConfig& config,
                     httplib::Response& res,
                     const std::function<void(httplib::Response&, const Json&)>& send) {
+    if (req.method == "POST" && !req.body.empty()) {
+        const Json body = Json::parse(req.body, nullptr, false);
+        if (body.is_discarded() || !body.is_object()) {
+            res.status = 400;
+            send(res, FailureEnvelope(MakeRequestId(), MakeTraceId(), "INVALID_ARGUMENT",
+                                      "request body must be a JSON object", false));
+            return false;
+        }
+        for (const char* key : {"project_id", "session_id", "issue", "level", "policy", "revision", "challenge_id",
+                               "action_id", "run_id", "grant_id", "snapshot_id", "plan_hash", "step_id", "expected_revision", "capability"}) {
+            if (body.contains(key) && (!body[key].is_string() || body[key].get<std::string>().size() > 256)) {
+                res.status = 400;
+                send(res, FailureEnvelope(MakeRequestId(), MakeTraceId(), "INVALID_ARGUMENT", "invalid authorization field type/length", false));
+                return false;
+            }
+        }
+        for (const char* key : {"max_jobs", "ttl_seconds"}) {
+            if (body.contains(key) && (!body[key].is_number_unsigned() || body[key].get<std::uint64_t>() == 0 ||
+                body[key].get<std::uint64_t>() > (std::string(key) == "max_jobs" ? 16 : 3600))) {
+                res.status = 400;
+                send(res, FailureEnvelope(MakeRequestId(), MakeTraceId(), "INVALID_ARGUMENT", "authorization numeric field out of range", false));
+                return false;
+            }
+        }
+    }
     if (config.enforceHostHeader && !IsLoopbackHost(req.get_header_value("Host"))) {
         res.status = 403;
         send(res, FailureEnvelope(MakeRequestId(), MakeTraceId(), "POLICY_DENIED",
@@ -869,6 +955,8 @@ bool GatewayServer::Start(std::string& error) {
         });
         if (!result) {
             std::string code = SnapshotErrorCode(result.code);
+            if (result.code == SnapshotError::PathOutsideProject) code = "POLICY_DENIED";
+            if (result.code == SnapshotError::SourceUnavailable) code = "SERVICE_UNAVAILABLE";
             int status = 422;
             if (result.code == SnapshotError::StaleRevision ||
                 result.code == SnapshotError::DirtyProject ||
@@ -979,6 +1067,11 @@ bool GatewayServer::Start(std::string& error) {
             text += line;
             text += '\n';
             lastLine = lineNumber;
+        }
+        if (lastLine == 0) {
+            res.status = 422;
+            send(res, FailureEnvelope(MakeRequestId(), MakeTraceId(), "INVALID_ARGUMENT", "source interval is empty", false));
+            return;
         }
         Json data;
         data["project_id"] = projectId;
@@ -1313,7 +1406,7 @@ bool GatewayServer::Start(std::string& error) {
                 return;
             case WaveformService::Status::kUnavailable:
                 res.status = 503;
-                send(res, FailureEnvelope(MakeRequestId(), MakeTraceId(), "PLUGIN_UNAVAILABLE",
+                send(res, FailureEnvelope(MakeRequestId(), MakeTraceId(), "CAPABILITY_UNAVAILABLE",
                                           "waveform backend is not available", true));
                 return;
             case WaveformService::Status::kOk:
@@ -1366,16 +1459,17 @@ bool GatewayServer::Start(std::string& error) {
                                       "request body is not valid JSON", false));
             return;
         }
-        if (!body.contains("start_tick") || !body["start_tick"].is_number_unsigned() ||
-            !body.contains("end_tick") || !body["end_tick"].is_number_unsigned()) {
+        std::uint64_t startTick = 0, endTick = 0;
+        if (!body.contains("start_tick") || !ParseDecimal(body["start_tick"], startTick) ||
+            !body.contains("end_tick") || !ParseDecimal(body["end_tick"], endTick)) {
             res.status = 400;
             send(res, FailureEnvelope(MakeRequestId(), MakeTraceId(), "INVALID_ARGUMENT",
-                                      "start_tick/end_tick must be unsigned integers", false));
+                                      "start_tick/end_tick must be uint64 decimal strings or integers", false));
             return;
         }
         WaveQueryRange range;
-        range.startTick = body["start_tick"].get<std::uint64_t>();
-        range.endTick = body["end_tick"].get<std::uint64_t>();
+        range.startTick = startTick;
+        range.endTick = endTick;
         if (range.endTick < range.startTick) {
             res.status = 400;
             send(res, FailureEnvelope(MakeRequestId(), MakeTraceId(), "INVALID_ARGUMENT",
@@ -1415,7 +1509,7 @@ bool GatewayServer::Start(std::string& error) {
                 return;
             case WaveformService::Status::kUnavailable:
                 res.status = 503;
-                send(res, FailureEnvelope(MakeRequestId(), MakeTraceId(), "PLUGIN_UNAVAILABLE",
+                send(res, FailureEnvelope(MakeRequestId(), MakeTraceId(), "CAPABILITY_UNAVAILABLE",
                                           "waveform backend is not available", true));
                 return;
             case WaveformService::Status::kOk:
@@ -1720,7 +1814,7 @@ bool GatewayServer::Start(std::string& error) {
         const Json planSteps = body.value("steps", Json::array());
         if (!ValidatePlanSteps(planSteps, planError)) {
             res.status = 400;
-            send(res, FailureEnvelope(MakeRequestId(), MakeTraceId(), "INVALID_PLAN", planError,
+            send(res, FailureEnvelope(MakeRequestId(), MakeTraceId(), "INVALID_ARGUMENT", planError,
                                       false));
             return;
         }
@@ -1739,6 +1833,9 @@ bool GatewayServer::Start(std::string& error) {
         }
         Json data;
         data["grant_id"] = grant.id;
+        data["project_id"] = grant.projectId;
+        data["steps"] = grant.steps;
+        data["used_jobs"] = grant.usedJobs;
         data["status"] = grant.status;
         data["plan_hash"] = grant.planHash;
         data["revision"] = grant.revision;
@@ -1774,6 +1871,9 @@ bool GatewayServer::Start(std::string& error) {
         data["plan_hash"] = grant.planHash;
         data["revision"] = grant.revision;
         data["max_jobs"] = grant.maxJobs;
+        data["snapshot_id"] = grant.snapshotId;
+        data["steps"] = grant.steps;
+        data["used_jobs"] = grant.usedJobs;
         data["expires_at"] = grant.expiresAt;
         res.status = 200;
         send(res, SuccessEnvelope(MakeRequestId(), MakeTraceId(), data));
@@ -2278,7 +2378,7 @@ bool GatewayServer::Start(std::string& error) {
         Json trustedParams;
         std::string trustedParamsError;
         if (!BuildTrustedJobParams(capability, params, snapshot, snapshotService, service,
-                                   trustedParams, trustedParamsError)) {
+                                   trustedParams, trustedParamsError, projectState.trustedToolPaths)) {
             impl_->idempotency.Abandon(idempotencyScope, idempotencyKey, requestHash);
             res.status = 422;
             send(res, FailureEnvelope(MakeRequestId(), MakeTraceId(), "UNSUPPORTED_MAPPING",
@@ -2317,6 +2417,7 @@ bool GatewayServer::Start(std::string& error) {
                                    {"revision", expectedRevision},
                                    {"capability", capability},
                                    {"plan_hash", checkedGrant.planHash},
+                                   {"grant_id", checkedGrant.id},
                                    {"step_id", OptionalString(body, "step_id")},
                                    {"idempotency_scope", idempotencyScope},
                                    {"idempotency_key", idempotencyKey},
@@ -2341,6 +2442,9 @@ bool GatewayServer::Start(std::string& error) {
                                              {"snapshot_id", snapshotId},
                                              {"revision", expectedRevision},
                                              {"capability", capability},
+                                             {"grant_id", checkedGrant.id},
+                                             {"plan_hash", checkedGrant.planHash},
+                                             {"step_id", OptionalString(body, "step_id")},
                                              {"job_type", jobType},
                                              {"state", "Queued"}};
         }
@@ -3107,6 +3211,19 @@ bool GatewayServer::RefreshProjectSnapshotStateFromDisk(
     state.request.allowedExternalRoots = std::move(allowedExternalRoots);
     state.request.target = std::move(target);
     state.request.toolConfig = std::move(toolConfig);
+    for (const char* key : {"yosys_path", "verilator_path"}) {
+        std::string configured;
+        if (document.contains("fpga") && document["fpga"].is_object()) configured = OptionalString(document["fpga"], key);
+        if (std::string(key) == "verilator_path" && document.contains("simulation") && document["simulation"].is_object()) {
+            const auto simulation = OptionalString(document["simulation"], key);
+            if (!simulation.empty()) configured = simulation;
+        }
+        if (!configured.empty()) {
+            auto path = platform::PathFromUtf8(configured);
+            if (path.is_relative()) path = canonicalRoot / path;
+            state.trustedToolPaths[key] = platform::PathToUtf8(path.lexically_normal());
+        }
+    }
     state.sourceSummary = std::move(sourceSummary);
     state.policyVersion = "edu-policy-v1";
     return UpdateProjectSnapshotState(state, error);
@@ -3138,6 +3255,14 @@ bool GatewayServer::MarkProjectDirty(const std::string& projectId, bool dirty,
                           {"buffer_hash", bufferHash.empty() ? Json(nullptr)
                                                              : Json(bufferHash)}});
     }
+    return true;
+}
+
+bool GatewayServer::ProjectState(const std::string& projectId, ProjectSnapshotState& out) const {
+    std::lock_guard<std::mutex> lock(impl_->projectStateMutex);
+    const auto it = impl_->projectStates.find(projectId);
+    if (it == impl_->projectStates.end()) return false;
+    out = it->second;
     return true;
 }
 

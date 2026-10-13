@@ -383,6 +383,31 @@ PreflightOutcome RunVerilatorPreflight(JobContext& ctx, const std::filesystem::p
 
 } // namespace
 
+bool CheckVerilatorToolchain(const std::filesystem::path& executable, std::string& reason) {
+    auto host = CreatePlatformProcessHost();
+    auto probe = [&](const std::filesystem::path& file, bool shell = false) {
+        if (!RegularNonEmptyFile(file)) return false;
+        ProcessSpec spec; spec.executable = file;
+        spec.arguments = shell ? std::vector<std::string>{"-c", "exit 0"} : std::vector<std::string>{"--version"};
+        spec.timeoutSeconds = 1; spec.maxOutputBytes = 8192;
+        return host->Run(spec, {}).outcome == ProcessOutcome::Success;
+    };
+    if (!probe(executable)) { reason = "verilator cannot run --version (check Perl/runtime)"; return false; }
+    for (const char* name : {"make", "g++"}) {
+        ToolQuery query; query.name = name;
+        auto found = DefaultToolchain().Resolve(query);
+        if (!found.found || !probe(found.path)) { reason = std::string(name) + " is missing or unusable"; return false; }
+    }
+    bool python = false;
+    for (const auto& candidate : PythonCandidates(executable)) if (probe(candidate)) { python = true; break; }
+    if (!python) { reason = "Python for verilator_includer is missing or unusable"; return false; }
+    const auto shellDirectory = FindPosixShellDirectory(platform::ExecutableSuffix());
+    if (shellDirectory.empty() || !probe(shellDirectory / ("sh" + std::string(platform::ExecutableSuffix())), true)) {
+        reason = "a working POSIX sh is required (SIGFLOW_SH, Git for Windows or MSYS2)"; return false;
+    }
+    reason.clear(); return true;
+}
+
 Json VerilatorSimulator::paramsSchema() const {
     return Json{
         {"type", "object"},

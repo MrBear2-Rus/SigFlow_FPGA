@@ -6,6 +6,11 @@
 #include <wx/aui/aui.h>
 #include <wx/progdlg.h>
 #include <wx/filedlg.h>
+#include <wx/textdlg.h>
+#include <wx/textctrl.h>
+#include <wx/listbox.h>
+#include <wx/button.h>
+#include <wx/statline.h>
 #include <wx/filefn.h>
 #include <wx/stc/stc.h>
 #include <wx/stdpaths.h>
@@ -13,16 +18,32 @@
 #include <wx/app.h>
 #include <wx/simplebook.h>
 #include <wx/splitter.h>
+#include "ui/UiWorkspaceSplitter.h"
 #include <wx/utils.h>
 #include <wx/process.h>
 #include <wx/timer.h>
 #include <wx/weakref.h>
+#include <wx/config.h>
 
 #include "platform/Log.h"
+#ifdef __WXMSW__
+// T-620：WM_GETDLGCODE 查询（判断某个控件是否自己要 Tab；AdvanceKeyboardFocus 用）。
+// 位置刻意放在 platform/Log.h 之后：windows.h 已按该头文件的 WIN32_LEAN_AND_MEAN 约定先引入，
+// wrapwin.h 只补充 STRICT/NOMINMAX 与 winundef，不会改变既有包含顺序。
+#include <wx/msw/wrapwin.h>
+#endif
 #include "platform/PlatformPaths.h"
+#include "ui/UiTheme.h"
+#include <wx/display.h>  // T-660：wxDisplay / wxDisplay::GetClientArea（工作区校验 PLT-010）
+#include "ui/UiFocusTrace.h"
+#include "ui/UiToolBarKeyboard.h"
+#include "CanvasPanel.h"  // T-340：状态栏需要读取当前画布的 Grid / Zoom（CMP-072）
+#include "ui/EditorChrome.h"
+#include "ui/UiLayoutPicker.h"
 #include "ISigPlugin.h"
 #include "eda-core/Toolchain.h"
 #include "eda-platform/Platform.h"
+#include "eda-platform/Sha256.h"
 #include <eda/api/toolchain.hpp>
 #include <filesystem>
 
@@ -514,6 +535,7 @@ enum {
     ID_TB_RECLAIM,
     ID_TB_START,
     ID_TB_STOP,
+    ID_TB_SYNTHESIZE,
 };
 
 MainFrame::MainFrame()
@@ -534,12 +556,14 @@ MainFrame::MainFrame()
     m_terminalCtrl(nullptr),
     m_composer(nullptr)
 {
-    // 图标（wxApp 初始化时已自动注册全部 image handlers，不要再手动调用 wxInitAllImageHandlers）
+    // SVG 图标由 wxBitmapBundle 解析，PNG 解码器由应用入口注册。
     wxBitmapBundle svgIcon = wxBitmapBundle::FromSVGFile(sigflow::platform::ResourcePath("res/svg_icons/icon.svg"), wxSize(24, 24));
-    wxIcon icon = svgIcon.GetIconFor(this);
+    wxIcon icon = svgIcon.IsOk() ? svgIcon.GetIconFor(this) : wxNullIcon;
     if (icon.IsOk()) SetIcon(icon);
 
-    wxSize tbIconSize = FromDIP(wxSize(12, 12));
+    // DES-014：工具栏图标基准 14 DIP（原 12 DIP 在高 DPI 下过小 —— 2026-10-10 用户实测反馈）
+    wxSize tbIconSize = FromDIP(wxSize(UiTheme::Skeleton::ToolIconSize,
+                                       UiTheme::Skeleton::ToolIconSize));
     // 标题
     SetTitle("SigFlow [no project]");
 
@@ -564,11 +588,15 @@ MainFrame::MainFrame()
 
     /* 菜单栏*/
     SetMenuBar(new MainMenuBar(this));
+    // T-340：状态栏改为 5 字段（SPEC CMP-070）
+    //   0 = 左：状态灯 + 当前操作（既有业务文本继续写字段 0，SAFE-005 不动）
+    //   1 = 坐标   2 = Grid   3 = Zoom   4 = 工具链版本（CMP-072 / CMP-073）
+    //   旧实现声明 4 字段但只写字段 0，右侧 1–3 永远是空白（GAP-B9）
     CreateStatusBar(1);
-    int widths[] = { -4, -2, FromDIP(100), FromDIP(100) };
-    int style[] = { wxSB_NORMAL, wxSB_NORMAL, wxSB_NORMAL, wxSB_NORMAL };
-    GetStatusBar()->SetFieldsCount(4, widths);
-    GetStatusBar()->SetStatusStyles(4, style);
+    int widths[] = { -6, FromDIP(120), FromDIP(80), FromDIP(90), FromDIP(170) };
+    int style[] = { wxSB_NORMAL, wxSB_NORMAL, wxSB_NORMAL, wxSB_NORMAL, wxSB_NORMAL };
+    GetStatusBar()->SetFieldsCount(5, widths);
+    GetStatusBar()->SetStatusStyles(5, style);
 
     m_busyIndicator = new wxActivityIndicator(GetStatusBar(), wxID_ANY);
     m_busyIndicator->Hide();
@@ -580,6 +608,16 @@ MainFrame::MainFrame()
 
     // 画布
     m_canvas = new CanvasNoteBook(this, sigTree, wxID_ANY, FromDIP(1123), FromDIP(794));
+
+    // T-340：状态栏右区随"当前画布页"联动（坐标 / Grid / Zoom；CMP-072）
+    m_canvas->Bind(wxEVT_AUINOTEBOOK_PAGE_CHANGED, [this](wxAuiNotebookEvent& evt) {
+        evt.Skip();
+        SyncActiveCanvas();
+    });
+    m_canvas->Bind(wxEVT_AUINOTEBOOK_PAGE_CLOSED, [this](wxAuiNotebookEvent& evt) {
+        evt.Skip();
+        SyncActiveCanvas();
+    });
 
 
     // 元件库
@@ -597,7 +635,12 @@ MainFrame::MainFrame()
     // 文本编辑面板
     m_parser = ts_parser_new();
     ts_parser_set_language(m_parser, tree_sitter_verilog());
-    m_verilogEditor = new SigTextEditor(this);
+    m_editorChrome = new EditorChrome(this);
+    m_verilogEditor = new SigTextEditor(m_editorChrome);
+    m_editorChrome->SetEditor(m_verilogEditor);
+    m_verilogEditor->SetHeaderStateCallback([this](const wxString& path, const wxString& language, bool validated) {
+        if (m_editorChrome) m_editorChrome->SetDocument(path, language, validated);
+    });
     m_verilogMgr = new VerilogManager(m_verilogEditor, sigTree, m_parser);
     m_fpgaToolWindow = new FpgaToolWindow(this);
     m_fpgaToolWindow->SetOpenFileHandler([this](const wxString& path, long line) {
@@ -674,10 +717,13 @@ MainFrame::MainFrame()
         });
     this->Bind(wxEVT_MENU, &MainFrame::OnOpenFileFromTree, this, ID_OPEN_FILE_FROM_TREE);
 
-    // 侧边工具栏
-    wxAuiToolBar* sideBar = new wxAuiToolBar(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
-        wxAUI_TB_VERTICAL | wxAUI_TB_NO_TOOLTIPS);
-    sideBar->SetBackgroundColour(wxColour(225, 230, 235));
+    // 侧边工具栏（LAY-004：必须允许 tooltip —— 原实现带 wxAUI_TB_NO_TOOLTIPS 导致三键提示永不显示）
+    auto* sideNavHost = new UiRegionHost(this);
+    sideNavHost->SetRadius(UiTheme::Radius::MD);
+    sideNavHost->SetContentInset(UiTheme::Spacing::S1);
+    wxAuiToolBar* sideBar = new wxAuiToolBar(sideNavHost, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+        wxAUI_TB_VERTICAL);
+    sideBar->SetBackgroundColour(UiTheme::Palette().surfaceOnWindow);
  
     // 终端
     m_terminalCtrl = new TerminalCtrl(this);
@@ -765,7 +811,11 @@ MainFrame::MainFrame()
     sideBar->AddTool(ID_FLOW, wxEmptyString, GetIcon("res\\svg_icons\\icon.svg"), "SigFlow Tree", wxITEM_CHECK);
     sideBar->AddTool(ID_TBOX, wxEmptyString, GetIcon("res\\icons\\lib.svg"), "Component Library", wxITEM_CHECK);
     sideBar->ToggleTool(ID_PROJ, 1);
-    sideBar->SetArtProvider(new MyCustomToolBarArt());
+    // T-230：活动栏改用 token 化 chip 绘制（原 MyCustomToolBarArt 只处理 checked 态）
+    // T-620：art 指针保留给键盘焦点环（A11Y-001；所有权仍属 wxAuiToolBar，THE-032）
+    m_railArt = new UiToolBarArt();
+    sideBar->SetArtProvider(m_railArt);
+    sideNavHost->SetContent(sideBar);
 
 
     // 插件加载（P0-8：交由 Composer 组合器统一发现/加载/诊断）
@@ -794,7 +844,7 @@ MainFrame::MainFrame()
     // 命令行、URL、工程文件或终端日志。
     {
         eda::agent::GatewayConfig gatewayConfig;
-        gatewayConfig.instanceId = "inst-" + std::string(wxDateTime::UNow().Format("%Y%m%d%H%M%S").ToUTF8().data());
+        gatewayConfig.instanceId = "inst-" + MakeEphemeralGatewayToken().substr(0, 32);
         gatewayConfig.edition = "edu";
         gatewayConfig.port = 0;
         const std::string gatewayToken = MakeEphemeralGatewayToken();
@@ -806,7 +856,15 @@ MainFrame::MainFrame()
                 std::vector<eda::agent::ReadyPlugin> ready;
                 if (composer == nullptr) return ready;
                 for (const auto& plugin : composer->ReadyPlugins()) {
-                    ready.push_back({plugin.id, plugin.version, plugin.capabilities});
+                    eda::agent::ReadyPlugin entry;
+                    entry.id = plugin.id;
+                    entry.version = plugin.version;
+                    entry.capabilities = plugin.capabilities;
+                    // AD-12：把"插件在册但工具不可用"如实转给 Gateway，
+                    // 让它把对应能力报成 ready=false + 可读原因。
+                    entry.ready = plugin.ready;
+                    entry.reason = plugin.reason;
+                    ready.push_back(std::move(entry));
                 }
                 return ready;
             });
@@ -842,7 +900,7 @@ MainFrame::MainFrame()
             sidecarConfig.agentUiToken = MakeEphemeralGatewayToken();
             sidecarConfig.dataDirectory = wxString::FromUTF8(
                 eda::platform::PathToUtf8(eda::platform::AppDataRoot() / "sigflow-edu-agent" /
-                                          gatewayConfig.instanceId).c_str());
+                                          "local").c_str());
             sidecarConfig.workingDirectory = sidecarConfig.dataDirectory;
             sidecarConfig.onStatus = [this](const AgentServiceController::Status& status) {
                 if (m_terminalCtrl == nullptr) return;
@@ -894,7 +952,11 @@ MainFrame::MainFrame()
 
 
 
-    wxSimplebook* leftSideNotebook = new wxSimplebook(this, wxID_ANY);
+    auto* leftRegionHost = new UiRegionHost(this);
+    wxSimplebook* leftSideNotebook = new wxSimplebook(leftRegionHost, wxID_ANY,
+        wxDefaultPosition, wxDefaultSize, wxBORDER_NONE);
+    leftRegionHost->SetContentInset(UiTheme::Spacing::S2);
+    leftRegionHost->SetContent(leftSideNotebook);
 
     m_projectTreePanel->Reparent(leftSideNotebook);
     m_sigFlowTreePanel->Reparent(leftSideNotebook);
@@ -905,7 +967,7 @@ MainFrame::MainFrame()
 
     Bind(wxEVT_TOOL, [=, this](wxCommandEvent& e) {
         int clickedId = e.GetId();
-        wxAuiPaneInfo& pane = m_auiMgr.GetPane(leftSideNotebook);
+        wxAuiPaneInfo& pane = m_auiMgr.GetPane("left_sidebar");
         // 1. 实现互斥选中（就像 Notebook 切换标签一样）
         sideBar->ToggleTool(ID_PROJ, clickedId == ID_PROJ);
         sideBar->ToggleTool(ID_FLOW, clickedId == ID_FLOW);
@@ -932,8 +994,15 @@ MainFrame::MainFrame()
     sideBar->Realize();
 
     // 顶端工具栏
+    // D-002 修复：加入 wxAUI_TB_HORZ_TEXT（= TEXT | HORZ_LAYOUT）。
+    // 此前样式里没有 TEXT 位，工具栏的 GetToolSize 就**不会为文字预留宽度**；
+    // 而 AddTool 的 label 一直是有的（"New"/"Open"/"Save"/"Reclaim"/"Start"/"Stop"），
+    // 自绘 Art 一画文字就会溢出并压到相邻按钮上（用户实测："组件太小、容不下文字"）。
+    // T-520 缺陷 B 修复：加入 wxAUI_TB_OVERFLOW —— 窄屏放不下的工具项会被停放进溢出 chevron
+    // （可点、可键盘到达），而不是被压成 0 宽。SPEC LAY-019 的"工具栏横向滚动"在 wxAUI 中的
+    // 等价可达性手段就是溢出停放（A11Y-010 亦允许"横向滚动工具条"）。
     wxAuiToolBar* topBar = new wxAuiToolBar(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
-        wxAUI_TB_HORIZONTAL | wxAUI_TB_PLAIN_BACKGROUND);
+        wxAUI_TB_HORIZONTAL | wxAUI_TB_PLAIN_BACKGROUND | wxAUI_TB_HORZ_TEXT | wxAUI_TB_OVERFLOW);
 
     topBar->SetToolBitmapSize(tbIconSize);
 
@@ -949,8 +1018,45 @@ MainFrame::MainFrame()
     topBar->AddTool(ID_TB_START, "Start", GetIcon("res\\svg_icons\\start.svg"), "Start Simulation");
     topBar->AddTool(ID_TB_STOP, "Stop", GetIcon("res\\svg_icons\\end.svg"), "Stop Simulation");
 
+    // DEC-12：按 GUI 设计增加唯一玻璃 CTA，原六项/快捷键保持。
+    topBar->AddSeparator();
+    // T-520 缺陷 B：内嵌控件（AddControl）无法进入 AUI 溢出停放，窄屏放不下时会被压成 0 宽，
+    // 因此保存句柄，交由 ApplyResponsiveLayout() 按真实布局决定显隐。
+    m_synthesizeCta = UiToolBarArt::CreateSynthesizeButton(topBar, ID_TB_SYNTHESIZE);
+    topBar->AddControl(m_synthesizeCta);
+    Bind(wxEVT_TOOL, [this](wxCommandEvent&) { DoFpgaSynthesis(); }, ID_TB_SYNTHESIZE);
 
+    // DEC-05: native title bar retained; its three layout switches live in the
+    // existing toolbar and share the exact same state as Window and Quick Pick.
+    topBar->AddStretchSpacer();
+    m_layoutControls = new wxControl(topBar,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxBORDER_NONE);
+    auto* layoutButtons = new wxBoxSizer(wxHORIZONTAL);
+    const UiTheme::Visibility targets[] = {UiTheme::Visibility::Left,UiTheme::Visibility::Bottom,UiTheme::Visibility::Right};
+    const char* labels[] = {"Side Bar","Panel","Side Panel"};
+    for(int i=0;i<3;++i) {
+        m_layoutButtons[i]=new UiLayoutChoice(m_layoutControls,labels[i],[this,target=targets[i]] {TogglePanelVisibility(target);},{},true);
+        layoutButtons->Add(m_layoutButtons[i],0,wxALIGN_CENTER_VERTICAL|wxRIGHT,FromDIP(2));
+    }
+    auto* pickerButton=new UiLayoutChoice(m_layoutControls,"Layout...",[this] {ShowLayoutPicker();},{},true);
+    layoutButtons->Add(pickerButton,0,wxALIGN_CENTER_VERTICAL);
+    m_layoutControls->SetSizerAndFit(layoutButtons);
+    topBar->AddControl(m_layoutControls);
+    // T-620 / KEY-007：CHAR_HOOK 负责「输入来源记录 + 工具栏方向键路由」；
+    // 本处理器只记录与路由，绝不消费 Tab / Ctrl+Tab / Esc / 编辑器按键。
+    // 绑定顺序：后绑定的先执行 → 先绑 OnLayoutKey，保证 OnKeyboardCharHook 先跑（它只会 Skip）。
+    Bind(wxEVT_CHAR_HOOK,&MainFrame::OnLayoutKey,this);
+    Bind(wxEVT_CHAR_HOOK,&MainFrame::OnKeyboardCharHook,this);
+
+
+    // T-230 / GAP-C3：顶部工具栏此前使用**默认 Art**（与活动栏外观不一致），改为同一套 chip Art。
+    // ⚠️ 必须在 Realize() **之前**安装：Realize 会按当前 Art 的 GetToolSize 计算每个项的尺寸，
+    //    晚一步就会沿用默认 Art 算出的（偏小）尺寸，从而画不下图标+文字。
+    m_topBarArt = new UiToolBarArt();
+    topBar->SetArtProvider(m_topBarArt);
     topBar->Realize();
+    // T-620 / A11Y-002：普通 AUI tool item 自绘，聚焦时必须可见且可键盘激活。
+    m_topBarKeyboard = std::make_unique<UiToolBarKeyboard>(topBar, m_topBarArt);
+    m_railKeyboard = std::make_unique<UiToolBarKeyboard>(sideBar, m_railArt);
     // 绑定顶端工具栏按钮事件：将工具栏按钮的点击映射到 MainFrame 的业务函数
     Bind(wxEVT_TOOL, [this](wxCommandEvent& e) {
         switch (e.GetId()) {
@@ -977,8 +1083,12 @@ MainFrame::MainFrame()
         }
     }, ID_TB_NEW, ID_TB_STOP);
     
-    wxAuiNotebook* rightNotebook = new wxAuiNotebook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
-        wxAUI_NB_TOP | wxAUI_NB_TAB_MOVE | wxAUI_NB_TAB_EXTERNAL_MOVE | wxAUI_NB_TAB_SPLIT);
+    auto* rightRegionHost = new UiRegionHost(this);
+    wxAuiNotebook* rightNotebook = new wxAuiNotebook(rightRegionHost, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+        wxAUI_NB_TOP | wxAUI_NB_TAB_MOVE | wxAUI_NB_TAB_EXTERNAL_MOVE | wxAUI_NB_TAB_SPLIT |
+        wxBORDER_NONE);
+    rightRegionHost->SetContentInset(UiTheme::Spacing::S2);
+    rightRegionHost->SetContent(rightNotebook);
 
     m_sfnPropertyPanel->Reparent(rightNotebook);
     rightNotebook->AddPage(m_sfnPropertyPanel, "Property");
@@ -989,19 +1099,32 @@ MainFrame::MainFrame()
         rightNotebook->AddPage(aiPanel, "DeepSeek Assistant");
     }
 
-    wxSplitterWindow* mainSplitter = new wxSplitterWindow(this, wxID_ANY,
+    auto* centerRegionHost = new UiRegionHost(this);
+    auto* mainSplitter = new UiWorkspaceSplitter(centerRegionHost, wxID_ANY,
         wxDefaultPosition, wxDefaultSize,
         wxSP_LIVE_UPDATE | wxSP_3DSASH | wxBORDER_NONE);
-    m_verilogEditor->Reparent(mainSplitter);
+    centerRegionHost->SetContentInset(UiTheme::Spacing::S2);
+    centerRegionHost->SetContent(mainSplitter);
+    m_editorChrome->Reparent(mainSplitter);
     m_canvas->Reparent(mainSplitter);
-    int initialCanvasHeight = FromDIP(860);
-    mainSplitter->SplitHorizontally(m_canvas, m_verilogEditor, initialCanvasHeight);; // 0 表示平分
-    mainSplitter->SetMinimumPaneSize(FromDIP(50)); // 防止某个窗口被缩成 0 找不到了
+    // LAY-010：画布 / 编辑器默认 62% / 38%，拖拽范围 25%–80%
+    // 此处先给一个占位高度；真实比例在客户区尺寸确定后统一设置（见构造函数末尾的骨架尺寸段）
+    mainSplitter->SplitHorizontally(m_canvas, m_editorChrome, FromDIP(430));
+    mainSplitter->SetMinimumPaneSize(FromDIP(UiTheme::Skeleton::SplitMinPx)); // 防止某个窗口被缩成 0 找不到了
+    mainSplitter->EnableAccessibleSash();
+    // T-620 / KEY-008：sash 聚焦时 ←/→ 每次 12 DIP 调整侧栏宽度；
+    // 最小/最大保护（LAY-006 主侧栏 210–460、DEC-04 辅助侧栏 210–520）由主窗按
+    // AUI pane 自身的 MinSize/MaxSize 执行，见 StepPrimarySideBarWidth()。
+    mainSplitter->SetSideBarStepHandler([this](int step) { StepPrimarySideBarWidth(step); });
 
 
 
-    wxAuiNotebook* bottomNotebook = new wxAuiNotebook(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
-        wxAUI_NB_TOP | wxAUI_NB_TAB_MOVE | wxAUI_NB_TAB_EXTERNAL_MOVE | wxAUI_NB_TAB_SPLIT);
+    m_bottomHost = new UiRegionHost(this);
+    wxAuiNotebook* bottomNotebook = new wxAuiNotebook(m_bottomHost, wxID_ANY, wxDefaultPosition, wxDefaultSize,
+        wxAUI_NB_TOP | wxAUI_NB_TAB_MOVE | wxAUI_NB_TAB_EXTERNAL_MOVE | wxAUI_NB_TAB_SPLIT |
+        wxBORDER_NONE);
+    m_bottomNotebook = bottomNotebook;
+    m_bottomHost->SetContent(bottomNotebook);
 
     m_terminalCtrl->Reparent(bottomNotebook);
     m_wavePanel->Reparent(bottomNotebook);
@@ -1013,20 +1136,20 @@ MainFrame::MainFrame()
     this->Maximize(true);
     this->Layout(); // 让基础布局先跑一遍
 
-    // 2. 获取当前真正的物理可用区域
-    wxSize dcSize = this->GetClientSize();
-
-    // --- 定义比例 ---
-    int leftW = dcSize.x * 0.1;  // 15%
-    int rightW = dcSize.x * 0.1;  // 40%
-    int bottomH = dcSize.y * 0.1; // 30%
+    // 2. 骨架尺寸：统一取自 UiTheme::Skeleton（DIP）
+    //    规范：LAY-001/LAY-002(rail 46) · LAY-006(主侧栏 282，210–460) · DEC-04(辅助侧 264，210–520) · LAY-009(底部 174)
+    //    旧实现为 dcSize.x*0.1 / dcSize.y*0.1 的硬编码比例，且注释与实现不符（GAP-B2）
+    const int leftW   = FromDIP(UiTheme::Skeleton::LeftW);
+    const int rightW  = FromDIP(UiTheme::Skeleton::RightW);
+    const int bottomH = FromDIP(UiTheme::Skeleton::BottomH);
 
     // 3. 配置 Pane
     m_auiMgr.AddPane(topBar, wxAuiPaneInfo()
         .Name("topBar")
         .Top()
         .Layer(8)
-        .MinSize(10000, 24)
+        .MinSize(-1, FromDIP(UiTheme::Skeleton::ToolBarH))
+        .BestSize(-1, FromDIP(UiTheme::Skeleton::ToolBarH))
         .CaptionVisible(false)
         .CloseButton(false)
         .Gripper(false)
@@ -1035,7 +1158,7 @@ MainFrame::MainFrame()
         .Movable(false)    // 固定位置，防止用户拖动导致 UI 错位
     );
 
-    m_auiMgr.AddPane(sideBar, wxAuiPaneInfo()
+    m_auiMgr.AddPane(sideNavHost, wxAuiPaneInfo()
         .Name("sideNav")
         .Left()
         .Layer(10)               // 高 Layer 值保证它在最左侧“长条”显示
@@ -1045,35 +1168,39 @@ MainFrame::MainFrame()
         .Gripper(false)
         .PaneBorder(false)       // 尝试使用 PaneBorder
         .Fixed()
-        .MinSize(FromDIP(45), -1)
-        .BestSize(FromDIP(45), -1));
+        .MinSize(FromDIP(UiTheme::Skeleton::RailW), -1)
+        .BestSize(FromDIP(UiTheme::Skeleton::RailW), -1));
 
-    m_auiMgr.AddPane(leftSideNotebook, wxAuiPaneInfo()
+    m_auiMgr.AddPane(leftRegionHost, wxAuiPaneInfo()
         .Name("left_sidebar").Caption("Project Manager").Left().Layer(9)
         .BestSize(leftW, -1)
-        .MinSize(FromDIP(100), -1)
+        .MinSize(FromDIP(UiTheme::Skeleton::LeftMinW), -1)
+        .MaxSize(FromDIP(UiTheme::Skeleton::LeftMaxW), -1)
         .FloatingSize(leftW, 600) // 诱导 AUI 记录这个宽度
         .PaneBorder(false)
-        .Floatable(false)
-        .CaptionVisible(true).CloseButton(false).MaximizeButton(false));
+        .Floatable(true)          // LAY-033：工具 pane 统一可浮动（原为 false，与右/底不一致）
+        .CaptionVisible(true).CloseButton(false).MaximizeButton(true));
 
-    m_auiMgr.AddPane(rightNotebook, wxAuiPaneInfo()
+    m_auiMgr.AddPane(rightRegionHost, wxAuiPaneInfo()
         .Name("right_sidebar").Caption("Side Panel").Right().Layer(8)
         .BestSize(rightW, -1)
-        .MinSize(FromDIP(100), -1)
+        .MinSize(FromDIP(UiTheme::Skeleton::RightMinW), -1)
+        .MaxSize(FromDIP(UiTheme::Skeleton::RightMaxW), -1)
         .FloatingSize(rightW, 600)
+        .Floatable(true)
         .MaximizeButton(true)
         .CloseButton(false));
 
-    m_auiMgr.AddPane(bottomNotebook, wxAuiPaneInfo()
+    m_auiMgr.AddPane(m_bottomHost, wxAuiPaneInfo()
         .Name("bottom_tabs").Caption("Console").Bottom().Layer(8)
         .BestSize(-1, bottomH)
         .MinSize(-1, FromDIP(80))
         .FloatingSize(800, bottomH)
+        .Floatable(true)
         .MaximizeButton(true)
         .CloseButton(false));
 
-    m_auiMgr.AddPane(mainSplitter, wxAuiPaneInfo()
+    m_auiMgr.AddPane(centerRegionHost, wxAuiPaneInfo()
         .Name("center_area")
         .CenterPane()       // 设为中心区域
         .PaneBorder(false));
@@ -1094,6 +1221,35 @@ MainFrame::MainFrame()
 
     m_auiMgr.Update();
 
+    // --- 5. 中区分栏的初始比例与拖拽范围（LAY-010；客户区尺寸此时已确定）---
+    if (mainSplitter != nullptr && mainSplitter->IsSplit()) {
+        const int clientH = mainSplitter->GetClientSize().y;
+        if (clientH > 0) {
+            const int minPane = mainSplitter->GetMinimumPaneSize();
+            int sash = static_cast<int>(clientH * UiTheme::Skeleton::SplitRatio);
+            sash = std::max(minPane, std::min(sash, clientH - minPane));
+            mainSplitter->SetSashPosition(sash);
+        }
+        mainSplitter->SetSashGravity(UiTheme::Skeleton::SplitRatio); // 缩放窗口时保持 62/38
+
+        // 拖拽范围限制为 25%–80%（超出时纠正）
+        mainSplitter->Bind(wxEVT_SPLITTER_SASH_POS_CHANGING, [mainSplitter](wxSplitterEvent& evt) {
+            const int total = mainSplitter->GetClientSize().y;
+            if (total <= 0) {
+                evt.Skip();
+                return;
+            }
+            const int minPos = total * 25 / 100;
+            const int maxPos = total * 80 / 100;
+            const int pos = evt.GetSashPosition();
+            const int clamped = std::max(minPos, std::min(maxPos, pos));
+            if (clamped != pos) {
+                evt.SetSashPosition(clamped);
+            }
+            evt.Skip();
+            });
+    }
+
    
 
 
@@ -1101,18 +1257,1082 @@ MainFrame::MainFrame()
         wxAUI_MGR_ALLOW_ACTIVE_PANE |
         wxAUI_MGR_ALLOW_FLOATING |    // 允许浮动
         wxAUI_MGR_LIVE_RESIZE);       // 实时调整大小，体验更好
-    ModernDockArt* mda = new ModernDockArt();
+    UiDockArt* mda = new UiDockArt();
     m_auiMgr.SetArtProvider(mda);
     mda->UpdateMetrics(this);
-    this->Bind(wxEVT_DPI_CHANGED, [this](wxDPIChangedEvent& evt) {
-        ModernDockArt* art = static_cast<ModernDockArt*>(m_auiMgr.GetArtProvider());
-        art->UpdateMetrics(this);
-        m_auiMgr.Update();
+
+    // T-660（PLT-009 / PLT-010 / THE-033）：DPI / 显示器 / 系统配色三类事件统一走全量重算。
+    // THE-033 要求类型安全获取 Art（dynamic_cast），并补上此前 0 命中的 wxEVT_SYS_COLOUR_CHANGED。
+    Bind(wxEVT_DPI_CHANGED, [this](wxDPIChangedEvent& evt) {
         evt.Skip();
-        });
+        OnDpiOrDisplayChanged("DPI");
+    });
+    Bind(wxEVT_DISPLAY_CHANGED, [this](wxDisplayChangedEvent& evt) {
+        evt.Skip();
+        OnDpiOrDisplayChanged("display");
+    });
+    Bind(wxEVT_SYS_COLOUR_CHANGED, [this](wxSysColourChangedEvent& evt) {
+        evt.Skip();
+        // 系统配色变化：跟随系统时才真正改变；DEC-11 期间有效档恒为浅色，但回调必须存在且安全
+        ApplyTheme();
+    });
 
     m_auiMgr.Update();
 
+    // --- 6. 布局持久化：捕获默认 perspective 并尝试恢复用户配置（LAY-031 / LAY-032）---
+    RestoreLayoutState();
+
+    // --- 7. 主题：订阅变更并首次应用（T-120；SPEC THE-028 / THE-030）---
+    m_themeSubscription = UiTheme::Subscribe([this]() { ApplyTheme(); });
+    ApplyTheme();
+
+    // --- 8. 状态栏右区首次填充（T-340；CMP-070…CMP-073）---
+    SyncActiveCanvas();
+
+    // --- 9. Tab 顺序 = 视觉顺序（T-620；KEY-007 / A11Y-003）---
+    //     放在 RestoreLayoutState() 之后：恢复的 perspective 若把某个 pane 变成浮动窗，
+    //     它的父窗口就不再是本帧，SetupTabOrder() 会按 GetParent() 判断并跳过（避免 wxCHECK_RET 断言）。
+    m_tabOrder[0] = topBar;
+    // Pane wrappers are the direct MainFrame children after RV-T03. Keep the
+    // chain anchored at those hosts; CollectTabStops() still descends into the
+    // original toolbar/notebook/splitter content.
+    m_tabOrder[1] = sideNavHost;
+    m_tabOrder[2] = leftRegionHost;
+    m_tabOrder[3] = centerRegionHost;
+    m_tabOrder[4] = rightRegionHost;
+    m_tabOrder[5] = m_bottomHost;
+    SetupTabOrder();
+}
+
+namespace {
+/// 版本名（编译期宏；未定义时回退 unknown）
+wxString EditionName()
+{
+#if defined(SIGFLOW_EDITION)
+    return wxString::FromUTF8(SIGFLOW_EDITION);
+#else
+    return wxS("unknown");
+#endif
+}
+
+/// 布局作用域键（LAY-031）：`Ui/Layout/v2/<edition>/<mode>`；本轮只使用 workspace 模式
+wxString LayoutScope()
+{
+    return UiTheme::LayoutStore::ScopeKey(EditionName(), wxS("workspace"));
+}
+}  // namespace
+
+// T-250：恢复布局（仅 AUI perspective 与状态读取；六栏显隐的应用由 T-510 的布局引擎消费）
+void MainFrame::RestoreLayoutState()
+{
+    // 先捕获本版本默认 perspective：任何恢复失败都可以回退到它
+    m_defaultPerspective = m_auiMgr.SavePerspective();
+
+    m_layoutState = UiTheme::LayoutState::Defaults();
+
+    wxConfigBase* cfg = wxConfigBase::Get(false);
+    if (cfg == nullptr) {
+        return;  // 配置后端不可用（只读环境回退 wxMemoryConfig 等）→ 保持默认
+    }
+
+    const wxString scope = LayoutScope();
+    wxString note;
+    m_layoutState = UiTheme::LayoutStore::Load(cfg, scope, &note);
+    if (!note.empty()) {
+        // LAY-032：坏配置已按默认/边界修正，给出可读反馈但不阻塞启动
+        SetStatusText(note, 0);
+    }
+
+    const wxString savedPerspective = UiTheme::LayoutStore::LoadPerspective(cfg, scope);
+    if (!savedPerspective.empty()) {
+        if (!m_auiMgr.LoadPerspective(savedPerspective)) {
+            // 恢复失败：回退到本版本默认布局，不留下半加载状态
+            m_auiMgr.LoadPerspective(m_defaultPerspective);
+            SetStatusText(wxS("布局恢复失败，已回到默认布局"), 0);
+        }
+        m_auiMgr.Update();
+    }
+
+    // T-510：perspective 恢复之后再施加六栏显隐，确保用户显隐状态优先于 perspective 中的 pane 可见性
+    ApplyLayoutVisibility();
+
+    // T-520：最小窗口尺寸（PLT-006：640×480 下不得出现横向滚动条、不得控件截断）
+    SetMinSize(FromDIP(UiTheme::MinimumFrameSize()));
+
+    // T-520：窄屏断点联动（LAY-019）。客户区宽度变化时重算 dock clamp 与辅助侧栏自动隐藏。
+    Bind(wxEVT_SIZE, [this](wxSizeEvent& evt) {
+        evt.Skip();
+        ApplyResponsiveLayout();
+    });
+    ApplyResponsiveLayout();
+
+    // T-660 / PLT-010：几何恢复后必须校验目标工作区 —— 副屏被拔掉时，
+    // perspective 里的 floatx/floaty 或主窗位置可能把窗口丢在屏幕外。
+    EnsureWindowsOnScreen();
+}
+
+// T-120：主题切换入口（菜单/后续工具栏按钮共用）
+// UiTheme::SetMode 负责持久化到 wxConfig 键 `Ui/Theme/Mode` 并通知订阅者，
+// 本窗口的订阅回调即 ApplyTheme()（SPEC THE-006/THE-008/THE-028）。
+void MainFrame::SetThemeMode(UiTheme::Mode mode)
+{
+    UiTheme::SetMode(mode);
+
+    // 菜单单选态与主题保持一致（菜单可能由 RebuildWindowMenu 重建过）
+    if (auto* bar = dynamic_cast<MainMenuBar*>(GetMenuBar())) {
+        bar->UpdateThemeMenuChecks();
+    }
+}
+
+// T-120：把当前主题应用到主窗口、AUI 外壳、全部 pane 与状态栏（SPEC THE-030 的刷新范围）
+void MainFrame::ApplyTheme()
+{
+    const UiTheme::Colours& colours = UiTheme::Palette();
+
+    SetBackgroundColour(colours.bgWindow);
+    if (m_layoutControls) m_layoutControls->SetBackgroundColour(colours.surfaceOnWindow);
+
+    // AUI pane 背景：外壳类用 surfaceOnWindow，工具面板类用 bgPanel（THE-022 同基准原则）
+    const struct
+    {
+        const char* pane;
+        const wxColour* colour;
+    } paneColours[] = {
+        { "topBar", &colours.surfaceOnWindow },
+        { "sideNav", &colours.surfaceOnWindow },
+        { "left_sidebar", &colours.bgPanel },
+        { "right_sidebar", &colours.bgPanel },
+        { "bottom_tabs", &colours.bgPanel },
+        // T-719 / V9 修复：**第 6 个 pane（center_area）原先不在表内** —— 主题刷新根本不覆盖它，
+        // 实测其底色停留在原生默认 #F0F0F0（哨兵存活）。按 THE-022 的"外壳类用 surfaceOnWindow"补上。
+        { "center_area", &colours.bgWindow },
+    };
+    for (const auto& entry : paneColours) {
+        wxAuiPaneInfo& pane = m_auiMgr.GetPane(wxString::FromUTF8(entry.pane));
+        if (pane.IsOk() && pane.window != nullptr) {
+            pane.window->SetBackgroundColour(*entry.colour);
+            pane.window->Refresh();
+        }
+    }
+
+    if (GetStatusBar() != nullptr) {
+        GetStatusBar()->SetBackgroundColour(colours.bgPanel);
+        GetStatusBar()->Refresh();
+    }
+
+    // AUI 外壳（caption / sash / 边框）：类型安全获取，避免替换 Art 后的错误强转（GAP-E2）
+    if (auto* art = dynamic_cast<UiDockArt*>(m_auiMgr.GetArtProvider())) {
+        art->ApplyThemeColours();
+        art->UpdateMetrics(this);
+    }
+
+    // 三个 wxAuiNotebook 的页签外观（T-130；THE-031）。
+    // 首次安装 UiTabArt，之后只做主题重取色（provider 所有权归笔记本，THE-032）。
+    auto paneContent = [](wxWindow* pane) -> wxWindow* {
+        if (auto* host = dynamic_cast<UiRegionHost*>(pane)) {
+            return host->Content();
+        }
+        return pane;
+    };
+    auto applyTabArt = [](wxAuiNotebook* book) {
+        if (book == nullptr) {
+            return;
+        }
+        if (auto* tabArt = dynamic_cast<UiTabArt*>(book->GetArtProvider())) {
+            tabArt->ApplyTheme();
+        } else {
+            book->SetArtProvider(new UiTabArt());
+        }
+        book->Refresh();
+    };
+    applyTabArt(dynamic_cast<wxAuiNotebook*>(m_canvas));  // 画布多标签
+    applyTabArt(dynamic_cast<wxAuiNotebook*>(paneContent(m_auiMgr.GetPane("right_sidebar").window)));
+    applyTabArt(m_bottomNotebook);
+
+    // ---------------------------------------------------------------------
+    // T-140 / THE-030 缺口修复：**已注册面板的刷新遍历**（T-719 夹具实测 reached=0/8）
+    //
+    // 原先本函数只覆盖 pane 背景 + 状态栏 + DockArt + 两个 TabArt + 两个 ToolBarArt，
+    // 而三个笔记本的**页面**（Right 3 / Bottom 2 / Left 3 = 8 页）不在遍历内。
+    //   · 在**绘制期取色**的 token 化控件：这里递归 `Refresh(false)` 即会按新调色板重绘；
+    //   · 在**构造期一次性 Set*Colour** 的面板：由它们各自的 `UiTheme::Subscribe` 负责重施
+    //     （见 `_evidence/T140-panel-refresh-map.md`）。
+    // `Refresh(false)` 只标脏、不立即重绘，由事件循环合并 → 不会引入 PERF-003 的重绘自激。
+    // ---------------------------------------------------------------------
+    auto refreshSubtree = [](wxWindow* root) {
+        if (root == nullptr) {
+            return;
+        }
+        std::vector<wxWindow*> stack{ root };
+        while (!stack.empty()) {
+            wxWindow* current = stack.back();
+            stack.pop_back();
+            if (current == nullptr) {
+                continue;
+            }
+            current->Refresh(false);
+            for (wxWindow* child : current->GetChildren()) {
+                stack.push_back(child);
+            }
+        }
+    };
+    refreshSubtree(m_canvas);                                    // 画布页（中心区）
+    refreshSubtree(m_auiMgr.GetPane("left_sidebar").window);     // 主侧栏三页
+    refreshSubtree(m_auiMgr.GetPane("right_sidebar").window);    // 辅助侧栏三页
+    refreshSubtree(m_bottomNotebook);                            // 底部两页
+
+    // 有公开"重施主题"入口的面板直接调用（其余面板走各自订阅）
+    if (m_terminalCtrl != nullptr) {
+        m_terminalCtrl->ReapplyStyle();   // termBg + 等宽字体 + 语义样式表
+    }
+    if (m_verilogEditor != nullptr) {
+        m_verilogEditor->SetVerilogStyle();  // 等宽 P13 + 语法色（只写样式，不动文档）
+    }
+
+    // ---------------------------------------------------------------------
+    // T-140 夹具 F-140-03 修复：**跨档 token 重映射**。
+    // 大量**原生控件**的前景色是构造期一次性写入的（`SetForegroundColour(Palette().textN)`），
+    // 主题切换后不会更新 → 深色档实测主壳仅 53/134 个文字为深档色，其余 81 处仍是浅档
+    // `#565A66`/`#1D1D1F` 画在 `#0A0B0E` 上（几乎不可读）。
+    // 这里对**整棵窗口树**（含四个容器的子树）做一次方向无关的重映射：把"仍等于另一档
+    // token 值"的前景/背景改成当前档的同名 token。它幂等、开销只在主题切换时发生。
+    // ---------------------------------------------------------------------
+    const unsigned remapped = UiTheme::RemapStaleTokenColours(this);
+    if (remapped > 0) {
+        // 便于事后核对（不写状态栏，避免覆盖用户可见信息）
+        wxLogTrace(wxTRACE_Messages, "ApplyTheme: remapped %u stale token controls", remapped);
+    }
+
+    // ---------------------------------------------------------------------
+    // T-719 v2 / THE-030：**页面容器自身**也必须按档设底色。
+    //
+    // 实测缺口（V9 夹具 v2 的 5 项失败）：这些"页面容器"只设置了**内部子控件**的颜色，
+    // 自己从未 `SetBackgroundColour`，于是停在系统默认色：
+    //   · 左栏三页（Project Manager / SigFlow Tree / Component Library）= 系统 `COLOR_BTNFACE` `#F0F0F0`
+    //   · 底部 Waveform 页（TraceViewPanel）同样 `#F0F0F0`
+    //   · 右栏 DeepSeek Assistant 页被**插件硬编码** `#F5F5F5`（Plugin_DeepSeek/Plug_DeepSeek.cpp:926）
+    // → 深色档下出现"深壳浅面板"。
+    // 由**宿主**统一给每一页设当档面板底是唯一能覆盖插件页的做法；页面内部子控件仍由各自逻辑负责。
+    // ---------------------------------------------------------------------
+    auto applyPageBackgrounds = [&colours](wxWindow* container) {
+        if (container == nullptr) {
+            return;
+        }
+        if (auto* book = dynamic_cast<wxAuiNotebook*>(container)) {
+            for (size_t i = 0; i < book->GetPageCount(); ++i) {
+                if (wxWindow* page = book->GetPage(i)) {
+                    page->SetBackgroundColour(colours.bgPanel);
+                }
+            }
+            return;
+        }
+        // 非笔记本容器（左侧栏是 wxSimplebook）：直接给其页面子窗设底
+        for (wxWindow* child : container->GetChildren()) {
+            child->SetBackgroundColour(colours.bgPanel);
+        }
+    };
+    applyPageBackgrounds(paneContent(m_auiMgr.GetPane("left_sidebar").window));
+    applyPageBackgrounds(paneContent(m_auiMgr.GetPane("right_sidebar").window));
+    applyPageBackgrounds(m_bottomNotebook);
+
+    // RV-T04 / SidePanel host adapter: the DeepSeek plugin owns its child
+    // windows, but the rounded right-region host owns the surrounding visual
+    // contract.  Flatten only this plugin page's native list/text container
+    // chrome so a white rectangular child cannot sit inside the rounded card.
+    auto flattenDeepSeekPage = [&colours](wxWindow* page) {
+        if (page == nullptr) {
+            return;
+        }
+        page->SetBackgroundColour(colours.bgPanel);
+        std::vector<wxWindow*> stack{ page };
+        while (!stack.empty()) {
+            wxWindow* current = stack.back();
+            stack.pop_back();
+            for (wxWindow* child : current->GetChildren()) {
+                if (auto* list = dynamic_cast<wxListBox*>(child)) {
+                    list->SetWindowStyleFlag((list->GetWindowStyleFlag() & ~wxBORDER_MASK) |
+                                             wxBORDER_NONE);
+                    list->SetBackgroundColour(colours.surfaceOnPanel);
+                    list->SetForegroundColour(colours.text1);
+                } else if (auto* text = dynamic_cast<wxTextCtrl*>(child)) {
+                    text->SetWindowStyleFlag((text->GetWindowStyleFlag() & ~wxBORDER_MASK) |
+                                             wxBORDER_NONE);
+                    text->SetBackgroundColour((text->GetWindowStyleFlag() & wxTE_MULTILINE) != 0
+                                                  ? colours.bgPanel
+                                                  : colours.sunkenOnPanel);
+                    text->SetForegroundColour(colours.text1);
+                } else if (auto* line = dynamic_cast<wxStaticLine*>(child)) {
+                    line->SetBackgroundColour(colours.strokeOnPanel);
+                } else if (auto* button = dynamic_cast<wxButton*>(child)) {
+                    button->SetBackgroundColour(colours.strongOnPanel);
+                    button->SetForegroundColour(colours.text1);
+                } else {
+                    child->SetBackgroundColour(colours.bgPanel);
+                }
+                child->Refresh(false);
+                stack.push_back(child);
+            }
+        }
+    };
+    if (auto* rightBook = dynamic_cast<wxAuiNotebook*>(
+            paneContent(m_auiMgr.GetPane("right_sidebar").window))) {
+        for (size_t i = 0; i < rightBook->GetPageCount(); ++i) {
+            if (rightBook->GetPageText(i) == "DeepSeek Assistant") {
+                flattenDeepSeekPage(rightBook->GetPage(i));
+                break;
+            }
+        }
+    }
+
+    // 两个工具栏的 chip 外观（T-230；GAP-C3：活动栏与顶部工具栏共用一套 Art）
+    auto applyToolArt = [](wxAuiToolBar* bar) {
+        if (bar == nullptr) {
+            return;
+        }
+        if (auto* toolArt = dynamic_cast<UiToolBarArt*>(bar->GetArtProvider())) {
+            toolArt->ApplyTheme();
+        } else {
+            bar->SetArtProvider(new UiToolBarArt());
+        }
+        bar->Refresh();
+    };
+    applyToolArt(dynamic_cast<wxAuiToolBar*>(paneContent(m_auiMgr.GetPane("sideNav").window)));
+    applyToolArt(dynamic_cast<wxAuiToolBar*>(m_auiMgr.GetPane("topBar").window));
+
+    m_auiMgr.Update();
+    Layout();
+    Refresh();
+}
+
+// T-510：六栏显隐引擎（SPEC LAY-020…LAY-024 / KEY-002 / INT-020）
+// 说明：AUI pane 的显隐由 wxAuiManager 负责；菜单栏与状态栏是 wxFrame 自带的子窗口。
+//       本组方法与 Window › Panels 菜单项（带 `\t` 加速键）共用同一入口，因此菜单与快捷键语义一致。
+void MainFrame::SetPaneVisible(const char* paneName, bool visible)
+{
+    wxAuiPaneInfo& pane = m_auiMgr.GetPane(wxString::FromUTF8(paneName));
+    if (pane.IsOk()) {
+        pane.Show(visible);
+    }
+}
+
+// T-720 / F-720-01：菜单栏显隐（平台配对实现，PLT-011）。
+//
+// ⚠️ Windows 上 `wxMenuBar::Show()` 是**空操作**：菜单栏没有窗口句柄（`Create()` 只建 HMENU），
+//    而 `wxWindowMSW::Show()` 在 `GetHwnd() == NULL` 时跳过 `ShowWindow`
+//    （3rd/wxWidgets-src/src/msw/window.cpp:651-658）。实测后果：`Ctrl+Shift+M` 后
+//    `IsShown()==false` 成立，但截图与基线**整图 0 差异**（T-720 夹具 F-720-01，菜单条带 0/77460 px）。
+//    ⇒ Windows 必须直接调用 Win32 的 `SetMenu`/`DrawMenuBar`；其它平台原生 `Show()` 即可。
+void MainFrame::ApplyMenuBarVisibility(bool visible)
+{
+    wxMenuBar* bar = GetMenuBar();
+    if (bar == nullptr) {
+        return;
+    }
+    bar->Show(visible);  // 更新 wx 内部显示状态（IsShown() 依赖它）+ 其它平台的真实显隐
+#ifdef __WXMSW__
+    if (HWND hwnd = static_cast<HWND>(GetHandle())) {
+        ::SetMenu(hwnd, visible ? bar->GetHMenu() : nullptr);
+        ::DrawMenuBar(hwnd);
+        // 关键：仅 SetMenu/DrawMenuBar 不足以让非客户区重排 —— 必须用 SWP_FRAMECHANGED 触发
+        // WM_NCCALCSIZE，客户区才会按"有/无菜单条"重新计算并重绘。
+        // （探针实证：SetMenu 后 ::GetMenu(hwnd) 已为 NULL，但截图整图 0 差异；加此行后视觉才变化。）
+        ::SetWindowPos(hwnd, nullptr, 0, 0, 0, 0,
+                       SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+    }
+#endif
+}
+
+void MainFrame::SyncPanelMenuChecks()
+{
+    if (auto* bar = dynamic_cast<MainMenuBar*>(GetMenuBar())) {
+        bar->UpdatePanelMenuChecks();
+    }
+    const UiTheme::Visibility targets[] = {UiTheme::Visibility::Left,UiTheme::Visibility::Bottom,UiTheme::Visibility::Right};
+    for(int i=0;i<3;++i) if(m_layoutButtons[i]) m_layoutButtons[i]->SetSelected(UiTheme::GetVisibility(m_layoutState,targets[i]));
+    if(m_layoutPicker) m_layoutPicker->Synchronize();
+}
+
+void MainFrame::ShowLayoutPicker()
+{
+    if(m_layoutPicker && m_layoutPicker->IsShown()) {m_layoutPicker->Dismiss();return;}
+    if(!m_layoutPicker) {
+        m_layoutPicker=new UiLayoutPicker(this,[this]() -> const UiTheme::LayoutState& {return m_layoutState;},
+            [this](LayoutAction action,int value) {
+                switch(action) {
+                    case LayoutAction::Preset:ApplyLayoutPreset(UiTheme::PresetIds()[value]);break;
+                    case LayoutAction::Visibility:TogglePanelVisibility(static_cast<UiTheme::Visibility>(value));break;
+                    case LayoutAction::Side:SetPrimarySide(static_cast<UiTheme::Side>(value));break;
+                    case LayoutAction::Balance:SetPanelAlignment(static_cast<UiTheme::Balance>(value));break;
+                    case LayoutAction::Position:SetPanelPosition(static_cast<UiTheme::PanelPos>(value));break;
+                }
+            });
+    }
+    const wxPoint anchor=m_layoutControls->ClientToScreen(wxPoint(m_layoutControls->GetClientSize().x,m_layoutControls->GetClientSize().y+FromDIP(8)));
+    m_layoutPicker->OpenAt(anchor);
+}
+
+void MainFrame::OnLayoutKey(wxKeyEvent& event)
+{
+    wxWindow* focus=wxWindow::FindFocus();
+    if(!focus || wxGetTopLevelParent(focus)!=this || !event.ControlDown() || event.MetaDown()) {event.Skip();return;}
+    const int key=event.GetKeyCode();
+    UiTheme::Visibility which;
+    if(key=='B' && !event.ShiftDown()) which=event.AltDown()?UiTheme::Visibility::Right:UiTheme::Visibility::Left;
+    else if(key=='J' && !event.ShiftDown() && !event.AltDown()) which=UiTheme::Visibility::Bottom;
+    else if(key=='M' && event.ShiftDown() && !event.AltDown()) which=UiTheme::Visibility::Menubar;
+    else if(key=='A' && event.ShiftDown() && !event.AltDown()) which=UiTheme::Visibility::Rail;
+    else {event.Skip();return;}
+    if(!event.IsAutoRepeat()) TogglePanelVisibility(which);
+}
+
+// T-620 / KEY-007 / A11Y-001…A11Y-003 / KEY-009 / INT-019
+//
+// CHAR_HOOK 在 MSW 上由全局键盘钩子送到顶层窗口（src/msw/window.cpp:7211-7231），
+// 早于窗口预处理与派发，因此这里既能记录「输入来自键盘」，又能在不新增原生子类的前提下
+// 拿到工具栏里的方向键（方向键在预处理阶段就会被对话框导航吃掉）。
+//
+// 硬约束（不得违反）：
+//   * 本处理器只 **记录**（UiFocusTrace::NoteKeyboard）、**路由**（工具栏方向键/Space）
+//     与 **Tab 显式走位**（见 AdvanceKeyboardFocus）；其余按键一律 event.Skip()；
+//     Tab / Shift+Tab 只会被「移动焦点」消费，Ctrl+Tab / Alt+Tab / Esc 永不消费
+//     （KEY-007 不得出现 Tab 陷阱、INT-019）；
+//   * 焦点在编辑器 / 输入框时不做任何消费，空格、Tab、Esc 语义保持在其内部（KEY-009）。
+void MainFrame::OnKeyboardCharHook(wxKeyEvent& event)
+{
+    UiFocusTrace::NoteKeyboard();
+    if (!event.ControlDown() && !event.AltDown() && !event.MetaDown()) {
+        if (m_topBarKeyboard != nullptr && m_topBarKeyboard->HandleKey(event)) return;  // 已消费
+        if (m_railKeyboard != nullptr && m_railKeyboard->HandleKey(event)) return;      // 已消费
+        if (event.GetKeyCode() == WXK_TAB && AdvanceKeyboardFocus(event.ShiftDown())) return;
+    }
+    event.Skip();
+}
+
+namespace {
+
+// 该控件是否「自己要 Tab」——绝不能把它的 Tab 抢走（KEY-009 / 编辑器按键语义不可改）。
+// MSW 上直接问平台（WM_GETDLGCODE）而不是猜类名：Scintilla（代码编辑器）会返回
+// DLGC_WANTALLKEYS，多行输入框返回 DLGC_WANTTAB，因此它们的 Tab 语义原样保留。
+bool WindowWantsTabKey(wxWindow* window)
+{
+    if (window == nullptr) return false;
+    wxWindow* native = window->GetMainWindowOfCompositeControl();
+    if (native == nullptr) native = window;
+#ifdef __WXMSW__
+    if (native->GetHandle() != nullptr) {
+        const LONG code = ::SendMessage(static_cast<HWND>(native->GetHandle()), WM_GETDLGCODE, 0, 0);
+        if ((code & (DLGC_WANTTAB | DLGC_WANTALLKEYS)) != 0) return true;
+    }
+#endif
+    // 非 MSW 回退：按类型判断（代码编辑器与显式声明 Tab 处理的文本输入）。
+    if (wxDynamicCast(native, wxStyledTextCtrl) != nullptr) return true;
+#ifndef __WXMSW__
+    // ⚠️ V10 / D1 修复（blocker）：**样式位回退只允许在非 MSW 使用**。
+    //    MSW 上 `wxTE_PROCESS_TAB == 0x40 == wxAUI_TB_HORZ_LAYOUT (1 << 6)`（wx/aui/auibar.h:38），
+    //    而顶栏带 `wxAUI_TB_HORZ_TEXT`（= TEXT | HORZ_LAYOUT）→ 会被误判成"自己要 Tab"，
+    //    使 Tab 从链首（工具栏）就停住不前进（V10 夹具实测 `topBar style=0x2001d1`、
+    //    `CHAINPAIR 0 topBar --Tab--> topBar consumed=0`）。MSW 的正确判据是上面的 `WM_GETDLGCODE`。
+    if ((native->GetWindowStyleFlag() & wxTE_PROCESS_TAB) != 0) return true;
+#endif
+    return false;
+}
+
+// 按**当前子窗顺序**（＝各层 MoveAfterInTabOrder 设定后的视觉顺序）收集可键盘聚焦的链。
+// 纯容器（有子窗但当前没有可聚焦子控件）不作为站点本身，避免出现「停在面板上」的空站；
+// 例外：带逐项键盘焦点的工具栏（UiToolBarKeyboard）自身也是一站，因为它的 tool item
+// 是自绘的，只有工具栏自己持有焦点时才能用方向键/Space 操作（A11Y-002）。
+void CollectTabStops(wxWindow* window, std::vector<wxWindow*>& stops)
+{
+    for (wxWindow* child : window->GetChildren()) {
+        if (child == nullptr || !child->IsShownOnScreen()) continue;
+        if (child->IsTopLevel()) continue;  // 独立子窗口有自己的焦点链（与 wx 容器遍历一致）
+        if (!child->AcceptsFocusFromKeyboard()) continue;
+        std::vector<wxWindow*> nested;
+        CollectTabStops(child, nested);
+        if (!nested.empty()) {
+            if (UiToolBarKeyboard::IsKeyboardToolBar(child)) stops.push_back(child);
+            stops.insert(stops.end(), nested.begin(), nested.end());
+        } else if (child->GetChildren().IsEmpty()) {
+            stops.push_back(child);
+        }
+    }
+}
+
+}  // namespace
+
+// T-620 / KEY-007 / A11Y-003：显式 Tab 走位（「等效手段」）
+//
+// 为什么必须显式做：MSW 上 wx 的 Tab 遍历由 wxNavigationEnabled 容器提供
+// （src/common/containr.cpp:HandleOnNavigationKey），走到本帧时没有任何容器能接管，
+// 于是会**在同一个面板内回绕**——单独靠 MoveAfterInTabOrder 无法让 Tab 跨 pane 前进。
+// 这里用同一份子窗顺序（SetupTabOrder() 建立）铺平成一条链，Tab/Shift+Tab 线性前进并回绕，
+// 因此既实现了「Tab 顺序＝视觉顺序」，也保证不会出现死角。
+//
+// 返回 true 表示已消费 Tab 并移动了焦点；返回 false 时调用方 event.Skip()，行为与原来一致。
+bool MainFrame::AdvanceKeyboardFocus(bool backward)
+{
+    wxWindow* focus = wxWindow::FindFocus();
+    if (focus == nullptr) return false;
+    if (wxGetTopLevelParent(focus) != this) return false;  // 焦点在子窗口/浮层：不进主窗链
+    if (WindowWantsTabKey(focus)) return false;            // 编辑器等自己要 Tab：原样放行
+
+    std::vector<wxWindow*> stops;
+    CollectTabStops(this, stops);
+    if (stops.size() < 2) return false;
+
+    // 当前焦点可能落在某个条目内部（例如笔记本里的页），按祖先关系定位。
+    size_t position = stops.size();
+    for (size_t i = 0; i < stops.size(); ++i) {
+        if (stops[i] == focus || stops[i]->IsDescendant(focus)) { position = i; break; }
+    }
+    if (position == stops.size()) position = backward ? 0 : stops.size() - 1;  // 找不到就从头/尾接入
+    const size_t next = backward ? (position + stops.size() - 1) % stops.size()
+                                 : (position + 1) % stops.size();
+    stops[next]->SetFocusFromKbd();
+    return true;
+}
+
+
+// T-620 / KEY-007 / A11Y-003：Tab 顺序 = 视觉顺序
+//   菜单（MSW 上原生菜单栏不参与焦点链，F10/Alt 走系统路径）
+//   → 工具栏 topBar → 活动栏 sideNav → 主侧栏 left_sidebar → 中区（画布 → 编辑器）
+//   → 辅助侧栏 right_sidebar → 底部面板 bottom_tabs → 状态栏
+// 只用 MoveAfterInTabOrder 重排同级 wxWindowList 顺序：wx 自己的 Tab 遍历按该顺序取
+// 下一个「可接受焦点」的窗口（src/common/containr.cpp:329-352 与 538-560），
+// 因此不改变任何几何、显隐或 AUI pane 状态。
+void MainFrame::SetupTabOrder()
+{
+    // 视觉顺序：主侧栏在左时它在中区之前；主侧栏移到右侧时它在中区之后（LAY-028 的同一形态）。
+    const bool primaryRight = m_layoutState.side == UiTheme::Side::Right;
+    wxWindow* chain[6] = {};
+    chain[0] = m_tabOrder[0];  // 工具栏
+    chain[1] = m_tabOrder[1];  // 活动栏
+    chain[2] = primaryRight ? m_tabOrder[3] : m_tabOrder[2];
+    chain[3] = primaryRight ? m_tabOrder[2] : m_tabOrder[3];
+    chain[4] = m_tabOrder[4];  // 辅助侧栏
+    chain[5] = m_tabOrder[5];  // 底部面板
+
+    wxWindow* previous = nullptr;
+    for (wxWindow* window : chain) {
+        if (window == nullptr) continue;
+        if (window->GetParent() != this) continue;  // 浮动 pane 不是同级；跳过以免触发 wx 断言
+        if (previous != nullptr) window->MoveAfterInTabOrder(previous);
+        previous = window;
+    }
+    if (wxStatusBar* bar = GetStatusBar(); bar != nullptr && previous != nullptr && bar->GetParent() == this) {
+        bar->MoveAfterInTabOrder(previous);
+    }
+    // 中区：画布在编辑器之前（视觉顺序 画布→编辑器）。两者同为中区分栏的子窗。
+    if (m_canvas != nullptr && m_editorChrome != nullptr &&
+        m_canvas->GetParent() != nullptr && m_canvas->GetParent() == m_editorChrome->GetParent()) {
+        m_editorChrome->MoveAfterInTabOrder(m_canvas);
+    }
+}
+
+// T-620 / KEY-008：侧栏宽度键盘步进（每次 12 DIP）
+//
+// ⚠️ 与 T-520 owner 的边界约定（收到父 agent 补充约束后调整）：本函数**不写** dock 的
+//    BestSize/MinSize/MaxSize/DockFixed，也不改 ApplyResponsiveLayout()。
+//    原因（已核实 wx 3.2.9 src/aui/framemanager.cpp:2196）：`dock.size` 只在
+//    `dock.size == 0`（新建 dock）时按 pane 的 best_size 重算，普通可拖拽 dock 对
+//    `BestSize()+Update()` 永不重算 —— 键盘步进直接写 BestSize 既越界又无效。
+//
+// 因此本函数只做三件事（都不碰 dock 几何）：
+//   1) 只读当前真实宽度，用 pane 自身 MinSize/MaxSize（窄屏 clamp 后的真实值）算出目标宽度；
+//   2) 写回 LAY-020 的单一状态源 `m_layoutState.leftWidth/rightWidth`（DIP，
+//      LAY-006 210–460 / DEC-04 210–520 范围内），供持久化（LAY-031）与
+//      T-520 的 ClampDockWidths() 消费；
+//   3) 状态栏反馈（INT-020）。
+// dock 尺寸的实际重算由 T-520 的 dock-recalc 路径统一负责（DockFixed 临时切换那套）；
+// 该路径落地后，只要在状态写入后请求一次应用，←/→ 步进即视觉生效。
+// 详见 docs/GUI-CHUGAO/_evidence/T620-keyboard-a11y-map.md §4 与 §7-9。
+void MainFrame::StepPrimarySideBarWidth(int step)
+{
+    if (step == 0) return;
+    wxAuiPaneInfo& primary = m_auiMgr.GetPane("left_sidebar");
+    wxAuiPaneInfo& auxiliary = m_auiMgr.GetPane("right_sidebar");
+    const bool usePrimary = primary.IsOk() && primary.window != nullptr && primary.IsShown();
+    wxAuiPaneInfo& pane = usePrimary ? primary : auxiliary;
+    if (pane.IsOk() == false || pane.window == nullptr || !pane.IsShown()) return;
+
+    const bool onRight = usePrimary ? (m_layoutState.side == UiTheme::Side::Right)
+                                    : true;  // 辅助侧栏固定在右侧（LAY-028）
+    const int fallbackMin = usePrimary ? UiTheme::Skeleton::LeftMinW : UiTheme::Skeleton::RightMinW;
+    const int fallbackMax = usePrimary ? UiTheme::Skeleton::LeftMaxW : UiTheme::Skeleton::RightMaxW;
+    const int minDip = pane.min_size.x > 0 ? ToDIP(pane.min_size.x) : fallbackMin;
+    const int maxDip = pane.max_size.x > 0 ? ToDIP(pane.max_size.x) : fallbackMax;
+
+    const int deltaDip = 12;  // KEY-008：每次 12 DIP
+    const int current = ToDIP(pane.window->GetSize().x);  // 只读：以用户看到的宽度为基准
+    const int grow = onRight ? (step < 0 ? 1 : -1) : (step > 0 ? 1 : -1);
+    const int next = std::clamp(current + grow * deltaDip, minDip, std::max(minDip, maxDip));
+    if (next == current) return;  // 已到边界：不做无意义更新
+
+    if (usePrimary) {
+        m_layoutState.leftWidth = next;
+    } else {
+        m_layoutState.rightWidth = next;
+    }
+    m_layoutState.ClampToValidRanges();  // 不写出规范外的值（LAY-006 / DEC-04）
+
+    SetStatusText(wxString::Format(wxS("%s: %d DIP"),
+                                   usePrimary ? wxS("Primary side bar") : wxS("Side Panel"),
+                                   usePrimary ? m_layoutState.leftWidth : m_layoutState.rightWidth),
+                  0);
+
+    // T-520 接线（KEY-008 侧栏宽度"视觉生效"）：状态已写入 LAY-020 单一状态源，这里请求一次 dock 重算。
+    // 复用 ApplyResponsiveLayout()：把上次宽度置 -1 以跳过它的防重入早退，它会按当前断点从
+    // m_layoutState 重算 dock 宽度（宽屏＝用户新宽度；窄屏仍以 LAY-019 的 clamp 为准）。
+    // 说明：不直接写 dock 几何 —— wxAuiManager 只在 dock.size==0 时按 best_size 重算
+    // （framemanager.cpp:2196），普通可拖拽 dock 直接 BestSize 是空操作（T-520 缺陷 A）。
+    m_lastResponsiveWidthDip = -1;
+    ApplyResponsiveLayout();
+}
+
+void MainFrame::SetPrimarySide(UiTheme::Side side)
+{
+    m_layoutState.side=side; ApplyLayoutGeometry(); SyncPanelMenuChecks();
+    SetStatusText(side==UiTheme::Side::Right?"Primary side bar: Right":"Primary side bar: Left",0);
+}
+
+void MainFrame::SetPanelAlignment(UiTheme::Balance balance)
+{
+    m_layoutState.bal=balance; ApplyLayoutGeometry(); SyncPanelMenuChecks();
+    const char* labels[]={"Left","Right","Center","Justify"};
+    SetStatusText(wxString("Panel alignment: ")+labels[static_cast<int>(balance)],0);
+}
+
+void MainFrame::SetPanelPosition(UiTheme::PanelPos position)
+{
+    m_layoutState.pos=position; ApplyLayoutGeometry(); SyncPanelMenuChecks();
+    SetStatusText(position==UiTheme::PanelPos::Top?"Panel position: Top":"Panel position: Bottom",0);
+}
+
+void MainFrame::ApplyLayoutGeometry()
+{
+    // ⚠️ PERF-005 性能闸门：本函数每次都做一次全量 AUI 重排（`Update()+Layout()`）并重排 Tab 顺序，
+    //    而**纯显隐变化不改几何** —— 一个布局预设若只切显隐，多出的这次重排会把
+    //    「≤150ms」预算顶爆（T-510 夹具实测：不改几何的预设 135ms，改显隐的 277–298ms ≈ 两次重排）。
+    //    签名只含真正会改几何的三个量；`side` 必须在内，因为它同时决定 Tab 顺序（A11Y-003）。
+    //    显隐变化不需要在此重排 Tab：T-620 的 Tab 链是每次按键时按 `IsShownOnScreen()` 动态收集的。
+    const int geometrySignature = (static_cast<int>(m_layoutState.side) << 4) |
+                                  (static_cast<int>(m_layoutState.pos) << 2) |
+                                  static_cast<int>(m_layoutState.bal);
+    if (geometrySignature == m_lastGeometrySignature) {
+        return;  // 几何未变：省掉一次全量重排
+    }
+    m_lastGeometrySignature = geometrySignature;
+
+    auto& primary=m_auiMgr.GetPane("left_sidebar");
+    auto& secondary=m_auiMgr.GetPane("right_sidebar");
+    const bool right=m_layoutState.side==UiTheme::Side::Right;
+    if(primary.IsOk()) primary.Direction(right?wxAUI_DOCK_RIGHT:wxAUI_DOCK_LEFT).Layer(right?7:9).Position(0).Resizable(!right);
+    // Both adjacent sashes disappear in right-primary mode (LAY-028).
+    if(secondary.IsOk()) secondary.Right().Layer(8).Resizable(!right);
+    auto& panel=m_auiMgr.GetPane("bottom_tabs");
+    if(panel.IsOk()) panel.Direction(m_layoutState.pos==UiTheme::PanelPos::Top?wxAUI_DOCK_TOP:wxAUI_DOCK_BOTTOM)
+        .Layer(m_layoutState.pos==UiTheme::PanelPos::Top?7:8).Row(0).Position(0);
+    if(m_bottomHost) m_bottomHost->SetBalance(m_layoutState.bal);
+    m_auiMgr.Update(); Layout();
+    // T-620 / A11Y-003：主侧栏左右切换后，Tab 顺序必须跟随视觉顺序重新排一次。
+    SetupTabOrder();
+}
+
+void MainFrame::ShowComponentLibrary()
+{
+    SetPanelVisibility(UiTheme::Visibility::Left,true,false);
+    wxCommandEvent event(wxEVT_TOOL,ID_TBOX);
+    GetEventHandler()->ProcessEvent(event); // 沿用 rail 与 Simplebook 的既有联动。
+    if (m_toolbox) m_toolbox->GetTree()->SetFocus();
+}
+
+void MainFrame::SetPanelVisibility(UiTheme::Visibility which, bool visible, bool announce)
+{
+    switch (which) {
+        case UiTheme::Visibility::Menubar:
+            ApplyMenuBarVisibility(visible);
+            break;
+        case UiTheme::Visibility::Rail:
+            SetPaneVisible("sideNav", visible);
+            break;
+        case UiTheme::Visibility::Left:
+            SetPaneVisible("left_sidebar", visible);
+            break;
+        case UiTheme::Visibility::Right:
+            // T-520：窄屏自动隐藏期间，用户显式打开辅助侧栏即视为用户意图优先（LAY-019 让位于用户）
+            if (visible && UiTheme::ShouldAutoHideRight(ToDIP(GetClientSize().x))) {
+                m_rightNarrowOverride = true;
+            }
+            SetPaneVisible("right_sidebar", visible);
+            break;
+        case UiTheme::Visibility::Bottom:
+            SetPaneVisible("bottom_tabs", visible);
+            break;
+        case UiTheme::Visibility::Statusbar:
+            if (wxStatusBar* bar = GetStatusBar()) {
+                bar->Show(visible);
+            }
+            break;
+    }
+
+    UiTheme::SetVisibility(m_layoutState, which, visible);
+
+    m_auiMgr.Update();
+    SendSizeEvent();  // 菜单栏 / 状态栏显隐后重排客户区，避免空洞（LAY-022）
+    Layout();
+    Refresh();
+
+    if (announce) {
+        // LAY-023：每次显隐都给状态栏反馈（语言遵循 SAFE-014：与既有状态文本一致用英文）
+        SetStatusText(wxString(visible ? wxS("Shown: ") : wxS("Hidden: ")) +
+                          UiTheme::VisibilityLabel(which),
+                      0);
+    }
+    SyncPanelMenuChecks();
+}
+
+void MainFrame::TogglePanelVisibility(UiTheme::Visibility which)
+{
+    SetPanelVisibility(which, !UiTheme::GetVisibility(m_layoutState, which), true);
+}
+
+bool MainFrame::IsPanelVisible(UiTheme::Visibility which)
+{
+    return UiTheme::GetVisibility(m_layoutState, which);
+}
+
+// T-510：应用布局预设（LAY-025；由 Window › Layout Presets 调用）
+void MainFrame::ApplyLayoutPreset(const wxString& presetId)
+{
+    if (!UiTheme::ApplyPreset(m_layoutState, presetId)) {
+        return;  // 未知预设：不修改状态
+    }
+
+    // Apply all shape fields together; geometry, menu, toolbar and picker agree.
+    ApplyLayoutVisibility();
+
+    // DEC-06：本轮不做跨显示器拖出，'Chat 分离' 退化为"仅隐藏辅助侧边栏"（已在 T-510 记录）
+    SetStatusText(wxString::Format(wxS("Layout preset: %s"), UiTheme::PresetLabelEn(presetId)), 0);
+
+    if (auto* bar = dynamic_cast<MainMenuBar*>(GetMenuBar())) {
+        bar->UpdatePanelMenuChecks();
+    }
+}
+
+// T-250：立即保存布局（LAY-031；Window › Save Layout）
+void MainFrame::SaveLayoutNow()
+{
+    SaveLayoutState();
+}
+
+// T-250：恢复默认布局（LAY-032；Window › Reset Layout）
+// 严格按 SPEC：只重置布局（pane perspective / 六栏显隐 / 尺寸），
+// **不重建业务对象、不清空 Job、不重启 Agent、不动项目状态**。
+void MainFrame::ResetLayout()
+{
+    if (wxConfigBase* cfg = wxConfigBase::Get(false)) {
+        UiTheme::LayoutStore::Clear(cfg, LayoutScope());  // 只删 Ui/Layout 子树（不触碰 MRU/主题）
+    }
+
+    m_layoutState = UiTheme::LayoutState::Defaults();
+
+    // 回到本版本默认 perspective（构造期已捕获）
+    if (!m_defaultPerspective.empty()) {
+        m_auiMgr.LoadPerspective(m_defaultPerspective);
+    }
+    ApplyLayoutVisibility();
+
+    SetStatusText(wxS("Layout reset to defaults"), 0);
+
+    if (auto* bar = dynamic_cast<MainMenuBar*>(GetMenuBar())) {
+        bar->UpdatePanelMenuChecks();
+    }
+}
+
+void MainFrame::ApplyLayoutVisibility()
+{
+    // Batch presets/restores: set all shape fields before one AUI reflow. Six
+    // individual SetPanelVisibility calls would redraw the entire frame six times.
+    if(auto* bar=GetMenuBar(); bar && bar->IsShown()!=m_layoutState.menubar) ApplyMenuBarVisibility(m_layoutState.menubar);
+    if(auto* bar=GetStatusBar(); bar && bar->IsShown()!=m_layoutState.statusbar) bar->Show(m_layoutState.statusbar);
+    SetPaneVisible("sideNav",m_layoutState.rail);
+    SetPaneVisible("left_sidebar",m_layoutState.left);
+    SetPaneVisible("right_sidebar",m_layoutState.right);
+    SetPaneVisible("bottom_tabs",m_layoutState.bottom);
+    ApplyLayoutGeometry();
+    SendSizeEvent();
+    SyncPanelMenuChecks();
+}
+
+// T-520：窄屏断点与最小窗口（LAY-019 / PLT-006 / TEST-020 / A11Y-010）
+//
+// 设计依据：<1024 两 dock 宽度用 clamp（右栏 clamp(108,14vw,240)，app.html:1529-1530）；
+//           <760 辅助侧边栏自动隐藏、工具栏走溢出滚动；全程不得出现横向滚动条。
+// 关键约束：自动隐藏**不改写** m_layoutState.right（用户偏好必须保留），
+//           回到宽屏即恢复；窄屏下用户显式打开则记为覆盖（m_rightNarrowOverride）。
+void MainFrame::ApplyResponsiveLayout()
+{
+    const int widthDip = ToDIP(GetClientSize().x);
+    const UiTheme::Breakpoint breakpoint = UiTheme::ForWidth(widthDip);
+
+    // 回到宽屏：清除"窄屏下用户显式打开辅助侧栏"的覆盖，让自动隐藏规则重新生效
+    if (breakpoint != UiTheme::Breakpoint::Narrow) {
+        m_rightNarrowOverride = false;
+    }
+
+    const UiTheme::DockWidths widths = UiTheme::ClampDockWidths(widthDip, m_layoutState);
+    const bool autoHidden = UiTheme::ShouldAutoHideRight(widthDip) && !m_rightNarrowOverride;
+
+    // ⚠️ 性能闸门（修复 T-520 引入的回归）：本函数下半段的 dock 重算与内嵌控件探测每次都要
+    //    多次 `m_auiMgr.Update()`（全量 AUI 重排）。若对每个像素/每个事件都重做，会把 T-510 的
+    //    「预设应用 ≤150ms」预算顶爆（实测 4 个预设全部超时）。因此只在**会改变布局结果的量**
+    //    发生变化时才继续；同断点、同 clamp 宽度、同自动隐藏结果且宽度未变时直接返回。
+    const bool sameResult = (breakpoint == m_lastBreakpoint) &&
+                            (widths.left == m_lastClampedLeft) &&
+                            (widths.right == m_lastClampedRight) &&
+                            (autoHidden == m_lastAutoHidden);
+    if (sameResult && widthDip == m_lastResponsiveWidthDip) {
+        return;  // 防重入 + 免做无谓的 AUI 重排
+    }
+    m_lastResponsiveWidthDip = widthDip;
+    m_lastBreakpoint = breakpoint;
+    m_lastClampedLeft = widths.left;
+    m_lastClampedRight = widths.right;
+    m_lastAutoHidden = autoHidden;
+
+    // <760：辅助侧边栏自动隐藏（LAY-019）
+    const bool wantRight =
+        UiTheme::GetVisibility(m_layoutState, UiTheme::Visibility::Right) && !autoHidden;
+    SetPaneVisible("right_sidebar", wantRight);
+
+    // ⚠️ T-520 缺陷 A 修复（已定位到 wx 源码）：wxAuiManager 只在 `dock.size == 0` 时才按 pane 的
+    //   `best_size` 重算 dock 尺寸（3rd/wxWidgets-src/src/aui/framemanager.cpp:2196），而普通可拖拽
+    //   dock 一旦有尺寸就**永不重算** —— 所以「BestSize() + Update()」对已停靠 pane 是空操作
+    //   （T-520 夹具探针实测：best=315px，before=423 after=423）。只有**固定 dock** 每次 Update 都会
+    //   把 dock.size 归零重算（同文件 2125 行注释）。⇒ 采用「临时 DockFixed(true) → 按 best_size 重算
+    //   → 立刻 DockFixed(false) 恢复用户可拖拽」。另：dock.min_size 来自 pane.min_size（2266-2296），
+    //   窄屏必须把 Min/Max 收到 clamp 值，否则右栏 min 210 > clamp 108 会把宽度顶回去。
+    const bool clampDocks = (breakpoint != UiTheme::Breakpoint::Wide);
+    auto pinDockWidth = [this, clampDocks](const char* paneName, int targetDip, int minDip,
+                                           int maxDip) {
+        wxAuiPaneInfo& pane = m_auiMgr.GetPane(paneName);
+        if (!pane.IsOk()) {
+            return;
+        }
+        // ⚠️ wxAuiPaneInfo 的尺寸单位是**像素**，必须 FromDIP。
+        //    T-520 夹具实测：漏掉 FromDIP 会把 210 DIP 当成 210px（=140 DIP），dock 反而变窄。
+        pane.DockFixed(true)
+            .MinSize(FromDIP(clampDocks ? targetDip : minDip), -1)
+            .MaxSize(FromDIP(clampDocks ? targetDip : maxDip), -1)
+            .BestSize(FromDIP(targetDip), -1);
+        m_auiMgr.Update();
+        // 恢复可拖拽；尺寸已按 best_size 落定，之后 Update 不再重置 dock.size
+        pane.DockFixed(false);
+    };
+    pinDockWidth("left_sidebar", widths.left, UiTheme::Skeleton::LeftMinW,
+                 UiTheme::Skeleton::LeftMaxW);
+    pinDockWidth("right_sidebar", widths.right, UiTheme::Skeleton::RightMinW,
+                 UiTheme::Skeleton::RightMaxW);
+
+    // T-520 缺陷 B 修复：内嵌控件没有 chevron 停放能力，放不下时会被压成 0 宽（既画不出也点不到）。
+    // 这里用**真实布局**判定：先显示 → 让 AUI 排 → 若宽度被压成 0 则隐藏该控件。
+    // 顺序先布局簇（最宽）再 Synthesize，这样 1024 DIP 下主 CTA 仍能保住。
+    // 隐藏后功能仍可达：Synthesize 在 FPGA 菜单（MainMenuBar.cpp:784），
+    // 布局簇在 Window › Panels / Layout Presets / Layout…（KEY-011 / A11Y-006 不受影响）。
+    // 内嵌控件的"放不下就隐藏"探测代价较高（每次 1–2 次全量 AUI 重排），因此在同断点内做
+    // 8 DIP 量化、且断点变化时必探测 —— 避免逐像素重排拖慢交互（与上面的性能闸门同一考虑）。
+    const bool probeEmbedded =
+        (breakpoint != m_lastProbeBreakpoint) ||
+        (widthDip - m_lastProbeWidthDip >= 8) || (m_lastProbeWidthDip - widthDip >= 8);
+    if (probeEmbedded) {
+        m_lastProbeBreakpoint = breakpoint;
+        m_lastProbeWidthDip = widthDip;
+    }
+    if (probeEmbedded && m_layoutControls != nullptr) {
+        m_layoutControls->Show();
+        m_auiMgr.Update();
+        // 判定用"是否窄于自身 best"而不是"是否 0 宽"：布局簇是带 sizer 的容器，
+        // 宽度 >0 但小于 best 时其子控件仍会被挤到 0 宽（T-520 夹具在 1024 DIP 实测到 3 个）。
+        if (m_layoutControls->IsShown() &&
+            m_layoutControls->GetSize().x < m_layoutControls->GetBestSize().x) {
+            m_layoutControls->Hide();
+            m_auiMgr.Update();
+        }
+    }
+    if (probeEmbedded && m_synthesizeCta != nullptr) {
+        m_synthesizeCta->Show();
+        m_auiMgr.Update();
+        if (m_synthesizeCta->IsShown() &&
+            m_synthesizeCta->GetSize().x < m_synthesizeCta->GetBestSize().x) {
+            m_synthesizeCta->Hide();
+            m_auiMgr.Update();
+        }
+    }
+}
+
+// T-340：把状态回报回调接到"当前画布页"，并刷新状态栏（SPEC CMP-070…CMP-073）
+// 说明：画布页由 CanvasNoteBook 动态创建/切换，因此不能只在构造期接线一次；
+//       这里在 PAGE_CHANGED / PAGE_CLOSED 以及构造末尾各调一次。
+void MainFrame::SyncActiveCanvas()
+{
+    CanvasPanel* page = nullptr;
+    if (m_canvas != nullptr) {
+        page = dynamic_cast<CanvasPanel*>(m_canvas->GetCurrentPage());
+    }
+    if (page != m_activeCanvas) {
+        m_activeCanvas = page;
+        if (page != nullptr) {
+            page->SetCursorReportCallback([this](const wxPoint& canvasPos) {
+                m_lastCanvasCursor = canvasPos;
+                UpdateCanvasStatus();
+            });
+            page->SetScaleReportCallback([this](float /*scale*/) { UpdateCanvasStatus(); });
+        }
+    }
+    UpdateCanvasStatus();
+}
+
+// T-340：状态栏右区四个字段（CMP-070 结构 / CMP-072 联动 / CMP-073 版本必须动态取值）
+void MainFrame::UpdateCanvasStatus()
+{
+    wxStatusBar* bar = GetStatusBar();
+    if (bar == nullptr) {
+        return;
+    }
+
+    // 字段 1：画布坐标（网格吸附后的值；无画布时显示 0,0）
+    bar->SetStatusText(wxString::Format(wxS("x %d  y %d"), m_lastCanvasCursor.x,
+                                        m_lastCanvasCursor.y),
+                       1);
+
+    // 字段 2：Grid（取画布实际步长，而非写死 20）
+    const int grid = (m_activeCanvas != nullptr) ? m_activeCanvas->GetGrid() : 20;
+    bar->SetStatusText(wxString::Format(wxS("Grid %d"), grid), 2);
+
+    // 字段 3：Zoom（与画布缩放一致）
+    const int zoomPercent = (m_activeCanvas != nullptr)
+                                ? static_cast<int>(m_activeCanvas->GetScale() * 100.0f + 0.5f)
+                                : 100;
+    bar->SetStatusText(wxString::Format(wxS("Zoom %d%%"), zoomPercent), 3);
+
+    // 字段 4：工具链版本（CMP-073：设计稿写的 "dev · gcc-16.2.0" 是**样例**，
+    //         必须动态取实际值，否则会把 GCC 12.2.0 骗成 16.2.0 —— SPEC DES-022）
+    bar->SetStatusText(wxString::Format(wxS("%s · gcc-%d.%d.%d"), EditionName(), __GNUC__,
+                                        __GNUC_MINOR__, __GNUC_PATCHLEVEL__),
+                       4);
+}
+
+// T-250：保存布局（退出前调用，必须发生在 m_auiMgr.UnInit() 之前）
+// ===========================================================================
+// T-660：DPI / 显示器 / 系统配色健壮性（SPEC PLT-009 / PLT-010 / THE-033 / GAP-E2）
+//
+// 历史背景：DPI 与多屏是本仓的崩溃高发区（THE-033 记录旧实现用 static_cast 取 Art）。
+// 本段统一处理三类事件，并保证"以 DIP 记录的尺寸"在缩放变化后重新落成像素。
+// ===========================================================================
+
+void MainFrame::OnDpiOrDisplayChanged(const char* reason)
+{
+    // ① AUI Art 度量（caption / sash / border / 字号）—— 类型安全获取（THE-033）
+    if (auto* art = dynamic_cast<UiDockArt*>(m_auiMgr.GetArtProvider())) {
+        art->UpdateMetrics(this);
+    }
+
+    // ② 配色 + Art/Tab/面板刷新（THE-028 / THE-030）
+    ApplyTheme();
+
+    // ③ 以 DIP 记录的骨架尺寸必须按新缩放重新落成像素：
+    //    帧最小尺寸 + 两个 dock 的宽度（T-520 的 clamp 也按 DIP 计算）。
+    SetMinSize(FromDIP(UiTheme::MinimumFrameSize()));
+    m_lastResponsiveWidthDip = -1;  // 跳过 ApplyResponsiveLayout 的防重入早退，强制重算
+    ApplyResponsiveLayout();
+
+    // ④ 以 FromDIP 计算字体的控件（编辑器 / 终端）—— 不重设会滞留旧 DPI 的像素字号
+    ReapplyDpiDependentFonts();
+
+    // ⑤ PLT-010：显示器增减后把跑到屏幕外的窗口找回来
+    EnsureWindowsOnScreen();
+
+    m_auiMgr.Update();
+    Layout();
+    Refresh();
+
+    SetStatusText(wxString::Format(wxS("Layout recomputed (%s change)"),
+                                   wxString::FromUTF8(reason)),
+                  0);
+}
+
+// T-660：重设"按当时 DPI 取字号"的控件。
+// SigTextEditor::SetVerilogStyle() 与 TerminalCtrl::ApplyTerminalStyle() 只写样式与字体，
+// 不触碰文档内容 / 折叠标记 / 终端历史，因此可安全重复调用。
+void MainFrame::ReapplyDpiDependentFonts()
+{
+    if (m_verilogEditor != nullptr) {
+        m_verilogEditor->SetVerilogStyle();  // 等宽 P13 + 语法色
+    }
+    if (m_terminalCtrl != nullptr) {
+        m_terminalCtrl->ReapplyStyle();  // termBg + 等宽 P12 + 行距 + 语义样式表（T-660 公开转发）
+    }
+}
+
+// T-660 / PLT-010：任何几何恢复之后，窗口必须仍落在某个显示器的可见工作区内。
+void MainFrame::EnsureWindowsOnScreen()
+{
+    if (wxDisplay::GetCount() == 0) return;
+    auto visibleOnSomeDisplay = [](const wxRect& screenRect) {
+        const unsigned count = wxDisplay::GetCount();
+        for (unsigned i = 0; i < count; ++i) {
+            if (wxDisplay(i).GetClientArea().Intersects(screenRect)) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    // 主窗：完全落在所有显示器之外时移回主显示器中央
+    if (wxDisplay::GetFromWindow(this) == wxNOT_FOUND) {
+        const wxRect area = wxDisplay(0u).GetClientArea();
+        const wxSize size = GetSize();
+        SetSize(area.x + std::max(0, (area.width - size.x) / 2),
+                area.y + std::max(0, (area.height - size.y) / 2), size.x, size.y);
+    }
+
+    // 浮动 pane：位置来自 perspective 的 floatx/floaty，副屏移除后可能落在屏幕外
+    const char* floatingCandidates[] = { "left_sidebar", "right_sidebar", "bottom_tabs", "topBar",
+                                         "sideNav" };
+    const wxRect primary = wxDisplay(0u).GetClientArea();
+    for (const char* name : floatingCandidates) {
+        wxAuiPaneInfo& pane = m_auiMgr.GetPane(name);
+        if (!pane.IsOk() || !pane.IsFloating() || pane.frame == nullptr) {
+            continue;
+        }
+        // AUI's pane.window is a child: Move() there uses parent coordinates and
+        // leaves the floating frame offscreen. Recover the actual outer window.
+        wxFrame* floatingFrame = pane.frame;
+        if (visibleOnSomeDisplay(floatingFrame->GetScreenRect())) {
+            continue;
+        }
+        const wxSize size = floatingFrame->GetSize();
+        floatingFrame->Move(primary.x + std::max(0, (primary.width - size.x) / 2),
+                            primary.y + std::max(0, (primary.height - size.y) / 2));
+        pane.floating_pos = floatingFrame->GetPosition();
+    }
+}
+
+void MainFrame::SaveLayoutState()
+{
+    wxConfigBase* cfg = wxConfigBase::Get(false);
+    if (cfg == nullptr) {
+        return;
+    }
+    const wxString scope = LayoutScope();
+
+    bool ok = UiTheme::LayoutStore::Save(cfg, scope, m_layoutState);
+    ok = UiTheme::LayoutStore::SavePerspective(cfg, scope, m_auiMgr.SavePerspective()) && ok;
+
+    if (!ok) {
+        // 写失败只提示，不阻止关闭（docs/gui/task.md 的布局保存约定）
+        SetStatusText(wxS("布局未保存"), 0);
+    }
 }
 
 MainFrame::~MainFrame()
@@ -1138,6 +2358,12 @@ MainFrame::~MainFrame()
         ts_parser_delete(m_parser);
         m_parser = nullptr;
     }
+
+    // T-120：先解除主题订阅，避免窗口半销毁期间收到主题变更回调（SPEC THE-028/THE-033）
+    m_themeSubscription.Reset();
+
+    // LAY-031：退出前保存布局，且必须发生在 UnInit() 之前
+    SaveLayoutState();
 
     m_auiMgr.UnInit(); 
 
@@ -1280,52 +2506,6 @@ void MainFrame::OnToolboxElement(wxCommandEvent& evt)
     //m_canvas->AddElement(clone);     
     m_canvas->SetCurrentComponent(name);  
 }
-
-bool MirrorDirectory(const wxString& source, const wxString& dest) {
-    if (!wxDir::Exists(dest)) {
-        if (!wxFileName::Mkdir(dest, wxS_DIR_DEFAULT, wxPATH_MKDIR_FULL)) {
-            SIGFLOW_LOG("MirrorDirectory: cannot create destination '" + dest + "'\n");
-            return false;
-        }
-    }
-
-    wxDir dir(source);
-    if (!dir.IsOpened()) {
-        SIGFLOW_LOG("MirrorDirectory: cannot open source '" + source + "'\n");
-        return false;
-    }
-
-    wxString filename;
-    // 1. 复制所有文件。任何失败都必须向上传播。
-    bool cont = dir.GetFirst(&filename, wxEmptyString, wxDIR_FILES);
-    while (cont) {
-        wxString srcFile = source + wxFileName::GetPathSeparator() + filename;
-        wxString dstFile = dest + wxFileName::GetPathSeparator() + filename;
-
-        if (!wxCopyFile(srcFile, dstFile, true)) {
-            // 指明是哪一个文件失败：此前只返回 false，调用方也无提示，
-            // 用户只会看到"标题不刷新/镜像静默失败"，完全无从排查。
-            SIGFLOW_LOG("MirrorDirectory: copy failed '" + srcFile + "' -> '" + dstFile + "'\n");
-            return false;
-        }
-        cont = dir.GetNext(&filename);
-    }
-
-    // 2. 递归处理子目录 (跳过 .git 和 .sigflow 自身，防止无限递归)
-    cont = dir.GetFirst(&filename, wxEmptyString, wxDIR_DIRS);
-    while (cont) {
-        if (filename != ".sigflow" && filename != ".git" && filename != ".cache") {
-            if (!MirrorDirectory(source + wxFileName::GetPathSeparator() + filename,
-                                 dest + wxFileName::GetPathSeparator() + filename)) {
-                return false;
-            }
-        }
-        cont = dir.GetNext(&filename);
-    }
-    return true;
-}
-
-
 
 void DumpTree(TSNode node, const wxString& src, int indent) {
     wxString line;
@@ -1473,7 +2653,7 @@ void MainFrame::DoFileOpenProject() {
             if (root["paths"].isMember("source_files")) {
                 auto& sourceFiles = root["paths"]["source_files"];
                 int totalFiles = sourceFiles.size();
-                progress.SetRange(totalFiles + 2); // 文件数 + 解析JSON(1) + 镜像(1)
+                progress.SetRange(totalFiles + 1); // 文件数 + 完成(1)
 
                 int currentStep = 0;
 
@@ -1535,20 +2715,6 @@ void MainFrame::DoFileOpenProject() {
             m_toolbox->AddDefinition(defId);
         }
 
-        progress.Update(progress.GetRange() - 1, "Creating Workspace Mirror...");
-
-        wxString workspacePath = JoinPath(JoinPath(m_currentProjectPath, ".sigflow"), "workspace");
-
-        //wxLogStatus("Mirroring project to workspace...");
-
-        // 工程镜像只是给编译器用的副本，属于"尽力而为"：
-        // 失败不应影响"项目已经打开"这一事实，更不能因此跳过项目名/标题更新
-        // （原实现把 RefreshTitle 放在 if 内部，镜像一旦失败标题就永远停在 "[no project]"）。
-        if (MirrorDirectory(m_currentProjectPath, workspacePath)) {
-            m_workspacePath = workspacePath;
-        } else {
-            SIGFLOW_LOG("MainFrame: project mirror failed; continuing without workspace copy.\n");
-        }
         m_projectName = wxFileName(path).GetFullName();
         m_projectTreePanel->LoadProject(m_currentProjectPath);
         RefreshTitle();
@@ -1610,7 +2776,7 @@ void MainFrame::SetProjectDir(const wxString& projectDir)
         if (root["paths"].isMember("source_files")) {
             auto& sourceFiles = root["paths"]["source_files"];
             int totalFiles = sourceFiles.size();
-            progress.SetRange(totalFiles + 2); // 文件数 + 解析JSON(1) + 镜像(1)
+            progress.SetRange(totalFiles + 1); // 文件数 + 完成(1)
 
             int currentStep = 0;
 
@@ -1681,19 +2847,6 @@ void MainFrame::SetProjectDir(const wxString& projectDir)
         m_toolbox->AddDefinition(defId);
     }
 
-    // 进度条更新：创建工作区镜像
-    progress.Update(progress.GetRange() - 1, "Creating Workspace Mirror...");
-
-    // 构造工作区路径
-    wxString workspacePath = JoinPath(JoinPath(m_currentProjectPath, ".sigflow"), "workspace");
-
-    // 镜像目录（复用你的 MirrorDirectory 函数）
-    // 同上：镜像失败不应阻止标题/项目名更新，否则界面会一直显示 "[no project]"。
-    if (MirrorDirectory(m_currentProjectPath, workspacePath)) {
-        m_workspacePath = workspacePath;
-    } else {
-        SIGFLOW_LOG("MainFrame: project mirror failed; continuing without workspace copy.\n");
-    }
     m_projectName = wxFileName(projectDir).GetFullName();
     m_projectTreePanel->LoadProject(m_currentProjectPath);
     RefreshTitle();
@@ -2570,24 +3723,6 @@ void MainFrame::OnClose(wxCloseEvent& event) {
     }
 }
 
-wxString MainFrame::GetWorkspaceCopyPath(const wxString& m_currentFilePath) {
-    // 1. 创建文件对象
-    wxFileName fileObj(m_currentFilePath);
-
-    // 2. 计算相对于项目根目录的相对路径
-    // 执行后，fileObj 将不再存有绝对路径，而是变为 "src/top.v" 这种形式
-    if (fileObj.MakeRelativeTo(m_currentProjectPath)) {
-
-        // 3. 将相对路径拼接到工作区根目录下
-        // 这里的路径加法会自动处理反斜杠
-        wxString targetPath = m_workspacePath + wxFileName::GetPathSeparator() + fileObj.GetFullPath();
-
-        return targetPath;
-    }
-
-    return wxEmptyString; // 如果不在项目内，返回空
-}
-
 void MainFrame::OnAnalysisComplete(wxThreadEvent& event) {
     AnalysisResult result = event.GetPayload<AnalysisResult>();
 
@@ -2595,7 +3730,10 @@ void MainFrame::OnAnalysisComplete(wxThreadEvent& event) {
     // 交给分析模块
     //AnalyzeDelta(L, delta.ToStdString());
 
-    if (result.linted) m_verilogEditor->VisualFeedBack(result.lint);
+    if (result.linted) {
+        m_verilogEditor->VisualFeedBack(result.lint);
+        if (m_editorChrome) m_editorChrome->SetDocument(m_verilogEditor->GetCurrentPath(), "Verilog", true);
+    }
 }
 
 

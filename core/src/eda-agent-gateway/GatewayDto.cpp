@@ -45,14 +45,24 @@ std::vector<CapabilityStatus> ResolveEducationCapabilities(const std::vector<Rea
             if (PluginProvides(plugin, mapping.jobType) ||
                 PluginProvides(plugin, mapping.capability)) {
                 found = &plugin;
-                break;
+                if (plugin.ready) break;
             }
         }
         if (found != nullptr) {
-            status.ready = true;
             status.pluginId = found->id;
             status.pluginVersion = found->version;
             status.inputSchema = Json::object();
+            if (found->ready) {
+                status.ready = true;
+            } else {
+                // AD-12：插件注册了、但当前不可用（工具链缺失等）。
+                // 能力必须显式不可用，并把宿主给出的原因原样带给 Agent。
+                status.ready = false;
+                status.reason = found->reason.empty()
+                                    ? "plugin '" + found->id +
+                                          "' is registered but not usable right now"
+                                    : found->reason;
+            }
         } else {
             status.ready = false;
             status.reason = "no ready plugin provides jobType '" + mapping.jobType + "'";

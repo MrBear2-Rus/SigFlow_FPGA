@@ -2,10 +2,50 @@
 #include <wx/dir.h>
 #include <wx/filename.h>
 #include <wx/artprov.h>
+#include "platform/PlatformPaths.h"
+
+// T-310：项目树字号/配色一律经唯一 Token 层取用（红线 SAFE-012 / THE-001）。
+#include "ui/UiTheme.h"
 
 wxDEFINE_EVENT(EVT_PROJECT_LOADED, wxCommandEvent);
 
 namespace {
+
+// T-310 / CMP-035：树项 12 DIP；空状态说明 12 DIP（DES-015 一句说明文案）。
+wxFont ProjectTreeItemFont(const wxWindow* window)
+{
+    return UiTheme::UiFont(window, UiTheme::TextSize::P12, UiTheme::Weight::Normal);
+}
+
+// 应用整棵树的 chrome 配色（本面板改造前取色 = 0，全部走系统默认）。
+// 说明：wxTreeCtrl 是原生控件，没有 hover 态入口，选中底也不能指定为 `sel`/`hover`
+// token（MSW 在 CDIS_SELECTED 时以系统高亮覆盖逐项底色），详见证据文件「未实现」清单。
+void ApplyProjectTreeLook(wxTreeCtrl* tree)
+{
+    if (!tree) {
+        return;
+    }
+
+    const UiTheme::Colours& colours = UiTheme::Palette();
+    tree->SetBackgroundColour(colours.surfaceOnPanel);
+    tree->SetForegroundColour(colours.text1);
+    tree->SetFont(ProjectTreeItemFont(tree));
+    tree->SetIndent(tree->FromDIP(UiTheme::Spacing::S2));  // CMP-035 缩进：8 DIP
+}
+
+// CMP-040 / DES-015 / INT-016：无工程（或工程目录已消失）时不留纯空白，
+// 用一行 text2 / 12 DIP 的说明文案占位。占位项不带 FileTreeItemData，
+// 因此不会触达文件打开/监视刷新等业务分支。
+void ShowProjectTreeEmptyState(wxTreeCtrl* tree, const wxString& message)
+{
+    if (!tree) {
+        return;
+    }
+
+    const wxTreeItemId emptyItem = tree->AddRoot(message, -1, -1);
+    tree->SetItemTextColour(emptyItem, UiTheme::Palette().text2);
+    tree->SetItemFont(emptyItem, ProjectTreeItemFont(tree));
+}
 
 // 只订阅"内容发生变化"的文件系统事件。
 //
@@ -36,18 +76,41 @@ ProjectTreePanel::ProjectTreePanel(wxWindow* parent)
     : wxPanel(parent, wxID_ANY)
 {
     m_tree = new wxTreeCtrl(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
-        wxTR_HAS_BUTTONS | wxTR_LINES_AT_ROOT | wxTR_DEFAULT_STYLE);
+        wxTR_HAS_BUTTONS | wxTR_LINES_AT_ROOT | wxTR_DEFAULT_STYLE | wxBORDER_NONE);
     m_projectRoot = "";
 
     wxBoxSizer* sizer = new wxBoxSizer(wxVERTICAL);
     sizer->Add(m_tree, 1, wxEXPAND | wxALL, 0);
     this->SetSizer(sizer);
     InitTreeIcons();
+    // T-310 / CMP-035：原型树按 12 DIP + surfaceOnPanel 底呈现（此前为系统默认字号）。
+    ApplyProjectTreeLook(m_tree);
     // 动态绑定：当 m_tree 触发 Item Activated 事件时，调用当前类的 OnItemActivated 函数
     m_tree->Bind(wxEVT_TREE_ITEM_ACTIVATED, &ProjectTreePanel::OnItemActivated, this);
 
     m_refreshTimer.SetOwner(this, ID_TREE_REFRESH_TIMER);
     Bind(wxEVT_TIMER, &ProjectTreePanel::OnRefreshTimer, this, ID_TREE_REFRESH_TIMER);
+
+    // T-140 / THE-030：构造末尾建立订阅 + 立即重施一次（首帧正确）。
+    // 回调只做取色 + Refresh(false)：不调 RefreshTree()/Layout()，不触达文件监视与业务路径。
+    m_themeSubscription = UiTheme::Subscribe([this] {
+        ReapplyTheme();
+        Refresh(false);
+    });
+    ReapplyTheme();
+}
+
+// T-140 / THE-030：面板级主题重施入口。只写回**已存在**的控件/树项颜色，
+// 不重建树、不动 m_projectRoot、不重新 AddWatchRecursive，也不做任何重布局。
+void ProjectTreePanel::ReapplyTheme()
+{
+    // 树 chrome：surfaceOnPanel 底 + text1 正文 + 字体档 + 8 DIP 缩进
+    ApplyProjectTreeLook(m_tree);
+
+    // 空状态占位项（ShowProjectTreeEmptyState 只写一次文字色，需要重施）。
+    if (m_tree && m_tree->GetRootItem().IsOk()) {
+        m_tree->SetItemTextColour(m_tree->GetRootItem(), UiTheme::Palette().text2);
+    }
 }
 
 ProjectTreePanel::~ProjectTreePanel()
@@ -118,18 +181,24 @@ bool ProjectTreePanel::IsGeneratedPath(const wxString& path) const
 
 void ProjectTreePanel::InitTreeIcons() {
 
-    wxSize sz = wxSize(24, 24);
+    // T-310 / PLT-001：图标与行高基准由硬编码 24px 改为 24 DIP。
+    const wxSize sz = m_tree->FromDIP(wxSize(24, 24));
     wxImageList* images = new wxImageList(sz.x, sz.y, true);
 
     // 添加图标（可以从艺术资源、图标文件或位图加载）
     // 这里的顺序要和上面的 enum 对应
-    auto GetIcon = [&](const wxString& path) {
+    auto GetIcon = [&](const wxString& relative, const wxBitmap& fallback) {
+        const wxString path = sigflow::platform::ResourcePath(relative);
         wxBitmapBundle bundle = wxBitmapBundle::FromSVGFile(path, sz);
-        return bundle.GetBitmap(sz);
-        };
+        return bundle.IsOk() ? bundle.GetBitmap(sz) : fallback;
+    };
 
-    images->Add(wxArtProvider::GetBitmap(wxART_FOLDER, wxART_OTHER, wxSize(24, 24))); // Folder 0
-    images->Add(wxArtProvider::GetBitmap(wxART_NORMAL_FILE, wxART_OTHER, wxSize(24, 24))); // File 1
+    // 不再使用平台黄色文件夹/文件图标；优先使用项目内单色 SVG，失败时
+    // 仍保留有效的原生 bitmap 回退，避免资源缺失导致空图标。
+    const wxBitmap folderFallback = wxArtProvider::GetBitmap(wxART_FOLDER, wxART_OTHER, sz);
+    const wxBitmap fileFallback = wxArtProvider::GetBitmap(wxART_NORMAL_FILE, wxART_OTHER, sz);
+    images->Add(GetIcon("res\\icons\\project.svg", folderFallback)); // Folder 0
+    images->Add(GetIcon("res\\svg_icons\\module.svg", fileFallback)); // File 1
     // 将图像列表交给树控件管理
     m_tree->AssignImageList(images);
     
@@ -176,11 +245,16 @@ void ProjectTreePanel::RefreshTree()
     m_refreshTimer.Stop();
     m_refreshPending = false;
 
-    if (m_projectRoot.IsEmpty() || !wxDirExists(m_projectRoot))
-        return;
-
     m_tree->Freeze();   // 防止闪烁
     m_tree->DeleteAllItems();
+
+    // T-310 / CMP-040：空状态（DES-015）——无工程根目录可展开时给一行说明，
+    // 不留纯空白。占位项无 FileTreeItemData，不触达打开文件/监视刷新等业务分支。
+    if (m_projectRoot.IsEmpty() || !wxDirExists(m_projectRoot)) {
+        ShowProjectTreeEmptyState(m_tree, "No project loaded \xE2\x80\x94 open a folder to browse its files.");
+        m_tree->Thaw();
+        return;
+    }
 
     wxTreeItemId rootId = m_tree->AddRoot(
         wxFileName(m_projectRoot).GetFullName(),

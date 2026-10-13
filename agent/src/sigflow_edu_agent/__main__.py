@@ -44,6 +44,9 @@ SELFTEST_MODES: tuple[str, ...] = (
     "wrong-protocol",
     "hang",
     "no-ready",
+    # AD-02：合法 ready + 坏 health，用来验证宿主不会在 health 通过前宣布就绪。
+    "bad-health",
+    "bad-health-protocol",
 )
 """Test-only fault-injection modes for the host controller's restart logic."""
 
@@ -218,9 +221,15 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             bootstrap.gateway_token,
             secrets=bootstrap.secrets,
         ),
-        model=ModelClient(),
+        model=ModelClient(secrets=bootstrap.secrets),
         secrets=bootstrap.secrets,
         stop_event=stop_event,
+        # TEST-ONLY：仅当显式选择坏 health 模式时才生效。
+        health_fault=(
+            args.selftest_fail
+            if args.selftest_fail in ("bad-health", "bad-health-protocol")
+            else None
+        ),
     )
     state = EduAgentState(config)
     try:

@@ -6,6 +6,8 @@
 
 namespace eda {
 namespace sim {
+// Non-mutating availability check using the same dependency discovery as build.
+bool CheckVerilatorToolchain(const std::filesystem::path& executable, std::string& reason);
 
 // P1-4：eda-sim-verilator 官方插件（第一增量：sim.build）。
 // 去 vcvars 硬编码与死 DLL；经 IProcessHost 调用 verilator。

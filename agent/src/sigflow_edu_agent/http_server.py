@@ -24,6 +24,8 @@ import json
 import logging
 import re
 import threading
+import time
+import secrets
 from dataclasses import dataclass, field
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -36,7 +38,7 @@ from .gateway_client import GatewayClient
 from .model_client import ModelClient, ModelStatus
 from .rules import Selection
 from .session import SessionRecord, SessionStore
-from .util import decimal, sanitize_message
+from .util import decimal, sanitize_message, contains_absolute_path, redact
 from .version import (
     AGENT_VERSION,
     LEVELS,
@@ -48,6 +50,8 @@ from .version import (
 LOGGER = logging.getLogger(__name__)
 
 MAX_BODY_BYTES: int = 1024 * 1024
+MAX_RESPONSE_BYTES = 2 * 1024 * 1024
+MAX_WORKERS = 16
 """Hard cap for a request body: 1 MiB, matching the EDA Gateway."""
 
 MAX_EVENT_PAGE: int = 500
@@ -84,6 +88,9 @@ class ServerConfig:
     model: Optional[ModelClient] = None
     secrets: tuple[str, ...] = ()
     stop_event: threading.Event = field(default_factory=threading.Event)
+    # TEST-ONLY（见 `--selftest-fail`）：让 /health 故意报坏，用来验证宿主
+    # "ready 之后必须再通过一次 health 才允许就绪"的门控。生产环境恒为 None。
+    health_fault: Optional[str] = None
 
 
 class EduAgentState:
@@ -121,7 +128,29 @@ class EduAgentServer(ThreadingHTTPServer):
 
     def __init__(self, address: tuple[str, int], state: EduAgentState) -> None:
         self.state = state
+        self._slots = threading.BoundedSemaphore(MAX_WORKERS)
         super().__init__(address, EduAgentRequestHandler)
+
+    def get_request(self):
+        sock, address = super().get_request()
+        sock.settimeout(40)
+        return sock, address
+
+    def process_request(self, request, client_address):
+        if not self._slots.acquire(blocking=False):
+            request.close()
+            return
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self._slots.release()
+            raise
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._slots.release()
 
 
 class EduAgentRequestHandler(BaseHTTPRequestHandler):
@@ -151,6 +180,20 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
     def _send_json(self, status: int, payload: Mapping[str, Any]) -> None:
         """Serialize and send one JSON response."""
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        # Last-line defence: untrusted rule/model/report strings must not echo
+        # bootstrap credentials or local paths, even through optional fields.
+        rendered = body.decode("utf-8")
+        if contains_absolute_path(rendered) or redact(rendered, self.state.config.secrets) != rendered:
+            status = 503
+            request_id, trace_id = self.state.next_ids()
+            body = json.dumps(failure_envelope(request_id, trace_id, "SERVICE_UNAVAILABLE",
+                                              "response rejected by privacy boundary", False)).encode("utf-8")
+        if len(body) > MAX_RESPONSE_BYTES:
+            status = 429
+            request_id, trace_id = self.state.next_ids()
+            body = json.dumps(failure_envelope(request_id, trace_id, "RESOURCE_EXHAUSTED",
+                                              "response exceeds 2 MiB", False)).encode("utf-8")
+        self.close_connection = True
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
@@ -217,6 +260,7 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
         """Run boundary checks, authentication and route matching."""
         try:
             self._check_host()
+            self._check_origin()
             path = urlsplit(self.path).path
             if method == "GET" and _ROUTE_HEALTH.match(path):
                 self._handle_health()
@@ -255,6 +299,8 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
             self._fail("NOT_FOUND", "status 404", 404)
         except AgentError as error:
             self._respond_error(error)
+        except OSError:
+            self._fail("SERVICE_UNAVAILABLE", "local persistence or transport unavailable", 503, True)
         except Exception as exc:  # pragma: no cover - defensive boundary
             LOGGER.exception("unhandled handler failure")
             self._fail(
@@ -268,17 +314,50 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
     def _check_host(self) -> None:
         """Reject a non-loopback Host header with 403 POLICY_DENIED."""
         raw = self.headers.get("Host", "")
-        hostname = raw.strip()
-        if hostname.startswith("["):
-            end = hostname.find("]")
-            hostname = hostname[: end + 1] if end >= 0 else hostname
-        elif ":" in hostname:
-            hostname = hostname.split(":", 1)[0]
-        if hostname not in _LOOPBACK_HOSTS:
+        try:
+            parts = urlsplit("http://" + raw)
+            valid = (parts.hostname in _LOOPBACK_HOSTS and not parts.username
+                     and not parts.password and not parts.path and not parts.query
+                     and not parts.fragment and (parts.port is None or 0 < parts.port < 65536))
+        except ValueError:
+            valid = False
+        if not valid:
             raise AgentError(
                 "POLICY_DENIED",
                 "Host header must be loopback",
                 http_status=403,
+            )
+
+    def _check_origin(self) -> None:
+        """AD-04: reject a non-loopback ``Origin`` header with 403 POLICY_DENIED.
+
+        A browser page on another origin must not be able to drive this service even
+        if it somehow learned the token.  An absent Origin (a native client such as
+        SigFlow itself) is allowed, matching the Gateway's boundary rule.
+        """
+        origin = self.headers.get("Origin", "").strip()
+        if not origin:
+            return
+        if origin.lower() == "null":
+            raise AgentError(
+                "POLICY_DENIED", "Origin header must be loopback", http_status=403
+            )
+        try:
+            parts = urlsplit(origin)
+        except ValueError:
+            raise AgentError(
+                "POLICY_DENIED", "Origin header must be loopback", http_status=403
+            )
+        hostname = (parts.hostname or "").lower()
+        try:
+            valid_port = parts.port is None or 0 < parts.port < 65536
+        except ValueError:
+            valid_port = False
+        if (parts.scheme not in ("http", "https") or hostname not in _LOOPBACK_HOSTS
+                or not valid_port or parts.username or parts.password
+                or parts.path or parts.query or parts.fragment):
+            raise AgentError(
+                "POLICY_DENIED", "Origin header must be loopback", http_status=403
             )
 
     def _check_auth(self) -> None:
@@ -309,6 +388,10 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
 
     def _read_json_body(self) -> Mapping[str, Any]:
         """Read, size-check, parse and type-check a JSON object body."""
+        if self.headers.get("Transfer-Encoding"):
+            raise AgentError("INVALID_ARGUMENT", "Transfer-Encoding is unsupported", http_status=400)
+        if len(self.headers.get_all("Content-Length", [])) > 1:
+            raise AgentError("INVALID_ARGUMENT", "duplicate Content-Length", http_status=400)
         raw_length = self.headers.get("Content-Length", "0")
         try:
             length = int(raw_length)
@@ -317,21 +400,25 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
         if length < 0:
             raise AgentError("INVALID_ARGUMENT", "invalid Content-Length", http_status=400)
         if length > MAX_BODY_BYTES:
+            self._drain(length)
             # Drain what the client already sent before answering: closing a
             # socket with unread request bytes can trigger an RST that destroys
             # the 413 response on the client side.
-            self._drain(length)
             raise AgentError(
                 "RESOURCE_EXHAUSTED",
                 "request body exceeds %d bytes" % MAX_BODY_BYTES,
                 http_status=413,
             )
         body = self.rfile.read(length) if length else b""
+        if length and self.headers.get("Content-Type", "").split(";", 1)[0].strip() != "application/json":
+            raise AgentError("INVALID_ARGUMENT", "Content-Type must be application/json", http_status=415)
+        if len(body) != length:
+            raise AgentError("INVALID_ARGUMENT", "incomplete request body", http_status=400)
         if not body:
             return {}
         try:
-            decoded = json.loads(body.decode("utf-8"))
-        except (ValueError, UnicodeDecodeError):
+            decoded = json.loads(body.decode("utf-8"), parse_constant=lambda value: (_ for _ in ()).throw(ValueError(value)))
+        except (ValueError, UnicodeDecodeError, RecursionError):
             raise AgentError("INVALID_ARGUMENT", "request body is not valid JSON", http_status=400)
         if not isinstance(decoded, Mapping):
             raise AgentError(
@@ -344,11 +431,18 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
     def _drain(self, length: int, chunk: int = 65536) -> None:
         """Consume an over-sized body (up to 8 MiB) so the response can be read."""
         remaining = min(length, 8 * MAX_BODY_BYTES)
-        while remaining > 0:
-            read = self.rfile.read(min(chunk, remaining))
-            if not read:
-                return
-            remaining -= len(read)
+        deadline = time.monotonic() + 0.25
+        self.connection.settimeout(0.05)
+        try:
+            while remaining > 0 and time.monotonic() < deadline:
+                data = self.rfile.read1(min(chunk, remaining))
+                if not data:
+                    break
+                remaining -= len(data)
+        except (OSError, TimeoutError):
+            pass
+        finally:
+            self.connection.settimeout(40)
 
     def _query(self) -> Mapping[str, list[str]]:
         """Return the parsed query string of the current request."""
@@ -358,11 +452,22 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
 
     def _handle_health(self) -> None:
         """``GET /api/v1/health`` — the only route that accepts an absent token."""
+        fault = self.state.config.health_fault
+        if fault == "bad-health":
+            # TEST-ONLY：进程写出了合法 ready，但服务实际不可用。
+            self._fail(
+                "SERVICE_UNAVAILABLE",
+                "selftest: health is intentionally broken",
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                True,
+            )
+            return
         status = self.state.model_status
         self._respond_data(
             HTTPStatus.OK,
             {
-                "protocol": PROTOCOL,
+                # TEST-ONLY：bad-health-protocol 用错误协议回答 200，验证宿主会拒绝。
+                "protocol": "edu.api.v0" if fault == "bad-health-protocol" else PROTOCOL,
                 "agent_version": self.state.config.agent_version,
                 "instance_id": self.state.config.instance_id,
                 "ready": True,
@@ -419,15 +524,9 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
                 "modes": modes,
                 "capabilities": capabilities,
                 "model": status.to_wire(),
-                "course": {
-                    "available": False,
-                    "reason": "v1 未内置课程库；课程引用由后续版本提供。",
-                },
                 "execution": {
                     "can_run_eda": False,
-                    "note": (
-                        "EDA 执行只能由 SigFlow 签发的 grant 触发；本服务不持有执行权限"
-                    ),
+                    "note": "v1 runs 不执行 EDA，也不持有工程执行权限。",
                 },
             },
         )
@@ -441,8 +540,12 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
             raise AgentError("INVALID_ARGUMENT", "project_id must be a non-empty string", http_status=400)
         if not isinstance(revision, str) or not revision.strip():
             raise AgentError("INVALID_ARGUMENT", "revision must be a non-empty string", http_status=400)
+        if not re.fullmatch(r"[A-Za-z0-9_-]{1,256}", project_id) or len(revision) > 256:
+            raise AgentError("INVALID_ARGUMENT", "project/revision identifier exceeds bounds", http_status=400)
         top = body.get("top")
         target = body.get("target")
+        if (top is not None and (not isinstance(top, str) or len(top) > 256)) or len(json.dumps(target).encode()) > 8192:
+            raise AgentError("INVALID_ARGUMENT", "top/target exceeds bounds", http_status=400)
         locale = body.get("locale") or "zh-CN"
         if not isinstance(locale, str):
             locale = "zh-CN"
@@ -483,13 +586,16 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
 
     def _handle_create_run(self, session_id: str) -> None:
         """``POST /api/v1/sessions/{sid}/runs``."""
-        session = self._require_session(session_id)
         body = self._read_json_body()
+        with self.state.sessions.lease(session_id) as session:
+            self._execute_run(session, body)
+
+    def _execute_run(self, session: SessionRecord, body: Mapping[str, Any]) -> None:
         request = self._parse_run_request(session, body)
         state_version = decimal(session.state_version + 1)
         outcome = self.state.dispatcher.dispatch(request, state_version)
         if outcome.error_code:
-            run = self.state.sessions.create_run(
+            run = self.state.sessions.commit_run(
                 session=session,
                 kind=request.kind,
                 level=request.level,
@@ -500,18 +606,13 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
                 error_code=outcome.error_code,
                 error_message=outcome.error_message,
             )
-            self.state.sessions.append_event(
-                session,
-                "run/failed",
-                {"run_id": run.run_id, "kind": request.kind, "code": outcome.error_code},
-            )
             raise AgentError(
                 outcome.error_code,
                 outcome.error_message or "run failed",
                 http_status=_status_for(outcome.error_code),
                 retryable=outcome.error_code in ("GATEWAY_UNAVAILABLE", "SERVICE_UNAVAILABLE"),
             )
-        run = self.state.sessions.create_run(
+        run = self.state.sessions.commit_run(
             session=session,
             kind=request.kind,
             level=request.level,
@@ -519,17 +620,6 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
             cards=outcome.cards,
             omitted=outcome.omitted,
             model_used=outcome.model_used,
-        )
-        self.state.sessions.append_event(
-            session,
-            "run/finished",
-            {
-                "run_id": run.run_id,
-                "kind": request.kind,
-                "level": request.level,
-                "state": outcome.state,
-                "card_count": len(outcome.cards),
-            },
         )
         self._respond_data(
             HTTPStatus.CREATED,
@@ -550,7 +640,7 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
         raw_after = self._query().get("after", [None])[0]
         cursor: Optional[int] = None
         if raw_after not in (None, ""):
-            if not str(raw_after).isdigit():
+            if not re.fullmatch(r"[0-9]{1,20}", str(raw_after)) or int(raw_after) > 2**64 - 1:
                 raise AgentError(
                     "INVALID_ARGUMENT",
                     "after must be a decimal cursor",
@@ -570,6 +660,8 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
                 "events": events,
                 "high_watermark": decimal(high),
                 "oldest_sequence": decimal(oldest),
+                "next_after": events[-1]["sequence"] if events else decimal(cursor or 0),
+                "has_more": bool(events and int(events[-1]["sequence"]) < high),
             },
         )
 
@@ -623,12 +715,10 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
                 "kind=report_review requires job_id",
                 http_status=400,
             )
-        if level == "L4" and not more:
+        if level == "L4":
             raise AgentError(
                 "POLICY_DENIED",
-                "L4 参考解采用两步放行策略：第一次请求只做引导讲解，"
-                "确认你已自行尝试后，再带 more=true 发起第二次请求；"
-                "本次响应不会包含任何参考答案。",
+                "L4 参考解必须经过可信两步确认；more 不构成授权。请使用受支持的教学动作。",
                 http_status=403,
             )
         return RunRequest(
@@ -639,6 +729,7 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
             more=more,
             top=session.top,
             revision=session.revision,
+            project_id=session.project_id,
         )
 
     def _parse_selection(self, raw: Any) -> Selection:
@@ -667,6 +758,11 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
                 )
         start_line = _optional_int(raw.get("start_line"), "selection.start_line")
         end_line = _optional_int(raw.get("end_line"), "selection.end_line")
+        if (start_line is not None and end_line is not None and end_line < start_line):
+            raise AgentError("INVALID_ARGUMENT", "end_line precedes start_line", http_status=400)
+        for value in (node_id, source_id):
+            if value is not None and (len(value) > 256 or not re.fullmatch(r"[A-Za-z0-9_-]+", value)):
+                raise AgentError("INVALID_ARGUMENT", "invalid evidence identifier", http_status=400)
         return Selection(
             text=text,
             node_id=node_id,

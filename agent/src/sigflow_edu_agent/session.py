@@ -16,12 +16,16 @@ from __future__ import annotations
 
 import threading
 import time
+import json
+from contextlib import contextmanager
+from copy import deepcopy
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from .util import decimal, iso_utc
 from .version import MAX_EVENTS_PER_SESSION, MAX_SESSIONS
+from .errors import AgentError
 
 
 @dataclass
@@ -50,8 +54,8 @@ class RunRecord:
             "level": self.level,
             "state": self.state,
             "state_version": decimal(self.state_version),
-            "cards": self.cards,
-            "omitted": self.omitted,
+            "cards": deepcopy(self.cards),
+            "omitted": deepcopy(self.omitted),
             "model_used": self.model_used,
         }
         if self.error_code:
@@ -78,6 +82,9 @@ class SessionRecord:
     runs: "OrderedDict[str, RunRecord]" = field(default_factory=OrderedDict)
     events: list[dict[str, Any]] = field(default_factory=list)
     sequence: int = 0
+    active_requests: int = 0
+    run_lock: Any = field(default_factory=threading.RLock, repr=False)
+    run_bytes: int = 0
 
     def to_wire(self) -> dict[str, Any]:
         """Render the session summary returned by the session routes."""
@@ -130,6 +137,12 @@ class SessionStore:
     ) -> SessionRecord:
         """Create a session, evicting the least recently used one if needed."""
         with self._lock:
+            if len(self._sessions) >= self._max_sessions:
+                victim = next((key for key, value in self._sessions.items()
+                               if value.active_requests == 0), None)
+                if victim is None:
+                    raise AgentError("RESOURCE_EXHAUSTED", "all sessions are busy", http_status=429)
+                del self._sessions[victim]
             self._next_session += 1
             session_id = "sess-%d" % self._next_session
             record = SessionRecord(
@@ -161,6 +174,36 @@ class SessionStore:
         while len(self._sessions) > self._max_sessions:
             self._sessions.popitem(last=False)
 
+    @contextmanager
+    def lease(self, session_id: str):
+        """Pin before waiting; serialize one session without holding the global lock."""
+        with self._lock:
+            record = self.get_session(session_id)
+            if record is None:
+                raise AgentError("NOT_FOUND", "unknown session", http_status=404)
+            record.active_requests += 1
+        try:
+            with record.run_lock:
+                yield record
+        finally:
+            with self._lock:
+                record.active_requests -= 1
+
+    def commit_run(self, session: SessionRecord, **fields: Any) -> RunRecord:
+        """Publish run, its cards and its completion event in one transaction."""
+        with self._lock:
+            if self._sessions.get(session.session_id) is not session:
+                raise AgentError("NOT_FOUND", "session expired", http_status=404)
+            record = self.create_run(session=session, **fields)
+            for card in record.cards:
+                card["state_version"] = decimal(record.state_version)
+            self.append_event(session, "run/failed" if record.error_code else "run/finished",
+                              {"run_id": record.run_id, "kind": record.kind,
+                               "level": record.level, "state": record.state,
+                               "state_version": decimal(record.state_version),
+                               "card_count": len(record.cards)})
+            return record
+
     # -- runs -------------------------------------------------------------
 
     def create_run(
@@ -177,6 +220,9 @@ class SessionStore:
     ) -> RunRecord:
         """Append a run to a session and return the stored record."""
         with self._lock:
+            size = len(json.dumps(cards, ensure_ascii=False).encode("utf-8"))
+            if size > 2 * 1024 * 1024 or session.state_version >= 2**64 - 1:
+                raise AgentError("RESOURCE_EXHAUSTED", "session/run budget exceeded", http_status=429)
             self._next_run += 1
             run_id = "run-%d" % self._next_run
             session.state_version += 1
@@ -195,8 +241,10 @@ class SessionStore:
                 created_at=iso_utc(),
             )
             session.runs[run_id] = record
-            while len(session.runs) > 64:
-                session.runs.popitem(last=False)
+            session.run_bytes += size
+            while len(session.runs) > 64 or session.run_bytes > 2 * 1024 * 1024:
+                _, removed = session.runs.popitem(last=False)
+                session.run_bytes -= len(json.dumps(removed.cards, ensure_ascii=False).encode("utf-8"))
             return record
 
     def get_run(self, run_id: str) -> Optional[RunRecord]:
@@ -257,4 +305,4 @@ class SessionStore:
                 for event in session.events
                 if int(event["sequence"]) > cursor
             ]
-            return events[:limit], high, oldest
+            return deepcopy(events[:limit]), high, oldest

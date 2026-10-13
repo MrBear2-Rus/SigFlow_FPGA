@@ -16,6 +16,7 @@
 
 #include "FpgaPinData.h"
 #include "FpgaConstraint.h"
+#include "FpgaTheme.h"   // T-140 / DEC-01：配色统一经 FPGA 适配层取 token（SAFE-012）
 
 class SigFlowTree;
 class MainFrame;
@@ -125,11 +126,16 @@ private:
     // 当前选中
     int m_selectedBindingIndex = -1;
 
+    // T-140 / THE-030：主题刷新 —— 重放登记表 + 订阅句柄，随本面板析构释放
+    FpgaTheme::RepaintActions m_repaint;
+    UiTheme::Subscription m_themeSub;
+
     // 布局
     wxBoxSizer* m_mainSizer;
     wxBoxSizer* m_portSectionSizer;
     wxBoxSizer* m_pinTableSectionSizer;
 
+    void ApplyTheme();
     void BuildUI();
     void RefreshBindingsList();
     void RefreshPinTable(const wxString& filter = "");
