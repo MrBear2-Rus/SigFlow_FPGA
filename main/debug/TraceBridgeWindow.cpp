@@ -1279,11 +1279,15 @@ void TraceBridgeWindow::BuildLeftPanel(wxPanel* left) {
     auto* progBox = new wxStaticBoxSizer(wxHORIZONTAL, left, wxT("采集进度"));
     progressGauge_ = new wxGauge(left, wxID_ANY, 100);
     progressGauge_->SetValue(0);
+    pauseCaptureButton_ = new wxButton(left, wxID_ANY, wxT("暂停"));
+    pauseCaptureButton_->Enable(false);
     cancelCaptureButton_ = new wxButton(left, wxID_ANY, wxT("取消"));
     cancelCaptureButton_->Enable(false);
     progBox->Add(progressGauge_, 1, wxALL | wxALIGN_CENTER_VERTICAL, 8);
+    progBox->Add(pauseCaptureButton_, 0, wxUP | wxDOWN | wxRIGHT | wxALIGN_CENTER_VERTICAL, 8);
     progBox->Add(cancelCaptureButton_, 0, wxUP | wxDOWN | wxRIGHT | wxALIGN_CENTER_VERTICAL, 8);
     root->Add(progBox, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 10);
+    pauseCaptureButton_->Bind(wxEVT_BUTTON, &TraceBridgeWindow::OnPauseCapture, this);
     cancelCaptureButton_->Bind(wxEVT_BUTTON, &TraceBridgeWindow::OnCancelCapture, this);
 
     // log list
@@ -1461,7 +1465,10 @@ void TraceBridgeWindow::SetCaptureResult(bool success, const wxString& message, 
     }
     progressGauge_->SetValue(success ? 100 : 0);
     startCaptureButton_->Enable(true);
+    pauseCaptureButton_->Enable(false);
+    pauseCaptureButton_->SetLabel(wxT("暂停"));
     cancelCaptureButton_->Enable(false);
+    captureRunService_.reset();
     stepperStatus_->SetLabel(message);
     if (success) {
         AddLog(TbLogTag::OK, message);
@@ -1507,7 +1514,10 @@ void TraceBridgeWindow::SetDebugWorkflowResult(bool success, const wxString& mes
     startCaptureButton_->Enable(true);
     buildDebugButton_->Enable(true);
     buildProgramCaptureButton_->Enable(true);
+    pauseCaptureButton_->Enable(false);
+    pauseCaptureButton_->SetLabel(wxT("暂停"));
     cancelCaptureButton_->Enable(false);
+    captureRunService_.reset();
     stepperStatus_->SetLabel(message);
     AddLog(success ? TbLogTag::OK : TbLogTag::ERR, message);
     if (success) pendingProbeBuild_ = false;
@@ -2506,6 +2516,7 @@ void TraceBridgeWindow::OnBuildProgramCapture(wxCommandEvent&) {
     }
     contract_ = request.contract;
     summaryCard_->UpdateFrom(contract_, contractFilePath_);
+    captureRunService_ = request.captureRequest.captureRunService;
 
     m_aborted->store(true);
     m_aborted = std::make_shared<std::atomic<bool>>(false);
@@ -2538,6 +2549,8 @@ void TraceBridgeWindow::OnBuildProgramCapture(wxCommandEvent&) {
     startCaptureButton_->Enable(false);
     buildDebugButton_->Enable(false);
     buildProgramCaptureButton_->Enable(false);
+    pauseCaptureButton_->Enable(captureRunService_ != nullptr);
+    pauseCaptureButton_->SetLabel(wxT("暂停"));
     cancelCaptureButton_->Enable(false);
     stepper_->Reset();
     stepper_->SetActive(1, wxT("一键流程已启动"));
@@ -2547,8 +2560,29 @@ void TraceBridgeWindow::OnBuildProgramCapture(wxCommandEvent&) {
 
 void TraceBridgeWindow::OnCancelCapture(wxCommandEvent&) {
     m_aborted->store(true);
+    if (captureRunService_) captureRunService_->Cancel();
     AddLog(TbLogTag::CANCEL, wxT("用户请求取消采集…"));
+    pauseCaptureButton_->Enable(false);
     cancelCaptureButton_->Enable(false);
+}
+
+void TraceBridgeWindow::OnPauseCapture(wxCommandEvent&) {
+    if (!captureRunService_) {
+        AddLog(TbLogTag::WR, wxT("当前采集没有可控的重复采集调度器。"));
+        pauseCaptureButton_->Enable(false);
+        return;
+    }
+    if (captureRunService_->IsPaused()) {
+        captureRunService_->Resume();
+        pauseCaptureButton_->SetLabel(wxT("暂停"));
+        stepperStatus_->SetLabel(wxT("已请求继续；将在安全边界恢复采集"));
+        AddLog(TbLogTag::INFO, wxT("已请求继续采集；当前 attempt 不会被打断。"));
+    } else {
+        captureRunService_->Pause();
+        pauseCaptureButton_->SetLabel(wxT("继续"));
+        stepperStatus_->SetLabel(wxT("已请求暂停；等待当前 attempt 安全结束"));
+        AddLog(TbLogTag::INFO, wxT("已请求暂停；不会中断当前 I/O 或重发 ARM。"));
+    }
 }
 
 void TraceBridgeWindow::OnOpenCaptureVcd(wxCommandEvent&) {
@@ -2978,6 +3012,7 @@ bool TraceBridgeWindow::BuildCaptureRequest(TraceBridgeCaptureRequest& request, 
         }
     }
     request.contract = contract_;
+    request.captureRunService = std::make_shared<sigflow::debug::CaptureRunService>();
     if (probeEditor_) {
         std::vector<sigflow::debug::DebugProbe> editedProbes;
         if (!ParseProbeEditor(probeEditor_->GetValue(), editedProbes, error)) return false;
@@ -3075,8 +3110,11 @@ void TraceBridgeWindow::OnStartCapture(wxCommandEvent&) {
     JoinWorkerIfAny();
     m_aborted->store(true);
     m_aborted = std::make_shared<std::atomic<bool>>(false);
+    captureRunService_ = request.captureRunService;
     progressGauge_->SetValue(0);
     startCaptureButton_->Enable(false);
+    pauseCaptureButton_->Enable(captureRunService_ != nullptr);
+    pauseCaptureButton_->SetLabel(wxT("暂停"));
     cancelCaptureButton_->Enable(true);
     openHwVcdButton_->Enable(false);
     compareSimButton_->Enable(false);

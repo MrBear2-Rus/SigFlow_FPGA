@@ -4064,11 +4064,12 @@ void MainFrame::RunTraceBridgeCapture(
             plan.attemptTimeoutMs = request.captureAttemptTimeoutMs;
             plan.interAttemptDelayMs = request.captureInterAttemptDelayMs;
 
-            sigflow::debug::CaptureRunService runService;
+            auto runService = request.captureRunService;
+            if (!runService) runService = std::make_shared<sigflow::debug::CaptureRunService>();
             sigflow::debug::DeviceControlLease deviceLease;
             sigflow::debug::CaptureRunResult runResult;
             std::string runError;
-            success = runService.Run(
+            success = runService->Run(
                 plan,
                 [&](const sigflow::debug::CaptureAttemptContext& context) {
                     sigflow::debug::CaptureAttemptResult attempt;

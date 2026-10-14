@@ -1,6 +1,7 @@
 #pragma once
 
 #include "DebugAcquisition.h"
+#include "CaptureRunService.h"
 #include "DebugBehaviorSummary.h"
 #include "DebugContract.h"
 #include "WaveformAligner.h"
@@ -49,6 +50,9 @@ struct TraceBridgeCaptureRequest {
     sigflow::debug::DebugAcquisitionOptions options;
     // Keep the cancellation flag alive through detached host capture workers.
     std::shared_ptr<std::atomic<bool>> abortOwner;
+    // Shared control plane for the host-side repeated capture scheduler.
+    // The GUI may request pause/resume without owning the worker thread.
+    std::shared_ptr<sigflow::debug::CaptureRunService> captureRunService;
 
     // Host-side capture plan. Defaults preserve the existing single-shot UX;
     // the fields are intentionally carried in the request so a future plan
@@ -146,6 +150,7 @@ private:
     void OnBuildDebugBitstream(wxCommandEvent&);
     void OnBuildProgramCapture(wxCommandEvent&);
     void OnCancelCapture(wxCommandEvent&);
+    void OnPauseCapture(wxCommandEvent&);
     void OnOpenCaptureVcd(wxCommandEvent&);
     void OnCompareSimVcd(wxCommandEvent&);
     void OnGenerateReplay(wxCommandEvent&);
@@ -193,6 +198,7 @@ private:
     // 线程相关
     std::unique_ptr<std::thread> worker_;
     std::shared_ptr<std::atomic<bool>> m_aborted = std::make_shared<std::atomic<bool>>(false);
+    std::shared_ptr<sigflow::debug::CaptureRunService> captureRunService_;
 
     // T-140 / THE-030：主题刷新（THE-028：订阅句柄析构即解绑）
     UiTheme::Subscription themeSubscription_;
@@ -214,6 +220,7 @@ private:
     wxButton* monitorSummaryButton_ = nullptr;
     wxButton* impactReportButton_ = nullptr;
     wxButton* evidenceReportButton_ = nullptr;
+    wxButton* pauseCaptureButton_ = nullptr;
     wxButton* cancelCaptureButton_ = nullptr;
     wxButton* openHwVcdButton_ = nullptr;
     wxButton* compareSimButton_ = nullptr;
