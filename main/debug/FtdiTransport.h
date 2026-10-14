@@ -2,6 +2,7 @@
 #include "ITransport.h"
 #include <cstdint>
 #include <memory>
+#include <vector>
 #include <string>
 
 namespace sigflow {
@@ -33,6 +34,12 @@ public:
     std::size_t Read(std::uint8_t* data, std::size_t size, int timeoutMs) override;
     bool Write(const std::uint8_t* data, std::size_t size, int timeoutMs) override;
     void DiscardInput() override;
+
+    // Apply the board adapter's documented stream rule without requiring a
+    // USB device.  Only injected 0x11 bytes outside 0x00 frame delimiters are
+    // removed; every byte inside a frame is preserved verbatim.
+    static std::vector<std::uint8_t> FilterStreamBytes(
+        const std::vector<std::uint8_t>& incoming, bool& inFrame);
 
     // 本构建是否带 libftdi 支持；以及目标设备是否真的存在。
     static bool IsSupported();

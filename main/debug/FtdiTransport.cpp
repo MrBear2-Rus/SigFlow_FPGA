@@ -13,6 +13,31 @@
 namespace sigflow {
 namespace debug {
 
+namespace {
+// 协议帧是 0x00 ... 0x00 定界；实测 BL702 会在流里注入 0x11 状态字节。
+// 只丢弃【帧外】的 0x11，帧内字节一律保留（COBS 帧里 0x11 可能是合法数据）。
+constexpr std::uint8_t kDelimiter = 0x00;
+constexpr std::uint8_t kInjectedStatus = 0x11;
+} // namespace
+
+std::vector<std::uint8_t> FtdiTransport::FilterStreamBytes(
+    const std::vector<std::uint8_t>& incoming, bool& inFrame)
+{
+    std::vector<std::uint8_t> filtered;
+    filtered.reserve(incoming.size());
+    for (const std::uint8_t byte : incoming) {
+        if (byte == kDelimiter) {
+            inFrame = !inFrame;
+            filtered.push_back(byte);
+        } else if (byte == kInjectedStatus && !inFrame) {
+            continue;
+        } else {
+            filtered.push_back(byte);
+        }
+    }
+    return filtered;
+}
+
 #if !defined(SIGFLOW_HAVE_LIBFTDI)
 
 // 本构建没有 libftdi：该传输层不可用，调用方回退到串口传输层。
@@ -30,13 +55,6 @@ bool FtdiTransport::IsSupported() { return false; }
 bool FtdiTransport::IsDevicePresent(std::uint16_t, std::uint16_t) { return false; }
 
 #else
-
-namespace {
-// 协议帧是 0x00 ... 0x00 定界；实测 BL702 会在流里注入 0x11 状态字节。
-// 只丢弃【帧外】的 0x11，帧内字节一律保留（COBS 帧里 0x11 可能是合法数据）。
-constexpr std::uint8_t kDelimiter = 0x00;
-constexpr std::uint8_t kInjectedStatus = 0x11;
-} // namespace
 
 struct FtdiTransport::Impl {
     ftdi_context* ctx = nullptr;
@@ -114,16 +132,10 @@ std::size_t FtdiTransport::Read(std::uint8_t* data, std::size_t size, int timeou
         if (got < 0) return 0;              // 出错/断连
         if (got == 0) continue;
 
-        for (int i = 0; i < got; ++i) {
-            const std::uint8_t b = buf[i];
-            if (b == kDelimiter) {
-                impl_->inFrame = !impl_->inFrame;   // 定界符：帧内/帧外切换
-                impl_->pending.push_back(b);
-            } else if (b == kInjectedStatus && !impl_->inFrame) {
-                continue;                            // 帧外状态字节：丢弃
-            } else {
-                impl_->pending.push_back(b);
-            }
+        const std::vector<std::uint8_t> incoming(buf, buf + got);
+        const auto filtered = FilterStreamBytes(incoming, impl_->inFrame);
+        for (const std::uint8_t byte : filtered) {
+            impl_->pending.push_back(byte);
         }
     }
 
