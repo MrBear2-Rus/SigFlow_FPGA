@@ -2137,9 +2137,25 @@ void TraceBridgeWindow::OnOpenEvidenceReport(wxCommandEvent&)
     if (sourcePath.is_relative() && !projectPath_.IsEmpty()) {
         sourcePath = std::filesystem::path(ToUtf8(projectPath_)) / sourcePath;
     }
-    const bool mappingPathAvailable = !location.sourcePath.empty() &&
-                                      location.sourceLine > 0 &&
-                                      std::filesystem::is_regular_file(sourcePath);
+    bool mappingPathAvailable = !location.sourcePath.empty() &&
+                                location.sourceLine > 0 &&
+                                std::filesystem::is_regular_file(sourcePath);
+    std::string mappingStatus = mappingPathAvailable ? "文件存在" : "不可验证/已过期";
+    if (mappingPathAvailable) {
+        std::ifstream source(sourcePath, std::ios::binary);
+        if (!source) {
+            mappingPathAvailable = false;
+            mappingStatus = "文件不可读";
+        } else {
+            std::string line;
+            std::int64_t lineNumber = 0;
+            while (lineNumber < location.sourceLine && std::getline(source, line)) ++lineNumber;
+            if (lineNumber < location.sourceLine) {
+                mappingPathAvailable = false;
+                mappingStatus = "行号超出当前文件范围";
+            }
+        }
+    }
 
     std::ostringstream details;
     details << header.str() << "\n\n候选详情\n"
@@ -2153,7 +2169,7 @@ void TraceBridgeWindow::OnOpenEvidenceReport(wxCommandEvent&)
             << " | width: " << location.width << "\n"
             << "源码映射: " << (location.sourcePath.empty() ? "未提供" : location.sourcePath);
     if (location.sourceLine > 0) details << ":" << location.sourceLine;
-    details << "\n映射路径检查: " << (mappingPathAvailable ? "文件存在" : "不可验证/已过期") << "\n";
+    details << "\n映射路径检查: " << mappingStatus << "\n";
     if (!candidate.supportingEvidence.empty()) {
         details << "\n支持证据:\n";
         for (const auto& item : candidate.supportingEvidence) details << "- " << item << "\n";
