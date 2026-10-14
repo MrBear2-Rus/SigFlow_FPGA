@@ -17,6 +17,7 @@
 #include "TraceBridgeRecovery.h"
 #include "TraceBridgeTemplateCatalog.h"
 #include "MonitorSummary.h"
+#include "InstrumentationImpact.h"
 #include "DeviceControl.h"
 #include "ProbePlanningService.h"
 #include "../fpga/FpgaConstraint.h"
@@ -1238,6 +1239,13 @@ void TraceBridgeWindow::BuildLeftPanel(wxPanel* left) {
         guidanceBox->Add(templateHelpButton_, 0, wxTOP | wxBOTTOM | wxRIGHT, 4);
         guidanceBox->Add(monitorSummaryButton_, 0, wxTOP | wxBOTTOM | wxRIGHT, 4);
         v->Add(guidanceBox, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 10);
+        auto* impactBox = new wxStaticBoxSizer(wxHORIZONTAL, wrap, wxT("构建影响与门禁"));
+        impactReportButton_ = new wxButton(wrap, wxID_ANY, wxT("打开影响报告…"));
+        impactBox->Add(impactReportButton_, 0, wxALL, 4);
+        impactBox->Add(new wxStaticText(wrap, wxID_ANY,
+                                        wxT("只读取已有基线/调试构建报告，不触发重构建。")),
+                       0, wxALL | wxALIGN_CENTER_VERTICAL, 4);
+        v->Add(impactBox, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 10);
         v->AddStretchSpacer();
         wrap->SetSizer(v);
         nb->AddPage(wrap, wxT("1 契约"), true);
@@ -1247,6 +1255,7 @@ void TraceBridgeWindow::BuildLeftPanel(wxPanel* left) {
         recoveryPlanButton_->Bind(wxEVT_BUTTON, &TraceBridgeWindow::OnShowRecoveryPlan, this);
         templateHelpButton_->Bind(wxEVT_BUTTON, &TraceBridgeWindow::OnShowTemplateHelp, this);
         monitorSummaryButton_->Bind(wxEVT_BUTTON, &TraceBridgeWindow::OnOpenMonitorSummary, this);
+        impactReportButton_->Bind(wxEVT_BUTTON, &TraceBridgeWindow::OnOpenImpactReport, this);
     }
     // Tab 2 : Runtime
     {
@@ -1978,6 +1987,81 @@ void TraceBridgeWindow::OnOpenMonitorSummary(wxCommandEvent&)
            "不会启动/暂停监控、修改状态或执行清理。";
     ShowTraceBridgeDetails(this, wxT("监控现场"), ToWxString(out.str()));
     AddLog(TbLogTag::INFO, wxT("已加载监控现场：") + dialog.GetPath());
+}
+
+void TraceBridgeWindow::OnOpenImpactReport(wxCommandEvent&)
+{
+    wxFileDialog dialog(this, wxT("选择 TraceBridge 构建影响报告"), projectPath_,
+                       wxEmptyString,
+                       wxT("Impact JSON (*.json)|*.json|All files (*.*)|*.*"),
+                       wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+    if (dialog.ShowModal() != wxID_OK) return;
+
+    sigflow::debug::InstrumentationImpactReport report;
+    std::string error;
+    if (!sigflow::debug::LoadInstrumentationImpactReportFromJson(
+            ToUtf8(dialog.GetPath()), report, error)) {
+        AddLog(TbLogTag::ERR, wxT("读取构建影响报告失败：") + ToWxString(error));
+        wxMessageBox(ToWxString(error), wxT("构建影响"), wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    std::ostringstream out;
+    out << "TraceBridge 构建影响与门禁\n"
+        << "可比性: " << sigflow::debug::ToString(report.comparability)
+        << " | source changed: " << (report.sourceChanged ? "是" : "否")
+        << " | seed changed: " << (report.seedChanged ? "是" : "否") << "\n"
+        << "门禁: " << (report.gate.pass ? "PASS" : "BLOCKED")
+        << " | override: " << (report.gate.overridden ? "是" : "否") << "\n";
+    if (!report.gate.overrideId.empty()) {
+        out << "放行 ID: " << report.gate.overrideId << "\n"
+            << "放行理由: " << report.gate.overrideReason << "\n";
+    }
+    if (!report.blockingDifferences.empty()) {
+        out << "\n阻断差异:\n";
+        for (const auto& item : report.blockingDifferences) out << "- " << item << "\n";
+    }
+    if (!report.allowedDifferences.empty()) {
+        out << "\n允许差异:\n";
+        for (const auto& item : report.allowedDifferences) out << "- " << item << "\n";
+    }
+    out << "\n资源增量:\n";
+    if (report.resources.empty()) out << "- 无资源数据\n";
+    for (const auto& item : report.resources) {
+        out << "- " << item.normalizedName << ": "
+            << item.baselineUsed << " -> " << item.instrumentedUsed
+            << " (delta=" << item.absoluteDelta;
+        if (item.relativeAvailable) {
+            out << ", relative=" << std::fixed << std::setprecision(2)
+                << (item.relativeDelta * 100.0) << "%";
+        } else {
+            out << ", relative=N/A";
+        }
+        out << ")";
+        if (!item.diagnostic.empty()) out << " [" << item.diagnostic << "]";
+        out << "\n";
+    }
+    out << "\n时序:\n";
+    if (report.timing.empty()) out << "- 无时序数据\n";
+    for (const auto& item : report.timing) {
+        out << "- " << item.domain << ": baseline=";
+        if (item.baselineAvailable) out << item.baselineMHz << " MHz";
+        else out << "N/A";
+        out << ", instrumented=";
+        if (item.instrumentedAvailable) out << item.instrumentedMHz << " MHz";
+        else out << "N/A";
+        out << ", pass=" << (item.instrumentedPassed ? "是" : "否");
+        if (!item.diagnostic.empty()) out << " [" << item.diagnostic << "]";
+        out << "\n";
+    }
+    if (!report.gate.reasons.empty()) {
+        out << "\n门禁原因:\n";
+        for (const auto& reason : report.gate.reasons) out << "- " << reason << "\n";
+    }
+    out << "\n说明: 该页面只加载已生成的 impact JSON，不把缓存命中当作新实测，"
+           "也不会自动放行不可比构建。";
+    ShowTraceBridgeDetails(this, wxT("构建影响与门禁"), ToWxString(out.str()));
+    AddLog(TbLogTag::INFO, wxT("已加载构建影响报告：") + dialog.GetPath());
 }
 
 void TraceBridgeWindow::OnPlanProbes(wxCommandEvent&) {

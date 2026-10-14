@@ -162,4 +162,11 @@ void AnalyzeInstrumentationRisks(
 
 std::string GenerateInstrumentationImpactJson(const InstrumentationImpactReport& report);
 
+// Load a previously generated impact report for read-only UI/reporting.  The
+// loader does not recompute deltas or relax comparability and gate decisions.
+bool LoadInstrumentationImpactReportFromJson(
+    const std::string& path,
+    InstrumentationImpactReport& out,
+    std::string& error);
+
 } // namespace sigflow::debug

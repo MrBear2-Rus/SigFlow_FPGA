@@ -415,6 +415,115 @@ std::string GenerateInstrumentationImpactJson(const InstrumentationImpactReport&
     return Json::writeString(writer, root) + "\n";
 }
 
+bool LoadInstrumentationImpactReportFromJson(
+    const std::string& path,
+    InstrumentationImpactReport& out,
+    std::string& error)
+{
+    error.clear();
+    out = InstrumentationImpactReport();
+    std::ifstream input(path, std::ios::binary);
+    if (!input) {
+        error = "unable to open instrumentation impact report: " + path;
+        return false;
+    }
+    Json::Value root;
+    Json::CharReaderBuilder reader;
+    if (!Json::parseFromStream(reader, input, &root, &error) || !root.isObject()) {
+        if (error.empty()) error = "instrumentation impact report is not an object";
+        return false;
+    }
+    if (root.get("schema_version", "").asString() != "1.0" ||
+        !root["comparability"].isString() || !root["resources"].isArray() ||
+        !root["timing"].isArray() || !root["gate"].isObject()) {
+        error = "unsupported or incomplete instrumentation impact report schema";
+        return false;
+    }
+    out.schemaVersion = root["schema_version"].asString();
+    const std::string comparability = root["comparability"].asString();
+    if (comparability == "comparable") out.comparability = InstrumentationComparability::Comparable;
+    else if (comparability == "observation_only") out.comparability = InstrumentationComparability::ObservationOnly;
+    else if (comparability == "not_comparable") out.comparability = InstrumentationComparability::NotComparable;
+    else {
+        error = "unknown instrumentation comparability: " + comparability;
+        return false;
+    }
+    out.sourceChanged = root.get("source_changed", false).asBool();
+    out.seedChanged = root.get("seed_changed", false).asBool();
+    auto readStrings = [](const Json::Value& value, std::vector<std::string>& target) {
+        if (!value.isArray()) return false;
+        target.clear();
+        for (const auto& item : value) {
+            if (!item.isString()) return false;
+            target.push_back(item.asString());
+        }
+        return true;
+    };
+    if (!readStrings(root["blocking_differences"], out.blockingDifferences) ||
+        !readStrings(root["allowed_differences"], out.allowedDifferences)) {
+        error = "instrumentation impact differences must be string arrays";
+        return false;
+    }
+    for (const auto& value : root["resources"]) {
+        if (!value.isObject() || !value["normalized_name"].isString() ||
+            !value["baseline_key"].isString() || !value["instrumented_key"].isString() ||
+            !value["baseline_used"].isUInt64() || !value["instrumented_used"].isUInt64() ||
+            !value["capacity"].isUInt64() || !value["absolute_delta"].isInt64() ||
+            !value["available"].isBool() || !value["relative_available"].isBool() ||
+            !value["relative_delta"].isNumeric() || !value["diagnostic"].isString()) {
+            error = "invalid instrumentation resource delta";
+            return false;
+        }
+        InstrumentationResourceDelta item;
+        item.normalizedName = value["normalized_name"].asString();
+        item.baselineKey = value["baseline_key"].asString();
+        item.instrumentedKey = value["instrumented_key"].asString();
+        item.baselineUsed = value["baseline_used"].asUInt64();
+        item.instrumentedUsed = value["instrumented_used"].asUInt64();
+        item.capacity = value["capacity"].asUInt64();
+        item.absoluteDelta = value["absolute_delta"].asInt64();
+        item.available = value["available"].asBool();
+        item.relativeAvailable = value["relative_available"].asBool();
+        item.relativeDelta = value["relative_delta"].asDouble();
+        item.diagnostic = value["diagnostic"].asString();
+        out.resources.push_back(std::move(item));
+    }
+    for (const auto& value : root["timing"]) {
+        if (!value.isObject() || !value["domain"].isString() ||
+            !value["target_mhz"].isNumeric() || !value["baseline_mhz"].isNumeric() ||
+            !value["instrumented_mhz"].isNumeric() ||
+            !value["baseline_available"].isBool() || !value["instrumented_available"].isBool() ||
+            !value["baseline_passed"].isBool() || !value["instrumented_passed"].isBool() ||
+            !value["diagnostic"].isString()) {
+            error = "invalid instrumentation timing delta";
+            return false;
+        }
+        InstrumentationTimingDelta item;
+        item.domain = value["domain"].asString();
+        item.targetMHz = value["target_mhz"].asDouble();
+        item.baselineMHz = value["baseline_mhz"].asDouble();
+        item.instrumentedMHz = value["instrumented_mhz"].asDouble();
+        item.baselineAvailable = value["baseline_available"].asBool();
+        item.instrumentedAvailable = value["instrumented_available"].asBool();
+        item.baselinePassed = value["baseline_passed"].asBool();
+        item.instrumentedPassed = value["instrumented_passed"].asBool();
+        item.diagnostic = value["diagnostic"].asString();
+        out.timing.push_back(std::move(item));
+    }
+    const Json::Value& gate = root["gate"];
+    if (!gate["pass"].isBool() || !gate["overridden"].isBool() ||
+        !gate["override_id"].isString() || !gate["override_reason"].isString() ||
+        !readStrings(gate["reasons"], out.gate.reasons)) {
+        error = "invalid instrumentation gate decision";
+        return false;
+    }
+    out.gate.pass = gate["pass"].asBool();
+    out.gate.overridden = gate["overridden"].asBool();
+    out.gate.overrideId = gate["override_id"].asString();
+    out.gate.overrideReason = gate["override_reason"].asString();
+    return true;
+}
+
 void AnalyzeInstrumentationRisks(
     const InstrumentationImpactReport& report,
     const std::vector<InstrumentationRiskHint>& hints,
