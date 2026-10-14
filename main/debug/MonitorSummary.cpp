@@ -140,6 +140,9 @@ bool MonitorSummaryService::Load(const std::string& manifestPath,
     if (events) {
         std::deque<MonitorEvent> recent;
         std::string line;
+        bool haveCoverage = false;
+        std::uint64_t firstMonotonic = 0;
+        std::uint64_t lastMonotonic = 0;
         while (std::getline(events, line)) {
             if (line.empty()) continue;
             Json::Value value;
@@ -148,9 +151,18 @@ bool MonitorSummaryService::Load(const std::string& manifestPath,
             MonitorEvent event;
             if (!Json::parseFromStream(reader, stream, &value, &parseError) ||
                 !ParseEvent(value, event)) continue;
+            ++summary.eventCount;
+            if (!haveCoverage) {
+                haveCoverage = true;
+                firstMonotonic = event.monotonicMs;
+                summary.coverageStartUtc = event.observedAtUtc;
+            }
+            if (event.monotonicMs >= lastMonotonic) lastMonotonic = event.monotonicMs;
+            summary.coverageEndUtc = event.observedAtUtc;
             recent.push_back(std::move(event));
             while (recent.size() > maxEvents) recent.pop_front();
         }
+        if (haveCoverage) summary.eventSpanMs = lastMonotonic - firstMonotonic;
         summary.recentEvents.assign(recent.begin(), recent.end());
     } else {
         summary.diagnostics.push_back("monitor events.jsonl is missing");

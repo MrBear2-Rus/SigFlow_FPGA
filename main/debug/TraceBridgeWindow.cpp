@@ -1772,6 +1772,22 @@ void TraceBridgeWindow::OnOpenCaptureWizard(wxCommandEvent&)
     input.captureComplete = !lastCaptureHwVcd_.IsEmpty();
     input.resultReady = !lastCaptureHwVcd_.IsEmpty();
 
+    // The wizard remains read-only, but it can consume the same offline
+    // contract/probe diagnostics as the real build entry.  This keeps a
+    // blocked contract visible at the correct wizard step without opening a
+    // device or starting a capture.
+    sigflow::debug::PreflightInput preflightInput;
+    preflightInput.contract = &contract_;
+    preflightInput.offlineOnly = true;
+    auto preflight = sigflow::debug::MakeTraceBridgePreflightRegistry();
+    sigflow::debug::PreflightReport preflightReport;
+    std::string preflightError;
+    if (preflight.Run(preflightInput, preflightReport, preflightError)) {
+        input.issues = preflightReport.issues;
+    } else if (!preflightError.empty()) {
+        AddLog(TbLogTag::WR, wxT("首次采集向导离线预检未完成：") + ToWxString(preflightError));
+    }
+
     sigflow::debug::TraceBridgeCaptureWizardPlan plan;
     std::string error;
     if (!sigflow::debug::TraceBridgeCaptureWizardService::Build(input, plan, error)) {
@@ -1955,7 +1971,13 @@ void TraceBridgeWindow::OnOpenMonitorSummary(wxCommandEvent&)
         << " | 更新时间: " << summary.checkpoint.updatedAtUtc << "\n"
         << "事件日志: " << (summary.eventLogValid ? "有效" : "存在问题")
         << " | 最近事件: " << summary.recentEvents.size() << "\n"
+        << "覆盖现场: " << summary.eventCount << " 个有效事件"
+        << "，单调时间跨度 " << summary.eventSpanMs << " ms\n"
         << "监控目录大小: " << mb(summary.totalBytes) << "\n";
+    if (!summary.coverageStartUtc.empty()) {
+        out << "覆盖起止: " << summary.coverageStartUtc
+            << " -> " << summary.coverageEndUtc << "\n";
+    }
     if (summary.storageSampled) {
         out << "存储可用: " << mb(summary.storage.availableBytes)
             << " / 容量 " << mb(summary.storage.capacityBytes) << "\n";
@@ -2104,13 +2126,29 @@ void TraceBridgeWindow::OnOpenEvidenceReport(wxCommandEvent&)
     }
 
     std::ostringstream header;
+    std::size_t observed = 0;
+    std::size_t unobserved = 0;
+    std::size_t unknown = 0;
+    std::size_t missingEvidence = 0;
+    for (const auto& candidate : report.candidates) {
+        switch (candidate.observation) {
+            case sigflow::debug::EvidenceObservationState::Observed: ++observed; break;
+            case sigflow::debug::EvidenceObservationState::Unobserved: ++unobserved; break;
+            case sigflow::debug::EvidenceObservationState::Unknown: ++unknown; break;
+        }
+        if (!candidate.missingEvidence.empty()) ++missingEvidence;
+    }
     header << "首因证据报告\n"
            << "capture: " << report.captureId << "\n"
            << "analysis: " << report.analysisId << "\n"
            << "first difference: " << report.firstDifferenceSignal << "\n"
            << "input fingerprint: " << report.inputFingerprint << "\n"
            << "rules: " << report.rulesVersion << " / analyzer: " << report.analyzerVersion
-           << "\n\n候选数量: " << report.candidates.size();
+           << "\n\n候选数量: " << report.candidates.size()
+           << " | observed=" << observed
+           << " | unobserved=" << unobserved
+           << " | unknown=" << unknown
+           << " | 含缺失条件=" << missingEvidence;
     if (report.candidates.empty()) {
         ShowTraceBridgeDetails(this, wxT("首因证据"), ToWxString(header.str()));
         AddLog(TbLogTag::WR, wxT("首因证据报告没有候选项：") + dialog.GetPath());
@@ -2301,6 +2339,22 @@ void TraceBridgeWindow::OnPlanProbes(wxCommandEvent&) {
         wxString text = wxString::Format(wxT("预算 %zu/%zu bits；%s；%s\n"), plan.usedBits, plan.capacityBits,
             plan.feasible ? wxT("必选项满足") : wxT("存在必选缺口"),
             plan.requiresNewBuild ? wxT("应用后需要重新构建并下载") : wxT("未新增探针"));
+        std::map<std::string, std::pair<std::size_t, std::size_t>> groups;
+        for (const auto& entry : plan.entries) {
+            const std::string domain = entry.clockDomain.empty() ? "<unknown-clock>" : entry.clockDomain;
+            const std::string kind = entry.kind.empty() ? "auxiliary" : entry.kind;
+            const std::string group = domain + "/" + kind;
+            auto& counts = groups[group];
+            ++counts.first;
+            if (entry.selected) counts.second += entry.width;
+        }
+        if (!groups.empty()) {
+            text += wxT("分组摘要（时钟域/主题）:\n");
+            for (const auto& [group, counts] : groups) {
+                text += wxString::Format(wxT("- %s: %zu 项，已选 %zu bits\n"),
+                                         ToWxString(group), counts.first, counts.second);
+            }
+        }
         for (const auto& diagnostic : plan.diagnostics) text += ToWxString(diagnostic) + wxT("\n");
         summary->SetValue(text);
         apply->Enable(plan.feasible && plan.requiresNewBuild);

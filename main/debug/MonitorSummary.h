@@ -29,6 +29,10 @@ struct MonitorSummary {
     MonitorStorageSample storage;
     bool storageSampled = false;
     bool eventLogValid = false;
+    std::uint64_t eventCount = 0;
+    std::uint64_t eventSpanMs = 0;
+    std::string coverageStartUtc;
+    std::string coverageEndUtc;
     std::uint64_t totalBytes = 0;
     std::vector<std::string> diagnostics;
 };

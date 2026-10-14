@@ -193,6 +193,19 @@ bool TraceViewPanel::InjectProtocolEventReport(const ProtocolEventReport& report
     InjectProtocolEvents(report.transactions);
     m_lastProtocolReport = report;
     m_hasProtocolReport = true;
+    std::size_t valid = 0;
+    for (const auto& transaction : report.transactions) {
+        if (transaction.valid) ++valid;
+    }
+    std::ostringstream status;
+    status << "Protocol " << report.transactions.size() << " event(s), "
+           << valid << " valid"
+           << " | capture=" << report.captureId
+           << " | time=" << report.timeDomain;
+    if (!report.diagnostics.empty()) {
+        status << " | diagnostics=" << report.diagnostics.size();
+    }
+    m_measureLabel->SetLabel(wxString::FromUTF8(status.str()));
     return true;
 }
 
