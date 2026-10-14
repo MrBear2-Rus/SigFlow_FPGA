@@ -2067,6 +2067,19 @@ void TraceBridgeWindow::OnOpenImpactReport(wxCommandEvent&)
         out << "\n门禁原因:\n";
         for (const auto& reason : report.gate.reasons) out << "- " << reason << "\n";
     }
+    std::vector<sigflow::debug::InstrumentationRisk> risks;
+    sigflow::debug::AnalyzeInstrumentationRisks(report, {}, risks);
+    out << "\n风险提示:\n";
+    if (risks.empty()) {
+        out << "- 当前报告没有可由已保存信息确认的构建/门禁风险；信号级风险仍需带网表证据的分析输入。\n";
+    } else {
+        for (const auto& risk : risks) {
+            out << "- [" << sigflow::debug::ToString(risk.level) << "] "
+                << risk.signal
+                << (risk.evidenceBacked ? " (有证据)" : " (待补证据)") << "\n";
+            for (const auto& reason : risk.reasons) out << "  · " << reason << "\n";
+        }
+    }
     out << "\n说明: 该页面只加载已生成的 impact JSON，不把缓存命中当作新实测，"
            "也不会自动放行不可比构建。";
     ShowTraceBridgeDetails(this, wxT("构建影响与门禁"), ToWxString(out.str()));
