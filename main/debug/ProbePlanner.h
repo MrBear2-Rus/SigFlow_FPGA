@@ -34,6 +34,9 @@ struct ProbePlanEntry {
     std::string reason;
     std::string kind;
     std::string clockDomain;
+    // Stable host-side grouping key.  It does not imply a new bitstream;
+    // callers use it to distinguish topic/domain display groups.
+    std::string groupKey;
     std::uint32_t width = 0;
     int priority = 0;
     bool required = false;

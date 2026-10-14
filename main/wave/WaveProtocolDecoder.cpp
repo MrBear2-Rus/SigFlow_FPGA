@@ -200,11 +200,16 @@ bool DecodeUart(TraceSource& source, const UartDecodeConfig& config,
             event.startTime = transition.time;
             std::uint64_t data = 0;
             bool valid = true;
+            bool truncated = false;
             std::ostringstream detail;
             for (unsigned bit = 0; bit < config.dataBits; ++bit) {
                 if (CheckCancelled(config.options, error)) return false;
                 TimeValue sample = 0;
-                if (!AddOffset(transition.time, (1.5L + bit) * bitTicks, end, sample)) { valid = false; break; }
+                if (!AddOffset(transition.time, (1.5L + bit) * bitTicks, end, sample)) {
+                    valid = false;
+                    truncated = true;
+                    break;
+                }
                 bool value = false;
                 if (!BitAt(source, *signal, sample, value, error)) return false;
                 if (config.invert) value = !value;
@@ -213,27 +218,39 @@ bool DecodeUart(TraceSource& source, const UartDecodeConfig& config,
             bool parityBit = false;
             if (valid && config.parity != UartDecodeConfig::Parity::None) {
                 TimeValue sample = 0;
-                if (!AddOffset(transition.time, (1.5L + config.dataBits) * bitTicks, end, sample) ||
-                    !BitAt(source, *signal, sample, parityBit, error)) return false;
+                if (!AddOffset(transition.time, (1.5L + config.dataBits) * bitTicks, end, sample)) {
+                    valid = false;
+                    truncated = true;
+                } else if (!BitAt(source, *signal, sample, parityBit, error)) return false;
+                if (!valid) {
+                    // The parity sample is outside the requested window; keep
+                    // the frame as evidence instead of turning it into a query error.
+                } else {
                 if (config.invert) parityBit = !parityBit;
                 valid = IsParityGood(data, config.dataBits, parityBit, config.parity);
                 if (!valid) detail << "parity error; ";
+                }
             }
             const unsigned stopStart = config.parity == UartDecodeConfig::Parity::None
                 ? config.dataBits : config.dataBits + 1;
             for (unsigned stop = 0; valid && stop < config.stopBits; ++stop) {
                 TimeValue sample = 0;
-                if (!AddOffset(transition.time, (1.5L + stopStart + stop) * bitTicks, end, sample)) { valid = false; break; }
+                if (!AddOffset(transition.time, (1.5L + stopStart + stop) * bitTicks, end, sample)) {
+                    valid = false;
+                    truncated = true;
+                    break;
+                }
                 bool value = false;
                 if (!BitAt(source, *signal, sample, value, error)) return false;
                 if (config.invert) value = !value;
                 if (!value) { valid = false; detail << "stop bit error; "; }
                 event.endTime = sample;
             }
-            if (event.endTime == 0) event.endTime = transition.time;
+            if (event.endTime == 0) event.endTime = truncated ? end : transition.time;
             event.valid = valid;
             event.words.push_back(data);
             if (config.dataBits <= 8) event.bytes.push_back(static_cast<std::uint8_t>(data));
+            if (truncated) detail << "truncated frame; ";
             detail << (valid ? "byte " + HexByte(static_cast<std::uint8_t>(data)) : "invalid frame");
             event.detail = detail.str();
             if (valid || config.options.includeInvalid) out.push_back(std::move(event));

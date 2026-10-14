@@ -233,6 +233,7 @@ const char* ToString(CaptureRunState state)
         case CaptureRunState::Created: return "Created";
         case CaptureRunState::Validating: return "Validating";
         case CaptureRunState::Running: return "Running";
+        case CaptureRunState::Paused: return "Paused";
         case CaptureRunState::Stopping: return "Stopping";
         case CaptureRunState::Completed: return "Completed";
         case CaptureRunState::Cancelled: return "Cancelled";
@@ -380,6 +381,35 @@ bool CaptureRunService::AppendAttempt(const CaptureRunPlan& plan, std::size_t at
     return true;
 }
 
+bool CaptureRunService::WaitIfPaused(
+    const CaptureRunPlan& plan, CaptureRunResult& result,
+    std::chrono::steady_clock::time_point& deadline, std::string& error)
+{
+    if (!pauseRequested_.load() || cancelled_.load()) return true;
+    const auto pausedAt = std::chrono::steady_clock::now();
+    result.state = CaptureRunState::Paused;
+    if (!PersistUpdate(plan, result, error)) {
+        result.state = CaptureRunState::Failed;
+        AddIssue(result, "RUN_PERSIST_FAILED", "persisting", DiagnosticSeverity::Blocking,
+                 error, "检查暂停状态写入和磁盘空间");
+        return false;
+    }
+    std::unique_lock<std::mutex> lock(pauseMutex_);
+    pauseCv_.wait(lock, [this] {
+        return !pauseRequested_.load() || cancelled_.load();
+    });
+    if (cancelled_.load()) return true;
+    deadline += std::chrono::steady_clock::now() - pausedAt;
+    result.state = CaptureRunState::Running;
+    if (!PersistUpdate(plan, result, error)) {
+        result.state = CaptureRunState::Failed;
+        AddIssue(result, "RUN_PERSIST_FAILED", "persisting", DiagnosticSeverity::Blocking,
+                 error, "检查恢复状态写入和磁盘空间");
+        return false;
+    }
+    return true;
+}
+
 bool CaptureRunService::Run(const CaptureRunPlan& inputPlan,
                             const CaptureAttemptCallback& attempt,
                             CaptureRunResult& result, std::string& error)
@@ -391,6 +421,7 @@ bool CaptureRunService::Run(const CaptureRunPlan& inputPlan,
     result.runId = plan.runId;
     result.createdAtUtc = NowUtc();
     cancelled_.store(false);
+    pauseRequested_.store(false);
 
     result.state = CaptureRunState::Validating;
     if (!ValidatePlan(plan, error)) {
@@ -420,7 +451,7 @@ bool CaptureRunService::Run(const CaptureRunPlan& inputPlan,
     }
 
     const auto started = std::chrono::steady_clock::now();
-    const auto deadline = started + std::chrono::milliseconds(plan.totalTimeoutMs);
+    auto deadline = started + std::chrono::milliseconds(plan.totalTimeoutMs);
     result.state = CaptureRunState::Running;
     std::size_t consecutiveFailures = 0;
     bool cancelledByAttempt = false;
@@ -429,6 +460,7 @@ bool CaptureRunService::Run(const CaptureRunPlan& inputPlan,
     bool havePreviousWindow = false;
     std::chrono::steady_clock::time_point previousWindowCompleted;
     while (result.completedWindows < plan.targetCount && result.attempts < plan.maxAttempts) {
+        if (!WaitIfPaused(plan, result, deadline, error)) return false;
         if (cancelled_.load()) break;
         const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now() - started).count();

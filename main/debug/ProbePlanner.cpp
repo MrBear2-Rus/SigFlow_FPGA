@@ -29,6 +29,7 @@ Json::Value EntryJson(const ProbePlanEntry& entry)
     value["reason"] = entry.reason;
     value["kind"] = entry.kind;
     value["clock_domain"] = entry.clockDomain;
+    value["group_key"] = entry.groupKey;
     value["width"] = entry.width;
     value["priority"] = entry.priority;
     value["required"] = entry.required;
@@ -138,6 +139,8 @@ bool ProbePlanner::Plan(const std::vector<ProbeRequirement>& requirements,
         entry.reason = requirement.reason;
         entry.kind = requirement.kind;
         entry.clockDomain = requirement.clockDomain;
+        entry.groupKey = (entry.clockDomain.empty() ? "<unknown-clock>" : entry.clockDomain) +
+                         "/" + (entry.kind.empty() ? "auxiliary" : entry.kind);
         entry.width = requirement.width;
         entry.priority = requirement.priority;
         entry.required = requirement.required;

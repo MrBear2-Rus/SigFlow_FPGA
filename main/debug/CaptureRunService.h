@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <chrono>
 #include <functional>
+#include <condition_variable>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -26,6 +28,7 @@ enum class CaptureRunState {
     Created,
     Validating,
     Running,
+    Paused,
     Stopping,
     Completed,
     Cancelled,
@@ -166,8 +169,13 @@ public:
     bool Run(const CaptureRunPlan& plan, const CaptureAttemptCallback& attempt,
              CaptureRunResult& result, std::string& error);
 
-    void Cancel() { cancelled_.store(true); }
+    void Cancel() { cancelled_.store(true); pauseCv_.notify_all(); }
+    // A pause is observed only between attempts.  The active callback is
+    // never interrupted, so no new ARM is issued while a run is paused.
+    void Pause() { pauseRequested_.store(true); }
+    void Resume() { pauseRequested_.store(false); pauseCv_.notify_all(); }
     bool IsCancelled() const { return cancelled_.load(); }
+    bool IsPaused() const { return pauseRequested_.load(); }
 
 private:
     static bool ValidatePlan(const CaptureRunPlan& plan, std::string& error);
@@ -184,8 +192,14 @@ private:
                               std::string& error);
     static bool AppendAttempt(const CaptureRunPlan& plan, std::size_t attemptNumber,
                               const CaptureAttemptResult& attempt, std::string& error);
+    bool WaitIfPaused(const CaptureRunPlan& plan, CaptureRunResult& result,
+                      std::chrono::steady_clock::time_point& deadline,
+                      std::string& error);
 
     std::atomic<bool> cancelled_{false};
+    std::atomic<bool> pauseRequested_{false};
+    mutable std::mutex pauseMutex_;
+    std::condition_variable pauseCv_;
 };
 
 } // namespace debug
