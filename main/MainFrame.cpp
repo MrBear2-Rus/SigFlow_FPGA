@@ -81,6 +81,7 @@ using sigflow::platform::JoinPath;
 #include "debug/DeviceControl.h"
 #include "debug/TransportBackend.h"
 #include "debug/DebugSession.h"
+#include "debug/TraceBridgeBuildPreflight.h"
 #include "debug/DebugOverlayBuilder.h"
 #include "debug/DebugNetlistValidator.h"
 #include "debug/DebugFingerprint.h"
@@ -6026,11 +6027,14 @@ void MainFrame::RunFpgaProgram(
         return;
     }
     if (!m_activeDebugSessionId.IsEmpty()) {
+        sigflow::debug::BuildPreflightRequest preflightRequest;
+        preflightRequest.projectPath = std::string(m_currentProjectPath.ToUTF8().data());
+        preflightRequest.sessionId = std::string(m_activeDebugSessionId.ToUTF8().data());
+        preflightRequest.bitstreamPath = std::string(bitstreamPath.ToUTF8().data());
+        sigflow::debug::BuildPreflightResult preflightResult;
         std::string validationError;
-        if (!sigflow::debug::DebugSessionService().ValidateBitstreamForProgramming(
-                std::string(m_currentProjectPath.ToUTF8().data()),
-                std::string(m_activeDebugSessionId.ToUTF8().data()),
-                std::string(bitstreamPath.ToUTF8().data()), validationError)) {
+        if (!sigflow::debug::TraceBridgeBuildPreflightService::Run(
+                preflightRequest, preflightResult, validationError)) {
             wxMessageBox(wxString::FromUTF8(
                               ("Refusing to program: " + validationError).c_str()),
                           "TraceBridge bitstream validation",

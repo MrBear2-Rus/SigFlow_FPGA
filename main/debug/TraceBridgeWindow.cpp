@@ -12,6 +12,7 @@
 #include "DebugMappingBuilder.h"
 #include "TransportBackend.h"
 #include "TransportSelfTest.h"
+#include "TraceBridgePreflight.h"
 #include "DeviceControl.h"
 #include "ProbePlanningService.h"
 #include "../fpga/FpgaConstraint.h"
@@ -1886,6 +1887,22 @@ bool TraceBridgeWindow::BuildDebugBuildRequest(
         }
         if (!guidance.IsEmpty()) const_cast<TraceBridgeWindow*>(this)->AddLog(
             TbLogTag::WR, guidance);
+        sigflow::debug::PreflightInput preflightInput;
+        preflightInput.contract = &captureRequest.contract;
+        preflightInput.offlineOnly = true;
+        sigflow::debug::PreflightReport preflightReport;
+        std::string preflightError;
+        auto preflight = sigflow::debug::MakeTraceBridgePreflightRegistry();
+        if (!preflight.Run(preflightInput, preflightReport, preflightError)) {
+            for (const auto& issue : preflightReport.issues) {
+                const_cast<TraceBridgeWindow*>(this)->AddLog(
+                    issue.severity == sigflow::debug::DiagnosticSeverity::Blocking
+                        ? TbLogTag::ERR : TbLogTag::WR,
+                    ToWxString(issue.code + ": " + issue.observed));
+            }
+            error = wxT("TraceBridge 构建预检失败：") + ToWxString(preflightError);
+            return false;
+        }
     }
 
     request.projectPath = captureRequest.projectPath;
@@ -2424,6 +2441,32 @@ bool TraceBridgeWindow::BuildCaptureRequest(TraceBridgeCaptureRequest& request, 
     if (!ValidateDebugTransportPins(request.contract, projectPath_, error, pinGuidance)) return false;
     if (!pinGuidance.IsEmpty()) {
         const_cast<TraceBridgeWindow*>(this)->AddLog(TbLogTag::WR, pinGuidance);
+    }
+    // 统一走宿主预检服务，确保 GUI 的即时校验与后续向导/CI 使用同一套
+    // 稳定诊断码。这里仅执行离线检查；设备打开和租约仍由采集 worker 管理。
+    sigflow::debug::TransportOpenOptions transportOptions{
+        request.serialPort, request.contract.transport.baud, true, true};
+    sigflow::debug::PreflightInput preflightInput;
+    preflightInput.contract = &request.contract;
+    preflightInput.transport = &transportOptions;
+    sigflow::debug::PreflightReport preflightReport;
+    std::string preflightError;
+    auto preflight = sigflow::debug::MakeTraceBridgePreflightRegistry();
+    if (!preflight.Run(preflightInput, preflightReport, preflightError)) {
+        for (const auto& issue : preflightReport.issues) {
+            const_cast<TraceBridgeWindow*>(this)->AddLog(
+                issue.severity == sigflow::debug::DiagnosticSeverity::Blocking
+                    ? TbLogTag::ERR : TbLogTag::WR,
+                ToWxString(issue.code + ": " + issue.observed));
+        }
+        error = wxT("TraceBridge 预检失败：") + ToWxString(preflightError);
+        return false;
+    }
+    for (const auto& issue : preflightReport.issues) {
+        if (issue.severity != sigflow::debug::DiagnosticSeverity::Info) {
+            const_cast<TraceBridgeWindow*>(this)->AddLog(
+                TbLogTag::WR, ToWxString(issue.code + ": " + issue.observed));
+        }
     }
     return true;
 }
