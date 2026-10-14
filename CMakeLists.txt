@@ -271,6 +271,7 @@ set(SIGFLOW_MAIN_SOURCES
     "${SIGFLOW_MAIN_DIR}/debug/MonitorScheduler.cpp"
     "${SIGFLOW_MAIN_DIR}/debug/MonitorIncidentService.cpp"
     "${SIGFLOW_MAIN_DIR}/debug/MonitorBackpressure.cpp"
+    "${SIGFLOW_MAIN_DIR}/debug/MonitorSummary.cpp"
     "${SIGFLOW_MAIN_DIR}/debug/TraceBridgeBuildPreflight.cpp"
     "${SIGFLOW_MAIN_DIR}/debug/TraceBridgeRecovery.cpp"
     "${SIGFLOW_MAIN_DIR}/debug/TraceBridgeCaptureWizard.cpp"

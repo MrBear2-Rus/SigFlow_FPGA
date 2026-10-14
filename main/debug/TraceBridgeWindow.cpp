@@ -16,6 +16,7 @@
 #include "TraceBridgeCaptureWizard.h"
 #include "TraceBridgeRecovery.h"
 #include "TraceBridgeTemplateCatalog.h"
+#include "MonitorSummary.h"
 #include "DeviceControl.h"
 #include "ProbePlanningService.h"
 #include "../fpga/FpgaConstraint.h"
@@ -1231,9 +1232,11 @@ void TraceBridgeWindow::BuildLeftPanel(wxPanel* left) {
         captureWizardButton_ = new wxButton(wrap, wxID_ANY, wxT("首次采集向导…"));
         recoveryPlanButton_ = new wxButton(wrap, wxID_ANY, wxT("恢复建议…"));
         templateHelpButton_ = new wxButton(wrap, wxID_ANY, wxT("模板帮助…"));
+        monitorSummaryButton_ = new wxButton(wrap, wxID_ANY, wxT("监控现场…"));
         guidanceBox->Add(captureWizardButton_, 0, wxALL, 4);
         guidanceBox->Add(recoveryPlanButton_, 0, wxTOP | wxBOTTOM | wxRIGHT, 4);
         guidanceBox->Add(templateHelpButton_, 0, wxTOP | wxBOTTOM | wxRIGHT, 4);
+        guidanceBox->Add(monitorSummaryButton_, 0, wxTOP | wxBOTTOM | wxRIGHT, 4);
         v->Add(guidanceBox, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 10);
         v->AddStretchSpacer();
         wrap->SetSizer(v);
@@ -1243,6 +1246,7 @@ void TraceBridgeWindow::BuildLeftPanel(wxPanel* left) {
         captureWizardButton_->Bind(wxEVT_BUTTON, &TraceBridgeWindow::OnOpenCaptureWizard, this);
         recoveryPlanButton_->Bind(wxEVT_BUTTON, &TraceBridgeWindow::OnShowRecoveryPlan, this);
         templateHelpButton_->Bind(wxEVT_BUTTON, &TraceBridgeWindow::OnShowTemplateHelp, this);
+        monitorSummaryButton_->Bind(wxEVT_BUTTON, &TraceBridgeWindow::OnOpenMonitorSummary, this);
     }
     // Tab 2 : Runtime
     {
@@ -1898,6 +1902,82 @@ void TraceBridgeWindow::OnShowTemplateHelp(wxCommandEvent&)
     ShowTraceBridgeDetails(this, wxT("模板帮助 · ") + ToWxString(entry.title),
                            ToWxString(out.str()));
     AddLog(TbLogTag::INFO, wxT("已查看 TraceBridge 模板：") + ToWxString(entry.id));
+}
+
+void TraceBridgeWindow::OnOpenMonitorSummary(wxCommandEvent&)
+{
+    wxFileDialog dialog(this, wxT("选择 TraceBridge monitor.json"), projectPath_,
+                       wxT("monitor.json"),
+                       wxT("TraceBridge monitor (*.json)|*.json|All files (*.*)|*.*"),
+                       wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+    if (dialog.ShowModal() != wxID_OK) return;
+
+    sigflow::debug::MonitorSummary summary;
+    std::string error;
+    if (!sigflow::debug::MonitorSummaryService::Load(ToUtf8(dialog.GetPath()), summary, error)) {
+        AddLog(TbLogTag::ERR, wxT("读取监控现场失败：") + ToWxString(error));
+        wxMessageBox(ToWxString(error), wxT("监控现场"), wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    const auto mb = [](std::uint64_t bytes) {
+        std::ostringstream out;
+        out << std::fixed << std::setprecision(1)
+            << (static_cast<long double>(bytes) / (1024.0L * 1024.0L)) << " MiB";
+        return out.str();
+    };
+    std::ostringstream out;
+    out << "TraceBridge 监控现场摘要\n"
+        << "monitor: " << summary.plan.monitorId << "\n"
+        << "状态: " << sigflow::debug::ToString(summary.checkpoint.state)
+        << " | 下一个序号: " << summary.checkpoint.nextSequence << "\n"
+        << "采集计划: " << summary.plan.captureRunId
+        << " | 周期: " << summary.plan.intervalMs << " ms\n"
+        << "最近现场: " << summary.checkpoint.lastCaptureId
+        << " | 更新时间: " << summary.checkpoint.updatedAtUtc << "\n"
+        << "事件日志: " << (summary.eventLogValid ? "有效" : "存在问题")
+        << " | 最近事件: " << summary.recentEvents.size() << "\n"
+        << "监控目录大小: " << mb(summary.totalBytes) << "\n";
+    if (summary.storageSampled) {
+        out << "存储可用: " << mb(summary.storage.availableBytes)
+            << " / 容量 " << mb(summary.storage.capacityBytes) << "\n";
+    } else {
+        out << "存储可用: 无法读取\n";
+    }
+    out << "incident 数量: " << summary.incidents.size() << "\n\n";
+
+    if (!summary.diagnostics.empty()) {
+        out << "诊断:\n";
+        for (const auto& diagnostic : summary.diagnostics) out << "- " << diagnostic << "\n";
+        out << "\n";
+    }
+    if (!summary.incidents.empty()) {
+        out << "Incident:\n";
+        for (const auto& incident : summary.incidents) {
+            out << "- " << incident.snapshotId;
+            if (!incident.incidentId.empty()) out << " / " << incident.incidentId;
+            if (!incident.triggerType.empty()) out << " / " << incident.triggerType;
+            if (!incident.message.empty()) out << " / " << incident.message;
+            out << "\n  " << incident.path << "\n";
+        }
+        out << "\n";
+    }
+    out << "最近事件:\n";
+    if (summary.recentEvents.empty()) {
+        out << "- 暂无事件\n";
+    } else {
+        for (const auto& event : summary.recentEvents) {
+            out << "- #" << event.sequence << " " << event.type
+                << " @ " << event.observedAtUtc;
+            if (!event.captureId.empty()) out << " capture=" << event.captureId;
+            if (!event.message.empty()) out << " : " << event.message;
+            out << "\n";
+        }
+    }
+    out << "\n说明: 该页面只读取 monitor.json、checkpoint.json、events.jsonl 和 incident 索引，"
+           "不会启动/暂停监控、修改状态或执行清理。";
+    ShowTraceBridgeDetails(this, wxT("监控现场"), ToWxString(out.str()));
+    AddLog(TbLogTag::INFO, wxT("已加载监控现场：") + dialog.GetPath());
 }
 
 void TraceBridgeWindow::OnPlanProbes(wxCommandEvent&) {
