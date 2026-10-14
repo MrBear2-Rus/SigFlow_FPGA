@@ -13,6 +13,7 @@ class Status(StrEnum):
     WAITING_STUDENT = 'WaitingStudent'
     WAITING_EVIDENCE = 'WaitingEvidence'
     WAITING_APPROVAL = 'WaitingApproval'
+    RECOVERY_REQUIRED = 'RecoveryRequired'
     COMPLETED = 'Completed'
     CANCELLED = 'Cancelled'
     FAILED = 'Failed'

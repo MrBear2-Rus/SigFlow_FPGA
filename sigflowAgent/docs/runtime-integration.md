@@ -1,5 +1,8 @@
 # Part 2：UCAgent 阶段扩展
 
+历史实验记录：依据 2026-10-07 自研决策，本适配不属于当前产品依赖或验收条件。
+当前自研会话使用 runtime/session.py 和 runtime/gateway_session.py；下文保留旧实验复现说明。
+
 ## 模块与责任
 
 `runtime/session.py` 保持标准库依赖，管理一个 `TeachingLoop`。`runtime/ucagent_adapter.py` 导入真实上游 `VerifyStage`、`Checker` 和 `UCTool`，由 `build_stage` 注入局部 Checker 工厂。上游源码基线为 `ac00768`，不复制或替换上游类。

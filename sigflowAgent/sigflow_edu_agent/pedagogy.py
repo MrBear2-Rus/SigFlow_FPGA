@@ -77,6 +77,10 @@ def checked_card(value: object, context: CardContext, producer: str) -> Card | N
         text = value[key]
         if not isinstance(text, str) or not text.strip() or len(text) > 1200:
             return None
+        try:
+            text.encode('utf-8')
+        except UnicodeError:
+            return None
         # Conservative code filter; natural-language answer leaks require review.
         if re.search(r'```|\b(?:module|endmodule|always_comb|always_ff|assign)\b', text, re.I):
             return None

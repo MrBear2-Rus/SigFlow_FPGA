@@ -1,1 +1,1 @@
-"""Runtime adapters; optional UCAgent imports are isolated from the core."""
+"""Self-developed sessions and checkpoints; upstream experiments are optional."""

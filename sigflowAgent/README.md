@@ -1,35 +1,39 @@
 # sigflowAgent：U2 教学主控
 
-U2 的教学状态机、DeepSeek 适配器、UCAgent 阶段扩展和只读证据适配层。源码、测试、依赖和文档集中在本目录，不加入 SigFlow CMake 构建。
+U2 的自研教学状态机、DeepSeek 适配器和只读证据检查层。源码、测试、依赖和文档集中在本目录，不加入 SigFlow CMake 构建。
+
+2026-10-13 已按[自研决策](../docs/edu-agent/DECISION-2026-10-07.md)同步当前任务口径。
+UCAgent 适配器与旧集成文档保留为历史实验，不属于交付依赖或当前验收条件。
 
 ## 交付范围
 
 | 部分 | 已实现 | 集成边界 |
 |---|---|---|
 | Part 1 | 有界 E0–E7 主循环、L1–L3、DeepSeek 候选生成与规则降级 | 默认 CLI 使用 fixture；真实模型质量未验收 |
-| Part 2 | 串行会话、真实 VerifyStage / Checker / UCTool 适配、受限工具集合 | 独立阶段集成；完整 VerifyAgent profile 与 StageManager 调度由服务集成层接入 |
+| Part 2 | 自研串行会话、受信动作与阶段检查；保留旧上游适配实验 | 当前交付依赖自研会话；旧 UCAgent 集成不计入产品验收 |
 | Part 3 | Gateway health/capabilities 客户端、报告证据核对、上下文预算 | HTTP 由本地测试服务验证；真实 Gateway 联调及报告路由尚未完成 |
 | 阶段 4 | 详细计划、依赖/参数检查、跨 revision 复测比较与多步反馈 | 本地计划不等于 Gateway grant，真实执行适配未接入 |
 | 阶段 5 | 八类教学模式注册表、合成正反例、模型调用前的证据门禁 | 仅既有锁存器报告映射可用，其余真实 detector 与精确波形待对接 |
 | 阶段 6 | 40 个离线开发评测、脱敏报告、教师评审表 | 冻结验收集、真实模型重复评测与教师评分未完成 |
 | 阶段 7 | 详细计划→共享 PlanCard、完整审批绑定材料、本地规范化摘要 | 摘要不是 Gateway plan_hash；UI 对扩展字段的展示待确认 |
 | 阶段 8 | 只读 Job 报告 HTTP、artifact 规范化、可信锚点→主循环 | 本地 HTTP 测试通过，真实 Gateway 与证据目录待联调 |
+| 阶段 11 | 精确波形窗口检查、四态采样和显式 fixture 预测对比 | 宿主末信号截断可能误标 exact，tool 路径暂拒绝；待 S2 修复联调 |
+| 阶段 12–13 | 重复模型评测、调用预算、输出波动、双人教师评分汇总 | 模型批次与真实教师审阅待运行；程序测试不计作质量验收 |
+| 阶段 14 | 只读暂停检查点、显式重新取证恢复、动作幂等和等级/预算保持 | 纯格式接口，待 U1 接入事务存储；真实执行与 L4 不恢复 |
 
-离线通过不代表周期四 G0/G1 验收完成。真实 EDA 执行、持久化、学习事件、L4 receipt 和教师评测仍需后续集成。
+离线通过不代表周期四 G0/G1 验收完成。真实 EDA 执行、事务持久化、学习事件、L4 receipt 和教师评测仍需后续集成。
 
 ## 开发入口
 
-Python >=3.11。核心与 DeepSeek HTTP 客户端仅使用标准库；UCAgent 集成使用本目录 `.venv` 的可选依赖。以下命令在 `sigflowAgent` 执行，不要求 `conda activate`：
+Python >=3.11。核心与 DeepSeek HTTP 客户端仅使用标准库。以下命令在 `sigflowAgent` 执行，不要求 `conda activate`：
 
 ```powershell
 .\.venv\Scripts\python.exe -m sigflow_edu_agent --demo
 .\.venv\Scripts\python.exe -m sigflow_edu_agent --provider rule --once
-$env:SIGFLOW_UCAGENT_SOURCE = (Resolve-Path '..\..\UCAgent\UCAgent').Path
-.\.venv\Scripts\python.exe -m unittest discover -s tests -q
-.\.venv\Scripts\python.exe -m sigflow_edu_agent.runtime.smoke
+.\.venv\Scripts\python.exe -S -m unittest discover -s tests -q
 ```
 
-环境重建与版本记录见 [environment.md](docs/environment.md)。未设置 `SIGFLOW_UCAGENT_SOURCE` 时，上游集成测试会跳过；该结果不能作为 Part 2 集成通过的证据。
+环境重建与版本记录见 [environment.md](docs/environment.md)。6 项历史上游实验测试跳过，不影响自研核心验收；真实服务与工具验收仍须另行执行。
 
 独立核心开发不需要 UCAgent。清除可选变量后运行测试：
 
@@ -39,8 +43,9 @@ Remove-Item Env:SIGFLOW_UCAGENT_SOURCE -ErrorAction SilentlyContinue
 .\.venv\Scripts\python.exe -m sigflow_edu_agent.evaluation --suite tests/evaluation/development.json
 ```
 
-最新核心隔离测试 134 项通过、6 项可选集成跳过；配置上游后 140 项全部通过。
-开发评测 40 项通过。最新接口与真实验收边界见 [阶段 8](docs/stage-8-gateway-report.md)。
+2026-10-14 核心隔离测试共 219 项：213 项通过，6 项历史上游实验跳过。
+开发评测 40 项通过。检查点接口与恢复边界见 [阶段 14](docs/stage-14-checkpoint.md)，
+报告证据接口见 [阶段 8](docs/stage-8-gateway-report.md)。
 
 ## DeepSeek
 
@@ -94,6 +99,8 @@ E0 → E1 取证 → E2 检查 → E3 教学路径 → E4 发布
 - [阶段 7 审批材料](docs/stage-7-plan-contract.md)、[阶段 8 报告对接](docs/stage-8-gateway-report.md)。
 - [阶段 9 只读联调入口](docs/stage-9-probe.md)：现有 Job 报告查询命令、环境配置及退出码；最新全量 148 项测试通过。
 - [阶段 10 宿主会话组装](docs/stage-10-session.md)：Gateway→证据→规则/DeepSeek→教学会话，观察去重；最新全量 158 项测试通过。
+- [阶段 11 精确波形检查](docs/stage-11-waveform.md)：共享 DTO 检查、四态采样、预测对比及自研基线迁移。
+- [阶段 12 重复模型评测](docs/stage-12-model-evaluation.md)、[阶段 13 教师汇总](docs/stage-13-teacher-summary.md)：冻结批次与评分绑定，最新 191 项核心测试通过。
 - [提示策略](docs/policy-v1.md)、[教师评审](docs/teacher-review.md)。
 - [UCAgent 阶段集成](docs/runtime-integration.md)：调用边界、Checker 生命周期、工具注册与调度责任。
 - [Gateway、报告与上下文](docs/gateway-context.md)：只读接口、数据绑定、失败语义与对接示例。
