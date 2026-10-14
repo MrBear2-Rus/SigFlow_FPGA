@@ -18,6 +18,7 @@
 #include "TraceBridgeTemplateCatalog.h"
 #include "MonitorSummary.h"
 #include "InstrumentationImpact.h"
+#include "RootCauseEvidenceReport.h"
 #include "DeviceControl.h"
 #include "ProbePlanningService.h"
 #include "../fpga/FpgaConstraint.h"
@@ -1246,6 +1247,13 @@ void TraceBridgeWindow::BuildLeftPanel(wxPanel* left) {
                                         wxT("只读取已有基线/调试构建报告，不触发重构建。")),
                        0, wxALL | wxALIGN_CENTER_VERTICAL, 4);
         v->Add(impactBox, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 10);
+        auto* evidenceBox = new wxStaticBoxSizer(wxHORIZONTAL, wrap, wxT("首因证据"));
+        evidenceReportButton_ = new wxButton(wrap, wxID_ANY, wxT("打开证据报告…"));
+        evidenceBox->Add(evidenceReportButton_, 0, wxALL, 4);
+        evidenceBox->Add(new wxStaticText(wrap, wxID_ANY,
+                                          wxT("按 capture/analysis 身份查看候选、证据与映射状态。")),
+                         0, wxALL | wxALIGN_CENTER_VERTICAL, 4);
+        v->Add(evidenceBox, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 10);
         v->AddStretchSpacer();
         wrap->SetSizer(v);
         nb->AddPage(wrap, wxT("1 契约"), true);
@@ -1256,6 +1264,7 @@ void TraceBridgeWindow::BuildLeftPanel(wxPanel* left) {
         templateHelpButton_->Bind(wxEVT_BUTTON, &TraceBridgeWindow::OnShowTemplateHelp, this);
         monitorSummaryButton_->Bind(wxEVT_BUTTON, &TraceBridgeWindow::OnOpenMonitorSummary, this);
         impactReportButton_->Bind(wxEVT_BUTTON, &TraceBridgeWindow::OnOpenImpactReport, this);
+        evidenceReportButton_->Bind(wxEVT_BUTTON, &TraceBridgeWindow::OnOpenEvidenceReport, this);
     }
     // Tab 2 : Runtime
     {
@@ -2062,6 +2071,104 @@ void TraceBridgeWindow::OnOpenImpactReport(wxCommandEvent&)
            "也不会自动放行不可比构建。";
     ShowTraceBridgeDetails(this, wxT("构建影响与门禁"), ToWxString(out.str()));
     AddLog(TbLogTag::INFO, wxT("已加载构建影响报告：") + dialog.GetPath());
+}
+
+void TraceBridgeWindow::OnOpenEvidenceReport(wxCommandEvent&)
+{
+    wxFileDialog dialog(this, wxT("选择 TraceBridge 首因证据报告"), projectPath_,
+                       wxEmptyString,
+                       wxT("Evidence JSON (*.json)|*.json|All files (*.*)|*.*"),
+                       wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+    if (dialog.ShowModal() != wxID_OK) return;
+
+    sigflow::debug::RootCauseEvidenceReport report;
+    std::string error;
+    if (!sigflow::debug::LoadRootCauseEvidenceReport(
+            ToUtf8(dialog.GetPath()), report, error)) {
+        AddLog(TbLogTag::ERR, wxT("读取首因证据报告失败：") + ToWxString(error));
+        wxMessageBox(ToWxString(error), wxT("首因证据"), wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    std::ostringstream header;
+    header << "首因证据报告\n"
+           << "capture: " << report.captureId << "\n"
+           << "analysis: " << report.analysisId << "\n"
+           << "first difference: " << report.firstDifferenceSignal << "\n"
+           << "input fingerprint: " << report.inputFingerprint << "\n"
+           << "rules: " << report.rulesVersion << " / analyzer: " << report.analyzerVersion
+           << "\n\n候选数量: " << report.candidates.size();
+    if (report.candidates.empty()) {
+        ShowTraceBridgeDetails(this, wxT("首因证据"), ToWxString(header.str()));
+        AddLog(TbLogTag::WR, wxT("首因证据报告没有候选项：") + dialog.GetPath());
+        return;
+    }
+
+    wxArrayString choices;
+    for (std::size_t i = 0; i < report.candidates.size(); ++i) {
+        const auto& candidate = report.candidates[i];
+        choices.Add(wxString::Format(wxT("%zu. %s [%s] score=%.3f"),
+                                     i + 1,
+                                     ToWxString(candidate.candidate.location.signalName),
+                                     ToWxString(sigflow::debug::ToString(candidate.observation)),
+                                     candidate.evidenceScore));
+    }
+    wxSingleChoiceDialog chooser(this, wxT("选择要查看的首因候选"), wxT("首因证据"), choices);
+    if (chooser.ShowModal() != wxID_OK) return;
+    const int selected = chooser.GetSelection();
+    if (selected < 0 || static_cast<std::size_t>(selected) >= report.candidates.size()) return;
+    const auto& candidate = report.candidates[static_cast<std::size_t>(selected)];
+    const auto& location = candidate.candidate.location;
+
+    std::filesystem::path sourcePath(location.sourcePath);
+    if (sourcePath.is_relative() && !projectPath_.IsEmpty()) {
+        sourcePath = std::filesystem::path(ToUtf8(projectPath_)) / sourcePath;
+    }
+    const bool mappingPathAvailable = !location.sourcePath.empty() &&
+                                      location.sourceLine > 0 &&
+                                      std::filesystem::is_regular_file(sourcePath);
+
+    std::ostringstream details;
+    details << header.str() << "\n\n候选详情\n"
+            << "信号: " << location.signalName << "\n"
+            << "观察状态: " << sigflow::debug::ToString(candidate.observation) << "\n"
+            << "证据分数: " << candidate.evidenceScore
+            << " | 图距离: " << candidate.candidate.graphDistance << "\n"
+            << "原因: " << candidate.candidate.reason << "\n"
+            << "时钟域: " << location.clockDomain
+            << " | fanout: " << location.fanout
+            << " | width: " << location.width << "\n"
+            << "源码映射: " << (location.sourcePath.empty() ? "未提供" : location.sourcePath);
+    if (location.sourceLine > 0) details << ":" << location.sourceLine;
+    details << "\n映射路径检查: " << (mappingPathAvailable ? "文件存在" : "不可验证/已过期") << "\n";
+    if (!candidate.supportingEvidence.empty()) {
+        details << "\n支持证据:\n";
+        for (const auto& item : candidate.supportingEvidence) details << "- " << item << "\n";
+    }
+    if (!candidate.missingEvidence.empty()) {
+        details << "\n缺失条件:\n";
+        for (const auto& item : candidate.missingEvidence) details << "- " << item << "\n";
+    }
+    details << "\n说明: 报告未携带源码内容指纹，当前只检查映射文件是否存在；"
+               "内容变化时不会伪造新的行号。";
+    ShowTraceBridgeDetails(this, wxT("首因证据 · ") + ToWxString(location.signalName),
+                           ToWxString(details.str()));
+
+    if (mappingPathAvailable && navigationCallback_) {
+        wxMessageDialog jump(this,
+                             wxString::Format(wxT("是否跳转到源码 %s:%d？"),
+                                              ToWxString(location.sourcePath), location.sourceLine),
+                             wxT("首因证据导航"), wxYES_NO | wxICON_QUESTION);
+        if (jump.ShowModal() == wxID_YES) {
+            navigationCallback_(location.signalName, sourcePath.string(), location.sourceLine, 0);
+            AddLog(TbLogTag::INFO, wxString::Format(wxT("已从首因证据跳转源码：%s:%d"),
+                                                    ToWxString(location.sourcePath),
+                                                    location.sourceLine));
+        }
+    } else {
+        AddLog(TbLogTag::WR, wxT("首因候选没有可验证的源码映射，未执行跳转：") +
+               ToWxString(location.signalName));
+    }
 }
 
 void TraceBridgeWindow::OnPlanProbes(wxCommandEvent&) {

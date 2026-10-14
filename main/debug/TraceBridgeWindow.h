@@ -141,6 +141,7 @@ private:
     void OnShowTemplateHelp(wxCommandEvent&);
     void OnOpenMonitorSummary(wxCommandEvent&);
     void OnOpenImpactReport(wxCommandEvent&);
+    void OnOpenEvidenceReport(wxCommandEvent&);
     void OnStartCapture(wxCommandEvent&);
     void OnBuildDebugBitstream(wxCommandEvent&);
     void OnBuildProgramCapture(wxCommandEvent&);
@@ -212,6 +213,7 @@ private:
     wxButton* templateHelpButton_ = nullptr;
     wxButton* monitorSummaryButton_ = nullptr;
     wxButton* impactReportButton_ = nullptr;
+    wxButton* evidenceReportButton_ = nullptr;
     wxButton* cancelCaptureButton_ = nullptr;
     wxButton* openHwVcdButton_ = nullptr;
     wxButton* compareSimButton_ = nullptr;
