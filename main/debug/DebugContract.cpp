@@ -103,9 +103,7 @@ bool ParseHexU32(const std::string& text, std::uint32_t& value)
 void DebugContract::ApplyDefaults()
 {
     if (capture.depth == 0) capture.depth = DebugDefaults::kCaptureDepth;
-    if (capture.pretriggerSamples == 0) {
-        capture.pretriggerSamples = DebugDefaults::kPretriggerSamples;
-    }
+    // Zero is an explicit request for no pretrigger, not a missing value.
     if (capture.decimation == 0) capture.decimation = 1;
     if (transport.baud == 0) transport.baud = DebugDefaults::kUartBaud;
     if (transport.kind.empty()) transport.kind = "uart";
@@ -388,8 +386,8 @@ bool DebugContract::Validate(std::string& error) const
         error = "capture.pretrigger_samples must not exceed depth";
         return false;
     }
-    if (capture.decimation < 1) {
-        error = "capture.decimation must be positive";
+    if (capture.decimation < 1 || capture.decimation > 255) {
+        error = "capture.decimation must be in 1..255 (8-bit UART field)";
         return false;
     }
     if (transport.kind != "uart") {

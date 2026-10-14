@@ -6,7 +6,11 @@
 #include "WavePatternSearch.h"
 #include "WaveformView.h"
 #include "WaveUartLane.h"
+#include "WaveProtocolDecoder.h"
+#include "WaveProtocolEventReport.h"
 #include "../trace/TraceQueryService.h"
+
+#include "ui/UiTheme.h"   // T-140：主题订阅句柄（析构自动解绑，THE-028）
 
 #include <functional>
 #include <cstdint>
@@ -59,10 +63,19 @@ public:
     void InjectCompareEvents(const sigflow::debug::ComparisonResult& r, bool isHwPanel);
     void InjectBehaviorEvents(const std::vector<sigflow::debug::DebugBehaviorEvent>& events,
                               bool isHwPanel, std::int64_t timeOffset = 0);
+    // 将 TB-14 协议事务追加到当前工作台事件时间线；事务仍保留原始起止时间，
+    // WaveEvent 以起点作为可跳转锚点，并在标签中显示结束时间/有效性。
+    void InjectProtocolEvents(const std::vector<ProtocolTransaction>& transactions);
+    bool InjectProtocolEventReport(const ProtocolEventReport& report, std::string& error);
 
     // Compare Hub 联动。
     void RegisterCompareHub();
     void UnregisterCompareHub();
+
+    // T-140 / THE-030：把本面板内"写一次的 Set*Colour"抽成可重施入口。
+    // 只重写 m_measureLabel 前景 + UART 无效帧行色 + 转发给内嵌 WaveformView；
+    // 不重建 UI、不动波形/事件/UART 数据、不做重布局。
+    void ReapplyTheme();
 
 private:
     struct SignalTreeData : public wxClientData {
@@ -105,10 +118,13 @@ private:
     void OnTreeItemActivated(wxTreeListEvent& event);
     void OnTreeContextMenu(wxTreeListEvent& event);
     void OnSearchChanged(wxCommandEvent& event);
+    void OnEventFilterChanged(wxCommandEvent& event);
     void OnEventActivated(wxListEvent& event);
     void OnFindPrev(wxCommandEvent& event);
     void OnFindNext(wxCommandEvent& event);
     void OnLoadUart(wxCommandEvent& event);
+    void OnLoadProtocolReport(wxCommandEvent& event);
+    void OnSaveProtocolReport(wxCommandEvent& event);
     void OnUartActivated(wxListEvent& event);
     void RefreshUartLane();
 
@@ -119,6 +135,7 @@ private:
     wxTreeListCtrl* m_tree = nullptr;
     wxTextCtrl* m_searchBox = nullptr;
     wxListCtrl* m_eventList = nullptr;
+    wxTextCtrl* m_eventFilterBox = nullptr;
     wxListCtrl* m_uartList = nullptr;
     wxStaticText* m_measureLabel = nullptr;
     wxTextCtrl* m_patternBox = nullptr;
@@ -129,8 +146,12 @@ private:
     std::unordered_map<int, std::string> m_signalComments;
     std::vector<WaveUartFrame> m_uartFrames;
     std::string m_uartCapturePath;
+    ProtocolEventReport m_lastProtocolReport;
+    bool m_hasProtocolReport = false;
+    std::vector<std::size_t> m_eventRows;
     wxButton* m_themeButton = nullptr;
     WaveNavigationCallback m_navigationCallback;
+    UiTheme::Subscription m_themeSubscription;
 };
 
 } // namespace wave

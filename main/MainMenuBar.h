@@ -26,6 +26,12 @@ public:
     void AddDocToWindowList(const wxString& title);
     void SetCurrentDocInWindowList(const wxString& title);
 
+    // T-120：把 Window › Theme 的单选态同步到当前主题（SPEC THE-006/THE-007）
+    void UpdateThemeMenuChecks();
+
+    // T-510：把 Window › Panels 的勾选态同步到当前六栏显隐（SPEC LAY-023/LAY-025、INT-020）
+    void UpdatePanelMenuChecks();
+
     void SetSimulationBusy(bool busy);
 
     // P1-8：Toolchain Backends 子菜单（懒构建：Help 菜单打开时按当前插件列表填充）。
@@ -131,6 +137,27 @@ private:
     void OnCombinationalAnalysis(wxCommandEvent&);
     void OnWindowPreferences(wxCommandEvent&);
     void OnWindowItem(wxCommandEvent&);          // 动态文档列表统一入口
+
+    /* 主题菜单事件回调（T-120；id 段 wxID_HIGHEST+310..312） */
+    void OnThemeFollowSystem(wxCommandEvent&);
+    void OnThemeLight(wxCommandEvent&);
+    void OnThemeDark(wxCommandEvent&);
+
+    /* 六栏显隐事件回调（T-510；id 段 wxID_HIGHEST+320..325） */
+    void OnToggleMenuBar(wxCommandEvent&);
+    void OnToggleRail(wxCommandEvent&);
+    void OnToggleLeftBar(wxCommandEvent&);
+    void OnToggleRightBar(wxCommandEvent&);
+    void OnToggleBottomPanel(wxCommandEvent&);
+    void OnToggleStatusBar(wxCommandEvent&);
+
+    /* 布局预设事件回调（T-510；id 段 wxID_HIGHEST+330..333） */
+    void OnApplyLayoutPreset(wxCommandEvent&);
+
+    /* 布局保存 / 重置（T-250；id 段 wxID_HIGHEST+340..341；SPEC LAY-031/LAY-032） */
+    void OnSaveLayout(wxCommandEvent&);
+    void OnResetLayout(wxCommandEvent&);
+    void OnCustomizeLayout(wxCommandEvent&);
 
     /* Window 菜单业务接口 */
     void DoWindowCombinationalAnalysis();

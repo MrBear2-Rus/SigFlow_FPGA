@@ -1,5 +1,9 @@
 #include "CanvasTextElement.h"
 #include "CanvasPanel.h"
+#include "ui/UiTheme.h"   // T-410：画布唯一取色来源（SAFE-012 / THE-001）
+#include "ui/CanvasVisuals.h"
+
+
 
 CanvasTextElement::CanvasTextElement(CanvasPanel* parent, const wxString& text, const wxPoint& pos)
     : m_parent(parent), m_text(text), m_position(pos), m_size(100, 30),
@@ -31,12 +35,15 @@ void CanvasTextElement::UpdateHiddenTextCtrlPosition() {
         // 将隐藏TextCtrl移动到CanvasTextElement的位置
         wxPoint screenPos = m_parent->CanvasToClient(m_position);
         wxSize screenSize = wxSize(
-            static_cast<int>(m_size.x * m_parent->GetScale()),
-            static_cast<int>(m_size.y * m_parent->GetScale())
+            static_cast<int>(m_size.x * m_parent->GetDeviceScale()),
+            static_cast<int>(m_size.y * m_parent->GetDeviceScale())
         );
 
         m_hiddenTextCtrl->SetPosition(screenPos);
         m_hiddenTextCtrl->SetSize(screenSize);
+        auto font=GetModernFont();
+        font.SetPixelSize(wxSize(0,std::max(1,int(std::lround(13*m_parent->GetDeviceScale())))));
+        m_hiddenTextCtrl->SetFont(font);
     }
 }
 
@@ -48,8 +55,7 @@ void CanvasTextElement::StartEditing() {
         UpdateHiddenTextCtrlPosition();
 
         // 设置隐藏TextCtrl的样式
-        m_hiddenTextCtrl->SetFont(GetModernFont());
-        m_hiddenTextCtrl->SetForegroundColour(wxColour(60, 60, 60));
+        m_hiddenTextCtrl->SetForegroundColour(UiTheme::Palette().text1);
         m_hiddenTextCtrl->SetFocus();
         m_hiddenTextCtrl->SelectAll();
     }
@@ -88,13 +94,15 @@ void CanvasTextElement::Draw(wxGraphicsContext* gc) {
 void CanvasTextElement::DrawNormalState(wxGraphicsContext* gc) {
     if (!gc) return;
 
-    // 1. 设置画笔：灰色，线宽 3
-    gc->SetPen(wxPen(wxColour(*wxLIGHT_GREY), 3));
+    // 次级描边保持 1 屏幕 DIP，不随 zoom 变粗。
+    const double units = CanvasVisuals::ScreenDip(m_parent, m_parent->GetScale());
+    gc->SetPen(gc->CreatePen(wxGraphicsPenInfo(UiTheme::Palette().strokeStrongOnPanel).Width(units)));
     gc->SetBrush(*wxTRANSPARENT_BRUSH);
 
     // 2. 绘制矩形（使用逻辑坐标，精确控制 1px 的偏移）
     // 注意：GC 的 DrawRectangle 参数是 (x, y, w, h)
-    gc->DrawRectangle(m_position.x - 1, m_position.y - 1, m_size.x + 2, m_size.y + 2);
+    gc->DrawRoundedRectangle(m_position.x - 1, m_position.y - 1, m_size.x + 2, m_size.y + 2,
+                             UiTheme::Radius::XS * units);
 
     // 3. 绘制文字（内部也需改为接受 gc）
     DrawTextContent(gc);
@@ -103,8 +111,9 @@ void CanvasTextElement::DrawNormalState(wxGraphicsContext* gc) {
 void CanvasTextElement::DrawEditingState(wxGraphicsContext* gc) {
     if (!gc) return;
 
-    // 1. 绘制黑色边框
-    gc->SetPen(wxPen(wxColour(*wxBLACK), 3));
+    // 1. 绘制编辑态边框
+    const double units = CanvasVisuals::ScreenDip(m_parent, m_parent->GetScale());
+    gc->SetPen(gc->CreatePen(wxGraphicsPenInfo(UiTheme::Palette().accent).Width(CanvasDraw::kSelectionWidth * units)));
     gc->SetBrush(*wxTRANSPARENT_BRUSH);
     gc->DrawRectangle(m_position.x - 1, m_position.y - 1, m_size.x + 2, m_size.y + 2);
 
@@ -122,7 +131,7 @@ void CanvasTextElement::DrawEditingState(wxGraphicsContext* gc) {
         double cursorY2 = m_position.y + m_size.y - 5;
 
         // 绘制光标线（用 StrokeLine）
-        gc->SetPen(wxPen(*wxBLACK, 1));
+        gc->SetPen(gc->CreatePen(wxGraphicsPenInfo(UiTheme::Palette().text1).Width(units)));
         gc->StrokeLine(cursorX, cursorY1, cursorX, cursorY2);
     }
 }
@@ -132,7 +141,7 @@ void CanvasTextElement::DrawTextContent(wxGraphicsContext* gc) {
 
     // 1. 创建并设置字体
     // 注意：gc->CreateFont 将字体和颜色打包在一起
-    wxGraphicsFont gcFont = gc->CreateFont(GetModernFont(), wxColour(60, 60, 60));
+    wxGraphicsFont gcFont = gc->CreateFont(GetModernFont(), UiTheme::Palette().text1);
     gc->SetFont(gcFont);
 
     // 2. 获取精确的文字尺寸（浮点数）
@@ -143,10 +152,6 @@ void CanvasTextElement::DrawTextContent(wxGraphicsContext* gc) {
     double textY = m_position.y + (m_size.y - textH) / 2.0;
 
     // 4. 绘制文字
-    wxGraphicsFont gFont = gc->CreateFont(wxFont(10, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL), *wxBLACK);
-
-    // 2. 必须显式设置给 gc
-    gc->SetFont(gFont);
     gc->DrawText(m_text, m_position.x + 8, textY);
 }
 
@@ -158,12 +163,11 @@ void CanvasTextElement::DrawRoundedRect(wxGraphicsContext* gc, const wxRect& rec
     gc->DrawRoundedRectangle(rect.x, rect.y, rect.width, rect.height, radius);
 }
 wxFont CanvasTextElement::GetModernFont() {
-    return wxFont(11, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL,
-        wxFONTWEIGHT_NORMAL, false, "Segoe UI");
+    return CanvasVisuals::WorldFont(m_parent, UiTheme::TextSize::P13);
 }
 
 void CanvasTextElement::UpdateSize() {
-    wxClientDC dc(wxTheApp->GetTopWindow());
+    wxClientDC dc(m_parent);
     dc.SetFont(GetModernFont());
     wxSize textSize = dc.GetTextExtent(m_text);
     m_size.x = textSize.x + 20;

@@ -62,7 +62,7 @@
       "properties": {
         "depth": { "type": "integer", "minimum": 1 },
         "pretrigger_samples": { "type": "integer", "minimum": 0 },
-        "decimation": { "type": "integer", "minimum": 1 }
+        "decimation": { "type": "integer", "minimum": 1, "maximum": 255 }
       }
     },
     "transport": {

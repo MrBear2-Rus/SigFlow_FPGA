@@ -1,6 +1,8 @@
 #include "WaveformBackendTraceSource.h"
 
 #include <utility>
+#include <fstream>
+#include <algorithm>
 
 namespace sigflow {
 namespace trace {
@@ -10,6 +12,8 @@ WaveformBackendTraceSource::WaveformBackendTraceSource(
     : backend_(std::move(backend)) {}
 
 bool WaveformBackendTraceSource::Open(const std::string& path, std::string& error) {
+    timeDomain_ = TraceTimeDomain::Unknown;
+    timescale_.clear();
     if (!backend_) {
         error = "no waveform backend configured";
         return false;
@@ -18,6 +22,27 @@ bool WaveformBackendTraceSource::Open(const std::string& path, std::string& erro
 
     path_ = path;
     timescale_ = backend_->Timescale();
+    std::ifstream timingInput(path);
+    std::string timingHeader, timingLine;
+    while (timingHeader.size() < 8192 && std::getline(timingInput, timingLine)) {
+        timingHeader += timingLine + "\n";
+        if (timingLine.find("$enddefinitions") != std::string::npos) break;
+    }
+    // A backend may supply a display default for a missing VCD timescale.
+    // Only the file declaration can establish a physical unit for this adapter.
+    const auto declaration = timingHeader.find("$timescale");
+    const auto declarationEnd = declaration == std::string::npos ? std::string::npos
+        : timingHeader.find("$end", declaration);
+    if (declarationEnd == std::string::npos) {
+        timescale_.clear();
+    } else {
+        timescale_ = timingHeader.substr(declaration + 10, declarationEnd - declaration - 10);
+        timescale_.erase(std::remove_if(timescale_.begin(), timescale_.end(),
+            [](unsigned char c) { return std::isspace(c); }), timescale_.end());
+        std::uint64_t tick = 0;
+        if (!VcdTickFemtoseconds(timescale_, tick)) timescale_.clear();
+    }
+    timeDomain_ = ClassifyVcdTime(timingHeader, timescale_);
     signals_.clear();
     for (const auto& signal : backend_->Signals()) {
         SignalInfo info;

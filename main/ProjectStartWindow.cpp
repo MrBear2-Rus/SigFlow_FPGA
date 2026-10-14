@@ -137,9 +137,9 @@ ProjectStartWindow::ProjectStartWindow(wxWindow* parent, wxWindowID id, const wx
 
     // 窗口居中
     Centre(wxBOTH);
-    // wxApp 初始化时已自动注册全部 image handlers，不要再手动调用 wxInitAllImageHandlers
+    // SVG 图标由 wxBitmapBundle 解析，PNG 解码器由应用入口注册。
     wxBitmapBundle svgIcon = wxBitmapBundle::FromSVGFile(sigflow::platform::ResourcePath("res/svg_icons/icon.svg"), wxSize(24, 24));
-    wxIcon icon = svgIcon.GetIconFor(this);
+    wxIcon icon = svgIcon.IsOk() ? svgIcon.GetIconFor(this) : wxNullIcon;
     if (icon.IsOk()) SetIcon(icon);
 }
 

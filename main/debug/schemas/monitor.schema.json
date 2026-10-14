@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sigflow.local/schema/tracebridge/monitor-1.0.json",
+  "title": "TraceBridge monitor manifest",
+  "type": "object",
+  "required": ["schema_version", "created_at", "plan"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "created_at": { "type": "string" },
+    "plan": {
+      "type": "object",
+      "required": ["monitor_id", "output_root", "capture_run_id", "interval_ms", "max_runtime_ms", "max_disk_bytes"],
+      "properties": {
+        "monitor_id": { "type": "string", "pattern": "^monitor-[A-Za-z0-9_-]+$" },
+        "output_root": { "type": "string", "minLength": 1 },
+        "capture_run_id": { "type": "string" },
+        "interval_ms": { "type": "integer", "minimum": 1 },
+        "max_runtime_ms": { "type": "integer", "minimum": 0 },
+        "max_disk_bytes": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

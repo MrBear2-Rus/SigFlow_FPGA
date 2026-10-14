@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sigflow.local/schema/tracebridge/monitor-event-1.0.json",
+  "title": "TraceBridge monitor event",
+  "type": "object",
+  "required": ["schema_version", "sequence", "event_id", "type", "observed_at", "monotonic_ms", "capture_id", "message"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "sequence": { "type": "integer", "minimum": 1 },
+    "event_id": { "type": "string", "minLength": 1 },
+    "type": { "type": "string", "minLength": 1 },
+    "observed_at": { "type": "string" },
+    "monotonic_ms": { "type": "integer", "minimum": 0 },
+    "capture_id": { "type": "string" },
+    "message": { "type": "string" }
+  },
+  "additionalProperties": true
+}

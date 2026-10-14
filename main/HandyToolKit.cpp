@@ -1,9 +1,5 @@
-﻿// HandyToolKit.cpp
-#include "HandyToolKit.h"
-#include "platform/PlatformPaths.h"
-#include <wx/dcbuffer.h>
-#include <wx/wx.h>
-#include <wx/graphics.h>
+﻿#include "HandyToolKit.h"
+#include "ui/CanvasControls.h"
 
 wxBEGIN_EVENT_TABLE(HandyToolKit, wxPopupWindow)
 EVT_PAINT(HandyToolKit::OnPaint)
@@ -12,162 +8,64 @@ EVT_RIGHT_UP(HandyToolKit::OnRightUp)
 EVT_KILL_FOCUS(HandyToolKit::OnKillFocus)
 wxEND_EVENT_TABLE()
 
-HandyToolKit::HandyToolKit(CanvasPanel* parent, CanvasEventHandler* ce)
-    : wxPopupWindow(parent, wxBORDER_SIMPLE),
-	m_canvas(parent),
-	m_selectedTool(-1), m_hoveredTool(-1), m_CanvasEventHandler(ce)
-{   
-    // wxApp 初始化时已自动注册全部 image handlers，不要再手动调用 wxInitAllImageHandlers
+HandyToolKit::HandyToolKit(CanvasPanel* parent,CanvasEventHandler* ce)
+    :wxPopupWindow(parent,wxBORDER_NONE),m_canvas(parent),m_selectedTool(-1),
+     m_hoveredTool(-1),m_CanvasEventHandler(ce)
+{
     SetBackgroundStyle(wxBG_STYLE_PAINT);
-    int baseSize = 24; // 稍微调大一点点，24在4K屏缩放后可能依然偏小
-    m_toolSize = FromDIP(baseSize);
-
-    CreateTools(m_toolSize);
-    SetExtraStyle(GetExtraStyle() | wxWS_EX_TRANSIENT);
-
-    SetSize(wxSize(5 * m_toolSize, m_toolSize));
+    m_toolSize=FromDIP(30);CreateTools(m_toolSize);
+    SetExtraStyle(GetExtraStyle()|wxWS_EX_TRANSIENT);
 }
 
 void HandyToolKit::CreateTools(int size)
 {
     m_tools.clear();
-
-    // 定义辅助加载函数
-    auto GetIcon = [this](const wxString& path) {
-        wxBitmapBundle bundle = wxBitmapBundle::FromSVGFile(sigflow::platform::ResourcePath(path), wxSize(24, 24));
-        return bundle.GetBitmap(wxSize(this->m_toolSize, this->m_toolSize));
-        };
-
-    // 重新定义工具矩形，x坐标基于缩放后的 size
-    m_tools.push_back({ "Choose", GetIcon("res\\svg\\select.svg"), wxRect(size, 0, size, size),
-        [this]() { m_CanvasEventHandler->SetCurrentTool(ToolType::SELECT_TOOL); } });
-
-    m_tools.push_back({ "Drag", GetIcon("res\\svg\\poke.svg"), wxRect(0, 0, size, size),
-        [this]() { m_CanvasEventHandler->SetCurrentTool(ToolType::DRAG_TOOL); } });
-
-    m_tools.push_back({ "Eraser", GetIcon("res\\svg\\eraser.svg"), wxRect(size * 2, 0, size, size),
-        [this]() { m_CanvasEventHandler->SetCurrentTool(ToolType::ERASER_TOOL); } });
-
-    m_tools.push_back({ "Text", GetIcon("res\\svg\\text2.svg"), wxRect(size * 3, 0, size, size),
-        [this]() { m_CanvasEventHandler->SetCurrentTool(ToolType::TEXT_TOOL); } });
-
-    m_tools.push_back({ "Wire", GetIcon("res\\svg\\wiring.svg"), wxRect(size * 4, 0, size, size),
-        [this]() { m_CanvasEventHandler->SetCurrentTool(ToolType::WIRE_TOOL); } });
+    const ToolType order[]={ToolType::DRAG_TOOL,ToolType::SELECT_TOOL,ToolType::ERASER_TOOL,ToolType::TEXT_TOOL,ToolType::WIRE_TOOL};
+    const int pad=FromDIP(5),gap=FromDIP(3),height=FromDIP(28);
+    for(size_t i=0;i<5;++i) {
+        const auto tool=order[i];
+        m_tools.push_back({CanvasControls::ToolName(tool),tool,
+            wxRect(pad+int(i)*(size+gap),pad,size,height),
+            [this,tool]{m_canvas->SetCurrentTool(tool);}});
+    }
+    SetSize(wxSize(2*pad+5*size+4*gap,2*pad+height));
 }
 
-void HandyToolKit::OnPaint(wxPaintEvent& event)
+void HandyToolKit::OnPaint(wxPaintEvent&)
 {
-    wxAutoBufferedPaintDC dc(this);
-    dc.Clear();
-
-    wxSize sz = GetClientSize();
-
-    // 绘制半透明背景（更现代的外观）
-    wxColour bgColor(250, 250, 250, 230);
-    dc.SetBrush(wxBrush(bgColor));
-    dc.SetPen(wxPen(wxColour(200, 200, 200), 1));
-    dc.DrawRectangle(0, 0, sz.x, sz.y);
-
-    // 绘制工具按钮
-    for (size_t i = 0; i < m_tools.size(); i++) {
-        const auto& tool = m_tools[i];
-
-
-
-        // 绘制按钮基础样式
-        DrawToolButton(dc, tool.rect, i == m_hoveredTool);
-
-        // 绘制图标（居中）
-        if (tool.icon.IsOk()) {
-            int iconX = tool.rect.x + (tool.rect.width - tool.icon.GetWidth()) / 2 ;
-            int iconY = tool.rect.y + (tool.rect.height - tool.icon.GetHeight()) / 2 - 5;
-            dc.DrawBitmap(tool.icon, tool.rect.x, tool.rect.y, true);
-        }
-
-
+    wxAutoBufferedPaintDC dc(this);dc.SetBackground(wxBrush(UiTheme::Palette().canvas));dc.Clear();
+    std::unique_ptr<wxGraphicsContext> gc(wxGraphicsContext::Create(dc));if(!gc)return;
+    const double dip=FromDIP(100)/100.0;
+    CanvasControls::DrawCapsule(*gc,GetClientRect(),dip);
+    const auto current=m_canvas->GetToolStateMachine()->GetCurrentTool();
+    for(size_t i=0;i<m_tools.size();++i) {
+        const auto& tool=m_tools[i];const bool selected=current==tool.type;
+        CanvasControls::DrawButton(*gc,tool.rect,dip,selected,int(i)==m_hoveredTool,false);
+        CanvasControls::DrawIcon(*gc,CanvasControls::ToolIcon(tool.type),tool.rect,dip,
+            selected?UiTheme::Palette().accent:UiTheme::Palette().text2);
     }
 }
-
-// 绘制工具按钮的基础样式和悬停效果
-void HandyToolKit::DrawToolButton(wxDC& dc, const wxRect& rect, bool isHovered)
-{
-    // 基础按钮样式
-    wxColour buttonColor(240, 240, 240);
-    wxColour borderColor(180, 180, 180);
-
-    // 绘制按钮背景
-    dc.SetBrush(wxBrush(buttonColor));
-    dc.SetPen(wxPen(borderColor, 1));
-    dc.DrawRectangle(rect);
-
-    // 如果悬停，添加透明效果
-    if (isHovered) {
-        wxColour color = wxColour(100, 150, 255);
-        wxColour transparentColor(color.Red(), color.Green(), color.Blue(), 80);
-        dc.SetBrush(wxBrush(transparentColor));
-        dc.SetPen(wxPen(transparentColor));
-        dc.DrawRectangle(rect);
-
-    }
-}
-
 
 void HandyToolKit::OnMouseMove(wxMouseEvent& event)
 {
-    wxPoint pos = event.GetPosition();
-    int oldHovered = m_hoveredTool;
-    m_hoveredTool = -1;
-
-    // 检查鼠标在哪个工具上
-    for (size_t i = 0; i < m_tools.size(); i++) {
-        if (m_tools[i].rect.Contains(pos)) {
-			m_canvas->SetStatus(wxString::Format("Tool: %s", m_tools[i].name.ToUTF8().data()));
-            m_hoveredTool = i;
-            break;
-        }
+    const int old=m_hoveredTool;m_hoveredTool=-1;
+    for(size_t i=0;i<m_tools.size();++i) if(m_tools[i].rect.Contains(event.GetPosition())) {
+        m_hoveredTool=int(i);m_canvas->SetStatus("Tool: "+m_tools[i].name);break;
     }
-
-    if (m_hoveredTool != oldHovered) {
-        Refresh();
-    }
-
+    if(old!=m_hoveredTool)Refresh(false);
     event.Skip();
 }
 
 void HandyToolKit::OnRightUp(wxMouseEvent& event)
 {
-    wxPoint pos = event.GetPosition();
-
-    // 确定选择了哪个工具
-    for (size_t i = 0; i < m_tools.size(); i++) {
-        if (m_tools[i].rect.Contains(pos)) {
-            m_selectedTool = i;
-			// 执行工具的动作
-			m_tools[i].action();
-            PassFocusToCanvas();
-            break;
-        }
+    for(size_t i=0;i<m_tools.size();++i) if(m_tools[i].rect.Contains(event.GetPosition())) {
+        m_selectedTool=int(i);m_tools[i].action();PassFocusToCanvas();break;
     }
-
-    // 关闭工具栏
     Hide();
-
-    // 注意：这里不调用event.Skip()，因为我们处理了这个事件
 }
 
-void HandyToolKit::OnKillFocus(wxFocusEvent& event) {
-    wxWindow* focused = wxWindow::FindFocus();
-
-    // 只有当焦点转移到非父窗口时才隐藏
-    if (focused && focused != GetParent()) {
-        Hide();
-        //MyLog("QuickToolBar: Hidden due to focus loss\n");
-    }
-
-    event.Skip();
+void HandyToolKit::OnKillFocus(wxFocusEvent& event)
+{
+    auto* focused=wxWindow::FindFocus();if(focused&&focused!=GetParent())Hide();event.Skip();
 }
-
-void HandyToolKit::PassFocusToCanvas() {
-	// 将焦点传递回画布
-	m_canvas->SetFocus();
-}
+void HandyToolKit::PassFocusToCanvas(){m_canvas->SetFocus();}

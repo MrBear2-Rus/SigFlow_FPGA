@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sigflow.local/schema/tracebridge/probe-plan-1.0.json",
+  "title": "TraceBridge deterministic probe plan",
+  "type": "object",
+  "required": ["schema_version", "capacity_bits", "used_bits", "feasible",
+               "requires_new_build", "entries", "missing_required", "diagnostics"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "capacity_bits": { "type": "integer", "minimum": 1 },
+    "used_bits": { "type": "integer", "minimum": 0 },
+    "feasible": { "type": "boolean" },
+    "requires_new_build": { "type": "boolean" },
+    "contract_snapshot": { "type": "string" },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["signal", "reason", "kind", "clock_domain", "width", "priority",
+                     "required", "selected", "needs_new_build", "diagnostic"],
+        "properties": {
+          "signal": { "type": "string", "minLength": 1 },
+          "reason": { "type": "string" },
+          "kind": { "type": "string" },
+          "clock_domain": { "type": "string" },
+          "width": { "type": "integer", "minimum": 0 },
+          "priority": { "type": "integer" },
+          "required": { "type": "boolean" },
+          "selected": { "type": "boolean" },
+          "needs_new_build": { "type": "boolean" },
+          "diagnostic": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "missing_required": { "type": "array", "items": { "type": "string" } },
+    "diagnostics": { "type": "array", "items": { "type": "string" } }
+  },
+  "additionalProperties": true
+}

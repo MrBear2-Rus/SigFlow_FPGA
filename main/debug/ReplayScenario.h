@@ -30,6 +30,7 @@ struct ReplayScenario {
     std::vector<ReplaySignal> inputSignals;
     std::vector<ReplayAssignment> assignments;
     std::uint64_t maxTime = 0;
+    std::uint64_t tickFemtoseconds = 0;
 };
 
 struct ReplayConsistencyReport {

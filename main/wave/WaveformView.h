@@ -5,6 +5,8 @@
 #include "WaveformRenderData.h"
 #include "WaveSession.h"
 
+#include "ui/UiTheme.h"   // T-140：主题订阅句柄（析构自动解绑，THE-028）
+
 #include <functional>
 #include <memory>
 
@@ -62,6 +64,12 @@ public:
     void SetTheme(WaveTheme theme);
     WaveTheme Theme() const { return m_state.theme; }
 
+    // T-140 / THE-030：构造期只写过一次的 ColorsForThemed(...) 底色重施入口。
+    // 只重取 ColorsForThemed 并写回 + Refresh，**保持波形语义**：
+    // 不触碰 m_state.theme / visibleSignalIds / 时间窗 / marker / A-B / 播放头，
+    // 不重建 GL 画布，不重解析/重渲染波形数据。
+    void ReapplyTheme();
+
     bool UsingOpenGL() const;
     const WaveViewState& State() const { return m_state; }
     void ShowContextMenu(const wxPoint& point,
@@ -100,6 +108,7 @@ private:
     std::function<void()> m_onViewChanged;
     sigflow::trace::TimeValue m_glitchThreshold = 2;
     WaveformMiniMap* m_miniMap = nullptr;
+    UiTheme::Subscription m_themeSubscription;
 };
 
 } // namespace wave

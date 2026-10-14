@@ -1,15 +1,21 @@
 ﻿#include "SigTextEditor.h"
+#include "ui/UiTheme.h"
 #include <wx/filename.h>
 
+wxBEGIN_EVENT_TABLE(SigTextEditor, wxStyledTextCtrl)
+EVT_STC_MODIFIED(wxID_ANY, SigTextEditor::OnTextChanged)
+wxEND_EVENT_TABLE()
+
 SigTextEditor::SigTextEditor(wxWindow* parent)
-    : wxStyledTextCtrl(parent, wxID_ANY) {
+    : wxStyledTextCtrl(parent, wxID_ANY), temp_version(0), mode(EDITOR_MODE::Verilog), m_isLoading(false) {
     SetMode(EDITOR_MODE::Verilog);
     SetCodePage(wxSTC_CP_UTF8);
     SetProperty("fold.compact", "0"); // 不要压缩空行折叠
     SetProperty("fold.comment", "1"); // 如果有注释折叠可以开启
     Bind(wxEVT_STC_MARGINCLICK, &SigTextEditor::OnMarginClick, this);
-    Bind(wxEVT_STC_MODIFIED, &SigTextEditor::OnTextChanged, this);
-
+    // CMP-051: wxEVT_STC_CHANGE is the document-level notification.  It stays
+    // independent from consumers listening to low-level MODIFIED events.
+    Bind(wxEVT_STC_CHANGE, &SigTextEditor::OnDocumentChanged, this);
 }
 
 
@@ -32,27 +38,40 @@ void SigTextEditor::SetMode(EDITOR_MODE mode) {
         break;
 }
 
-    
+    // CMP-052: 13 DIP code needs at least 1.5× readable leading on every lexer.
+    SetExtraAscent(FromDIP(3));
+    SetExtraDescent(FromDIP(3));
+}
+
+void SigTextEditor::SetHeaderStateCallback(std::function<void(const wxString&, const wxString&, bool)> callback) {
+    m_headerStateCallback = std::move(callback);
+    NotifyHeaderState(false);
+}
+
+void SigTextEditor::NotifyHeaderState(bool validated) {
+    if (!m_headerStateCallback) return;
+    wxString language = "Text";
+    switch (mode) {
+    case EDITOR_MODE::Verilog: language = "Verilog"; break;
+    case EDITOR_MODE::Markdown: language = "Markdown"; break;
+    case EDITOR_MODE::JsonStyle: language = "JSON"; break;
+    case EDITOR_MODE::Text: break;
+    }
+    m_headerStateCallback(m_currentFilePath, language, validated);
 }
 
 void SigTextEditor::SetVerilogStyle() {
     SetLexer(wxSTC_LEX_VERILOG);
 
+    // 取色唯一来源：UiTheme（SAFE-012）。编辑器自身位于 canvas 层级。
+    const UiTheme::Colours& pal = UiTheme::Palette();
 
-    // 1. 基础全局样式 (白色背景，黑色字)
-    wxFont codeFont(12, wxFONTFAMILY_TELETYPE, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
+    // 1. 基础全局样式 (canvas 背景，text1 正文；CMP-052: 13 DIP 等宽)
+    wxFont codeFont = UiTheme::MonoFont(this, UiTheme::TextSize::P13);
     StyleSetFont(wxSTC_STYLE_DEFAULT, codeFont);
-    StyleSetBackground(wxSTC_STYLE_DEFAULT, wxColour(255, 255, 255)); // 纯白背景
-    StyleSetForeground(wxSTC_STYLE_DEFAULT, wxColour(30, 30, 30));    // 深黑文字
+    StyleSetBackground(wxSTC_STYLE_DEFAULT, pal.canvas); // 编辑器底
+    StyleSetForeground(wxSTC_STYLE_DEFAULT, pal.text1);  // 正文墨
     StyleClearAll();
-
-    // 2. 边缘设置 (行号区域)
-    SetMarginType(0, wxSTC_MARGIN_NUMBER);
-    SetMarginWidth(0, 45);
-    StyleSetBackground(wxSTC_STYLE_LINENUMBER, wxColour(240, 240, 240)); // 浅灰行号背景
-    StyleSetForeground(wxSTC_STYLE_LINENUMBER, wxColour(100, 100, 100)); // 灰色数字
-    SetMarginMask(0, 0);
-
 
     SetKeyWords(0, "module endmodule always assign begin end if else case for while");
     SetKeyWords(1, "wire reg logic integer parameter localparam genvar");
@@ -65,117 +84,126 @@ void SigTextEditor::SetVerilogStyle() {
     // ===============================
     // 基础默认
     // ===============================
-    StyleSetForeground(wxSTC_V_DEFAULT, wxColour(0, 0, 0));
-    StyleSetBackground(wxSTC_V_DEFAULT, wxColour(255, 255, 255));
+    StyleSetForeground(wxSTC_V_DEFAULT, pal.text1);
+    StyleSetBackground(wxSTC_V_DEFAULT, pal.canvas);
     StyleClearAll();
 
+    // StyleClearAll() 会复写 margin 样式，故 gutter 必须在其后设置。
+    SetMarginType(0, wxSTC_MARGIN_NUMBER);
+    SetMarginWidth(0, 45);
+    StyleSetBackground(wxSTC_STYLE_LINENUMBER, pal.sunkenOnCanvas);
+    StyleSetForeground(wxSTC_STYLE_LINENUMBER, pal.text3);
+    SetMarginMask(0, 0);
+
     // ===============================
-    // 结构关键字 (module / always / begin / end)
+    // 结构关键字 (module / always / begin / end)  → kw = accent (CMP-053)
     // ===============================
-    StyleSetForeground(wxSTC_V_WORD, wxColour(0, 64, 128));   // 深结构蓝
+    StyleSetForeground(wxSTC_V_WORD, pal.accent);
     StyleSetBold(wxSTC_V_WORD, true);
 
     // ===============================
-    // Gate primitives (and/nand/or/...)
+    // Gate primitives (and/nand/or/...)  → 关键字族 = accent
     // ===============================
-    StyleSetForeground(wxSTC_V_WORD3, wxColour(0, 102, 153)); // 蓝青
+    StyleSetForeground(wxSTC_V_WORD3, pal.accent);
     StyleSetBold(wxSTC_V_WORD3, false);
 
     // ===============================
-    // 系统任务 / 系统函数 ($display...)
+    // 系统任务 / 系统函数 ($display...) 与类型共用 SCE_V_WORD2
     // ===============================
-    StyleSetForeground(wxSTC_V_WORD2, wxColour(128, 0, 128)); // 紫
+    StyleSetForeground(wxSTC_V_WORD2, pal.codeType); // ty = codeType（SPEC §3.6 派生值，替代 brand 以满足 4.5:1）
     StyleSetBold(wxSTC_V_WORD2, false);
 
     // ===============================
-    // 端口方向关键字
+    // 端口方向关键字  → kw = accent
     // ===============================
-    StyleSetForeground(wxSTC_V_INPUT, wxColour(0, 128, 128)); // teal
+    StyleSetForeground(wxSTC_V_INPUT, pal.accent);
     StyleSetBold(wxSTC_V_INPUT, true);
 
-    StyleSetForeground(wxSTC_V_OUTPUT, wxColour(0, 102, 204)); // 蓝
+    StyleSetForeground(wxSTC_V_OUTPUT, pal.accent);
     StyleSetBold(wxSTC_V_OUTPUT, true);
 
-    StyleSetForeground(wxSTC_V_INOUT, wxColour(0, 153, 102)); // 绿
+    StyleSetForeground(wxSTC_V_INOUT, pal.accent);
     StyleSetBold(wxSTC_V_INOUT, true);
 
     // ===============================
-    // 类型 / 数据声明 (wire/reg/integer...)
+    // 类型 / 数据声明 (wire/reg/integer...)  → ty = codeType（SPEC §3.6）
     // ===============================
-    StyleSetForeground(wxSTC_V_WORD2, wxColour(128, 0, 128)); // 已用于系统任务（Scintilla复用）
+    StyleSetForeground(wxSTC_V_WORD2, pal.codeType); // 已用于系统任务（Scintilla复用）
 
     // ===============================
-    // 标识符
+    // 标识符  → text2（沿用原「次级中性灰」的层次意图；无 CMP-053 强制项）
     // ===============================
-    StyleSetForeground(wxSTC_V_IDENTIFIER, wxColour(80, 80, 80)); // 中性深灰
+    StyleSetForeground(wxSTC_V_IDENTIFIER, pal.text2); // 中性深灰
     StyleSetBold(wxSTC_V_IDENTIFIER, false);
 
     // ===============================
-    // 数字 / 常量
+    // 数字 / 常量  → 无专用 token，取色相最近的 danger（近似映射）
     // ===============================
-    StyleSetForeground(wxSTC_V_NUMBER, wxColour(163, 21, 21)); // 红棕
+    StyleSetForeground(wxSTC_V_NUMBER, pal.danger); // 红棕
 
     // ===============================
-    // 字符串
+    // 字符串  → st = warn (CMP-053)
     // ===============================
-    StyleSetForeground(wxSTC_V_STRING, wxColour(128, 64, 0));  // 棕橙
+    StyleSetForeground(wxSTC_V_STRING, pal.warn);  // 棕橙
 
-    StyleSetForeground(wxSTC_V_STRINGEOL, wxColour(200, 0, 0));
-    StyleSetBackground(wxSTC_V_STRINGEOL, wxColour(255, 235, 235));
+    StyleSetForeground(wxSTC_V_STRINGEOL, pal.warn);
+    StyleSetBackground(wxSTC_V_STRINGEOL, pal.hoverOnPanel); // 近似：base 族无 danger 淡底
 
     // ===============================
     // 操作符 / 符号
     // ===============================
-    StyleSetForeground(wxSTC_V_OPERATOR, wxColour(0, 0, 0));
+    StyleSetForeground(wxSTC_V_OPERATOR, pal.text1);
 
     // ===============================
     // 端口连接名 (.port)
     // ===============================
-    StyleSetForeground(wxSTC_V_PORT_CONNECT, wxColour(0, 102, 153));
+    StyleSetForeground(wxSTC_V_PORT_CONNECT, pal.accent);
     StyleSetBold(wxSTC_V_PORT_CONNECT, true);
 
     // ===============================
-    // 预处理 / 宏
+    // 预处理 / 宏  → 色相最近的 danger（近似映射）
     // ===============================
-    StyleSetForeground(wxSTC_V_PREPROCESSOR, wxColour(140, 0, 100));
+    StyleSetForeground(wxSTC_V_PREPROCESSOR, pal.danger);
     StyleSetBold(wxSTC_V_PREPROCESSOR, true);
 
     // ===============================
-    // 注释
+    // 注释  → cm = 斜体 + codeComment（SPEC §3.6 派生值，替代 text3 以满足 4.5:1）
     // ===============================
-    StyleSetForeground(wxSTC_V_COMMENT, wxColour(0, 128, 0));
-    StyleSetForeground(wxSTC_V_COMMENTLINE, wxColour(0, 128, 0));
-    StyleSetForeground(wxSTC_V_COMMENTLINEBANG, wxColour(0, 153, 0));
+    StyleSetForeground(wxSTC_V_COMMENT, pal.codeComment);
+    StyleSetForeground(wxSTC_V_COMMENTLINE, pal.codeComment);
+    StyleSetForeground(wxSTC_V_COMMENTLINEBANG, pal.codeComment);
     StyleSetItalic(wxSTC_V_COMMENT, true);
     StyleSetItalic(wxSTC_V_COMMENTLINE, true);
 
     // ===============================
-    // 注释中的关键词 (TODO / FIXME)
+    // 注释中的关键词 (TODO / FIXME)  → 注释族 = codeComment（SPEC §3.6）
     // ===============================
-    StyleSetForeground(wxSTC_V_COMMENT_WORD, wxColour(0, 102, 0));
+    StyleSetForeground(wxSTC_V_COMMENT_WORD, pal.codeComment);
     StyleSetBold(wxSTC_V_COMMENT_WORD, true);
 
     // ===============================
-    // 用户自定义 (pragma / annotation / IDE hint)
+    // 用户自定义 (pragma / annotation / IDE hint)  → 色相最近的 warn（近似映射）
     // ===============================
-    StyleSetForeground(wxSTC_V_USER, wxColour(255, 128, 0)); // 橙色
+    StyleSetForeground(wxSTC_V_USER, pal.warn); // 橙色
     StyleSetBold(wxSTC_V_USER, true);
 
 
 
     // 5. 编辑器 UI 细节
-    SetCaretForeground(wxColour(0, 0, 0));            // 黑色光标
-    SetSelBackground(true, wxColour(173, 214, 255)); // 浅蓝色选中区
+    SetCaretForeground(pal.text1);            // 插入符 = 正文墨
+    SetSelBackground(true, pal.selOnPanel); // 选中底
 
-    // 当前行高亮（浅灰色条）
+    // 当前行高亮（极淡中性底）
     SetCaretLineVisible(true);
-    SetCaretLineBackground(wxColour(245, 245, 245));
+    SetCaretLineBackground(pal.hoverOnPanel);
 
-    StyleSetForeground(wxSTC_STYLE_BRACELIGHT, wxColour(255, 0, 0)); // 红色加粗
+    StyleSetForeground(wxSTC_STYLE_BRACELIGHT, pal.accent); // 配对高亮 = 焦点色
     StyleSetBold(wxSTC_STYLE_BRACELIGHT, true);
 }
 
 void SigTextEditor::SetVerilogIDE() {
+    const UiTheme::Colours& pal = UiTheme::Palette();
+
     // --- A. Margin 1: 逻辑块健康状态条 ---
     SetMarginWidth(1, 10);
     SetMarginType(1, wxSTC_MARGIN_SYMBOL);
@@ -183,20 +211,20 @@ void SigTextEditor::SetVerilogIDE() {
     SetMarginMask(1, 0xFFFFFFFF);
     SetMarginMask(1, ~wxSTC_MASK_FOLDERS);
 
-    // Marker 1: 稳定态 (绿色)
+    // Marker 1: 稳定态 (品牌绿)
     MarkerDefine(1, wxSTC_MARK_FULLRECT);
-    MarkerSetForeground(1, wxColour(100, 200, 100));
-    MarkerSetBackground(1, wxColour(100, 200, 100));
+    MarkerSetForeground(1, pal.brand);
+    MarkerSetBackground(1, pal.brand);
 
-    // Marker 2: 错误态 (红色)
+    // Marker 2: 错误态 (危险红)
     MarkerDefine(2, wxSTC_MARK_FULLRECT);
-    MarkerSetForeground(2, wxColour(220, 50, 50));
-    MarkerSetBackground(2, wxColour(220, 50, 50));
+    MarkerSetForeground(2, pal.danger);
+    MarkerSetBackground(2, pal.danger);
 
-    // Marker 3: 未完成 (黄色)
+    // Marker 3: 未完成 (警告橙)
     MarkerDefine(3, wxSTC_MARK_FULLRECT);
-    MarkerSetForeground(3, wxColour(240, 200, 50));
-    MarkerSetBackground(3, wxColour(240, 200, 50));
+    MarkerSetForeground(3, pal.warn);
+    MarkerSetBackground(3, pal.warn);
 
     // --- B. Margin 2: 代码折叠槽 ---
     SetMarginType(2, wxSTC_MARGIN_SYMBOL);
@@ -206,37 +234,37 @@ void SigTextEditor::SetVerilogIDE() {
     SetProperty("fold", "1"); // 激活 Scintilla 折叠引擎
 
     // 定义经典折叠图标 (加减号)
-    //MarkerDefine(wxSTC_MARKNUM_FOLDEROPEN, wxSTC_MARK_BOXMINUS, *wxWHITE, wxColour(120, 120, 120));
-    //MarkerDefine(wxSTC_MARKNUM_FOLDER, wxSTC_MARK_BOXPLUS, *wxWHITE, wxColour(120, 120, 120));
-    //MarkerDefine(wxSTC_MARKNUM_FOLDERSUB, wxSTC_MARK_VLINE, *wxWHITE, wxColour(120, 120, 120));
-    //MarkerDefine(wxSTC_MARKNUM_FOLDERTAIL, wxSTC_MARK_LCORNER, *wxWHITE, wxColour(120, 120, 120));
-    //MarkerDefine(wxSTC_MARKNUM_FOLDEREND, wxSTC_MARK_LCORNER, *wxWHITE, wxColour(120, 120, 120));
+    //MarkerDefine(wxSTC_MARKNUM_FOLDEROPEN, wxSTC_MARK_BOXMINUS, pal.canvas, pal.text3);
+    //MarkerDefine(wxSTC_MARKNUM_FOLDER, wxSTC_MARK_BOXPLUS, pal.canvas, pal.text3);
+    //MarkerDefine(wxSTC_MARKNUM_FOLDERSUB, wxSTC_MARK_VLINE, pal.canvas, pal.text3);
+    //MarkerDefine(wxSTC_MARKNUM_FOLDERTAIL, wxSTC_MARK_LCORNER, pal.canvas, pal.text3);
+    //MarkerDefine(wxSTC_MARKNUM_FOLDEREND, wxSTC_MARK_LCORNER, pal.canvas, pal.text3);
     SetFoldFlags(wxSTC_FOLDFLAG_LINEBEFORE_CONTRACTED | wxSTC_FOLDFLAG_LINEAFTER_CONTRACTED);
 
     
     
     
     // 【1】自定义：未折叠状态的头（方框减号）
-    MarkerDefine(wxSTC_MARKNUM_FOLDEROPEN, wxSTC_MARK_BOXMINUS, *wxWHITE, wxColour(120, 120, 120));
+    MarkerDefine(wxSTC_MARKNUM_FOLDEROPEN, wxSTC_MARK_BOXMINUS, pal.canvas, pal.text3);
 
     // 【2】自定义：已折叠状态的头（方框加号）
-    MarkerDefine(wxSTC_MARKNUM_FOLDER, wxSTC_MARK_BOXPLUS, *wxWHITE, wxColour(120, 120, 120));
+    MarkerDefine(wxSTC_MARKNUM_FOLDER, wxSTC_MARK_BOXPLUS, pal.canvas, pal.text3);
 
     // 【3】自定义：折叠块中间的垂直连线
-    MarkerDefine(wxSTC_MARKNUM_FOLDERSUB, wxSTC_MARK_VLINE, *wxWHITE, wxColour(120, 120, 120));
+    MarkerDefine(wxSTC_MARKNUM_FOLDERSUB, wxSTC_MARK_VLINE, pal.canvas, pal.text3);
 
     // 【4】自定义：展开状态下，块结尾的那个 L 型拐角
-    MarkerDefine(wxSTC_MARKNUM_FOLDERTAIL, wxSTC_MARK_LCORNER, *wxWHITE, wxColour(120, 120, 120));
+    MarkerDefine(wxSTC_MARKNUM_FOLDERTAIL, wxSTC_MARK_LCORNER, pal.canvas, pal.text3);
 
     // 【5】自定义：折叠状态下，如果下面还有嵌套，结尾显示的那个带连线的方框（极其重要！）
     // 这就是解决你“二级 Header 变圆圈”的关键
-    MarkerDefine(wxSTC_MARKNUM_FOLDEREND, wxSTC_MARK_BOXPLUSCONNECTED, *wxWHITE, wxColour(120, 120, 120));
+    MarkerDefine(wxSTC_MARKNUM_FOLDEREND, wxSTC_MARK_BOXPLUSCONNECTED, pal.canvas, pal.text3);
 
     // 【6】自定义：处于打开状态的子级头（带连线的减号方框）
-    MarkerDefine(wxSTC_MARKNUM_FOLDEROPENMID, wxSTC_MARK_BOXMINUSCONNECTED, *wxWHITE, wxColour(120, 120, 120));
+    MarkerDefine(wxSTC_MARKNUM_FOLDEROPENMID, wxSTC_MARK_BOXMINUSCONNECTED, pal.canvas, pal.text3);
 
     // 【7】自定义：由于某些跳变产生的中间连线
-    MarkerDefine(wxSTC_MARKNUM_FOLDERMIDTAIL, wxSTC_MARK_VLINE, *wxWHITE, wxColour(120, 120, 120));
+    MarkerDefine(wxSTC_MARKNUM_FOLDERMIDTAIL, wxSTC_MARK_VLINE, pal.canvas, pal.text3);
     
     
     
@@ -251,104 +279,107 @@ void SigTextEditor::SetVerilogIDE() {
     
     // --- C. 诊断波浪线配置 (Indicators) ---
     IndicatorSetStyle(0, wxSTC_INDIC_SQUIGGLE); // Error
-    IndicatorSetForeground(0, wxColour(220, 50, 50));
+    IndicatorSetForeground(0, pal.danger);
     IndicatorSetStyle(1, wxSTC_INDIC_SQUIGGLE); // Warning
-    IndicatorSetForeground(1, wxColour(255, 150, 0));
+    IndicatorSetForeground(1, pal.warn);
 
     // --- D. 语义高亮样式定义 (为后续渲染准备) ---
-    // 定义常量（建议在类成员或头文件中统一管理）
-#define STYLE_SEM_PORT 20
-#define STYLE_SEM_PARAM 21
-#define STYLE_SEM_INST 22
-    StyleSetForeground(STYLE_SEM_PORT, wxColour(255, 128, 0));  // 橙色端口
-    StyleSetBold(STYLE_SEM_PORT, true);
-    StyleSetForeground(STYLE_SEM_PARAM, wxColour(128, 0, 255)); // 紫色参数
-    StyleSetForeground(STYLE_SEM_INST, wxColour(0, 128, 192));  // 蓝绿实例
+    // GAP-A9：唯一定义见 SigTextEditor.h 的 SemanticStyleId（100/101/102）。
+    StyleSetForeground(STYLE_SEMANTIC_PORT, pal.accent);  // 端口：与端口连接名同族
+    StyleSetBold(STYLE_SEMANTIC_PORT, true);
+    StyleSetForeground(STYLE_SEMANTIC_PARAM, pal.codeType); // 参数：类型/数据声明族（SPEC §3.6）
+    StyleSetForeground(STYLE_SEMANTIC_INST, pal.text2);  // 实例名：标识符族
 
     // --- E. 交互反馈 ---
     SetMouseDwellTime(500); // 开启 500ms 悬停检测
-    SetCaretForeground(wxColour(0, 0, 0));
+    SetCaretForeground(pal.text1);
     SetCaretLineVisible(true);
-    SetCaretLineBackground(wxColour(245, 245, 245));
-    SetSelBackground(true, wxColour(173, 214, 255));
+    SetCaretLineBackground(pal.hoverOnPanel);
+    SetSelBackground(true, pal.selOnPanel);
 }
 void SigTextEditor::SetTextStyle() {
     ClearAll();
     SetLexer(wxSTC_LEX_NULL);
 
-    // 默认字体：深灰色文字，纯白背景
-    wxFont font(12, wxFONTFAMILY_TELETYPE, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
+    const UiTheme::Colours& pal = UiTheme::Palette();
+
+    // 默认字体：text1 正文、canvas 背景；CMP-052: 13 DIP 等宽
+    wxFont font = UiTheme::MonoFont(this, UiTheme::TextSize::P13);
     StyleSetFont(wxSTC_STYLE_DEFAULT, font);
-    StyleSetBackground(wxSTC_STYLE_DEFAULT, wxColour(255, 255, 255)); // 纯白
-    StyleSetForeground(wxSTC_STYLE_DEFAULT, wxColour(30, 30, 30));    // 近乎黑色
+    StyleSetBackground(wxSTC_STYLE_DEFAULT, pal.canvas); // 编辑器底
+    StyleSetForeground(wxSTC_STYLE_DEFAULT, pal.text1);  // 正文墨
 
     StyleClearAll();
 
-    // 配置行号列 (Margin 0)：浅灰色背景，深灰色数字
+    // 配置行号列 (Margin 0)：凹陷底 + 辅助灰数字
     SetMarginType(0, wxSTC_MARGIN_NUMBER);
     SetMarginWidth(0, 45);
-    StyleSetForeground(wxSTC_STYLE_LINENUMBER, wxColour(120, 120, 120));
-    StyleSetBackground(wxSTC_STYLE_LINENUMBER, wxColour(240, 240, 240));
+    StyleSetForeground(wxSTC_STYLE_LINENUMBER, pal.text3);
+    StyleSetBackground(wxSTC_STYLE_LINENUMBER, pal.sunkenOnCanvas);
 
-    // 设置光标为黑色
-    SetCaretForeground(wxColour(0, 0, 0));
+    // 设置插入符为正文墨
+    SetCaretForeground(pal.text1);
 }
 
 void SigTextEditor::SetMarkdownStyle() {
     SetLexer(wxSTC_LEX_MARKDOWN);
 
+    const UiTheme::Colours& pal = UiTheme::Palette();
+
     // 基础继承
-    StyleSetBackground(wxSTC_STYLE_DEFAULT, wxColour(255, 255, 255));
-    StyleSetForeground(wxSTC_STYLE_DEFAULT, wxColour(30, 30, 30));
+    StyleSetBackground(wxSTC_STYLE_DEFAULT, pal.canvas);
+    StyleSetForeground(wxSTC_STYLE_DEFAULT, pal.text1);
     StyleClearAll();
 
-    // 标题 (Headers) - 深蓝色
-    StyleSetForeground(1, wxColour(0, 56, 121));  // H1
+    // 标题族（样式号 1/2/3）→ accent
+    StyleSetForeground(1, pal.accent);  // H1
     StyleSetBold(1, true);
-    StyleSetForeground(2, wxColour(0, 56, 121));  // H2
-    StyleSetForeground(3, wxColour(0, 56, 121));  // H3
+    StyleSetForeground(2, pal.accent);  // H2
+    StyleSetForeground(3, pal.accent);  // H3
 
-    // 代码块 - 棕红色
-    StyleSetForeground(19, wxColour(163, 21, 21));
-    StyleSetForeground(20, wxColour(163, 21, 21));
+    // 代码块（样式号 19/20）→ 色相最近的 danger（近似映射）
+    StyleSetForeground(19, pal.danger);
+    StyleSetForeground(20, pal.danger);
 
-    // 列表 - 深绿色
-    StyleSetForeground(15, wxColour(0, 128, 0));
+    // 列表（样式号 15）→ 绿族 codeType（近似映射；SPEC §3.6）
+    StyleSetForeground(15, pal.codeType);
 
     // 粗体/斜体
     StyleSetBold(10, true);
     StyleSetItalic(11, true);
 
-    // 链接 - 亮蓝色带下划线
-    StyleSetForeground(14, wxColour(0, 0, 255));
+    // 链接族（样式号 14，原亮蓝带下划线）→ accent（链接 = accent）
+    StyleSetForeground(14, pal.accent);
     StyleSetUnderline(14, true);
 }
 
 void SigTextEditor::SetJsonStyle() {
     SetLexer(wxSTC_LEX_JSON);
 
-    StyleSetBackground(wxSTC_STYLE_DEFAULT, wxColour(255, 255, 255));
-    StyleSetForeground(wxSTC_STYLE_DEFAULT, wxColour(30, 30, 30));
+    const UiTheme::Colours& pal = UiTheme::Palette();
+
+    StyleSetBackground(wxSTC_STYLE_DEFAULT, pal.canvas);
+    StyleSetForeground(wxSTC_STYLE_DEFAULT, pal.text1);
     StyleClearAll();
 
-    // 属性名 (Key) - 深蓝色 (VS 经典色)
-    StyleSetForeground(wxSTC_JSON_PROPERTYNAME, wxColour(4, 81, 165));
+    // 属性名 (Key) → accent
+    StyleSetForeground(wxSTC_JSON_PROPERTYNAME, pal.accent);
 
-    // 字符串 (Value) - 棕红色
-    StyleSetForeground(wxSTC_JSON_STRING, wxColour(163, 21, 21));
+    // 字符串 (Value) → st = warn (CMP-053)
+    StyleSetForeground(wxSTC_JSON_STRING, pal.warn);
 
-    // 数值 - 翠绿色
-    StyleSetForeground(wxSTC_JSON_NUMBER, wxColour(9, 134, 88));
+    // 数值 → 绿族 codeType（SPEC §3.6）
+    StyleSetForeground(wxSTC_JSON_NUMBER, pal.codeType);
 
-    // 关键字 (true, false, null) - 亮蓝色
-    StyleSetForeground(wxSTC_JSON_KEYWORD, wxColour(0, 0, 255));
+    // 关键字 (true, false, null) → kw = accent (CMP-053)
+    StyleSetForeground(wxSTC_JSON_KEYWORD, pal.accent);
     SetKeyWords(0, "true false null");
 
-    // 操作符 - 黑色
-    StyleSetForeground(wxSTC_JSON_OPERATOR, wxColour(0, 0, 0));
+    // 操作符 → 正文墨
+    StyleSetForeground(wxSTC_JSON_OPERATOR, pal.text1);
 
-    // 错误处理 - 亮红色
-    StyleSetForeground(wxSTC_JSON_ERROR, wxColour(200, 0, 0));
+    // 错误处理 → danger
+    StyleSetForeground(wxSTC_JSON_ERROR, pal.danger);
 }
 
 
@@ -389,9 +420,19 @@ void SigTextEditor::OnTextChanged(wxStyledTextEvent& event) {
     // 3. 过滤逻辑
     if (!m_isLoading && isContentChanged) {
         this->temp_version++;
+        NotifyHeaderState(false);
         // 这里可以执行你的逻辑，比如通知 AsyncAnalysisCenter
     }
 
+    event.Skip();
+}
+
+void SigTextEditor::OnDocumentChanged(wxStyledTextEvent& event) {
+    // Keep the presentation state honest even when another feature consumes a
+    // low-level wxEVT_STC_MODIFIED notification.
+    if (!m_isLoading) {
+        NotifyHeaderState(false);
+    }
     event.Skip();
 }
 
@@ -441,6 +482,7 @@ bool SigTextEditor::OpenFile(wxString path) {
     this->SetToolTip(m_currentFilePath);
     temp_version = 0;
     m_isLoading = false;
+    NotifyHeaderState(false);
 
     return true;
 }
@@ -456,6 +498,7 @@ void SigTextEditor::ClearDocument()
     SetToolTip(wxEmptyString);
     temp_version = 0;
     m_isLoading = false;
+    NotifyHeaderState(false);
 }
 
 

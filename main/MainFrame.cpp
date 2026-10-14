@@ -77,6 +77,9 @@ using sigflow::platform::JoinPath;
 #include "debug/TraceBridgeWindow.h"
 #include "debug/DebugContractConfigWindow.h"
 #include "debug/DebugAcquisition.h"
+#include "debug/CaptureRunService.h"
+#include "debug/DeviceControl.h"
+#include "debug/TransportBackend.h"
 #include "debug/DebugSession.h"
 #include "debug/DebugOverlayBuilder.h"
 #include "debug/DebugNetlistValidator.h"
@@ -4012,6 +4015,7 @@ void MainFrame::RunTraceBridgeCapture(
     std::function<void(bool, const wxString&)> completion)
 {
     const wxWeakRef<MainFrame> weakFrame(this);
+    const wxWeakRef<TraceBridgeWindow> captureWindow(m_traceBridgeWindow);
     std::vector<std::string> mappingSources;
     wxString mappingTop;
     std::vector<wxString> sourceFiles;
@@ -4020,130 +4024,344 @@ void MainFrame::RunTraceBridgeCapture(
     }
     const std::string mappingTopModule = request.contract.topModule.empty()
         ? sigflow::platform::Utf8String(mappingTop) : request.contract.topModule;
-    std::thread([weakFrame, request, mappingSources, mappingTopModule,
+    std::thread([weakFrame, captureWindow, request, mappingSources, mappingTopModule,
                  completion = std::move(completion)]() mutable {
         std::string error;
         std::string vcdPath;
         bool success = false;
-        auto postStatus = [weakFrame](const wxString& message) {
+        auto postStatus = [captureWindow](const wxString& message) {
             if (!wxTheApp) return;
-            wxTheApp->CallAfter([weakFrame, message]() {
-                if (weakFrame && weakFrame->m_traceBridgeWindow) {
-                    weakFrame->m_traceBridgeWindow->SetCaptureStatus(message);
+            wxTheApp->CallAfter([captureWindow, message]() {
+                if (captureWindow) {
+                    captureWindow->SetCaptureStatus(message);
                 }
             });
         };
 
         try {
-            sigflow::debug::DebugSessionService sessionService;
-            sigflow::debug::DebugSessionInfo session;
-            postStatus("Creating TraceBridge debug session...");
-            if (!sessionService.Create(request.projectPath, request.contract, session, error)) {
-                error = "Unable to create TraceBridge session: " + error;
-            } else {
-                const auto paths = sigflow::debug::DebugSessionService::GetPaths(
-                    request.projectPath, session.id);
-                sigflow::debug::DebugMappingBuildResult mappingResult;
-                std::string mappingError;
-                const std::string topModule = mappingTopModule.empty()
-                    ? request.contract.topModule : mappingTopModule;
-                if (!sigflow::debug::DebugMappingBuilder::Generate(
-                        topModule, mappingSources, request.contract, paths.root,
-                        mappingResult, mappingError)) {
-                    postStatus(wxT("Warning: source mapping sidecar generation failed: ") +
-                               wxString::FromUTF8(mappingError));
-                } else {
-                    postStatus(wxString::Format(
-                        "Generated signal map (%zu signals, %zu upstream edges).",
-                        mappingResult.mappedSignals, mappingResult.graphEdges));
-                }
-                const auto transition = [&sessionService, &request, &session, &error, &postStatus](
-                    sigflow::debug::DebugSessionState state, const char* reason, const wxString& progress) {
-                    postStatus(progress);
-                    return sessionService.Transition(request.projectPath, session.id, state, reason, 0, error);
-                };
-                if (!transition(sigflow::debug::DebugSessionState::Validating,
-                                "TraceBridge GUI validated contract.", "Validating debug contract...") ||
-                    !transition(sigflow::debug::DebugSessionState::Building,
-                                "Using externally prepared debug bitstream.",
-                                "Using the externally prepared debug bitstream...") ||
-                    !transition(sigflow::debug::DebugSessionState::Programming,
-                                "Using user-programmed debug bitstream.",
-                                "Checking programmed debug-bitstream session...") ||
-                    !transition(sigflow::debug::DebugSessionState::Armed,
-                                "Opening TraceBridge UART capture.", "Opening TraceBridge UART...")) {
-                    error = "Unable to arm TraceBridge session: " + error;
-                } else {
-                    // 传输层选择：优先 libftdi 直连（绕过 ftdi_sio / tty）。
-                    // Tang Nano 9K 的板载 BL702 只是"模仿" FT2232：实测同一个 PING 帧，
-                    // libftdi 直连能收到合法 Pong（00 08 01 02 01 01 01 15 42 00），
-                    // 而 /dev/ttyUSBx 路径完全没有应答；且 libftdi 打开设备会 detach
-                    // ftdi_sio，烧录后调试串口的 tty 常常直接消失。
-                    // 找不到设备或未编译 libftdi 支持时，回退到串口传输层。
-                    const std::uint32_t debugBaud =
-                        static_cast<std::uint32_t>(request.contract.transport.baud);
-                    std::unique_ptr<sigflow::debug::ITransport> transport;
-                    // 失败原因与"实际使用的传输层"都会拼进最终 error
-                    // （GUI 运行日志表能看到），便于定位。
-                    std::string why;
-                    std::string transportUsed = "unknown";
-#if defined(SIGFLOW_HAVE_LIBFTDI)
-                    if (sigflow::debug::FtdiTransport::IsDevicePresent(0x0403, 0x6010)) {
-                        // 打开是瞬态操作（设备刚被 JTAG 用过 + 内核驱动重新绑定），重试几次
-                        for (int attempt = 0; attempt < 5 && !transport; ++attempt) {
-                            auto ftdi = std::make_unique<sigflow::debug::FtdiTransport>(
-                                0x0403, 0x6010, 1, debugBaud);
-                            if (ftdi->Open()) {
-                                transport = std::move(ftdi);
-                                transportUsed = "libftdi(0403:6010 chB)";
-                                postStatus("Transport: libftdi direct (0403:6010 channel B, "
-                                           "bypassing tty).");
-                            } else if (attempt < 4) {
-                                wxMilliSleep(200);
-                            }
-                        }
-                        if (!transport) why += "libftdi open failed x5; ";
-                    } else {
-                        why += "libftdi: 0403:6010 not found; ";
+            sigflow::debug::CaptureRunPlan plan;
+            plan.outputRoot = JoinPath(JoinPath(request.projectPath, ".sigflow"), "debug/runs");
+            // targetProfile is a board model, not a verified physical device ID.
+            plan.deviceId.clear();
+            plan.contractSnapshot = request.contract.ToJson();
+            Json::Value runtimeConfig(Json::objectValue);
+            runtimeConfig["contract"] = plan.contractSnapshot;
+            runtimeConfig["sync_calibrate"] = request.options.syncCalibrate;
+            runtimeConfig["check_fingerprint"] = request.options.checkFingerprint;
+            runtimeConfig["auto_reconnect"] = request.options.autoReconnect;
+            runtimeConfig["poll_interval_ms"] = request.options.pollIntervalMs;
+            runtimeConfig["command_timeout_ms"] = request.options.commandTimeoutMs;
+            runtimeConfig["command_attempts"] = request.options.commandAttempts;
+            runtimeConfig["capture_timeout_ms"] = request.captureAttemptTimeoutMs;
+            Json::StreamWriterBuilder configWriter;
+            configWriter["indentation"] = "";
+            plan.runtimeConfigHash = sigflow::debug::Sha256String(Json::writeString(configWriter, runtimeConfig));
+            plan.targetCount = request.captureTargetCount;
+            plan.maxAttempts = request.captureMaxAttempts;
+            plan.stopAfterFailures = request.captureStopAfterFailures;
+            plan.totalTimeoutMs = request.captureTotalTimeoutMs;
+            plan.attemptTimeoutMs = request.captureAttemptTimeoutMs;
+            plan.interAttemptDelayMs = request.captureInterAttemptDelayMs;
+
+            sigflow::debug::CaptureRunService runService;
+            sigflow::debug::DeviceControlLease deviceLease;
+            sigflow::debug::CaptureRunResult runResult;
+            std::string runError;
+            success = runService.Run(
+                plan,
+                [&](const sigflow::debug::CaptureAttemptContext& context) {
+                    sigflow::debug::CaptureAttemptResult attempt;
+                    attempt.state = sigflow::debug::CaptureAttemptState::Running;
+                    const auto addIssue = [&attempt](const std::string& code,
+                                                      const std::string& stage,
+                                                      sigflow::debug::DiagnosticSeverity severity,
+                                                      const std::string& observed,
+                                                      const std::string& action,
+                                                      std::vector<std::string> evidence = {}) {
+                        attempt.issues.push_back({code, stage, severity, observed, action,
+                                                  std::move(evidence)});
+                    };
+                    postStatus(wxString::Format("Capture attempt %zu/%zu...",
+                                                context.attemptNumber, context.plan.maxAttempts));
+                    if (context.cancelled.load() ||
+                        (request.options.aborted && request.options.aborted->load())) {
+                        attempt.state = sigflow::debug::CaptureAttemptState::Cancelled;
+                        attempt.error = "Cancelled";
+                        addIssue("USER_CANCELLED", "acquiring",
+                                 sigflow::debug::DiagnosticSeverity::Warning,
+                                 "采集在下一次布防前被取消", "保留已提交窗口并在安全状态下重试");
+                        return attempt;
                     }
-#else
-                    why += "no libftdi support; ";
-#endif
-                    if (!transport) {
-                        auto serial = std::make_unique<sigflow::debug::SerialTransport>(
-                            request.serialPort, debugBaud);
-                        if (serial->Open()) {
-                            transport = std::move(serial);
-                            transportUsed = "serial:" + request.serialPort;
-                            postStatus("Transport: serial fallback.");
+                    if (!deviceLease.IsHeld()) {
+                        std::string leaseError;
+                        if (!sigflow::debug::DeviceControlLease::Acquire(
+                                "tracebridge-hardware", context.runId, deviceLease, leaseError)) {
+                            attempt.state = sigflow::debug::CaptureAttemptState::Failed;
+                            attempt.error = leaseError;
+                            addIssue("DEVICE_BUSY", "device",
+                                     sigflow::debug::DiagnosticSeverity::Blocking,
+                                     leaseError, "等待现有采集/烧录/自检任务结束后重试");
+                            return attempt;
+                        }
+                        postStatus("Device control acquired for this capture run.");
+                    }
+
+                    try {
+                        sigflow::debug::DebugSessionService sessionService;
+                        sigflow::debug::DebugSessionInfo session;
+                        std::string attemptError;
+                        postStatus("Creating TraceBridge debug session...");
+                        // Build identity stays in the contract snapshot; each attempt
+                        // needs its own artifact directory even for a fixed contract ID.
+                        auto attemptContract = request.contract;
+                        attemptContract.sessionId = context.attemptId;
+                        if (!sessionService.Create(request.projectPath, attemptContract,
+                                                   session, attemptError)) {
+                            attempt.state = sigflow::debug::CaptureAttemptState::Failed;
+                            attempt.error = "Unable to create TraceBridge session: " + attemptError;
+                            addIssue("SESSION_CREATE_FAILED", "validating",
+                                     sigflow::debug::DiagnosticSeverity::Blocking,
+                                     attemptError, "检查工程目录权限、契约和会话目录");
+                            return attempt;
+                        }
+
+                        const auto paths = sigflow::debug::DebugSessionService::GetPaths(
+                            request.projectPath, session.id);
+                        attempt.window.sessionId = session.id;
+                        sigflow::debug::DebugMappingBuildResult mappingResult;
+                        std::string mappingError;
+                        const std::string topModule = mappingTopModule.empty()
+                            ? request.contract.topModule : mappingTopModule;
+                        if (!sigflow::debug::DebugMappingBuilder::Generate(
+                                topModule, mappingSources, request.contract, paths.root,
+                                mappingResult, mappingError)) {
+                            postStatus(wxT("Warning: source mapping sidecar generation failed: ") +
+                                       wxString::FromUTF8(mappingError));
                         } else {
-                            why += "serial " + request.serialPort + " open failed; ";
+                            postStatus(wxString::Format(
+                                "Generated signal map (%zu signals, %zu upstream edges).",
+                                mappingResult.mappedSignals, mappingResult.graphEdges));
                         }
-                    }
-                    if (!transport) {
-                        error = "Unable to open debug link (" + why + ").";
-                        std::string transitionError;
-                        sessionService.Transition(request.projectPath, session.id,
-                                                  sigflow::debug::DebugSessionState::Failed,
-                                                  error, -1, transitionError);
-                    } else {
+                        const auto transition = [&sessionService, &request, &session,
+                                                 &attemptError, &postStatus](
+                            sigflow::debug::DebugSessionState state, const char* reason,
+                            const wxString& progress) {
+                            postStatus(progress);
+                            return sessionService.Transition(request.projectPath, session.id,
+                                                             state, reason, 0, attemptError);
+                        };
+                        if (!transition(sigflow::debug::DebugSessionState::Validating,
+                                        "TraceBridge GUI validated contract.",
+                                        "Validating debug contract...") ||
+                            !transition(sigflow::debug::DebugSessionState::Building,
+                                         "Using externally prepared debug bitstream.",
+                                         "Using the externally prepared debug bitstream...") ||
+                            !transition(sigflow::debug::DebugSessionState::Programming,
+                                         "Using user-programmed debug bitstream.",
+                                         "Checking programmed debug-bitstream session...") ||
+                            !transition(sigflow::debug::DebugSessionState::Armed,
+                                         "Opening TraceBridge UART capture.",
+                                         "Opening TraceBridge UART...")) {
+                            attempt.state = sigflow::debug::CaptureAttemptState::Failed;
+                            attempt.error = "Unable to arm TraceBridge session: " + attemptError;
+                            addIssue("SESSION_ARM_FAILED", "arming",
+                                     sigflow::debug::DiagnosticSeverity::Blocking,
+                                     attemptError, "检查契约、位流身份和会话状态迁移");
+                            return attempt;
+                        }
+
+                        const sigflow::debug::TransportOpenOptions transportOptions{
+                            request.serialPort,
+                            static_cast<std::uint32_t>(request.contract.transport.baud),
+                            true,
+                            true};
+                        sigflow::debug::TransportOpenResult transportResult;
+                        std::string transportError;
+                        if (!sigflow::debug::OpenDebugTransport(
+                                transportOptions, transportResult, transportError)) {
+                            attempt.state = sigflow::debug::CaptureAttemptState::Failed;
+                            attempt.error = "Unable to open debug link: " + transportError;
+                            addIssue("DEVICE_OPEN_FAILED", "device",
+                                     sigflow::debug::DiagnosticSeverity::Blocking,
+                                     transportError, "检查设备枚举、占用、驱动和串口权限",
+                                     transportResult.diagnostics);
+                            std::string transitionError;
+                            sessionService.Transition(request.projectPath, session.id,
+                                                      sigflow::debug::DebugSessionState::Failed,
+                                                      attempt.error, -1, transitionError);
+                            return attempt;
+                        }
+                        auto transport = std::move(transportResult.transport);
+                        const std::string transportUsed = transportResult.backendId;
+                        if (transportUsed.rfind("serial:", 0) == 0 &&
+                            !transportResult.diagnostics.empty()) {
+                            addIssue("BACKEND_FALLBACK", "device",
+                                     sigflow::debug::DiagnosticSeverity::Warning,
+                                     "首选后端未使用，已回退到串口",
+                                     "确认 FTDI 编译支持、枚举状态和目标通道",
+                                     transportResult.diagnostics);
+                        }
+                        postStatus(wxString::FromUTF8(("Transport: " + transportUsed).c_str()));
+                        for (const auto& diagnostic : transportResult.diagnostics) {
+                            postStatus(wxString::FromUTF8(("Transport detail: " + diagnostic).c_str()));
+                        }
+
                         postStatus("Armed. Waiting for trigger and reading samples...");
-                        const sigflow::debug::DebugSessionPaths paths =
+                        const sigflow::debug::DebugSessionPaths sessionPaths =
                             sigflow::debug::DebugSessionService::GetPaths(request.projectPath, session.id);
                         sigflow::debug::DebugAcquisition acquisition(*transport, request.contract);
-                        success = acquisition.AcquireWithSession(request.projectPath, session.id,
-                                                                 paths.artifacts, error, request.options);
-                        if (success) {
-                            vcdPath = acquisition.Result().vcdPath;
-                        } else {
-                            // 把"实际用了哪条传输层"拼进 GUI 可见的错误里：
-                            // 这是区分"libftdi 直连"与"串口回退"的关键信息。
-                            error += " ［传输层=" + transportUsed + "］";
+                        sigflow::debug::DebugAcquisitionOptions acquisitionOptions = request.options;
+                        const auto budget = context.RemainingBudgetMs();
+                        if (budget == 0 || (acquisitionOptions.aborted && acquisitionOptions.aborted->load())) {
+                            const bool cancelled = acquisitionOptions.aborted && acquisitionOptions.aborted->load();
+                            transport->Close();
+                            attempt.state = cancelled ? sigflow::debug::CaptureAttemptState::Cancelled
+                                                      : sigflow::debug::CaptureAttemptState::TimedOut;
+                            attempt.error = cancelled ? "Cancelled" : "capture run timeout before acquisition";
+                            std::string transitionError;
+                            sessionService.Transition(request.projectPath, session.id,
+                                cancelled ? sigflow::debug::DebugSessionState::Cancelled
+                                          : sigflow::debug::DebugSessionState::TimedOut,
+                                attempt.error, 1, transitionError);
+                            return attempt;
                         }
+                        acquisitionOptions.captureTimeoutMs = static_cast<int>(std::min({
+                            context.plan.attemptTimeoutMs, budget,
+                            static_cast<std::uint32_t>(std::numeric_limits<int>::max())}));
+                        const auto priorProgress = acquisitionOptions.onProgress;
+                        std::chrono::steady_clock::time_point waitStarted;
+                        std::chrono::steady_clock::time_point readbackStarted;
+                        std::chrono::steady_clock::time_point readbackCompleted;
+                        acquisitionOptions.onProgress = [&, priorProgress](
+                            sigflow::debug::DebugAcqStage stage, int percent,
+                            const std::string& message) {
+                            if (priorProgress) priorProgress(stage, percent, message);
+                            const auto now = std::chrono::steady_clock::now();
+                            const auto stamp = sigflow::debug::CaptureNowUtc();
+                            if (stage == sigflow::debug::DebugAcqStage::Arm && percent == 0 &&
+                                attempt.timing.armRequestedAtUtc.empty()) {
+                                attempt.timing.armRequestedAtUtc = stamp;
+                            } else if (stage == sigflow::debug::DebugAcqStage::PollStatus && percent == 0) {
+                                attempt.timing.waitStartedAtUtc = stamp;
+                                waitStarted = now;
+                            } else if (stage == sigflow::debug::DebugAcqStage::PollStatus && percent == 100) {
+                                attempt.timing.captureReadyAtUtc = stamp;
+                                if (waitStarted.time_since_epoch().count() != 0) {
+                                    attempt.timing.waitMs = static_cast<std::uint64_t>(
+                                        std::chrono::duration_cast<std::chrono::milliseconds>(
+                                            now - waitStarted).count());
+                                }
+                            } else if (stage == sigflow::debug::DebugAcqStage::ReadSamples && percent == 0) {
+                                attempt.timing.readbackStartedAtUtc = stamp;
+                                readbackStarted = now;
+                            } else if (stage == sigflow::debug::DebugAcqStage::ReadSamples && percent == 100) {
+                                attempt.timing.readbackCompletedAtUtc = stamp;
+                                readbackCompleted = now;
+                                if (readbackStarted.time_since_epoch().count() != 0) {
+                                    attempt.timing.readbackMs = static_cast<std::uint64_t>(
+                                        std::chrono::duration_cast<std::chrono::milliseconds>(
+                                            now - readbackStarted).count());
+                                }
+                            } else if (stage == sigflow::debug::DebugAcqStage::Done && percent == 100) {
+                                attempt.timing.artifactsCompletedAtUtc = stamp;
+                                if (readbackCompleted.time_since_epoch().count() != 0) {
+                                    attempt.timing.artifactMs = static_cast<std::uint64_t>(
+                                        std::chrono::duration_cast<std::chrono::milliseconds>(
+                                            now - readbackCompleted).count());
+                                }
+                            }
+                        };
+                        std::string acquisitionError;
+                        const bool captured = acquisition.AcquireWithSession(
+                            request.projectPath, session.id, sessionPaths.artifacts,
+                            acquisitionError, acquisitionOptions);
+                        attempt.transportStats = acquisition.Result().transportStats;
+                        attempt.protocolStats = acquisition.Result().protocolStats;
                         transport->Close();
+                        if (!captured) {
+                            attempt.error = acquisitionError + " ［传输层=" + transportUsed + "］";
+                            const bool aborted = acquisitionError == "Aborted";
+                            const bool timedOut = acquisitionError.find("timeout") != std::string::npos ||
+                                                  acquisitionError.find("Timeout") != std::string::npos ||
+                                                  acquisitionError.find("超时") != std::string::npos;
+                            const bool identityMismatch = acquisitionError.find("指纹不一致") != std::string::npos ||
+                                                          acquisitionError.find("fingerprint") != std::string::npos;
+                            const bool crcError = acquisitionError.find("CRC") != std::string::npos ||
+                                                  acquisitionError.find("crc") != std::string::npos;
+                            attempt.state = aborted
+                                ? sigflow::debug::CaptureAttemptState::Cancelled
+                                : timedOut ? sigflow::debug::CaptureAttemptState::TimedOut
+                                           : sigflow::debug::CaptureAttemptState::Failed;
+                            addIssue(aborted ? "USER_CANCELLED"
+                                             : identityMismatch ? "IDENTITY_MISMATCH"
+                                                                 : crcError ? "CRC_ERROR"
+                                                                            : timedOut ? "CAPTURE_TIMEOUT"
+                                                                                       : "CAPTURE_FAILED",
+                                     aborted ? "acquiring" : "acquiring",
+                                     aborted ? sigflow::debug::DiagnosticSeverity::Warning
+                                             : identityMismatch ? sigflow::debug::DiagnosticSeverity::Blocking
+                                                                 : sigflow::debug::DiagnosticSeverity::Error,
+                                     acquisitionError,
+                                     aborted ? "保留已提交窗口并在安全状态下重试"
+                                             : identityMismatch ? "检查当前位流、契约和指纹来源"
+                                                                 : crcError ? "检查链路字节透明性和协议校验"
+                                                                            : timedOut ? "检查触发条件、板端时钟和采集超时"
+                                                                                       : "查看传输层诊断并决定是否重试");
+                            return attempt;
+                        }
+
+                        const auto& capture = acquisition.Result();
+                        attempt.state = sigflow::debug::CaptureAttemptState::Captured;
+                        attempt.window.captureId = session.id;
+                        attempt.window.completeness = "complete";
+                        attempt.window.sessionId = session.id;
+                        attempt.window.rawPath = capture.rawPath;
+                        attempt.window.vcdPath = capture.vcdPath;
+                        attempt.window.metadataPath = capture.metadataPath;
+                        attempt.window.timeDomain = capture.vcdMeta.timeDomain;
+                        attempt.window.vcdTimescale = capture.vcdMeta.timescale;
+                        attempt.window.sampleClockHz = capture.vcdMeta.sampleClockHz;
+                        attempt.window.decimation = capture.vcdMeta.decimation;
+                        attempt.window.triggerTime = capture.vcdMeta.triggerTime;
+                        attempt.window.triggerObserved = capture.vcdMeta.triggerObserved;
+                        if (!capture.vcdMeta.triggerObserved) {
+                            addIssue("TRIGGER_NOT_OBSERVED", "acquiring",
+                                sigflow::debug::DiagnosticSeverity::Warning,
+                                "线性缓冲已填满，但 STATUS 未报告触发；不使用旧 trigger_index 作时间锚点",
+                                "检查触发条件；完整样本窗口仍保留用于分析");
+                        }
+                        attempt.window.sampleCount = capture.samples.size();
+                        attempt.window.triggerIndex = capture.triggerIndex;
+                        attempt.window.identity = request.contract.transport.protocol == "full" &&
+                                                  acquisitionOptions.checkFingerprint &&
+                                                  request.contract.fingerprints.fingerprint64 != 0
+                            ? "device_verified" : "host_bound";
+                        if (attempt.window.identity == "host_bound") {
+                            addIssue("IDENTITY_UNVERIFIED", "acquiring",
+                                     sigflow::debug::DiagnosticSeverity::Warning,
+                                     "当前采集没有可证明的板端指纹身份",
+                                     "使用 full 协议并启用指纹校验后再做跨设备归因");
+                        }
+                        vcdPath = capture.vcdPath;
+                        return attempt;
+                    } catch (const std::exception& exception) {
+                        attempt.state = sigflow::debug::CaptureAttemptState::Failed;
+                        attempt.error = std::string("TraceBridge acquisition exception: ") +
+                                        exception.what();
+                        return attempt;
+                    } catch (...) {
+                        attempt.state = sigflow::debug::CaptureAttemptState::Failed;
+                        attempt.error = "TraceBridge acquisition failed with an unknown exception.";
+                        return attempt;
                     }
-                }
-            }
+                },
+                runResult, runError);
+            postStatus(wxString::Format(
+                "Capture run %s: %zu attempts, %zu complete, %zu timeout, %zu failure.",
+                runResult.state == sigflow::debug::CaptureRunState::Completed ? "completed" : "stopped",
+                runResult.attempts, runResult.completedWindows,
+                runResult.timeoutCount, runResult.failureCount));
+            if (!success) error = runError;
         } catch (const std::exception& exception) {
             error = "TraceBridge acquisition exception: " + std::string(exception.what());
         } catch (...) {
@@ -4151,8 +4369,8 @@ void MainFrame::RunTraceBridgeCapture(
         }
 
         if (!wxTheApp) return;
-        wxTheApp->CallAfter([weakFrame, success, error, vcdPath, completion]() {
-            if (!weakFrame || !weakFrame->m_traceBridgeWindow) return;
+        wxTheApp->CallAfter([weakFrame, captureWindow, success, error, vcdPath, completion]() {
+            if (!weakFrame || !captureWindow) return;
             wxString completionMessage;
             if (success) {
                 const wxString captureVcd = wxString::FromUTF8(vcdPath);
@@ -4164,11 +4382,11 @@ void MainFrame::RunTraceBridgeCapture(
                         if (page != wxNOT_FOUND) notebook->SetSelection(page);
                     }
                 }
-                weakFrame->m_traceBridgeWindow->SetCaptureResult(
+                captureWindow->SetCaptureResult(
                     true, "Capture completed and loaded into WavePanel.", captureVcd);
                 completionMessage = wxT("采集完成：") + captureVcd;
             } else {
-                weakFrame->m_traceBridgeWindow->SetCaptureResult(
+                captureWindow->SetCaptureResult(
                     false, "Capture failed: " + wxString::FromUTF8(error));
                 completionMessage = wxT("采集失败：") + wxString::FromUTF8(error);
             }

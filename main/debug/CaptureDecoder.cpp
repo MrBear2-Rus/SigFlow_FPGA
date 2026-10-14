@@ -1,7 +1,11 @@
 #include "CaptureDecoder.h"
+#include "DebugArtifactIO.h"
+#include <json/json.h>
 
 #include <fstream>
 #include <sstream>
+#include <limits>
+#include <numeric>
 
 namespace sigflow {
 namespace debug {
@@ -47,15 +51,50 @@ bool DecodeCaptureToVcd(const std::vector<std::uint32_t>& samples,
                         std::uint32_t depth, std::uint16_t triggerIndex,
                         const std::vector<CaptureProbe>& probes,
                         const std::string& path, CaptureVcdMeta& meta,
-                        std::string& error)
+                        std::string& error, const CaptureTimebase& timebase)
 {
+    error.clear();
+    meta = CaptureVcdMeta();
     if (samples.size() < depth || probes.empty() || depth == 0) {
         error = "invalid capture input (samples<depth or no probes)";
         return false;
     }
-    if (triggerIndex >= depth) {
+    if (timebase.triggerObserved && triggerIndex >= depth) {
         error = "trigger index out of range";
         return false;
+    }
+    for (const auto& probe : probes) {
+        if (probe.width == 0 || probe.width > 32 || probe.bitOffset >= 32 ||
+            probe.width > 32 - probe.bitOffset) {
+            error = "invalid capture probe width or bit offset"; return false;
+        }
+    }
+    if (probes.size() > 32 || timebase.decimation == 0 || timebase.decimation > 255) {
+        error = "capture requires at most 32 probes and decimation in 1..255"; return false;
+    }
+    meta.sampleClockHz = timebase.sampleClockHz;
+    meta.decimation = timebase.decimation;
+    meta.triggerObserved = timebase.triggerObserved;
+    std::uint64_t wholeStep = 1, fractionalStep = 0, denominator = 1;
+    if (timebase.sampleClockHz != 0) {
+        const std::uint64_t numerator = 1000000000000ULL * timebase.decimation;
+        denominator = timebase.sampleClockHz;
+        if (denominator > numerator) { error = "sample interval is below 1ps resolution"; return false; }
+        wholeStep = numerator / denominator;
+        fractionalStep = numerator % denominator;
+        // Preflight the final timestamp before opening/truncating the output.
+        const std::uint64_t intervals = depth - 1;
+        const auto limit = std::numeric_limits<std::uint64_t>::max();
+        if (intervals != 0 && (wholeStep > limit / intervals ||
+            fractionalStep > limit / intervals ||
+            intervals * wholeStep > limit - (intervals * fractionalStep) / denominator)) {
+            error = "capture time range exceeds uint64"; return false;
+        }
+        const auto divisor = std::gcd(numerator, denominator);
+        meta.periodNumeratorPs = numerator / divisor;
+        meta.periodDenominator = denominator / divisor;
+        meta.timeDomain = "physical";
+        meta.timescale = "1ps";
     }
 
     std::ofstream out(path, std::ios::trunc);
@@ -65,9 +104,21 @@ bool DecodeCaptureToVcd(const std::vector<std::uint32_t>& samples,
     }
 
     out << "$date\n  SigFlow TraceBridge capture\n$end\n";
-    out << "$version\n  CaptureDecoder 1.0\n$end\n";
+    out << "$version\n  CaptureDecoder 2.0\n$end\n";
     out << "$timescale " << meta.timescale << " $end\n";
+    out << "$comment sigflow_time_domain " << meta.timeDomain << " $end\n";
+    out << "$comment sample_clock_hz " << meta.sampleClockHz << " decimation " << meta.decimation << " $end\n";
+    out << "$comment capture_layout linear_address_order $end\n";
     out << "$comment trigger_index " << triggerIndex << " $end\n";
+    // This expression is preflighted above. All samples use one absolute
+    // rational origin; a rounded per-sample period is never accumulated.
+    const auto tickAt = [&](std::uint64_t index) {
+        return index * wholeStep + (index * fractionalStep) / denominator;
+    };
+    meta.lastSampleTime = tickAt(depth - 1);
+    meta.triggerTime = meta.triggerObserved ? tickAt(triggerIndex) : 0;
+    out << "$comment trigger_observed " << (meta.triggerObserved ? 1 : 0) << " $end\n";
+    if (meta.triggerObserved) out << "$comment trigger_time " << meta.triggerTime << " $end\n";
     out << "$scope module debug $end\n";
     for (std::size_t i = 0; i < probes.size(); ++i) {
         out << "$var wire " << probes[i].width << " " << IdCode(static_cast<int>(i))
@@ -75,11 +126,11 @@ bool DecodeCaptureToVcd(const std::vector<std::uint32_t>& samples,
     }
     out << "$upscope $end\n$enddefinitions $end\n";
 
-    // 预计算各探针在时间轴（环形地址序）上的取值，仅输出变化点。
+    // Preserve the finite buffer's address order. Emit only changed values.
     std::vector<std::string> prev(probes.size());
     for (std::uint32_t t = 0; t < depth; ++t) {
         const std::uint32_t sample = samples[t];
-        out << "#" << t << "\n";
+        out << "#" << tickAt(t) << "\n";
         for (std::size_t i = 0; i < probes.size(); ++i) {
             // width == 32 时 (1u << 32) 是未定义行为；在本机 GCC 上实际得到 0，
             // 于是 32 位探针被解码成恒 0（静默错误数据）。必须单独处理。
@@ -95,13 +146,38 @@ bool DecodeCaptureToVcd(const std::vector<std::uint32_t>& samples,
             }
         }
     }
+    out.flush();
     if (!out) {
         error = "write failed: " + path;
         return false;
     }
 
-    meta.triggerTime = triggerIndex;
     return true;
+}
+
+bool SaveCaptureMetadata(const std::string& path, const CaptureVcdMeta& meta,
+                         std::uint32_t depth, std::uint16_t triggerIndex, std::string& error)
+{
+    Json::Value root(Json::objectValue);
+    root["schema_version"] = "1.0";
+    root["time_domain"] = meta.timeDomain;
+    root["vcd_timescale"] = meta.timescale;
+    root["sample_clock_hz"] = Json::UInt64(meta.sampleClockHz);
+    root["clock_source"] = meta.sampleClockHz == 0 ? "unknown" : "contract";
+    root["decimation"] = meta.decimation;
+    root["period_numerator_ps"] = Json::UInt64(meta.periodNumeratorPs);
+    root["period_denominator"] = Json::UInt64(meta.periodDenominator);
+    root["quantization"] = meta.timeDomain == "physical" ? "floor_absolute_1ps" : "sample_index";
+    root["sample_enable_assumption"] = "continuous";
+    root["capture_layout"] = "linear_address_order";
+    root["sample_count"] = depth;
+    root["trigger_index"] = triggerIndex;
+    root["trigger_observed"] = meta.triggerObserved;
+    root["trigger_time"] = meta.triggerObserved ? Json::Value(Json::UInt64(meta.triggerTime)) : Json::Value();
+    root["last_sample_time"] = Json::UInt64(meta.lastSampleTime);
+    Json::StreamWriterBuilder writer;
+    writer["indentation"] = "  ";
+    return WriteTextFileAtomic(path, Json::writeString(writer, root) + "\n", error);
 }
 
 bool LoadCaptureRaw(const std::string& path, std::uint32_t& depth, std::uint32_t& width,

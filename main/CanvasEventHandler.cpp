@@ -4,16 +4,19 @@
 #include "platform/PlatformPaths.h"
 #include "CanvasTextElement.h"
 #include "HandyToolKit.h"
+#include "ui/UiImageResources.h"
 
 CanvasEventHandler::CanvasEventHandler(CanvasPanel* canvas, ToolStateMachine* toolstate)
     : m_canvas(canvas), m_toolStateMachine(toolstate), m_isTemporaryAction(false), m_eventHandled(false),
     m_editingWireIndex(-1), m_editingPointIndex(-1), m_draggingElementIndex(-1), m_editingTextIndex(-1),
     lengthOfTempWire(0), tempWirePlus(0), m_isWireDraingCancel(false), preIn(false),
     m_snapPosChanged(false), m_elementDragStartPos(0, 0), m_elementStartCanvasPos(0, 0),
-    m_erasingStartPos(0, 0){
+    m_erasingStartPos(0, 0), m_previousTool(ToolType::DRAG_TOOL){
 }
 
 void CanvasEventHandler::SetCurrentTool(ToolType tool) {
+    if (tool != ToolType::WIRE_TOOL && m_toolStateMachine->GetWireState() == WireToolState::WIRE_DRAWING)
+        CancelWireDrawing();
     TextToolState textState = m_toolStateMachine->GetTextState();
     if (textState != TextToolState::IDLE) {
         m_canvas->FinishTextEditing();
@@ -37,11 +40,8 @@ void CanvasEventHandler::SetCurrentTool(ToolType tool) {
             break;
             }
         case ToolType::WIRE_TOOL: {
-            wxImage image(sigflow::platform::ResourcePath("res/icons/wiring.png"), wxBITMAP_TYPE_PNG);
-            image.GetOptionInt(wxIMAGE_OPTION_CUR_HOTSPOT_X);
-            image.GetOptionInt(wxIMAGE_OPTION_CUR_HOTSPOT_Y);
-            wxCursor cursor(image);
-            m_canvas->SetCursor(cursor);
+            m_canvas->SetCursor(UiImageResources::LoadImageCursor(
+                sigflow::platform::ResourcePath("res/icons/wiring.png"), wxCURSOR_CROSS));
             break;
         }
         case ToolType::DRAG_TOOL: {
@@ -49,11 +49,8 @@ void CanvasEventHandler::SetCurrentTool(ToolType tool) {
             break;
         }
         case ToolType::ERASER_TOOL: {
-            wxImage image(sigflow::platform::ResourcePath("res/icons/eraser.png"), wxBITMAP_TYPE_PNG);
-            image.GetOptionInt(wxIMAGE_OPTION_CUR_HOTSPOT_X);
-            image.GetOptionInt(wxIMAGE_OPTION_CUR_HOTSPOT_Y);
-            wxCursor cursor(image);
-            m_canvas->SetCursor(cursor);
+            m_canvas->SetCursor(UiImageResources::LoadImageCursor(
+                sigflow::platform::ResourcePath("res/icons/eraser.png"), wxCURSOR_ARROW));
             break;
         }
         default: {
@@ -113,7 +110,7 @@ void CanvasEventHandler::OnCanvasLeftDown(wxMouseEvent& evt) {
     }
     
     // 选择工具
-    if (currentTool == ToolType::SELECT_TOOL){
+    if (currentTool == ToolType::SELECT_TOOL && !m_hoverInfo.IsOverPin()){
         HandleSelectTool(evt);
         m_eventHandled = true;
         return;
@@ -128,13 +125,14 @@ void CanvasEventHandler::OnCanvasLeftDown(wxMouseEvent& evt) {
 
     // 导线工具，绘制导线中
     if (currentTool == ToolType::WIRE_TOOL && m_toolStateMachine->GetWireState() == WireToolState::WIRE_DRAWING) {
+        UpdateWireDrawing(evt); // 点击坐标也是端点依据，不依赖先收到 motion。
         PlaceWirePoint();
         m_eventHandled = true;
         return;
     }
 
     // 其他工具下，点击导线Cell，如果是控制点，转换到选择工具进行拖动；转换到导线工具，拉出分支导线
-    if (m_hoverInfo.IsOverCell()) {
+    if (m_hoverInfo.IsOverCell() && !m_hoverInfo.IsOverPin()) {
         if (m_hoverInfo.IsOverMidCell()) {
             m_previousTool = currentTool;
             m_isTemporaryAction = true;// 定义为临时切换，使用完毕后恢复
@@ -154,12 +152,13 @@ void CanvasEventHandler::OnCanvasLeftDown(wxMouseEvent& evt) {
 
     // 其他工具下，点击元件Pin，转换到导线工具，拉出导线
     if (m_hoverInfo.IsOverPin() || m_hoverInfo.IsOverCell()){
-        m_isTemporaryAction = true; // 定义为临时切换，使用完毕后恢复
+        m_previousTool = currentTool;
+        m_isTemporaryAction = currentTool != ToolType::WIRE_TOOL;
         SetCurrentTool(ToolType::WIRE_TOOL);
         CPType type = CPType::Free;
         if (m_hoverInfo.IsOverPin()) type = CPType::Pin;
         else if (m_hoverInfo.IsOverCell()) type = CPType::Branch;
-        StartWireDrawingDown(m_hoverInfo.snappedPos, CPType::Pin, m_hoverInfo.elementIndex);
+        StartWireDrawingDown(m_canvas->SnapToGrid(m_hoverInfo.pinPos), CPType::Pin, m_hoverInfo.elementIndex);
         m_eventHandled = true;
         return;
     }
@@ -216,7 +215,8 @@ void CanvasEventHandler::OnCanvasLeftDown(wxMouseEvent& evt) {
 void CanvasEventHandler::StartWireDrawingDown(const wxPoint& startPos, CPType startType, int wireIdx) {
     // 初始化临时导线
     m_isWireDraingCancel = false;
-    m_tempWire.Clear();
+    m_tempWire = Wire();
+    m_tempWire.m_canvas = m_canvas;
     m_tempWire.AddPoint({startPos , startType});
 
     switch (startType) {
@@ -231,6 +231,10 @@ void CanvasEventHandler::StartWireDrawingDown(const wxPoint& startPos, CPType st
         break;
     }
     m_tempWire.Left = { m_hoverInfo.elementIndex, m_hoverInfo.wireIndex, m_hoverInfo.isInputPin, m_hoverInfo.pinIndex };
+    m_wireStartHeld = true;
+    m_wireStartClient = m_hoverInfo.screenPos;
+    tempWirePlus = 0;
+    StartWireDrawingUp(); // 按下即预览，兼容拖放和点击两种连线方式。
 }
 
 void  CanvasEventHandler::StartWireDrawingUp() {
@@ -239,7 +243,7 @@ void  CanvasEventHandler::StartWireDrawingUp() {
 }
 
 void CanvasEventHandler::UpdateWireDrawing(wxMouseEvent& evt) {
-    if (m_toolStateMachine->GetWireState() != WireToolState::WIRE_DRAWING) return;
+    if (m_toolStateMachine->GetWireState() != WireToolState::WIRE_DRAWING || m_tempWire.Empty() || lengthOfTempWire < 1) return;
     ControlPoint pt;
     if (m_tempWire.Size() > lengthOfTempWire) pt = m_tempWire.pts[lengthOfTempWire];
     else pt = m_tempWire.pts.back();
@@ -254,7 +258,7 @@ void CanvasEventHandler::UpdateWireDrawing(wxMouseEvent& evt) {
     else {
         type = CPType::Bend;
     }
-    wxPoint pos = m_hoverInfo.snappedPos;
+    wxPoint pos = m_hoverInfo.IsOverPin() ? m_canvas->SnapToGrid(m_hoverInfo.pinPos) : m_hoverInfo.snappedPos;
     tempWirePlus = 1;
     if (evt.ShiftDown()) {
         m_tempWire.AddPoint({ pos, type });
@@ -291,6 +295,12 @@ void CanvasEventHandler::UpdateWireDrawing(wxMouseEvent& evt) {
 }
 
 void CanvasEventHandler::PlaceWirePoint() {
+    if (m_tempWire.Empty() || tempWirePlus < 1) return;
+    if (m_hoverInfo.IsOverPin() && m_tempWire.Left.elemIdx >= 0 &&
+        m_tempWire.Left.isInput == m_hoverInfo.isInputPin) {
+        m_canvas->SetStatus("Wiring: Connect an output pin to an input pin. Esc cancels.");
+        return;
+    }
     lengthOfTempWire += tempWirePlus;
     if (m_tempWire.pts.back().type == CPType::Pin || m_tempWire.pts.back().type == CPType::Branch) {
         FinishWireDrawing();
@@ -301,12 +311,13 @@ void CanvasEventHandler::PlaceWirePoint() {
 void CanvasEventHandler::FinishWireDrawing() {
     if (m_toolStateMachine->GetWireState() != WireToolState::WIRE_DRAWING) return;
     m_tempWire.pts.resize(lengthOfTempWire);
-    if (lengthOfTempWire < 1) return;
+    if (lengthOfTempWire < 2) return;
 
     if (m_tempWire.pts[lengthOfTempWire - 2].pos == m_tempWire.pts[lengthOfTempWire - 1].pos) {
         m_tempWire.pts.pop_back();
     }
     if (m_tempWire.pts.back().type == CPType::Bend) return;
+    if (m_tempWire.Size() < 2) return;
     m_tempWire.Right = {m_hoverInfo.elementIndex, m_hoverInfo.wireIndex ,m_hoverInfo.isInputPin, m_hoverInfo.pinIndex };
 
     
@@ -315,16 +326,19 @@ void CanvasEventHandler::FinishWireDrawing() {
 }
 
 void CanvasEventHandler::CancelWireDrawing() {
-    wxImage image(sigflow::platform::ResourcePath("res/icons/wiring.png"), wxBITMAP_TYPE_PNG);
-    image.GetOptionInt(wxIMAGE_OPTION_CUR_HOTSPOT_X);
-    image.GetOptionInt(wxIMAGE_OPTION_CUR_HOTSPOT_Y);
-    wxCursor cursor(image);
-    m_canvas->SetCursor(cursor);
+    m_wireStartHeld = false;
+    if (m_canvas->HasCapture()) m_canvas->ReleaseMouse();
     m_tempWire.Clear();
     lengthOfTempWire = 0;
     m_isWireDraingCancel = true;
     m_toolStateMachine->SetWireState(WireToolState::IDLE);
     m_canvas->ClearPreviewWire();
+    if (m_isTemporaryAction) {
+        m_isTemporaryAction = false;
+        SetCurrentTool(m_previousTool);
+    } else {
+        m_canvas->SetCursor(wxCursor(wxCURSOR_CROSS));
+    }
 }
 
 
@@ -348,6 +362,19 @@ void CanvasEventHandler::HandleComponentTool() {
 void CanvasEventHandler::OnCanvasLeftUp(wxMouseEvent& evt) {
     wxPoint canvasPos = m_canvas->ClientToCanvas(evt.GetPosition());
     ToolType currentTool = m_toolStateMachine->GetCurrentTool();
+    if (currentTool == ToolType::WIRE_TOOL && m_toolStateMachine->GetWireState() == WireToolState::WIRE_DRAWING) {
+        if (m_wireStartHeld) {
+            m_wireStartHeld = false;
+            const auto delta = evt.GetPosition() - m_wireStartClient;
+            if (std::hypot(delta.x, delta.y) >= m_canvas->FromDIP(3) &&
+                (m_hoverInfo.IsOverPin() || m_hoverInfo.IsOverCell())) {
+                UpdateWireDrawing(evt);
+                PlaceWirePoint();
+            }
+        }
+        m_eventHandled = true;
+        return;
+    }
     
     // 单击选中
     if (m_toolStateMachine->GetSelectState() == SelectToolState::CLICK_SELECT) {
@@ -945,7 +972,7 @@ void CanvasEventHandler::UpdateSelectedDragging() {
     int grid = m_canvas->GetGrid();
 
     wxPoint raw = m_hoverInfo.canvasPos - m_selectedDragPos;
-    wxPoint delta((raw.x + grid / 2) / grid * grid, (raw.y + grid / 2) / grid * grid);
+    wxPoint delta = m_canvas->SnapToGrid(raw); // INT-007：负向拖动也对称吸附。
     
     for (int i = 0; i < static_cast<int>(m_compntIdx.size()); i++) {
         const int elemIdx = m_compntIdx[i];

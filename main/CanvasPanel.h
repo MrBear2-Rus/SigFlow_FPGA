@@ -2,6 +2,9 @@
 #include <wx/wx.h>
 #include <vector>
 #include <chrono>
+#include <functional>
+#include <cmath>
+#include <algorithm>
 #include <wx/graphics.h>
 #include <wx/event.h>
 
@@ -15,6 +18,7 @@ class HandyToolKit;
 class CanvasEventHandler;
 class MainFrame;
 class CanvasNoteBook;
+namespace CanvasControls { class FloatToolbar; class ZoomHud; }
 
 wxDECLARE_EVENT(EVT_SFTREE_NODE_ACTIVATED, wxCommandEvent);
 struct HoverInfo {
@@ -61,6 +65,8 @@ class CanvasPanel : public wxPanel
 {
 public:
     CanvasPanel(CanvasNoteBook* parent, SigFlowTree* sftree, size_t size_x, size_t size_y);
+    // 画布快捷键需要画布本身持焦点，不能由 wxPanel 转交给滚动条。
+    void SetFocus() override { SetFocusIgnoringChildren(); }
     // 获取修改状态
     bool IsModified() const { return m_isModified; }
     // 设置修改状态（内部调用，标记为修改并发送事件）
@@ -70,6 +76,17 @@ public:
     // ==================== 画布及画布子窗口的事件处理 ====================
 private:
     bool m_hasFocus;
+    bool m_pointerInside = false; // 仅控制幽灵可见性，不参与放置状态机
+    UiTheme::Subscription m_themeSubscription;
+    bool m_spacePan = false, m_pointerPan = false, m_middlePan = false;
+    bool m_pendingPlace = false, m_placeDragged = false;
+    wxPoint m_gestureStart, m_panOffset;
+    wxString m_placingName;
+    wxCursor m_gestureCursor;
+    void BeginPointerPan(const wxPoint& pos, bool middle = false);
+    void FinishPointerGesture();
+    void LayoutCanvasControls();
+    void SyncCanvasControls();
     bool m_isModified = false; // 标记画布是否被修改
     wxString m_canvasId; // 画布标识（比如标签页名称/唯一ID，用于父窗口识别）
     // 鼠标事件
@@ -145,6 +162,8 @@ public:
     // 必须先做边界检查：越界写 std::vector 是 UB（崩溃或堆破坏）。
     void SecondSetPos(int i, wxPoint pos) {
         if (i < 0 || i >= static_cast<int>(m_elems.size())) return;
+        if (m_toolStateMachine->GetSelectState()==SelectToolState::CLICK_SELECT ||
+            m_toolStateMachine->GetSelectState()==SelectToolState::DRAG_SELECT) pos=SnapToGrid(pos);
         m_elems[i].SetPos(pos);
         RefreshCanvasAfterElementMove();
     };
@@ -183,8 +202,10 @@ public:
         m_selTxtIdx.erase(std::remove(m_selTxtIdx.begin(), m_selTxtIdx.end(), index), m_selTxtIdx.end());
         Refresh();
     };
-    void TextSetPos(int index, const wxPoint& pos) {
+    void TextSetPos(int index, wxPoint pos) {
         if (index < 0 || index >= static_cast<int>(m_textElements.size())) return;
+        if (m_toolStateMachine->GetSelectState()==SelectToolState::CLICK_SELECT ||
+            m_toolStateMachine->GetSelectState()==SelectToolState::DRAG_SELECT) pos=SnapToGrid(pos);
         m_textElements[index].SetPosition(pos); Refresh();
     };
     void StartTextEditing(int index);
@@ -220,10 +241,33 @@ private:
     wxPoint m_offset;
     float m_scale = 1.0f;
 
+    // T-340：状态回报回调（由 MainFrame::SyncActiveCanvas 接线；未接线时为空、零开销）
+    std::function<void(const wxPoint&)> m_cursorReport;
+    std::function<void(float)> m_scaleReport;
+
 public:
     // 画布的缩放
     float GetScale() const { return m_scale; }
+    double GetDeviceScale() const { return m_scale * FromDIP(100) / 100.0; }
+    wxPoint SnapToGrid(const wxPoint& p) const {
+        const int grid=std::max(1,m_grid);
+        return wxPoint(int(std::lround(double(p.x)/grid))*grid,int(std::lround(double(p.y)/grid))*grid);
+    }
+
+    // T-340：把画布状态回报给主窗口状态栏（SPEC CMP-072）
+    void SetCursorReportCallback(std::function<void(const wxPoint&)> callback)
+    {
+        m_cursorReport = std::move(callback);
+    }
+    void SetScaleReportCallback(std::function<void(float)> callback)
+    {
+        m_scaleReport = std::move(callback);
+    }
     void SetScale(float scale);
+    void ZoomAt(float scale, const wxPoint& clientAnchor);
+    void StepZoom(int direction);
+    void ResetView();
+    void ActivateCanvasTool(ToolType tool);
     std::pair<float, float> ValidScaleRange();
 
     // 偏移和滚动
@@ -257,7 +301,7 @@ private:
     int HitWire(const wxPoint& canvasPos);
     int HitHoverCell(const wxPoint& canvasPos);
     int HitWireSection(const wxPoint& canvasPos);
-    wxPoint Snap(const wxPoint& canvasPos) { return wxPoint((canvasPos.x + m_grid / 2) / m_grid * m_grid, (canvasPos.y + m_grid / 2) / m_grid * m_grid); };
+    wxPoint Snap(const wxPoint& canvasPos) { return SnapToGrid(canvasPos); };
 
 public:
     // 工具管理
@@ -289,12 +333,15 @@ private:
     ToolStateMachine* m_toolStateMachine;
     CanvasEventHandler* m_CanvasEventHandler;
     HandyToolKit* m_HandyToolKit;
+    CanvasControls::FloatToolbar* m_floatToolbar = nullptr;
+    CanvasControls::ZoomHud* m_zoomHud = nullptr;
+    wxPoint m_scrollOrigin;
 
     // 滚动条
     wxScrollBar* m_hScroll;
     wxScrollBar* m_vScroll;
 
-    void LayoutScrollbars();
+    void LayoutScrollbars(bool invalidate = true);
 
 public:
     // 工具相关获取方法

@@ -36,11 +36,24 @@ WaveformMiniMap::WaveformMiniMap(
       m_state(state), m_source(source), m_onChanged(std::move(onChanged))
 {
     SetBackgroundStyle(wxBG_STYLE_PAINT);
-    SetBackgroundColour(ColorsFor(m_state.theme).miniMapBackground);
     Bind(wxEVT_PAINT, &WaveformMiniMap::OnPaint, this);
     Bind(wxEVT_LEFT_DOWN, &WaveformMiniMap::OnMouseDown, this);
     Bind(wxEVT_MOTION, &WaveformMiniMap::OnMouseMove, this);
     Bind(wxEVT_LEFT_UP, &WaveformMiniMap::OnMouseUp, this);
+
+    // T-140 / THE-030：构造末尾建立订阅 + 立即重施一次（首帧正确）。
+    m_themeSubscription = UiTheme::Subscribe([this] {
+        ReapplyTheme();
+        Refresh(false);
+    });
+    ReapplyTheme();
+}
+
+// T-140 / THE-030：重取缩略图底（ColorsForThemed → bgDeep token）并标记重绘。
+// OnPaint 本来就在绘制期取色，这里只需保证窗口底色与之一致；不改任何波形状态。
+void WaveformMiniMap::ReapplyTheme()
+{
+    SetBackgroundColour(ColorsForThemed(m_state.theme).miniMapBackground);
 }
 
 void WaveformMiniMap::RefreshOverview()
@@ -71,7 +84,8 @@ void WaveformMiniMap::OnPaint(wxPaintEvent&)
 {
     wxAutoBufferedPaintDC dc(this);
     const wxSize size = GetClientSize();
-    const WaveThemeColors colors = ColorsFor(m_state.theme);
+    const WaveThemeColors colors = ColorsForThemed(m_state.theme);
+    const UiTheme::Colours& ui = UiTheme::PaletteFor(UiModeFor(m_state.theme));
     dc.SetBackground(wxBrush(colors.miniMapBackground));
     dc.Clear();
     if (size.x <= 0 || size.y <= 0) return;
@@ -89,10 +103,10 @@ void WaveformMiniMap::OnPaint(wxPaintEvent&)
             std::string current;
             if (!m_source->ValueAt(*signal, 0, current, error)) continue;
             const int y = 8 + (row % std::max(1, size.y - 16)) * 2;
-            dc.SetPen(wxPen(wxColour(
-                static_cast<unsigned char>(WavePalette(row).r * 255.0f),
-                static_cast<unsigned char>(WavePalette(row).g * 255.0f),
-                static_cast<unsigned char>(WavePalette(row).b * 255.0f))));
+            // CMP-064：与主波形同源的语义色（信号行索引不再决定颜色）
+            dc.SetPen(wxPen(SignalColour(signal->name,
+                                         signal->kind == sigflow::trace::SignalKind::Vector,
+                                         ui)));
             int previousX = 0;
             int previousY = y;
             for (const auto& transition : transitions) {
@@ -115,9 +129,9 @@ void WaveformMiniMap::OnPaint(wxPaintEvent&)
     const auto end = std::min(fullSpan, m_state.timeOffset + m_state.timeSpan);
     const int right = static_cast<int>(static_cast<double>(end) / fullSpan * size.x);
     dc.SetBrush(wxBrush(colors.viewport));
-    dc.SetPen(wxPen(wxColour(96, 165, 250), 2));
+    dc.SetPen(wxPen(ui.accent, 2));
     dc.DrawRectangle(left, 1, std::max(3, right - left), std::max(1, size.y - 2));
-    dc.SetPen(wxPen(wxColour(100, 116, 139)));
+    dc.SetPen(wxPen(ui.gridStrong));
     dc.DrawLine(0, size.y - 1, size.x, size.y - 1);
 }
 

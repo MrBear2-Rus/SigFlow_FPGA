@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SigFlow TraceBridge Protocol Event Report",
+  "type": "object",
+  "required": [
+    "schema_version", "decoder_version", "capture_id", "source_path",
+    "time_domain", "timescale", "event_count", "events", "diagnostics"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["1.0"] },
+    "decoder_version": { "type": "string" },
+    "capture_id": { "type": "string", "minLength": 1 },
+    "source_path": { "type": "string" },
+    "time_domain": { "type": "string", "enum": ["physical", "sample_index", "unknown"] },
+    "timescale": { "type": "string" },
+    "evidence_path": { "type": "string" },
+    "configuration_hash": { "type": "string" },
+    "event_count": { "type": "integer", "minimum": 0 },
+    "diagnostics": { "type": "array", "items": { "type": "string" } },
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["protocol", "start_time", "end_time", "valid", "wait_cycles", "detail", "bytes", "words"],
+        "properties": {
+          "protocol": { "type": "string", "minLength": 1 },
+          "start_time": { "type": "integer", "minimum": 0 },
+          "end_time": { "type": "integer", "minimum": 0 },
+          "valid": { "type": "boolean" },
+          "wait_cycles": { "type": "integer", "minimum": 0 },
+          "detail": { "type": "string" },
+          "bytes": { "type": "array", "items": { "type": "integer", "minimum": 0, "maximum": 255 } },
+          "words": { "type": "array", "items": { "type": "integer", "minimum": 0 } }
+        }
+      }
+    }
+  }
+}

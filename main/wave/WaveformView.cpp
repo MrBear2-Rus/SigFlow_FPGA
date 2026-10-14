@@ -25,13 +25,6 @@ namespace {
 
 constexpr std::size_t kMaxAutoSignals = 128;
 
-wxColour ToWxColor(const WaveColor& color)
-{
-    return wxColour(static_cast<unsigned char>(color.r * 255.0f),
-                    static_cast<unsigned char>(color.g * 255.0f),
-                    static_cast<unsigned char>(color.b * 255.0f));
-}
-
 } // namespace
 
 WaveformView::WaveformView(wxWindow* parent, bool forceSoftware)
@@ -40,7 +33,7 @@ WaveformView::WaveformView(wxWindow* parent, bool forceSoftware)
       m_forceSoftware(forceSoftware)
 {
     WaveCompareHub::Register(this);
-    SetBackgroundColour(ColorsFor(m_state.theme).background);
+    SetBackgroundColour(ColorsForThemed(m_state.theme).background);
     Bind(wxEVT_PAINT, &WaveformView::OnPaint, this);
     Bind(wxEVT_SIZE, &WaveformView::OnSize, this);
     Bind(wxEVT_MOUSEWHEEL, &WaveformView::OnMouseWheel, this);
@@ -60,6 +53,33 @@ WaveformView::WaveformView(wxWindow* parent, bool forceSoftware)
                                         Refresh();
                                         NotifyViewChanged();
                                     });
+
+    // T-140 / THE-030：构造末尾建立订阅 + 立即重施一次（首帧正确）。
+    // 回调只做"重取 ColorsForThemed + Refresh(false)"：不重布局、不改波形语义、
+    // 不重建 GL 画布、不触达解析/查询路径。
+    m_themeSubscription = UiTheme::Subscribe([this] {
+        ReapplyTheme();
+        Refresh(false);
+    });
+    ReapplyTheme();
+}
+
+// T-140 / THE-030：重取本视图（按 m_state.theme 选择的波形观察档）的 token 底色。
+// WaveformView::SetTheme() 仍是**改变观察档**的唯一业务入口；本函数只做重施，
+// 因此可安全地被主题订阅重复调用（幂等）。
+void WaveformView::ReapplyTheme()
+{
+    const WaveThemeColors colors = ColorsForThemed(m_state.theme);
+    SetBackgroundColour(colors.background);
+    if (m_miniMap) {
+        // 缩略图内嵌在本窗口底部，保持与其 OnPaint 取色（miniMapBackground）一致。
+        m_miniMap->SetBackgroundColour(colors.miniMapBackground);
+        m_miniMap->Refresh(false);
+    }
+    if (m_glCanvas) {
+        // 仅标记 GL 画布重绘：GL 在 paint 时按 ColorsForThemed 取色，无需重建上下文。
+        m_glCanvas->Refresh(false);
+    }
 }
 
 WaveformView::~WaveformView()
@@ -137,7 +157,7 @@ void WaveformView::SetEvents(const std::vector<WaveEvent>& events)
 void WaveformView::SetTheme(WaveTheme theme)
 {
     m_state.theme = theme;
-    const WaveThemeColors colors = ColorsFor(theme);
+    const WaveThemeColors colors = ColorsForThemed(theme);
     SetBackgroundColour(colors.background);
     if (m_miniMap) m_miniMap->SetBackgroundColour(colors.miniMapBackground);
     if (m_glCanvas) m_glCanvas->Refresh();
@@ -263,15 +283,17 @@ std::string WaveformView::MeasurementText() const
         }
         char buffer[192];
         std::snprintf(buffer, sizeof(buffer),
-                      "%s  ΔT=%llu ns  edges=%llu  x/z=%llu  glitch=%llu  "
-                      "period=%.1f ns  duty=%.1f%%",
+                      "%s  ΔT=%llu ticks  edges=%llu  x/z=%llu  glitch=%llu  "
+                      "period=%.1f ticks  duty=%.1f%%",
                       signal->name.c_str(),
-                      static_cast<unsigned long long>(m_state.abB - m_state.abA),
+                      static_cast<unsigned long long>(m_state.abB >= m_state.abA
+                          ? m_state.abB - m_state.abA : m_state.abA - m_state.abB),
                       static_cast<unsigned long long>(measure.edgeCount),
                       static_cast<unsigned long long>(measure.xzCount),
                       static_cast<unsigned long long>(measure.glitchCount),
                       measure.avgPeriod, measure.dutyCycle * 100.0);
-        return std::string(buffer);
+        return std::string(buffer) + (m_source->TimeDomain() == sigflow::trace::TraceTimeDomain::Physical
+            ? " [tick=" + m_source->Timescale() + "]" : " [sample-index/unknown time]");
     }
     return std::string();
 }
@@ -291,6 +313,9 @@ void WaveformView::NotifyViewChanged()
 void WaveformView::ApplyLinkedWindow(const WaveformView* source)
 {
     if (!source) return;
+    if (!m_source || !source->m_source || m_source->Timescale() != source->m_source->Timescale() ||
+        m_source->TimeDomain() != source->m_source->TimeDomain() ||
+        m_source->TimeDomain() == sigflow::trace::TraceTimeDomain::Unknown) return;
     m_suppressNotify = true;
     m_state.timeOffset = source->m_state.timeOffset;
     m_state.timeSpan = source->m_state.timeSpan;
@@ -302,6 +327,9 @@ void WaveformView::ApplyLinkedWindow(const WaveformView* source)
 void WaveformView::ApplyLinkedPlayhead(const WaveformView* source)
 {
     if (!source) return;
+    if (!m_source || !source->m_source || m_source->Timescale() != source->m_source->Timescale() ||
+        m_source->TimeDomain() != source->m_source->TimeDomain() ||
+        m_source->TimeDomain() == sigflow::trace::TraceTimeDomain::Unknown) return;
     m_suppressNotify = true;
     m_state.playhead = source->m_state.playhead;
     m_state.hasPlayhead = source->m_state.hasPlayhead;
@@ -340,8 +368,8 @@ void WaveformView::ApplySession(const WaveSessionData& session)
     m_state.abB = session.abB;
     m_state.hasAB = session.hasAB;
     m_state.theme = session.theme;
-    SetBackgroundColour(ColorsFor(m_state.theme).background);
-    if (m_miniMap) m_miniMap->SetBackgroundColour(ColorsFor(m_state.theme).miniMapBackground);
+    SetBackgroundColour(ColorsForThemed(m_state.theme).background);
+    if (m_miniMap) m_miniMap->SetBackgroundColour(ColorsForThemed(m_state.theme).miniMapBackground);
     m_state.visibleSignalIds = session.visibleSignalIds;
     m_state.Clamp();
     if (m_glCanvas) m_glCanvas->Refresh();
@@ -462,7 +490,8 @@ void WaveformView::RenderSoftware(wxDC& dc)
 {
     wxSize size = GetClientSize();
     size.SetHeight(ContentHeight());
-    const WaveThemeColors colors = ColorsFor(m_state.theme);
+    const WaveThemeColors colors = ColorsForThemed(m_state.theme);
+    const UiTheme::Colours& ui = UiTheme::PaletteFor(UiModeFor(m_state.theme));
     dc.SetBackground(wxBrush(colors.background));
     dc.Clear();
     if (!m_source) {
@@ -476,7 +505,7 @@ void WaveformView::RenderSoftware(wxDC& dc)
     WaveformFrame frame;
     std::string error;
     if (!BuildWaveformFrame(*m_source, m_state, size.GetWidth(), size.GetHeight(), frame)) {
-        dc.SetTextForeground(wxColour(239, 68, 68));
+        dc.SetTextForeground(ui.danger);
         dc.DrawText(frame.error.empty() ? "Unable to build waveform data." : frame.error, 12, 12);
         return;
     }
@@ -489,10 +518,9 @@ void WaveformView::RenderSoftware(wxDC& dc)
         dc.DrawLine(x, m_state.headerHeight, x, size.GetHeight());
     }
 
-    // 波形
-    int row = 0;
+    // 波形（CMP-064：clk=brand / rst=accent / 总线=warn / 其它=text1 82%）
     for (const WaveformSignalData& signal : frame.signals) {
-        dc.SetPen(wxPen(ToWxColor(WavePalette(row)), 1));
+        dc.SetPen(wxPen(SignalColour(signal.name, signal.vector, ui), 1));
         std::vector<wxPoint> points;
         points.reserve(signal.polyline.size());
         for (const WaveformPoint& point : signal.polyline) {
@@ -500,7 +528,6 @@ void WaveformView::RenderSoftware(wxDC& dc)
                                      static_cast<int>(point.y)));
         }
         if (points.size() >= 2) dc.DrawLines(points.size(), points.data());
-        ++row;
     }
 
     // ── W3 覆盖层：A-B / 播放头 / Marker / 事件 ──
@@ -510,14 +537,14 @@ void WaveformView::RenderSoftware(wxDC& dc)
             WaveformTimeToX(m_state, size.GetWidth(), m_state.abA));
         const int xb = static_cast<int>(
             WaveformTimeToX(m_state, size.GetWidth(), m_state.abB));
-        dc.SetPen(wxPen(wxColour(251, 146, 60), 1));
+        dc.SetPen(wxPen(ui.warn, 1));
         dc.DrawLine(xa, m_state.headerHeight, xa, size.GetHeight());
         dc.DrawLine(xb, m_state.headerHeight, xb, size.GetHeight());
     }
     if (m_state.hasPlayhead) {
         const int xp = static_cast<int>(
             WaveformTimeToX(m_state, size.GetWidth(), m_state.playhead));
-        dc.SetPen(wxPen(wxColour(226, 232, 240), 1));
+        dc.SetPen(wxPen(ui.text1, 1));
         dc.DrawLine(xp, m_state.headerHeight, xp, size.GetHeight());
     }
     for (const WaveMarker& marker : m_state.markers) {

@@ -11,6 +11,11 @@
 # 例外：cpp-httplib 单头（MIT）随仓库分发，供教育版 Agent EDA Gateway 使用。
 !/3rd/httplib/
 !/3rd/httplib/httplib.h
+# TraceBridge's maintained legacy VCD adapter (64-bit physical timestamps).
+!/3rd/vcd/
+/3rd/vcd/*
+!/3rd/vcd/vcd.h
+!/3rd/vcd/vcd.cpp
 build_tools/
 _deps/
 CMakeFiles/

@@ -43,7 +43,7 @@ struct DebugTrigger {
 
 struct DebugCapture {
     std::uint32_t depth = 0;            // 0 = 使用默认值
-    std::uint32_t pretriggerSamples = 0; // 0 = 使用默认值
+    std::uint32_t pretriggerSamples = 0; // current finite linear RTL supports only 0
     std::uint32_t decimation = 1;
 };
 

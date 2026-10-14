@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sigflow.local/schemas/root-cause-evidence-report.schema.json",
+  "title": "TraceBridge Root Cause Evidence Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "analyzer_version",
+    "rules_version",
+    "capture_id",
+    "analysis_id",
+    "first_difference_signal",
+    "input_fingerprint",
+    "max_depth",
+    "max_candidates",
+    "candidate_count",
+    "candidates"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "analyzer_version": { "type": "string", "minLength": 1 },
+    "rules_version": { "type": "string", "minLength": 1 },
+    "capture_id": { "type": "string", "minLength": 1 },
+    "analysis_id": { "type": "string", "minLength": 1 },
+    "first_difference_signal": { "type": "string", "minLength": 1 },
+    "input_fingerprint": { "type": "string", "minLength": 1 },
+    "max_depth": { "type": "integer", "minimum": 1 },
+    "max_candidates": { "type": "integer", "minimum": 1 },
+    "candidate_count": { "type": "integer", "minimum": 0 },
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "location",
+          "graph_distance",
+          "score",
+          "reason",
+          "observation",
+          "evidence_score",
+          "supporting_evidence",
+          "missing_evidence"
+        ],
+        "properties": {
+          "location": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["signal", "source_path", "source_line", "sftree_path", "canvas_id", "clock_domain", "fanout", "is_input", "is_probe", "width"],
+            "properties": {
+              "signal": { "type": "string", "minLength": 1 },
+              "source_path": { "type": "string" },
+              "source_line": { "type": "integer", "minimum": 0 },
+              "sftree_path": { "type": "string" },
+              "canvas_id": { "type": "string" },
+              "clock_domain": { "type": "string" },
+              "fanout": { "type": "integer", "minimum": 0 },
+              "is_input": { "type": "boolean" },
+              "is_probe": { "type": "boolean" },
+              "width": { "type": "integer", "minimum": 0 }
+            }
+          },
+          "graph_distance": { "type": "integer", "minimum": 1 },
+          "score": { "type": "number" },
+          "reason": { "type": "string" },
+          "observation": { "enum": ["observed", "unobserved", "unknown"] },
+          "evidence_score": { "type": "number" },
+          "supporting_evidence": { "type": "array", "items": { "type": "string" } },
+          "missing_evidence": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  }
+}

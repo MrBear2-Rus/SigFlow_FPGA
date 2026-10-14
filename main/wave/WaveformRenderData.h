@@ -40,6 +40,7 @@ struct WaveformFrame {
     std::vector<WaveformSignalData> signals;
     std::vector<WaveformTick> ticks;
     std::string error;
+    std::string timeUnitLabel;
 };
 
 // 构建一帧渲染数据（软件 / GL 后端共用）。

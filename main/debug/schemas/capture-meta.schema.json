@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TraceBridge capture timing metadata",
+  "type": "object",
+  "required": ["schema_version", "time_domain", "vcd_timescale", "sample_clock_hz", "clock_source",
+               "decimation", "period_numerator_ps", "period_denominator", "quantization",
+               "sample_enable_assumption", "capture_layout", "sample_count", "trigger_index", "trigger_observed", "trigger_time", "last_sample_time"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "time_domain": {"enum": ["physical", "sample_index"]},
+    "vcd_timescale": {"enum": ["1ps", "1ns"]},
+    "sample_clock_hz": {"type": "integer", "minimum": 0},
+    "clock_source": {"enum": ["contract", "unknown"]},
+    "decimation": {"type": "integer", "minimum": 1, "maximum": 255},
+    "period_numerator_ps": {"type": "integer", "minimum": 0},
+    "period_denominator": {"type": "integer", "minimum": 0},
+    "quantization": {"enum": ["floor_absolute_1ps", "sample_index"]},
+    "sample_enable_assumption": {"const": "continuous"},
+    "capture_layout": {"const": "linear_address_order"},
+    "sample_count": {"type": "integer", "minimum": 1},
+    "trigger_index": {"type": "integer", "minimum": 0},
+    "trigger_observed": {"type": "boolean"},
+    "trigger_time": {"type": ["integer", "null"], "minimum": 0},
+    "last_sample_time": {"type": "integer", "minimum": 0}
+  },
+  "additionalProperties": true
+}

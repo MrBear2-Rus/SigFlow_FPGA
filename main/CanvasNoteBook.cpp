@@ -9,7 +9,7 @@ EVT_COMMAND(wxID_ANY, wxEVT_CANVAS_MODIFIED, CanvasNoteBook::OnCanvasModified)
 wxEND_EVENT_TABLE()
 
 CanvasNoteBook::CanvasNoteBook(MainFrame* pa, SigFlowTree* sftree, wxWindowID id, size_t size_x, size_t size_y)
-    : wxAuiNotebook(pa, id, wxDefaultPosition, wxDefaultSize, wxAUI_NB_DEFAULT_STYLE),
+    : wxAuiNotebook(pa, id, wxDefaultPosition, wxDefaultSize, wxAUI_NB_DEFAULT_STYLE | wxBORDER_NONE),
     mf(pa), sftree(sftree), size_x(size_x), size_y(size_y)
 {
     //AddCanvasPage(new CanvasPanel(this, sftree, size_x, size_y), "untitled", true);
@@ -273,8 +273,19 @@ void CanvasNoteBook::AddCustomButton() {
         wxDefaultPosition, wxSize(24, 24), // 略微放大
         wxBORDER_SIMPLE); // 使用简单的边框
 
-    m_addBtn->SetFont(wxFont(12, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD));
-    m_addBtn->SetForegroundColour(*wxBLACK);
+    // V6 / F4 修复：原为 wxFont(12, …)（12 **点**，非 DIP，且非 token）→ 改用 token 字号档。
+    // 同时修掉同一处的硬编码前景色 *wxBLACK（SAFE-012：不得新增颜色字面量）。
+    // T-140 / THE-030：改为经 ReapplyTheme() 施加，并订阅主题变化（否则一次性写色的按钮
+    // 在切换主题后不更新；深色档会变"深壳浅按钮"）。
+    ReapplyTheme();
+    if (!m_themeSubscription.IsBound()) {
+        m_themeSubscription = UiTheme::Subscribe([this] {
+            ReapplyTheme();
+            if (m_addBtn != nullptr) {
+                m_addBtn->Refresh(false);
+            }
+        });
+    }
 
    
 
@@ -289,8 +300,19 @@ void CanvasNoteBook::AddCustomButton() {
     m_addBtn->SetPosition(wxPoint(sz.x-30, 3));
 }
 
-void CanvasNoteBook::DeleteAddButton() {
-    if (m_addBtn) {
+// T-140 / THE-030：重施页签栏 "+" 按钮的外观。
+// 该按钮的颜色/字体是构造期一次性写入，主题切换后不会自动更新（深色档会变"深壳浅按钮"）。
+// 只改外观，不触碰任何业务状态（SAFE-005）。
+void CanvasNoteBook::ReapplyTheme()
+{
+    if (m_addBtn == nullptr) {
+        return;
+    }
+    m_addBtn->SetFont(UiTheme::UiFont(this, UiTheme::TextSize::P12, UiTheme::Weight::Semibold));
+    m_addBtn->SetForegroundColour(UiTheme::Palette().text1);
+}
+
+void CanvasNoteBook::DeleteAddButton() {    if (m_addBtn) {
         m_addBtn->Destroy();
         m_addBtn = nullptr;
     }

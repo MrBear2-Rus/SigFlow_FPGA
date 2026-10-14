@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sigflow.local/schema/tracebridge/capture-run-1.0.json",
+  "title": "TraceBridge capture run manifest",
+  "type": "object",
+  "required": ["schema_version", "plan", "result"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "created_at": { "type": "string" },
+    "updated_at": { "type": "string" },
+    "plan": {
+      "type": "object",
+      "required": ["run_id", "output_root", "target_count", "max_attempts",
+                    "stop_after_failures", "total_timeout_ms", "attempt_timeout_ms",
+                    "inter_attempt_delay_ms"],
+      "properties": {
+        "run_id": { "type": "string", "maxLength": 128, "pattern": "^run-[A-Za-z0-9_-]+$" },
+        "output_root": { "type": "string", "minLength": 1 },
+        "device_id": { "type": "string" },
+        "contract_snapshot": { "type": "string" },
+        "runtime_config_hash": { "type": "string" },
+        "target_count": { "type": "integer", "minimum": 1 },
+        "max_attempts": { "type": "integer", "minimum": 1 },
+        "stop_after_failures": { "type": "integer", "minimum": 0 },
+        "total_timeout_ms": { "type": "integer", "minimum": 1 },
+        "attempt_timeout_ms": { "type": "integer", "minimum": 1 },
+        "inter_attempt_delay_ms": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": true
+    },
+    "result": {
+      "type": "object",
+      "required": ["schema_version", "run_id", "state", "attempts",
+                    "completed_windows", "timeout_count", "failure_count", "issues"],
+      "properties": {
+        "schema_version": { "const": "1.0" },
+        "run_id": { "type": "string", "minLength": 1 },
+        "state": { "enum": ["Created", "Validating", "Running", "Stopping",
+                              "Completed", "Cancelled", "Failed"] },
+        "attempts": { "type": "integer", "minimum": 0 },
+        "completed_windows": { "type": "integer", "minimum": 0 },
+        "timeout_count": { "type": "integer", "minimum": 0 },
+        "failure_count": { "type": "integer", "minimum": 0 },
+        "issues": { "type": "array" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

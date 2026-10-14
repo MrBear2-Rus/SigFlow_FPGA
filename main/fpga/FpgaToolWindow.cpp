@@ -21,25 +21,28 @@
 
 namespace {
 
-wxStaticText* AddInfoRow(wxWindow* parent, wxBoxSizer* layout, const wxString& label,
-                         const wxString& value, const wxColour& valueColour)
+wxStaticText* AddInfoRow(FpgaTheme::RepaintActions& repaint, wxWindow* parent,
+                         wxBoxSizer* layout, const wxString& label,
+                         const wxString& value, wxColour (*valuePick)())
 {
     wxBoxSizer* row = new wxBoxSizer(wxHORIZONTAL);
-    row->Add(FpgaTheme::MakeLabel(parent, label, FpgaTheme::kTextMuted),
+    row->Add(FpgaTheme::MakeLabel(repaint, parent, label, &FpgaTheme::kTextMuted),
              0, wxALIGN_CENTER_VERTICAL | wxRIGHT, parent->FromDIP(10));
     row->AddStretchSpacer();
-    wxStaticText* valueLabel = FpgaTheme::MakeLabel(parent, value, valueColour);
+    wxStaticText* valueLabel = FpgaTheme::MakeLabel(repaint, parent, value, valuePick);
     row->Add(valueLabel, 0, wxALIGN_CENTER_VERTICAL);
     layout->Add(row, 0, wxEXPAND | wxTOP | wxBOTTOM, parent->FromDIP(3));
     return valueLabel;
 }
 
-wxPanel* MakeInfoCard(wxWindow* parent, wxBoxSizer* layout, const wxString& title)
+wxPanel* MakeInfoCard(FpgaTheme::RepaintActions& repaint, wxWindow* parent, wxBoxSizer* layout,
+                      const wxString& title)
 {
     wxPanel* card = new wxPanel(parent);
-    card->SetBackgroundColour(FpgaTheme::kPanel);
+    FpgaTheme::ApplyBackground(repaint, card, &FpgaTheme::kPanel);
     wxBoxSizer* cardLayout = new wxBoxSizer(wxVERTICAL);
-    wxStaticText* heading = FpgaTheme::MakeLabel(card, title, FpgaTheme::kTextSecondary, true);
+    wxStaticText* heading =
+        FpgaTheme::MakeLabel(repaint, card, title, &FpgaTheme::kTextSecondary, true);
     heading->SetFont(FpgaTheme::SectionFont(card));
     cardLayout->Add(heading, 0, wxBOTTOM, card->FromDIP(6));
     layout->Add(card, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, parent->FromDIP(10));
@@ -54,17 +57,31 @@ FpgaToolWindow::FpgaToolWindow(wxWindow* parent)
 {
     BuildUi();
     Bind(wxEVT_CLOSE_WINDOW, &FpgaToolWindow::OnClose, this);
+    // T-140 / THE-030：订阅主题变化 —— 重新取 token 并重绘。
+    // 句柄为本窗成员，先于 wxFrame 销毁子控件而释放（THE-028：可解绑，无悬垂回调）。
+    m_themeSub = UiTheme::Subscribe([this] { ApplyTheme(); });
+}
+
+// T-140：主题变化时重放登记表（= 重新取 token 写回控件）并重绘。
+void FpgaToolWindow::ApplyTheme()
+{
+    // T-140 夹具 F-140-01/02 修复：跨档 token 重映射
+    //（原生控件的一次性前景/背景色不会随主题自动更新 → 深色档下会"深壳浅字"）
+    UiTheme::RemapStaleTokenColours(this);
+    FpgaTheme::Replay(m_repaint);
+    UpdateNextpnrInfo();   // 该卡片的状态语义色（红/绿）随档位重新取用
+    Refresh();
 }
 
 void FpgaToolWindow::BuildUi()
 {
-    SetBackgroundColour(FpgaTheme::kBackground);
+    FpgaTheme::ApplyBackground(m_repaint, this, &FpgaTheme::kBackground);
 
     wxBoxSizer* layout = new wxBoxSizer(wxVERTICAL);
     layout->Add(BuildHeader(), 0, wxEXPAND);
 
     m_notebook = new wxNotebook(this, wxID_ANY);
-    m_notebook->SetBackgroundColour(FpgaTheme::kBackground);
+    FpgaTheme::ApplyBackground(m_repaint, m_notebook, &FpgaTheme::kBackground);
     m_notebook->AddPage(BuildYosysPage(), "Yosys");
     m_notebook->AddPage(BuildNextpnrPage(), "nextpnr");
     m_notebook->AddPage(BuildProgrammerPage(), "openFPGALoader");
@@ -75,27 +92,27 @@ void FpgaToolWindow::BuildUi()
 wxPanel* FpgaToolWindow::BuildHeader()
 {
     wxPanel* header = new wxPanel(this);
-    header->SetBackgroundColour(FpgaTheme::kHeader);
+    FpgaTheme::ApplyBackground(m_repaint, header, &FpgaTheme::kHeader);
     header->SetMinSize(wxSize(-1, header->FromDIP(46)));
 
     wxBoxSizer* layout = new wxBoxSizer(wxHORIZONTAL);
-    wxStaticText* title = FpgaTheme::MakeLabel(header, "SigFlow FPGA Tools",
-                                               FpgaTheme::kText, true);
+    wxStaticText* title = FpgaTheme::MakeLabel(m_repaint, header, "SigFlow FPGA Tools",
+                                               &FpgaTheme::kText, true);
     title->SetFont(FpgaTheme::TitleFont(header));
     layout->Add(title, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, header->FromDIP(14));
 
     layout->AddStretchSpacer();
 
     wxStaticText* badge = new wxStaticText(header, wxID_ANY, " Tang Nano 9K ");
-    badge->SetBackgroundColour(FpgaTheme::kPanelAlt);
-    badge->SetForegroundColour(FpgaTheme::kBlue);
+    FpgaTheme::ApplyBackground(m_repaint, badge, &FpgaTheme::kPanelAlt);
+    FpgaTheme::ApplyForeground(m_repaint, badge, &FpgaTheme::kBlue);
     wxFont badgeFont = badge->GetFont();
     badgeFont.MakeBold();
     badge->SetFont(badgeFont);
     layout->Add(badge, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, header->FromDIP(10));
 
-    m_headerProjectLabel = FpgaTheme::MakeLabel(header, "Project: no project open",
-                                                FpgaTheme::kTextSecondary);
+    m_headerProjectLabel = FpgaTheme::MakeLabel(m_repaint, header, "Project: no project open",
+                                                &FpgaTheme::kTextSecondary);
     layout->Add(m_headerProjectLabel, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT,
                 header->FromDIP(10));
 
@@ -106,31 +123,32 @@ wxPanel* FpgaToolWindow::BuildHeader()
 wxPanel* FpgaToolWindow::BuildYosysPage()
 {
     wxPanel* page = new wxPanel(m_notebook);
-    page->SetBackgroundColour(FpgaTheme::kBackground);
+    FpgaTheme::ApplyBackground(m_repaint, page, &FpgaTheme::kBackground);
     wxBoxSizer* layout = new wxBoxSizer(wxVERTICAL);
 
     wxBoxSizer* header = new wxBoxSizer(wxHORIZONTAL);
     wxBoxSizer* titleColumn = new wxBoxSizer(wxVERTICAL);
-    wxStaticText* title = FpgaTheme::MakeLabel(page, "Yosys Synthesis", FpgaTheme::kText, true);
+    wxStaticText* title =
+        FpgaTheme::MakeLabel(m_repaint, page, "Yosys Synthesis", &FpgaTheme::kText, true);
     title->SetFont(FpgaTheme::TitleFont(page));
     titleColumn->Add(title, 0, wxBOTTOM, page->FromDIP(2));
-    titleColumn->Add(FpgaTheme::MakeLabel(page,
+    titleColumn->Add(FpgaTheme::MakeLabel(m_repaint, page,
         wxT("综合 RTL 并生成经过校验的 Yosys JSON 网表。"),
-        FpgaTheme::kTextSecondary));
+        &FpgaTheme::kTextSecondary));
     header->Add(titleColumn, 1, wxALIGN_CENTER_VERTICAL);
 
     wxButton* start = new wxButton(page, wxID_ANY, "Start Synthesis");
-    FpgaTheme::StyleButton(start, FpgaTheme::kGreen, *wxBLACK);
+    FpgaTheme::StyleButton(m_repaint, start, &FpgaTheme::kGreen, &FpgaTheme::kOnAccent);
     wxButton* cancel = new wxButton(page, wxID_ANY, "Cancel");
-    FpgaTheme::StyleButton(cancel, FpgaTheme::kRed, *wxWHITE);
+    FpgaTheme::StyleButton(m_repaint, cancel, &FpgaTheme::kRed, &FpgaTheme::kOnAccent);
     wxButton* refresh = new wxButton(page, wxID_REFRESH, "Refresh");
-    FpgaTheme::StyleSecondaryButton(refresh);
+    FpgaTheme::StyleSecondaryButton(m_repaint, refresh);
     header->Add(start, 0, wxLEFT, page->FromDIP(6));
     header->Add(cancel, 0, wxLEFT, page->FromDIP(6));
     header->Add(refresh, 0, wxLEFT, page->FromDIP(6));
     layout->Add(header, 0, wxEXPAND | wxALL, page->FromDIP(10));
 
-    FpgaTheme::MakeDivider(page, layout, page->FromDIP(10));
+    FpgaTheme::MakeDivider(m_repaint, page, layout, page->FromDIP(10));
 
     m_synthesisJobsPanel = new FpgaSynthesisJobsPanel(page);
     layout->Add(m_synthesisJobsPanel, 1, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM,
@@ -150,63 +168,67 @@ wxPanel* FpgaToolWindow::BuildYosysPage()
 wxPanel* FpgaToolWindow::BuildNextpnrPage()
 {
     wxPanel* page = new wxPanel(m_notebook);
-    page->SetBackgroundColour(FpgaTheme::kBackground);
+    FpgaTheme::ApplyBackground(m_repaint, page, &FpgaTheme::kBackground);
     wxBoxSizer* layout = new wxBoxSizer(wxVERTICAL);
 
     wxBoxSizer* header = new wxBoxSizer(wxHORIZONTAL);
     wxBoxSizer* titleColumn = new wxBoxSizer(wxVERTICAL);
-    wxStaticText* title = FpgaTheme::MakeLabel(page, "Place & Route", FpgaTheme::kText, true);
+    wxStaticText* title =
+        FpgaTheme::MakeLabel(m_repaint, page, "Place & Route", &FpgaTheme::kText, true);
     title->SetFont(FpgaTheme::TitleFont(page));
     titleColumn->Add(title, 0, wxBOTTOM, page->FromDIP(2));
-    titleColumn->Add(FpgaTheme::MakeLabel(page,
+    titleColumn->Add(FpgaTheme::MakeLabel(m_repaint, page,
         wxT("使用 Yosys 网表与 CST 约束执行布局布线。"),
-        FpgaTheme::kTextSecondary));
+        &FpgaTheme::kTextSecondary));
     header->Add(titleColumn, 1, wxALIGN_CENTER_VERTICAL);
 
     m_routeStartButton = new wxButton(page, wxID_ANY, "Start Place and Route");
-    FpgaTheme::StyleButton(m_routeStartButton, FpgaTheme::kBlue, *wxWHITE);
+    FpgaTheme::StyleButton(m_repaint, m_routeStartButton, &FpgaTheme::kBlue, &FpgaTheme::kOnAccent);
     header->Add(m_routeStartButton, 0, wxLEFT, page->FromDIP(6));
 
     wxButton* routeCancelButton = new wxButton(page, wxID_ANY, "Cancel");
-    FpgaTheme::StyleButton(routeCancelButton, FpgaTheme::kRed, *wxWHITE);
+    FpgaTheme::StyleButton(m_repaint, routeCancelButton, &FpgaTheme::kRed, &FpgaTheme::kOnAccent);
     header->Add(routeCancelButton, 0, wxLEFT, page->FromDIP(6));
     layout->Add(header, 0, wxEXPAND | wxALL, page->FromDIP(10));
 
-    FpgaTheme::MakeDivider(page, layout, page->FromDIP(10));
+    FpgaTheme::MakeDivider(m_repaint, page, layout, page->FromDIP(10));
 
     // ── 任务列表面板 ──
     m_routeJobsPanel = new NextpnrJobsPanel(page);
     layout->Add(m_routeJobsPanel, 1, wxEXPAND | wxLEFT | wxRIGHT, page->FromDIP(8));
 
-    FpgaTheme::MakeDivider(page, layout, page->FromDIP(6));
+    FpgaTheme::MakeDivider(m_repaint, page, layout, page->FromDIP(6));
 
     // ── 本次运行信息卡片 ──
-    wxPanel* infoCard = MakeInfoCard(page, layout, "Run Summary");
+    wxPanel* infoCard = MakeInfoCard(m_repaint, page, layout, "Run Summary");
     wxBoxSizer* infoLayout = new wxBoxSizer(wxVERTICAL);
-    m_nextpnrDeviceLabel = AddInfoRow(infoCard, infoLayout, "Device", "", FpgaTheme::kText);
-    m_nextpnrFamilyLabel = AddInfoRow(infoCard, infoLayout, "Family", "", FpgaTheme::kText);
-    m_nextpnrJsonLabel = AddInfoRow(infoCard, infoLayout, "Netlist JSON", "", FpgaTheme::kText);
-    m_nextpnrCstLabel = AddInfoRow(infoCard, infoLayout, "Constraints (CST)", "",
-                                   FpgaTheme::kText);
+    m_nextpnrDeviceLabel =
+        AddInfoRow(m_repaint, infoCard, infoLayout, "Device", "", &FpgaTheme::kText);
+    m_nextpnrFamilyLabel =
+        AddInfoRow(m_repaint, infoCard, infoLayout, "Family", "", &FpgaTheme::kText);
+    m_nextpnrJsonLabel =
+        AddInfoRow(m_repaint, infoCard, infoLayout, "Netlist JSON", "", &FpgaTheme::kText);
+    m_nextpnrCstLabel = AddInfoRow(m_repaint, infoCard, infoLayout, "Constraints (CST)", "",
+                                   &FpgaTheme::kText);
     infoCard->SetSizer(infoLayout);
 
     // ── 命令预览卡片 ──
-    wxPanel* commandCard = MakeInfoCard(page, layout, "Command");
+    wxPanel* commandCard = MakeInfoCard(m_repaint, page, layout, "Command");
     wxBoxSizer* commandLayout = new wxBoxSizer(wxVERTICAL);
     wxTextCtrl* commandPreview = new wxTextCtrl(commandCard, wxID_ANY, wxEmptyString,
         wxDefaultPosition, wxSize(-1, FromDIP(64)),
         wxTE_MULTILINE | wxTE_READONLY);
-    commandPreview->SetBackgroundColour(FpgaTheme::kPanelAlt);
-    commandPreview->SetForegroundColour(FpgaTheme::kTextSecondary);
+    FpgaTheme::ApplyBackground(m_repaint, commandPreview, &FpgaTheme::kPanelAlt);
+    FpgaTheme::ApplyForeground(m_repaint, commandPreview, &FpgaTheme::kTextSecondary);
     commandPreview->SetValue(
         "nextpnr-himbaechel --json <project>\\yosys\\<top>.json "
         "--write <project>\\nextpnr\\<top>.pnr.json "
         "--device GW1NR-LV9QN88PC6/I5 --vopt family=GW1N-9C");
     commandLayout->Add(commandPreview, 1, wxEXPAND);
-    commandLayout->Add(FpgaTheme::MakeLabel(commandCard,
+    commandLayout->Add(FpgaTheme::MakeLabel(m_repaint, commandCard,
         wxT("可在 sigflow.project 的 fpga.nextpnr_args 中覆盖参数；运行后可继续用 ")
         wxT("gowin_pack -d GW1N-9C 打包 .fs 位流。"),
-        FpgaTheme::kTextMuted), 0, wxTOP, commandCard->FromDIP(6));
+        &FpgaTheme::kTextMuted), 0, wxTOP, commandCard->FromDIP(6));
     commandCard->SetSizer(commandLayout);
 
     layout->AddStretchSpacer(1);
@@ -224,53 +246,55 @@ wxPanel* FpgaToolWindow::BuildNextpnrPage()
 wxPanel* FpgaToolWindow::BuildProgrammerPage()
 {
     wxPanel* page = new wxPanel(m_notebook);
-    page->SetBackgroundColour(FpgaTheme::kBackground);
+    FpgaTheme::ApplyBackground(m_repaint, page, &FpgaTheme::kBackground);
     wxBoxSizer* layout = new wxBoxSizer(wxVERTICAL);
 
     wxBoxSizer* header = new wxBoxSizer(wxHORIZONTAL);
     wxBoxSizer* titleColumn = new wxBoxSizer(wxVERTICAL);
-    wxStaticText* title = FpgaTheme::MakeLabel(page, "Program Board", FpgaTheme::kText, true);
+    wxStaticText* title =
+        FpgaTheme::MakeLabel(m_repaint, page, "Program Board", &FpgaTheme::kText, true);
     title->SetFont(FpgaTheme::TitleFont(page));
     titleColumn->Add(title, 0, wxBOTTOM, page->FromDIP(2));
-    titleColumn->Add(FpgaTheme::MakeLabel(page,
+    titleColumn->Add(FpgaTheme::MakeLabel(m_repaint, page,
         wxT("选择 Apicula .fs 位流并下载到目标板卡。"),
-        FpgaTheme::kTextSecondary));
+        &FpgaTheme::kTextSecondary));
     header->Add(titleColumn, 1, wxALIGN_CENTER_VERTICAL);
 
     m_packButton = new wxButton(page, wxID_ANY, "Build .fs");
-    FpgaTheme::StyleButton(m_packButton, FpgaTheme::kBlue, *wxWHITE);
+    FpgaTheme::StyleButton(m_repaint, m_packButton, &FpgaTheme::kBlue, &FpgaTheme::kOnAccent);
     m_packButton->Enable(false);
     header->Add(m_packButton, 0, wxLEFT, page->FromDIP(6));
 
     m_programButton = new wxButton(page, wxID_ANY, "Program Board");
-    FpgaTheme::StyleButton(m_programButton, FpgaTheme::kAmber, *wxBLACK);
+    FpgaTheme::StyleButton(m_repaint, m_programButton, &FpgaTheme::kAmber, &FpgaTheme::kOnAccent);
     m_programButton->Enable(false);
     header->Add(m_programButton, 0, wxLEFT, page->FromDIP(6));
     layout->Add(header, 0, wxEXPAND | wxALL, page->FromDIP(10));
 
-    FpgaTheme::MakeDivider(page, layout, page->FromDIP(10));
+    FpgaTheme::MakeDivider(m_repaint, page, layout, page->FromDIP(10));
 
-    wxPanel* infoCard = MakeInfoCard(page, layout, "Target");
+    wxPanel* infoCard = MakeInfoCard(m_repaint, page, layout, "Target");
     wxBoxSizer* infoLayout = new wxBoxSizer(wxVERTICAL);
-    m_programBoardLabel = AddInfoRow(infoCard, infoLayout, "Board", "", FpgaTheme::kText);
-    AddInfoRow(infoCard, infoLayout, "Programmer", "openFPGALoader",
-               FpgaTheme::kTextSecondary);
+    m_programBoardLabel =
+        AddInfoRow(m_repaint, infoCard, infoLayout, "Board", "", &FpgaTheme::kText);
+    AddInfoRow(m_repaint, infoCard, infoLayout, "Programmer", "openFPGALoader",
+               &FpgaTheme::kTextSecondary);
     infoCard->SetSizer(infoLayout);
 
     // ── 位流选择 ──
     wxBoxSizer* picker = new wxBoxSizer(wxHORIZONTAL);
     m_bitstreamPathText = new wxTextCtrl(page, wxID_ANY, wxEmptyString, wxDefaultPosition,
         wxDefaultSize, wxTE_READONLY);
-    m_bitstreamPathText->SetBackgroundColour(FpgaTheme::kPanelAlt);
-    m_bitstreamPathText->SetForegroundColour(FpgaTheme::kText);
+    FpgaTheme::ApplyBackground(m_repaint, m_bitstreamPathText, &FpgaTheme::kPanelAlt);
+    FpgaTheme::ApplyForeground(m_repaint, m_bitstreamPathText, &FpgaTheme::kText);
     wxButton* browse = new wxButton(page, wxID_OPEN, "Select .fs");
-    FpgaTheme::StyleSecondaryButton(browse);
+    FpgaTheme::StyleSecondaryButton(m_repaint, browse);
     picker->Add(m_bitstreamPathText, 1, wxRIGHT, page->FromDIP(6));
     picker->Add(browse, 0);
     layout->Add(picker, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, page->FromDIP(10));
 
-    m_programStatusLabel = FpgaTheme::MakeLabel(page,
-        wxT("先构建 .fs，或手动选择已有位流后烧录。"), FpgaTheme::kTextMuted);
+    m_programStatusLabel = FpgaTheme::MakeLabel(m_repaint, page,
+        wxT("先构建 .fs，或手动选择已有位流后烧录。"), &FpgaTheme::kTextMuted);
     layout->Add(m_programStatusLabel, 0, wxLEFT | wxRIGHT | wxBOTTOM, page->FromDIP(10));
 
     layout->AddStretchSpacer(1);
@@ -430,7 +454,7 @@ void FpgaToolWindow::UpdateNextpnrInfo()
     m_nextpnrFamilyLabel->SetLabel(profile.family);
 
     wxString jsonText = wxT("未找到网表，请先运行 Synthesis");
-    wxColour jsonColour = FpgaTheme::kRed;
+    wxColour jsonColour = FpgaTheme::kRed();
     if (!m_projectPath.IsEmpty()) {
         const wxString yosysDirectory = sigflow::platform::JoinPath(m_projectPath, "yosys");
         int count = 0;
@@ -445,7 +469,7 @@ void FpgaToolWindow::UpdateNextpnrInfo()
         }
         if (count > 0) {
             jsonText = wxString::Format(wxT("%d 个网表 (yosys\\*.json)"), count);
-            jsonColour = FpgaTheme::kGreen;
+            jsonColour = FpgaTheme::kGreen();
         }
     }
     m_nextpnrJsonLabel->SetLabel(jsonText);
@@ -453,16 +477,16 @@ void FpgaToolWindow::UpdateNextpnrInfo()
 
     if (m_projectPath.IsEmpty()) {
         m_nextpnrCstLabel->SetLabel(wxT("打开项目后自动解析"));
-        m_nextpnrCstLabel->SetForegroundColour(FpgaTheme::kTextSecondary);
+        m_nextpnrCstLabel->SetForegroundColour(FpgaTheme::kTextSecondary());
         return;
     }
     const wxString cstPath = CstValidator::AutoResolveCst(m_projectPath, wxEmptyString);
     if (wxFileExists(cstPath)) {
         m_nextpnrCstLabel->SetLabel(cstPath);
-        m_nextpnrCstLabel->SetForegroundColour(FpgaTheme::kGreen);
+        m_nextpnrCstLabel->SetForegroundColour(FpgaTheme::kGreen());
     } else {
         m_nextpnrCstLabel->SetLabel(wxT("未找到 CST（可选，可稍后通过 Pin Constraints 生成）"));
-        m_nextpnrCstLabel->SetForegroundColour(FpgaTheme::kTextSecondary);
+        m_nextpnrCstLabel->SetForegroundColour(FpgaTheme::kTextSecondary());
     }
 }
 

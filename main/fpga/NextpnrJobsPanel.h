@@ -10,6 +10,7 @@
 #include <wx/panel.h>
 #include <wx/timer.h>
 
+#include "FpgaTheme.h"   // T-140：适配层 + 主题重放登记表（含 ui/UiTheme.h）
 #include "NextpnrJob.h"
 #include <eda/api/jobs.hpp>
 
@@ -41,10 +42,15 @@ private:
     wxButton* m_openLogButton = nullptr;
     wxButton* m_retryButton = nullptr;
     wxTimer m_refreshTimer;
+    // T-140 / THE-030：主题刷新 —— 重放登记表 + 订阅句柄，随本面板析构释放
+    FpgaTheme::RepaintActions m_repaint;
+    UiTheme::Subscription m_themeSub;
 
     std::function<void(const wxString&, long)> m_openFileHandler;
     std::function<void(const wxString&)> m_retryHandler;
 
+    void ApplyTheme();
+    void ApplyReportPalette();
     void BuildUi();
     void SortJobsNewestFirst();
     void SelectJob(long itemIndex);

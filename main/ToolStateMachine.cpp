@@ -5,6 +5,7 @@
 #include <wx/image.h>
 #include <wx/cursor.h>
 #include "CanvasPanel.h"
+#include "ui/UiImageResources.h"
 
 // 事件定义
 wxDEFINE_EVENT(TOOL_STATE_CHANGED, wxCommandEvent);
@@ -53,11 +54,8 @@ void ToolStateMachine::SetCurrentTool(ToolType tool) {
             break;
         }
         case ToolType::WIRE_TOOL: {
-            wxImage image(sigflow::platform::ResourcePath("res/icons/wiring.png"), wxBITMAP_TYPE_PNG);
-            image.GetOptionInt(wxIMAGE_OPTION_CUR_HOTSPOT_X);
-            image.GetOptionInt(wxIMAGE_OPTION_CUR_HOTSPOT_Y);
-            wxCursor cursor(image);
-            m_canvas->SetCursor(cursor);
+            m_canvas->SetCursor(UiImageResources::LoadImageCursor(
+                sigflow::platform::ResourcePath("res/icons/wiring.png"), wxCURSOR_CROSS));
             break;
         }
         case ToolType::DRAG_TOOL: {

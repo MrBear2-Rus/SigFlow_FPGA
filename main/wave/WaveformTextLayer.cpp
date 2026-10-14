@@ -12,10 +12,13 @@ namespace wave {
 void DrawTextLayer(wxDC& dc, const WaveformFrame& frame,
                    const WaveViewState& state, int width, int height)
 {
-    const wxFont font(9, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
-    dc.SetFont(font);
+    // CMP-064：信号名 11 DIP 等宽；文字/语义色一律经 UiTheme token 取用（SAFE-012）
+    const UiTheme::Colours& ui = UiTheme::PaletteFor(UiModeFor(state.theme));
+    const WaveThemeColors colors = ColorsForThemed(state.theme);
+    dc.SetFont(UiTheme::MonoFont(dc.GetWindow(), UiTheme::TextSize::P11));
     dc.SetBackgroundMode(wxTRANSPARENT);
-    dc.SetTextForeground(ColorsFor(state.theme).text);
+    dc.SetTextForeground(colors.text);
+    dc.DrawText(frame.timeUnitLabel, 4, 4);
 
     // 时间轴刻度
     for (const WaveformTick& tick : frame.ticks) {
@@ -24,12 +27,17 @@ void DrawTextLayer(wxDC& dc, const WaveformFrame& frame,
         dc.DrawText(tick.label, x - 12, 4);
     }
 
-    // 信号名 + 向量值标注
+    // 信号名（leftMargin 区域内右对齐）+ 向量值标注
     int row = 0;
     for (const WaveformSignalData& signal : frame.signals) {
         const int rowTop = state.headerHeight + row * state.rowHeight;
-        dc.DrawText(signal.name, 8, rowTop + 7);
+        const wxSize extent = dc.GetTextExtent(signal.name);
+        dc.SetTextForeground(ui.text2);
+        dc.DrawText(signal.name,
+                    std::max(4, state.leftMargin - 12 - extent.GetWidth()),
+                    rowTop + std::max(0, (state.rowHeight - extent.GetHeight()) / 2));
         if (signal.vector) {
+            dc.SetTextForeground(ui.text3);
             int drawn = 0;
             for (const auto& label : signal.valueLabels) {
                 if (drawn >= 200) break;
@@ -45,7 +53,7 @@ void DrawTextLayer(wxDC& dc, const WaveformFrame& frame,
 
     // ── W3 标签：A-B / 播放头 / Marker / 事件 ──
     if (state.hasAB) {
-        dc.SetTextForeground(wxColour(251, 146, 60));
+        dc.SetTextForeground(ui.warn);
         const int xa = static_cast<int>(
             WaveformTimeToX(state, width, state.abA));
         const int xb = static_cast<int>(
@@ -64,7 +72,7 @@ void DrawTextLayer(wxDC& dc, const WaveformFrame& frame,
     if (state.hasPlayhead) {
         const int xp = static_cast<int>(
             WaveformTimeToX(state, width, state.playhead));
-        dc.SetTextForeground(wxColour(226, 232, 240));
+        dc.SetTextForeground(ui.text1);
         if (xp >= state.leftMargin && xp <= width - state.rightMargin) {
             dc.DrawText("t=" + std::to_string(state.playhead), xp + 4, 22);
         }

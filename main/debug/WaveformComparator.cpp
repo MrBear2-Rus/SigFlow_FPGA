@@ -1,4 +1,5 @@
 #include "WaveformComparator.h"
+#include "WaveformTimeCompatibility.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -90,6 +91,13 @@ std::vector<std::pair<signal_t*, signal_t*>> WaveformComparator::FindCommonSigna
 ComparisonResult WaveformComparator::Compare(vcd_t* hw, vcd_t* sim,
                                              const AlignmentResult& alignment) {
     ComparisonResult result;
+    std::string timeError;
+    const auto offsetLimit = std::numeric_limits<std::int64_t>::max() / 2;
+    if (!CompatibleWaveformTime(hw, sim, timeError) || alignment.timeOffset < -offsetLimit ||
+        alignment.timeOffset > offsetLimit) {
+        result.summary = timeError.empty() ? "TIME_RANGE_UNSUPPORTED: alignment offset" : timeError;
+        return result;
+    }
     result.alignment = alignment;
     result.aligned = alignment.valid;
     if (!alignment.valid) {

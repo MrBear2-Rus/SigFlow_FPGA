@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sigflow.local/schema/tracebridge/monitor-checkpoint-1.0.json",
+  "title": "TraceBridge monitor checkpoint",
+  "type": "object",
+  "required": ["schema_version", "monitor_id", "state", "next_sequence", "last_event_id", "last_capture_id", "updated_at"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "monitor_id": { "type": "string", "minLength": 1 },
+    "state": { "enum": ["Created", "Running", "Paused", "Stopped", "Failed"] },
+    "next_sequence": { "type": "integer", "minimum": 1 },
+    "last_event_id": { "type": "string" },
+    "last_capture_id": { "type": "string" },
+    "updated_at": { "type": "string" }
+  },
+  "additionalProperties": true
+}

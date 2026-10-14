@@ -10,6 +10,10 @@
 #include "RootCauseGraph.h"
 #include "ReplayScenario.h"
 #include "DebugMappingBuilder.h"
+#include "TransportBackend.h"
+#include "TransportSelfTest.h"
+#include "DeviceControl.h"
+#include "ProbePlanningService.h"
 #include "../fpga/FpgaConstraint.h"
 #include "../fpga/FpgaPinData.h"
 #include "../platform/PlatformPaths.h"
@@ -41,6 +45,10 @@ using sigflow::platform::JoinPath;
 #include <wx/timer.h>
 #include <wx/zipstrm.h>
 #include <wx/wfstream.h>
+#include <wx/weakref.h>
+#include <wx/app.h>
+#include <wx/scrolwin.h>
+#include <wx/dialog.h>
 
 #include <algorithm>
 #include <chrono>
@@ -65,6 +73,28 @@ wxDEFINE_EVENT(wxEVT_TB_RESULT,   wxCommandEvent);
 
 // ================== 工具 & 标签色 ==================
 namespace {
+
+// ---------------------------------------------------------------------------
+// T-140 / PLT-012：未显式取色的"文字面"（wxStaticText / wxTextCtrl，系统默认黑）
+// 在主题刷新时补为当期文字 token —— 深色档下默认黑不可读，浅色档下也避免出现
+// 一个脱离 token 的"题外色"。已显式取色的控件保持不动。
+// ---------------------------------------------------------------------------
+bool NeedsDefaultTextColour(const wxColour& colour)
+{
+    return !colour.IsOk() || (colour.Red() == 0 && colour.Green() == 0 && colour.Blue() == 0);
+}
+
+void ApplyTextForegroundDefaults(wxWindow* window, const wxColour& colour)
+{
+    for (wxWindow* child : window->GetChildren()) {
+        const bool textSurface = dynamic_cast<wxStaticText*>(child) != nullptr ||
+                                 dynamic_cast<wxTextCtrl*>(child) != nullptr;
+        if (textSurface && NeedsDefaultTextColour(child->GetForegroundColour())) {
+            child->SetForegroundColour(colour);
+        }
+        ApplyTextForegroundDefaults(child, colour);
+    }
+}
 
 std::string ToUtf8(const wxString& value) { return std::string(value.ToUTF8().data()); }
 wxString ToWxString(const std::string& v)   { return wxString::FromUTF8(v.c_str()); }
@@ -495,7 +525,7 @@ public:
         auto* pathRow = new wxBoxSizer(wxVERTICAL);
         pathLabel_ = new wxStaticText(this, wxID_ANY, wxT("（未选择契约）"));
         pathLabel_->Wrap(FromDIP(380));
-        pathLabel_->SetForegroundColour(wxColour(0x6B, 0x72, 0x80));
+        pathLabel_->SetForegroundColour(UiTheme::Palette().text2);   // T-140：接 token
         pathRow->Add(pathLabel_, 0, wxLEFT | wxRIGHT | wxEXPAND, 10);
         v->Add(pathRow, 0, wxBOTTOM | wxEXPAND, 8);
         // KPI tile 2x2
@@ -506,9 +536,9 @@ public:
         tileFingerprint_ = MakeTile(grid, wxT("Fingerprint"), wxT("-"), wxColour(0xF3, 0xE8, 0xFF));
         v->Add(grid, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 10);
         // ribbons
-        auto r1 = MakeRibbon(v, wxT("源文件未修改（Git clean）"), wxColour(0x05, 0x96, 0x69), true);
+        auto r1 = MakeRibbon(v, wxT("源文件未修改（Git clean）"), UiTheme::Palette().brand, true);
         ribbonClean_ = r1.first; ribbonTextClean_ = r1.second;
-        auto r2 = MakeRibbon(v, wxT("资源占用：LUT 估算待接入"), wxColour(0x6B, 0x72, 0x80), false);
+        auto r2 = MakeRibbon(v, wxT("资源占用：LUT 估算待接入"), UiTheme::Palette().text2, false);
         ribbonResource_ = r2.first; ribbonTextResource_ = r2.second;
         // banner
         banner_ = new wxPanel(this, wxID_ANY);
@@ -516,7 +546,8 @@ public:
         banner_->Hide();
         auto* bv = new wxBoxSizer(wxVERTICAL);
         bannerText_ = new wxStaticText(banner_, wxID_ANY, wxEmptyString);
-        bannerText_->SetForegroundColour(*wxWHITE);
+        // 原 *wxWHITE：banner 底为 *wxWHITE 时不可读；改接当期主文字 token（T-140）
+    bannerText_->SetForegroundColour(UiTheme::Palette().text1);
         bannerText_->Wrap(FromDIP(380));
         bv->AddSpacer(6);
         bv->Add(bannerText_, 0, wxLEFT | wxRIGHT, 10);
@@ -582,7 +613,7 @@ public:
         // ribbons
         ribbonClean_->SetBackgroundColour(wxColour(0xD1, 0xFA, 0xAE)); // green-100
         ribbonTextClean_->SetLabel(wxT("✓ 源文件未修改（Debug 构建为 Shadow Build，Git 工作区保持干净）"));
-        ribbonTextClean_->SetForegroundColour(wxColour(0x14, 0x53, 0x2A));
+        ribbonTextClean_->SetForegroundColour(UiTheme::Palette().codeType);   // T-140：接 token
         ribbonClean_->Show(true);
 
         // 资源 Ribbon：先用阈值估算（>10% 黄，>20% 红），后续可接入 Yosys manifest 真值
@@ -594,9 +625,9 @@ public:
             const uint32_t est = totalBits * 2 + 350;  // + BRAM 开销 + 协议栈
             const int pct = budget == 0 ? 0 : std::min(100u, 100u * est / budget);
             wxColour col = wxColour(0xE5, 0xE7, 0xEB);
-            wxColour fg = wxColour(0x37, 0x41, 0x51);
-            if (pct >= 20) { col = ErrBg();   fg = wxColour(0x99, 0x1B, 0x1B); }
-            else if (pct >= 10) { col = WarnBg(); fg = wxColour(0x92, 0x40, 0x05); }
+            wxColour fg = UiTheme::Palette().text2;
+            if (pct >= 20) { col = ErrBg();   fg = UiTheme::Palette().danger; }
+            else if (pct >= 10) { col = WarnBg(); fg = UiTheme::Palette().warn; }
             ribbonResource_->SetBackgroundColour(col);
             ribbonTextResource_->SetForegroundColour(fg);
             ribbonTextResource_->SetLabel(wxString::Format(
@@ -617,7 +648,7 @@ public:
     void SetCleanRibbonError(const wxString& msg) {
         ribbonClean_->SetBackgroundColour(ErrBg());
         ribbonTextClean_->SetLabel(msg);
-        ribbonTextClean_->SetForegroundColour(wxColour(0x99, 0x1B, 0x1B));
+        ribbonTextClean_->SetForegroundColour(UiTheme::Palette().danger);
         Layout();
     }
     wxButton* browseBtn = nullptr;
@@ -632,10 +663,10 @@ private:
         auto* v = new wxBoxSizer(wxVERTICAL);
         v->AddSpacer(6);
         t->title = new wxStaticText(t->panel, wxID_ANY, title);
-        t->title->SetForegroundColour(wxColour(0x37, 0x41, 0x51));
+        t->title->SetForegroundColour(UiTheme::Palette().text2);
         t->title->SetFont(wxSystemSettings::GetFont(wxSYS_DEFAULT_GUI_FONT).Smaller());
         t->value = new wxStaticText(t->panel, wxID_ANY, value);
-        t->value->SetForegroundColour(wxColour(0x11, 0x18, 0x27));
+        t->value->SetForegroundColour(UiTheme::Palette().text1);
         t->value->SetFont(wxSystemSettings::GetFont(wxSYS_DEFAULT_GUI_FONT).Bold());
         t->value->Wrap(FromDIP(160));
         v->Add(t->title, 0, wxLEFT | wxRIGHT, 10);
@@ -656,7 +687,7 @@ private:
         rv->AddSpacer(5);
         wxStaticText* label = new wxStaticText(p, wxID_ANY, text);
         label->Wrap(FromDIP(380));
-        label->SetForegroundColour(good ? wxColour(0x14, 0x53, 0x2A) : fg);
+        label->SetForegroundColour(good ? UiTheme::Palette().codeType : fg);
         label->SetFont(wxSystemSettings::GetFont(wxSYS_DEFAULT_GUI_FONT).Smaller());
         rv->Add(label, 0, wxLEFT | wxRIGHT, 10);
         rv->AddSpacer(5);
@@ -677,10 +708,11 @@ private:
 };
 
 // ================== TraceBridgeRuntimePanel（Tab 2 Runtime）==================
-class TraceBridgeRuntimePanel : public wxPanel {
+class TraceBridgeRuntimePanel : public wxScrolledWindow {
 public:
     TraceBridgeRuntimePanel(wxWindow* parent)
-        : wxPanel(parent, wxID_ANY) {
+        : wxScrolledWindow(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxVSCROLL) {
+        SetScrollRate(0, FromDIP(12));
         SetBackgroundColour(wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW));
         auto* v = new wxBoxSizer(wxVERTICAL);
         v->AddSpacer(6);
@@ -725,6 +757,49 @@ public:
         g->Add(checkFpCk_, 1, wxEXPAND);
         transBox->Add(g, 1, wxALL | wxEXPAND, 10);
         v->Add(transBox, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 10);
+
+        auto* selfTestRow = new wxBoxSizer(wxHORIZONTAL);
+        selfTestButton_ = new wxButton(this, wxID_ANY, wxT("用户主动链路自测"));
+        selfTestButton_->SetToolTip(wxT("只读 PING/STATUS 握手；不会复位、配置或布防 DUT"));
+        selfTestRow->Add(selfTestButton_, 0, wxRIGHT, 8);
+        linkStatus_ = new wxStaticText(this, wxID_ANY,
+            wxT("后端：未自测 · 目标：未验证 · 验证级别：未执行"));
+        linkStatus_->Wrap(FromDIP(360));
+        selfTestRow->Add(linkStatus_, 1, wxALIGN_CENTER_VERTICAL);
+        selfTestRow->Add(new wxStaticText(this, wxID_ANY,
+            wxT("仅在没有采集任务时可用；明细写入运行日志")),
+            0, wxALIGN_CENTER_VERTICAL);
+        v->Add(selfTestRow, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 10);
+
+        // Host-side repeated capture plan. This only schedules existing
+        // single-window acquisitions; it does not change the FPGA contract.
+        auto* repeatBox = new wxStaticBoxSizer(wxVERTICAL, this, wxT("重复采集（板外计划）"));
+        auto* rg = new wxFlexGridSizer(2, FromDIP(8), FromDIP(10));
+        rg->AddGrowableCol(1, 1);
+        rg->Add(new wxStaticText(this, wxID_ANY, wxT("完整窗口数")), 0, wxALIGN_CENTER_VERTICAL);
+        captureCountSpin_ = new wxSpinCtrl(this, wxID_ANY, wxT("1"));
+        captureCountSpin_->SetRange(1, 10000);
+        rg->Add(captureCountSpin_, 1, wxEXPAND);
+        rg->Add(new wxStaticText(this, wxID_ANY, wxT("最大尝试数（0=自动）")), 0, wxALIGN_CENTER_VERTICAL);
+        maxAttemptsSpin_ = new wxSpinCtrl(this, wxID_ANY, wxT("0"));
+        maxAttemptsSpin_->SetRange(0, 100000);
+        rg->Add(maxAttemptsSpin_, 1, wxEXPAND);
+        rg->Add(new wxStaticText(this, wxID_ANY, wxT("连续失败上限（0=不限制）")), 0, wxALIGN_CENTER_VERTICAL);
+        failureLimitSpin_ = new wxSpinCtrl(this, wxID_ANY, wxT("3"));
+        failureLimitSpin_->SetRange(0, 1000);
+        rg->Add(failureLimitSpin_, 1, wxEXPAND);
+        rg->Add(new wxStaticText(this, wxID_ANY, wxT("总期限(ms)")), 0, wxALIGN_CENTER_VERTICAL);
+        totalTimeoutSpin_ = new wxSpinCtrl(this, wxID_ANY, wxT("60000"));
+        totalTimeoutSpin_->SetRange(1000, 3600000);
+        totalTimeoutSpin_->SetIncrement(1000);
+        rg->Add(totalTimeoutSpin_, 1, wxEXPAND);
+        rg->Add(new wxStaticText(this, wxID_ANY, wxT("窗口间隔(ms)")), 0, wxALIGN_CENTER_VERTICAL);
+        interAttemptDelaySpin_ = new wxSpinCtrl(this, wxID_ANY, wxT("0"));
+        interAttemptDelaySpin_->SetRange(0, 600000);
+        interAttemptDelaySpin_->SetIncrement(100);
+        rg->Add(interAttemptDelaySpin_, 1, wxEXPAND);
+        repeatBox->Add(rg, 1, wxALL | wxEXPAND, 10);
+        v->Add(repeatBox, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 10);
 
         // trigger zone
         auto* trigBox = new wxStaticBoxSizer(wxVERTICAL, this, wxT("Trigger（默认按契约锁定，Override 才允许改）"));
@@ -800,6 +875,20 @@ public:
         // bindings
         overrideCk_->Bind(wxEVT_CHECKBOX, [this](wxCommandEvent&){ UpdateEnabledState(); });
         trigModeChoice_->Bind(wxEVT_CHOICE, [this](wxCommandEvent&){ UpdateDynamicAreaVisibility(); });
+    }
+
+    void ApplyCapturePlan(TraceBridgeCaptureRequest& request) const {
+        request.captureTargetCount = static_cast<std::size_t>(captureCountSpin_->GetValue());
+        request.captureMaxAttempts = static_cast<std::size_t>(maxAttemptsSpin_->GetValue());
+        request.captureStopAfterFailures = static_cast<std::size_t>(failureLimitSpin_->GetValue());
+        request.captureTotalTimeoutMs = static_cast<std::uint32_t>(totalTimeoutSpin_->GetValue());
+        request.captureAttemptTimeoutMs = static_cast<std::uint32_t>(timeoutSpin_->GetValue());
+        request.captureInterAttemptDelayMs = static_cast<std::uint32_t>(interAttemptDelaySpin_->GetValue());
+    }
+
+    void SetSelfTestStatus(const wxString& message) {
+        if (linkStatus_) linkStatus_->SetLabel(message);
+        Layout();
     }
 
     // Apply contract → fill UI (read-only values shown regardless of override)
@@ -939,6 +1028,11 @@ private:
     wxSpinCtrl* baudSpin_ = nullptr;
     wxChoice* protoChoice_ = nullptr;
     wxSpinCtrl* timeoutSpin_ = nullptr;
+    wxSpinCtrl* captureCountSpin_ = nullptr;
+    wxSpinCtrl* maxAttemptsSpin_ = nullptr;
+    wxSpinCtrl* failureLimitSpin_ = nullptr;
+    wxSpinCtrl* totalTimeoutSpin_ = nullptr;
+    wxSpinCtrl* interAttemptDelaySpin_ = nullptr;
     wxCheckBox* checkFpCk_ = nullptr;
     wxChoice* trigModeChoice_ = nullptr;
     wxSpinCtrl* countSpin_ = nullptr;
@@ -953,6 +1047,8 @@ private:
     wxTextCtrl* hsReadyCtrl_ = nullptr;
     wxTextCtrl* depthCtrl_ = nullptr;
     wxTextCtrl* preTriggerCtrl_ = nullptr;
+    wxButton* selfTestButton_ = nullptr;
+    wxStaticText* linkStatus_ = nullptr;
 
     friend class TraceBridgeWindow;  // TraceBridgeWindow 需要直接读取控件状态来组装 request
 };
@@ -989,13 +1085,18 @@ TraceBridgeWindow::TraceBridgeWindow(wxWindow* parent)
     BuildUi();
     RefreshSerialPorts();
     LoadDefaultContract();
+    // T-140 / THE-030：订阅主题变化（句柄为本窗成员，先于子控件销毁而解绑）
+    themeSubscription_ = UiTheme::Subscribe([this] { ApplyTheme(); });
 }
 
-TraceBridgeWindow::~TraceBridgeWindow() { JoinWorkerIfAny(); }
+TraceBridgeWindow::~TraceBridgeWindow() {
+    m_aborted->store(true);
+    JoinWorkerIfAny();
+}
 
 void TraceBridgeWindow::JoinWorkerIfAny() {
     if (worker_ && worker_->joinable()) {
-        m_aborted.store(true);
+        m_aborted->store(true);
         worker_->join();
     }
     worker_.reset();
@@ -1016,15 +1117,38 @@ void TraceBridgeWindow::BuildUi() {
     splitter_ = new wxSplitterWindow(this, wxID_ANY, wxDefaultPosition, wxDefaultSize,
                                       wxSP_LIVE_UPDATE | wxSP_3DSASH | wxSP_BORDER);
     splitter_->SetMinimumPaneSize(FromDIP(340));
-    auto* left = new wxPanel(splitter_, wxID_ANY);
-    auto* right = new wxPanel(splitter_, wxID_ANY);
-    BuildLeftPanel(left);
-    BuildRightPanel(right);
-    splitter_->SplitVertically(left, right, FromDIP(440));
+    leftPanel_ = new wxPanel(splitter_, wxID_ANY);
+    rightPanel_ = new wxPanel(splitter_, wxID_ANY);
+    BuildLeftPanel(leftPanel_);
+    BuildRightPanel(rightPanel_);
+    splitter_->SplitVertically(leftPanel_, rightPanel_, FromDIP(440));
     root->Add(splitter_, 1, wxALL | wxEXPAND, 4);
     SetSizerAndFit(root);
     SetMinSize(FromDIP(wxSize(980, 640)));
+    ApplyTheme();   // T-140：底色/顶层文字统一从 token 取（主题变化时重放同一函数）
     Centre(wxBOTH);
+}
+
+// T-140 / THE-030：本窗直接持有的表面重新从 UiTheme token 取用。
+// 未迁移：左栏的 Stepper / 契约摘要卡 / RuntimePanel 三个内部面板与若干提示文字
+// 仍是迁移前取值（见 docs/GUI-CHUGAO/_evidence/T140-theme-adapter-map.md）。
+void TraceBridgeWindow::ApplyTheme() {
+    // T-140 夹具 F-140-01/02 修复：跨档 token 重映射（本窗 46 个文字面里仅 5 个曾随档更新）
+    UiTheme::RemapStaleTokenColours(this);
+    const UiTheme::Colours& ui = UiTheme::Palette();
+    SetBackgroundColour(ui.bgWindow);
+    if (splitter_) splitter_->SetBackgroundColour(ui.bgWindow);
+    if (leftPanel_) leftPanel_->SetBackgroundColour(ui.bgWindow);
+    if (rightPanel_) rightPanel_->SetBackgroundColour(ui.bgPanel);
+    if (stepperStatus_) stepperStatus_->SetForegroundColour(ui.text2);
+    if (waveHint_) waveHint_->SetForegroundColour(ui.text2);
+    if (diffReportText_) {
+        diffReportText_->SetBackgroundColour(ui.sunkenOnCanvas);
+        diffReportText_->SetForegroundColour(ui.text1);
+    }
+    // 未显式取色的文字面（系统默认黑）补当期文字 token（PLT-012）
+    ApplyTextForegroundDefaults(this, ui.text2);
+    Refresh();
 }
 
 void TraceBridgeWindow::BuildLeftPanel(wxPanel* left) {
@@ -1034,7 +1158,7 @@ void TraceBridgeWindow::BuildLeftPanel(wxPanel* left) {
     stepper_ = new TraceBridgeStepStepper(left);
     root->Add(stepper_, 0, wxLEFT | wxRIGHT | wxEXPAND, 10);
     stepperStatus_ = new wxStaticText(left, wxID_ANY, wxT("就绪：请先加载 Debug Contract"));
-    stepperStatus_->SetForegroundColour(wxColour(0x37, 0x41, 0x51));
+    stepperStatus_->SetForegroundColour(UiTheme::Palette().text2);
     root->Add(stepperStatus_, 0, wxLEFT | wxRIGHT | wxBOTTOM, 10);
 
     // Notebook Tab 1/2
@@ -1060,12 +1184,20 @@ void TraceBridgeWindow::BuildLeftPanel(wxPanel* left) {
                                       wxDefaultPosition, FromDIP(wxSize(-1, 130)),
                                       wxTE_MULTILINE | wxTE_DONTWRAP);
         probeEditor_->SetHint(wxT("例如：\ndut.state 4 clk_a\ndut.valid 1 clk_b\n# 格式：信号路径 [位宽] [时钟域]"));
+        // T-140 F-140-01：本控件建在窗口构造期 ApplyTheme() **之后**，且原生默认前景是纯黑
+        //（#000000 不是任何一档 token，跨档重映射看不见它）→ 深色启动下"黑字深底"不可读。
+        // 显式给当档 token（正文色 + 输入面底），两档都可读并进入后续刷新遍历。
+        probeEditor_->SetForegroundColour(UiTheme::Palette().text1);
+        probeEditor_->SetBackgroundColour(UiTheme::Palette().sunkenOnPanel);
         probeBox->Add(probeEditor_, 1, wxALL | wxEXPAND, 6);
+        auto* planProbes = new wxButton(wrap, wxID_ANY, wxT("探针规划…"));
+        probeBox->Add(planProbes, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxALIGN_RIGHT, 6);
+        planProbes->Bind(wxEVT_BUTTON, &TraceBridgeWindow::OnPlanProbes, this);
         v->Add(probeBox, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 10);
         auto* intentHint = new wxStaticText(wrap, wxID_ANY,
             wxT("意图触发器在“运行时”页配置；开启 Override 后可选择状态停滞或握手超时，\n"
                 "需要持久化配置时，请使用 FPGA 菜单中的 debug_contract 配置界面。"));
-        intentHint->SetForegroundColour(wxColour(0x4B, 0x55, 0x63));
+        intentHint->SetForegroundColour(UiTheme::Palette().text3);
         v->Add(intentHint, 0, wxLEFT | wxRIGHT | wxBOTTOM, 10);
         v->AddStretchSpacer();
         wrap->SetSizer(v);
@@ -1077,6 +1209,7 @@ void TraceBridgeWindow::BuildLeftPanel(wxPanel* left) {
     {
         runtimePanel_ = new TraceBridgeRuntimePanel(nb);
         runtimePanel_->refreshBtn_->Bind(wxEVT_BUTTON, &TraceBridgeWindow::OnRefreshPorts, this);
+        runtimePanel_->selfTestButton_->Bind(wxEVT_BUTTON, &TraceBridgeWindow::OnSelfTest, this);
         nb->AddPage(runtimePanel_, wxT("2 运行时"), false);
     }
     root->Add(nb, 1, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 10);
@@ -1197,13 +1330,13 @@ void TraceBridgeWindow::BuildRightPanel(wxPanel* right) {
         auto* dv = new wxBoxSizer(wxVERTICAL);
         waveHint_ = new wxStaticText(diffPage, wxID_ANY,
             wxT("点击左下角【开始采集】完成 HW 捕获，HW 完成后可选择仿真 VCD 开始双轨比对。"));
-        waveHint_->SetForegroundColour(wxColour(0x37, 0x41, 0x51));
+        waveHint_->SetForegroundColour(UiTheme::Palette().text2);
         waveHint_->Wrap(FromDIP(420));
         dv->Add(waveHint_, 0, wxALL, 10);
         diffReportText_ = new wxTextCtrl(diffPage, wxID_ANY, wxEmptyString,
             wxDefaultPosition, wxDefaultSize, wxTE_MULTILINE | wxTE_READONLY | wxTE_RICH);
         diffReportText_->SetValue(wxT("比对结果将在选择仿真 VCD 后显示。"));
-        diffReportText_->SetBackgroundColour(wxColour(0xF8, 0xFA, 0xFC));
+        diffReportText_->SetBackgroundColour(UiTheme::Palette().sunkenOnCanvas);
         dv->Add(diffReportText_, 1, wxALL | wxEXPAND, 10);
         diffPage->SetSizer(dv);
         rightNotebook_->AddPage(diffPage, wxT("比对结果"), false);
@@ -1316,11 +1449,13 @@ void TraceBridgeWindow::SetDebugWorkflowResult(bool success, const wxString& mes
     cancelCaptureButton_->Enable(false);
     stepperStatus_->SetLabel(message);
     AddLog(success ? TbLogTag::OK : TbLogTag::ERR, message);
+    if (success) pendingProbeBuild_ = false;
 }
 
 void TraceBridgeWindow::LoadDefaultContract() {
     loadingContract_ = true;
     contract_ = sigflow::debug::DebugContract();
+    pendingProbeBuild_ = false;
     runtimePanel_->ReflectContract(contract_);
     if (probeEditor_) probeEditor_->Clear();
     RefreshContractSummaryUi();
@@ -1366,6 +1501,7 @@ void TraceBridgeWindow::LoadContractFromPath(const wxString& path) {
     if (!parsed.Validate(contractErr)) ve = ToWxString(contractErr);
     loadingContract_ = true;
     contract_ = std::move(parsed);
+    pendingProbeBuild_ = false;
     contractFilePath_ = path;
     runtimePanel_->ReflectContract(contract_);
     if (probeEditor_) {
@@ -1460,6 +1596,259 @@ void TraceBridgeWindow::OnReloadContract(wxCommandEvent&) {
 
 void TraceBridgeWindow::OnRefreshPorts(wxCommandEvent&) { RefreshSerialPorts(); }
 
+void TraceBridgeWindow::OnSelfTest(wxCommandEvent&)
+{
+    // 采集按钮是窗口级的忙碌标志；外部 MainFrame 采集也会在整个 run
+    // 期间保持它开启，故这里不创建第二条可能争抢 UART 的隐式通道。
+    if (cancelCaptureButton_ && cancelCaptureButton_->IsEnabled()) {
+        AddLog(TbLogTag::WR, wxT("采集进行中，已拒绝链路自测；请等待采集完成。"));
+        return;
+    }
+    if (!runtimePanel_ || runtimePanel_->serialChoice_->GetSelection() == wxNOT_FOUND) {
+        AddLog(TbLogTag::ERR, wxT("链路自测需要先选择串口。"));
+        return;
+    }
+
+    JoinWorkerIfAny();
+    const std::string port = ToUtf8(runtimePanel_->GetSelectedSerialPureName());
+    const std::uint32_t baud = static_cast<std::uint32_t>(runtimePanel_->baudSpin_->GetValue());
+    const std::string protocol = ToUtf8(runtimePanel_->protoChoice_->GetStringSelection());
+    const int timeoutMs = runtimePanel_->timeoutSpin_->GetValue();
+    const bool checkFingerprint = runtimePanel_->checkFpCk_->GetValue();
+    runtimePanel_->selfTestButton_->Disable();
+    startCaptureButton_->Disable();
+    buildDebugButton_->Disable();
+    buildProgramCaptureButton_->Disable();
+    AddLog(TbLogTag::CFG, wxT("用户主动链路自测开始：") + ToWxString(port) +
+           wxT(" / ") + ToWxString(protocol));
+    runtimePanel_->SetSelfTestStatus(wxT("后端：连接中 · 目标：") + ToWxString(port) +
+                                     wxT(" · 验证级别：用户主动只读握手"));
+
+    const wxWeakRef<TraceBridgeWindow> weakWindow(this);
+    worker_ = std::make_unique<std::thread>(
+        [this, weakWindow, port, baud, protocol, timeoutMs, checkFingerprint]() {
+            sigflow::debug::TransportSelfTestResult result;
+            result.protocol = protocol;
+            bool passed = false;
+            std::string openError;
+            sigflow::debug::DeviceControlLease lease;
+            if (!sigflow::debug::DeviceControlLease::Acquire(
+                    "tracebridge-hardware", "tracebridge-self-test", lease, openError)) {
+                result.status = sigflow::debug::TransportSelfTestStatus::CaptureActive;
+                result.error = openError;
+                result.diagnostics.push_back("DEVICE_BUSY: " + openError);
+            } else {
+                const sigflow::debug::TransportOpenOptions openOptions{
+                    port, baud, true, true};
+                sigflow::debug::TransportOpenResult openResult;
+                if (!sigflow::debug::OpenDebugTransport(openOptions, openResult, openError)) {
+                    result.status = sigflow::debug::TransportSelfTestStatus::Failed;
+                    result.error = openError;
+                    result.diagnostics = openResult.diagnostics;
+                    result.diagnostics.push_back("OPEN_FAILED: " + openError);
+                } else {
+                    result.backend = openResult.backendId;
+                    sigflow::debug::TransportSelfTestOptions options;
+                    options.userInitiated = true;
+                    options.captureActive = false;
+                    options.protocol = protocol;
+                    options.timeoutMs = timeoutMs;
+                    options.attempts = 2;
+                    passed = sigflow::debug::TransportSelfTestService::Run(
+                        *openResult.transport, options, result);
+                    result.backend = openResult.backendId;
+                    openResult.transport->Close();
+                }
+            }
+
+            if (!wxTheApp) return;
+            wxTheApp->CallAfter([weakWindow, passed, result, baud, checkFingerprint]() {
+                if (!weakWindow) return;
+                auto* window = weakWindow.get();
+                window->runtimePanel_->selfTestButton_->Enable(true);
+                window->startCaptureButton_->Enable(true);
+                window->buildDebugButton_->Enable(true);
+                window->buildProgramCaptureButton_->Enable(true);
+                std::ostringstream summary;
+                summary << "链路自测 " << (passed ? "通过" : "失败")
+                        << " [" << sigflow::debug::ToString(result.status) << "]"
+                        << " op=" << result.operation
+                        << " attempts=" << result.protocolStats.attempts
+                        << " retries=" << result.protocolStats.retries;
+                if (!result.backend.empty()) summary << " backend=" << result.backend;
+                if (!result.error.empty()) summary << " error=" << result.error;
+                std::ostringstream uiStatus;
+                uiStatus << "后端：" << (result.backend.empty() ? "未打开" : result.backend)
+                         << " · 目标：" << (result.backend.empty() ? "未验证" : result.backend)
+                         << " · 协议：" << result.protocol
+                         << " · 波特率：" << baud
+                         << " · 验证级别：用户主动只读/指纹校验="
+                         << (checkFingerprint ? "启用" : "关闭")
+                         << " · 结果：" << sigflow::debug::ToString(result.status);
+                window->runtimePanel_->SetSelfTestStatus(ToWxString(uiStatus.str()));
+                window->AddLog(passed ? TbLogTag::OK : TbLogTag::ERR,
+                               ToWxString(summary.str()));
+                for (const auto& diagnostic : result.diagnostics) {
+                    window->AddLog(passed ? TbLogTag::INFO : TbLogTag::WR,
+                                  ToWxString(diagnostic));
+                }
+            });
+        });
+}
+
+void TraceBridgeWindow::OnPlanProbes(wxCommandEvent&) {
+    if (cancelCaptureButton_->IsEnabled() || !buildProgramCaptureButton_->IsEnabled()) {
+        AddLog(TbLogTag::WR, wxT("请在当前采集/构建流程结束后规划探针。"));
+        return;
+    }
+    sigflow::debug::ProbePlanningRequest planning;
+    planning.contract = contract_;
+    wxString editorError;
+    if (!ParseProbeEditor(probeEditor_->GetValue(), planning.requestedProbes, editorError)) {
+        wxMessageBox(editorError, wxT("探针规划"), wxOK | wxICON_WARNING, this);
+        return;
+    }
+    wxDialog dialog(this, wxID_ANY, wxT("探针规划 · 32-bit 单时钟核"), wxDefaultPosition,
+                    FromDIP(wxSize(800, 560)), wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
+    auto* layout = new wxBoxSizer(wxVERTICAL);
+    auto* hint = new wxStaticText(&dialog, wxID_ANY,
+        wxT("保留当前契约探针及位序；编辑器中的新增项为必选。源映射需提供完整实例路径、位宽和时钟域。"));
+    hint->Wrap(FromDIP(740));
+    layout->Add(hint, 0, wxALL | wxEXPAND, FromDIP(10));
+    auto* mapRow = new wxBoxSizer(wxHORIZONTAL);
+    mapRow->Add(new wxStaticText(&dialog, wxID_ANY, wxT("源映射")), 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(8));
+    auto* mapPath = new wxTextCtrl(&dialog, wxID_ANY);
+    mapPath->SetHint(wxT("可选 signal-map.json；同目录 dependency-graph.json 用于上游建议"));
+    const auto sessionKey = lastSessionId_.IsEmpty() ? ToWxString(contract_.sessionId) : lastSessionId_;
+    if (!projectPath_.IsEmpty() && !sessionKey.IsEmpty()) {
+        const wxString candidate = JoinPath(JoinPath(JoinPath(JoinPath(projectPath_, ".sigflow"), "debug"), sessionKey), "signal-map.json");
+        if (wxFileName::FileExists(candidate)) mapPath->SetValue(candidate);
+    }
+    mapRow->Add(mapPath, 1, wxRIGHT | wxEXPAND, FromDIP(8));
+    auto* browse = new wxButton(&dialog, wxID_ANY, wxT("浏览…"));
+    mapRow->Add(browse);
+    layout->Add(mapRow, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, FromDIP(10));
+    auto* symptom = new wxTextCtrl(&dialog, wxID_ANY);
+    symptom->SetHint(wxT("可选症状信号完整路径，例如 top.uart.state"));
+    layout->Add(symptom, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, FromDIP(10));
+    auto* rows = new wxListCtrl(&dialog, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT);
+    rows->AppendColumn(wxT("选择"), wxLIST_FORMAT_LEFT, FromDIP(55));
+    rows->AppendColumn(wxT("信号路径"), wxLIST_FORMAT_LEFT, FromDIP(220));
+    rows->AppendColumn(wxT("位宽"), wxLIST_FORMAT_RIGHT, FromDIP(50));
+    rows->AppendColumn(wxT("时钟域"), wxLIST_FORMAT_LEFT, FromDIP(100));
+    rows->AppendColumn(wxT("依据 / 未选原因"), wxLIST_FORMAT_LEFT, FromDIP(300));
+    layout->Add(rows, 1, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, FromDIP(10));
+    auto* summary = new wxTextCtrl(&dialog, wxID_ANY, wxEmptyString, wxDefaultPosition,
+        FromDIP(wxSize(-1, 90)), wxTE_MULTILINE | wxTE_READONLY);
+    layout->Add(summary, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, FromDIP(10));
+    auto* buttons = new wxBoxSizer(wxHORIZONTAL);
+    auto* preview = new wxButton(&dialog, wxID_ANY, wxT("生成预览"));
+    auto* apply = new wxButton(&dialog, wxID_ANY, wxT("应用到探针列表"));
+    auto* exportPlan = new wxButton(&dialog, wxID_ANY, wxT("导出 JSON…"));
+    buttons->Add(preview, 0, wxRIGHT, FromDIP(8));
+    buttons->Add(apply, 0, wxRIGHT, FromDIP(8));
+    buttons->Add(exportPlan, 0, wxRIGHT, FromDIP(8));
+    buttons->AddStretchSpacer();
+    buttons->Add(new wxButton(&dialog, wxID_CANCEL, wxT("关闭")));
+    layout->Add(buttons, 0, wxALL | wxEXPAND, FromDIP(10));
+    dialog.SetSizer(layout);
+    sigflow::debug::ProbePlan plan;
+    auto generate = [&]() {
+        try {
+        rows->DeleteAllItems();
+        apply->Disable();
+        exportPlan->Disable();
+        sigflow::debug::SignalSourceMap sourceMap;
+        sigflow::debug::DependencyGraph graph;
+        const sigflow::debug::SignalSourceMap* mapInput = nullptr;
+        const sigflow::debug::DependencyGraph* graphInput = nullptr;
+        std::string error;
+        planning.symptomSignal = ToUtf8(symptom->GetValue());
+        const auto selectedMap = ToUtf8(mapPath->GetValue());
+        if (!selectedMap.empty()) {
+            std::error_code ec;
+            const auto size = std::filesystem::file_size(selectedMap, ec);
+            if (ec || size > 1024 * 1024 || !sourceMap.LoadJson(selectedMap, error)) {
+                summary->SetValue(error.empty() ? wxT("源映射不可读或超过当前预览的 1 MiB 限制。") : ToWxString(error));
+                return false;
+            }
+            mapInput = &sourceMap;
+            const auto graphPath = std::filesystem::path(selectedMap).parent_path() / "dependency-graph.json";
+            if (std::filesystem::exists(graphPath, ec)) {
+                const auto graphSize = std::filesystem::file_size(graphPath, ec);
+                if (ec || graphSize > 1024 * 1024 || !graph.LoadJson(graphPath.string(), error)) {
+                    summary->SetValue(error.empty() ? wxT("依赖图不可读或超过 1 MiB。") : ToWxString(error));
+                    return false;
+                }
+                graphInput = &graph;
+            }
+        }
+        if (!sigflow::debug::ProbePlanningService::Plan(planning, mapInput, graphInput, plan, error)) {
+            summary->SetValue(ToWxString(error));
+            return false;
+        }
+        for (const auto& entry : plan.entries) {
+            const long row = rows->InsertItem(rows->GetItemCount(), entry.selected ? wxT("✓") : wxT("—"));
+            rows->SetItem(row, 1, ToWxString(entry.signal));
+            rows->SetItem(row, 2, wxString::Format("%u", entry.width));
+            rows->SetItem(row, 3, ToWxString(entry.clockDomain));
+            rows->SetItem(row, 4, ToWxString(entry.selected ? entry.reason : entry.diagnostic));
+        }
+        wxString text = wxString::Format(wxT("预算 %zu/%zu bits；%s；%s\n"), plan.usedBits, plan.capacityBits,
+            plan.feasible ? wxT("必选项满足") : wxT("存在必选缺口"),
+            plan.requiresNewBuild ? wxT("应用后需要重新构建并下载") : wxT("未新增探针"));
+        for (const auto& diagnostic : plan.diagnostics) text += ToWxString(diagnostic) + wxT("\n");
+        summary->SetValue(text);
+        apply->Enable(plan.feasible && plan.requiresNewBuild);
+        exportPlan->Enable(true);
+        return true;
+        } catch (const std::exception& exception) {
+            summary->SetValue(wxT("规划输入无效：") + wxString::FromUTF8(exception.what()));
+            return false;
+        }
+    };
+    browse->Bind(wxEVT_BUTTON, [&](wxCommandEvent&) {
+        wxFileDialog file(&dialog, wxT("选择源映射"), projectPath_, wxT("signal-map.json"),
+                          wxT("JSON files (*.json)|*.json"), wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+        if (file.ShowModal() == wxID_OK) { mapPath->SetValue(file.GetPath()); generate(); }
+    });
+    preview->Bind(wxEVT_BUTTON, [&](wxCommandEvent&) { generate(); });
+    exportPlan->Bind(wxEVT_BUTTON, [&](wxCommandEvent&) {
+        if (!generate()) return;
+        wxFileDialog file(&dialog, wxT("导出探针规划"), projectPath_, wxT("probe-plan.json"),
+                          wxT("JSON files (*.json)|*.json"), wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
+        if (file.ShowModal() != wxID_OK) return;
+        wxTempFile output(file.GetPath());
+        if (!output.IsOpened() || !output.Write(ToWxString(plan.ToJson())) || !output.Commit())
+            summary->SetValue(wxT("探针规划保存失败，原文件保持不变。"));
+        else AddLog(TbLogTag::OK, wxT("已导出探针规划：") + file.GetPath());
+    });
+    apply->Bind(wxEVT_BUTTON, [&](wxCommandEvent&) {
+        if (!generate() || !plan.feasible || !plan.requiresNewBuild) return;
+        sigflow::debug::DebugContract draft;
+        std::string error;
+        if (!sigflow::debug::ProbePlanningService::BuildDraft(planning.contract, plan, draft, error)) {
+            summary->SetValue(ToWxString(error)); return;
+        }
+        contract_ = std::move(draft);
+        wxString text;
+        for (const auto& probe : contract_.probes) {
+            text += ToWxString(probe.path) + wxString::Format(" %u", probe.width);
+            if (!probe.clockDomain.empty()) text += " " + ToWxString(probe.clockDomain);
+            text += "\n";
+        }
+        probeEditor_->SetValue(text);
+        pendingProbeBuild_ = true;
+        startCaptureButton_->Disable();
+        summaryCard_->UpdateFrom(contract_, contractFilePath_);
+        AddLog(TbLogTag::WR, wxT("探针规划已应用到内存草案。请构建、下载并采集；原契约文件未改写。"));
+        dialog.EndModal(wxID_APPLY);
+    });
+    generate();
+    dialog.CentreOnParent();
+    dialog.ShowModal();
+}
+
 bool TraceBridgeWindow::BuildDebugBuildRequest(
     TraceBridgeDebugBuildRequest& request, bool programAndCapture, wxString& error) const {
     TraceBridgeCaptureRequest captureRequest;
@@ -1544,31 +1933,31 @@ void TraceBridgeWindow::OnBuildProgramCapture(wxCommandEvent&) {
     contract_ = request.contract;
     summaryCard_->UpdateFrom(contract_, contractFilePath_);
 
-    m_aborted.store(false);
-    request.captureRequest.options.aborted = &m_aborted;
+    m_aborted->store(true);
+    m_aborted = std::make_shared<std::atomic<bool>>(false);
+    request.captureRequest.options.aborted = m_aborted.get();
+    request.captureRequest.abortOwner = m_aborted;
     // 进度回调在 worker 线程触发。
     // 进度只更新状态标签（SetCaptureStatus 内部已 marshal 到 UI 线程）；
     // 日志则**只在阶段切换时**记一条，既能看清流程又不刷屏。
     request.captureRequest.options.onProgress =
-        [this, lastStage = -1](sigflow::debug::DebugAcqStage stage, int,
+        [weakWindow = wxWeakRef<TraceBridgeWindow>(this), lastStage = -1](sigflow::debug::DebugAcqStage stage, int,
                                const std::string& message) mutable {
             const wxString text = ToWxString(message);
-            if (!text.IsEmpty()) SetCaptureStatus(text);
-
             const int order = sigflow::debug::DebugAcquisition::StageOrder(stage);
-            if (order != lastStage) {
-                lastStage = order;
-                PostLog(this, TbLogTag::INFO,
-                        wxString(wxT("阶段: ")) +
-                            ToWxString(sigflow::debug::DebugAcquisition::StageName(stage)));
-            }
+            const bool changed = order != lastStage;
+            lastStage = order;
+            if (wxTheApp) wxTheApp->CallAfter([weakWindow, text, changed, stage] {
+                if (!weakWindow) return;
+                if (!text.IsEmpty()) weakWindow->SetCaptureStatus(text);
+                if (changed) PostLog(weakWindow.get(), TbLogTag::INFO,
+                    wxString(wxT("阶段: ")) + ToWxString(sigflow::debug::DebugAcquisition::StageName(stage)));
+            });
         };
-    request.completion = [this](bool success, const wxString& message) {
-        if (!wxIsMainThread()) {
-            CallAfter([this, success, message] { SetDebugWorkflowResult(success, message); });
-            return;
-        }
-        SetDebugWorkflowResult(success, message);
+    request.completion = [weakWindow = wxWeakRef<TraceBridgeWindow>(this)](bool success, const wxString& message) {
+        if (wxTheApp) wxTheApp->CallAfter([weakWindow, success, message] {
+            if (weakWindow) weakWindow->SetDebugWorkflowResult(success, message);
+        });
     };
 
     AddLog(TbLogTag::CFG, wxT("已提交一键流程：构建调试位流 → 下载 FPGA → 开始采集"));
@@ -1583,8 +1972,7 @@ void TraceBridgeWindow::OnBuildProgramCapture(wxCommandEvent&) {
 }
 
 void TraceBridgeWindow::OnCancelCapture(wxCommandEvent&) {
-    if (!worker_) return;
-    m_aborted.store(true);
+    m_aborted->store(true);
     AddLog(TbLogTag::CANCEL, wxT("用户请求取消采集…"));
     cancelCaptureButton_->Enable(false);
 }
@@ -1632,7 +2020,7 @@ void TraceBridgeWindow::OnGenerateReplay(wxCommandEvent&) {
     }
 
     JoinWorkerIfAny();
-    m_aborted.store(false);
+    m_aborted->store(false);
     generateReplayButton_->Enable(false);
     AddLog(TbLogTag::INFO, wxT("开始从硬件输入探针生成 Verilator 重放…"));
     const std::string hwPath = ToUtf8(lastCaptureHwVcd_);
@@ -1753,7 +2141,7 @@ void TraceBridgeWindow::RunComparison() {
     const std::string dependencyGraphPath = ToUtf8(dependencyGraphFile);
     // 在 worker 线程跑比对，避免大 VCD 阻塞 UI
     JoinWorkerIfAny();
-    m_aborted.store(false);
+    m_aborted->store(false);
     worker_ = std::make_unique<std::thread>([this, hwPath = std::move(hwPath),
                                              simPath = std::move(simPath), sourceMapPath,
                                              dependencyGraphPath, hasSourceMap,
@@ -2025,6 +2413,7 @@ bool TraceBridgeWindow::BuildCaptureRequest(TraceBridgeCaptureRequest& request, 
     wxString rErr;
     runtimePanel_->ApplyToRequest(request.contract, request.options, rErr);
     if (!rErr.IsEmpty()) { error = rErr; return false; }
+    runtimePanel_->ApplyCapturePlan(request);
     std::string cErr;
     request.contract.ApplyDefaults();
     if (!request.contract.AssignProbeBitOffsets(cErr) || !request.contract.Validate(cErr)) {
@@ -2070,6 +2459,10 @@ int StageOverallPct(sigflow::debug::DebugAcqStage stage, int pctInStage) {
 } // namespace
 
 void TraceBridgeWindow::OnStartCapture(wxCommandEvent&) {
+    if (pendingProbeBuild_) {
+        AddLog(TbLogTag::WR, wxT("新增探针尚待构建和下载，请先运行“构建、下载并采集”或加载匹配的契约。"));
+        return;
+    }
     TraceBridgeCaptureRequest request;
     wxString error;
     if (!BuildCaptureRequest(request, error)) {
@@ -2080,7 +2473,8 @@ void TraceBridgeWindow::OnStartCapture(wxCommandEvent&) {
     contract_ = request.contract;
     summaryCard_->UpdateFrom(contract_, contractFilePath_);
     JoinWorkerIfAny();
-    m_aborted.store(false);
+    m_aborted->store(true);
+    m_aborted = std::make_shared<std::atomic<bool>>(false);
     progressGauge_->SetValue(0);
     startCaptureButton_->Enable(false);
     cancelCaptureButton_->Enable(true);
@@ -2093,11 +2487,10 @@ void TraceBridgeWindow::OnStartCapture(wxCommandEvent&) {
     AddLog(TbLogTag::CFG, wxT("开始采集，串口：") + ToWxString(request.serialPort));
 
     // 注入 AbortToken + 进度回调。回调在 worker 线程调用，通过 QueueEvent marshal。
-    request.options.aborted = &m_aborted;
-    request.options.onProgress = [this](sigflow::debug::DebugAcqStage stage, int pct,
+    request.options.aborted = m_aborted.get();
+    request.abortOwner = m_aborted;
+    request.options.onProgress = [weakWindow = wxWeakRef<TraceBridgeWindow>(this)](sigflow::debug::DebugAcqStage stage, int pct,
                                          const std::string& msg) {
-        PostStep(this, sigflow::debug::DebugAcquisition::StageOrder(stage), ToWxString(msg));
-        PostProgress(this, StageOverallPct(stage, pct), ToWxString(msg));
         // map stage → log tag
         TbLogTag tag = TbLogTag::INFO;
         switch (stage) {
@@ -2113,8 +2506,21 @@ void TraceBridgeWindow::OnStartCapture(wxCommandEvent&) {
             case sigflow::debug::DebugAcqStage::Done:          tag = TbLogTag::OK;  break;
             default: break;
         }
-        if (!msg.empty()) PostLog(this, tag, ToWxString(msg));
+        if (wxTheApp) wxTheApp->CallAfter([weakWindow, stage, pct, msg, tag] {
+            if (!weakWindow) return;
+            PostStep(weakWindow.get(), sigflow::debug::DebugAcquisition::StageOrder(stage), ToWxString(msg));
+            PostProgress(weakWindow.get(), StageOverallPct(stage, pct), ToWxString(msg));
+            if (!msg.empty()) PostLog(weakWindow.get(), tag, ToWxString(msg));
+        });
     };
+
+    // Dispatch from the UI thread: MainFrame snapshots project/UI state before
+    // starting its worker. The local fallback worker remains joinable.
+    if (captureStartHandler_) {
+        AddLog(TbLogTag::INFO, wxT("已委托外部捕获服务，等待采集结果…"));
+        captureStartHandler_(request);
+        return;
+    }
 
     worker_ = std::make_unique<std::thread>([this, request = std::move(request)]() {
         try {
@@ -2125,63 +2531,32 @@ void TraceBridgeWindow::OnStartCapture(wxCommandEvent&) {
             std::string error;
             bool ok = false;
             wxString vcdPath;
-            if (captureStartHandler_) {
-                // 走 MainFrame 旧注册路径（已同步 Acquire，但我们已经给 options 带 AbortToken + onProgress 了，这里不阻塞 UI，因为在 worker 线程）。
-                // 注意：旧的 captureStartHandler_ 内部会 new SerialTransport + DebugAcquisition::Acquire 并返回；但我们希望异步，所以这里在 worker 线程里调它正好避免阻塞 UI。
-                captureStartHandler_(request);
-                // 旧接口返回后，约定会调 SetCaptureResult。但为了兼容，我们另外直接自己跑一次（仅当 request.projectPath 存在）。
-                // 实际上，MainFrame 的 RunTraceBridgeCapture 内部就是 DebugAcquisition。为避免重复采集，这里只记录"已委托"。
-                PostLog(this, TbLogTag::INFO, wxT("已委托外部捕获服务（MainFrame::RunTraceBridgeCapture），等待它返回…"));
-                // 直接返回：Result 会由 SetCaptureResult 改回来，这里直接把 thread 结束即可
+            // Standalone fallback shares the transport factory and device lease.
+            if (request.captureTargetCount != 1) {
+                PostResult(this, 0, wxT("重复采集需要连接主窗口的会话服务"));
                 return;
             }
-            // 传输层选择：**优先 libftdi 直连**（绕过 ftdi_sio / tty）。
-            // 实测 Tang Nano 9K 的板载 BL702 只是"模仿" FT2232：同一个 PING 帧，
-            // libftdi 直连能收到合法 Pong，而 /dev/ttyUSBx 路径完全没有应答；
-            // 且 libftdi 打开设备会 detach ftdi_sio，烧录后调试串口的 tty 常消失。
-            // 找不到设备或未编译 libftdi 支持时，回退到原来的串口传输层。
+            sigflow::debug::DeviceControlLease lease;
+            if (!sigflow::debug::DeviceControlLease::Acquire(
+                    "tracebridge-hardware", "standalone-capture", lease, error)) {
+                PostResult(this, 0, ToWxString(error));
+                return;
+            }
             const std::uint32_t debugBaud =
                 static_cast<std::uint32_t>(request.contract.transport.baud);
-            std::unique_ptr<sigflow::debug::ITransport> transport;
-#if defined(SIGFLOW_HAVE_LIBFTDI)
-            if (sigflow::debug::FtdiTransport::IsDevicePresent(0x0403, 0x6010)) {
-                auto ftdi = std::make_unique<sigflow::debug::FtdiTransport>(0x0403, 0x6010,
-                                                                           1, debugBaud);
-                if (ftdi->Open()) {
-                    transport = std::move(ftdi);
-                    PostLog(this, TbLogTag::CFG,
-                            wxT("传输层：libftdi 直连（0403:6010 通道 B，绕过 tty）"));
-                } else {
-                    PostLog(this, TbLogTag::ERR,
-                            wxT("libftdi 直连打开失败（设备存在但打不开），回退串口"));
-                }
-            } else {
-                PostLog(this, TbLogTag::ERR,
-                        wxT("未发现 0403:6010 调试器，回退串口"));
-            }
-#else
-            PostLog(this, TbLogTag::ERR,
-                    wxT("本构建未包含 libftdi 支持，回退串口"));
-#endif
-            if (!transport) {
-                auto serial = std::make_unique<sigflow::debug::SerialTransport>(
-                    request.serialPort, debugBaud);
-                if (serial->Open()) {
-                    transport = std::move(serial);
-                }
-            }
-            if (!transport) {
-                wxString openErr = wxT("无法打开调试链路：串口 ") +
-                                   ToWxString(request.serialPort) +
-                                   wxT(" 打开失败，且未找到 0403:6010 调试器");
-                PostLog(this, TbLogTag::ERR, openErr);
-                PostResult(this, 0, openErr);
+            sigflow::debug::TransportOpenResult opened;
+            if (!sigflow::debug::OpenDebugTransport({request.serialPort, debugBaud, true, true}, opened, error)) {
+                PostLog(this, TbLogTag::ERR, ToWxString(error));
+                PostResult(this, 0, ToWxString(error));
                 return;
             }
+            auto transport = std::move(opened.transport);
+            for (const auto& diagnostic : opened.diagnostics)
+                PostLog(this, TbLogTag::CFG, ToWxString(diagnostic));
             sigflow::debug::DebugAcquisition acq(*transport, request.contract);
             ok = acq.Acquire(outDir, error, request.options);
             vcdPath = ToWxString(acq.Result().vcdPath);
-            if (m_aborted.load()) {
+            if (m_aborted->load()) {
                 wxString abortMsg = error.empty() ? wxString(wxT("Aborted")) : ToWxString(error);
                 PostResult(this, -1, abortMsg);
                 return;

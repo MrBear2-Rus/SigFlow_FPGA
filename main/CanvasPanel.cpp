@@ -20,6 +20,11 @@
 #include "HandyToolKit.h"
 #include "CanvasEventHandler.h"
 #include "CanvasNoteBook.h"
+#include "ui/UiTheme.h"   // T-410：画布唯一取色来源（SAFE-012 / THE-001）
+#include "ui/UiFocusTrace.h"  // T-620：键盘输入来源（A11Y-001 / DEC-14）
+#include "ui/CanvasVisuals.h"
+#include "ui/CanvasControls.h"
+#include "MainFrame.h"
 
 namespace {
 
@@ -82,33 +87,126 @@ CanvasPanel::CanvasPanel(CanvasNoteBook* parent, SigFlowTree* sftree, size_t siz
 
     // 快捷工具栏
     m_HandyToolKit = new HandyToolKit(this, m_CanvasEventHandler);
+    // T-620 / INT-019：右键召出的自绘快捷工具浮层自己处理 Esc（关闭浮层、焦点回画布、
+    // 不改动任何业务状态）。实现文件 HandyToolKit.* 不在本轮允许修改范围内，
+    // 因此在画布侧给它挂一个按键处理器，只消费 Esc。
+    m_HandyToolKit->Bind(wxEVT_KEY_DOWN, [this](wxKeyEvent& event) {
+        if (event.GetKeyCode() != WXK_ESCAPE) { event.Skip(); return; }
+        UiFocusTrace::NoteKeyboard();
+        if (m_HandyToolKit->IsShown()) m_HandyToolKit->Hide();
+        SetFocus();
+    });
 
     m_CanvasEventHandler->SetCurrentTool(ToolType::SELECT_TOOL);
+    m_floatToolbar = new CanvasControls::FloatToolbar(this,[this](ToolType tool){ActivateCanvasTool(tool);});
+    m_zoomHud = new CanvasControls::ZoomHud(this,[this](int direction){StepZoom(direction);},[this]{ResetView();});
+    m_toolStateMachine->Bind(TOOL_STATE_CHANGED,[this](wxCommandEvent& e){SyncCanvasControls();e.Skip();});
+    Bind(wxEVT_SIZE,[this](wxSizeEvent& e){LayoutCanvasControls();e.Skip();});
 
     SetBackgroundStyle(wxBG_STYLE_PAINT);
-    SetBackgroundColour(*wxWHITE);
+    // T-410：原 *wxWHITE → canvas token（浅色档同为 #ffffff，深色档随主题收敛）
+    SetBackgroundColour(UiTheme::Palette().canvas);
+    m_themeSubscription = UiTheme::Subscribe([this] {
+        SetBackgroundColour(UiTheme::Palette().canvas);
+        Refresh(false); // 只在主题通知时刷新，不从 OnPaint 发起重绘。
+    });
+    Bind(wxEVT_LEAVE_WINDOW, [this](wxMouseEvent& e) {
+        m_pointerInside = false;
+        if (m_toolStateMachine->IsPlacingComponent()) Refresh(false);
+        e.Skip();
+    });
 
 
+    Bind(wxEVT_KEY_UP, [this](wxKeyEvent& e) {
+        if (e.GetKeyCode()==WXK_SPACE && m_spacePan) {
+            m_spacePan=false;
+            if (m_pointerPan) FinishPointerGesture();
+        } else e.Skip();
+    });
+    Bind(wxEVT_MIDDLE_DOWN, [this](wxMouseEvent& e) {
+        if (m_currentEditingTextIndex<0) { EnsureFocus(); BeginPointerPan(e.GetPosition(),true); }
+        else e.Skip();
+    });
+    Bind(wxEVT_MIDDLE_UP, [this](wxMouseEvent& e) {
+        if (m_middlePan) FinishPointerGesture(); else e.Skip();
+    });
+    Bind(wxEVT_MOUSE_CAPTURE_LOST, [this](wxMouseCaptureLostEvent&) {
+        m_spacePan=false; m_pendingPlace=false; m_pointerPan=false; m_middlePan=false;
+        m_toolStateMachine->SetSelectState(SelectToolState::IDLE);
+        SetCursor(m_gestureCursor.IsOk()?m_gestureCursor:wxCursor(wxCURSOR_ARROW));
+    });
+    Bind(wxEVT_DPI_CHANGED, [this](wxDPIChangedEvent& e) {
+        for (auto& text:m_textElements) text.SetText(text.GetText());
+        LayoutCanvasControls();
+        Refresh(false); e.Skip();
+    });
     SetScale(1.0);
     SetoffSet(wxPoint(0, 0));
+    LayoutCanvasControls();SyncCanvasControls();
     SetFocus();
 }
 
 void CanvasPanel::OnLeftDown(wxMouseEvent& evt){
     EnsureFocus();
     m_HandyToolKit->Hide();
-
+    UpdateHoverInfo(evt.GetPosition());
+    if (m_spacePan || (m_toolStateMachine->GetCurrentTool()==ToolType::DRAG_TOOL &&
+                       !IsOverPin() && !IsOverCell())) { BeginPointerPan(evt.GetPosition()); return; }
+    if (m_toolStateMachine->GetCurrentTool()==ToolType::COMPONENT_TOOL) {
+        if (m_placingName.IsEmpty()) {SetStatus("Component: choose from Component Library");return;}
+        m_pendingPlace=true; m_placeDragged=false; m_gestureStart=evt.GetPosition();
+        if (!HasCapture()) CaptureMouse();
+        return; // mouse-up 确认点击后仍调用原有放置业务入口。
+    }
     m_CanvasEventHandler->OnCanvasLeftDown(evt);
+    if ((m_toolStateMachine->GetCurrentTool()==ToolType::SELECT_TOOL ||
+         m_toolStateMachine->GetWireState()==WireToolState::WIRE_DRAWING) && !HasCapture()) CaptureMouse();
 }
 
 void CanvasPanel::OnMouseMove(wxMouseEvent& evt) {
+    m_pointerInside = true;
+    if (m_pointerPan) {
+        SetoffSet(m_panOffset+evt.GetPosition()-m_gestureStart);
+        return;
+    }
+    if (m_pendingPlace) {
+        const auto delta=evt.GetPosition()-m_gestureStart;
+        if (std::hypot(delta.x,delta.y)>FromDIP(3)) m_placeDragged=true;
+    }
+    // T-340：回报网格吸附后的画布坐标，供主窗口状态栏显示（CMP-072）
+    if (m_cursorReport) {
+        m_cursorReport(Snap(ClientToCanvas(evt.GetPosition())));
+    }
+
     UpdateHoverInfo(evt.GetPosition());
 
     m_CanvasEventHandler->OnCanvasMouseMove(evt);
+    if (m_toolStateMachine->IsPlacingComponent()) {
+        const auto p=GetSnappedPos();
+        SetStatus(wxString::Format("Preview %s @ (%d, %d)",m_placingName,p.x,p.y));
+    }
 }
 
 void CanvasPanel::OnLeftUp(wxMouseEvent& evt){
+    if (m_pointerPan) { FinishPointerGesture(); return; }
+    if (m_pendingPlace) {
+        const auto delta=evt.GetPosition()-m_gestureStart;
+        const bool place=!m_placeDragged && std::hypot(delta.x,delta.y)<=FromDIP(3) && GetClientRect().Contains(evt.GetPosition());
+        const auto name=m_placingName;
+        FinishPointerGesture();
+        if (place && m_toolStateMachine->IsPlacingComponent()) {
+            UpdateHoverInfo(evt.GetPosition());
+            const auto p=GetSnappedPos();
+            const auto count=m_elems.size();
+            wxMouseEvent down(evt); down.SetEventType(wxEVT_LEFT_DOWN);
+            m_CanvasEventHandler->OnCanvasLeftDown(down);
+            if (m_elems.size()>count) SetStatus(wxString::Format("Placed %s @ (%d, %d)",name,p.x,p.y));
+        }
+        return;
+    }
+    UpdateHoverInfo(evt.GetPosition());
     m_CanvasEventHandler->OnCanvasLeftUp(evt);
+    if (HasCapture()) ReleaseMouse();
 
 }
 
@@ -117,12 +215,47 @@ void CanvasPanel::OnLeftDoubleClick(wxMouseEvent& evt) {
 }
 
 void CanvasPanel::OnKeyDown(wxKeyEvent& evt) {
+    // KEY-009：空格只在**画布自身**聚焦时表示临时平移。编辑器（SigTextEditor）聚焦时
+    // 按键事件根本不会到达画布；画布上的文本编辑（hidden TextCtrl / m_currentEditingTextIndex）
+    // 也会抢走焦点；这里再显式挡一次，保证「输入空格」永远不会被平移劫持。
+    const bool textEditing = m_currentEditingTextIndex >= 0 ||
+                             (m_hiddenTextCtrl != nullptr && m_hiddenTextCtrl->HasFocus());
+    if (wxWindow::FindFocus() != this || textEditing) { evt.Skip(); return; }
+    if (evt.GetKeyCode()==WXK_SPACE && !evt.ControlDown() && !evt.AltDown()) {
+        m_spacePan=true; return;
+    }
+    if (evt.GetKeyCode()==WXK_ESCAPE && m_toolStateMachine->GetCurrentTool()==ToolType::COMPONENT_TOOL) {
+        FinishPointerGesture(); SetCurrentTool(ToolType::SELECT_TOOL); Refresh(false); return;
+    }
     m_CanvasEventHandler->OnCanvasKeyDown(evt);
 
 }
 
+void CanvasPanel::BeginPointerPan(const wxPoint& pos, bool middle)
+{
+    m_pointerPan=true; m_middlePan=middle; m_gestureStart=pos; m_panOffset=m_offset;
+    m_gestureCursor=GetCursor(); SetCursor(wxCursor(wxCURSOR_HAND));
+    if (!HasCapture()) CaptureMouse();
+}
+
+void CanvasPanel::FinishPointerGesture()
+{
+    if (m_pointerPan && m_gestureCursor.IsOk()) SetCursor(m_gestureCursor);
+    m_pointerPan=false; m_middlePan=false; m_pendingPlace=false; m_placeDragged=false;
+    if (HasCapture()) ReleaseMouse();
+}
+
 void CanvasPanel::OnMouseWheel(wxMouseEvent& evt) {
-    m_CanvasEventHandler->OnCanvasMouseWheel(evt);
+    if (m_pointerPan) return;
+    if (!evt.GetWheelRotation()) return;
+    if (evt.ShiftDown() || evt.GetWheelAxis()==wxMOUSE_WHEEL_HORIZONTAL) {
+        const int delta=evt.GetWheelRotation()>0?FromDIP(40):-FromDIP(40);
+        SetoffSet(m_offset+wxPoint(delta,0));
+        return;
+    }
+    const double steps=double(evt.GetWheelRotation())/std::max(1,evt.GetWheelDelta());
+    ZoomAt(m_scale*std::pow(1.12,steps),evt.GetPosition());
+    UpdateHoverInfo(evt.GetPosition());
 
 }
 
@@ -132,21 +265,76 @@ void CanvasPanel::SetScale(float scale) {
     if (scale < min_scale) scale = min_scale;
     if (scale > max_scale) scale = max_scale;
     m_scale = scale;
+    if (m_zoomHud) m_zoomHud->Sync(m_scale);
+    for (auto& text:m_textElements) text.SetPosition(text.GetPosition());
+    // T-340：缩放变化回报给状态栏（CMP-072）
+    if (m_scaleReport) {
+        m_scaleReport(m_scale);
+    }
     Refresh(); 
+}
+
+void CanvasPanel::ZoomAt(float scale,const wxPoint& anchor) {
+    const auto old=m_scale;
+    const auto offset=m_offset;
+    SetScale(scale);
+    const double ratio=m_scale/old;
+    SetoffSet(wxPoint(std::lround(anchor.x+(offset.x-anchor.x)*ratio),
+                     std::lround(anchor.y+(offset.y-anchor.y)*ratio)));
+}
+
+void CanvasPanel::StepZoom(int direction) {
+    const auto size=GetClientSize();
+    ZoomAt(m_scale+direction*0.25f,wxPoint(size.x/2,size.y/2));
+    SetFocus();
+}
+
+void CanvasPanel::ResetView() {
+    SetScale(1);SetoffSet(wxPoint(0,0));SetFocus();
+}
+
+void CanvasPanel::LayoutCanvasControls() {
+    if (!m_floatToolbar || !m_zoomHud) return;
+    const auto client=GetClientSize();
+    const int margin=FromDIP(12);
+    const int scroll=std::max(0,wxSystemSettings::GetMetric(wxSYS_VSCROLL_X));
+    const int available=std::max(0,client.x-scroll);
+    m_floatToolbar->FitWidth(available);
+    m_zoomHud->FitWidth(available);
+    m_floatToolbar->SetPosition(wxPoint(std::max(0,(available-m_floatToolbar->GetSize().x)/2),margin));
+    m_zoomHud->SetPosition(wxPoint(std::min(margin,std::max(0,available-m_zoomHud->GetSize().x)),
+        std::max(0,client.y-scroll-margin-m_zoomHud->GetSize().y)));
+    m_floatToolbar->Raise();m_zoomHud->Raise();
+}
+
+void CanvasPanel::SyncCanvasControls() {
+    if (m_floatToolbar) m_floatToolbar->Sync(m_toolStateMachine->GetCurrentTool());
+    if (m_zoomHud) m_zoomHud->Sync(m_scale);
+    if (m_HandyToolKit) m_HandyToolKit->Refresh(false);
+}
+
+void CanvasPanel::ActivateCanvasTool(ToolType tool) {
+    FinishPointerGesture();
+    if (tool==ToolType::COMPONENT_TOOL && !m_placingName.IsEmpty()) SetCurrentComponent(m_placingName);
+    else SetCurrentTool(tool);
+    if (tool==ToolType::COMPONENT_TOOL && m_placingName.IsEmpty()) {
+        m_mainFrame->mf->ShowComponentLibrary();
+        SetStatus("Component: choose from Component Library");
+    } else SetFocus();
 }
 
 wxPoint CanvasPanel::ClientToCanvas(const wxPoint& screenPos) const{
     return wxPoint(
-        static_cast<int>((screenPos.x - m_offset.x) / m_scale),
-        static_cast<int>((screenPos.y - m_offset.y) / m_scale)
+        static_cast<int>((screenPos.x - m_offset.x) / GetDeviceScale()),
+        static_cast<int>((screenPos.y - m_offset.y) / GetDeviceScale())
     );
 }
 
 wxPoint CanvasPanel::CanvasToClient(const wxPoint& canvasPos) const
 {
     return wxPoint(
-        static_cast<int>(canvasPos.x * m_scale + m_offset.x),
-        static_cast<int>(canvasPos.y * m_scale + m_offset.y)
+        static_cast<int>(canvasPos.x * GetDeviceScale() + m_offset.x),
+        static_cast<int>(canvasPos.y * GetDeviceScale() + m_offset.y)
     );
 }
 
@@ -159,7 +347,7 @@ void CanvasPanel::RefreshCanvasAfterElementMove()
 }
 
 void CanvasPanel::OnPaint(wxPaintEvent&) {
-    LayoutScrollbars();
+    LayoutScrollbars(false); // 绘制期更新几何，不再次置脏当前画布。
     wxAutoBufferedPaintDC dc(this);
     dc.Clear();
 
@@ -170,14 +358,18 @@ void CanvasPanel::OnPaint(wxPaintEvent&) {
 
     if (gc) {
 
+        const double screenDip = CanvasVisuals::ScreenDip(this, m_scale);
+        const bool selecting = m_toolStateMachine->GetCurrentTool() == ToolType::SELECT_TOOL;
+
         // 应用缩放和偏移（逻辑坐标 -> 设备坐标）
-        gc->Scale(m_scale, m_scale);
-        gc->Translate(m_offset.x / m_scale, m_offset.y / m_scale);
+        gc->Scale(GetDeviceScale(), GetDeviceScale());
+        gc->Translate(m_offset.x / GetDeviceScale(), m_offset.y / GetDeviceScale());
 
         // 绘制网格（逻辑坐标，线宽随缩放自适应）
-        const wxColour gridColor(240, 240, 240);
-        //const wxColour gridColor(50, 60, 80);
-        gc->SetPen(wxPen(gridColor, 1.0 / m_scale)); // 笔宽在逻辑坐标下调整
+        // T-410：细网格 20 DIP = token `grid`，粗网格 100 DIP = token `gridStrong`（CMP-041）。
+        // 只替换取色与叠加粗网格两层，重绘流程 / 双缓冲策略不变（PERF-002/PERF-003）。
+        const wxColour gridColor = UiTheme::Palette().grid;
+        gc->SetPen(gc->CreatePen(wxGraphicsPenInfo(gridColor).Width(1.0 / GetDeviceScale()))); // 笔宽在逻辑坐标下调整
 
         wxSize sz = wxSize(m_size.x + 1, m_size.y + 1);
         int maxX = static_cast<int>(sz.x);
@@ -190,21 +382,33 @@ void CanvasPanel::OnPaint(wxPaintEvent&) {
             gc->StrokeLine(0, y, maxX, y);
         }
 
-        // 绘制导线（矢量线段）
-        gc->SetPen(wxPen(*wxBLACK, 1.5 / m_scale)); // 导线宽度自适应
-        for (const auto& w : m_wires) w.Draw(gc.get());
-        if (m_toolStateMachine->GetWireState() == WireToolState::WIRE_DRAWING) m_previewWire.Draw(gc.get());
-
-        // 绘制预览元素
-        if (m_toolStateMachine->GetComponentState() == ComponentToolState::COMPONENT_PREVIEW) {
-            m_previewElement.Draw(gc.get());
+        // 粗网格叠加层（100 DIP，CMP-041）；共享同一 GC，笔宽公式与原细网格一致
+        const wxColour gridStrongColor = UiTheme::Palette().gridStrong;
+        gc->SetPen(gc->CreatePen(wxGraphicsPenInfo(gridStrongColor).Width(1.0 / GetDeviceScale())));
+        for (int x = 0; x < maxX; x += CanvasDraw::kGridCoarse) {
+            gc->StrokeLine(x, 0, x, maxY);
+        }
+        for (int y = 0; y < maxY; y += CanvasDraw::kGridCoarse) {
+            gc->StrokeLine(0, y, maxX, y);
         }
 
-        if(!m_tbox.m_shapes.empty()) m_tbox.Draw(gc.get());
+        // 绘制导线（矢量线段）
+        // 线宽与结点按屏幕 DIP 补偿；选中线在同一次 Draw 中使用 accent，不重叠铺黑底。
+        for (size_t i = 0; i < m_wires.size(); ++i) {
+            const bool selected = selecting && std::find(m_selWireIdx.begin(), m_selWireIdx.end(),
+                                                         static_cast<int>(i)) != m_selWireIdx.end();
+            m_wires[i].Draw(gc.get(), screenDip, selected);
+        }
+        if (m_toolStateMachine->GetWireState() == WireToolState::WIRE_DRAWING)
+            m_previewWire.Draw(gc.get(), screenDip);
+
+        if(!m_tbox.m_shapes.empty()) m_tbox.Draw(gc.get(), this, screenDip);
 
         // 绘制元素（使用矢量绘制）
         for (size_t i = 0; i < m_elems.size(); ++i) {
-            m_elems[i].Draw(gc.get()); // 确保元素内部使用gc绘制
+            const bool selected = selecting && std::find(m_selElemIdx.begin(), m_selElemIdx.end(),
+                                                         static_cast<int>(i)) != m_selElemIdx.end();
+            m_elems[i].Draw(gc.get(), this, selected, screenDip);
         }
 
         /* 元件形状调试
@@ -225,20 +429,21 @@ void CanvasPanel::OnPaint(wxPaintEvent&) {
         gc->SetPen(wxPen(*wxBLACK, 2)); // 2像素宽的黑边
         gc->DrawRectangle(r.x, r.y, r.width, r.height);*/
 
-        // 悬停引脚高亮（绿色空心圆）
+        // 悬停引脚高亮（T-410：原亮绿 wxColour(0,255,0) → token accent，空心圆）
         if (m_hoverInfo.IsOverPin()) {
             gc->SetBrush(*wxTRANSPARENT_BRUSH);
-            gc->SetPen(wxPen(wxColour(0, 255, 0), 1.0 / m_scale));
+            gc->SetPen(wxPen(UiTheme::Palette().accent, 1.0 / m_scale));
             gc->DrawEllipse(m_hoverInfo.snappedPos.x - 3, m_hoverInfo.snappedPos.y - 3, 6, 6);
         }
 
         if (m_hoverInfo.IsOverCell()) {
             gc->SetBrush(*wxTRANSPARENT_BRUSH);
-            gc->SetPen(wxPen(wxColour(0, 255, 0), 1.0 / m_scale));
+            gc->SetPen(wxPen(UiTheme::Palette().accent, 1.0 / m_scale));
             gc->DrawEllipse(m_hoverInfo.cellPos.x - 3, m_hoverInfo.cellPos.y - 3, 6, 6);
 
-            gc->SetPen(wxPen(wxColour(*wxBLACK), 1.0 / m_scale));
-            gc->SetBrush(wxColour(*wxBLACK));
+            // T-410：原 wxColour(*wxBLACK) → token text1（控制点提示，保持深色可辨）
+            gc->SetPen(wxPen(UiTheme::Palette().text1, 1.0 / m_scale));
+            gc->SetBrush(wxBrush(UiTheme::Palette().text1));
             const std::vector<Wire>& ws = GetWires();
             if (ws.size() > m_hoverInfo.wireIndex) {
                 Wire w = ws[m_hoverInfo.wireIndex];
@@ -263,54 +468,43 @@ void CanvasPanel::OnPaint(wxPaintEvent&) {
             textElem.Draw(gc.get());
         }
 
-        // 绘制选中边框
-        if (m_toolStateMachine->GetCurrentTool() == ToolType::SELECT_TOOL) {
+        // 1.6 DIP 蓝描边与 8 个 7 DIP 视觉标记；不再叠加错误的品牌绿光晕。
+        if (selecting) {
             for (size_t i = 0; i < m_selElemIdx.size(); i++) {
-                wxRect b = m_elems[m_selElemIdx[i]].GetBounds();
-                gc->SetPen(wxPen(wxColor(44, 145, 224), 2.0));
-                gc->SetBrush(*wxTRANSPARENT_BRUSH);
-                gc->DrawRectangle(b.x - 2, b.y - 3, b.width + 5, b.height + 5);
-
-                gc->SetPen(wxPen(wxColor(44, 145, 224, 32), 2.0));
-                gc->SetBrush(*wxTRANSPARENT_BRUSH);
-                gc->DrawRectangle(b.x - 4, b.y - 5, b.width + 9, b.height + 9);
-
-               gc->SetPen(wxPen(wxColor(44, 145, 224, 32), 4.0));
-                gc->SetBrush(*wxTRANSPARENT_BRUSH);
-                gc->DrawRectangle(b.x - 6, b.y - 7, b.width + 13, b.height + 13);
+                const int index = m_selElemIdx[i];
+                if (index < 0 || index >= static_cast<int>(m_elems.size())) continue;
+                CanvasVisuals::DrawSelection(*gc, m_elems[index].GetBounds(), screenDip, false);
             }
             for (size_t i = 0; i < m_selTxtIdx.size(); i++) {
-                wxRect b = m_textElements[m_selTxtIdx[i]].GetBounds();
-                gc->SetPen(wxPen(wxColor(44, 145, 224), 2.0));
-                gc->SetBrush(*wxTRANSPARENT_BRUSH);
-                gc->DrawRectangle(b.x - 3, b.y - 3, b.width + 5, b.height + 5);
-
-                gc->SetPen(wxPen(wxColor(44, 145, 224, 32), 2.0));
-                gc->SetBrush(*wxTRANSPARENT_BRUSH);
-                gc->DrawRectangle(b.x - 5, b.y - 5, b.width + 9, b.height + 9);
-
-                gc->SetPen(wxPen(wxColor(44, 145, 224, 32), 4.0));
-                gc->SetBrush(*wxTRANSPARENT_BRUSH);
-                gc->DrawRectangle(b.x - 7, b.y - 7, b.width + 13, b.height + 13);
+                const int index = m_selTxtIdx[i];
+                if (index < 0 || index >= static_cast<int>(m_textElements.size())) continue;
+                CanvasVisuals::DrawSelection(*gc, m_textElements[index].GetBounds(), screenDip);
             }
-            for (size_t i = 0; i < m_selWireIdx.size(); i++) {
-                m_wires[m_selWireIdx[i]].DrawColor(gc.get());
+        }
 
-            }
+        // 幽灵最后绘制，避免被元件卡覆盖；只改视觉，不改变吸附或落点逻辑。
+        if (m_pointerInside && m_toolStateMachine->GetComponentState() == ComponentToolState::COMPONENT_PREVIEW) {
+            wxString label = m_previewElement.GetIdentifier();
+            if (label.StartsWith("new_")) label = label.Mid(4);
+            CanvasVisuals::DrawGhost(*gc, m_previewElement.GetBounds(), label,
+                CanvasVisuals::WorldFont(this, UiTheme::TextSize::P13), screenDip);
         }
 
         // 绘制选择边框
+        // 框选反馈使用同一蓝描边与 sel 透明底。
         if (m_toolStateMachine->GetSelectState() == SelectToolState::RECTANGLE_SELECT) {
             wxRect selRect = m_selectRect;
-            gc->SetPen(wxPen(wxColor(44, 145, 224), 2 / m_scale));
-            gc->SetBrush(wxColor(44, 145, 224, 32));
+            gc->SetPen(gc->CreatePen(wxGraphicsPenInfo(UiTheme::Palette().accent).Width(1.6 * screenDip)));
+            gc->SetBrush(wxBrush(UiTheme::Palette().sel));
             gc->DrawRectangle(selRect.x, selRect.y, selRect.width, selRect.height);
         }
 
+        // T-410：原 wxColor(128,128,128[,32]) → token text3（同色相最近的中性档）
         if (m_toolStateMachine->GetEraserState() == EraserToolState::RECTANGLE_ERASER) {
             wxRect eraRect = m_eraserRect;
-            gc->SetPen(wxPen(wxColor(128, 128, 128), 2 / m_scale));
-            gc->SetBrush(wxColor(128, 128, 128, 32));
+            const wxColour eraserColour = UiTheme::Palette().text3;
+            gc->SetPen(wxPen(eraserColour, 2 / m_scale));
+            gc->SetBrush(wxBrush(eraserColour));
             gc->DrawRectangle(eraRect.x, eraRect.y, eraRect.width, eraRect.height);
         }
 
@@ -321,9 +515,10 @@ std::tuple<int, int> CanvasPanel::HitElementAndPinTest(const wxPoint& canvasPos,
 {
     int elem_id = -1;
     int pin_id = -1;
+    const int pinRadius = std::max(4, static_cast<int>(std::ceil(6.0 / m_scale)));
     for (size_t i = 0; i < m_elems.size(); ++i) {
         // 元素的边界是画布坐标，直接比较
-        if (m_elems[i].GetBounds().Contains(canvasPos)) {
+        if (pin_id < 0 && m_elems[i].GetBounds().Contains(canvasPos)) {
             elem_id = i;
         }
         const auto& elem = m_elems[i];
@@ -331,7 +526,7 @@ std::tuple<int, int> CanvasPanel::HitElementAndPinTest(const wxPoint& canvasPos,
         for (size_t p = 0; p < elem.GetInputPins().size(); ++p) {
             wxPoint tip = elem.GetPos() + wxPoint(elem.GetInputPins()[p].pos.x - 1,
                 elem.GetInputPins()[p].pos.y);
-            if (abs(canvasPos.x - tip.x) <= 4 && abs(canvasPos.y - tip.y) <= 4) {
+            if (abs(canvasPos.x - tip.x) <= pinRadius && abs(canvasPos.y - tip.y) <= pinRadius) {
                 *isInput = true;
                 *worldPos = tip;
                 elem_id = i;
@@ -342,7 +537,7 @@ std::tuple<int, int> CanvasPanel::HitElementAndPinTest(const wxPoint& canvasPos,
         for (size_t p = 0; p < elem.GetOutputPins().size(); ++p) {
             wxPoint tip = elem.GetPos() + wxPoint(elem.GetOutputPins()[p].pos.x + 1,
                 elem.GetOutputPins()[p].pos.y);
-            if (abs(canvasPos.x - tip.x) <= 4 && abs(canvasPos.y - tip.y) <= 4) {
+            if (abs(canvasPos.x - tip.x) <= pinRadius && abs(canvasPos.y - tip.y) <= pinRadius) {
                 *isInput = false;
                 *worldPos = tip;
                 elem_id = i;
@@ -354,7 +549,7 @@ std::tuple<int, int> CanvasPanel::HitElementAndPinTest(const wxPoint& canvasPos,
         for (size_t p = 0; p < elem.GetInOutputPins().size(); ++p) {
             wxPoint tip = elem.GetPos() + wxPoint(elem.GetInOutputPins()[p].pos.x + 1,
                 elem.GetInOutputPins()[p].pos.y);
-            if (abs(canvasPos.x - tip.x) <= 4 && abs(canvasPos.y - tip.y) <= 4) {
+            if (abs(canvasPos.x - tip.x) <= pinRadius && abs(canvasPos.y - tip.y) <= pinRadius) {
                 *isInput = false;
                 *worldPos = tip;
                 elem_id = i;
@@ -627,18 +822,23 @@ void CanvasPanel::OnRightUp(wxMouseEvent& evt) {
 }
 
 void CanvasPanel::SetStatus(wxString status) {
+    // 只规范化空闲工具提示，保留连线、选择、放置等业务反馈。
+    if (status.StartsWith("Tool: ") || status=="Select Tool" || status=="Text Tool" ||
+        status=="Wire Tool" || status=="Eraser Tool" || status.StartsWith("Pan Tool:"))
+        status=CanvasControls::ToolName(m_toolStateMachine->GetCurrentTool())+wxString::FromUTF8(" · Ready");
     m_mainFrame->SetStatusText(status, 0);
 
 }
 
 void CanvasPanel::SetCurrentTool(ToolType tool) {
-    m_toolStateMachine->SetCurrentTool(tool);
+    m_CanvasEventHandler->SetCurrentTool(tool);
+    SyncCanvasControls();
 }
 
 void CanvasPanel::SetCurrentComponent(const wxString& componentName) {
-    m_toolStateMachine->SetCurrentTool(ToolType::COMPONENT_TOOL);
-    m_toolStateMachine->SetComponentState(ComponentToolState::COMPONENT_PREVIEW);
+    m_placingName=componentName;
     m_CanvasEventHandler->SetCurrentComponent(componentName);
+    m_toolStateMachine->SetComponentState(ComponentToolState::COMPONENT_PREVIEW);
     SetPreview(componentName);
 }
 
@@ -671,6 +871,21 @@ void CanvasPanel::UpdateHoverInfo(const wxPoint& screenPos) {
 
     // 悬停文本检测
     int textIndex = HitTestText(m_hoverInfo.canvasPos);
+    // 八个标记具有 11 屏幕 DIP 抓取半径；沿用现有移动/选择入口。
+    // 引脚优先，避免热区抢走连线操作；不改变模型的形状和边界。
+    if (pinIdx<0 && m_toolStateMachine->GetCurrentTool()==ToolType::SELECT_TOOL) {
+        const double units=CanvasVisuals::ScreenDip(this,m_scale);
+        for (auto i:m_selElemIdx) {
+            if (i>=0 && i<int(m_elems.size()) && CanvasVisuals::HitHandle(m_elems[i].GetBounds(),m_hoverInfo.canvasPos,units)) {
+                elementIndex=i; textIndex=-1; wireIdx=-1; cellIdx=-1; break;
+            }
+        }
+        if (elementIndex<0) for (auto i:m_selTxtIdx) {
+            if (i>=0 && i<int(m_textElements.size()) && CanvasVisuals::HitHandle(m_textElements[i].GetBounds(),m_hoverInfo.canvasPos,units)) {
+                textIndex=i; wireIdx=-1; cellIdx=-1; break;
+            }
+        }
+    }
 
     // 更新信息
     m_hoverInfo.pinIndex = pinIdx;
@@ -719,7 +934,7 @@ void CanvasPanel::UpdateHoverInfo(const wxPoint& screenPos) {
     wxString cursor = wxString::Format("(%d, %d)", m_hoverInfo.canvasPos.x, m_hoverInfo.canvasPos.y);
 
     // 修复后：
-    wxString zoom = wxString::Format("%d%%", int(m_scale * 100));
+    wxString zoom = wxString::Format("%d%%", int(std::lround(m_scale * 100)));
 
     if (m_mainFrame) { // 检查是否正在退出
         m_mainFrame->SetStatusText(hover, 1);
@@ -738,6 +953,12 @@ void CanvasPanel::OnFocus(wxFocusEvent& event) {
 
 void CanvasPanel::OnKillFocus(wxFocusEvent& event) {
     m_hasFocus = false;
+    m_spacePan=false;
+    if (HasCapture()) {
+        m_toolStateMachine->SetSelectState(SelectToolState::IDLE);
+        ClearSelectionRect();
+    }
+    FinishPointerGesture();
     Refresh();
     event.Skip();
 }
@@ -830,27 +1051,30 @@ int CanvasPanel::HitTestText(wxPoint canvasPos) {
 
 void CanvasPanel::OnScroll(wxScrollEvent& event) {
     if (event.GetOrientation() == wxHORIZONTAL) {
-        m_offset.x = -event.GetPosition() * m_scale;
+        m_offset.x = std::lround(-(event.GetPosition()+m_scrollOrigin.x)*GetDeviceScale());
     }
     else {
-        m_offset.y = -event.GetPosition() * m_scale;
+        m_offset.y = std::lround(-(event.GetPosition()+m_scrollOrigin.y)*GetDeviceScale());
     }
     Refresh();
 }
 
-void CanvasPanel::LayoutScrollbars(){
+void CanvasPanel::LayoutScrollbars(bool invalidate){
     const wxSize clientSize = GetClientSize();
     // 用系统度量取滚动条宽度（HiDPI 下写死 24 会偏窄）；取不到再退回 24。
     // 旧实现把度量算进 scrollbarSize 却没用，仍然用常量 24。
     int width = wxSystemSettings::GetMetric(wxSYS_VSCROLL_X);
     if (width <= 0) width = 24;
 
-    const float scale = (m_scale > 0.0f) ? m_scale : 1.0f;
+    const double scale = GetDeviceScale();
     // SetThumbSize 传负数在 GTK 上会触发断言，至少钳到 1。
     const int hThumb = std::max(1, static_cast<int>((clientSize.x - width - 1) / scale));
     const int vThumb = std::max(1, static_cast<int>((clientSize.y - width - 1) / scale));
 
     bool changed = false;
+    // 包含当前视口的虚拟滚动范围，允许 25% 缩小和双向平移而不跳回原点。
+    const int left=std::lround(-m_offset.x/scale),top=std::lround(-m_offset.y/scale);
+    m_scrollOrigin=wxPoint(std::min(0,left),std::min(0,top));
     const auto apply = [&changed](wxScrollBar* bar, const wxSize& size,
                                   const wxPoint& pos, int thumb, int range, int value) {
         if (bar->GetSize() != size || bar->GetPosition() != pos ||
@@ -867,13 +1091,13 @@ void CanvasPanel::LayoutScrollbars(){
 
     // 水平滚动条：底部，宽度要减去垂直滚动条的宽度
     apply(m_hScroll, wxSize(clientSize.x - width, width),
-          wxPoint(0, clientSize.y - width), hThumb, m_size.x,
-          static_cast<int>(-m_offset.x / scale));
+          wxPoint(0, clientSize.y - width), hThumb, std::max(m_size.x,left+hThumb)-m_scrollOrigin.x,
+          left-m_scrollOrigin.x);
 
     // 垂直滚动条：右侧，高度要减去水平滚动条的高度
     apply(m_vScroll, wxSize(width, clientSize.y),
-          wxPoint(clientSize.x - width, 0), vThumb, m_size.y,
-          static_cast<int>(-m_offset.y / scale));
+          wxPoint(clientSize.x - width, 0), vThumb, std::max(m_size.y,top+vThumb)-m_scrollOrigin.y,
+          top-m_scrollOrigin.y);
 
     // 只在几何真的变化时重绘。
     //
@@ -882,35 +1106,31 @@ void CanvasPanel::LayoutScrollbars(){
     // （与 ProjectTreePanel 的文件监视自激是同一类问题）。
     // 现在 OnPaint 里几何已是最新 → changed 为 false → 不再自激；
     // 而缩放/尺寸变化时会 changed=true → 触发一次重绘，行为不变。
-    if (changed) {
+    if (changed && invalidate) {
         Refresh(false);
     }
 }
 
 void CanvasPanel::SetoffSet(wxPoint offset) {
-    wxPoint min_offset, max_offset;
-    std::tie(min_offset, max_offset) = ValidSetOffRange();
-    if (offset.x < min_offset.x) offset.x = min_offset.x;
-    if (offset.x > max_offset.x) offset.x = max_offset.x;
-    if (offset.y < min_offset.y) offset.y = min_offset.y;
-    if (offset.y > max_offset.y) offset.y = max_offset.y;
+    // 平移是视图变换，不夹取到模型范围；否则缩小会破坏光标缩放锚点。
     m_offset = offset;
+    for (auto& text:m_textElements) text.SetPosition(text.GetPosition());
     Refresh();
 }
 
 wxPoint CanvasPanel::LogicToDevice(const wxPoint& logicPoint) const
 {
     return wxPoint(
-        static_cast<int>(logicPoint.x * m_scale + m_offset.x),
-        static_cast<int>(logicPoint.y * m_scale + m_offset.y)
+        static_cast<int>(logicPoint.x * GetDeviceScale() + m_offset.x),
+        static_cast<int>(logicPoint.y * GetDeviceScale() + m_offset.y)
     );
 }
 
 wxPoint CanvasPanel::DeviceToLogic(const wxPoint& devicePoint) const
 {
     return wxPoint(
-        static_cast<int>((devicePoint.x - m_offset.x) / m_scale),
-        static_cast<int>((devicePoint.y - m_offset.y) / m_scale)
+        static_cast<int>((devicePoint.x - m_offset.x) / GetDeviceScale()),
+        static_cast<int>((devicePoint.y - m_offset.y) / GetDeviceScale())
     );
 }
 
@@ -919,24 +1139,15 @@ std::pair<wxPoint, wxPoint> CanvasPanel::ValidSetOffRange() {
     wxPoint maxOffset(0, 0);
     // 计算逻辑坐标 (m_size.x, m_size.y) 对应的设备坐标的最大值为 (GetClientSize().x- m_hScroll->GetSize().y - 1, GetClientSize().y- m_hScroll->GetSize().y - 1)，此时的 m_offset 即为最小值
     wxPoint minOffset(
-        GetClientSize().x - static_cast<int>(m_size.x * m_scale) - m_hScroll->GetSize().y - 1,
-        GetClientSize().y - static_cast<int>(m_size.y * m_scale) - m_hScroll->GetSize().y - 1
+        GetClientSize().x - static_cast<int>(m_size.x * GetDeviceScale()) - m_hScroll->GetSize().y - 1,
+        GetClientSize().y - static_cast<int>(m_size.y * GetDeviceScale()) - m_hScroll->GetSize().y - 1
     );
 
     return std::make_pair(minOffset, maxOffset);
 }
 
 std::pair<float, float> CanvasPanel::ValidScaleRange() {
-    // 对于最右侧最下侧的逻辑坐标 (m_size.x, m_size.y) 对应的设备坐标恰好为 (GetClientSize().x- m_hScroll->GetSize().y - 1, GetClientSize().y- m_hScroll->GetSize().y - 1) 时，计算出最小缩放比例
-    wxSize s = GetClientSize();
-    float h = m_hScroll->GetSize().y;
-    float x = (s.x - h - 1) - m_offset.x;
-    float y = (s.y - h - 1) - m_offset.y;
-    float minScaleX = static_cast<float>(x) / static_cast<float>(m_size.x);
-    float minScaleY = static_cast<float>(y) / static_cast<float>(m_size.y);
-    float minScale = std::max(minScaleX, minScaleY);
-    float maxScale = 5.0f; // 最大缩放比例
-    return std::make_pair(minScale, maxScale);
+    return {0.25f,4.0f};
 }
 
 void CanvasPanel::SetPreviewElement(const wxString& name, wxPoint pos) {

@@ -3,6 +3,7 @@
 #include <wx/wx.h>
 #include "CanvasPanel.h"
 #include "SigTree.h"
+#include "ui/UiTheme.h"   // T-140：主题订阅句柄（析构自动解绑，THE-028）
 class MainFrame;
 
 class CanvasNoteBook : public wxAuiNotebook {
@@ -49,8 +50,13 @@ public:
 
     wxDECLARE_EVENT_TABLE(); // 新增：事件表声明
 
+    // T-140 / THE-030 缺口：页签栏上的 "+" 按钮颜色是**构造期一次性写入**，
+    // 主题切换后不会更新（浅色档看不出，深色档会变"深壳浅按钮"）。
+    // 按本仓既有模式订阅 UiTheme 并重施（只改外观，不改任何业务状态）。
+    void ReapplyTheme();
+
 private:
     bool m_btnCreated = false;
     wxButton* m_addBtn = nullptr;
-
+    UiTheme::Subscription m_themeSubscription;
 };

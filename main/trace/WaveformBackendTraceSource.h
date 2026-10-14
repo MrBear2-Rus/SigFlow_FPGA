@@ -20,6 +20,7 @@ public:
     const SignalInfo* SignalById(int id) const override;
     TraceTimeRange TimeRange() const override;
     std::string Timescale() const override { return timescale_; }
+    TraceTimeDomain TimeDomain() const override { return timeDomain_; }
     const std::string& Path() const override { return path_; }
 
     bool Query(const SignalInfo& signal, TimeValue t0, TimeValue t1,
@@ -33,6 +34,7 @@ private:
     std::shared_ptr<eda::IWaveformBackend> backend_;
     std::vector<SignalInfo> signals_;
     std::string timescale_;
+    TraceTimeDomain timeDomain_ = TraceTimeDomain::Unknown;
     std::string path_;
     TraceTimeRange timeRange_;
 };

@@ -3,8 +3,26 @@
 #include <vector>
 #include <tuple>
 
+#include "ui/UiTheme.h"   // T-410：画布唯一取色来源（SPEC SAFE-012 / THE-001）
+
 class CanvasPanel;
 class SignalNode;
+
+// ---------------------------------------------------------------------------
+// T-410 画布绘制常量（SPEC CMP-041…CMP-046）
+//
+// 选中/导线取色在绘制时读取 UiTheme，避免静态缓存与主题变化脱节。
+// 尺寸一律 DIP（PLT-001）；颜色一律来自 UiTheme，禁止新增颜色字面量。
+// ---------------------------------------------------------------------------
+
+// 尺寸常量（SPEC CMP-041/CMP-044/DES-007）
+namespace CanvasDraw {
+inline constexpr double kWireWidth      = 2.0;   ///< 导线线宽 2 DIP（CMP-044）
+inline constexpr double kSelectionWidth = 1.6;   ///< 选中描边 1.6 DIP（CMP-042、DES-007 例外）
+inline constexpr double kNodeRadius     = 3.6;   ///< 结点半径 3.6 DIP 实心（CMP-044）
+inline constexpr int    kGridFine       = 20;     ///< 细网格 20 DIP（CMP-041）
+inline constexpr int    kGridCoarse     = 100;    ///< 粗网格 100 DIP（CMP-041）
+}  // namespace CanvasDraw
 
 struct WireAnchor {
     size_t wireIdx;   
@@ -52,7 +70,7 @@ public:
     Wire() = default;
     explicit Wire(std::vector<ControlPoint> v) : pts(std::move(v)) {}
 
-    wxFont font = wxFont(5, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD);
+    wxFont font = UiTheme::MonoFont(nullptr, UiTheme::TextSize::P11);
     //显式声明拷贝/移动构造函数和赋值运算符
     Wire(const Wire&) = default;
     Wire(Wire&&) = default;
@@ -60,7 +78,7 @@ public:
     Wire& operator=(Wire&&) = default;
 
     // 核心接口
-    void Draw(wxGraphicsContext* gc) const;                          // 画线
+    void Draw(wxGraphicsContext* gc, double screenDip = 1.0, bool selected = false) const;
     void DrawColor(wxGraphicsContext* gc) const;
     void AddPoint(const ControlPoint& cp) { pts.push_back(cp); }
     void Clear() { pts.clear(); }
@@ -76,7 +94,13 @@ public:
     void SetSelf(SignalNode* s);
     SignalNode* GetSelf() const { return self; }
     
-    std::vector<wxColor> colors = { wxColour(0, 128, 0), wxColour(0, 255, 0), *wxBLUE };         // 颜色序列:导线0颜色，导线1颜色，导线分支点颜色, 自由点颜色
+    // 颜色序列: [0] 导线常态色，[1] 导通/高亮态导线色，[2] 分支点色
+    // T-410：原字面量 { wxColour(0,128,0), wxColour(0,255,0), *wxBLUE } →
+    // 全部改为 token：常态导线 = wire（CMP-044），导通态 = brand（语义绿，THE-034 clk 同族），
+    // 分支点 = wire（与导线同色，保持"结点属于导线"的语义）。
+    std::vector<wxColor> colors = { UiTheme::Palette().wire,
+                                    UiTheme::Palette().brand,
+                                    UiTheme::Palette().wire };
 
 public:
     // ... 现有成员 ...

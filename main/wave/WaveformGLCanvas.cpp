@@ -137,8 +137,10 @@ void WaveformGLCanvas::RenderFrame()
 {
     const wxSize size = GetClientSize();
     if (size.GetWidth() <= 0 || size.GetHeight() <= 0) return;
+    // T-325：颜色改由 UiTheme token 提供，GL 调用序列不变
+    const UiTheme::Colours& ui = UiTheme::PaletteFor(UiModeFor(m_state.theme));
     if (!m_source) {
-        const wxColour bg = ColorsFor(m_state.theme).background;
+        const wxColour bg = ColorsForThemed(m_state.theme).background;
         m_renderer.BeginFrame(size.GetWidth(), size.GetHeight(),
                               { bg.Red() / 255.0f, bg.Green() / 255.0f,
                                 bg.Blue() / 255.0f });
@@ -154,12 +156,12 @@ void WaveformGLCanvas::RenderFrame()
         return;
     }
 
-    const wxColour bg = ColorsFor(m_state.theme).background;
+    const wxColour bg = ColorsForThemed(m_state.theme).background;
     m_renderer.BeginFrame(size.GetWidth(), size.GetHeight(),
                           { bg.Red() / 255.0f, bg.Green() / 255.0f,
                             bg.Blue() / 255.0f });
 
-    const wxColour grid = ColorsFor(m_state.theme).grid;
+    const wxColour grid = ColorsForThemed(m_state.theme).grid;
     const WaveColor gridColor{ grid.Red() / 255.0f, grid.Green() / 255.0f,
                                grid.Blue() / 255.0f };
     for (const WaveformTick& tick : frame.ticks) {
@@ -168,16 +170,19 @@ void WaveformGLCanvas::RenderFrame()
                                 x, static_cast<float>(size.GetHeight()), gridColor);
     }
 
-    int row = 0;
+    // CMP-064：clk=brand / rst=accent / 总线=warn / 其它=text1 82%
     for (const WaveformSignalData& signal : frame.signals) {
-        const WaveColor& color = WavePalette(row);
+        const wxColour signalColour = SignalColour(signal.name, signal.vector, ui);
+        const WaveColor color{ signalColour.Red() / 255.0f,
+                               signalColour.Green() / 255.0f,
+                               signalColour.Blue() / 255.0f };
         m_renderer.DrawPolyline(signal.polyline, color);
-        ++row;
     }
 
     // ── W3 覆盖层：A-B / 播放头 / Marker / 事件 ──
     if (m_state.hasAB) {
-        const WaveColor abColor{ 251.0f / 255.0f, 146.0f / 255.0f, 60.0f / 255.0f };
+        const WaveColor abColor{ ui.warn.Red() / 255.0f, ui.warn.Green() / 255.0f,
+                                 ui.warn.Blue() / 255.0f };
         const float xa = WaveformTimeToX(m_state, size.GetWidth(), m_state.abA);
         const float xb = WaveformTimeToX(m_state, size.GetWidth(), m_state.abB);
         m_renderer.DrawGridLine(xa, static_cast<float>(m_state.headerHeight),
@@ -186,7 +191,9 @@ void WaveformGLCanvas::RenderFrame()
                                 xb, static_cast<float>(size.GetHeight()), abColor);
     }
     if (m_state.hasPlayhead) {
-        const WaveColor playheadColor{ 226.0f / 255.0f, 232.0f / 255.0f, 240.0f / 255.0f };
+        const WaveColor playheadColor{ ui.text1.Red() / 255.0f,
+                                       ui.text1.Green() / 255.0f,
+                                       ui.text1.Blue() / 255.0f };
         const float xp = WaveformTimeToX(m_state, size.GetWidth(), m_state.playhead);
         m_renderer.DrawGridLine(xp, static_cast<float>(m_state.headerHeight),
                                 xp, static_cast<float>(size.GetHeight()), playheadColor);
