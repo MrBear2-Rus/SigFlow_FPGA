@@ -13,6 +13,9 @@
 #include "TransportBackend.h"
 #include "TransportSelfTest.h"
 #include "TraceBridgePreflight.h"
+#include "TraceBridgeCaptureWizard.h"
+#include "TraceBridgeRecovery.h"
+#include "TraceBridgeTemplateCatalog.h"
 #include "DeviceControl.h"
 #include "ProbePlanningService.h"
 #include "../fpga/FpgaConstraint.h"
@@ -26,6 +29,7 @@ using sigflow::platform::JoinPath;
 #include <wx/checkbox.h>
 #include <wx/panel.h>
 #include <wx/choice.h>
+#include <wx/choicdlg.h>
 #include <wx/colour.h>
 #include <wx/dcclient.h>
 #include <wx/dir.h>
@@ -99,6 +103,28 @@ void ApplyTextForegroundDefaults(wxWindow* window, const wxColour& colour)
 
 std::string ToUtf8(const wxString& value) { return std::string(value.ToUTF8().data()); }
 wxString ToWxString(const std::string& v)   { return wxString::FromUTF8(v.c_str()); }
+
+void ShowTraceBridgeDetails(wxWindow* parent, const wxString& title,
+                            const wxString& details)
+{
+    wxDialog dialog(parent, wxID_ANY, title, wxDefaultPosition,
+                    parent->FromDIP(wxSize(760, 560)),
+                    wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
+    auto* root = new wxBoxSizer(wxVERTICAL);
+    auto* text = new wxTextCtrl(&dialog, wxID_ANY, details, wxDefaultPosition,
+                                wxDefaultSize,
+                                wxTE_MULTILINE | wxTE_READONLY | wxTE_DONTWRAP |
+                                    wxHSCROLL);
+    text->SetMinSize(dialog.FromDIP(wxSize(700, 460)));
+    root->Add(text, 1, wxALL | wxEXPAND, 8);
+    auto* buttons = new wxStdDialogButtonSizer();
+    buttons->AddButton(new wxButton(&dialog, wxID_OK, wxT("关闭")));
+    buttons->Realize();
+    root->Add(buttons, 0, wxALL | wxALIGN_RIGHT, 8);
+    dialog.SetSizerAndFit(root);
+    dialog.CentreOnParent();
+    dialog.ShowModal();
+}
 
 std::string NormalizeArchiveEntryName(const wxString& value)
 {
@@ -1200,11 +1226,23 @@ void TraceBridgeWindow::BuildLeftPanel(wxPanel* left) {
                 "需要持久化配置时，请使用 FPGA 菜单中的 debug_contract 配置界面。"));
         intentHint->SetForegroundColour(UiTheme::Palette().text3);
         v->Add(intentHint, 0, wxLEFT | wxRIGHT | wxBOTTOM, 10);
+
+        auto* guidanceBox = new wxStaticBoxSizer(wxHORIZONTAL, wrap, wxT("首次采集与诊断"));
+        captureWizardButton_ = new wxButton(wrap, wxID_ANY, wxT("首次采集向导…"));
+        recoveryPlanButton_ = new wxButton(wrap, wxID_ANY, wxT("恢复建议…"));
+        templateHelpButton_ = new wxButton(wrap, wxID_ANY, wxT("模板帮助…"));
+        guidanceBox->Add(captureWizardButton_, 0, wxALL, 4);
+        guidanceBox->Add(recoveryPlanButton_, 0, wxTOP | wxBOTTOM | wxRIGHT, 4);
+        guidanceBox->Add(templateHelpButton_, 0, wxTOP | wxBOTTOM | wxRIGHT, 4);
+        v->Add(guidanceBox, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 10);
         v->AddStretchSpacer();
         wrap->SetSizer(v);
         nb->AddPage(wrap, wxT("1 契约"), true);
         browseBtn->Bind(wxEVT_BUTTON, &TraceBridgeWindow::OnBrowseContract, this);
         reloadBtn->Bind(wxEVT_BUTTON, &TraceBridgeWindow::OnReloadContract, this);
+        captureWizardButton_->Bind(wxEVT_BUTTON, &TraceBridgeWindow::OnOpenCaptureWizard, this);
+        recoveryPlanButton_->Bind(wxEVT_BUTTON, &TraceBridgeWindow::OnShowRecoveryPlan, this);
+        templateHelpButton_->Bind(wxEVT_BUTTON, &TraceBridgeWindow::OnShowTemplateHelp, this);
     }
     // Tab 2 : Runtime
     {
@@ -1695,6 +1733,171 @@ void TraceBridgeWindow::OnSelfTest(wxCommandEvent&)
                 }
             });
         });
+}
+
+void TraceBridgeWindow::OnOpenCaptureWizard(wxCommandEvent&)
+{
+    sigflow::debug::TraceBridgeCaptureWizardInput input;
+    input.targetReady = !projectPath_.IsEmpty();
+    input.targetLabel = projectPath_.IsEmpty()
+                            ? std::string()
+                            : ToUtf8(wxFileName(projectPath_).GetFullName());
+    input.contractReady = !contract_.probes.empty();
+    input.impactReportReady = !pendingProbeBuild_;
+    input.deviceReady = runtimePanel_ &&
+                        runtimePanel_->serialChoice_->GetSelection() != wxNOT_FOUND;
+    input.captureActive = cancelCaptureButton_ && cancelCaptureButton_->IsEnabled();
+    input.captureComplete = !lastCaptureHwVcd_.IsEmpty();
+    input.resultReady = !lastCaptureHwVcd_.IsEmpty();
+
+    sigflow::debug::TraceBridgeCaptureWizardPlan plan;
+    std::string error;
+    if (!sigflow::debug::TraceBridgeCaptureWizardService::Build(input, plan, error)) {
+        AddLog(TbLogTag::ERR, wxT("首次采集向导生成失败：") + ToWxString(error));
+        wxMessageBox(ToWxString(error), wxT("首次采集向导"), wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    std::ostringstream out;
+    out << "TraceBridge 首次采集向导\n"
+        << "当前步骤: " << sigflow::debug::ToString(plan.currentStage)
+        << "\n可开始采集: " << (plan.readyToStart ? "是" : "否")
+        << "\n流程完成: " << (plan.complete ? "是" : "否") << "\n\n";
+    for (const auto& step : plan.steps) {
+        out << "[" << sigflow::debug::ToString(step.state) << "] "
+            << step.id << " -> " << step.navigationTarget << "\n"
+            << "  " << step.summary << "\n";
+        for (const auto& issue : step.issues) {
+            out << "  ! " << issue.code << ": " << issue.observed
+                << " | action=" << issue.action << "\n";
+        }
+    }
+    if (!plan.issues.empty()) {
+        out << "\n诊断汇总:\n";
+        for (const auto& issue : plan.issues) {
+            out << "- " << issue.code << ": " << issue.observed
+                << " | " << issue.action << "\n";
+        }
+    }
+    out << "\n说明: 向导只编排现有契约、影响报告、设备预检和采集入口，"
+           "不会自动打开设备、下载位流或重新布防。";
+    ShowTraceBridgeDetails(this, wxT("首次采集向导"), ToWxString(out.str()));
+    AddLog(TbLogTag::INFO, wxString::Format(wxT("首次采集向导已生成：当前步骤 %s"),
+                                            ToWxString(sigflow::debug::ToString(plan.currentStage))));
+}
+
+void TraceBridgeWindow::OnShowRecoveryPlan(wxCommandEvent&)
+{
+    sigflow::debug::TraceBridgeRecoveryContext context;
+    context.captureActive = cancelCaptureButton_ && cancelCaptureButton_->IsEnabled();
+    context.hasProbePlan = !contract_.probes.empty();
+    context.hasTimingReport = false;
+    context.ownsControl = context.captureActive;
+
+    const std::string port = runtimePanel_ ? ToUtf8(runtimePanel_->GetSelectedSerialPureName()) : "";
+    context.deviceAvailable = !port.empty();
+    if (!context.deviceAvailable) {
+        sigflow::debug::DiagnosticIssue issue;
+        issue.code = "DEVICE_MISSING";
+        issue.stage = "device";
+        issue.severity = sigflow::debug::DiagnosticSeverity::Blocking;
+        issue.observed = "no serial target is selected";
+        issue.action = "refresh ports and select the intended target";
+        context.issues.push_back(std::move(issue));
+    }
+    if (pendingProbeBuild_) {
+        sigflow::debug::DiagnosticIssue issue;
+        issue.code = "PROBE_BUDGET_EXCEEDED";
+        issue.stage = "contract";
+        issue.severity = sigflow::debug::DiagnosticSeverity::Blocking;
+        issue.observed = "the edited probe plan has not been built and downloaded";
+        issue.action = "review the probe plan, then build and download before capture";
+        context.issues.push_back(std::move(issue));
+    }
+
+    sigflow::debug::TransportOpenOptions transport;
+    if (runtimePanel_) {
+        transport.serialPort = port;
+        transport.baud = static_cast<std::uint32_t>(runtimePanel_->baudSpin_->GetValue());
+        transport.preferFtdi = runtimePanel_->protoChoice_->GetStringSelection() == wxT("full");
+        transport.allowSerialFallback = true;
+    }
+    sigflow::debug::PreflightInput preflightInput;
+    preflightInput.contract = &contract_;
+    preflightInput.transport = &transport;
+    preflightInput.offlineOnly = false;
+    auto registry = sigflow::debug::MakeTraceBridgePreflightRegistry();
+    sigflow::debug::PreflightReport preflightReport;
+    std::string preflightError;
+    if (registry.Run(preflightInput, preflightReport, preflightError)) {
+        context.issues.insert(context.issues.end(), preflightReport.issues.begin(),
+                              preflightReport.issues.end());
+    } else if (!preflightError.empty()) {
+        AddLog(TbLogTag::WR, wxT("恢复建议预检未完成：") + ToWxString(preflightError));
+    }
+
+    sigflow::debug::TraceBridgeRecoveryPlan plan;
+    std::string error;
+    if (!sigflow::debug::TraceBridgeRecoveryService::Build(context, plan, error)) {
+        AddLog(TbLogTag::ERR, wxT("恢复建议生成失败：") + ToWxString(error));
+        wxMessageBox(ToWxString(error), wxT("恢复建议"), wxOK | wxICON_ERROR, this);
+        return;
+    }
+
+    std::ostringstream out;
+    out << "TraceBridge 恢复建议\n"
+        << "采集活动: " << (context.captureActive ? "是" : "否")
+        << " | 设备可达: " << (context.deviceAvailable ? "是" : "否")
+        << " | 本任务持有控制权: " << (context.ownsControl ? "是" : "否") << "\n\n";
+    if (plan.actions.empty()) {
+        out << "当前诊断没有可生成的恢复动作。请先运行预检或执行一次采集。\n";
+    }
+    for (const auto& action : plan.actions) {
+        out << (action.available ? "[可用] " : "[不可用] ") << action.id << "\n"
+            << "  " << action.summary << "\n"
+            << "  需要确认: " << (action.requiresUserConfirmation ? "是" : "否")
+            << " | 改变 DUT/采集状态: " << (action.changesDut ? "是" : "否") << "\n";
+        if (!action.issueCodes.empty()) {
+            out << "  关联诊断: ";
+            for (std::size_t i = 0; i < action.issueCodes.size(); ++i) {
+                if (i) out << ", ";
+                out << action.issueCodes[i];
+            }
+            out << "\n";
+        }
+    }
+    out << "\n说明: 当前入口只生成计划，不释放租约、不修改契约、不向 DUT 发送 ARM/RESET。";
+    ShowTraceBridgeDetails(this, wxT("恢复建议"), ToWxString(out.str()));
+    AddLog(TbLogTag::INFO, wxString::Format(wxT("恢复建议已生成：%u 个动作"),
+                                            static_cast<unsigned>(plan.actions.size())));
+}
+
+void TraceBridgeWindow::OnShowTemplateHelp(wxCommandEvent&)
+{
+    const auto& entries = sigflow::debug::TraceBridgeTemplateCatalog::All();
+    wxArrayString choices;
+    for (const auto& entry : entries) choices.Add(ToWxString(entry.title));
+    wxSingleChoiceDialog chooser(this, wxT("选择要查看的观测模板"), wxT("模板帮助"), choices);
+    if (chooser.ShowModal() != wxID_OK) return;
+    const int selected = chooser.GetSelection();
+    if (selected < 0 || static_cast<std::size_t>(selected) >= entries.size()) return;
+    const auto& entry = entries[static_cast<std::size_t>(selected)];
+
+    std::ostringstream out;
+    out << entry.title << " (" << entry.id << ")\n"
+        << "帮助目标: " << entry.helpTarget << "\n\n"
+        << "建议观测信号: ";
+    for (std::size_t i = 0; i < entry.suggestedSignals.size(); ++i) {
+        if (i) out << ", ";
+        out << entry.suggestedSignals[i];
+    }
+    out << "\n\n判断依据:\n" << entry.basis
+        << "\n\n预期结果:\n" << entry.expectedResult
+        << "\n\n不能单独判断:\n" << entry.limitations
+        << "\n\n说明: 模板只提供建议，不自动修改 Debug Contract 或 RTL。";
+    ShowTraceBridgeDetails(this, wxT("模板帮助 · ") + ToWxString(entry.title),
+                           ToWxString(out.str()));
+    AddLog(TbLogTag::INFO, wxT("已查看 TraceBridge 模板：") + ToWxString(entry.id));
 }
 
 void TraceBridgeWindow::OnPlanProbes(wxCommandEvent&) {

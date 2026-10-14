@@ -136,6 +136,9 @@ private:
     void OnRefreshPorts(wxCommandEvent&);
     void OnSelfTest(wxCommandEvent&);
     void OnPlanProbes(wxCommandEvent&);
+    void OnOpenCaptureWizard(wxCommandEvent&);
+    void OnShowRecoveryPlan(wxCommandEvent&);
+    void OnShowTemplateHelp(wxCommandEvent&);
     void OnStartCapture(wxCommandEvent&);
     void OnBuildDebugBitstream(wxCommandEvent&);
     void OnBuildProgramCapture(wxCommandEvent&);
@@ -202,6 +205,9 @@ private:
     wxButton* startCaptureButton_ = nullptr;
     wxButton* buildDebugButton_ = nullptr;
     wxButton* buildProgramCaptureButton_ = nullptr;
+    wxButton* captureWizardButton_ = nullptr;
+    wxButton* recoveryPlanButton_ = nullptr;
+    wxButton* templateHelpButton_ = nullptr;
     wxButton* cancelCaptureButton_ = nullptr;
     wxButton* openHwVcdButton_ = nullptr;
     wxButton* compareSimButton_ = nullptr;
