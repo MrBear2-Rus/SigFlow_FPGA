@@ -76,6 +76,11 @@ struct CaptureRunWindow {
     std::string vcdPath;
     std::string completeness = "unknown"; // complete / partial / corrupt / unknown
     std::string identity = "unknown";      // device_verified / host_bound / unknown
+    // SHA-256 of canonical sample words.  It compares data within the same
+    // run/configuration without treating equal waveforms as the same fault.
+    std::string dataHash;
+    std::string duplicateOf;               // prior attempt ID in this run
+    std::string classification = "unknown"; // triggered / complete_untriggered / duplicate / ...
     std::uint64_t sampleCount = 0;
     std::uint64_t triggerIndex = 0;
     std::string metadataPath;

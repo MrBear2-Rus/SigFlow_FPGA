@@ -12,6 +12,7 @@
 #include <limits>
 #include <sstream>
 #include <thread>
+#include <unordered_map>
 #if defined(_WIN32)
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -101,6 +102,9 @@ Json::Value WindowJson(const CaptureRunWindow& window)
     value["vcd_path"] = window.vcdPath;
     value["completeness"] = window.completeness;
     value["identity"] = window.identity;
+    value["data_hash"] = window.dataHash;
+    value["duplicate_of"] = window.duplicateOf;
+    value["classification"] = window.classification;
     value["sample_count"] = static_cast<Json::UInt64>(window.sampleCount);
     value["trigger_index"] = static_cast<Json::UInt64>(window.triggerIndex);
     value["metadata_path"] = window.metadataPath;
@@ -458,6 +462,7 @@ bool CaptureRunService::Run(const CaptureRunPlan& inputPlan,
     bool blockedByAttempt = false;
     bool deadlineExceeded = false;
     bool havePreviousWindow = false;
+    std::unordered_map<std::string, std::string> dataHashOwners;
     std::chrono::steady_clock::time_point previousWindowCompleted;
     while (result.completedWindows < plan.targetCount && result.attempts < plan.maxAttempts) {
         if (!WaitIfPaused(plan, result, deadline, error)) return false;
@@ -524,14 +529,29 @@ bool CaptureRunService::Run(const CaptureRunPlan& inputPlan,
             consecutiveFailures = 0;
             previousWindowCompleted = std::chrono::steady_clock::now();
             havePreviousWindow = true;
+            if (current.window.classification == "unknown") {
+                current.window.classification = current.window.triggerObserved
+                    ? "triggered" : "complete_untriggered";
+            }
+            if (!current.window.dataHash.empty()) {
+                const auto [owner, inserted] = dataHashOwners.emplace(
+                    current.window.dataHash, current.attemptId);
+                if (!inserted) {
+                    current.window.duplicateOf = owner->second;
+                    current.window.classification = "duplicate";
+                }
+            }
         } else if (current.state == CaptureAttemptState::Cancelled || cancelled_.load()) {
             current.state = CaptureAttemptState::Cancelled;
+            current.window.classification = "cancelled";
         } else if (IsTimeout(current)) {
             ++result.timeoutCount;
             ++consecutiveFailures;
+            current.window.classification = "timeout";
         } else {
             ++result.failureCount;
             ++consecutiveFailures;
+            current.window.classification = "failed";
         }
         if (!IsComplete(current) && !current.error.empty()) error = current.error;
         result.attemptResults.push_back(current);

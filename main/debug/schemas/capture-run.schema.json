@@ -35,7 +35,7 @@
       "properties": {
         "schema_version": { "const": "1.0" },
         "run_id": { "type": "string", "minLength": 1 },
-        "state": { "enum": ["Created", "Validating", "Running", "Stopping",
+        "state": { "enum": ["Created", "Validating", "Running", "Paused", "Stopping",
                               "Completed", "Cancelled", "Failed"] },
         "attempts": { "type": "integer", "minimum": 0 },
         "completed_windows": { "type": "integer", "minimum": 0 },

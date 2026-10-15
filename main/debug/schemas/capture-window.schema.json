@@ -87,6 +87,9 @@
         },
         "completeness": { "enum": ["complete", "partial", "corrupt", "unknown"] },
         "identity": { "enum": ["device_verified", "host_bound", "unknown"] },
+        "data_hash": { "type": "string" },
+        "duplicate_of": { "type": "string" },
+        "classification": { "type": "string" },
         "sample_count": { "type": "integer", "minimum": 0 },
         "trigger_index": { "type": "integer", "minimum": 0 }
       },

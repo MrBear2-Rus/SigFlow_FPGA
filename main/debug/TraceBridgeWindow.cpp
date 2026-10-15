@@ -1508,11 +1508,17 @@ void TraceBridgeWindow::OnOpenCaptureWindows(wxCommandEvent&) {
         const long row = list->InsertItem(list->GetItemCount(),
                                           wxString::Format(wxT("%zu"), index + 1));
         list->SetItem(row, 1, ToWxString(sigflow::debug::ToString(attempt.state)));
-        const wxString category = attempt.state == sigflow::debug::CaptureAttemptState::Captured
-            ? (attempt.window.triggerObserved ? wxT("触发窗口") : wxT("完整/未触发"))
-            : attempt.state == sigflow::debug::CaptureAttemptState::TimedOut ? wxT("超时")
-            : attempt.state == sigflow::debug::CaptureAttemptState::Cancelled ? wxT("用户取消")
-            : wxT("失败");
+        wxString category = ToWxString(attempt.window.classification);
+        if (category.IsEmpty() || category == wxT("unknown")) {
+            category = attempt.state == sigflow::debug::CaptureAttemptState::Captured
+                ? (attempt.window.triggerObserved ? wxT("triggered") : wxT("complete_untriggered"))
+                : attempt.state == sigflow::debug::CaptureAttemptState::TimedOut ? wxT("timeout")
+                : attempt.state == sigflow::debug::CaptureAttemptState::Cancelled ? wxT("cancelled")
+                : wxT("failed");
+        }
+        if (!attempt.window.duplicateOf.empty()) {
+            category += wxT(" <- ") + ToWxString(attempt.window.duplicateOf);
+        }
         list->SetItem(row, 2, category);
         list->SetItem(row, 3, ToWxString(attempt.window.captureId));
         list->SetItem(row, 4, ToWxString(attempt.window.completeness));
@@ -1525,8 +1531,11 @@ void TraceBridgeWindow::OnOpenCaptureWindows(wxCommandEvent&) {
         list->SetItem(row, 5, trigger);
         list->SetItem(row, 6, wxString::Format(wxT("%llu"),
                       static_cast<unsigned long long>(attempt.window.sampleCount)));
-        const std::string detail = !attempt.error.empty() ? attempt.error :
-                                    attempt.window.vcdPath;
+        std::string detail = !attempt.error.empty() ? attempt.error :
+                             attempt.window.vcdPath;
+        if (!attempt.window.dataHash.empty()) {
+            detail += " [sha256:" + attempt.window.dataHash.substr(0, 12) + "]";
+        }
         list->SetItem(row, 7, ToWxString(detail));
         list->SetItemData(row, static_cast<long>(index));
     }

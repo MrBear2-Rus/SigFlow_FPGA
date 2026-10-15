@@ -4334,6 +4334,17 @@ void MainFrame::RunTraceBridgeCapture(
                         }
                         attempt.window.sampleCount = capture.samples.size();
                         attempt.window.triggerIndex = capture.triggerIndex;
+                        // Hash canonical little-endian sample words so repeated
+                        // windows can be marked as duplicates without hashing
+                        // VCD timestamps or capture-specific file headers.
+                        std::string sampleBytes;
+                        sampleBytes.reserve(capture.samples.size() * sizeof(std::uint32_t));
+                        for (const std::uint32_t sample : capture.samples) {
+                            for (unsigned shift = 0; shift < 32; shift += 8) {
+                                sampleBytes.push_back(static_cast<char>((sample >> shift) & 0xFFu));
+                            }
+                        }
+                        attempt.window.dataHash = sigflow::debug::Sha256String(sampleBytes);
                         attempt.window.identity = request.contract.transport.protocol == "full" &&
                                                   acquisitionOptions.checkFingerprint &&
                                                   request.contract.fingerprints.fingerprint64 != 0
