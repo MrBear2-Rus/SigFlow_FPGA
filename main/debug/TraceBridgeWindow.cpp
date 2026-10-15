@@ -2508,11 +2508,27 @@ void TraceBridgeWindow::OnPlanProbes(wxCommandEvent&) {
             rows->SetItem(row, 1, ToWxString(entry.signal));
             rows->SetItem(row, 2, wxString::Format("%u", entry.width));
             rows->SetItem(row, 3, ToWxString(entry.clockDomain));
-            rows->SetItem(row, 4, ToWxString(entry.selected ? entry.reason : entry.diagnostic));
+            std::string rationale = entry.selected ? entry.reason : entry.diagnostic;
+            if (entry.impactBasis != "none") {
+                rationale += " | impact=" + entry.impactBasis +
+                             " penalty=" + std::to_string(entry.impactPenalty);
+                if (!entry.impactEvidencePath.empty()) rationale +=
+                    " evidence=" + entry.impactEvidencePath;
+            }
+            if (!entry.distinguishingCandidates.empty()) {
+                rationale += " | distinguishes=";
+                for (std::size_t i = 0; i < entry.distinguishingCandidates.size(); ++i) {
+                    if (i != 0) rationale += ",";
+                    rationale += entry.distinguishingCandidates[i];
+                }
+            }
+            rows->SetItem(row, 4, ToWxString(rationale));
         }
         wxString text = wxString::Format(wxT("预算 %zu/%zu bits；%s；%s\n"), plan.usedBits, plan.capacityBits,
             plan.feasible ? wxT("必选项满足") : wxT("存在必选缺口"),
             plan.requiresNewBuild ? wxT("应用后需要重新构建并下载") : wxT("未新增探针"));
+        if (plan.impactFeedbackUsed) text += wxT("已应用 TB-27 实现影响反馈（实测与估计分开记录）。\n");
+        if (plan.evidenceSupplementUsed) text += wxT("已纳入 TB-23 证据补采候选；选中后需要新构建。\n");
         if (!plan.groups.empty()) {
             text += wxT("分组摘要（时钟域/主题）:\n");
             for (const auto& group : plan.groups) {

@@ -40,11 +40,27 @@ bool ProbePlanningService::Plan(const ProbePlanningRequest& request, const Signa
     std::map<std::string, const DebugProbe*> existing;
     std::vector<ProbeCandidate> candidates;
     std::vector<ProbeRequirement> requirements;
+    auto applyImpactHint = [&](ProbeCandidate& candidate) {
+        for (const auto& hint : request.impactHints) {
+            if (hint.signal != candidate.signal) continue;
+            candidate.fanout = hint.fanout;
+            candidate.estimatedLutCost = hint.estimatedLutCost;
+            candidate.measuredLutDelta = hint.measuredLutDelta;
+            candidate.measuredLutDeltaAvailable = hint.measuredLutDeltaAvailable;
+            candidate.combinationalObservation = hint.combinationalObservation;
+            candidate.clockSensitive = hint.clockSensitive;
+            candidate.resetSensitive = hint.resetSensitive;
+            candidate.impactEvidencePath = hint.evidencePath;
+            break;
+        }
+    };
     bool withheldUnqualified = false;
     for (const auto& probe : request.contract.probes) {
         existing[probe.path] = &probe;
-        candidates.push_back({probe.path, Domain(request.contract, probe), probe.width,
-                              true, probe.width != 0, excluded.count(probe.path) != 0, true});
+        ProbeCandidate candidate{probe.path, Domain(request.contract, probe), probe.width,
+                                true, probe.width != 0, excluded.count(probe.path) != 0, true};
+        applyImpactHint(candidate);
+        candidates.push_back(std::move(candidate));
         requirements.push_back({probe.path, "preserve existing probe and bit offsets", "context",
                                 Domain(request.contract, probe), probe.width, 100, true});
     }
@@ -61,8 +77,11 @@ bool ProbePlanningService::Plan(const ProbePlanningRequest& request, const Signa
             const unsigned width = location.width != 0 ? location.width : probe ? probe->width : 0;
             const std::string domain = !location.clockDomain.empty() ? location.clockDomain
                 : probe ? Domain(request.contract, *probe) : "";
-            candidates.push_back({path, domain, width, true, width != 0,
-                                  excluded.count(path) != 0, probe != nullptr});
+            ProbeCandidate candidate{path, domain, width, true, width != 0,
+                                     excluded.count(path) != 0, probe != nullptr};
+            candidate.fanout = location.fanout;
+            applyImpactHint(candidate);
+            candidates.push_back(std::move(candidate));
         }
     }
     for (const auto& probe : request.requestedProbes) {
@@ -91,12 +110,33 @@ bool ProbePlanningService::Plan(const ProbePlanningRequest& request, const Signa
             }
         }
     }
+    for (const auto& suggestion : request.evidenceSuggestions) {
+        if (suggestion.signal.empty()) continue;
+        ProbeRequirement requirement;
+        requirement.signal = suggestion.signal;
+        requirement.reason = suggestion.reason.empty()
+            ? "supplementary evidence for root-cause candidates" : suggestion.reason;
+        requirement.kind = suggestion.kind.empty() ? "evidence-supplement" : suggestion.kind;
+        requirement.clockDomain = suggestion.clockDomain;
+        requirement.width = suggestion.widthKnown ? suggestion.width : 0;
+        requirement.priority = suggestion.priority;
+        requirement.required = false;
+        requirement.distinguishingCandidates = suggestion.distinguishingCandidates;
+        requirements.push_back(std::move(requirement));
+    }
     if (!ProbePlanner::Plan(requirements, candidates, request.capacityBits, result, error)) return false;
     result.contractSnapshot = request.contract.ToJson();
     if (sourceMap) result.diagnostics.push_back("source map is static planning evidence; new probes require build validation");
     if (!sourceMap) result.diagnostics.push_back("no source map: only existing contract probes have authoritative width/visibility");
     if (withheldUnqualified) result.diagnostics.push_back("unqualified source records withheld: an explicit instance path is required");
     if (!request.symptomSignal.empty() && !graph) result.diagnostics.push_back("no dependency graph: upstream recommendations unavailable");
+    if (!request.impactHints.empty()) {
+        result.diagnostics.push_back("TB-27 impact hints are advisory; measured deltas are kept separate from estimated fanout/cost");
+    }
+    if (!request.evidenceSuggestions.empty()) {
+        result.evidenceSupplementUsed = true;
+        result.diagnostics.push_back("TB-23 evidence supplement suggestions are optional and require explicit user application");
+    }
     if (result.feasible) {
         DebugContract draft;
         if (!BuildDraft(request.contract, result, draft, error)) return false;

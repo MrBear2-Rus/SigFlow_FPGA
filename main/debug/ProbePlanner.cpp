@@ -22,6 +22,35 @@ int KindRank(const std::string& kind)
     return 5;
 }
 
+int ImpactPenalty(const ProbeCandidate& candidate)
+{
+    int penalty = 0;
+    if (candidate.measuredLutDeltaAvailable) {
+        // Measured deltas are authoritative, but clamp their influence so a
+        // single outlier cannot starve every other optional observation.
+        penalty += static_cast<int>(std::min<std::int64_t>(40,
+            std::max<std::int64_t>(0, candidate.measuredLutDelta)));
+    } else if (candidate.estimatedLutCost != 0) {
+        penalty += static_cast<int>(std::min<std::uint64_t>(25, candidate.estimatedLutCost));
+    }
+    if (candidate.fanout >= 128) penalty += 25;
+    else if (candidate.fanout >= 32) penalty += 10;
+    if (candidate.combinationalObservation) penalty += 5;
+    if (candidate.clockSensitive) penalty += 5;
+    if (candidate.resetSensitive) penalty += 3;
+    return penalty;
+}
+
+const char* ImpactBasis(const ProbeCandidate& candidate)
+{
+    if (candidate.measuredLutDeltaAvailable) return "measured";
+    if (candidate.estimatedLutCost != 0 || candidate.fanout != 0 ||
+        candidate.combinationalObservation || candidate.clockSensitive || candidate.resetSensitive) {
+        return "estimated";
+    }
+    return "none";
+}
+
 Json::Value EntryJson(const ProbePlanEntry& entry)
 {
     Json::Value value(Json::objectValue);
@@ -36,6 +65,12 @@ Json::Value EntryJson(const ProbePlanEntry& entry)
     value["selected"] = entry.selected;
     value["needs_new_build"] = entry.needsNewBuild;
     value["diagnostic"] = entry.diagnostic;
+    Json::Value distinguishing(Json::arrayValue);
+    for (const auto& signal : entry.distinguishingCandidates) distinguishing.append(signal);
+    value["distinguishing_candidates"] = distinguishing;
+    value["impact_penalty"] = entry.impactPenalty;
+    value["impact_basis"] = entry.impactBasis;
+    value["impact_evidence_path"] = entry.impactEvidencePath;
     return value;
 }
 
@@ -60,6 +95,8 @@ std::string ProbePlan::ToJson() const
     root["used_bits"] = static_cast<Json::UInt64>(usedBits);
     root["feasible"] = feasible;
     root["requires_new_build"] = requiresNewBuild;
+    root["impact_feedback_used"] = impactFeedbackUsed;
+    root["evidence_supplement_used"] = evidenceSupplementUsed;
     if (!contractSnapshot.empty()) root["contract_snapshot"] = contractSnapshot;
     Json::Value entries(Json::arrayValue);
     for (const auto& entry : this->entries) entries.append(EntryJson(entry));
@@ -107,6 +144,27 @@ bool ProbePlanner::Plan(const std::vector<ProbeRequirement>& requirements,
                 candidate.excluded != current.excluded || candidate.alreadySelected != current.alreadySelected) {
                 conflictingCandidates.insert(candidate.signal);
             }
+            // Contract and source-map records commonly describe the same
+            // signal.  Merge one-sided implementation metadata while still
+            // rejecting two contradictory measurements.
+            auto& merged = it->second;
+            if (merged.fanout == 0) merged.fanout = candidate.fanout;
+            else if (candidate.fanout != 0 && merged.fanout != candidate.fanout)
+                conflictingCandidates.insert(candidate.signal);
+            if (merged.estimatedLutCost == 0) merged.estimatedLutCost = candidate.estimatedLutCost;
+            else if (candidate.estimatedLutCost != 0 && merged.estimatedLutCost != candidate.estimatedLutCost)
+                conflictingCandidates.insert(candidate.signal);
+            if (!merged.measuredLutDeltaAvailable && candidate.measuredLutDeltaAvailable) {
+                merged.measuredLutDelta = candidate.measuredLutDelta;
+                merged.measuredLutDeltaAvailable = true;
+            } else if (merged.measuredLutDeltaAvailable && candidate.measuredLutDeltaAvailable &&
+                       merged.measuredLutDelta != candidate.measuredLutDelta) {
+                conflictingCandidates.insert(candidate.signal);
+            }
+            merged.combinationalObservation = merged.combinationalObservation || candidate.combinationalObservation;
+            merged.clockSensitive = merged.clockSensitive || candidate.clockSensitive;
+            merged.resetSensitive = merged.resetSensitive || candidate.resetSensitive;
+            if (merged.impactEvidencePath.empty()) merged.impactEvidencePath = candidate.impactEvidencePath;
         }
     }
 
@@ -132,14 +190,30 @@ bool ProbePlanner::Plan(const std::vector<ProbeRequirement>& requirements,
                 requirement.clockDomain < it->second.clockDomain)) it->second.clockDomain = requirement.clockDomain;
             if (it->second.width == 0 || (requirement.width != 0 && requirement.width < it->second.width))
                 it->second.width = requirement.width;
+            for (const auto& signal : requirement.distinguishingCandidates) {
+                if (std::find(it->second.distinguishingCandidates.begin(),
+                              it->second.distinguishingCandidates.end(), signal) ==
+                    it->second.distinguishingCandidates.end()) {
+                    it->second.distinguishingCandidates.push_back(signal);
+                }
+            }
         }
     }
 
     std::vector<ProbeRequirement> ordered;
     ordered.reserve(requirementBySignal.size());
     for (const auto& item : requirementBySignal) ordered.push_back(item.second);
-    std::stable_sort(ordered.begin(), ordered.end(), [](const auto& left, const auto& right) {
+    std::stable_sort(ordered.begin(), ordered.end(), [&](const auto& left, const auto& right) {
         if (left.required != right.required) return left.required > right.required;
+        const auto leftCandidate = candidateBySignal.find(left.signal);
+        const auto rightCandidate = candidateBySignal.find(right.signal);
+        const int leftPenalty = !left.required && leftCandidate != candidateBySignal.end()
+            ? ImpactPenalty(leftCandidate->second) : 0;
+        const int rightPenalty = !right.required && rightCandidate != candidateBySignal.end()
+            ? ImpactPenalty(rightCandidate->second) : 0;
+        const int leftPriority = left.priority - leftPenalty;
+        const int rightPriority = right.priority - rightPenalty;
+        if (leftPriority != rightPriority) return leftPriority > rightPriority;
         if (left.priority != right.priority) return left.priority > right.priority;
         if (KindRank(left.kind) != KindRank(right.kind)) return KindRank(left.kind) < KindRank(right.kind);
         return left.signal < right.signal;
@@ -158,6 +232,7 @@ bool ProbePlanner::Plan(const std::vector<ProbeRequirement>& requirements,
         entry.width = requirement.width;
         entry.priority = requirement.priority;
         entry.required = requirement.required;
+        entry.distinguishingCandidates = requirement.distinguishingCandidates;
 
         const auto candidateIt = candidateBySignal.find(requirement.signal);
         if (conflictingRequirements.count(requirement.signal)) {
@@ -168,6 +243,10 @@ bool ProbePlanner::Plan(const std::vector<ProbeRequirement>& requirements,
             entry.diagnostic = "signal is not visible in the current design";
         } else {
             const ProbeCandidate& candidate = candidateIt->second;
+            entry.impactPenalty = ImpactPenalty(candidate);
+            entry.impactBasis = ImpactBasis(candidate);
+            entry.impactEvidencePath = candidate.impactEvidencePath;
+            if (entry.impactBasis != "none") result.impactFeedbackUsed = true;
             if (!candidate.visible) entry.diagnostic = "signal is not visible in the current design";
             else if (candidate.excluded) entry.diagnostic = "signal is excluded by the current plan";
             else if (!candidate.knownWidth || candidate.width == 0) entry.diagnostic = "signal width is unknown";
@@ -190,11 +269,16 @@ bool ProbePlanner::Plan(const std::vector<ProbeRequirement>& requirements,
                     entry.needsNewBuild = !candidate.alreadySelected;
                     result.usedBits += entry.width;
                     result.requiresNewBuild = result.requiresNewBuild || entry.needsNewBuild;
+                    if (entry.impactBasis != "none") {
+                        entry.reason += "; implementation impact=" + entry.impactBasis;
+                    }
                 } else {
                     entry.diagnostic = "probe budget exceeded";
                 }
             }
         }
+
+        if (entry.kind == "evidence-supplement") result.evidenceSupplementUsed = true;
 
         if (entry.required && !entry.selected) {
             result.feasible = false;
@@ -218,6 +302,12 @@ bool ProbePlanner::Plan(const std::vector<ProbeRequirement>& requirements,
         if (entry.selected) group.selectedBits += entry.width;
     }
     for (const auto& item : groups) result.groups.push_back(item.second);
+    if (result.impactFeedbackUsed) {
+        result.diagnostics.push_back("optional probes were ordered with implementation impact evidence; measured values are not replaced by estimates");
+    }
+    if (result.evidenceSupplementUsed) {
+        result.diagnostics.push_back("evidence supplement candidates are optional and require a new build when selected");
+    }
     return true;
 }
 

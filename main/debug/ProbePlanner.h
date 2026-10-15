@@ -17,6 +17,19 @@ struct ProbeRequirement {
     std::uint32_t width = 0;   // 0 = 未知，不能当作零成本
     int priority = 0;
     bool required = false;
+    std::vector<std::string> distinguishingCandidates;
+};
+
+struct ProbeImpactHint {
+    std::string signal;
+    std::size_t fanout = 0;
+    std::uint64_t estimatedLutCost = 0;
+    std::int64_t measuredLutDelta = 0;
+    bool measuredLutDeltaAvailable = false;
+    bool combinationalObservation = false;
+    bool clockSensitive = false;
+    bool resetSensitive = false;
+    std::string evidencePath;
 };
 
 struct ProbeCandidate {
@@ -27,6 +40,14 @@ struct ProbeCandidate {
     bool knownWidth = true;
     bool excluded = false;
     bool alreadySelected = false;
+    std::size_t fanout = 0;
+    std::uint64_t estimatedLutCost = 0;
+    std::int64_t measuredLutDelta = 0;
+    bool measuredLutDeltaAvailable = false;
+    bool combinationalObservation = false;
+    bool clockSensitive = false;
+    bool resetSensitive = false;
+    std::string impactEvidencePath;
 };
 
 struct ProbePlanEntry {
@@ -43,6 +64,10 @@ struct ProbePlanEntry {
     bool selected = false;
     bool needsNewBuild = false;
     std::string diagnostic;
+    std::vector<std::string> distinguishingCandidates;
+    int impactPenalty = 0;
+    std::string impactBasis; // none / estimated / measured
+    std::string impactEvidencePath;
 };
 
 struct ProbePlanGroup {
@@ -59,6 +84,8 @@ struct ProbePlan {
     std::size_t usedBits = 0;
     bool feasible = true;
     bool requiresNewBuild = false;
+    bool impactFeedbackUsed = false;
+    bool evidenceSupplementUsed = false;
     std::string contractSnapshot; // populated by contract-aware planning
     std::vector<ProbePlanEntry> entries;
     std::vector<ProbePlanGroup> groups;

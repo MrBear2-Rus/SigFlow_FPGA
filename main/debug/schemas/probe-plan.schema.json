@@ -11,6 +11,8 @@
     "used_bits": { "type": "integer", "minimum": 0 },
     "feasible": { "type": "boolean" },
     "requires_new_build": { "type": "boolean" },
+    "impact_feedback_used": { "type": "boolean" },
+    "evidence_supplement_used": { "type": "boolean" },
     "contract_snapshot": { "type": "string" },
     "entries": {
       "type": "array",
@@ -28,7 +30,11 @@
           "required": { "type": "boolean" },
           "selected": { "type": "boolean" },
           "needs_new_build": { "type": "boolean" },
-          "diagnostic": { "type": "string" }
+          "diagnostic": { "type": "string" },
+          "distinguishing_candidates": { "type": "array", "items": { "type": "string" } },
+          "impact_penalty": { "type": "integer", "minimum": 0 },
+          "impact_basis": { "enum": ["none", "estimated", "measured"] },
+          "impact_evidence_path": { "type": "string" }
         },
         "additionalProperties": true
       }
