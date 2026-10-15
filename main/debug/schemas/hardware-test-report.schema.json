@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sigflow.local/schema/tracebridge/hardware-test-report-1.0.json",
+  "title": "TraceBridge hardware smoke report",
+  "type": "object",
+  "required": ["schema_version", "tool", "status", "started_at", "completed_at",
+               "port", "baud", "programmed", "diagnostics"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "tool": { "enum": ["tracebridge_hardware_smoke", "tracebridge_hardware_negative_smoke"] },
+    "status": { "enum": ["PASS", "FAIL", "BLOCKED"] },
+    "started_at": { "type": "string", "minLength": 1 },
+    "completed_at": { "type": "string", "minLength": 1 },
+    "port": { "type": "string", "minLength": 1 },
+    "baud": { "type": "integer", "minimum": 1 },
+    "board": { "type": "string" },
+    "bitstream": { "type": "string" },
+    "programmed": { "type": "boolean" },
+    "expected_depth": { "type": "integer", "minimum": 1 },
+    "expected_width": { "type": "integer", "minimum": 1 },
+    "read_count": { "type": "integer", "minimum": -1 },
+    "decimation": { "type": "integer", "minimum": 0, "maximum": 255 },
+    "capture_id": { "type": "string" },
+    "run_root": { "type": "string" },
+    "checks": { "type": "array", "items": { "type": "object" } },
+    "diagnostics": { "type": "array", "items": { "type": "string" } }
+  },
+  "additionalProperties": true
+}

@@ -26,7 +26,8 @@ public:
     };
 
     static constexpr std::uint32_t kMagic = 0x53465431; // "SFT1"
-    static constexpr std::uint32_t kVersion = 1;
+    // v2 uses the native file-clock stamp and a validated 64-bit time index.
+    static constexpr std::uint32_t kVersion = 2;
 
     std::string sourcePath;
     std::uint64_t sourceSize = 0;

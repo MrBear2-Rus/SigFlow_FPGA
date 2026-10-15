@@ -7,8 +7,12 @@
 #include "WaveformComparator.h"
 #include "../wave/TraceViewPanel.h"
 
+#include "ui/UiTheme.h"   // T-140 / THE-030：子窗主题刷新
+
 #include <atomic>
+#include <cstddef>
 #include <condition_variable>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -43,6 +47,19 @@ struct TraceBridgeCaptureRequest {
     std::string serialPort;
     sigflow::debug::DebugContract contract;
     sigflow::debug::DebugAcquisitionOptions options;
+    // Keep the cancellation flag alive through detached host capture workers.
+    std::shared_ptr<std::atomic<bool>> abortOwner;
+
+    // Host-side capture plan. Defaults preserve the existing single-shot UX;
+    // the fields are intentionally carried in the request so a future plan
+    // editor can opt into bounded repeated capture without changing the
+    // transport or acquisition API.
+    std::size_t captureTargetCount = 1;
+    std::size_t captureMaxAttempts = 0;
+    std::size_t captureStopAfterFailures = 3;
+    std::uint32_t captureTotalTimeoutMs = 60000;
+    std::uint32_t captureAttemptTimeoutMs = 5000;
+    std::uint32_t captureInterAttemptDelayMs = 0;
 };
 
 struct TraceBridgeDebugBuildRequest {
@@ -94,6 +111,8 @@ public:
     void SetCaptureResult(bool success, const wxString& message, const wxString& vcdPath = wxEmptyString);
 
 private:
+    void ApplyTheme();
+
     void BuildUi();
     void BuildLeftPanel(wxPanel* left);
     void BuildRightPanel(wxPanel* right);
@@ -115,6 +134,8 @@ private:
     void OnBrowseContract(wxCommandEvent&);
     void OnReloadContract(wxCommandEvent&);
     void OnRefreshPorts(wxCommandEvent&);
+    void OnSelfTest(wxCommandEvent&);
+    void OnPlanProbes(wxCommandEvent&);
     void OnStartCapture(wxCommandEvent&);
     void OnBuildDebugBitstream(wxCommandEvent&);
     void OnBuildProgramCapture(wxCommandEvent&);
@@ -165,7 +186,12 @@ private:
 
     // 线程相关
     std::unique_ptr<std::thread> worker_;
-    std::atomic<bool> m_aborted{false};
+    std::shared_ptr<std::atomic<bool>> m_aborted = std::make_shared<std::atomic<bool>>(false);
+
+    // T-140 / THE-030：主题刷新（THE-028：订阅句柄析构即解绑）
+    UiTheme::Subscription themeSubscription_;
+    wxPanel* leftPanel_ = nullptr;
+    wxPanel* rightPanel_ = nullptr;
 
     // UI 控件
     wxSplitterWindow* splitter_ = nullptr;
@@ -189,6 +215,7 @@ private:
     wxStaticText* waveHint_ = nullptr;
     wxTextCtrl* probeEditor_ = nullptr;
     bool loadingContract_ = false;
+    bool pendingProbeBuild_ = false;
 
     // 右侧波形面板
     wxNotebook* rightNotebook_ = nullptr;

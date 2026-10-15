@@ -106,24 +106,42 @@ inline std::vector<uint8_t> FrameEncode(uint8_t type, uint8_t seq,
     return wire;
 }
 
-inline bool FrameDecode(const std::vector<uint8_t>& wire, uint8_t& type, uint8_t& seq,
-                        std::vector<uint8_t>& data)
+enum class FrameDecodeError {
+    None,
+    InvalidWire,
+    Cobs,
+    ShortPayload,
+    Version,
+    Length,
+    Crc,
+};
+
+inline FrameDecodeError FrameDecodeDetailed(const std::vector<uint8_t>& wire,
+                                            uint8_t& type, uint8_t& seq,
+                                            std::vector<uint8_t>& data)
 {
-    if (wire.size() < 2 || wire.front() != 0 || wire.back() != 0) return false;
+    if (wire.size() < 2 || wire.front() != 0 || wire.back() != 0)
+        return FrameDecodeError::InvalidWire;
     const std::vector<uint8_t> body(wire.begin() + 1, wire.end() - 1);
     std::vector<uint8_t> payload;
-    if (!CobsDecode(body, payload)) return false;
-    if (payload.size() < 6) return false;
-    if (payload[0] != 0x01) return false;
+    if (!CobsDecode(body, payload)) return FrameDecodeError::Cobs;
+    if (payload.size() < 6) return FrameDecodeError::ShortPayload;
+    if (payload[0] != 0x01) return FrameDecodeError::Version;
     type = payload[1];
     seq = payload[2];
     const size_t len = payload[3];
-    if (payload.size() != 4 + len + 2) return false;
+    if (payload.size() != 4 + len + 2) return FrameDecodeError::Length;
     const uint16_t crc =
         Crc16(std::vector<uint8_t>(payload.begin(), payload.begin() + 4 + len));
-    if (crc != (payload[4 + len] | (payload[5 + len] << 8))) return false;
+    if (crc != (payload[4 + len] | (payload[5 + len] << 8))) return FrameDecodeError::Crc;
     data.assign(payload.begin() + 4, payload.begin() + 4 + len);
-    return true;
+    return FrameDecodeError::None;
+}
+
+inline bool FrameDecode(const std::vector<uint8_t>& wire, uint8_t& type, uint8_t& seq,
+                        std::vector<uint8_t>& data)
+{
+    return FrameDecodeDetailed(wire, type, seq, data) == FrameDecodeError::None;
 }
 
 } // namespace proto
@@ -141,6 +159,19 @@ struct DebugInfo {
 struct DebugStatusInfo {
     std::uint8_t flags = 0;  // bit6 done, bit5 triggered, bit4 busy
     std::uint16_t triggerIndex = 0;
+};
+
+// 协议层统计与 TransportStats 分开，避免把重试/坏帧误算成 I/O 错误。
+struct ProtocolStats {
+    std::uint64_t commandCalls = 0;
+    std::uint64_t attempts = 0;
+    std::uint64_t retries = 0;
+    std::uint64_t responseTimeouts = 0;
+    std::uint64_t writeFailures = 0;
+    std::uint64_t malformedFrames = 0;
+    std::uint64_t crcErrors = 0;
+    std::uint64_t sequenceMismatches = 0;
+    std::uint64_t invalidResponses = 0;
 };
 
 // 主机协议客户端（T-P3-02）：发送命令、等待同 seq 响应、有限重试、分块读取。
@@ -175,6 +206,7 @@ public:
     // 断链后重连：重新 Open + 同步校准（自动重连开关见 SetAutoReconnect）。
     bool Reconnect(std::string& error);
     void SetAutoReconnect(bool enabled) { autoReconnect_ = enabled; }
+    const ProtocolStats& Stats() const { return stats_; }
 
 private:
     bool RoundTripInternal(std::uint8_t type, const std::vector<std::uint8_t>& data,
@@ -187,6 +219,7 @@ private:
     ITransport& transport_;
     std::uint8_t seq_ = 0;
     bool autoReconnect_ = false;
+    ProtocolStats stats_;
 };
 
 // 专用 UART 的最小固定帧协议客户端，对应 sf_debug_link_minimal.sv。
@@ -208,6 +241,7 @@ public:
                      int timeoutMs, int attempts, const ReadProgressCb& progressCb);
     bool Reset(std::string& error, int timeoutMs = 1000, int attempts = 3);
     void SetAutoReconnect(bool enabled) { autoReconnect_ = enabled; }
+    const ProtocolStats& Stats() const { return stats_; }
 
 private:
     bool Command(std::uint8_t command, const std::vector<std::uint8_t>& data,
@@ -218,6 +252,7 @@ private:
 
     ITransport& transport_;
     bool autoReconnect_ = false;
+    ProtocolStats stats_;
 };
 
 // capture.raw 保存（T-P3-02；与 Loopback golden 格式一致）：

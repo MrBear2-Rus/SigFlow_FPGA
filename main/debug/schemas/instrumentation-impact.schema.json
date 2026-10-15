@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sigflow.local/schemas/instrumentation-impact.schema.json",
+  "title": "TraceBridge Instrumentation Impact Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "comparability", "source_changed", "seed_changed", "blocking_differences", "allowed_differences", "resources", "timing", "gate"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "comparability": { "enum": ["comparable", "observation_only", "not_comparable"] },
+    "source_changed": { "type": "boolean" },
+    "seed_changed": { "type": "boolean" },
+    "blocking_differences": { "type": "array", "items": { "type": "string" } },
+    "allowed_differences": { "type": "array", "items": { "type": "string" } },
+    "resources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["normalized_name", "baseline_key", "instrumented_key", "baseline_used", "instrumented_used", "capacity", "absolute_delta", "available", "relative_available", "relative_delta", "diagnostic"],
+        "properties": {
+          "normalized_name": { "type": "string" },
+          "baseline_key": { "type": "string" },
+          "instrumented_key": { "type": "string" },
+          "baseline_used": { "type": "integer", "minimum": 0 },
+          "instrumented_used": { "type": "integer", "minimum": 0 },
+          "capacity": { "type": "integer", "minimum": 0 },
+          "absolute_delta": { "type": "integer" },
+          "available": { "type": "boolean" },
+          "relative_available": { "type": "boolean" },
+          "relative_delta": { "type": "number" },
+          "diagnostic": { "type": "string" }
+        }
+      }
+    },
+    "timing": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["domain", "target_mhz", "baseline_mhz", "instrumented_mhz", "baseline_available", "instrumented_available", "baseline_passed", "instrumented_passed", "diagnostic"],
+        "properties": {
+          "domain": { "type": "string", "minLength": 1 },
+          "target_mhz": { "type": "number" },
+          "baseline_mhz": { "type": "number" },
+          "instrumented_mhz": { "type": "number" },
+          "baseline_available": { "type": "boolean" },
+          "instrumented_available": { "type": "boolean" },
+          "baseline_passed": { "type": "boolean" },
+          "instrumented_passed": { "type": "boolean" },
+          "diagnostic": { "type": "string" }
+        }
+      }
+    },
+    "gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pass", "overridden", "override_id", "override_reason", "reasons"],
+      "properties": {
+        "pass": { "type": "boolean" },
+        "overridden": { "type": "boolean" },
+        "override_id": { "type": "string" },
+        "override_reason": { "type": "string" },
+        "reasons": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

@@ -24,6 +24,9 @@ public:
 
     std::size_t Read(std::uint8_t* data, std::size_t size, int timeoutMs) override;
     bool Write(const std::uint8_t* data, std::size_t size, int timeoutMs) override;
+    // 管道没有串口驱动的接收 FIFO 清空语义；保持字节流残留，
+    // 由协议层仅在安全重同步点决定是否丢弃。
+    void DiscardInput() override {}
 
     // 创建一对连通的端点（host 为客户端，device 为服务端）。
     static bool CreatePair(std::string pipeName,

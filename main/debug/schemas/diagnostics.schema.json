@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sigflow.local/schema/tracebridge/diagnostics-1.0.json",
+  "title": "TraceBridge diagnostic report",
+  "type": "object",
+  "required": ["schema_version", "run_id", "state", "generated_at", "summary", "issues", "attempt_issues"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "run_id": { "type": "string", "minLength": 1 },
+    "state": { "type": "string" },
+    "generated_at": { "type": "string" },
+    "plan_id": { "type": "string" },
+    "summary": {
+      "type": "object",
+      "required": ["attempts", "completed_windows", "timeout_count", "failure_count"],
+      "properties": {
+        "attempts": { "type": "integer", "minimum": 0 },
+        "completed_windows": { "type": "integer", "minimum": 0 },
+        "timeout_count": { "type": "integer", "minimum": 0 },
+        "failure_count": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": true
+    },
+    "issues": { "type": "array", "items": { "$ref": "#/$defs/issue" } },
+    "attempt_issues": { "type": "array", "items": { "$ref": "#/$defs/issue" } }
+  },
+  "$defs": {
+    "issue": {
+      "type": "object",
+      "required": ["code", "stage", "severity", "observed", "action", "evidence"],
+      "properties": {
+        "code": { "type": "string", "minLength": 1 },
+        "stage": { "type": "string" },
+        "severity": { "enum": ["info", "warning", "error", "blocking"] },
+        "observed": { "type": "string" },
+        "action": { "type": "string" },
+        "evidence": { "type": "array", "items": { "type": "string" } },
+        "attempt_id": { "type": "string" },
+        "attempt_number": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

@@ -23,6 +23,10 @@ float ScalarY(const WaveViewState& state, int row, const std::string& value)
 
 } // namespace
 
+// 遗留：按行索引轮转的 8 色调色板。
+// T-325 起波形着色改走 WaveTheme.h 的 SignalColour()（CMP-064 四类语义色：
+// clk=brand / rst=accent / 总线=warn / 其它=text1 82%），本表已不再参与渲染，
+// 保留仅为兼容既有调用方（当前无调用点）；删除需同步改 WaveformRenderData.h。
 const WaveColor& WavePalette(int index)
 {
     static const WaveColor palette[] = {
@@ -56,6 +60,8 @@ bool BuildWaveformFrame(sigflow::trace::TraceSource& source,
     out.signals.clear();
     out.ticks.clear();
     out.error.clear();
+    out.timeUnitLabel = source.TimeDomain() == sigflow::trace::TraceTimeDomain::Physical
+        ? "tick=" + source.Timescale() : "sample-index/unknown";
     if (!state.valid || state.timeSpan == 0 ||
         width <= state.leftMargin + state.rightMargin) {
         out.error = "invalid view state or window too small";

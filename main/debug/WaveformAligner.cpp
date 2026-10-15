@@ -1,4 +1,5 @@
 #include "WaveformAligner.h"
+#include "WaveformTimeCompatibility.h"
 
 #include <algorithm>
 #include <cctype>
@@ -253,6 +254,11 @@ AlignmentResult WaveformAligner::Align(vcd_t* hw, vcd_t* sim,
                                        const std::vector<std::string>& anchorCandidates,
                                        std::uint16_t triggerIndex) {
     AlignmentResult result;
+    if (!CompatibleWaveformTime(hw, sim, result.message)) return result;
+    if (triggerIndex != 0 && !hw->has_trigger_time) {
+        result.message = "TRIGGER_TIME_UNKNOWN: trigger index is not a physical timestamp";
+        return result;
+    }
     if (!hw || !sim) {
         result.message = "VCD 数据为空";
         result.qualityMessage = "缺少硬件或仿真波形";
@@ -310,8 +316,8 @@ AlignmentResult WaveformAligner::Align(vcd_t* hw, vcd_t* sim,
         if (!FindFirstValue(sim, name, '1', simTime) &&
             !FindEdge(sim, name, '0', '1', simTime)) continue;
         timestamp_t hwTime = 0;
-        if (triggerIndex != 0) {
-            hwTime = triggerIndex;
+        if (hw->has_trigger_time) {
+            hwTime = hw->trigger_time;
         } else if (!FindFirstValue(hw, name, '1', hwTime) &&
                    !FindEdge(hw, name, '0', '1', hwTime)) {
             continue;
@@ -324,26 +330,13 @@ AlignmentResult WaveformAligner::Align(vcd_t* hw, vcd_t* sim,
         result.timeOffset = static_cast<std::int64_t>(simTime) -
                             static_cast<std::int64_t>(hwTime);
         result.matchedAnchors = 1;
-        SetQuality(result, triggerIndex == 0 ? 0.9 : 0.82,
-                   triggerIndex != 0, triggerIndex == 0
+        SetQuality(result, !hw->has_trigger_time ? 0.9 : 0.82,
+                   hw->has_trigger_time, !hw->has_trigger_time
                        ? "检测到 HW/Sim 相同触发信号"
-                       : "硬件使用触发样本索引，仿真使用同名触发信号");
+                       : "硬件使用已换算的触发时间，仿真使用同名触发信号");
         result.message = "触发命中锚点[" + name + "]：HW t=" +
                          std::to_string(hwTime) + "，Sim t=" + std::to_string(simTime) +
                          "，偏移=" + std::to_string(result.timeOffset);
-        return result;
-    }
-
-    if (triggerIndex != 0) {
-        result.valid = true;
-        result.anchorKind = AnchorKind::TriggerHit;
-        result.anchorSignal = "trigger_index";
-        result.hwAnchorTime = triggerIndex;
-        result.simAnchorTime = triggerIndex;
-        result.timeOffset = 0;
-        result.matchedAnchors = 0;
-        SetQuality(result, 0.45, true, "只有硬件触发样本索引，仿真没有同条件触发信号");
-        result.message = "低置信度触发索引对齐：index=" + std::to_string(triggerIndex);
         return result;
     }
 

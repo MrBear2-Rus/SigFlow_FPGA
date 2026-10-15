@@ -91,6 +91,8 @@ private:
     int lengthOfTempWire;
     int tempWirePlus;
     bool m_isWireDraingCancel;
+    bool m_wireStartHeld = false;
+    wxPoint m_wireStartClient;
 
     void StartWireDrawingDown(const wxPoint& startPos, CPType startType, int wireIdx);
     void StartWireDrawingUp();

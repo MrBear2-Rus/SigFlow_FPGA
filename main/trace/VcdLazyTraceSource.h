@@ -26,6 +26,7 @@ public:
     const SignalInfo* SignalById(int id) const override;
     TraceTimeRange TimeRange() const override { return m_timeRange; }
     std::string Timescale() const override { return m_timescale; }
+    TraceTimeDomain TimeDomain() const override { return m_timeDomain; }
     const std::string& Path() const override { return m_path; }
     bool HasSidecar() const override { return m_sidecarLoaded; }
 
@@ -45,14 +46,15 @@ private:
                           std::string& value) const;
 
     static void TrimLine(std::string& line);
-    static TimeValue ParseTime(const std::string& text);
+    static bool ParseTime(const std::string& text, TimeValue& value);
 
     std::string m_path;
     std::vector<SignalInfo> m_signals;
     std::unordered_map<std::string, int> m_idToSignal;
     std::unordered_map<int, int> m_idToIndex;
     TraceTimeRange m_timeRange;
-    std::string m_timescale = "1ns";
+    std::string m_timescale;
+    TraceTimeDomain m_timeDomain = TraceTimeDomain::Unknown;
     std::uint64_t m_dataOffset = 0;
     std::uint64_t m_fileSize = 0;
     std::int64_t m_fileMtime = 0;

@@ -4,6 +4,7 @@
 #include "DebugContract.h"
 #include "DebugProtocol.h"
 #include "ITransport.h"
+#include "TransportMetrics.h"
 
 #include <atomic>
 #include <cstdint>
@@ -49,13 +50,16 @@ struct DebugAcquisitionOptions {
 };
 
 struct DebugAcquisitionResult {
-    std::vector<std::uint32_t> samples;  // 环形顺序（地址序 = 相对触发时间序）
+    std::vector<std::uint32_t> samples;  // finite linear buffer, ascending address order
     std::uint16_t triggerIndex = 0;
     std::uint64_t fingerprint64 = 0;
     std::uint16_t depth = 0;
     CaptureVcdMeta vcdMeta;
     std::string rawPath;
     std::string vcdPath;
+    std::string metadataPath;
+    TransportStats transportStats;
+    ProtocolStats protocolStats;
 };
 
 class DebugAcquisition {
@@ -66,7 +70,7 @@ public:
     bool Acquire(const std::string& outDir, std::string& error,
                  const DebugAcquisitionOptions& options = {});
 
-    // 采集并驱动会话状态（Armed → Captured / TimedOut / Failed）。
+    // 采集并驱动会话状态（Armed → Captured / TimedOut / Cancelled / Failed）。
     bool AcquireWithSession(const std::string& projectPath, const std::string& sessionId,
                             const std::string& outDir, std::string& error,
                             const DebugAcquisitionOptions& options = {});

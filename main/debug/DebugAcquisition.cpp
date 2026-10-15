@@ -15,6 +15,33 @@ namespace debug {
 
 namespace {
 
+struct TransportStatsCapture {
+    ITransport& transport;
+    DebugAcquisitionResult& result;
+    ~TransportStatsCapture()
+    {
+        const auto* measured = dynamic_cast<const InstrumentedTransport*>(&transport);
+        if (measured) result.transportStats = measured->Stats();
+    }
+};
+
+struct ProtocolStatsAccumulator {
+    ProtocolStats& target;
+    const ProtocolStats& source;
+    ~ProtocolStatsAccumulator()
+    {
+        target.commandCalls += source.commandCalls;
+        target.attempts += source.attempts;
+        target.retries += source.retries;
+        target.responseTimeouts += source.responseTimeouts;
+        target.writeFailures += source.writeFailures;
+        target.malformedFrames += source.malformedFrames;
+        target.crcErrors += source.crcErrors;
+        target.sequenceMismatches += source.sequenceMismatches;
+        target.invalidResponses += source.invalidResponses;
+    }
+};
+
 // intentParams JSON 中提取周期数（cycles/count/n），缺省 8。
 std::uint16_t IntentCycles(const std::string& intentParams)
 {
@@ -167,7 +194,20 @@ bool DebugAcquisition::TriggerParamsFromContract(const DebugContract& contract,
 bool DebugAcquisition::Acquire(const std::string& outDir, std::string& error,
                                const DebugAcquisitionOptions& options)
 {
+    result_ = DebugAcquisitionResult();
+    TransportStatsCapture statsCapture{transport_, result_};
+    error.clear();
     if (IsAborted(options)) { error = "Aborted"; return false; }
+    if (contract_.sampleClock.frequencyHz == 0 || contract_.capture.decimation == 0 ||
+        contract_.capture.decimation > 255 || contract_.sampleClock.frequencyHz >
+            1000000000000ULL * contract_.capture.decimation) {
+        error = "capture requires a known sample clock and decimation in 1..255";
+        return false;
+    }
+    if (contract_.capture.pretriggerSamples != 0) {
+        error = "current finite linear capture does not support a requested pretrigger sample count";
+        return false;
+    }
 
     const bool minimal = contract_.transport.protocol == "minimal";
     DebugInfo info;
@@ -186,6 +226,7 @@ bool DebugAcquisition::Acquire(const std::string& outDir, std::string& error,
         info.fingerprint64 = contract_.fingerprints.fingerprint64;
     } else {
         DebugProtocol protocol(transport_);
+        ProtocolStatsAccumulator protocolStatsCapture{result_.protocolStats, protocol.Stats()};
         protocol.SetAutoReconnect(options.autoReconnect);
         if (options.syncCalibrate) {
             FireProgress(options, DebugAcqStage::SyncCalibrate, 0, "同步校准");
@@ -253,6 +294,7 @@ bool DebugAcquisition::Acquire(const std::string& outDir, std::string& error,
             return false;
         }
         MinimalDebugProtocol protocol(transport_);
+        ProtocolStatsAccumulator protocolStatsCapture{result_.protocolStats, protocol.Stats()};
         protocol.SetAutoReconnect(options.autoReconnect);
 
         FireProgress(options, DebugAcqStage::Configure, 0, "CONFIG mask/value");
@@ -265,7 +307,9 @@ bool DebugAcquisition::Acquire(const std::string& outDir, std::string& error,
         if (IsAborted(options)) { error = "Aborted"; return false; }
 
         FireProgress(options, DebugAcqStage::Arm, 0, "ARM 触发");
-        if (!protocol.Arm(error, options.commandTimeoutMs, options.commandAttempts)) {
+        // ARM is not idempotent: a lost acknowledgement does not prove that
+        // the device stayed unarmed. Do not resend it automatically.
+        if (!protocol.Arm(error, options.commandTimeoutMs, 1)) {
             error = "ARM 失败: " + error;
             return false;
         }
@@ -320,6 +364,7 @@ bool DebugAcquisition::Acquire(const std::string& outDir, std::string& error,
                      "已回读 " + std::to_string(result_.samples.size()) + " 个样本");
     } else {
         DebugProtocol protocol(transport_);
+        ProtocolStatsAccumulator protocolStatsCapture{result_.protocolStats, protocol.Stats()};
         protocol.SetAutoReconnect(options.autoReconnect);
 
         FireProgress(options, DebugAcqStage::Configure, 0, "CONFIG mask/value/decimation/mode/count");
@@ -332,7 +377,7 @@ bool DebugAcquisition::Acquire(const std::string& outDir, std::string& error,
         if (IsAborted(options)) { error = "Aborted"; return false; }
 
         FireProgress(options, DebugAcqStage::Arm, 0, "ARM 触发");
-        if (!protocol.Arm(error, options.commandTimeoutMs, options.commandAttempts)) {
+        if (!protocol.Arm(error, options.commandTimeoutMs, 1)) {
             error = "ARM 失败: " + error;
             return false;
         }
@@ -418,10 +463,14 @@ bool DebugAcquisition::Acquire(const std::string& outDir, std::string& error,
         probes.push_back({ p.id, p.path, p.width, p.bitOffset });
     }
     if (!DecodeCaptureToVcd(result_.samples, info.depth, status.triggerIndex, probes,
-                            result_.vcdPath, result_.vcdMeta, error)) {
+                            result_.vcdPath, result_.vcdMeta, error,
+                            {contract_.sampleClock.frequencyHz, contract_.capture.decimation,
+                             (status.flags & 0x20) != 0})) {
         error = "VCD 解码失败: " + error;
         return false;
     }
+    result_.metadataPath = sigflow::platform::JoinPath(outDir, std::string("capture-meta.json"));
+    if (!SaveCaptureMetadata(result_.metadataPath, result_.vcdMeta, info.depth, status.triggerIndex, error)) return false;
     FireProgress(options, DebugAcqStage::DecodeVcd, 100,
                  "已生成 " + result_.vcdPath);
     FireProgress(options, DebugAcqStage::Done, 100, "采集完成");
@@ -463,7 +512,7 @@ bool DebugAcquisition::AcquireWithSession(const std::string& projectPath,
     DebugSessionState target = ok ? DebugSessionState::Captured : DebugSessionState::Failed;
     std::string reason = ok ? std::string("acquired") : error;
     if (!ok && error == "Aborted") {
-        target = DebugSessionState::Failed;
+        target = DebugSessionState::Cancelled;
     } else if (!ok && (error.find("超时") != std::string::npos ||
                        error.find("timeout") != std::string::npos ||
                        error.find("Timeout") != std::string::npos ||

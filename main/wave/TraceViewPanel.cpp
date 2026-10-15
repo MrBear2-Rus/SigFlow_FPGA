@@ -29,6 +29,39 @@ TraceViewPanel::TraceViewPanel(wxWindow* parent)
     : wxPanel(parent, wxID_ANY)
 {
     BuildUi();
+
+    // T-140 / THE-030：构造末尾建立订阅 + 立即重施一次（首帧正确）。
+    // 回调只做取色 + Refresh(false)：不重建 UI、不重解析波形、不做重布局。
+    m_themeSubscription = UiTheme::Subscribe([this] {
+        ReapplyTheme();
+        Refresh(false);
+    });
+    ReapplyTheme();
+}
+
+// T-140 / THE-030：本面板的"一次性写色"只有两处（测量读数前景 + UART 无效帧行色），
+// 其余控件颜色由原生/内嵌 WaveformView 负责。这里只重取 token 并写回。
+void TraceViewPanel::ReapplyTheme()
+{
+    if (m_measureLabel) {
+        m_measureLabel->SetForegroundColour(UiTheme::Palette().text2);
+    }
+    // UART 无效帧行色：原为字面量 (220,38,38) → danger token（同一语义，SAFE-012）。
+    // 只对**已存在**且无效的行重写；不改 frame 数据、不重填行内容。
+    if (m_uartList) {
+        for (long row = 0; row < m_uartList->GetItemCount(); ++row) {
+            if (static_cast<std::size_t>(row) >= m_uartFrames.size()) {
+                break;
+            }
+            if (!m_uartFrames[static_cast<std::size_t>(row)].valid) {
+                m_uartList->SetItemTextColour(row, UiTheme::Palette().danger);
+            }
+        }
+    }
+    // 内嵌波形视图自带主题订阅；这里显式转发一次，保证两条路径一致（幂等）。
+    if (m_view) {
+        m_view->ReapplyTheme();
+    }
 }
 
 void TraceViewPanel::InjectCompareEvents(const sigflow::debug::ComparisonResult& r,
@@ -117,6 +150,52 @@ void TraceViewPanel::InjectBehaviorEvents(
     RefreshEvents();
 }
 
+void TraceViewPanel::InjectProtocolEvents(
+    const std::vector<ProtocolTransaction>& transactions)
+{
+    if (!m_view || transactions.empty()) return;
+    std::vector<WaveEvent> events = m_view->Events();
+    events.reserve(events.size() + transactions.size());
+    for (const ProtocolTransaction& transaction : transactions) {
+        WaveEvent event;
+        event.time = transaction.startTime;
+        event.signalName = transaction.protocol;
+        event.color = transaction.valid ? 0xFF60A5FA : 0xFFEF4444;
+        std::ostringstream label;
+        label << transaction.protocol << (transaction.valid ? "" : " INVALID")
+              << " [" << transaction.startTime << ".." << transaction.endTime << "]";
+        if (!transaction.detail.empty()) label << ": " << transaction.detail;
+        if (transaction.waitCycles != 0) label << " (wait=" << transaction.waitCycles << ")";
+        event.label = label.str();
+        events.push_back(std::move(event));
+    }
+    std::sort(events.begin(), events.end(),
+              [](const WaveEvent& left, const WaveEvent& right) {
+                  if (left.time != right.time) return left.time < right.time;
+                  return left.label < right.label;
+              });
+    m_view->SetEvents(events);
+    RefreshEvents();
+}
+
+bool TraceViewPanel::InjectProtocolEventReport(const ProtocolEventReport& report,
+                                               std::string& error)
+{
+    error.clear();
+    if (!m_view || !m_source) {
+        error = "protocol event report requires an opened trace";
+        return false;
+    }
+    if (!report.sourcePath.empty() && report.sourcePath != m_source->Path()) {
+        error = "protocol event report source does not match the opened trace";
+        return false;
+    }
+    InjectProtocolEvents(report.transactions);
+    m_lastProtocolReport = report;
+    m_hasProtocolReport = true;
+    return true;
+}
+
 void TraceViewPanel::RegisterCompareHub()
 {
     if (!m_view || m_compareRegistered) return;
@@ -149,14 +228,17 @@ void TraceViewPanel::BuildUi()
     wxButton* clearMarkers = new wxButton(this, wxID_ANY, "Clear Markers");
     wxButton* clearAB = new wxButton(this, wxID_ANY, "Clear A-B");
     wxButton* uart = new wxButton(this, wxID_ANY, "Load UART lane");
+    wxButton* loadProtocol = new wxButton(this, wxID_ANY, "Load protocol report");
+    wxButton* saveProtocol = new wxButton(this, wxID_ANY, "Save protocol report");
     m_themeButton = new wxButton(this, wxID_ANY, "Theme: Dark");
     for (wxButton* button : { open, autoLoad, save, load, zoomIn, zoomOut, zoomReset,
-                              clearMarkers, clearAB, uart, m_themeButton }) {
+                              clearMarkers, clearAB, uart, loadProtocol, saveProtocol,
+                              m_themeButton }) {
         toolbar->Add(button, 0, wxALL, 2);
     }
     toolbar->AddStretchSpacer();
     m_measureLabel = new wxStaticText(this, wxID_ANY, wxEmptyString);
-    m_measureLabel->SetForegroundColour(wxColour(148, 163, 184));
+    m_measureLabel->SetForegroundColour(UiTheme::Palette().text2);   // T-140：补 T-325 缺口
     toolbar->Add(m_measureLabel, 0, wxALIGN_CENTER_VERTICAL | wxALL, 4);
     root->Add(toolbar, 0, wxEXPAND);
 
@@ -196,6 +278,13 @@ void TraceViewPanel::BuildUi()
     bottom->Add(m_uartList, 1, wxEXPAND | wxALL, 2);
 
     wxBoxSizer* searchCol = new wxBoxSizer(wxVERTICAL);
+    searchCol->Add(new wxStaticText(this, wxID_ANY,
+                                    "Event filter (protocol/category/detail)"),
+                   0, wxLEFT | wxTOP, 2);
+    m_eventFilterBox = new wxTextCtrl(this, wxID_ANY, wxEmptyString,
+                                      wxDefaultPosition, wxDefaultSize,
+                                      wxTE_PROCESS_ENTER);
+    searchCol->Add(m_eventFilterBox, 0, wxEXPAND | wxALL, 2);
     searchCol->Add(new wxStaticText(this, wxID_ANY, "Pattern (name:kind[:value], e.g. clk:rise,cnt:0010)"),
                    0, wxLEFT | wxTOP, 2);
     wxBoxSizer* searchRow = new wxBoxSizer(wxHORIZONTAL);
@@ -223,6 +312,8 @@ void TraceViewPanel::BuildUi()
                        [this](wxCommandEvent&) { m_view->ClearMarkers(); });
     clearAB->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { m_view->ClearAB(); });
     uart->Bind(wxEVT_BUTTON, &TraceViewPanel::OnLoadUart, this);
+    loadProtocol->Bind(wxEVT_BUTTON, &TraceViewPanel::OnLoadProtocolReport, this);
+    saveProtocol->Bind(wxEVT_BUTTON, &TraceViewPanel::OnSaveProtocolReport, this);
     m_themeButton->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
         m_view->SetTheme(m_view->Theme() == WaveTheme::Dark ? WaveTheme::Light : WaveTheme::Dark);
         m_themeButton->SetLabel(m_view->Theme() == WaveTheme::Dark ? "Theme: Dark" : "Theme: Light");
@@ -233,6 +324,7 @@ void TraceViewPanel::BuildUi()
     m_tree->Bind(wxEVT_TREELIST_ITEM_CONTEXT_MENU,
                  &TraceViewPanel::OnTreeContextMenu, this);
     m_searchBox->Bind(wxEVT_TEXT, &TraceViewPanel::OnSearchChanged, this);
+    m_eventFilterBox->Bind(wxEVT_TEXT, &TraceViewPanel::OnEventFilterChanged, this);
     m_eventList->Bind(wxEVT_LIST_ITEM_ACTIVATED, &TraceViewPanel::OnEventActivated, this);
     m_uartList->Bind(wxEVT_LIST_ITEM_ACTIVATED, &TraceViewPanel::OnUartActivated, this);
     prev->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) { RunPatternSearch(false); });
@@ -257,6 +349,8 @@ bool TraceViewPanel::OpenTrace(const std::string& path)
         return false;
     }
     m_source = source;
+    m_lastProtocolReport = ProtocolEventReport();
+    m_hasProtocolReport = false;
     m_queryService.Cancel(m_prefetchJobId);
     m_prefetchJobId = 0;
     m_view->SetTraceSource(m_source);
@@ -293,7 +387,7 @@ void TraceViewPanel::RefreshUartLane()
                                                 std::to_string(frame.offset));
         m_uartList->SetItem(row, 1, frame.label);
         m_uartList->SetItem(row, 2, frame.detail);
-        if (!frame.valid) m_uartList->SetItemTextColour(row, wxColour(220, 38, 38));
+        if (!frame.valid) m_uartList->SetItemTextColour(row, UiTheme::Palette().danger);
     }
 }
 
@@ -303,6 +397,40 @@ void TraceViewPanel::OnLoadUart(wxCommandEvent&)
                         "Binary captures (*.raw;*.bin)|*.raw;*.bin|All files (*.*)|*.*",
                         wxFD_OPEN | wxFD_FILE_MUST_EXIST);
     if (dialog.ShowModal() == wxID_OK) LoadUartCapture(dialog.GetPath().ToStdString());
+}
+
+void TraceViewPanel::OnLoadProtocolReport(wxCommandEvent&)
+{
+    wxFileDialog dialog(this, "Load Protocol Event Report", m_sessionDir, wxEmptyString,
+                        "Protocol reports (*.json)|*.json|All files (*.*)|*.*",
+                        wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+    if (dialog.ShowModal() != wxID_OK) return;
+    ProtocolEventReport report;
+    std::string error;
+    if (!LoadProtocolEventReport(dialog.GetPath().ToStdString(), report, error) ||
+        !InjectProtocolEventReport(report, error)) {
+        wxMessageBox(error, "Load Protocol Report", wxOK | wxICON_ERROR, this);
+    }
+}
+
+void TraceViewPanel::OnSaveProtocolReport(wxCommandEvent&)
+{
+    if (!m_hasProtocolReport) {
+        wxMessageBox("No protocol event report is loaded", "Save Protocol Report",
+                     wxOK | wxICON_INFORMATION, this);
+        return;
+    }
+    wxFileDialog dialog(this, "Save Protocol Event Report", m_sessionDir, "protocol-events.json",
+                        "Protocol reports (*.json)|*.json|CSV reports (*.csv)|*.csv",
+                        wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
+    if (dialog.ShowModal() != wxID_OK) return;
+    const std::string path = dialog.GetPath().ToStdString();
+    const std::string extension = wxFileName(path).GetExt().Lower().ToStdString();
+    std::string error;
+    const bool saved = extension == "csv"
+        ? SaveProtocolEventReportCsv(m_lastProtocolReport, path, error)
+        : SaveProtocolEventReport(m_lastProtocolReport, path, error);
+    if (!saved) wxMessageBox(error, "Save Protocol Report", wxOK | wxICON_ERROR, this);
 }
 
 void TraceViewPanel::OnUartActivated(wxListEvent& event)
@@ -513,10 +641,22 @@ void TraceViewPanel::SetSignalChecked(int signalId, bool checked)
 void TraceViewPanel::RefreshEvents()
 {
     m_eventList->DeleteAllItems();
-    for (const WaveEvent& event : m_view->Events()) {
+    m_eventRows.clear();
+    const std::string filter = m_eventFilterBox
+        ? m_eventFilterBox->GetValue().Lower().ToStdString() : std::string();
+    const auto matches = [&filter](const WaveEvent& event) {
+        if (filter.empty()) return true;
+        const wxString text = wxString::FromUTF8(event.signalName + " " + event.label).Lower();
+        return text.ToStdString().find(filter) != std::string::npos;
+    };
+    const auto& events = m_view->Events();
+    for (std::size_t index = 0; index < events.size(); ++index) {
+        const WaveEvent& event = events[index];
+        if (!matches(event)) continue;
         const long item = m_eventList->InsertItem(m_eventList->GetItemCount(),
                                                   std::to_string(event.time));
         m_eventList->SetItem(item, 1, event.label);
+        m_eventRows.push_back(index);
     }
 }
 
@@ -556,8 +696,9 @@ void TraceViewPanel::HighlightNearestEvent()
             haveBest = true;
         }
     }
-    if (haveBest && best < static_cast<std::size_t>(m_eventList->GetItemCount())) {
-        m_eventList->SetItemState(static_cast<long>(best),
+    const auto row = std::find(m_eventRows.begin(), m_eventRows.end(), best);
+    if (haveBest && row != m_eventRows.end()) {
+        m_eventList->SetItemState(static_cast<long>(std::distance(m_eventRows.begin(), row)),
                                   wxLIST_STATE_SELECTED | wxLIST_STATE_FOCUSED,
                                   wxLIST_STATE_SELECTED | wxLIST_STATE_FOCUSED);
     }
@@ -802,14 +943,22 @@ void TraceViewPanel::OnSearchChanged(wxCommandEvent&)
     PopulateTree();
 }
 
+void TraceViewPanel::OnEventFilterChanged(wxCommandEvent&)
+{
+    RefreshEvents();
+    HighlightNearestEvent();
+}
+
 void TraceViewPanel::OnEventActivated(wxListEvent& event)
 {
     const long index = event.GetIndex();
     const auto& events = m_view->Events();
-    if (index >= 0 && static_cast<std::size_t>(index) < events.size()) {
-        m_view->JumpToTime(events[static_cast<std::size_t>(index)].time);
-        m_view->SetPlayhead(events[static_cast<std::size_t>(index)].time);
-        const WaveEvent& selected = events[static_cast<std::size_t>(index)];
+    if (index >= 0 && static_cast<std::size_t>(index) < m_eventRows.size()) {
+        const std::size_t eventIndex = m_eventRows[static_cast<std::size_t>(index)];
+        if (eventIndex >= events.size()) return;
+        m_view->JumpToTime(events[eventIndex].time);
+        m_view->SetPlayhead(events[eventIndex].time);
+        const WaveEvent& selected = events[eventIndex];
         if (m_navigationCallback && !selected.signalName.empty()) {
             m_navigationCallback(selected.signalName, selected.sourcePath,
                                  selected.sourceLine, selected.time);

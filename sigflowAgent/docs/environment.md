@@ -1,6 +1,10 @@
 # 开发环境与依赖
 
-复核日期：2026-10-08。工作目录：`SigFlow_Cmake/sigflowAgent`。
+复核日期：2026-10-13。工作目录：`SigFlow_Cmake/sigflowAgent`。
+
+当前实施依据为[自研决策](../../docs/edu-agent/DECISION-2026-10-07.md)。
+产品核心只要求 Python >=3.11 与标准库，不依赖 UCAgent。下文上游版本、安装和 smoke
+仅保留历史实验复现用途，不作为当前安装要求或发布验收。当前合并基线为 f5a3dc8。
 
 ## 当前环境
 
@@ -24,7 +28,23 @@
 
 已验证组合：langchain 1.4.3、langchain-core 1.6.6、langchain-openai 1.6.7、langchain-mcp-adapters 0.3.2、mcp 1.30.0、pydantic 2.13.5。上游涉及私有 API，升级后须重跑集成测试。
 
-## 重建环境
+## 独立核心环境
+
+未参与 UCAgent 适配的成员只需 Python >=3.11。以下命令在本目录执行，
+不需要兄弟目录中的 UCAgent checkout，也不安装上游依赖：
+
+```powershell
+python -m venv .venv
+Remove-Item Env:SIGFLOW_UCAGENT_SOURCE -ErrorAction SilentlyContinue
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+```
+
+可选集成组显示 `skipped=6` 是预期结果，不能把该结果记录为上游集成通过。
+核心还可用 `python -S -m unittest discover -s tests -q` 验证不加载第三方
+site-packages 的运行路径。不要将 `agent` 与 `sigflowAgent` 的同名包装进
+同一个环境；本项目测试从 `sigflowAgent` 源码目录运行。
+
+## 历史 UCAgent 实验复现环境
 
 在 `sigflowAgent` 目录执行，基础 Python 需 >=3.11；当前复现基线为 3.13.5：
 
@@ -38,6 +58,10 @@ $env:SIGFLOW_UCAGENT_SOURCE = (Resolve-Path '..\..\UCAgent\UCAgent').Path
 ```
 
 `SIGFLOW_UCAGENT_SOURCE` 指向包含 `ucagent/__init__.py` 的可信 checkout。测试与 smoke 显式加入此路径；库适配器本身不自动修改搜索路径。服务部署应通过安装固定上游版本或受控 `PYTHONPATH` 配置提供 `ucagent`。
+
+上述兄弟目录路径是本机示例；其他成员应设置自己的可信源码绝对路径。
+旧周期四中完整 UCAgent 教育运行时的验收要求已被自研决策替代；当前验收使用
+仓库 docs/edu-agent/ucagent/task.md，自研运行时与真实教学闭环仍需验收。
 
 当前测试从源码目录运行，无需安装本项目 wheel。`.venv` 和 `.env*` 已忽略；`.env.example` 保留为变量模板。凭据通过进程环境注入，不能写入依赖文件、文档、提交或测试日志。
 

@@ -1,7 +1,45 @@
 #include "MainMenuBar.h"
 #include "MainFrame.h"  // 为了转发调用 DoFileXXX
+#include "ui/UiLayoutState.h"  // T-510：六栏显隐枚举（LAY-020）
+#include "ui/UiTheme.h" // T-120：主题三态（SPEC THE-006/THE-007）
 #include <wx/config.h>
 #include "platform/Log.h"
+
+// T-120：主题菜单 id（避开既有占用：+300/+301 内置工具、+301..304 TraceViewPanel、+400+ 动态文档、+500+ Help）
+enum
+{
+    idThemeFollowSystem = wxID_HIGHEST + 310,
+    idThemeLight        = wxID_HIGHEST + 311,
+    idThemeDark         = wxID_HIGHEST + 312
+};
+
+// T-510：六栏显隐菜单 id（SPEC LAY-020 的六个字段；快捷键见 KEY-002）
+enum
+{
+    idPanelMenuBar   = wxID_HIGHEST + 320,
+    idPanelRail      = wxID_HIGHEST + 321,
+    idPanelLeft      = wxID_HIGHEST + 322,
+    idPanelRight     = wxID_HIGHEST + 323,
+    idPanelBottom    = wxID_HIGHEST + 324,
+    idPanelStatusBar = wxID_HIGHEST + 325
+};
+
+// T-510：布局预设菜单 id（LAY-025；与 UiTheme::Presets 的四个 id 对应）
+enum
+{
+    idPresetClassic = wxID_HIGHEST + 330,
+    idPresetCode    = wxID_HIGHEST + 331,
+    idPresetCanvas  = wxID_HIGHEST + 332,
+    idPresetChat    = wxID_HIGHEST + 333
+};
+
+// T-250：布局保存 / 重置（SPEC LAY-031/LAY-032、docs/gui P2-2）
+enum
+{
+    idSaveLayout  = wxID_HIGHEST + 340,
+    idResetLayout = wxID_HIGHEST + 341,
+    idCustomizeLayout = wxID_HIGHEST + 342
+};
 
 enum
 {
@@ -96,6 +134,22 @@ EVT_MENU(wxID_MAXIMIZE_FRAME, MainMenuBar::OnMaximize)
 EVT_MENU(wxID_CLOSE_FRAME, MainMenuBar::OnCloseWnd)
 EVT_MENU(wxID_HIGHEST + 300, MainMenuBar::OnCombinationalAnalysis)
 EVT_MENU(wxID_HIGHEST + 301, MainMenuBar::OnWindowPreferences)
+EVT_MENU(idThemeFollowSystem, MainMenuBar::OnThemeFollowSystem)
+EVT_MENU(idThemeLight, MainMenuBar::OnThemeLight)
+EVT_MENU(idThemeDark, MainMenuBar::OnThemeDark)
+EVT_MENU(idPanelMenuBar, MainMenuBar::OnToggleMenuBar)
+EVT_MENU(idPanelRail, MainMenuBar::OnToggleRail)
+EVT_MENU(idPanelLeft, MainMenuBar::OnToggleLeftBar)
+EVT_MENU(idPanelRight, MainMenuBar::OnToggleRightBar)
+EVT_MENU(idPanelBottom, MainMenuBar::OnToggleBottomPanel)
+EVT_MENU(idPanelStatusBar, MainMenuBar::OnToggleStatusBar)
+EVT_MENU(idPresetClassic, MainMenuBar::OnApplyLayoutPreset)
+EVT_MENU(idPresetCode, MainMenuBar::OnApplyLayoutPreset)
+EVT_MENU(idPresetCanvas, MainMenuBar::OnApplyLayoutPreset)
+EVT_MENU(idPresetChat, MainMenuBar::OnApplyLayoutPreset)
+EVT_MENU(idSaveLayout, MainMenuBar::OnSaveLayout)
+EVT_MENU(idResetLayout, MainMenuBar::OnResetLayout)
+EVT_MENU(idCustomizeLayout, MainMenuBar::OnCustomizeLayout)
 
 EVT_MENU(wxID_HIGHEST + 500, MainMenuBar::OnTutorial)
 EVT_MENU(wxID_HIGHEST + 501, MainMenuBar::OnUserGuide)
@@ -345,12 +399,221 @@ void MainMenuBar::RebuildWindowMenu() //这个版本会把window放在simulate�
     m_windowMenu->Append(wxID_HIGHEST + 301, "Preferences");
     m_windowMenu->AppendSeparator();
 
+    /* 2b. 主题（T-120；SPEC THE-006 三态、THE-007 入口、THE-008 持久化键）
+     *     设计稿的工具栏循环按钮受 DEC-03（工具栏内容不变）与 DEC-05（不自绘标题栏）约束未实现，
+     *     此处以 Window 菜单三态单选作为等价入口；循环语义保留在代码中（MainFrame::SetThemeMode）。
+     *     DEC-11（2026-10-10 用户实测）：深色档暂缓 —— 面板/画布/子窗口尚未 token 化，
+     *     切深色会"部分变黑、部分仍白"。因此深色未启用时**不显示本子菜单**，避免用户踩到半成品；
+     *     待 T-310/T-330/T-340/T-410/T-140 完成后 UiTheme::IsDarkModeEnabled() 转为 true，入口自动恢复。 */
+    if (UiTheme::IsDarkModeEnabled()) {
+        wxMenu* themeMenu = new wxMenu;
+        themeMenu->AppendRadioItem(idThemeFollowSystem, "Follow System",
+                                   "跟随系统主题（系统切换时自动跟随）");
+        themeMenu->AppendRadioItem(idThemeLight, "Light", "浅色档");
+        themeMenu->AppendRadioItem(idThemeDark, "Dark", "深色档");
+        m_windowMenu->AppendSubMenu(themeMenu, "Theme");
+        m_windowMenu->AppendSeparator();
+    }
+
+    /* 2c. 六栏显隐（T-510；SPEC LAY-020…LAY-024、KEY-002）
+     *     快捷键沿用本仓既有机制（菜单标签 `\t` 后），不新引入 wxAcceleratorTable，
+     *     从而与既有 24 条快捷键共用同一套语义与冲突检查（KEY-003/KEY-005）。
+     *     状态栏无快捷键（设计稿 app.html:815 亦无 kbd）。 */
+    {
+        wxMenu* panelsMenu = new wxMenu;
+        panelsMenu->AppendCheckItem(idPanelMenuBar, "Menu Bar\tCtrl+Shift+M", "显示 / 隐藏菜单栏");
+        panelsMenu->AppendCheckItem(idPanelRail, "Activity Bar\tCtrl+Shift+A", "显示 / 隐藏活动栏");
+        panelsMenu->AppendCheckItem(idPanelLeft, "Primary Side Bar\tCtrl+B", "显示 / 隐藏主侧栏");
+        panelsMenu->AppendCheckItem(idPanelRight, "Secondary Side Bar\tCtrl+Alt+B", "显示 / 隐藏辅助侧边栏");
+        panelsMenu->AppendCheckItem(idPanelBottom, "Panel\tCtrl+J", "显示 / 隐藏底部面板");
+        panelsMenu->AppendCheckItem(idPanelStatusBar, "Status Bar", "显示 / 隐藏状态栏");
+        m_windowMenu->AppendSubMenu(panelsMenu, "Panels");
+        m_windowMenu->AppendSeparator();
+    }
+
+    /* 2d. 布局预设（T-510；SPEC LAY-025）
+     *     设计稿把这四个预设放在 Quick Pick 浮层的顶部；浮层本体尚未实现（LAY-026/027 登记为待做），
+     *     因此先用菜单提供**同等功能**：勾选态按"当前状态与预设全字段相等"判定（LAY-025 的判据）。 */
+    {
+        wxMenu* presetsMenu = new wxMenu;
+        presetsMenu->AppendCheckItem(idPresetClassic, "Classic",
+                                     "经典：六栏全显（设计稿「经典」）");
+        presetsMenu->AppendCheckItem(idPresetCode, "Code First",
+                                     "编码优先：隐藏活动栏（设计稿「编码优先」）");
+        presetsMenu->AppendCheckItem(idPresetCanvas, "Canvas First",
+                                     "画布优先：隐藏活动栏与主侧栏（设计稿「画布优先」）");
+        presetsMenu->AppendCheckItem(idPresetChat, "Chat Detached",
+                                     "Chat 分离：隐藏辅助侧边栏（设计稿「Chat 分离」；"
+                                     "本轮不含跨显示器拖出，见 DEC-06）");
+        m_windowMenu->AppendSubMenu(presetsMenu, "Layout Presets");
+        m_windowMenu->AppendSeparator();
+    }
+
+    /* 2e. 布局保存 / 重置（T-250；SPEC LAY-031/LAY-032）
+     *     Reset 只重置布局（pane / 显隐 / perspective），**不重建任何业务对象、不清空 Job、
+     *     不重启 Agent**（SPEC LAY-032 与 docs/gui P2-2 的明确要求）。 */
+    {
+        m_windowMenu->Append(idSaveLayout, "Save Layout", "把当前布局与窗口几何写入应用配置");
+        m_windowMenu->Append(idCustomizeLayout, "Customize Layout...", "Open the keyboard-accessible layout picker");
+        m_windowMenu->Append(idResetLayout, "Reset Layout", "恢复默认布局（不触碰业务状态）");
+        m_windowMenu->AppendSeparator();
+    }
+
     /* 3. 动态文档列表（初始 Untitled） */
     AddDocToWindowList(m_curDocTitle.IsEmpty() ? wxString("Untitled") : m_curDocTitle);
     SetCurrentDocInWindowList(m_curDocTitle.IsEmpty() ? wxString("Untitled") : m_curDocTitle);
 
     /* 4. 重新插入菜单栏 */
     Insert(3, m_windowMenu, wxT("&Window"));
+
+    /* 5. 同步主题单选态与六栏勾选态（新建菜单项后必须回填） */
+    UpdateThemeMenuChecks();
+    UpdatePanelMenuChecks();
+}
+
+// T-510：六栏显隐勾选态同步（LAY-023/LAY-025、INT-020）
+void MainMenuBar::UpdatePanelMenuChecks()
+{
+    if (m_windowMenu == nullptr || m_owner == nullptr) {
+        return;
+    }
+    const struct
+    {
+        int id;
+        UiTheme::Visibility which;
+    } items[] = {
+        { idPanelMenuBar, UiTheme::Visibility::Menubar },
+        { idPanelRail, UiTheme::Visibility::Rail },
+        { idPanelLeft, UiTheme::Visibility::Left },
+        { idPanelRight, UiTheme::Visibility::Right },
+        { idPanelBottom, UiTheme::Visibility::Bottom },
+        { idPanelStatusBar, UiTheme::Visibility::Statusbar },
+    };
+    for (const auto& entry : items) {
+        if (wxMenuItem* item = m_windowMenu->FindItem(entry.id)) {
+            item->Check(m_owner->IsPanelVisible(entry.which));
+        }
+    }
+
+    // T-510 / LAY-025：预设勾选态 = "当前状态与预设**全字段**相等"才点亮（与设计稿 app.html:1636 同语义）
+    const struct
+    {
+        int id;
+        const char* preset;
+    } presets[] = {
+        { idPresetClassic, UiTheme::Presets::Classic },
+        { idPresetCode, UiTheme::Presets::Code },
+        { idPresetCanvas, UiTheme::Presets::Canvas },
+        { idPresetChat, UiTheme::Presets::Chat },
+    };
+    for (const auto& entry : presets) {
+        if (wxMenuItem* item = m_windowMenu->FindItem(entry.id)) {
+            item->Check(UiTheme::MatchesPreset(m_owner->GetLayoutState(), entry.preset));
+        }
+    }
+}
+
+// T-510：六栏显隐（菜单与快捷键共用一个入口）
+void MainMenuBar::OnToggleMenuBar(wxCommandEvent&)
+{
+    if (m_owner != nullptr) m_owner->TogglePanelVisibility(UiTheme::Visibility::Menubar);
+}
+
+void MainMenuBar::OnToggleRail(wxCommandEvent&)
+{
+    if (m_owner != nullptr) m_owner->TogglePanelVisibility(UiTheme::Visibility::Rail);
+}
+
+void MainMenuBar::OnToggleLeftBar(wxCommandEvent&)
+{
+    if (m_owner != nullptr) m_owner->TogglePanelVisibility(UiTheme::Visibility::Left);
+}
+
+void MainMenuBar::OnToggleRightBar(wxCommandEvent&)
+{
+    if (m_owner != nullptr) m_owner->TogglePanelVisibility(UiTheme::Visibility::Right);
+}
+
+void MainMenuBar::OnToggleBottomPanel(wxCommandEvent&)
+{
+    if (m_owner != nullptr) m_owner->TogglePanelVisibility(UiTheme::Visibility::Bottom);
+}
+
+void MainMenuBar::OnToggleStatusBar(wxCommandEvent&)
+{
+    if (m_owner != nullptr) m_owner->TogglePanelVisibility(UiTheme::Visibility::Statusbar);
+}
+
+// T-510：布局预设（LAY-025）。四个预设共用同一处理器，按 id 映射到预设常量。
+void MainMenuBar::OnApplyLayoutPreset(wxCommandEvent& evt)
+{
+    if (m_owner == nullptr) {
+        return;
+    }
+    wxString presetId;
+    switch (evt.GetId()) {
+        case idPresetClassic: presetId = UiTheme::Presets::Classic; break;
+        case idPresetCode:    presetId = UiTheme::Presets::Code; break;
+        case idPresetCanvas:  presetId = UiTheme::Presets::Canvas; break;
+        case idPresetChat:    presetId = UiTheme::Presets::Chat; break;
+        default: return;
+    }
+    m_owner->ApplyLayoutPreset(presetId);
+}
+
+void MainMenuBar::OnSaveLayout(wxCommandEvent&)
+{
+    if (m_owner != nullptr) {
+        m_owner->SaveLayoutNow();
+    }
+}
+
+void MainMenuBar::OnResetLayout(wxCommandEvent&)
+{
+    if (m_owner != nullptr) {
+        m_owner->ResetLayout();
+    }
+}
+
+void MainMenuBar::OnCustomizeLayout(wxCommandEvent&) { if(m_owner) m_owner->ShowLayoutPicker(); }
+
+// T-120：主题菜单单选态同步
+void MainMenuBar::UpdateThemeMenuChecks()
+{
+    if (m_windowMenu == nullptr) {
+        return;
+    }
+    int target = idThemeFollowSystem;
+    switch (UiTheme::GetMode()) {
+        case UiTheme::Mode::Light: target = idThemeLight; break;
+        case UiTheme::Mode::Dark: target = idThemeDark; break;
+        case UiTheme::Mode::System: break;
+    }
+    if (wxMenuItem* item = m_windowMenu->FindItem(target)) {
+        item->Check(true);
+    }
+}
+
+// T-120：三个主题入口（显式选择后系统变化不再覆盖，SPEC THE-006）
+void MainMenuBar::OnThemeFollowSystem(wxCommandEvent&)
+{
+    if (m_owner != nullptr) {
+        m_owner->SetThemeMode(UiTheme::Mode::System);
+    }
+}
+
+void MainMenuBar::OnThemeLight(wxCommandEvent&)
+{
+    if (m_owner != nullptr) {
+        m_owner->SetThemeMode(UiTheme::Mode::Light);
+    }
+}
+
+void MainMenuBar::OnThemeDark(wxCommandEvent&)
+{
+    if (m_owner != nullptr) {
+        m_owner->SetThemeMode(UiTheme::Mode::Dark);
+    }
 }
 
 //void MainMenuBar::RebuildWindowMenu()

@@ -1,4 +1,4 @@
-﻿#ifdef Polygon
+#ifdef Polygon
 #undef Polygon
 #endif
 
@@ -12,6 +12,8 @@
 #include <wx/graphics.h>
 #include <sstream>
 #include "SigTree.h"
+#include "ui/CanvasVisuals.h"
+#include "ui/UiTheme.h"   // T-410：画布唯一取色来源（SAFE-012 / THE-001）
 
 // ========== SVG Path 解析辅助函数 ==========
 // 解析 SVG path data 字符串，支持 M/m L/l H/h V/v C/c Q/q A/a Z/z 命令
@@ -137,7 +139,31 @@ private:
     wxGraphicsContext* context_;
     wxGraphicsMatrix transform_;
 };
+
+// ---------------------------------------------------------------------------
+// T-410 引脚三色（SPEC CMP-043 / E4 §10 第 2 条）
+//
+// E4 已确证：引脚三色在 SecondElement::Draw / TopModuleBox::Draw 里各写一遍
+// （`wxColour(0,0,255)` 输入蓝、`wxColour(255,0,0)` 输出红、`wxColour(255,255,0)`
+// inout 黄，每函数各 3 次）。此处抽出唯一实现，供全部 Draw 函数共用。
+//
+// token 映射（近似映射，见 _evidence/T410-canvas-token-map.md）：
+//   输入蓝  #0000FF → Palette().accent  #0071e3（行动蓝：输入=待驱动）
+//   输出红  #FF0000 → Palette().danger  #c1121f（错误/驱动红）
+//   inout 黄 #FFFF00 → Palette().warn    #b25000（同色相最近 token）
+// ---------------------------------------------------------------------------
+wxColour PinColour(bool isInput, bool isInout)
+{
+    // 注意：不能写 `const UiTheme::Colours&`——UiTheme 内的函数名 Palette/Colours
+    // 会隐藏同名类型（wx 侧同理，用 auto 推导最稳）。
+    const auto& palette = UiTheme::Palette();
+    if (isInout) return palette.warn;
+    return isInput ? palette.accent : palette.danger;
 }
+
+// 元件标签色：原 #333333（2 处）与 wxColour(60,60,60)（CanvasTextElement.cpp 2 处）
+// 原先不一致，统一到 text1（主文字层级，THE-002）。字号档不动（T-410 只做取色）。
+}  // namespace
 
 std::vector<wxPoint> SecondElement::CalculateBezier(const Point& p0, const Point& p1, const Point& p2, int segments) const
 {
@@ -297,7 +323,7 @@ void SecondElement::MakeBlackBox() {
         {0, 0}, {BODY_WIDTH, 0},
         {BODY_WIDTH, bodyHeight}, {0, bodyHeight}
     };
-    m_shapes.push_back(PolyShape{ rect, wxColour(0,0,0) });
+    m_shapes.push_back(PolyShape{ rect, UiTheme::Palette().text1 });
 
     // 5. 放置 Input Pins (位于左边线上 x = 0)
     for (int i = 0; i < in; ++i) {
@@ -337,7 +363,7 @@ wxRect TopModuleBox::GetBounds() const {
     return rect;
 }
 
-void SecondElement::Draw(wxGraphicsContext* gc) const
+void SecondElement::Draw(wxGraphicsContext* gc, const wxWindow* window, bool selected, double units) const
 {
     if (!gc) return;
 
@@ -351,6 +377,12 @@ void SecondElement::Draw(wxGraphicsContext* gc) const
     double origSx = a;
     double origSy = d;
     gc->Translate(m_pos.x, m_pos.y);
+    // 用户确认透明且无边框：只绘制图符、文字和引脚，保持现有内缩及接线几何。
+    const auto cardTransform=gc->GetTransform();
+    const double inset=std::min({6.0,m_bound.width/4.0,m_bound.height/4.0});
+    const double sx=std::max(0.1,(m_bound.width-2*inset)/std::max(1,m_bound.width));
+    const double sy=std::max(0.1,(m_bound.height-2*inset)/std::max(1,m_bound.height));
+    gc->Translate(inset,inset); gc->Scale(sx,sy);
 
     // -------------------------- 3. 绘制所有形状（逻辑不变，补充 Path 分支避免 visit 遗漏） --------------------------
     for (const auto& shape : m_shapes) {
@@ -359,12 +391,12 @@ void SecondElement::Draw(wxGraphicsContext* gc) const
 
             // 分支1：Line
             if constexpr (std::is_same_v<T, Line>) {
-                gc->SetPen(wxPen(s.color, 3.0));
+                gc->SetPen(gc->CreatePen(wxGraphicsPenInfo(UiTheme::CanvasSeedColour(s.color,selected)).Width(1.6*units).Join(wxJOIN_ROUND)));
                 gc->StrokeLine(s.start.x, s.start.y, s.end.x, s.end.y);
             }
             // 分支2：ArcShape
             else if constexpr (std::is_same_v<T, ArcShape>) {
-                gc->SetPen(wxPen(s.color, 3.0));
+                gc->SetPen(gc->CreatePen(wxGraphicsPenInfo(UiTheme::CanvasSeedColour(s.color,selected)).Width(1.6*units).Join(wxJOIN_ROUND)));
                 wxGraphicsPath path = gc->CreatePath();
                 path.AddArc(s.center.x, s.center.y, s.radius,
                     s.startAngle * M_PI / 180, s.endAngle * M_PI / 180, true);
@@ -372,15 +404,15 @@ void SecondElement::Draw(wxGraphicsContext* gc) const
             }
             // 分支3：Text
             else if constexpr (std::is_same_v<T, Text>) {
-                wxFont font(s.fontSize, wxFONTFAMILY_DEFAULT,
-                    wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
-                gc->SetFont(font, s.color);
+                auto font=CanvasVisuals::WorldFont(window,UiTheme::TextSize::P13);
+                font.SetPixelSize(wxSize(0,s.fontSize));
+                gc->SetFont(font, UiTheme::CanvasSeedColour(s.color,selected));
                 gc->DrawText(s.text, s.pos.x, s.pos.y);
             }
             // 分支4：Circle
             else if constexpr (std::is_same_v<T, Circle>) {
-                gc->SetPen(wxPen(s.color, 3.0));
-                gc->SetBrush(s.fill ? wxBrush(s.fillColor) : *wxTRANSPARENT_BRUSH);
+                gc->SetPen(gc->CreatePen(wxGraphicsPenInfo(UiTheme::CanvasSeedColour(s.color,selected)).Width(1.6*units).Join(wxJOIN_ROUND)));
+                gc->SetBrush(s.fill ? wxBrush(UiTheme::CanvasSeedColour(s.fillColor)) : *wxTRANSPARENT_BRUSH);
                 gc->DrawEllipse(s.center.x - s.radius, s.center.y - s.radius,
                     s.radius * 2, s.radius * 2);
             }
@@ -394,13 +426,13 @@ void SecondElement::Draw(wxGraphicsContext* gc) const
                     }
                     path.CloseSubpath();
                 }
-                gc->SetPen(wxPen(s.color, 3.0));
+                gc->SetPen(gc->CreatePen(wxGraphicsPenInfo(UiTheme::CanvasSeedColour(s.color,selected)).Width(1.6*units).Join(wxJOIN_ROUND)));
                 gc->SetBrush(*wxTRANSPARENT_BRUSH);
                 gc->StrokePath(path);
             }
             // 分支6：BezierShape
             else if constexpr (std::is_same_v<T, BezierShape>) {
-                gc->SetPen(wxPen(s.color, 3.0));
+                gc->SetPen(gc->CreatePen(wxGraphicsPenInfo(UiTheme::CanvasSeedColour(s.color,selected)).Width(1.6*units).Join(wxJOIN_ROUND)));
                 wxGraphicsPath path = gc->CreatePath();
                 path.MoveToPoint(s.p0.x, s.p0.y);
                 path.AddCurveToPoint(s.p1.x, s.p1.y, s.p1.x, s.p1.y, s.p2.x, s.p2.y);
@@ -408,7 +440,7 @@ void SecondElement::Draw(wxGraphicsContext* gc) const
             }
             // 分支7：CubicBezierShape（三次贝塞尔曲线）
             else if constexpr (std::is_same_v<T, CubicBezierShape>) {
-                gc->SetPen(wxPen(s.color, 3.0));
+                gc->SetPen(gc->CreatePen(wxGraphicsPenInfo(UiTheme::CanvasSeedColour(s.color,selected)).Width(1.6*units).Join(wxJOIN_ROUND)));
                 wxGraphicsPath path = gc->CreatePath();
                 path.MoveToPoint(s.p0.x, s.p0.y);
                 path.AddCurveToPoint(s.p1.x, s.p1.y, s.p2.x, s.p2.y, s.p3.x, s.p3.y);
@@ -416,8 +448,8 @@ void SecondElement::Draw(wxGraphicsContext* gc) const
             }
             // 分支8：Path（使用 SVG Path 数据标准解析器）
             else if constexpr (std::is_same_v<T, Path>) {
-                gc->SetPen(wxPen(s.stroke, s.strokeWidth));
-                gc->SetBrush(s.fill ? wxBrush(s.stroke) : *wxTRANSPARENT_BRUSH);
+                gc->SetPen(gc->CreatePen(wxGraphicsPenInfo(UiTheme::CanvasSeedColour(s.stroke,selected)).Width(1.6*units).Join(wxJOIN_ROUND)));
+                gc->SetBrush(s.fill ? wxBrush(UiTheme::CanvasSeedColour(s.stroke)) : *wxTRANSPARENT_BRUSH);
                 wxGraphicsPath gPath = gc->CreatePath();
                 ParseSvgPathToContext(s.d, gPath);
                 if (s.fill) gPath.CloseSubpath();
@@ -427,36 +459,54 @@ void SecondElement::Draw(wxGraphicsContext* gc) const
             }, shape);  // 确保 std::visit 的 lambda 正确闭合
     }
 
-    // 绘制输入引脚（蓝色圆点）
+    gc->SetTransform(cardTransform);
+    gc->SetPen(gc->CreatePen(wxGraphicsPenInfo(selected?UiTheme::Palette().accent:UiTheme::Palette().text2).Width(1.6*units)));
+    for (const auto& pin:m_inPins) {
+        gc->StrokeLine(pin.pos.x,pin.pos.y,inset+pin.pos.x*sx,pin.pos.y);
+        gc->StrokeLine(inset+pin.pos.x*sx,pin.pos.y,inset+pin.pos.x*sx,inset+pin.pos.y*sy);
+    }
+    for (const auto& pin:m_outPins) {
+        gc->StrokeLine(pin.pos.x,pin.pos.y,inset+pin.pos.x*sx,pin.pos.y);
+        gc->StrokeLine(inset+pin.pos.x*sx,pin.pos.y,inset+pin.pos.x*sx,inset+pin.pos.y*sy);
+    }
+    // 绘制输入引脚（T-410：PinColour(true,false) → accent）
     for (const auto& pin : m_inPins) {
-        gc->SetPen(wxPen(wxColour(0, 0, 255), 1.0)); // 蓝色边框
-        gc->SetBrush(wxBrush(wxColour(0, 0, 255)));  // 蓝色填充
+        const wxColour pinColour = PinColour(true, false);
+        gc->SetPen(wxPen(pinColour, 1.0));
+        gc->SetBrush(wxBrush(pinColour));
         gc->DrawEllipse(pin.pos.x - 3, pin.pos.y - 3, 6, 6); // 半径为3的圆点
     }
 
-    // 绘制输出引脚（红色圆点）
+    // 绘制输出引脚（T-410：PinColour(false,false) → danger）
     for (const auto& pin : m_outPins) {
-        gc->SetPen(wxPen(wxColour(255, 0, 0), 1.0)); // 红色边框
-        gc->SetBrush(wxBrush(wxColour(255, 0, 0)));  // 红色填充
+        const wxColour pinColour = PinColour(false, false);
+        gc->SetPen(wxPen(pinColour, 1.0));
+        gc->SetBrush(wxBrush(pinColour));
         gc->DrawEllipse(pin.pos.x - 3, pin.pos.y - 3, 6, 6); // 半径为3的圆点
     }
 
+    // 绘制 inout 引脚（T-410：PinColour(false,true) → warn）
     for (const auto& pin : m_inoutPins) {
-        gc->SetPen(wxPen(wxColour(255, 255, 0), 1.0)); // 纯黄边框
-        gc->SetBrush(wxBrush(wxColour(255, 255, 0)));  // 纯黄填充
+        const wxColour pinColour = PinColour(false, true);
+        gc->SetPen(wxPen(pinColour, 1.0));
+        gc->SetBrush(wxBrush(pinColour));
         gc->DrawEllipse(pin.pos.x - 3, pin.pos.y - 3, 6, 6); // 半径为3的圆点
     }
 
-    // 绘制元件标识符
-    wxFont font(wxFontInfo(6).Family(wxFONTFAMILY_SWISS).Bold());
-    gc->SetFont(font, wxColour("#333333"));
-    wxString text = self->identifier;
+    // 名称 13 DIP + 实例号 11 DIP；只调整文字，不修改模板形状或引脚。
+    const wxFont nameFont = CanvasVisuals::WorldFont(window, UiTheme::TextSize::P13, false, UiTheme::Weight::Semibold);
+    const wxFont instanceFont = CanvasVisuals::WorldFont(window, UiTheme::TextSize::P11, true);
+    gc->SetFont(nameFont, selected ? UiTheme::Palette().accent : UiTheme::Palette().text1);
+    const wxString name = type;
     double width, height, descent, externalLeading;
-    gc->GetTextExtent(text, &width, &height, &descent, &externalLeading);
+    gc->GetTextExtent(name, &width, &height, &descent, &externalLeading);
     double x = (m_bound.width - width) / 2.0;
-    double y = (m_bound.height - height) / 2.0;
-
-    gc->DrawText(text, x, y);
+    double y = m_bound.height / 2.0 - height;
+    gc->DrawText(name, x, y);
+    gc->SetFont(instanceFont, UiTheme::Palette().text3);
+    const wxString text = GetIdentifier();
+    gc->GetTextExtent(text, &width, &height, &descent, &externalLeading);
+    gc->DrawText(text, (m_bound.width - width) / 2.0, m_bound.height / 2.0);
 
     // 绘制引脚标识符
     for (auto p : GetInputPins()) {
@@ -540,7 +590,7 @@ void InputElement::Draw(wxGraphicsContext * gc) const
     gc->SetTransform(origMatrix); // 这里不用 *，直接传对象
 }*/
 
-void TopModuleBox::Draw(wxGraphicsContext* gc) const
+void TopModuleBox::Draw(wxGraphicsContext* gc, const wxWindow* window, double units) const
 {
     if (!gc) return;
 
@@ -562,12 +612,12 @@ void TopModuleBox::Draw(wxGraphicsContext* gc) const
 
             // 分支1：Line
             if constexpr (std::is_same_v<T, Line>) {
-                gc->SetPen(wxPen(s.color, 3.0));
+                gc->SetPen(gc->CreatePen(wxGraphicsPenInfo(UiTheme::CanvasSeedColour(s.color)).Width(units)));
                 gc->StrokeLine(s.start.x, s.start.y, s.end.x, s.end.y);
             }
             // 分支2：ArcShape
             else if constexpr (std::is_same_v<T, ArcShape>) {
-                gc->SetPen(wxPen(s.color, 3.0));
+                gc->SetPen(gc->CreatePen(wxGraphicsPenInfo(UiTheme::CanvasSeedColour(s.color)).Width(units)));
                 wxGraphicsPath path = gc->CreatePath();
                 path.AddArc(s.center.x, s.center.y, s.radius,
                     s.startAngle * M_PI / 180, s.endAngle * M_PI / 180, true);
@@ -575,14 +625,14 @@ void TopModuleBox::Draw(wxGraphicsContext* gc) const
             }
             // 分支3：Text
             else if constexpr (std::is_same_v<T, Text>) {
-                wxFont font(s.fontSize, wxFONTFAMILY_DEFAULT,
-                    wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
-                gc->SetFont(font, s.color);
+                auto font=CanvasVisuals::WorldFont(window,UiTheme::TextSize::P13);
+                font.SetPixelSize(wxSize(0,s.fontSize));
+                gc->SetFont(font, UiTheme::CanvasSeedColour(s.color));
                 gc->DrawText(s.text, s.pos.x, s.pos.y);
             }
             // 分支4：Circle
             else if constexpr (std::is_same_v<T, Circle>) {
-                gc->SetPen(wxPen(s.color, 3.0));
+                gc->SetPen(gc->CreatePen(wxGraphicsPenInfo(UiTheme::CanvasSeedColour(s.color)).Width(units)));
                 gc->SetBrush(s.fill ? wxBrush(s.fillColor) : *wxTRANSPARENT_BRUSH);
                 gc->DrawEllipse(s.center.x - s.radius, s.center.y - s.radius,
                     s.radius * 2, s.radius * 2);
@@ -597,13 +647,13 @@ void TopModuleBox::Draw(wxGraphicsContext* gc) const
                     }
                     path.CloseSubpath();
                 }
-                gc->SetPen(wxPen(s.color, 3.0));
+                gc->SetPen(gc->CreatePen(wxGraphicsPenInfo(UiTheme::CanvasSeedColour(s.color)).Width(units)));
                 gc->SetBrush(*wxTRANSPARENT_BRUSH);
                 gc->StrokePath(path);
             }
             // 分支6：BezierShape
             else if constexpr (std::is_same_v<T, BezierShape>) {
-                gc->SetPen(wxPen(s.color, 3.0));
+                gc->SetPen(gc->CreatePen(wxGraphicsPenInfo(UiTheme::CanvasSeedColour(s.color)).Width(units)));
                 wxGraphicsPath path = gc->CreatePath();
                 path.MoveToPoint(s.p0.x, s.p0.y);
                 path.AddCurveToPoint(s.p1.x, s.p1.y, s.p1.x, s.p1.y, s.p2.x, s.p2.y);
@@ -611,7 +661,7 @@ void TopModuleBox::Draw(wxGraphicsContext* gc) const
             }
             // 分支7：CubicBezierShape（三次贝塞尔曲线）
             else if constexpr (std::is_same_v<T, CubicBezierShape>) {
-                gc->SetPen(wxPen(s.color, 3.0));
+                gc->SetPen(gc->CreatePen(wxGraphicsPenInfo(UiTheme::CanvasSeedColour(s.color)).Width(units)));
                 wxGraphicsPath path = gc->CreatePath();
                 path.MoveToPoint(s.p0.x, s.p0.y);
                 path.AddCurveToPoint(s.p1.x, s.p1.y, s.p2.x, s.p2.y, s.p3.x, s.p3.y);
@@ -619,7 +669,7 @@ void TopModuleBox::Draw(wxGraphicsContext* gc) const
             }
             // 分支8：Path（使用 SVG Path 数据标准解析器）
             else if constexpr (std::is_same_v<T, Path>) {
-                gc->SetPen(wxPen(s.stroke, s.strokeWidth));
+                gc->SetPen(gc->CreatePen(wxGraphicsPenInfo(UiTheme::CanvasSeedColour(s.stroke)).Width(units)));
                 gc->SetBrush(s.fill ? wxBrush(s.stroke) : *wxTRANSPARENT_BRUSH);
                 wxGraphicsPath gPath = gc->CreatePath();
                 ParseSvgPathToContext(s.d, gPath);
@@ -630,39 +680,21 @@ void TopModuleBox::Draw(wxGraphicsContext* gc) const
             }, shape);  // 确保 std::visit 的 lambda 正确闭合
     }
 
-    // 绘制输入引脚（蓝色圆点）
-    for (const auto& pin : m_inPins) {
-        gc->SetPen(wxPen(wxColour(0, 0, 255), 1.0)); // 蓝色边框
-        gc->SetBrush(wxBrush(wxColour(0, 0, 255)));  // 蓝色填充
-        gc->DrawEllipse(pin.pos.x - 3, pin.pos.y - 3, 6, 6); // 半径为3的圆点
-    }
-
-    // 绘制输出引脚（红色圆点）
-    for (const auto& pin : m_outPins) {
-        gc->SetPen(wxPen(wxColour(255, 0, 0), 1.0)); // 红色边框
-        gc->SetBrush(wxBrush(wxColour(255, 0, 0)));  // 红色填充
-        gc->DrawEllipse(pin.pos.x - 3, pin.pos.y - 3, 6, 6); // 半径为3的圆点
-    }
-
     // 绘制元件标识符
-    wxFont font(wxFontInfo(6).Family(wxFONTFAMILY_SWISS).Bold());
-    gc->SetFont(font, wxColour("#333333"));
+    wxFont font = CanvasVisuals::WorldFont(window, UiTheme::TextSize::P11, false, UiTheme::Weight::Medium);
+    gc->SetFont(font, UiTheme::Palette().text1);
     wxString text = self->identifier;
     double width, height, descent, externalLeading;
     gc->GetTextExtent(text, &width, &height, &descent, &externalLeading);
 
     gc->DrawText(text, m_bound.width/2 - width/2, -height);
 
-    // 绘制引脚标识符
-    for (auto p : GetInputPins()) {
-        gc->GetTextExtent(p.GetIdentifier(), &width, &height, &descent, &externalLeading);
-        gc->DrawText(p.GetIdentifier(), p.pos.x - 5 - width, p.pos.y);
+    for (auto pin : GetInputPins()) {
+        CanvasVisuals::DrawPinCard(*gc,wxPoint(pin.pos.x,pin.pos.y),true,pin.GetIdentifier(),window,units);
     }
-
-    for (auto p : GetOutputPins()) {
-        gc->DrawText(p.GetIdentifier(), p.pos.x + 5, p.pos.y);
+    for (auto pin : GetOutputPins()) {
+        CanvasVisuals::DrawPinCard(*gc,wxPoint(pin.pos.x,pin.pos.y),false,pin.GetIdentifier(),window,units);
     }
-
 
     // -------------------------- 4. 恢复原始上下文变换 --------------------------
 }

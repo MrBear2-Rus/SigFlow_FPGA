@@ -41,6 +41,25 @@ from sigflow_edu_agent.rules import (  # noqa: E402
 )
 from sigflow_edu_agent.version import MAX_CARDS_PER_RUN  # noqa: E402
 
+REPO_ROOT = os.path.abspath(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..")
+)
+SAMPLES_DIR = os.path.join(REPO_ROOT, "examples", "edu_agent")
+EXPECTED_FINDINGS = os.path.join(SAMPLES_DIR, "expected_findings.json")
+
+
+def read_sample(relative_path: str) -> str:
+    """Read one recorded T7 sample from ``examples/edu_agent/``."""
+    with open(os.path.join(SAMPLES_DIR, relative_path), "r", encoding="utf-8") as handle:
+        return handle.read()
+
+
+def load_expected_findings() -> dict:
+    """Load the sample -> expected findings map used by the checker script."""
+    with open(EXPECTED_FINDINGS, "r", encoding="utf-8") as handle:
+        return json.load(handle)["samples"]
+
+
 LATCH_SNIPPET = (
     "module blk(input clk, input en, input d, output reg q);\n"
     "  always @(*) begin\n"
@@ -250,6 +269,257 @@ class OtherRuleTests(unittest.TestCase):
             [(finding.rule, finding.signal) for finding in first],
             [(finding.rule, finding.signal) for finding in second],
         )
+
+
+class RuleEngineT7Tests(unittest.TestCase):
+    """T7: each rule needs a positive case, a negative case, and no false alarms."""
+
+    def test_clocked_block_is_not_a_sensitivity_finding(self) -> None:
+        """An edge-triggered block is sequential, not an incomplete list."""
+        clocked = (
+            "module blk(input clk, input [7:0] data_in, output reg [7:0] data_out);\n"
+            "  always @(posedge clk) begin\n"
+            "    data_out <= data_in;\n"
+            "  end\n"
+            "endmodule"
+        )
+        self.assertEqual(analyse(Selection(text=clocked)), [])
+
+    def test_always_ff_is_not_flagged(self) -> None:
+        clocked = (
+            "module blk(input clk, input [7:0] data_in, output logic [7:0] data_out);\n"
+            "  always_ff @(posedge clk) begin\n"
+            "    data_out <= data_in;\n"
+            "  end\n"
+            "endmodule"
+        )
+        self.assertEqual(analyse(Selection(text=clocked)), [])
+
+    def test_always_comb_incomplete_branch_is_detected(self) -> None:
+        comb = (
+            "module blk(input logic en, input logic d, output logic q);\n"
+            "  always_comb begin\n"
+            "    if (en) begin\n"
+            "      q = d;\n"
+            "    end\n"
+            "  end\n"
+            "endmodule"
+        )
+        findings = analyse(Selection(text=comb))
+        self.assertEqual([finding.rule for finding in findings], [INCOMPLETE_LATCH])
+        self.assertEqual(findings[0].signal, "q")
+
+    def test_always_latch_is_an_intentional_latch(self) -> None:
+        """A legal latch states its intent; it must never be reported."""
+        intentional = (
+            "module blk(input logic en, input logic d, output logic q);\n"
+            "  always_latch begin\n"
+            "    if (en) q = d;\n"
+            "  end\n"
+            "endmodule"
+        )
+        self.assertEqual(analyse(Selection(text=intentional)), [])
+
+    def test_level_sensitive_incomplete_branch_is_detected(self) -> None:
+        """``always @(a or b)`` is still a combinational block."""
+        level = (
+            "module blk(input a, input b, output reg y);\n"
+            "  always @(a or b) begin\n"
+            "    if (a) y = b;\n"
+            "  end\n"
+            "endmodule"
+        )
+        findings = analyse(Selection(text=level))
+        self.assertEqual([finding.rule for finding in findings], [INCOMPLETE_LATCH])
+        self.assertEqual(findings[0].signal, "y")
+
+    def test_nested_incomplete_branch_is_detected(self) -> None:
+        """A complete outer ``else`` must not hide an incomplete inner ``if``."""
+        nested = (
+            "module blk(input a, input b, input c, output reg y);\n"
+            "  always @(*) begin\n"
+            "    if (a) begin\n"
+            "      if (b) begin\n"
+            "        y = c;\n"
+            "      end\n"
+            "    end else begin\n"
+            "      y = 1'b0;\n"
+            "    end\n"
+            "  end\n"
+            "endmodule"
+        )
+        self.assertEqual(
+            [finding.rule for finding in analyse(Selection(text=nested))],
+            [INCOMPLETE_LATCH],
+        )
+
+    def test_one_line_layout_is_understood(self) -> None:
+        """``end else begin`` and ``if / else`` on one line are not latches."""
+        inline = (
+            "module blk(input a, input b, output reg y);\n"
+            "  always @(*) begin\n"
+            "    if (a) begin y = b; end else begin y = 1'b0; end\n"
+            "  end\n"
+            "endmodule"
+        )
+        self.assertEqual(analyse(Selection(text=inline)), [])
+
+    def test_one_line_incomplete_branch_is_detected(self) -> None:
+        inline = (
+            "module blk(input a, input b, output reg y);\n"
+            "  always @(*) begin if (a) y = b; end\n"
+            "endmodule"
+        )
+        self.assertEqual(
+            [finding.rule for finding in analyse(Selection(text=inline))],
+            [INCOMPLETE_LATCH],
+        )
+
+    def test_comments_do_not_change_the_structure_count(self) -> None:
+        """A comment that mentions begin/end is not source structure."""
+        commented = (
+            "// 这里的 begin/end 只是注释：说明结构必须配对\n"
+            "module blk(input a, output reg y);\n"
+            "  always @(*) begin\n"
+            "    y = a; // 注释里的 end 也不算\n"
+            "  end\n"
+            "endmodule"
+        )
+        self.assertEqual(analyse(Selection(text=commented)), [])
+
+    def test_continuous_assign_width_mismatch_is_detected(self) -> None:
+        assignment = (
+            "module blk(input wire [3:0] a, output wire [3:0] y);\n"
+            "  assign y = 8'hff;\n"
+            "endmodule"
+        )
+        findings = analyse(Selection(text=assignment))
+        self.assertEqual([finding.rule for finding in findings], [WIDTH_MISMATCH])
+        self.assertEqual(findings[0].detail["declared_width"], 4)
+        self.assertEqual(findings[0].detail["literal_width"], 8)
+
+    def test_non_blocking_width_mismatch_is_detected(self) -> None:
+        assignment = (
+            "module blk(input clk, input [3:0] d, output reg [3:0] y);\n"
+            "  always @(posedge clk) begin\n"
+            "    y <= 8'hff;\n"
+            "  end\n"
+            "endmodule"
+        )
+        findings = analyse(Selection(text=assignment))
+        self.assertEqual([finding.rule for finding in findings], [WIDTH_MISMATCH])
+        self.assertEqual(findings[0].detail["literal_width"], 8)
+
+    def test_literal_inside_a_wider_expression_is_not_a_width_finding(self) -> None:
+        """``state <= (byte == 8'd1) ? A : B;`` says nothing about ``state``."""
+        expression = (
+            "module blk(input [7:0] uart_rx_byte, output reg [4:0] state);\n"
+            "  localparam [4:0] S_IDLE = 5'd0;\n"
+            "  localparam [4:0] S_DONE = 5'd1;\n"
+            "  always @(posedge clk) begin\n"
+            "    state <= (uart_rx_byte == 8'd1) ? S_DONE : S_IDLE;\n"
+            "  end\n"
+            "endmodule"
+        )
+        self.assertEqual(analyse(Selection(text=expression)), [])
+
+    def test_parameterised_width_is_not_guessed(self) -> None:
+        """``[WIDTH-1:0]`` has an unknown width: no finding instead of a guess."""
+        parameterised = (
+            "module blk(input [7:0] a, output [WIDTH-1:0] y);\n"
+            "  assign y = 8'hff;\n"
+            "endmodule"
+        )
+        self.assertEqual(analyse(Selection(text=parameterised)), [])
+
+    def test_single_character_reads_are_not_accused(self) -> None:
+        """One-letter names double as Verilog number bases; stay quiet."""
+        snippet = (
+            "module blk(input clk, input d, output reg q);\n"
+            "  always @(clk) begin\n"
+            "    q = d;\n"
+            "  end\n"
+            "endmodule"
+        )
+        self.assertEqual(analyse(Selection(text=snippet)), [])
+
+    def test_findings_follow_the_declared_rule_order(self) -> None:
+        """The first finding becomes the primary card, so the order is contract."""
+        both = (
+            "module blk(input [3:0] a, output [3:0] y);\n"
+            "  assign y = 8'hff;\n"
+            "  always @(*) begin\n"
+            "    if (a)\n"
+            "      y = 4'h0;\n"
+            "endmodule"
+        )
+        self.assertEqual(
+            [finding.rule for finding in analyse(Selection(text=both))],
+            [INCOMPLETE_LATCH, WIDTH_MISMATCH, UNBALANCED_BLOCK],
+        )
+
+    def test_analysis_does_no_io_and_leaves_its_input_alone(self) -> None:
+        """``analyse`` is a pure function: no model, no file, no network."""
+        selection = Selection(text=LATCH_SNIPPET, source_id="source-1")
+        expected = [(finding.rule, finding.signal) for finding in analyse(selection)]
+
+        def forbidden(*args: object, **kwargs: object) -> object:
+            raise AssertionError("analyse must not touch the outside world")
+
+        with patch("builtins.open", forbidden), patch("socket.socket", forbidden):
+            again = [(finding.rule, finding.signal) for finding in analyse(selection)]
+
+        self.assertEqual(again, expected)
+        self.assertEqual(selection.text, LATCH_SNIPPET)
+        self.assertEqual(selection.source_id, "source-1")
+
+
+class RuleSampleTests(unittest.TestCase):
+    """T7: the recorded samples under ``examples/edu_agent/`` are the evidence."""
+
+    def test_recorded_samples_reproduce_their_findings(self) -> None:
+        samples = load_expected_findings()
+        self.assertTrue(samples)
+        for relative, wanted in sorted(samples.items()):
+            with self.subTest(sample=relative):
+                findings = analyse(Selection(text=read_sample(relative)))
+                self.assertEqual(
+                    [finding.rule for finding in findings], list(wanted["rules"])
+                )
+                self.assertEqual(
+                    [finding.signal for finding in findings], list(wanted["signals"])
+                )
+
+    def test_samples_cover_every_rule_with_a_positive_and_a_negative(self) -> None:
+        samples = load_expected_findings()
+        positives: dict[str, list[str]] = {}
+        negatives: list[str] = []
+        for relative, wanted in sorted(samples.items()):
+            if wanted["rules"]:
+                for rule in wanted["rules"]:
+                    positives.setdefault(rule, []).append(relative)
+            else:
+                negatives.append(relative)
+        self.assertEqual(
+            sorted(positives),
+            sorted([INCOMPLETE_LATCH, INCOMPLETE_SENSITIVITY, WIDTH_MISMATCH,
+                    UNBALANCED_BLOCK]),
+        )
+        self.assertGreaterEqual(len(negatives), len(positives))
+
+    def test_latch_pair_differs_by_intent_not_by_shape(self) -> None:
+        """The D-01 pair: same incomplete branch, opposite teaching verdict."""
+        positive = read_sample("rtl/latch_incomplete.v")
+        legal = read_sample("rtl/latch_intentional.sv")
+        self.assertIn("if (en)", positive)
+        self.assertIn("if (en)", legal)
+        self.assertIn("always_latch", legal)
+        self.assertNotIn("always_latch", positive)
+        self.assertEqual(
+            [finding.rule for finding in analyse(Selection(text=positive))],
+            [INCOMPLETE_LATCH],
+        )
+        self.assertEqual(analyse(Selection(text=legal)), [])
 
 
 class ReportTrustTests(unittest.TestCase):

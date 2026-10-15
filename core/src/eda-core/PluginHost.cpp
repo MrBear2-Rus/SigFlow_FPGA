@@ -93,7 +93,7 @@ void PluginHost::AddSearchPathsFromEnvironment() {
         const std::size_t length =
             position == std::string::npos ? std::string::npos : position - start;
         const std::string item = value.substr(start, length);
-        if (!item.empty()) searchPaths_.push_back(item);
+        if (!item.empty()) searchPaths_.push_back(platform::PathFromUtf8(item));
         if (position == std::string::npos) break;
         start = position + 1;
     }
@@ -105,11 +105,25 @@ void PluginHost::AddDefaultSearchPaths(const std::filesystem::path& exeDir,
     if (!exeDir.empty()) {
         searchPaths_.push_back(exeDir / "plugins");
     }
+#if defined(_WIN32)
+    // getenv() 在 Windows 上返回 ANSI 窄字节（例如 C:\Users\何佳颖）。
+    // libstdc++ 的 path(char*) 会按当前 locale（通常 "C"）做窄->宽转换，
+    // 遇到非 ASCII 直接抛 filesystem_error —— 表现为启动即
+    // "Unhandled unknown exception; terminating the application."。
+    // 改用宽字符环境：宽字符 -> path 不做 locale 转换。
+    const wchar_t* homeW = _wgetenv(L"USERPROFILE");
+    if (homeW == nullptr) homeW = _wgetenv(L"HOME");
+    if (homeW != nullptr && *homeW != L'\0') {
+        searchPaths_.push_back(std::filesystem::path(std::wstring(homeW)) / L".sigflow" /
+                               L"plugins");
+    }
+#else
     const char* home = std::getenv("USERPROFILE");
     if (home == nullptr) home = std::getenv("HOME");
     if (home != nullptr) {
         searchPaths_.push_back(std::filesystem::path(home) / ".sigflow" / "plugins");
     }
+#endif
     if (!projectDir.empty()) {
         searchPaths_.push_back(projectDir / ".sigflow" / "plugins");
     }
@@ -123,7 +137,7 @@ void PluginHost::AddDefaultSearchPaths(const std::filesystem::path& exeDir,
             const std::size_t length =
                 position == std::string::npos ? std::string::npos : position - start;
             const std::string item = value.substr(start, length);
-            if (!item.empty()) searchPaths_.push_back(item);
+            if (!item.empty()) searchPaths_.push_back(platform::PathFromUtf8(item));
             if (position == std::string::npos) break;
             start = position + 1;
         }

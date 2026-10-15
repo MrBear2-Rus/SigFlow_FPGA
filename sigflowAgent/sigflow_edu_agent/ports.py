@@ -1,7 +1,10 @@
 """Trusted host ports. Model output must never implement these interfaces."""
 
+from __future__ import annotations
+
 from typing import Protocol
 from .domain import CardContext, CourseBundle, Evidence, Plan, VerificationResult
+from .checkers.plan import DetailedPlan
 
 
 class EvidenceSource(Protocol):
@@ -24,9 +27,9 @@ class VerificationPort(Protocol):
     This synchronous development interface is not a shared Gateway DTO.
     """
 
-    def authorized(self, plan: Plan, grant_ref: str) -> bool: ...
+    def authorized(self, plan: Plan | DetailedPlan, grant_ref: str) -> bool: ...
 
-    def execute(self, plan: Plan, step_index: int, grant_ref: str,
+    def execute(self, plan: Plan | DetailedPlan, step_index: int, grant_ref: str,
                 idempotency_key: str) -> VerificationResult: ...
 
 

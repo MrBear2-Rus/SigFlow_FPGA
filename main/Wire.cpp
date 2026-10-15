@@ -1,7 +1,8 @@
 ﻿#include "Wire.h"
 #include "CanvasPanel.h"
+#include "ui/CanvasVisuals.h"
 
-void Wire::Draw(wxGraphicsContext* gc) const {
+void Wire::Draw(wxGraphicsContext* gc, double screenDip, bool selected) const {
     if (pts.size() < 2) return;
 
     // --- 1. 查找最长线段并绘制路径 ---
@@ -33,15 +34,20 @@ void Wire::Draw(wxGraphicsContext* gc) const {
         }
     }
 
-    // --- 2. 绘制导线 ---
-    wxColour strokeColor = (status == LogicSignal::ZERO) ? colors[0] : colors[1];
-    gc->SetPen(wxPen(strokeColor, 3));
+    // --- 2. 绘制导线（T-410：线宽 2 DIP、颜色 = UiTheme wire，SPEC CMP-044） ---
+    // 逻辑态配色（保守，仅接线宽常量）：status ZERO 用 colors[0]=wire，
+    // 非 ZERO（ONE/Z/X/E 导通态）用 colors[1]=brand——原脚本里 colors[1] 是无条件
+    // 满亮的亮绿 wxColour(0,255,0)，仍保留"只区分 ZERO / 非 ZERO"这一行为，未引入新语义。
+    wxColour strokeColor = selected ? UiTheme::Palette().accent
+                                   : ((status == LogicSignal::ZERO) ? colors[0] : colors[1]);
+    const double width = selected ? CanvasDraw::kSelectionWidth : CanvasDraw::kWireWidth;
+    gc->SetPen(gc->CreatePen(wxGraphicsPenInfo(strokeColor).Width(width * screenDip).Cap(wxCAP_ROUND).Join(wxJOIN_ROUND)));
     gc->StrokePath(wirePath);
 
     // --- 3. 绘制 Identifier 文本 ---
     if (!identifier.empty()) {
         // 设置字体（建议在类中初始化，避免重复创建）
-        gc->SetFont(font, *wxBLACK);
+        gc->SetFont(CanvasVisuals::WorldFont(m_canvas,UiTheme::TextSize::P11,true), UiTheme::Palette().text1);   // T-410：原 *wxBLACK → text1
 
         double tw, th, de, ex;
         gc->GetTextExtent(identifier, &tw, &th, &de, &ex);
@@ -54,35 +60,20 @@ void Wire::Draw(wxGraphicsContext* gc) const {
         gc->DrawText(identifier, textCenter.m_x - tw / 2.0, textCenter.m_y - th);
     }
 
-    // --- 4. 绘制节点（打点） ---
+    // --- 4. 绘制结点（打点）（T-410：半径 3.6 DIP 实心，SPEC CMP-044） ---
     for (const auto& pt : pts) {
         if (pt.type == CPType::Pin || pt.type == CPType::Bend) continue;
-        wxColour dotColor = (pt.type == CPType::Branch) ? colors[2] : strokeColor;
-        gc->SetPen(wxPen(dotColor, 1));
+        wxColour dotColor = selected ? UiTheme::Palette().accent
+                                    : ((pt.type == CPType::Branch) ? colors[2] : strokeColor);
+        gc->SetPen(*wxTRANSPARENT_PEN);
         gc->SetBrush(wxBrush(dotColor));
-        gc->DrawEllipse(pt.pos.x - 3, pt.pos.y - 3, 6, 6);
+        const double radius = CanvasDraw::kNodeRadius * screenDip;
+        gc->DrawEllipse(pt.pos.x - radius, pt.pos.y - radius, radius * 2, radius * 2);
     }
 }
 
 void Wire::DrawColor(wxGraphicsContext* gc) const {
-    if (pts.size() < 2) return;
-
-    // 1. 创建一次路径，复用两次
-    wxGraphicsPath path = gc->CreatePath();
-    path.MoveToPoint(pts[0].pos.x, pts[0].pos.y);
-    for (size_t i = 1; i < pts.size(); ++i) {
-        path.AddLineToPoint(pts[i].pos.x, pts[i].pos.y);
-    }
-
-    // 2. 绘制外层发光效果（光晕）
-    // 使用 Alpha 通道 (32) 实现半透明，线宽加大到 8
-    gc->SetPen(wxPen(wxColor(44, 145, 224, 32), 8));
-    gc->StrokePath(path);
-
-    // 3. 绘制内层核心线（实线）
-    // 覆盖在光晕之上，线宽为 2
-    gc->SetPen(wxPen(wxColor(44, 145, 224), 2));
-    gc->StrokePath(path);
+    Draw(gc, 1.0, true); // 兼容旧接口；画布显式传入 DPI/zoom 补偿值。
 }
 
 

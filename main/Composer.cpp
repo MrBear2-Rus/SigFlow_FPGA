@@ -68,9 +68,10 @@ std::string Composer::LoadPlugins(const std::string& pluginDirectoryUtf8,
     }
 
     // 2) 新契约 IPluginInteraction：内置注册表 + 搜索链（bundled/用户/项目/env）发现。
-    pluginHost_.AddSearchPath(pluginDirectoryUtf8);
+    pluginHost_.AddSearchPath(eda::platform::PathFromUtf8(pluginDirectoryUtf8));
     if (!exeDirUtf8.empty() || !projectDirUtf8.empty()) {
-        pluginHost_.AddDefaultSearchPaths(exeDirUtf8, projectDirUtf8);
+        pluginHost_.AddDefaultSearchPaths(eda::platform::PathFromUtf8(exeDirUtf8),
+                                          eda::platform::PathFromUtf8(projectDirUtf8));
     }
     // 先把静态自注册 TU 拉入链接（否则静态库按需拉取会丢弃注册对象）。
     ForceLinkOfficialPlugins();

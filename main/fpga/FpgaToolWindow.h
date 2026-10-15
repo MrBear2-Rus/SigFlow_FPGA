@@ -4,6 +4,8 @@
 
 #include <wx/frame.h>
 
+#include "FpgaTheme.h"   // T-140：适配层 + 主题重放登记表（含 ui/UiTheme.h）
+
 class FpgaSynthesisJobsPanel;
 class NextpnrJobsPanel;
 class wxNotebook;
@@ -42,6 +44,10 @@ public:
     void SetPackResult(const wxString& bitstreamPath, bool success, const wxString& message);
 
 private:
+    // T-140 / THE-030：主题刷新 —— 重放登记表 + 订阅句柄，均随本窗析构释放
+    FpgaTheme::RepaintActions m_repaint;
+    UiTheme::Subscription m_themeSub;
+
     wxString m_projectPath;
     wxString m_activeYosysJobId;
     wxString m_activeNextpnrJobId;
@@ -71,6 +77,7 @@ private:
     std::function<void()> m_packStartHandler;
     std::function<void(const wxString&)> m_programStartHandler;
 
+    void ApplyTheme();
     void BuildUi();
     wxPanel* BuildHeader();
     wxPanel* BuildYosysPage();

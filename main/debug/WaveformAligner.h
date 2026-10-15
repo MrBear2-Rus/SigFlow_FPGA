@@ -40,7 +40,8 @@ class WaveformAligner {
 public:
     // 用信号名列表尝试找共同锚点。
     // anchorCandidates 按优先级排列（如 ["rst_n", "reset", "trigger"]）。
-    // triggerIndex：HW 硬件捕获的触发样本索引（对应 hwAnchorTime = triggerIndex）。
+    // triggerIndex is only a compatibility hint. A nonzero index requires the
+    // VCD's trigger_time metadata; the index itself is never used as a timestamp.
     static AlignmentResult Align(vcd_t* hw, vcd_t* sim,
                                  const std::vector<std::string>& anchorCandidates,
                                  std::uint16_t triggerIndex = 0);

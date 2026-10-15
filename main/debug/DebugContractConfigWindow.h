@@ -3,12 +3,17 @@
 #include "DebugContract.h"
 
 #include <functional>
+#include <vector>
 
 #include <wx/frame.h>
+
+#include "ui/UiTheme.h"   // T-140 / THE-030：子窗主题刷新
 
 class wxButton;
 class wxCheckBox;
 class wxChoice;
+class wxNotebook;
+class wxPanel;
 class wxSpinCtrl;
 class wxStaticText;
 class wxTextCtrl;
@@ -22,6 +27,8 @@ public:
     void SetSavedHandler(std::function<void(const wxString&)> handler);
 
 private:
+    void ApplyTheme();
+
     void BuildUi();
     void LoadDefaultContract();
     void LoadFromPath(const wxString& path);
@@ -36,6 +43,12 @@ private:
     void OnSave(wxCommandEvent& event);
     void OnSaveAs(wxCommandEvent& event);
     void OnValidate(wxCommandEvent& event);
+
+    // T-140 / THE-030：主题刷新（THE-028：订阅句柄析构即解绑）
+    UiTheme::Subscription themeSubscription_;
+    wxNotebook* notebook_ = nullptr;
+    std::vector<wxPanel*> pages_;
+    bool statusIsError_ = false;
 
     wxString projectPath_;
     wxString contractFilePath_;

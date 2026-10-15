@@ -13,6 +13,7 @@ class Status(StrEnum):
     WAITING_STUDENT = 'WaitingStudent'
     WAITING_EVIDENCE = 'WaitingEvidence'
     WAITING_APPROVAL = 'WaitingApproval'
+    RECOVERY_REQUIRED = 'RecoveryRequired'
     COMPLETED = 'Completed'
     CANCELLED = 'Cancelled'
     FAILED = 'Failed'
@@ -60,6 +61,11 @@ class Plan:
     goal: str
     steps: tuple[str, ...]
 
+    @property
+    def gateway_ready(self) -> bool:
+        """Legacy development plan lacks snapshot, parameters and observations."""
+        return False
+
     def __post_init__(self):
         allowed = {'eda.synth', 'eda.sim.build', 'eda.sim.run'}
         if not isinstance(self.steps, tuple) or not 1 <= len(self.steps) <= 3:
@@ -68,7 +74,7 @@ class Plan:
             if not isinstance(value, str) or not value.strip() or len(value) > 4096:
                 raise ValueError('invalid_plan')
         for index, step in enumerate(self.steps):
-            if step not in allowed:
+            if type(step) is not str or step not in allowed:
                 raise ValueError('capability_denied')
             if step == 'eda.sim.run' and 'eda.sim.build' not in self.steps[:index]:
                 raise ValueError('missing_build_dependency')

@@ -251,7 +251,11 @@ class ExternalMaterialIntegrationTests(unittest.TestCase):
         self.assertNotIn("A more granular", translated.text)
 
     def test_complete_context_chain_mocked_model_cites_only_admitted_passage(self):
-        source = Source()
+        # Exercise transport with a supported engineering pattern. Width-only
+        # evidence has no production detector and must not bypass the new gate.
+        source = Source('latch')
+        source.evidence = replace(source.evidence, combinational_goal=True,
+                                  summary='Fixture report observes storage in a combinational block')
         candidate = {"level": 1, "hint": "请先确认诊断指出的是截断还是扩展。", "question": "被赋值一侧和目标信号各是多少位？",
                      "evidence_ids": ["ev1"], "course_passage_ids": ["verilator_5052:warnings:widthtrunc"]}
         with closing(sqlite3.connect(self.db)) as connection:

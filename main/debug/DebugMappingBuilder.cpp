@@ -108,6 +108,7 @@ void ApplyContract(const std::string& topModule, const DebugContract& contract,
                   probe.clockDomain.empty() ? defaultClock : probe.clockDomain);
         auto& symbol = symbols[name];
         symbol.location.isProbe = true;
+        symbol.location.width = probe.width;
         symbol.location.sftreePath = probe.path.empty() ? topModule + "." + name : probe.path;
         symbol.location.canvasId = probe.id.empty() ? name : probe.id;
     }
@@ -127,6 +128,7 @@ Json::Value ToJson(const std::map<std::string, Symbol>& symbols) {
         item["fanout"] = Json::UInt64(location.fanout);
         item["direction"] = location.isInput ? "input" : "internal";
         item["probe"] = location.isProbe;
+        if (location.width != 0) item["width"] = location.width;
         value.append(item);
     }
     return value;
@@ -153,7 +155,8 @@ bool DebugMappingBuilder::Generate(const std::string& topModule,
     }
     std::map<std::string, Symbol> symbols;
     std::set<std::pair<std::string, std::string>> edges;
-    const std::string clock = LeafName(contract.sampleClock.signal);
+    const std::string clock = contract.clockDomains.size() == 1
+        ? contract.clockDomains.front().id : contract.sampleClock.signal;
     for (const auto& source : sourceFiles) ParseSource(source, clock, symbols, edges);
     ApplyContract(topModule, contract, clock, symbols);
     for (const auto& [source, dependent] : edges) {

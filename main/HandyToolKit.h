@@ -26,14 +26,13 @@ private:
     void DrawSemiTransparentOverlay(wxDC& dc, const wxRect& rect, const wxColour& color, int alpha);
     void DrawGlowBorder(wxDC& dc, const wxRect& rect, const wxColour& color, int glowWidth);
     void DrawGradientHighlight(wxDC& dc, const wxRect& rect, const wxColour& startColor, const wxColour& endColor);
-    void DrawToolButton(wxDC& dc, const wxRect& rect, bool isHovered);
 
 
     void PassFocusToCanvas();
 
     struct ToolInfo {
         wxString name;
-        wxBitmap icon;
+        ToolType type;
         wxRect rect;
         std::function<void()> action;
     };

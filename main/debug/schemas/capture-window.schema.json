@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sigflow.local/schema/tracebridge/capture-window-1.0.json",
+  "title": "TraceBridge capture attempt record",
+  "type": "object",
+  "required": ["attempt_number", "attempt_id", "started_at", "completed_at", "elapsed_ms",
+               "state", "error", "window", "issues"],
+  "properties": {
+    "attempt_number": { "type": "integer", "minimum": 1 },
+    "attempt_id": { "type": "string", "minLength": 1 },
+    "started_at": { "type": "string" },
+    "completed_at": { "type": "string" },
+    "elapsed_ms": { "type": "integer", "minimum": 0 },
+    "state": { "enum": ["Planned", "Running", "Captured", "TimedOut", "Failed", "Cancelled"] },
+    "error": { "type": "string" },
+    "retry_allowed": { "type": "boolean", "default": false },
+    "timing": {
+      "type": "object",
+      "properties": {
+        "arm_requested_at": { "type": "string" },
+        "wait_started_at": { "type": "string" },
+        "capture_ready_at": { "type": "string" },
+        "readback_started_at": { "type": "string" },
+        "readback_completed_at": { "type": "string" },
+        "artifacts_completed_at": { "type": "string" },
+        "wait_ms": { "type": "integer", "minimum": 0 },
+        "readback_ms": { "type": "integer", "minimum": 0 },
+        "artifact_ms": { "type": "integer", "minimum": 0 },
+        "gap_before_ms": { "type": "integer", "minimum": 0 },
+        "gap_before_basis": { "enum": ["host_observed", "estimated", "unknown"] },
+        "continuity": { "enum": ["continuous", "disconnected", "unknown"] }
+      },
+      "additionalProperties": true
+    },
+    "transport_stats": {
+      "type": "object",
+      "properties": {
+        "read_calls": { "type": "integer", "minimum": 0 },
+        "read_bytes": { "type": "integer", "minimum": 0 },
+        "read_elapsed_us": { "type": "integer", "minimum": 0 },
+        "read_timeouts": { "type": "integer", "minimum": 0 },
+        "read_disconnects": { "type": "integer", "minimum": 0 },
+        "write_calls": { "type": "integer", "minimum": 0 },
+        "write_bytes": { "type": "integer", "minimum": 0 },
+        "write_elapsed_us": { "type": "integer", "minimum": 0 },
+        "write_timeouts": { "type": "integer", "minimum": 0 },
+        "write_disconnects": { "type": "integer", "minimum": 0 },
+        "discard_calls": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": true
+    },
+    "protocol_stats": {
+      "type": "object",
+      "properties": {
+        "command_calls": { "type": "integer", "minimum": 0 },
+        "attempts": { "type": "integer", "minimum": 0 },
+        "retries": { "type": "integer", "minimum": 0 },
+        "response_timeouts": { "type": "integer", "minimum": 0 },
+        "write_failures": { "type": "integer", "minimum": 0 },
+        "malformed_frames": { "type": "integer", "minimum": 0 },
+        "crc_errors": { "type": "integer", "minimum": 0 },
+        "sequence_mismatches": { "type": "integer", "minimum": 0 },
+        "invalid_responses": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": true
+    },
+    "window": {
+      "type": "object",
+      "required": ["capture_id", "session_id", "raw_path", "vcd_path",
+                    "completeness", "identity", "sample_count", "trigger_index"],
+      "properties": {
+        "capture_id": { "type": "string" },
+        "session_id": { "type": "string" },
+        "raw_path": { "type": "string" },
+        "vcd_path": { "type": "string" },
+        "metadata_path": { "type": "string" },
+        "timebase": {
+          "type": "object",
+          "properties": {
+            "time_domain": { "enum": ["physical", "sample_index", "unknown"] },
+            "vcd_timescale": { "type": "string" },
+            "sample_clock_hz": { "type": "integer", "minimum": 0 },
+            "decimation": { "type": "integer", "minimum": 0, "maximum": 255 },
+            "trigger_observed": { "type": "boolean" },
+            "trigger_time": { "type": ["integer", "null"], "minimum": 0 }
+          }
+        },
+        "completeness": { "enum": ["complete", "partial", "corrupt", "unknown"] },
+        "identity": { "enum": ["device_verified", "host_bound", "unknown"] },
+        "sample_count": { "type": "integer", "minimum": 0 },
+        "trigger_index": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": true
+    },
+    "issues": { "type": "array" }
+  },
+  "additionalProperties": true
+}

@@ -52,11 +52,39 @@ int ReportStyleForLine(const wxString& line)
 FpgaSynthesisJobsPanel::FpgaSynthesisJobsPanel(wxWindow* parent)
     : wxPanel(parent, wxID_ANY)
 {
-    SetBackgroundColour(FpgaTheme::kBackground);
+    FpgaTheme::ApplyBackground(m_repaint, this, &FpgaTheme::kBackground);
     BuildUi();
     m_refreshTimer.SetOwner(this);
     Bind(wxEVT_TIMER, &FpgaSynthesisJobsPanel::OnRefreshTimer, this);
     m_refreshTimer.Start(2000);
+    // T-140 / THE-030：订阅主题变化（句柄随本面板析构释放，THE-028）
+    m_themeSub = UiTheme::Subscribe([this] { ApplyTheme(); });
+}
+
+// T-140：主题变化时重放登记表（重新取 token 写回控件）+ 重绘。
+// 列表项的状态色由 2s 定时刷新（RefreshJobs）重新取用，此处不强制重扫作业目录。
+void FpgaSynthesisJobsPanel::ApplyTheme()
+{
+    UiTheme::RemapStaleTokenColours(this);  // T-140 F-140-01/02：跨档 token 重映射
+    FpgaTheme::Replay(m_repaint);
+    ApplyReportPalette();
+    Refresh();
+}
+
+// T-140：报告区 wxStyledTextCtrl 的配色在 style 层（不在 wxWindow 属性上），
+// 必须逐 style 重设；构造期与每次主题变化各调用一次。
+void FpgaSynthesisJobsPanel::ApplyReportPalette()
+{
+    for (int style = kStyleDefault; style <= kStyleHeader; ++style) {
+        m_reportText->StyleSetBackground(style, FpgaTheme::kBackground());
+    }
+    m_reportText->StyleSetForeground(kStyleDefault, FpgaTheme::kText());
+    m_reportText->StyleSetForeground(kStyleMuted, FpgaTheme::kTextMuted());
+    m_reportText->StyleSetForeground(kStyleInfo, FpgaTheme::kBlue());
+    m_reportText->StyleSetForeground(kStyleWarn, FpgaTheme::kAmber());
+    m_reportText->StyleSetForeground(kStyleError, FpgaTheme::kRed());
+    m_reportText->StyleSetForeground(kStyleHeader, FpgaTheme::kTextSecondary());
+    m_reportText->SetCaretForeground(FpgaTheme::kText());
 }
 
 void FpgaSynthesisJobsPanel::SetProjectContext(const wxString& projectPath,
@@ -100,10 +128,11 @@ void FpgaSynthesisJobsPanel::BuildUi()
     // ── 工具条 ──
     wxBoxSizer* toolbar = new wxBoxSizer(wxHORIZONTAL);
     wxButton* refresh = new wxButton(this, wxID_REFRESH, "Refresh");
-    FpgaTheme::StyleSecondaryButton(refresh);
+    FpgaTheme::StyleSecondaryButton(m_repaint, refresh);
     toolbar->Add(refresh, 0, wxALL, FromDIP(4));
     toolbar->AddStretchSpacer();
-    toolbar->Add(FpgaTheme::MakeLabel(this, "Display:", FpgaTheme::kTextSecondary),
+    // 修复：MakeLabel 的第 4 参是**可调用对象**（取函数地址），不能写成调用形式（&f() 会取到右值地址）
+    toolbar->Add(FpgaTheme::MakeLabel(m_repaint, this, "Display:", &FpgaTheme::kTextSecondary),
                  0, wxALIGN_CENTER_VERTICAL | wxLEFT | wxRIGHT, FromDIP(4));
     m_filter = new wxChoice(this, wxID_ANY);
     m_filter->Append("Summary");
@@ -111,20 +140,20 @@ void FpgaSynthesisJobsPanel::BuildUi()
     m_filter->Append("Warnings");
     m_filter->Append("All Diagnostics");
     m_filter->SetSelection(0);
-    m_filter->SetBackgroundColour(FpgaTheme::kPanelAlt);
-    m_filter->SetForegroundColour(FpgaTheme::kText);
+    FpgaTheme::ApplyBackground(m_repaint, m_filter, &FpgaTheme::kPanelAlt);
+    FpgaTheme::ApplyForeground(m_repaint, m_filter, &FpgaTheme::kText);
     toolbar->Add(m_filter, 0, wxALL, FromDIP(4));
     layout->Add(toolbar, 0, wxEXPAND);
 
     // ── 任务列表 + 报告区 ──
     wxSplitterWindow* splitter = new wxSplitterWindow(this, wxID_ANY, wxDefaultPosition,
         wxDefaultSize, wxSP_LIVE_UPDATE | wxBORDER_NONE);
-    splitter->SetBackgroundColour(FpgaTheme::kBackground);
+    FpgaTheme::ApplyBackground(m_repaint, splitter, &FpgaTheme::kBackground);
 
     m_jobList = new wxListCtrl(splitter, wxID_ANY, wxDefaultPosition, wxDefaultSize,
         wxLC_REPORT | wxLC_SINGLE_SEL | wxBORDER_SIMPLE);
-    m_jobList->SetBackgroundColour(FpgaTheme::kBackground);
-    m_jobList->SetForegroundColour(FpgaTheme::kText);
+    FpgaTheme::ApplyBackground(m_repaint, m_jobList, &FpgaTheme::kBackground);
+    FpgaTheme::ApplyForeground(m_repaint, m_jobList, &FpgaTheme::kText);
     m_jobList->AppendColumn("Job", wxLIST_FORMAT_LEFT, FromDIP(210));
     m_jobList->AppendColumn("State", wxLIST_FORMAT_LEFT, FromDIP(95));
     m_jobList->AppendColumn("Strategy", wxLIST_FORMAT_LEFT, FromDIP(115));
@@ -136,23 +165,17 @@ void FpgaSynthesisJobsPanel::BuildUi()
     m_reportText->SetUseHorizontalScrollBar(true);
     m_reportText->SetMarginWidth(0, 0);
     m_reportText->SetReadOnly(true);
-    m_reportText->SetBackgroundColour(FpgaTheme::kBackground);
+    FpgaTheme::ApplyBackground(m_repaint, m_reportText, &FpgaTheme::kBackground);
 
-    const wxFont reportFont(FromDIP(9), wxFONTFAMILY_MODERN, wxFONTSTYLE_NORMAL,
+    // V6 / F3 修复：DES-024 全局最小字号 10 DIP（原 9 DIP 低于下限）
+    const wxFont reportFont(FromDIP(10), wxFONTFAMILY_MODERN, wxFONTSTYLE_NORMAL,
                             wxFONTWEIGHT_NORMAL);
     m_reportText->StyleClearAll();
     m_reportText->StyleSetFont(kStyleDefault, reportFont);
     for (int style = kStyleDefault; style <= kStyleHeader; ++style) {
-        m_reportText->StyleSetBackground(style, FpgaTheme::kBackground);
         m_reportText->StyleSetFont(style, reportFont);
     }
-    m_reportText->StyleSetForeground(kStyleDefault, FpgaTheme::kText);
-    m_reportText->StyleSetForeground(kStyleMuted, FpgaTheme::kTextMuted);
-    m_reportText->StyleSetForeground(kStyleInfo, FpgaTheme::kBlue);
-    m_reportText->StyleSetForeground(kStyleWarn, FpgaTheme::kAmber);
-    m_reportText->StyleSetForeground(kStyleError, FpgaTheme::kRed);
-    m_reportText->StyleSetForeground(kStyleHeader, FpgaTheme::kTextSecondary);
-    m_reportText->SetCaretForeground(FpgaTheme::kText);
+    ApplyReportPalette();
 
     splitter->SplitHorizontally(m_jobList, m_reportText, FromDIP(175));
     splitter->SetMinimumPaneSize(FromDIP(80));
@@ -164,10 +187,10 @@ void FpgaSynthesisJobsPanel::BuildUi()
     m_openLogButton = new wxButton(this, wxID_ANY, "Open Log");
     m_openSourceButton = new wxButton(this, wxID_ANY, "Open Error Source");
     m_retryButton = new wxButton(this, wxID_ANY, "Retry");
-    FpgaTheme::StyleSecondaryButton(m_openReportButton);
-    FpgaTheme::StyleSecondaryButton(m_openLogButton);
-    FpgaTheme::StyleSecondaryButton(m_openSourceButton);
-    FpgaTheme::StyleButton(m_retryButton, FpgaTheme::kBlue, *wxWHITE);
+    FpgaTheme::StyleSecondaryButton(m_repaint, m_openReportButton);
+    FpgaTheme::StyleSecondaryButton(m_repaint, m_openLogButton);
+    FpgaTheme::StyleSecondaryButton(m_repaint, m_openSourceButton);
+    FpgaTheme::StyleButton(m_repaint, m_retryButton, &FpgaTheme::kBlue, &FpgaTheme::kOnAccent);
     actions->Add(m_openReportButton, 0, wxALL, FromDIP(4));
     actions->Add(m_openLogButton, 0, wxALL, FromDIP(4));
     actions->Add(m_openSourceButton, 0, wxALL, FromDIP(4));
@@ -268,7 +291,7 @@ void FpgaSynthesisJobsPanel::RefreshJobs()
         stateItem.SetTextColour(StateColour(job.state));
         m_jobList->SetItem(stateItem);
         if (job.state == SynthesisJobState::Running) {
-            m_jobList->SetItemBackgroundColour(item, FpgaTheme::kBlueDeep);
+            m_jobList->SetItemBackgroundColour(item, FpgaTheme::kBlueDeep());
         }
         if (job.id == m_selectedJobId) selectedIndex = item;
     }
@@ -479,14 +502,14 @@ wxString FpgaSynthesisJobsPanel::RelativeTime(const wxString& isoUtc)
 wxColour FpgaSynthesisJobsPanel::StateColour(SynthesisJobState state)
 {
     switch (state) {
-    case SynthesisJobState::Succeeded: return FpgaTheme::kGreen;
-    case SynthesisJobState::Failed: return FpgaTheme::kRed;
+    case SynthesisJobState::Succeeded: return FpgaTheme::kGreen();
+    case SynthesisJobState::Failed: return FpgaTheme::kRed();
     case SynthesisJobState::Running:
     case SynthesisJobState::Validating:
-    case SynthesisJobState::Queued: return FpgaTheme::kBlue;
-    case SynthesisJobState::TimedOut: return FpgaTheme::kAmber;
-    case SynthesisJobState::Cancelled: return FpgaTheme::kTextMuted;
-    default: return FpgaTheme::kTextSecondary;
+    case SynthesisJobState::Queued: return FpgaTheme::kBlue();
+    case SynthesisJobState::TimedOut: return FpgaTheme::kAmber();
+    case SynthesisJobState::Cancelled: return FpgaTheme::kTextMuted();
+    default: return FpgaTheme::kTextSecondary();
     }
 }
 

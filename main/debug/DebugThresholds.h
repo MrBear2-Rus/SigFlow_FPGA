@@ -9,7 +9,7 @@ namespace debug {
 namespace DebugDefaults {
 inline constexpr unsigned kProbeTotalBits = 32;
 inline constexpr std::uint32_t kCaptureDepth = 1024;
-inline constexpr std::uint32_t kPretriggerSamples = 512;
+inline constexpr std::uint32_t kPretriggerSamples = 0; // finite linear capture, no circular pretrigger
 inline constexpr std::uint32_t kUartBaud = 921600;
 inline constexpr int kUartTxPin = 17;
 inline constexpr int kUartRxPin = 18;

@@ -1,5 +1,7 @@
 #include "DebugContractConfigWindow.h"
 
+#include "ui/UiTheme.h"   // T-140 / THE-030：子窗主题刷新（唯一 token 层，SAFE-012）
+
 #include <json/json.h>
 
 #include <algorithm>
@@ -29,6 +31,28 @@
 #include <wx/tokenzr.h>
 
 namespace {
+
+// ---------------------------------------------------------------------------
+// T-140 / PLT-012：未显式取色的"文字面"（wxStaticText / wxTextCtrl，系统默认黑）
+// 在主题刷新时补为当期文字 token —— 深色档下默认黑不可读，浅色档下也避免出现
+// 一个脱离 token 的"题外色"。已显式取色的控件保持不动。
+// ---------------------------------------------------------------------------
+bool NeedsDefaultTextColour(const wxColour& colour)
+{
+    return !colour.IsOk() || (colour.Red() == 0 && colour.Green() == 0 && colour.Blue() == 0);
+}
+
+void ApplyTextForegroundDefaults(wxWindow* window, const wxColour& colour)
+{
+    for (wxWindow* child : window->GetChildren()) {
+        const bool textSurface = dynamic_cast<wxStaticText*>(child) != nullptr ||
+                                 dynamic_cast<wxTextCtrl*>(child) != nullptr;
+        if (textSurface && NeedsDefaultTextColour(child->GetForegroundColour())) {
+            child->SetForegroundColour(colour);
+        }
+        ApplyTextForegroundDefaults(child, colour);
+    }
+}
 
 std::string ToUtf8(const wxString& value)
 {
@@ -158,6 +182,32 @@ DebugContractConfigWindow::DebugContractConfigWindow(wxWindow* parent)
 {
     BuildUi();
     LoadDefaultContract();
+    // T-140 / THE-030：订阅主题变化（句柄为本窗成员，先于子控件销毁而解绑）
+    themeSubscription_ = UiTheme::Subscribe([this] { ApplyTheme(); });
+}
+
+// T-140 / THE-030：本窗底色重新从 UiTheme token 取用。
+// 未迁移：四个 notebook 页内部的表单控件仍走原生系统外观（PLT-012 允许的原生例外），
+// 见 docs/GUI-CHUGAO/_evidence/T140-theme-adapter-map.md。
+void DebugContractConfigWindow::ApplyTheme()
+{
+    // T-140 夹具 F-140-01/02 修复：跨档 token 重映射（本窗 36 个文字面里仅 1 个曾随档更新）
+    UiTheme::RemapStaleTokenColours(this);
+    const UiTheme::Colours& ui = UiTheme::Palette();
+    SetBackgroundColour(ui.bgWindow);
+    // 本窗直接子面（页头文字 / notebook / 按钮）在主题刷新时重新取色（THE-030）
+    for (wxWindow* child : GetChildren()) {
+        child->SetBackgroundColour(ui.bgWindow);
+    }
+    if (notebook_) notebook_->SetBackgroundColour(ui.bgWindow);
+    for (wxPanel* page : pages_) {
+        if (page) page->SetBackgroundColour(ui.bgWindow);
+    }
+    ApplyTextForegroundDefaults(this, ui.text2);
+    if (statusLabel_ && !statusLabel_->GetLabel().IsEmpty()) {
+        SetStatus(statusLabel_->GetLabel(), statusIsError_);
+    }
+    Refresh();
 }
 
 void DebugContractConfigWindow::BuildUi()
@@ -189,6 +239,10 @@ void DebugContractConfigWindow::BuildUi()
     probeEditor_ = new wxTextCtrl(general, wxID_ANY, wxEmptyString, wxDefaultPosition,
                                   wxDefaultSize, wxTE_MULTILINE | wxTE_DONTWRAP);
     probeEditor_->SetHint(wxT("每行：信号路径 [位宽] [时钟域]\n例如：dut.state 4 clk_a"));
+    // T-140 F-140-01：同 TraceBridgeWindow——控件建在构造期 ApplyTheme() 之后，
+    // 原生纯黑前景不是 token、重映射看不见 → 深色启动下不可读。显式给当档 token。
+    probeEditor_->SetForegroundColour(UiTheme::Palette().text1);
+    probeEditor_->SetBackgroundColour(UiTheme::Palette().sunkenOnPanel);
     probeBox->Add(probeEditor_, 1, wxALL | wxEXPAND, 6);
     generalSizer->Add(probeBox, 1, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 10);
     general->SetSizer(generalSizer);
@@ -238,7 +292,7 @@ void DebugContractConfigWindow::BuildUi()
         captureGrid->Add(control, 1, wxEXPAND);
     };
     addSpin(wxT("采样深度"), depthCtrl_, 1024, 10000000);
-    addSpin(wxT("Pretrigger samples"), pretriggerCtrl_, 512, 10000000);
+    addSpin(wxT("预触发样本（当前仅支持 0）"), pretriggerCtrl_, 0, 10000000);
     addSpin(wxT("Decimation"), decimationCtrl_, 1, 1000000);
     captureSizer->Add(captureGrid, 0, wxALL | wxEXPAND, 10);
     capturePage->SetSizer(captureSizer);
@@ -280,6 +334,7 @@ void DebugContractConfigWindow::BuildUi()
     transportSizer->Add(transportGrid, 0, wxALL | wxEXPAND, 10);
     transportPage->SetSizer(transportSizer);
     notebook->AddPage(transportPage, wxT("UART"), false);
+    notebook_ = notebook;
     root->Add(notebook, 1, wxLEFT | wxRIGHT | wxEXPAND, 8);
 
     auto* buttons = new wxBoxSizer(wxHORIZONTAL);
@@ -298,6 +353,8 @@ void DebugContractConfigWindow::BuildUi()
     statusLabel_ = new wxStaticText(this, wxID_ANY, wxT(""));
     root->Add(statusLabel_, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 8);
     SetSizer(root);
+    pages_ = { general, triggerPage, capturePage, transportPage };
+    ApplyTheme();   // T-140：frame / notebook / 页面底色统一从 token 取
     open->Bind(wxEVT_BUTTON, &DebugContractConfigWindow::OnOpen, this);
     reload->Bind(wxEVT_BUTTON, &DebugContractConfigWindow::OnReload, this);
     validate->Bind(wxEVT_BUTTON, &DebugContractConfigWindow::OnValidate, this);
@@ -337,7 +394,7 @@ void DebugContractConfigWindow::LoadDefaultContract()
     contract_.sampleClock.signal = "clk";
     contract_.sampleClock.frequencyHz = 27000000;
     contract_.capture.depth = 1024;
-    contract_.capture.pretriggerSamples = 512;
+    contract_.capture.pretriggerSamples = 0;
     contract_.capture.decimation = 1;
     contract_.transport.protocol = "minimal";
     contract_.transport.baud = 921600;
@@ -547,9 +604,11 @@ bool DebugContractConfigWindow::SaveToPath(const wxString& path, wxString& error
 
 void DebugContractConfigWindow::SetStatus(const wxString& message, bool error)
 {
+    statusIsError_ = error;
     statusLabel_->SetLabel(message);
-    statusLabel_->SetForegroundColour(error ? wxColour(0xB9, 0x1C, 0x1C) :
-                                      wxColour(0x05, 0x96, 0x69));
+    // T-140：状态语义色改经 token（danger / brand）
+    const UiTheme::Colours& ui = UiTheme::Palette();
+    statusLabel_->SetForegroundColour(error ? ui.danger : ui.brand);
     Layout();
 }
 

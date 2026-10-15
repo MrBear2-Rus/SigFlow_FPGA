@@ -1,4 +1,4 @@
-"""Single-writer boundary between the host UI and UCAgent stage tools."""
+"""Single-writer boundary between the trusted host and teaching stages."""
 
 from threading import RLock
 
@@ -38,6 +38,14 @@ class TeachingSession:
                 self._observed_phase = 'E5' if before.stage == 'E5' else None
                 self._observed_version = after.version
             return after
+
+    def checkpoint(self, binding):
+        """Return a read-only pause checkpoint; host owns transactional storage."""
+        from .checkpoint import export_readonly_checkpoint
+        with self._lock:
+            if hasattr(self, 'binding') and self.binding != binding:
+                raise ValueError('checkpoint_scope_mismatch')
+            return export_readonly_checkpoint(self._loop, binding)
 
     def check_phase(self, phase):
         """Read-only gate on the latest transition, never on model assertions."""

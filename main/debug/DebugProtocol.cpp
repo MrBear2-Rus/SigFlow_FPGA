@@ -8,7 +8,7 @@ namespace debug {
 
 namespace {
 
-using proto::FrameDecode;
+using proto::FrameDecodeDetailed;
 using proto::FrameEncode;
 using proto::kT_Ack;
 using proto::kT_Info;
@@ -120,27 +120,38 @@ bool DebugProtocol::RoundTripInternal(std::uint8_t type,
                                       std::vector<std::uint8_t>& respData,
                                       std::string& error, int timeoutMs, int attempts)
 {
+    ++stats_.commandCalls;
     for (int attempt = 0; attempt < attempts; ++attempt) {
+        ++stats_.attempts;
+        if (attempt > 0) ++stats_.retries;
         const std::uint8_t seq = ++seq_;
         const auto wire = proto::FrameEncode(type, seq, data);
         if (!transport_.Write(wire.data(), wire.size(), timeoutMs)) {
+            ++stats_.writeFailures;
             error = transport_.IsOpen() ? "write failed" : "link lost";
             return false;
         }
 
         std::vector<std::uint8_t> frame;
         if (!ReceiveWireFrame(transport_, frame, timeoutMs, error)) {
+            if (transport_.IsOpen()) ++stats_.responseTimeouts;
             if (!transport_.IsOpen()) return false;  // 断连不再重试
             continue;  // 超时：重发同 seq
         }
 
         std::uint8_t rseq = 0;
-        if (!proto::FrameDecode(frame, respType, rseq, respData)) {
+        const auto decodeError = FrameDecodeDetailed(frame, respType, rseq, respData);
+        if (decodeError != proto::FrameDecodeError::None) {
             // 收到坏帧（CRC/结构错误）：视为噪声，继续等待本命令的响应。
+            if (decodeError == proto::FrameDecodeError::Crc)
+                ++stats_.crcErrors;
+            else
+                ++stats_.malformedFrames;
             continue;
         }
         if (rseq != seq) {
             // 序号不匹配：继续等待（响应可能粘包/乱序）。
+            ++stats_.sequenceMismatches;
             continue;
         }
         return true;
@@ -412,10 +423,14 @@ bool MinimalDebugProtocol::Command(std::uint8_t command,
                                    std::string& error, int timeoutMs, int attempts)
 {
     if (autoReconnect_ && !transport_.IsOpen() && !Reconnect(error)) return false;
+    ++stats_.commandCalls;
     std::vector<std::uint8_t> request = { 0xA5, command };
     request.insert(request.end(), data.begin(), data.end());
     for (int attempt = 0; attempt < attempts; ++attempt) {
+        ++stats_.attempts;
+        if (attempt > 0) ++stats_.retries;
         if (!transport_.Write(request.data(), request.size(), timeoutMs)) {
+            ++stats_.writeFailures;
             error = transport_.IsOpen() ? "write failed" : "link lost";
             return false;
         }
@@ -431,7 +446,10 @@ bool MinimalDebugProtocol::Command(std::uint8_t command,
             int remain = static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(
                 deadline - now).count());
             if (remain < 1) remain = 1;
-            if (!ReadExact(transport_, &byte, 1, remain, error)) break;
+            if (!ReadExact(transport_, &byte, 1, remain, error)) {
+                if (transport_.IsOpen()) ++stats_.responseTimeouts;
+                break;
+            }
             if (!header) {
                 header = byte == 0x5A;
             } else if (byte == expectedResponse) {
@@ -440,8 +458,10 @@ bool MinimalDebugProtocol::Command(std::uint8_t command,
                                                    remain, error)) {
                     return true;
                 }
+                if (transport_.IsOpen()) ++stats_.responseTimeouts;
                 break;
             } else {
+                ++stats_.invalidResponses;
                 header = byte == 0x5A;
             }
         }

@@ -7,6 +7,7 @@
 #include <fstream>
 #include <sstream>
 #include <system_error>
+#include <charconv>
 
 namespace sigflow {
 namespace trace {
@@ -18,10 +19,10 @@ std::int64_t FileMtime(const std::string& path)
     std::error_code ec;
     const auto fileTime = std::filesystem::last_write_time(path, ec);
     if (ec) return 0;
-    const auto systemTime = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
-        fileTime - std::filesystem::file_time_type::clock::now() +
-        std::chrono::system_clock::now());
-    return std::chrono::system_clock::to_time_t(systemTime);
+    // This is an opaque cache identity, not a wall-clock timestamp. Converting
+    // through two independent now() calls can change the rounded second for
+    // an unchanged file, and seconds also miss rapid same-size rewrites.
+    return static_cast<std::int64_t>(fileTime.time_since_epoch().count());
 }
 
 } // namespace
@@ -40,16 +41,10 @@ void VcdLazyTraceSource::TrimLine(std::string& line)
     }
 }
 
-TimeValue VcdLazyTraceSource::ParseTime(const std::string& text)
+bool VcdLazyTraceSource::ParseTime(const std::string& text, TimeValue& value)
 {
-    const char* p = text.c_str();
-    while (*p == ' ' || *p == '\t' || *p == '+') ++p;
-    TimeValue value = 0;
-    while (*p >= '0' && *p <= '9') {
-        value = value * 10 + static_cast<TimeValue>(*p - '0');
-        ++p;
-    }
-    return value;
+    const auto parsed = std::from_chars(text.data(), text.data() + text.size(), value);
+    return parsed.ec == std::errc{} && parsed.ptr == text.data() + text.size();
 }
 
 bool VcdLazyTraceSource::ScanHeader(std::ifstream& in, std::string& error)
@@ -57,11 +52,14 @@ bool VcdLazyTraceSource::ScanHeader(std::ifstream& in, std::string& error)
     std::vector<std::string> scopeStack;
     int nextId = 0;
     std::string line;
+    std::string timingHeader;
     while (std::getline(in, line)) {
         TrimLine(line);
         if (line.empty()) continue;
+        if (timingHeader.size() < 8192) timingHeader += line + "\n";
 
         if (line.rfind("$enddefinitions", 0) == 0) {
+            m_timeDomain = ClassifyVcdTime(timingHeader, m_timescale);
             const auto pos = in.tellg();
             m_dataOffset = (pos == static_cast<std::streamoff>(-1))
                                ? 0
@@ -70,11 +68,17 @@ bool VcdLazyTraceSource::ScanHeader(std::ifstream& in, std::string& error)
         }
 
         if (line.rfind("$timescale", 0) == 0) {
-            std::istringstream stream(line);
-            std::string token;
-            std::string unit;
-            stream >> token >> unit;
-            if (!unit.empty()) m_timescale = unit;
+            std::string declaration = line;
+            while (declaration.find("$end") == std::string::npos) {
+                if (!std::getline(in, line)) { error = "unterminated $timescale"; return false; }
+                declaration += " " + line;
+            }
+            const auto end = declaration.find("$end");
+            m_timescale = declaration.substr(10, end - 10);
+            m_timescale.erase(std::remove_if(m_timescale.begin(), m_timescale.end(),
+                [](unsigned char c) { return std::isspace(c); }), m_timescale.end());
+            std::uint64_t tick = 0;
+            if (!VcdTickFemtoseconds(m_timescale, tick)) { error = "invalid VCD timescale"; return false; }
         } else if (line.rfind("$scope", 0) == 0) {
             std::istringstream stream(line);
             std::string token;
@@ -151,7 +155,9 @@ bool VcdLazyTraceSource::BuildTimeIndex(std::ifstream& in)
         TrimLine(line);
         if (line.empty()) continue;
         if (line[0] == '#') {
-            currentTime = ParseTime(line.substr(1));
+            TimeValue parsed = 0;
+            if (!ParseTime(line.substr(1), parsed) || parsed < currentTime) return false;
+            currentTime = parsed;
             if (currentTime > m_timeRange.end) m_timeRange.end = currentTime;
             if (first || (lineStart - lastSampleOffset) >= m_sampleStrideBytes) {
                 m_timeIndex.push_back({currentTime, lineStart});
@@ -179,6 +185,8 @@ bool VcdLazyTraceSource::Open(const std::string& path, std::string& error)
     m_timeRange = TraceTimeRange{};
     m_sidecarLoaded = false;
     m_indexScanBytes = 0;
+    m_timescale.clear();
+    m_timeDomain = TraceTimeDomain::Unknown;
 
     std::error_code ec;
     const auto size = std::filesystem::file_size(path, ec);
@@ -206,18 +214,17 @@ bool VcdLazyTraceSource::Open(const std::string& path, std::string& error)
     if (sidecar.Load(sidecarPath, sidecarError) &&
         sidecar.sourceSize == m_fileSize &&
         sidecar.sourceMtime == m_fileMtime &&
-        sidecar.signals.size() == m_signals.size()) {
+        sidecar.signals.size() == m_signals.size() && sidecar.timescale == m_timescale) {
         m_timeIndex = std::move(sidecar.samples);
         m_timeRange.begin = 0;
         m_timeRange.end = sidecar.maxTime;
         m_timeRange.valid = true;
-        if (!sidecar.timescale.empty()) m_timescale = sidecar.timescale;
         m_sidecarLoaded = true;
         return true;
     }
 
     if (!BuildTimeIndex(in)) {
-        error = "unable to build time index: " + path;
+        error = "unable to build time index (invalid, decreasing or overflowing timestamp): " + path;
         return false;
     }
 
@@ -306,7 +313,7 @@ bool VcdLazyTraceSource::Query(const SignalInfo& signal, TimeValue t0, TimeValue
         TrimLine(line);
         if (line.empty()) continue;
         if (line[0] == '#') {
-            currentTime = ParseTime(line.substr(1));
+            if (!ParseTime(line.substr(1), currentTime)) { error = "invalid VCD timestamp"; return false; }
             if (currentTime > t1) break;
             continue;
         }
@@ -328,29 +335,41 @@ bool VcdLazyTraceSource::ValueAt(const SignalInfo& signal, TimeValue t,
                                  std::string& value, std::string& error)
 {
     std::ifstream in(m_path, std::ios::binary);
-    if (!in) {
-        error = "unable to open " + m_path;
-        return false;
-    }
-    in.seekg(static_cast<std::streamoff>(StartOffsetForTime(t)));
-
-    TimeValue currentTime = 0;
-    std::string last;
-    std::string line;
-    while (std::getline(in, line)) {
-        TrimLine(line);
-        if (line.empty()) continue;
-        if (line[0] == '#') {
-            currentTime = ParseTime(line.substr(1));
-            if (currentTime > t) break;
-            continue;
+    if (!in) { error = "unable to open " + m_path; return false; }
+    auto offset = StartOffsetForTime(t);
+    auto stopOffset = m_fileSize;
+    for (;;) {
+        in.clear();
+        in.seekg(static_cast<std::streamoff>(offset));
+        TimeValue currentTime = 0;
+        std::string last, line;
+        while (in.tellg() != static_cast<std::streamoff>(-1) &&
+               static_cast<std::uint64_t>(in.tellg()) < stopOffset && std::getline(in, line)) {
+            TrimLine(line);
+            if (line.empty()) continue;
+            if (line[0] == '#') {
+                if (!ParseTime(line.substr(1), currentTime)) { error = "invalid VCD timestamp"; return false; }
+                if (currentTime > t) break;
+                continue;
+            }
+            std::string parsed;
+            if (ParseValueChange(line, signal.idCode, parsed)) last = std::move(parsed);
         }
-        if (line == "$dumpvars" || line == "$end" || line == "$comment") continue;
-        std::string parsed;
-        if (ParseValueChange(line, signal.idCode, parsed)) last = std::move(parsed);
+        if (!last.empty() || offset == m_dataOffset) {
+            value = last.empty() ? "x" : last;
+            return true;
+        }
+        // Sparse time indexes do not store per-signal values. If this signal
+        // did not change in the selected block, recover its preceding value.
+        // Scan each preceding byte range only once, even for a constant signal
+        // across a large trace; do not repeatedly rescan the later blocks.
+        stopOffset = offset;
+        auto preceding = std::lower_bound(m_timeIndex.begin(), m_timeIndex.end(), offset,
+            [](const TraceSidecarIndex::TimeSample& sample, std::uint64_t position) {
+                return sample.offset < position;
+            });
+        offset = preceding == m_timeIndex.begin() ? m_dataOffset : (--preceding)->offset;
     }
-    value = last.empty() ? "x" : last;
-    return true;
 }
 
 } // namespace trace

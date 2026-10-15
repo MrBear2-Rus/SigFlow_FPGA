@@ -17,6 +17,7 @@
 #endif
 #include "ProjectStartWindow.h"
 #include "MainFrame.h"
+#include "ui/UiImageResources.h"
 
 namespace {
 
@@ -169,8 +170,7 @@ public:
         SetVendorName("Sigflow");
         InstallUserConfig();
 
-        // 注意：wxApp 初始化时框架已自动调用 wxInitAllImageHandlers()，
-        // GUI 应用中不要再手动调用，否则会产生 "Adding duplicate image handler" 警告。
+        UiImageResources::EnsurePngHandler();
         ProjectStartWindow startWindow;
 
         int ret = startWindow.ShowModal();
@@ -186,7 +186,12 @@ public:
         // 先确立顶层窗口：Show() 与后面的模态对话框都需要正确的属主窗口，
         // 否则对话框可能出现在主窗口之后/之外，或模态范围异常。
         SetTopWindow(frame);
-        frame->Centre(wxBOTH);
+        // LAY-013：MainFrame 构造函数会自行 Maximize(true) 并据此计算 pane 比例，
+        // 若此处再 Centre() 会造成窗口几何主张冲突（原实现 Centre 发生在 Maximize 之后，
+        // 是"布局在最大化/还原之间跳变"的直接成因）。仅在未最大化时居中。
+        if (!frame->IsMaximized()) {
+            frame->Centre(wxBOTH);
+        }
         frame->Show(true);
 
         if (!projectDir.IsEmpty())

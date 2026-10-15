@@ -1,4 +1,5 @@
 #include "ReplayScenario.h"
+#include "../trace/TraceTimebase.h"
 
 #include <algorithm>
 #include <cctype>
@@ -99,9 +100,10 @@ bool ReplayStimulusExtractor::Extract(vcd_t* capture,
                                        ReplayScenario& scenario,
                                        std::string& error) {
     scenario = ReplayScenario();
-    if (!capture) {
-        error = "capture VCD is empty";
-        return false;
+    if (!capture || capture->sample_index_time ||
+        !sigflow::trace::VcdTickFemtoseconds(std::to_string(capture->timescale.scale) +
+            capture->timescale.unit, scenario.tickFemtoseconds)) {
+        error = "replay requires a physical VCD timebase"; return false;
     }
     if (inputSignals.empty()) {
         error = "at least one replay input is required";
@@ -177,6 +179,10 @@ bool ReplayTestbenchGenerator::Generate(const ReplayScenario& scenario,
                                         const std::string& outputPath,
                                         const std::string& vcdPath,
                                         std::string& error) {
+    if (scenario.tickFemtoseconds != 1000) {
+        error = "replay driver currently requires 1ps ticks; normalize the source timebase first";
+        return false;
+    }
     if (!IsIdentifier(topModule)) {
         error = "invalid replay top module: " + topModule;
         return false;
@@ -205,6 +211,8 @@ bool ReplayTestbenchGenerator::Generate(const ReplayScenario& scenario,
            << "    V" << topModule << "* top = new V" << topModule << ";\n"
            << "    VerilatedVcdC* trace = new VerilatedVcdC;\n"
            << "    top->trace(trace, 99);\n"
+           << "    trace->set_time_unit(\"1ps\");\n"
+           << "    trace->set_time_resolution(\"1ps\");\n"
            << "    trace->open(\"" << EscapeString(vcdPath) << "\");\n"
            << "    vluint64_t simTime = 0;\n"
            << "    top->" << scenario.clockSignal << " = "

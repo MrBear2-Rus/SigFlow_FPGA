@@ -230,10 +230,14 @@ std::string CompilerInfo() {
 std::filesystem::path AppDataRoot() {
 #if defined(_WIN32)
     // 优先 LOCALAPPDATA（不随域漫游同步），回退 APPDATA。
+    // 必须走 EnvUtf8（W 系 API）而不是 std::getenv：后者返回 ANSI 窄字节
+    // （例如 C:\Users\何佳颖\AppData\Local），libstdc++ 的 path(char*) 会按当前
+    // locale（通常 "C"）做窄->宽转换，遇到非 ASCII 直接抛 filesystem_error，
+    // 表现为启动即 "Unhandled unknown exception; terminating the application."。
     for (const char* name : {"LOCALAPPDATA", "APPDATA"}) {
-        const char* value = std::getenv(name);
-        if (value == nullptr || *value == '\0') continue;
-        return std::filesystem::path(value) / "SigFlow";
+        const std::string value = EnvUtf8(name);
+        if (value.empty()) continue;
+        return PathFromUtf8(value) / "SigFlow";
     }
     return {};
 #else
