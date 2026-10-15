@@ -23,6 +23,21 @@ _ABSOLUTE_PATH_PATTERNS: tuple[re.Pattern[str], ...] = (
 )
 """Patterns that identify a leaked local absolute path (Windows or POSIX)."""
 
+_CREDENTIAL_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"\bsk-[A-Za-z0-9_-]{16,}"),
+    re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~+/=-]{20,}"),
+    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
+    re.compile(
+        r"(?i)\b(?:api[_-]?key|access[_-]?key|client[_-]?secret|password|passwd|token)"
+        r"\b\s*[:=]\s*[\"']?[A-Za-z0-9._~+/=-]{8,}"
+    ),
+)
+"""Patterns that identify a credential *shape*, not just our own secrets.
+
+A model can invent or echo someone else's key; matching only our configured
+secrets would let that through.
+"""
+
 
 def new_clock() -> datetime:
     """Return the current time as a timezone-aware UTC datetime."""
@@ -43,6 +58,19 @@ def decimal(value: int) -> str:
 def contains_absolute_path(text: str) -> bool:
     """Return ``True`` when ``text`` looks like it contains a local absolute path."""
     return any(pattern.search(text) for pattern in _ABSOLUTE_PATH_PATTERNS)
+
+
+def contains_credential(text: str, secrets: Iterable[str] = ()) -> bool:
+    """Return ``True`` when *text* carries a credential.
+
+    Two independent checks: the caller's own secret values (verbatim), and
+    generic credential shapes such as ``sk-…``, ``Bearer …``, PEM headers or
+    ``api_key=…`` assignments.  The shape check is what catches a credential
+    the model invented or copied from somewhere else.
+    """
+    if any(secret and secret in text for secret in secrets):
+        return True
+    return any(pattern.search(text) for pattern in _CREDENTIAL_PATTERNS)
 
 
 def redact(text: str, secrets: Iterable[str]) -> str:

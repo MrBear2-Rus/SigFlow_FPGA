@@ -3,10 +3,21 @@
 The service is fully functional without a model key.  When no key is
 configured the dispatcher degrades to the deterministic rule engine and both
 ``/health`` and ``/capabilities`` report ``model.available = false``.  A model
-answer is never fabricated: if the HTTP call fails, the run degrades.
+answer is never fabricated: if the HTTP call fails, or if the answer breaks an
+output rule, the run degrades to the rule explanation instead.
 
-Only the Python standard library is used, and the API key never appears in a
-URL, a log line or a response.
+The channel is deliberately narrow:
+
+* one OpenAI-compatible ``POST {base_url}/chat/completions``, **never**
+  streamed (``stream: false``); a streamed body is refused rather than parsed;
+* a 30 s timeout and a 256 KiB response budget;
+* the endpoint must be credential-free HTTPS -- a credential over plaintext
+  HTTP is not a trade this service makes;
+* no proxy, no redirect following, no automatic retry;
+* the API key travels only in the ``Authorization`` header, never in a URL, a
+  log line, a card or an error message.
+
+Only the Python standard library is used.
 """
 
 from __future__ import annotations
@@ -20,7 +31,7 @@ from urllib.parse import urlsplit
 from dataclasses import dataclass
 from typing import Any, Mapping, Optional
 
-from .util import contains_absolute_path, sanitize_message
+from .util import contains_absolute_path, contains_credential
 
 LOGGER = logging.getLogger(__name__)
 
@@ -138,15 +149,18 @@ class ModelClient:
         """Ask the model for a teaching paragraph, or refuse cleanly.
 
         Returns ``ok=False`` with a reason when no key is configured, when the
-        endpoint fails, or when the answer would leak a local path.
+        endpoint fails, or when the answer would leak a local path or a
+        credential.  A refused answer never carries partial text.
         """
         if not self._status.available or not self._api_key:
             return ModelAnswer(ok=False, reason=MODEL_DISABLED_REASON)
         if not _safe_endpoint(self._base_url):
             return ModelAnswer(ok=False, reason="模型地址不符合安全要求，已降级为规则讲解。")
         # Treat the selected source as untrusted data, never as model instructions.
-        if (len((instruction + evidence).encode("utf-8")) > 96 * 1024 or
-                contains_absolute_path(instruction + evidence) or any(secret in instruction + evidence for secret in self._secrets)):
+        prompt_material = instruction + evidence
+        if (len(prompt_material.encode("utf-8")) > 96 * 1024
+                or contains_absolute_path(prompt_material)
+                or contains_credential(prompt_material, self._secrets)):
             return ModelAnswer(ok=False, reason="模型输入超限或含敏感凭据，已降级为规则讲解。")
         payload = {
             "model": self._model,
@@ -167,7 +181,6 @@ class ModelClient:
             },
             method="POST",
         )
-        secrets = (self._api_key,)
         try:
             with self._opener.open(
                 request, timeout=REQUEST_TIMEOUT_SECONDS
@@ -183,6 +196,10 @@ class ModelClient:
             return ModelAnswer(ok=False, reason="模型端点不可达，已降级为规则讲解。")
         if len(body) > MAX_COMPLETION_BYTES:
             return ModelAnswer(ok=False, reason="模型响应超出预算，已降级为规则讲解。")
+        if body.lstrip()[:5] == b"data:":
+            # ``stream: false`` was requested; a server-sent-events body means
+            # the endpoint ignored the contract, so refuse instead of guessing.
+            return ModelAnswer(ok=False, reason="模型返回了流式响应，已降级为规则讲解。")
         try:
             decoded = json.loads(body.decode("utf-8"))
         except (ValueError, UnicodeDecodeError):
@@ -195,7 +212,7 @@ class ModelClient:
                 ok=False,
                 reason="模型返回包含本机路径，已降级为规则讲解。",
             )
-        if any(secret in text for secret in self._secrets):
+        if contains_credential(text, self._secrets):
             return ModelAnswer(
                 ok=False,
                 reason="模型返回包含敏感凭据，已降级为规则讲解。",
@@ -204,7 +221,12 @@ class ModelClient:
 
 
 def _extract_text(payload: Any) -> str:
-    """Pull the first assistant message out of an OpenAI-compatible body."""
+    """Pull the first assistant message out of an OpenAI-compatible body.
+
+    ``content`` is either a string or a list of parts; only text parts are
+    accepted, and a list containing anything else makes the whole answer
+    unusable (fail closed rather than silently dropping a part).
+    """
     if not isinstance(payload, Mapping):
         return ""
     choices = payload.get("choices")
@@ -218,5 +240,21 @@ def _extract_text(payload: Any) -> str:
         content = message.get("content")
         if isinstance(content, str):
             return content.strip()
+        if isinstance(content, list):
+            return _text_parts(content)
     text = first.get("text")
     return text.strip() if isinstance(text, str) else ""
+
+
+def _text_parts(parts: list) -> str:
+    """Join OpenAI-style content parts, refusing unknown part types."""
+    chunks: list[str] = []
+    for part in parts:
+        if not isinstance(part, Mapping):
+            return ""
+        kind = part.get("type", "text")
+        value = part.get("text")
+        if kind != "text" or not isinstance(value, str):
+            return ""
+        chunks.append(value)
+    return "\n".join(chunks).strip()
