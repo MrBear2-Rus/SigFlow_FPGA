@@ -1,0 +1,10 @@
+{"question":"为什么组合逻辑有些分支没赋值会让输出锁存旧值？","concept_ids":["complete_assignment","latch","combinational_logic"],"acceptable_passage_ids":["lowrisc_style:verilog:complete-assignment"],"expected_status":"match"}
+{"question":"When does a level-sensitive D latch keep its previous output?","concept_ids":["latch"],"acceptable_passage_ids":["ysyx:latch:level-sensitive-hold"]}
+{"question":"不同合法处理顺序会得到不同结果时，这种仿真问题叫什么？","concept_ids":[],"acceptable_passage_ids":["ysyx:simulation:event-order-and-races"]}
+{"question":"How do blocking and nonblocking assignments differ in update timing?","concept_ids":["blocking_nonblocking"],"acceptable_passage_ids":["ysyx:simulation:blocking-nonblocking"]}
+{"question":"复位对寄存器里面保存的状态起什么作用？","concept_ids":["reset"],"acceptable_passage_ids":["ysyx:reset:stored-value"]}
+{"question":"端口连接里的输入表达式和输出网络分别怎么对应？","concept_ids":["port_connection"],"acceptable_passage_ids":["ysyx:ports:module-instance-connections"]}
+{"question":"What is the difference between RTL simulation and synthesis?","concept_ids":["simulation_semantics","synthesis_semantics"],"acceptable_passage_ids":["ysyx:synthesis:rtl-model-boundary"]}
+{"question":"怎样按当前状态和时钟来分析计数器下一步的值？","concept_ids":["counter"],"acceptable_passage_ids":["ysyx:sequential:counter"]}
+{"question":"Yosys 会怎样识别并处理有限状态机？","concept_ids":["fsm"],"acceptable_passage_ids":["ysyx:fsm:recognition-and-mapping"]}
+{"question":"How do I export transparent layer masks from Krita?","concept_ids":[],"acceptable_passage_ids":[],"expected_status":"no_match"}

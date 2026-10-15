@@ -38,7 +38,8 @@ def valid_evidence(evidence: Evidence | None, request: RunRequest) -> bool:
         return False
     if not isinstance(evidence.omitted, tuple) or not all(
             isinstance(item, Omission) and type(item.item_id) is str and item.item_id
-            and item.reason in ('byte_budget', 'token_budget') for item in evidence.omitted):
+            and item.reason in ('byte_budget', 'token_budget', 'request_budget',
+                                'engineering_over_budget', 'item_limit') for item in evidence.omitted):
         return False
     return (evidence.project_id == request.project_id
             and evidence.revision == request.revision
@@ -63,7 +64,13 @@ class RuleProvider:
 
 
 def checked_card(value: object, context: CardContext, producer: str) -> Card | None:
-    if not isinstance(value, dict) or set(value) != {'level', 'hint', 'question', 'evidence_ids'}:
+    required = {'level', 'hint', 'question', 'evidence_ids'}
+    if not isinstance(value, dict) or set(value) not in (required, required | {'course_passage_ids'}):
+        return None
+    cited = value.get('course_passage_ids', [])
+    refs = {ref.passage_id: ref for ref in context.course_refs}
+    if (type(cited) is not list or len(cited) > 8 or any(type(c) is not str for c in cited)
+            or len(cited) != len(set(cited)) or any(c not in refs for c in cited)):
         return None
     if type(value['level']) is not int or value['level'] != context.level or context.level not in (1, 2, 3):
         return None
@@ -79,5 +86,9 @@ def checked_card(value: object, context: CardContext, producer: str) -> Card | N
     limitations = ['仅依据所列证据；提示内容仍需教学质量评审。']
     if context.evidence.origin == 'fixture':
         limitations.append('离线示例证据，不是真实工程的 EDA 验证。')
+    if context.course_status in {'unavailable', 'no_match', 'omitted'}:
+        limitations.append('本轮未提供可用课程材料；课程引用为空。')
+    if context.course_status == 'partial':
+        limitations.append('课程证据不完整；缺失来源或预算省略见本轮证据诊断。')
     return Card(context.level, value['hint'], value['question'],
-                tuple(value['evidence_ids']), producer, tuple(limitations))
+                tuple(value['evidence_ids']), producer, tuple(limitations), tuple(refs[c] for c in cited))

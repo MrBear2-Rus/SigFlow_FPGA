@@ -50,6 +50,7 @@ class Evidence:
     anchor: EvidenceAnchor | None = None
     context_items: tuple[ContextItem, ...] = ()
     omitted: tuple[Omission, ...] = ()
+    course_diagnostics: dict = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -80,11 +81,67 @@ class Plan:
 
 
 @dataclass(frozen=True)
+class CourseSpan:
+    document_id: str
+    source_url: str
+    line_start: int
+    line_end: int
+    text_hash: str
+    source_text_hash: str
+    document_hash: str
+    normalization: str | None = None
+    locator_kind: str = 'pinned_source'
+
+
+@dataclass(frozen=True)
+class CourseReference:
+    passage_id: str
+    index_version: str
+    title: str
+    section: str
+    source_url: str
+    material_kind: str
+    material_note: str
+    source_urls: tuple[str, ...] = ()
+    course_version: str = ''
+    translation_id: str | None = None
+    source_content_hash: str | None = None
+    parent_id: str = ''
+    source_spans: tuple[CourseSpan, ...] = ()
+
+
+@dataclass(frozen=True)
+class CourseMaterial:
+    reference: CourseReference
+    text: str
+    parent_id: str = ''
+    source_id: str = ''
+    coverage_keys: tuple[str, ...] = ()
+    selection_score: float = 0.0
+    candidate_rank: int = 0
+
+
+@dataclass(frozen=True)
+class CourseBundle:
+    status: str
+    materials: tuple[CourseMaterial, ...] = ()
+    interface_version: str = 'legacy-v1'
+    question: str = ''
+    required_sources: tuple[str, ...] = ()
+    required_evidence_keys: tuple[str, ...] = ()
+    retrieved_candidates: tuple[str, ...] = ()
+    unsupported_concept_ids: tuple[str, ...] = ()
+    selection_diagnostics: dict = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
 class CardContext:
     question: str
     level: int
     evidence: Evidence
     repair: bool = False
+    course_refs: tuple[CourseReference, ...] = ()
+    course_status: str = 'disabled'
 
 
 @dataclass(frozen=True)
@@ -95,6 +152,7 @@ class Card:
     evidence_ids: tuple[str, ...]
     producer: str
     limitations: tuple[str, ...] = ()
+    course_refs: tuple[CourseReference, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -124,6 +182,9 @@ class RunState:
     reason: str = ''
     cards: list[Card] = field(default_factory=list)
     trace: list[Trace] = field(default_factory=list)
+    course_status: str = 'disabled'
+    course_omitted: tuple[Omission, ...] = ()
+    course_diagnostics: dict = field(default_factory=dict)
 
 
 class ProviderError(Exception):

@@ -2,6 +2,8 @@
 
 U2 的教学状态机、DeepSeek 适配器、UCAgent 阶段扩展和只读证据适配层。源码、测试、依赖和文档集中在本目录，不加入 SigFlow CMake 构建。
 
+课程 RAG 已接入 E3/E4，代码位于 `sigflow_edu_agent/rag/`，开发 CLI 默认读取 `data/course.sqlite`。当前 v4 数据库加入 lowRISC、Yosys 0.47 和 Verilator v5.052 官方原文及双语检索映射；完整来源和教师审阅状态见[外部资料实施记录](docs/external-materials-catalog-2026-10-13.md)。仅保留一个当前数据库，旧索引、manifest 跳转、回滚和旧表兼容已移除。配置、重建与验证见 [RAG 接入说明](docs/rag-integration.md)。按用户 2026-10-13 的决定，当前数据库纳入 Git 提交范围，Python 安装包不携带数据库、原始官方源文件或完整 passage 正文。
+
 ## 交付范围
 
 | 部分 | 已实现 | 集成边界 |
@@ -13,6 +15,20 @@ U2 的教学状态机、DeepSeek 适配器、UCAgent 阶段扩展和只读证据
 离线通过不代表周期四 G0/G1 验收完成。真实 EDA 执行、持久化、学习事件、L4 receipt 和教师评测仍需后续集成。
 
 ## 开发入口
+
+### 拉取后直接运行 RAG v0.1
+
+仓库携带 `data/course.sqlite`，无需下载课程原文、重建索引或安装第三方依赖。安装 Python 3.11+（SQLite 需支持 FTS5 trigram），从仓库根目录执行：
+
+```powershell
+cd sigflowAgent
+python -m sigflow_edu_agent --provider rule --once
+python -m examples.rag_v01_u2
+```
+
+第一条运行离线教学流程，第二条展示实际数据库检索、装配及缺口状态；均不需要模型密钥或真实 EDA。需要安装命令入口时执行 `python -m pip install -e .`；数据库默认定位到源码目录下的 `data/course.sqlite`，从其他目录启动也可找到。Python wheel 单独分发仍需通过 `SIGFLOW_COURSE_DB` 指定外部数据库。
+
+当前为 **READY_WITH_KNOWN_LIMITATIONS**：554 个 Parent、762 个 Child。旧题完整证据覆盖 43/67，新题 9/20，充分性未验证；完整教学质量尚未验收。版本指纹、验证结果及来源使用边界见 [v0.1 交付记录](docs/rag-v0.1-release.md)，接口见 [U2 联调说明](docs/rag-v0.1-u2-integration.md)。
 
 Python >=3.11。核心与 DeepSeek HTTP 客户端仅使用标准库；UCAgent 集成使用本目录 `.venv` 的可选依赖。以下命令在 `sigflowAgent` 执行，不要求 `conda activate`：
 
@@ -51,6 +67,8 @@ sigflowAgent/
     runtime/       # 会话串行化、真实 UCAgent 适配与 smoke
     clients/       # Gateway 只读客户端与 probe
     context/       # 引用模型、报告规范化、上下文预算
+    courses.py     # 课程接口转换与材料预算
+    rag/           # 检索、引用核对、单文件构建与整理资料
   tests/
     integration/   # 真实 UCAgent 类集成测试
   docs/            # 接口、环境、实施与验证记录

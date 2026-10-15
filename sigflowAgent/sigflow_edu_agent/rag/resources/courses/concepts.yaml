@@ -1,0 +1,1448 @@
+concepts:
+- concept_id: combinational_logic
+  aliases:
+  - 组合逻辑
+  - 组合逻辑电路
+  - 组合逻辑赋值
+  - 组合过程
+  - combinational logic
+  - combinational circuit
+  related:
+  - complete_assignment
+  - latch
+- concept_id: sequential_logic
+  aliases:
+  - 时序逻辑
+  - 时序电路
+  - sequential logic
+  - sequential circuit
+  related:
+  - reset
+  - counter
+  - fsm
+- concept_id: latch
+  aliases:
+  - 锁存器
+  - 锁存
+  - 锁存单元
+  - latch
+  - latches
+  - d latch
+  related:
+  - combinational_logic
+  - complete_assignment
+- concept_id: complete_assignment
+  aliases:
+  - 赋值不完整
+  - 不完整赋值
+  - 条件分支未赋值
+  - 分支未赋值
+  - 漏赋值
+  - 组合逻辑赋值不完整
+  - 完整赋值
+  - 全路径赋值
+  - complete assignment
+  - incomplete assignment
+  - incomplete assignments
+  - partial assignment
+  - not assigned on every branch
+  related:
+  - combinational_logic
+  - latch
+- concept_id: bit_width
+  aliases:
+  - 位宽
+  - 位宽不匹配
+  - 宽度不匹配
+  - bit width
+  - vector width
+  - vector size
+  - 数字字面量位宽
+  - number literal width
+  - width mismatch
+  related:
+  - signed_unsigned
+  - truncation_extension
+- concept_id: signed_unsigned
+  aliases:
+  - 有符号数
+  - 无符号数
+  - 有符号运算
+  - signed 表达式
+  - signed 算术
+  - signed
+  - unsigned
+  - signed unsigned
+  related:
+  - bit_width
+  - twos_complement
+- concept_id: twos_complement
+  aliases:
+  - 补码
+  - 二进制补码
+  - two's complement
+  related:
+  - signed_unsigned
+  - bit_width
+- concept_id: truncation_extension
+  aliases:
+  - 截断
+  - 符号扩展
+  - 零扩展
+  - 符号位扩展
+  - sign extension
+  - zero extension
+  - truncation
+  related:
+  - bit_width
+  - signed_unsigned
+- concept_id: multiple_driver
+  aliases:
+  - 多重驱动
+  - 多个驱动源
+  - 多驱动
+  - conflicting drivers
+  - multiple driver
+  - multiple drivers
+  related: []
+- concept_id: undriven_signal
+  aliases:
+  - 未驱动
+  - 无驱动源
+  - undriven
+  - no driver
+  related: []
+- concept_id: tool_command
+  aliases:
+  - 工具命令
+  - read_verilog
+  related: []
+- concept_id: syntax_parsing
+  aliases:
+  - 语法解析
+  - 前端解析
+  - 语法前端
+  - 前端语法
+  - parser
+  - parsing
+  related: []
+- concept_id: port_connection
+  aliases:
+  - 端口连接
+  - 模块连接
+  - 模块端口
+  - 端口名称
+  - 端口名
+  - 命名端口
+  - 端口位宽
+  - 端口宽度不匹配
+  - 漏接端口
+  - port connection
+  - named port
+  - module instantiation
+  - 模块实例化
+  related: []
+- concept_id: reset
+  aliases:
+  - 复位
+  - 重置
+  - 同步复位
+  - 异步复位
+  - 同步异步复位
+  - 复位释放
+  - 复位有效电平
+  - reset
+  - reset value
+  related:
+  - sequential_logic
+- concept_id: blocking_nonblocking
+  aliases:
+  - 阻塞赋值
+  - 非阻塞赋值
+  - 阻塞与非阻塞赋值
+  - 阻塞和非阻塞赋值
+  - 阻塞非阻塞赋值
+  - 赋值时序
+  - blocking assignment
+  - blocking assignments
+  - non-blocking assignment
+  - non-blocking assignments
+  - blocking and non-blocking assignments
+  - blocking vs non-blocking assignment
+  - blocking nonblocking
+  related:
+  - simulation_semantics
+  - synthesis_semantics
+- concept_id: simulation_semantics
+  aliases:
+  - 仿真语义
+  - Verilog语义
+  - Verilog的语义
+  - Verilog仿真语义
+  - 仿真事件
+  - 事件顺序
+  - 事件处理顺序
+  - 处理顺序不同
+  - 数据竞争
+  - 竞争条件
+  - simulation semantics
+  - event scheduling
+  - event order
+  - event ordering
+  - race condition
+  - data race
+  related:
+  - synthesis_semantics
+- concept_id: unknown_state_semantics
+  aliases:
+  - 二态仿真
+  - 二态语义
+  - 四态仿真
+  - 四态语义
+  - X/Z 状态
+  - 未知状态
+  - two-state
+  - four-state
+  - unknown states
+  related:
+  - simulation_semantics
+- concept_id: synthesis_semantics
+  aliases:
+  - 综合语义
+  - rtl综合
+  - synthesis semantics
+  - rtl synthesis
+  related:
+  - simulation_semantics
+- concept_id: counter
+  aliases:
+  - 计数器
+  - 计数
+  - counter
+  - binary counter
+  related:
+  - sequential_logic
+- concept_id: fsm
+  aliases:
+  - 有限状态机
+  - 状态机
+  - fsm
+  - finite state machine
+  related:
+  - sequential_logic
+- concept_id: testbench
+  aliases:
+  - 测试平台
+  - 自检查测试平台
+  - 自检查 testbench
+  - testbench assertion
+  - testbench
+  related:
+  - simulation_semantics
+- concept_id: syntax_error
+  aliases:
+  - 语法错误
+  - 编译语法错误
+  - 语法诊断
+  - parser error
+  - syntax error
+  related: []
+- concept_id: combinational_loop
+  aliases:
+  - 组合反馈
+  - 组合环路
+  - 组合逻辑环路
+  - combinational feedback
+  - combinational loop
+  - non-convergent combinational logic
+  related:
+  - combinational_logic
+- concept_id: ysyx_f3_section_4b65e6a47077
+  aliases:
+  - F3 数字逻辑电路基础
+  related: []
+- concept_id: ysyx_f3_section_343cc478104f
+  aliases:
+  - 通过晶体管实现`0`和`1`
+  related: []
+- concept_id: ysyx_f3_section_a0899e92d8ac
+  aliases:
+  - 晶体管具体如何通过电压控制开关
+  related: []
+- concept_id: ysyx_f3_section_f9529ff606c1
+  aliases:
+  - 通过晶体管搭建门电路
+  related: []
+- concept_id: ysyx_f3_section_8f9348c45436
+  aliases:
+  - 非门(反相器)
+  related: []
+- concept_id: ysyx_f3_section_358387cb6ea1
+  aliases:
+  - 与非门
+  related: []
+- concept_id: ysyx_f3_section_cca02bd0fc62
+  aliases:
+  - 与门
+  related: []
+- concept_id: ysyx_f3_section_1eeaa0ce572a
+  aliases:
+  - 或非门和或门
+  related: []
+- concept_id: ysyx_f3_section_a247758fddc6
+  aliases:
+  - 分析门电路
+  related: []
+- concept_id: ysyx_f3_section_eca73e7dcc5e
+  aliases:
+  - 或门的晶体管结构
+  related: []
+- concept_id: ysyx_f3_section_ef6ea75e607e
+  aliases:
+  - 传输门
+  related: []
+- concept_id: ysyx_f3_section_6817435339f7
+  aliases:
+  - 异或门
+  related: []
+- concept_id: ysyx_f3_section_9a4b011e1ab2
+  aliases:
+  - 卡诺图化简
+  related: []
+- concept_id: ysyx_f3_section_f031a6bcfe8a
+  aliases:
+  - 用其他门电路搭建异或门
+  related: []
+- concept_id: ysyx_f3_section_f5528229979d
+  aliases:
+  - 寻找更优的搭建方案
+  related: []
+- concept_id: ysyx_f3_section_3cee994cf43d
+  aliases:
+  - 在晶体管层次搭建异或门
+  related: []
+- concept_id: ysyx_f3_section_614be5735248
+  aliases:
+  - '全定制电路: 通过晶体管设计电路'
+  related: []
+- concept_id: ysyx_f3_section_c1ced5485cee
+  aliases:
+  - 设计同或门
+  related: []
+- concept_id: ysyx_f3_section_6a628c7092a1
+  aliases:
+  - 在晶体管层次搭建同或门
+  related: []
+- concept_id: ysyx_f3_section_a82f03a2e290
+  aliases:
+  - 门电路的面积评估
+  related: []
+- concept_id: ysyx_f3_section_7e8a5c913d8f
+  aliases:
+  - CMOS电路的对等设计原则
+  related: []
+- concept_id: ysyx_f3_section_cfef7acbda73
+  aliases:
+  - 考虑对等设计原则的门电路面积评估
+  related: []
+- concept_id: ysyx_f3_section_0e0ca761aeca
+  aliases:
+  - 计算其他门电路的面积
+  related: []
+- concept_id: ysyx_f3_section_b8067fef9a00
+  aliases:
+  - 分析异或门
+  related: []
+- concept_id: ysyx_f3_section_feb0f76066a1
+  aliases:
+  - 多输入的门电路
+  related: []
+- concept_id: ysyx_f3_section_f8d5ad38e972
+  aliases:
+  - 多输入与非门的面积
+  related: []
+- concept_id: ysyx_f3_section_c99ea6a88963
+  aliases:
+  - 进位计数法
+  related: []
+- concept_id: ysyx_f3_section_dd8c2d47d114
+  aliases:
+  - 二进制计数法
+  related: []
+- concept_id: ysyx_f3_section_34eff107e3d2
+  aliases:
+  - 十六进制计数法
+  related: []
+- concept_id: ysyx_f3_section_d8de3cd4695a
+  aliases:
+  - 八进制(octal)计数法
+  related: []
+- concept_id: ysyx_f3_section_de26a3a1206f
+  aliases:
+  - 通过门电路搭建基本组合逻辑电路
+  related: []
+- concept_id: ysyx_f3_section_c25be5fee0df
+  aliases:
+  - 译码器
+  related: []
+- concept_id: ysyx_f3_section_6a012c3bae5f
+  aliases:
+  - 搭建2-4译码器
+  related: []
+- concept_id: ysyx_f3_section_1ac35b6c5d40
+  aliases:
+  - 配置门电路输入的数量和极性
+  related: []
+- concept_id: ysyx_f3_section_71d45dd4d0f2
+  aliases:
+  - 地址和寻址
+  related: []
+- concept_id: ysyx_f3_section_651bee20cd81
+  aliases:
+  - Logisim中的子电路功能
+  related: []
+- concept_id: ysyx_f3_section_b21c25cb7570
+  aliases:
+  - 译码器的扩展
+  related: []
+- concept_id: ysyx_f3_section_c7e4b8c95050
+  aliases:
+  - 配置元件的数据位宽
+  related: []
+- concept_id: ysyx_f3_section_ba6b8fe577fc
+  aliases:
+  - 搭建七段数码管译码器
+  related: []
+- concept_id: ysyx_f3_section_da7d34da11a0
+  aliases:
+  - 搭建七段数码管译码器(2)
+  related: []
+- concept_id: ysyx_f3_section_8988948495e0
+  aliases:
+  - 编码器
+  related: []
+- concept_id: ysyx_f3_section_ce70347496f9
+  aliases:
+  - 理解未定义的输出
+  related: []
+- concept_id: ysyx_f3_section_c844ec4e1518
+  aliases:
+  - 搭建编码器
+  related: []
+- concept_id: ysyx_f3_section_feb9a034b890
+  aliases:
+  - 搭建4-2优先编码器
+  related: []
+- concept_id: ysyx_f3_section_11859a9d3ff3
+  aliases:
+  - 优先编码器的扩展
+  related: []
+- concept_id: ysyx_f3_section_f8f4b800ea8b
+  aliases:
+  - 前导0和前导1的计数
+  related: []
+- concept_id: ysyx_f3_section_a800fc66c04b
+  aliases:
+  - 多路选择器
+  related: []
+- concept_id: ysyx_f3_section_6fa516ab1304
+  aliases:
+  - 搭建1位2选1选择器
+  related: []
+- concept_id: ysyx_f3_section_37ee4e1ea43a
+  aliases:
+  - 搭建3位4选1选择器
+  related: []
+- concept_id: ysyx_f3_section_4ab4d84f7e4d
+  aliases:
+  - 搭建可切换进位计数制的七段数码管
+  related: []
+- concept_id: ysyx_f3_section_b31911d2ebe2
+  aliases:
+  - 比较器
+  related: []
+- concept_id: ysyx_f3_section_9df5b3fbac47
+  aliases:
+  - 搭建比较器
+  related: []
+- concept_id: ysyx_f3_section_e35cb3b810ed
+  aliases:
+  - 加法器
+  related: []
+- concept_id: ysyx_f3_section_71b665bec03f
+  aliases:
+  - 搭建1位全加器
+  related: []
+- concept_id: ysyx_f3_section_d2bb31579085
+  aliases:
+  - 搭建1位全加器(2)
+  related: []
+- concept_id: ysyx_f3_section_1ac5e9459fec
+  aliases:
+  - 搭建4位加法器
+  related: []
+- concept_id: ysyx_f3_section_83a2bb2307b6
+  aliases:
+  - 整数的机器级表示
+  related: []
+- concept_id: ysyx_f3_section_542a38d939d3
+  aliases:
+  - 原码(sign-and-magnitude)
+  related: []
+- concept_id: ysyx_f3_section_c1c8a018e2e7
+  aliases:
+  - 搭建4位减法器
+  related: []
+- concept_id: ysyx_f3_section_8e2ed3df2192
+  aliases:
+  - 搭建4位原码加法器
+  related: []
+- concept_id: ysyx_f3_section_9f55f663ee81
+  aliases:
+  - 反码(one's complement)
+  related: []
+- concept_id: ysyx_f3_section_96c39d0950b2
+  aliases:
+  - 搭建4位反码加法器
+  related: []
+- concept_id: ysyx_f3_section_8e4197b0fd98
+  aliases:
+  - 搭建4位反码加法器(2)
+  related: []
+- concept_id: ysyx_f3_section_2a0796fb06d8
+  aliases:
+  - 补码(two's complement)
+  related: []
+- concept_id: ysyx_f3_section_5561d45373a7
+  aliases:
+  - 为什么反码和补码的英文分别是one's complement和two's complement?
+  related: []
+- concept_id: ysyx_f3_section_782665203210
+  aliases:
+  - 溢出检测
+  related: []
+- concept_id: ysyx_f3_section_36a7b8291b51
+  aliases:
+  - 检测补码加法是否发生溢出
+  related: []
+- concept_id: ysyx_f3_section_12378d329621
+  aliases:
+  - 时序逻辑电路
+  related: []
+- concept_id: ysyx_f3_section_229930c326e8
+  aliases:
+  - 交叉配对反相器
+  related: []
+- concept_id: ysyx_f3_section_340ee095e11c
+  aliases:
+  - Logisim无法搭建交叉配对反相器
+  related: []
+- concept_id: ysyx_f3_section_bb15e185df9f
+  aliases:
+  - SR锁存器
+  related: []
+- concept_id: ysyx_f3_section_d9b426cb028c
+  aliases:
+  - 搭建SR锁存器
+  related: []
+- concept_id: ysyx_f3_section_85261ebbb599
+  aliases:
+  - 用与非门搭建的SR锁存器
+  related: []
+- concept_id: ysyx_f3_section_3e20920e758a
+  aliases:
+  - D锁存器
+  related: []
+- concept_id: ysyx_f3_section_4575f9a0dd5d
+  aliases:
+  - 分析D锁存器的行为
+  related: []
+- concept_id: ysyx_f3_section_fdb8a8729148
+  aliases:
+  - 分析D锁存器的行为(2)
+  related: []
+- concept_id: ysyx_f3_section_de2b9850b044
+  aliases:
+  - 搭建D锁存器
+  related: []
+- concept_id: ysyx_f3_section_81fee60fbb05
+  aliases:
+  - 搭建带复位功能的D锁存器
+  related: []
+- concept_id: ysyx_f3_section_08176aab4e16
+  aliases:
+  - 用D锁存器实现位翻转功能
+  related: []
+- concept_id: ysyx_f3_section_ef81fff5ad4d
+  aliases:
+  - 同步电路
+  related: []
+- concept_id: ysyx_f3_section_60e31d02f8bc
+  aliases:
+  - D触发器
+  related: []
+- concept_id: ysyx_f3_section_1b5b79d04cd1
+  aliases:
+  - 搭建D触发器
+  related: []
+- concept_id: ysyx_f3_section_903ea515d62b
+  aliases:
+  - 搭建带复位功能的D触发器
+  related: []
+- concept_id: ysyx_f3_section_d0b6ec6284da
+  aliases:
+  - 用D触发器实现位翻转功能
+  related: []
+- concept_id: ysyx_f3_section_b62199ccb4e4
+  aliases:
+  - 搭建下降沿触发的D触发器
+  related: []
+- concept_id: ysyx_f3_section_728a88cb7a60
+  aliases:
+  - D触发器的另一种实现
+  related: []
+- concept_id: ysyx_f3_section_cbf0703c6b99
+  aliases:
+  - 搭建带使能端的D触发器
+  related: []
+- concept_id: ysyx_f3_section_a2ea8846c129
+  aliases:
+  - 寄存器
+  related: []
+- concept_id: ysyx_f3_section_729ad9057362
+  aliases:
+  - 搭建4位寄存器
+  related: []
+- concept_id: ysyx_f3_section_559bfc8b70bf
+  aliases:
+  - 搭建4位计数器
+  related: []
+- concept_id: ysyx_f3_section_aa895b596bde
+  aliases:
+  - 设计数列求和电路
+  related: []
+- concept_id: ysyx_f3_section_d676331d91b3
+  aliases:
+  - 实现电子时钟
+  related: []
+- concept_id: ysyx_f4_section_03041e7c5e1b
+  aliases:
+  - F4 计算机系统的状态机模型
+  related: []
+- concept_id: ysyx_f4_section_741a0e426a31
+  aliases:
+  - 指令及其编码
+  related: []
+- concept_id: ysyx_f4_section_1628c9a5466e
+  aliases:
+  - '生活中的"处理器": 厨房'
+  related: []
+- concept_id: ysyx_f4_section_af1e21fbe05d
+  aliases:
+  - '生活中的"处理器": 厨房(2)'
+  related: []
+- concept_id: ysyx_f4_section_30ae2383cb45
+  aliases:
+  - 存储程序
+  related: []
+- concept_id: ysyx_f4_section_ef1bf9b940ab
+  aliases:
+  - 一个数列求和的例子
+  related: []
+- concept_id: ysyx_f4_section_1cdc721a697c
+  aliases:
+  - 继续执行上述指令
+  related: []
+- concept_id: ysyx_f4_section_97c18c38e79a
+  aliases:
+  - 重新审视编程
+  related: []
+- concept_id: ysyx_f4_section_37656d07b374
+  aliases:
+  - 计算10以内的奇数之和
+  related: []
+- concept_id: ysyx_f4_section_99a1fcc619a4
+  aliases:
+  - 指令集架构的状态机模型
+  related: []
+- concept_id: ysyx_f4_section_39b182a2f476
+  aliases:
+  - 人生如戏
+  related: []
+- concept_id: ysyx_f4_section_31f32db01e01
+  aliases:
+  - ISA的更多内容
+  related: []
+- concept_id: ysyx_f4_section_7b205d048783
+  aliases:
+  - C程序入门
+  related: []
+- concept_id: ysyx_f4_section_8533b3b6ae42
+  aliases:
+  - 一个简单的C语言示例
+  related: []
+- concept_id: ysyx_f4_section_4ee5ef89c4f3
+  aliases:
+  - 在线运行C程序
+  related: []
+- concept_id: ysyx_f4_section_aec336d2e8fa
+  aliases:
+  - C程序的状态机模型
+  related: []
+- concept_id: ysyx_f4_section_e2926329e392
+  aliases:
+  - 用C语言实现数列求和
+  related: []
+- concept_id: ysyx_f4_section_5385982fe7b2
+  aliases:
+  - 继续执行上述程序
+  related: []
+- concept_id: ysyx_f4_section_fdb4d6161123
+  aliases:
+  - 数字电路的状态机模型
+  related: []
+- concept_id: ysyx_f4_section_4b008f271c7f
+  aliases:
+  - 从状态机视角理解数列求和电路的工作过程
+  related: []
+- concept_id: ysyx_f4_section_da3aff025b4e
+  aliases:
+  - 在计算机上执行C程序
+  related: []
+- concept_id: ysyx_f4_section_8d2542907632
+  aliases:
+  - 编译 = 将C程序翻译成指令序列
+  related: []
+- concept_id: ysyx_f4_section_567af3b853cc
+  aliases:
+  - 结合数列求和的例子理解编译器的工作
+  related: []
+- concept_id: ysyx_f4_section_1ca9bb47017f
+  aliases:
+  - 在Compiler Explorer中理解编译器的工作
+  related: []
+- concept_id: ysyx_f4_section_420e0ef2d805
+  aliases:
+  - CPU设计 = 根据ISA设计数字电路
+  related: []
+- concept_id: ysyx_f4_section_caf1840dc4a7
+  aliases:
+  - 程序, ISA和CPU之间的联系
+  related: []
+- concept_id: ysyx_f4_section_36ebc0b5eba1
+  aliases:
+  - 一句话就能说清楚, 为什么搞那么复杂?
+  related: []
+- concept_id: ysyx_f4_section_816400b2fc1a
+  aliases:
+  - 从一到无穷大
+  related: []
+- concept_id: ysyx_f4_section_2c860892cbe4
+  aliases:
+  - 指令集和处理器是不同层次的概念
+  related: []
+- concept_id: ysyx_e1_section_4d3573acbab3
+  aliases:
+  - E1 硬件描述语言
+  related: []
+- concept_id: ysyx_e1_section_505c37ef9c78
+  aliases:
+  - 通过线上网站学习Verilog语言
+  related: []
+- concept_id: ysyx_e1_section_f4c278155d24
+  aliases:
+  - Verilog和电路图之间的关联
+  related: []
+- concept_id: ysyx_e4_section_dcf1f7e580b4
+  aliases:
+  - E4 处理器的仿真和验证
+  related: []
+- concept_id: ysyx_e4_section_a04234068243
+  aliases:
+  - STFW + RTFM搭建Verilator仿真环境
+  related: []
+- concept_id: ysyx_e4_section_01ea396d114e
+  aliases:
+  - 竟然连仿真框架都没有, 真寒酸
+  related: []
+- concept_id: ysyx_e4_section_6325a009e23e
+  aliases:
+  - 如果你想使用Chisel
+  related: []
+- concept_id: ysyx_e4_section_c6f437457b8b
+  aliases:
+  - 认识Verilator
+  related: []
+- concept_id: ysyx_e4_section_8cb0a9b36d97
+  aliases:
+  - 安装Verilator
+  related: []
+- concept_id: ysyx_e4_section_54acd411e4ca
+  aliases:
+  - 运行示例
+  related: []
+- concept_id: ysyx_e4_section_a4c5dd192ce4
+  aliases:
+  - '示例: 双控开关(组合逻辑电路)'
+  related: []
+- concept_id: ysyx_e4_section_f1ad26e55781
+  aliases:
+  - 对双控开关模块进行仿真
+  related: []
+- concept_id: ysyx_e4_section_5a8ce09e91e5
+  aliases:
+  - 上述代码是什么意思?
+  related: []
+- concept_id: ysyx_e4_section_20286e70a2ea
+  aliases:
+  - 打印并查看波形
+  related: []
+- concept_id: ysyx_e4_section_339e7d58203f
+  aliases:
+  - 生成波形并查看
+  related: []
+- concept_id: ysyx_e4_section_3f5fc3ca0e33
+  aliases:
+  - 手册这么多内容, 怎么找?
+  related: []
+- concept_id: ysyx_e4_section_f8cb005ab77e
+  aliases:
+  - 不要长时间生成波形
+  related: []
+- concept_id: ysyx_e4_section_4ecd1f16587d
+  aliases:
+  - 生成FST格式的波形
+  related: []
+- concept_id: ysyx_e4_section_da1bb3068edd
+  aliases:
+  - 编写Makefile
+  related: []
+- concept_id: ysyx_e4_section_aae87df54438
+  aliases:
+  - 一键仿真
+  related: []
+- concept_id: ysyx_e4_section_c0c682ad6e47
+  aliases:
+  - 注意保留git追踪的命令
+  related: []
+- concept_id: ysyx_e4_section_c326461ec03c
+  aliases:
+  - 接入NVBoard
+  related: []
+- concept_id: ysyx_e4_section_b07706a49183
+  aliases:
+  - 运行NVBoard示例
+  related: []
+- concept_id: ysyx_e4_section_8823b2cdecd5
+  aliases:
+  - 不知道NVBoard如何工作?
+  related: []
+- concept_id: ysyx_e4_section_06cb60b56726
+  aliases:
+  - 在NVBoard上实现双控开关
+  related: []
+- concept_id: ysyx_e4_section_211a616fd290
+  aliases:
+  - NVBoard的故事
+  related: []
+- concept_id: ysyx_e4_section_62289bf0600b
+  aliases:
+  - '示例: 流水灯(时序逻辑电路)'
+  related: []
+- concept_id: ysyx_e4_section_30e4c34e3930
+  aliases:
+  - 将流水灯接入NVBoard
+  related: []
+- concept_id: ysyx_e4_section_d5b65c0ce57a
+  aliases:
+  - 静态代码检查
+  related: []
+- concept_id: ysyx_e4_section_0cbfd3975791
+  aliases:
+  - 通过Verilator进行静态代码检查
+  related: []
+- concept_id: ysyx_e4_section_a6d0e11506b1
+  aliases:
+  - Verilator进阶学习
+  related: []
+- concept_id: ysyx_e4_section_8749c203208f
+  aliases:
+  - 若干代码风格和规范
+  related: []
+- concept_id: ysyx_e4_section_a90c4fc0b3f5
+  aliases:
+  - 1. 如果你还没有深入理解Verilog的事件模型, 不要使用行为建模
+  related: []
+- concept_id: ysyx_e4_section_4018bd925004
+  aliases:
+  - 强烈建议初学者不要使用行为建模方式设计电路
+  related: []
+- concept_id: ysyx_e4_section_b167b0f9b9ef
+  aliases:
+  - 真正的描述电路 = 实例化 + 连线
+  related: []
+- concept_id: ysyx_e4_section_dd2748beb1c3
+  aliases:
+  - 如果你使用Chisel, 也建议你不要使用when和switch
+  related: []
+- concept_id: ysyx_e4_section_ee35488e6d57
+  aliases:
+  - 2. 如果你坚持使用Verilog的行为建模, 不要用negedge
+  related: []
+- concept_id: ysyx_e4_section_1bea0e4fe113
+  aliases:
+  - 3. 如果你坚持使用Verilog的行为建模, 不要使用锁存器(Latch)
+  related: []
+- concept_id: ysyx_e4_section_c91215f07f7e
+  aliases:
+  - 完成数字电路实验
+  related: []
+- concept_id: ysyx_e4_section_4f69f9ba78ca
+  aliases:
+  - 学习敏捷开发语言Chisel
+  related: []
+- concept_id: ysyx_e4_section_cea2ba88bea2
+  aliases:
+  - 如果你想使用Chisel
+  related: []
+- concept_id: ysyx_e4_section_21e90bc093c4
+  aliases:
+  - 借助NVBoard完成数字电路实验
+  related: []
+- concept_id: ysyx_e4_section_d4723dd0aa64
+  aliases:
+  - 用RTL实现简单处理器
+  related: []
+- concept_id: ysyx_e4_section_0a8a577c4eac
+  aliases:
+  - 用RTL实现sCPU
+  related: []
+- concept_id: ysyx_e4_section_6120fcc6983e
+  aliases:
+  - 处理器的高效验证方法——DiffTest
+  related: []
+- concept_id: ysyx_e4_section_87c2282fdf1d
+  aliases:
+  - 指令集模拟器 - 可以执行程序的程序
+  related: []
+- concept_id: ysyx_e4_section_f1c1022d2e13
+  aliases:
+  - 实现sEMU
+  related: []
+- concept_id: ysyx_e4_section_1a5a570dcb6c
+  aliases:
+  - 对比sEMU和sCPU
+  related: []
+- concept_id: ysyx_e4_section_5fdda9a00ab2
+  aliases:
+  - 让sCPU和sEMU进行DiffTest
+  related: []
+- concept_id: ysyx_e4_section_27fde3cb6008
+  aliases:
+  - 让sCPU和sEMU进行DiffTest
+  related: []
+- concept_id: ysyx_e4_section_2cf13a87bd69
+  aliases:
+  - 完善报错信息
+  related: []
+- concept_id: ysyx_e4_section_a8062d832e76
+  aliases:
+  - 让DiffTest检查PC值
+  related: []
+- concept_id: ysyx_d6_section_c46d97abdbd9
+  aliases:
+  - D6 从RTL代码到可流片版图
+  related: []
+- concept_id: ysyx_d6_section_c657976eea7b
+  aliases:
+  - Verilog的仿真行为和编码风格
+  related: []
+- concept_id: ysyx_d6_section_247caccf6d3a
+  aliases:
+  - 我会写Verilog不就行了吗? 为什么要知道这些?
+  related: []
+- concept_id: ysyx_d6_section_70166e38e8fc
+  aliases:
+  - Verilog代码的执行
+  related: []
+- concept_id: ysyx_d6_section_e0805f06ffe0
+  aliases:
+  - 有没有感到对Verilog的认知被颠覆了?
+  related: []
+- concept_id: ysyx_d6_section_e637084734f4
+  aliases:
+  - 基于事件的仿真
+  related: []
+- concept_id: ysyx_d6_section_8771894d570d
+  aliases:
+  - 层次化事件队列
+  related: []
+- concept_id: ysyx_d6_section_2083fd3828b8
+  aliases:
+  - Verilog代码 != C代码
+  related: []
+- concept_id: ysyx_d6_section_127482f1066f
+  aliases:
+  - 赋值操作的事件调度
+  related: []
+- concept_id: ysyx_d6_section_192969776c05
+  aliases:
+  - 重新认识阻塞赋值和非阻塞赋值
+  related: []
+- concept_id: ysyx_d6_section_6f0b09854d4d
+  aliases:
+  - 用事件模型分析Verilog代码的行为
+  related: []
+- concept_id: ysyx_d6_section_172e4a5fcb2c
+  aliases:
+  - 事件处理顺序
+  related: []
+- concept_id: ysyx_d6_section_56376702fec3
+  aliases:
+  - 仿真器和仿真程序
+  related: []
+- concept_id: ysyx_d6_section_1d216b40c113
+  aliases:
+  - 理解Verilator生成的仿真程序的行为
+  related: []
+- concept_id: ysyx_d6_section_cf9e2476a820
+  aliases:
+  - 数据竞争
+  related: []
+- concept_id: ysyx_d6_section_895c1fedbb9e
+  aliases:
+  - 用事件模型分析Verilog代码的行为(2)
+  related: []
+- concept_id: ysyx_d6_section_3c2a206d3380
+  aliases:
+  - 用事件模型分析Verilog代码的行为(3)
+  related: []
+- concept_id: ysyx_d6_section_8dc060519ccd
+  aliases:
+  - 良好的Verilog编码风格
+  related: []
+- concept_id: ysyx_d6_section_7caf66623699
+  aliases:
+  - 我会写Verilog不就行了吗? 为什么要知道这些?
+  related: []
+- concept_id: ysyx_d6_section_7ba0b406ccb5
+  aliases:
+  - 更多的例子和分析
+  related: []
+- concept_id: ysyx_d6_section_a34374d39fd4
+  aliases:
+  - 我会写Verilog不就行了吗? 为什么要知道这些?(2)
+  related: []
+- concept_id: ysyx_d6_section_9d55e6bb3605
+  aliases:
+  - 逻辑综合(Logic Synthesis) - 从RTL代码到网表
+  related: []
+- concept_id: ysyx_d6_section_27bd7b7d8e3e
+  aliases:
+  - 国内的首个开源PDK, 也是发布时全球工艺最先进的开源PDK
+  related: []
+- concept_id: ysyx_d6_section_c69c8d6276d5
+  aliases:
+  - 解析文件(Parsing)
+  related: []
+- concept_id: ysyx_d6_section_6c6ae135ff2f
+  aliases:
+  - 细化(Elaboration)
+  related: []
+- concept_id: ysyx_d6_section_3a3de07e5bee
+  aliases:
+  - 语义分析
+  related: []
+- concept_id: ysyx_d6_section_a581b6541894
+  aliases:
+  - 中间代码生成
+  related: []
+- concept_id: ysyx_d6_section_3469abcfbc36
+  aliases:
+  - 查看结构图
+  related: []
+- concept_id: ysyx_d6_section_9fe7dc660ee6
+  aliases:
+  - 粗粒度综合(Coarse-grain synthesis)
+  related: []
+- concept_id: ysyx_d6_section_0de21957237e
+  aliases:
+  - 将过程描述转换为粗粒度表示
+  related: []
+- concept_id: ysyx_d6_section_011e8542bac2
+  aliases:
+  - 查看结构图(2)
+  related: []
+- concept_id: ysyx_d6_section_ff43e0b824e2
+  aliases:
+  - 优化
+  related: []
+- concept_id: ysyx_d6_section_7ac6f08cc29b
+  aliases:
+  - 面积和性能的权衡
+  related: []
+- concept_id: ysyx_d6_section_1fe70d5d024f
+  aliases:
+  - 查看结构图(3)
+  related: []
+- concept_id: ysyx_d6_section_e1b037cfb0e3
+  aliases:
+  - 有限状态机的识别和处理
+  related: []
+- concept_id: ysyx_d6_section_d4177be3c71b
+  aliases:
+  - 存储器的识别和处理
+  related: []
+- concept_id: ysyx_d6_section_8b8ab9c5a5fd
+  aliases:
+  - 细粒度综合(Fine-grain synthesis)
+  related: []
+- concept_id: ysyx_d6_section_c5580a95b14e
+  aliases:
+  - 查看结构图(4)
+  related: []
+- concept_id: ysyx_d6_section_6d868b520651
+  aliases:
+  - 工艺映射(Technology mapping)
+  related: []
+- concept_id: ysyx_d6_section_ebd3a49f5742
+  aliases:
+  - 查看结构图(5)
+  related: []
+- concept_id: ysyx_d6_section_4dc3c9989e91
+  aliases:
+  - 查看结构图(6)
+  related: []
+- concept_id: ysyx_d6_section_65f9dd9b4fba
+  aliases:
+  - 工艺映射和yosys的techmap命令
+  related: []
+- concept_id: ysyx_d6_section_522a4c76151d
+  aliases:
+  - 网表和报告生成
+  related: []
+- concept_id: ysyx_d6_section_74428d5fdc9f
+  aliases:
+  - 通过yosys的日志文件了解综合过程
+  related: []
+- concept_id: ysyx_d6_section_07623f2b2d5a
+  aliases:
+  - Verilog的RTL综合语义
+  related: []
+- concept_id: ysyx_d6_section_3b1a3eb18846
+  aliases:
+  - RTFM
+  related: []
+- concept_id: ysyx_d6_section_5352ba454273
+  aliases:
+  - 用事件模型分析Verilog代码的行为(4)
+  related: []
+- concept_id: ysyx_d6_section_02a8b80e9bca
+  aliases:
+  - RTFM(2)
+  related: []
+- concept_id: ysyx_d6_section_ecc2196db769
+  aliases:
+  - Chisel福利
+  related: []
+- concept_id: ysyx_d6_section_7d354d87173c
+  aliases:
+  - 用开源EDA工具评估电路
+  related: []
+- concept_id: ysyx_d6_section_e668ddc1ba15
+  aliases:
+  - 面积评估
+  related: []
+- concept_id: ysyx_d6_section_e61603c66b3c
+  aliases:
+  - 性能评估
+  related: []
+- concept_id: ysyx_d6_section_f9492e6c045b
+  aliases:
+  - 更快的代价
+  related: []
+- concept_id: ysyx_d6_section_de079426eda9
+  aliases:
+  - 评估电路的性能
+  related: []
+- concept_id: ysyx_d6_section_5569f1aedfb7
+  aliases:
+  - 功耗评估
+  related: []
+- concept_id: ysyx_d6_section_d928ea396c5c
+  aliases:
+  - 评估电路的功耗
+  related: []
+- concept_id: ysyx_d6_section_845917324a7b
+  aliases:
+  - 开源EDA工具的局限性
+  related: []
+- concept_id: ysyx_d6_section_6b99b4845b14
+  aliases:
+  - 所以学习"一生一芯"还需要FPGA吗?
+  related: []
+- concept_id: ysyx_d6_section_3a8abdc3be9b
+  aliases:
+  - PDK和标准单元库
+  related: []
+- concept_id: ysyx_d6_section_1d638a1a2086
+  aliases:
+  - PDK的内容
+  related: []
+- concept_id: ysyx_d6_section_750a48fce8f5
+  aliases:
+  - 工艺视角的芯片结构
+  related: []
+- concept_id: ysyx_d6_section_978e30612acd
+  aliases:
+  - 了解ICsprout55的金属层
+  related: []
+- concept_id: ysyx_d6_section_d839612a9eda
+  aliases:
+  - 多个多晶硅层的工艺
+  related: []
+- concept_id: ysyx_d6_section_884caffc97f5
+  aliases:
+  - 标准单元的属性
+  related: []
+- concept_id: ysyx_d6_section_1ac998ce5872
+  aliases:
+  - LIB文件 - 功能, 时序和功耗
+  related: []
+- concept_id: ysyx_d6_section_7b7325455fc3
+  aliases:
+  - RTFM
+  related: []
+- concept_id: ysyx_d6_section_71057bc00375
+  aliases:
+  - Verilog文件 - 行为模型
+  related: []
+- concept_id: ysyx_d6_section_1ba4e1923417
+  aliases:
+  - LEF文件 - 物理几何信息
+  related: []
+- concept_id: ysyx_d6_section_f199647e63f1
+  aliases:
+  - CDL文件 - 晶体管结构描述
+  related: []
+- concept_id: ysyx_d6_section_28dcf9bdebb4
+  aliases:
+  - 根据CDL文件画出晶体管结构
+  related: []
+- concept_id: ysyx_d6_section_29dc46a1605f
+  aliases:
+  - GDS文件 - 物理版图
+  related: []
+- concept_id: ysyx_d6_section_98e151f36730
+  aliases:
+  - 标准单元的分类
+  related: []
+- concept_id: ysyx_d6_section_cf8638be6e84
+  aliases:
+  - 逻辑门单元
+  related: []
+- concept_id: ysyx_d6_section_c6a43687fb20
+  aliases:
+  - 理解复杂逻辑门单元的功能
+  related: []
+- concept_id: ysyx_d6_section_9d81af8b7e3c
+  aliases:
+  - 理解OAI22的晶体管结构
+  related: []
+- concept_id: ysyx_d6_section_254840ddafe1
+  aliases:
+  - OAI22的命名
+  related: []
+- concept_id: ysyx_d6_section_9e9bf477e2ba
+  aliases:
+  - 理解复杂逻辑门单元的功能(2)
+  related: []
+- concept_id: ysyx_d6_section_d3241c718be2
+  aliases:
+  - 理解驱动能力
+  related: []
+- concept_id: ysyx_d6_section_5e2f535defb4
+  aliases:
+  - 理解驱动能力(2)
+  related: []
+- concept_id: ysyx_d6_section_9b2d52d91450
+  aliases:
+  - 时序单元
+  related: []
+- concept_id: ysyx_d6_section_534efd266636
+  aliases:
+  - 根据CDL文件画出晶体管结构(2)
+  related: []
+- concept_id: ysyx_d6_section_fb5bb563f119
+  aliases:
+  - I/O单元
+  related: []
+- concept_id: ysyx_d6_section_f96d063d81be
+  aliases:
+  - 了解I/O单元的尺寸
+  related: []
+- concept_id: ysyx_d6_section_efe1177cc223
+  aliases:
+  - 驱动单元
+  related: []
+- concept_id: ysyx_d6_section_78488a07924e
+  aliases:
+  - 物理单元
+  related: []
+- concept_id: ysyx_d6_section_0a4dfdbcb149
+  aliases:
+  - 宏单元
+  related: []
+- concept_id: ysyx_d6_section_ce9e2b95b6f6
+  aliases:
+  - 复杂功能单元
+  related: []
+- concept_id: ysyx_d6_section_b44df53949af
+  aliases:
+  - 复杂单元的全定制电路
+  related: []
+- concept_id: ysyx_d6_section_946f1a84db94
+  aliases:
+  - 复杂单元的全定制电路(2)
+  related: []
+- concept_id: ysyx_d6_section_23013d1cb3c4
+  aliases:
+  - 时钟专用单元
+  related: []
+- concept_id: ysyx_d6_section_472dfb79bfc7
+  aliases:
+  - 电源管理单元
+  related: []
+- concept_id: ysyx_d6_section_2dea42159a3e
+  aliases:
+  - 测试调试单元
+  related: []
+- concept_id: ysyx_d6_section_05507d3090ae
+  aliases:
+  - 了解的所有标准单元
+  related: []
+- concept_id: ysyx_d6_section_68dfa558982c
+  aliases:
+  - PVT角
+  related: []
+- concept_id: ysyx_d6_section_6fa5cc1b54f0
+  aliases:
+  - tt算一个"角"吗?
+  related: []
+- concept_id: ysyx_d6_section_f0ce6c4407e9
+  aliases:
+  - 工艺角和Intel处理器型号
+  related: []
+- concept_id: ysyx_d6_section_2672c70e45c9
+  aliases:
+  - 尝试不同PVT角的评估结果
+  related: []
+- concept_id: ysyx_d6_section_cc2f36793f58
+  aliases:
+  - PVT角和超频
+  related: []
+- concept_id: ysyx_d6_section_fc88dd8bc1cf
+  aliases:
+  - 厂商的营销策略
+  related: []
+- concept_id: ysyx_d6_section_f87c5356d57e
+  aliases:
+  - 阈值电压
+  related: []
+- concept_id: ysyx_d6_section_df9f146834da
+  aliases:
+  - 尝试不同的阈值电压
+  related: []
+- concept_id: ysyx_d6_section_4fd8f5f40d18
+  aliases:
+  - 轨道数
+  related: []
+- concept_id: ysyx_d6_section_2c66e823a987
+  aliases:
+  - 理解ICsprout55的轨道数
+  related: []
+- concept_id: ysyx_d6_section_167508046920
+  aliases:
+  - 物理设计(Physical Design) - 从网表到可流片版图
+  related: []
+- concept_id: ysyx_d6_section_9d09ac3a89d1
+  aliases:
+  - 布图规划(Floorplan)
+  related: []
+- concept_id: ysyx_d6_section_b90d9b8a20bc
+  aliases:
+  - 确定芯片大小
+  related: []
+- concept_id: ysyx_d6_section_2661e02de3b1
+  aliases:
+  - 确定芯片尺寸
+  related: []
+- concept_id: ysyx_d6_section_13737d8c9f0a
+  aliases:
+  - 芯片的形状必须是正方形吗?
+  related: []
+- concept_id: ysyx_d6_section_e2bcbcdd36b3
+  aliases:
+  - 摆放I/O单元
+  related: []
+- concept_id: ysyx_d6_section_ff44ae0dc0f7
+  aliases:
+  - 摆放宏单元
+  related: []
+- concept_id: ysyx_d6_section_d55011353930
+  aliases:
+  - 电源规划(Powerplan)
+  related: []
+- concept_id: ysyx_d6_section_1f6e0b9e865b
+  aliases:
+  - 布局(Placement)
+  related: []
+- concept_id: ysyx_d6_section_129f73d1834d
+  aliases:
+  - 填充单元的尺寸
+  related: []
+- concept_id: ysyx_d6_section_5bfd61da9f23
+  aliases:
+  - 时钟树综合(CTS, Clock Tree Synthesis)
+  related: []
+- concept_id: ysyx_d6_section_1f8447fa7fc5
+  aliases:
+  - 布线(Routing)
+  related: []
+- concept_id: ysyx_d6_section_5507d4ca8d21
+  aliases:
+  - 签核分析(Sign-off)
+  related: []
+- concept_id: ysyx_d6_section_a8cebed0582e
+  aliases:
+  - 从可流片的版图到可运行的芯片
+  related: []
+- concept_id: verilog_style
+  aliases:
+  - Verilog 编码风格
+  - Verilog 风格
+  - coding style
+  - style guide
+  related:
+  - bit_width
+  - port_connection
+- concept_id: digital_synthesis
+  aliases:
+  - 数字综合
+  - 逻辑综合
+  - synthesis
+  - synthesis flow
+  related:
+  - syntax_error
+  - latch
+- concept_id: tool_diagnostic
+  aliases:
+  - 工具诊断
+  - 工具告警
+  - 编译告警
+  - diagnostic
+  - warning message
+  related:
+  - bit_width
+  - multiple_driver
+  - syntax_error

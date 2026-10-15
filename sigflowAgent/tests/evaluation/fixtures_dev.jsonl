@@ -1,0 +1,6 @@
+{"fixture_id": "latch_missing_else_01", "fixture_hash": "sha256:d65d50131804d10ab8e5bd92be2565092cd7bd52dcbe7056e01f63616141cfb4", "kind": "mock", "review_status": "pending_hardware_review", "split": "dev"}
+{"fixture_id": "latch_complete_assignment_01", "fixture_hash": "sha256:c107fec2421b67f7ed404e3d466b002605a38207c4ac353e50b88f12fdd75401", "kind": "mock", "review_status": "pending_hardware_review", "split": "dev"}
+{"fixture_id": "latch_intentional_01", "fixture_hash": "sha256:0e95b86cbc26ee11e98e61670425009b2e06b34c16c5dedf1b5bd57be342f1ee", "kind": "mock", "review_status": "pending_hardware_review", "split": "dev"}
+{"fixture_id": "counter_reset_suspected_01", "fixture_hash": "sha256:ddf2ccbe0446e52931f8b918d05bfb81912086faf5d8c2e7877a5d3392a83ee7", "kind": "mock", "review_status": "pending_hardware_review", "split": "dev"}
+{"fixture_id": "counter_reset_control_01", "fixture_hash": "sha256:691b1172253e073a98bf318dd1abe4333012d0717b21eaf4e3137ed4a3d1ed5a", "kind": "mock", "review_status": "pending_hardware_review", "split": "dev"}
+{"fixture_id": "reset_insufficient_01", "fixture_hash": "sha256:a9a47ab79cb746d56eb269ed45c069cfbb772be2bdc05bee0de891106e493865", "kind": "mock", "review_status": "pending_hardware_review", "split": "dev"}
