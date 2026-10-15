@@ -7,7 +7,7 @@ is not registering a production detector.
 from dataclasses import dataclass
 from types import MappingProxyType
 from ..domain import Evidence
-from ..context.models import EvidenceAnchor
+from ..context.models import EvidenceAnchor, Omission
 from ..context.report import valid_anchor
 
 POLICY_VERSION = 'pedagogy.v1'
@@ -76,7 +76,11 @@ def assess(evidence: Evidence, facts: PatternFacts | None = None) -> PatternAsse
     pattern = PATTERNS.get(evidence.concept)
     if pattern is None:
         return PatternAssessment('unsupported', 'unknown_pattern', None)
-    if evidence.complete is not True or evidence.omitted:
+    # Optional course omissions describe background retrieval, not missing
+    # engineering observations. Keep every engineering/malformed omission closed.
+    if (evidence.complete is not True or type(evidence.omitted) is not tuple or any(
+            not isinstance(item, Omission) or type(item.item_id) is not str
+            or not item.item_id.startswith('course:') for item in evidence.omitted)):
         return PatternAssessment('insufficient', 'incomplete_evidence', pattern)
     if evidence.anchor is not None and (
             not valid_anchor(evidence.anchor, evidence.project_id, evidence.revision, evidence.job_id)

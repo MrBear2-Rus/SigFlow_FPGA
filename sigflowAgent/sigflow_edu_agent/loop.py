@@ -1,12 +1,13 @@
 """Single-writer teaching loop; pauses are states, not busy-waiting loops."""
 
 from copy import deepcopy
+from dataclasses import replace
 from uuid import uuid4
 
 from .domain import (Card, CardContext, Evidence, EvidenceError, Plan, ProviderError, RunRequest,
                      RunState, Status, Trace, VerificationResult)
 from .pedagogy import RuleProvider, checked_card, valid_evidence
-from .ports import CardProvider, DenyVerification, EvidenceSource, VerificationPort
+from .ports import CardProvider, CourseProvider, DenyVerification, EvidenceSource, VerificationPort
 from .checkers import DetailedPlan, PlanChecker, OutcomeChecker
 from .patterns import assess
 
@@ -15,6 +16,7 @@ class TeachingLoop:
     def __init__(self, request: RunRequest, source: EvidenceSource,
                  provider: CardProvider | None = None, *, plan: Plan | DetailedPlan | None = None,
                  verification: VerificationPort | None = None,
+                 course_provider: CourseProvider | None = None,
                  max_steps: int = 32, max_model_calls: int = 4, baseline_evidence=None):
         if type(max_steps) is not int or not 1 <= max_steps <= 1000:
             raise ValueError('invalid_step_budget')
@@ -34,6 +36,8 @@ class TeachingLoop:
                 raise ValueError('invalid_baseline_evidence')
         self.request, self.source, self.provider = request, source, provider
         self.plan, self.verification = plan, verification or DenyVerification()
+        self.course_provider = course_provider
+        self._course_refs = ()
         self.max_steps, self.max_model_calls = max_steps, max_model_calls
         self._state = RunState(uuid4().hex)
         self._evidence = None
@@ -81,6 +85,7 @@ class TeachingLoop:
             else:
                 state.stage = 'E3'
         elif stage == 'E3':
+            self._prepare_courses()
             state.stage = 'E4'
         elif stage == 'E4':
             state.cards.append(self._generate_card())
@@ -100,9 +105,30 @@ class TeachingLoop:
         state.trace.append(Trace(stage, state.status, state.reason, state.version))
         return self.state
 
+    def _prepare_courses(self):
+        self._course_refs = ()
+        self._state.course_omitted = ()
+        self._state.course_status = 'disabled'
+        self._state.course_diagnostics = {}
+        if self.course_provider is None:
+            return
+        from .courses import pack_courses
+        try:
+            bundle = self.course_provider.prepare(self.request.question, (self._evidence.concept,))
+            evidence, refs, status, omitted = pack_courses(self._evidence, bundle)
+            if not valid_evidence(evidence, self.request):
+                raise ValueError('invalid_course_context')
+        except Exception:
+            self._state.course_status = 'unavailable'
+            return
+        self._evidence, self._course_refs = evidence, refs
+        self._state.course_status, self._state.course_omitted = status, omitted
+        self._state.course_diagnostics = evidence.course_diagnostics
+
     def _generate_card(self) -> Card:
         state = self._state
-        context = CardContext(self.request.question, state.level, self._evidence)
+        context = CardContext(self.request.question, state.level, self._evidence,
+                              course_refs=self._course_refs, course_status=state.course_status)
         assessment = assess(context.evidence)
         if assessment.status != 'supported':
             state.reason = assessment.reason
@@ -112,7 +138,7 @@ class TeachingLoop:
                     state.reason = 'model_budget_exceeded'
                     break
                 state.model_calls += 1
-                context = CardContext(context.question, context.level, context.evidence, attempt == 1)
+                context = replace(context, repair=attempt == 1)
                 try:
                     value = self.provider.generate(context)
                 except ProviderError as error:

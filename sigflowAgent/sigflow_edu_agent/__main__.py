@@ -5,6 +5,7 @@ from dataclasses import asdict
 import json
 import sys
 from uuid import uuid4
+from pathlib import Path
 
 from .deepseek import DeepSeekProvider
 from .demo import FixtureSource, run_demo
@@ -19,6 +20,8 @@ def main(argv=None) -> int:
     parser.add_argument('--once', action='store_true', help='运行到第一次暂停后输出 JSON 并退出')
     parser.add_argument('--intent', choices=('explain', 'diagnose', 'verify'), default='diagnose')
     parser.add_argument('--question', default='为什么这个组合逻辑块出现了锁存器？')
+    parser.add_argument('--course-db', type=Path, help='当前课程 SQLite 文件；也可设置 SIGFLOW_COURSE_DB')
+    parser.add_argument('--no-course', action='store_true', help='关闭课程检索')
     args = parser.parse_args(argv)
     if args.demo:
         print(json.dumps(run_demo(), ensure_ascii=False, indent=2))
@@ -30,7 +33,9 @@ def main(argv=None) -> int:
         print(f'{error}: 请配置 DEEPSEEK_API_KEY / DEEPSEEK_MODEL；离线可用 --provider rule。', file=sys.stderr)
         return 2
     plan = Plan('demo', 'r1', '复核综合结果', ('eda.synth',)) if args.intent == 'verify' else None
-    loop = TeachingLoop(request, FixtureSource(), provider, plan=plan)
+    from .courses import SQLiteCourseProvider
+    course_provider = None if args.no_course else SQLiteCourseProvider(args.course_db)
+    loop = TeachingLoop(request, FixtureSource(), provider, plan=plan, course_provider=course_provider)
     state = loop.run_until_pause()
     if args.once:
         print(json.dumps(asdict(state), ensure_ascii=False, indent=2))
@@ -44,6 +49,8 @@ def main(argv=None) -> int:
         for card in state.cards[shown:]:
             print(f'\nL{card.level} [{card.producer}] {card.hint}\n{card.question}')
             print(' / '.join(card.limitations))
+            for ref in card.course_refs:
+                print(f'课程来源：{ref.title} [{ref.material_kind}] {ref.source_url}')
         shown = len(state.cards)
         print(f'[{state.status}] stage={state.stage} version={state.version} reason={state.reason or "none"}')
         if state.status in terminal:

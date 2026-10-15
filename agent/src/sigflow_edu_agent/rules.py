@@ -8,14 +8,20 @@ degradation path trustworthy and testable.
 The engine intentionally covers a small, explainable rule set:
 
 ``RTL_LATCH_INCOMPLETE_BRANCH``
-    A combinational ``always`` block assigns a signal on some control paths but
-    not all of them, which makes synthesis infer a latch.
+    A combinational ``always``/``always_comb`` block assigns a signal on some
+    control paths but not all of them, which makes synthesis infer a latch.
 ``RTL_SENSITIVITY_INCOMPLETE``
-    An ``always @(...)`` block reads a signal that its sensitivity list omits.
+    A level-sensitive ``always @(...)`` block reads a signal that its
+    sensitivity list omits.
 ``RTL_WIDTH_MISMATCH``
-    A block assignment whose constant literal is wider than the target signal.
+    An assignment whose constant literal is wider than the target signal.
 ``RTL_BLOCK_UNBALANCED``
     ``begin``/``end`` counters do not match, i.e. an incomplete edit.
+
+``always_ff`` and edge-triggered (``posedge``/``negedge``) blocks are treated
+as sequential and are never reported by the latch or sensitivity rules.  An
+``always_latch`` block expresses an *intentional* latch and is likewise never
+reported as an inferred one.
 
 Findings never contain corrected source code.  They name the symptom, the
 signal and the inference rule so that the student can fix it themselves.
@@ -46,24 +52,46 @@ BUILTIN_KEYWORDS: frozenset[str] = frozenset(
 
 _IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_$]*")
 _ACTIVE_LOW = re.compile(r"^\s*n[_]?[a-z0-9_]*\s*$", re.IGNORECASE)
-_ASSIGN_LHS = re.compile(r"^\s*(?:[A-Za-z_][\w$]*\s*)*([A-Za-z_][\w$]*)\s*(?:\[[^\]]*\])?\s*<=")
-_ASSIGN_LHS_BLOCKING = re.compile(
-    r"^\s*(?:[A-Za-z_][\w$]*\s*)*([A-Za-z_][\w$]*)\s*(?:\[[^\]]*\])?\s*=(?!=)"
+# ``assign`` is the only statement prefix that may precede the target.  A
+# general ``(?:ident\s*)*`` prefix backtracks exponentially on declaration
+# lines, so it is spelled out instead.
+_ASSIGN_LHS = re.compile(
+    r"^\s*(?:assign\s+)?([A-Za-z_][\w$]*)\s*(?:\[[^\]]*\])?\s*<=(?!=)"
 )
-_ALWAYS = re.compile(r"\balways\b\s*(@\s*\((?P<sens>[^)]*)\))?\s*(?P<rest>.*)$")
+_ASSIGN_LHS_BLOCKING = re.compile(
+    r"^\s*(?:assign\s+)?([A-Za-z_][\w$]*)\s*(?:\[[^\]]*\])?\s*=(?!=)"
+)
+# ``always``, ``always @(...)``, ``always_comb``, ``always_ff`` and
+# ``always_latch``.  The suffix is captured so the engine can tell an
+# intentional latch (``always_latch``) from an inferred one.
+_ALWAYS = re.compile(
+    r"\balways(?P<kind>_comb|_ff|_latch)?\b"
+    r"\s*(?:@\s*\((?P<sens>[^)]*)\))?\s*(?P<rest>.*)$"
+)
 _IF = re.compile(r"\bif\s*\(")
 _ELSE = re.compile(r"\belse\b")
 _CASE = re.compile(r"\bcase[xz]?\s*\(")
 _ENDCASE = re.compile(r"\bendcase\b")
-_DECL = re.compile(
+_DECL_KEYWORD = re.compile(
     r"\b(?:input|output|inout|wire|reg|logic|bit|integer|parameter|localparam)\b"
-    r"(?:\s+(?:signed|unsigned|wire|reg|logic|bit))?"
-    r"\s*(?:\[[^\]]*\]\s*)?"
-    r"(?P<names>[A-Za-z_][\w$]*(?:\s*,\s*[A-Za-z_][\w$]*)*)"
 )
+_DECL_QUALIFIER: frozenset[str] = frozenset(
+    {"signed", "unsigned", "wire", "reg", "logic", "bit", "integer", "real", "time"}
+)
+_BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
 _BLOCK_OPEN = re.compile(r"\bbegin\b")
 _BLOCK_CLOSE = re.compile(r"\bend\b(?!case|function|task|module|generate)")
-_LITERAL_WIDTH = re.compile(r"(?P<width>\d+)\s*'\s*[sS]?[bBoOdDhH]")
+_BEGIN_INLINE = re.compile(r"\bbegin\b\s*(?=\S)")
+_END_INLINE = re.compile(r"(?<=\S)\s*\bend\b(?!case|function|task|module|generate)")
+_END_ELSE = re.compile(r"\bend\b(?!case|function|task|module|generate)\s+else\b")
+_SEMI_ELSE = re.compile(r";\s*else\b")
+# The right-hand side must be exactly one sized literal.  A literal that is
+# merely an operand of a wider expression is not evidence about the target
+# width: ``state <= (byte == 8'd1) ? A : B`` says nothing about ``state``.
+_RHS_SIZED_LITERAL = re.compile(
+    r"^\s*(?P<width>\d+)\s*'\s*[sS]?[bBoOdDhH][0-9a-fA-FxXzZ?_]+\s*;?\s*$"
+)
+_ASSIGN_OP = re.compile(r"<=|=(?!=)")
 _READ_IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_$]*")
 
 
@@ -216,6 +244,11 @@ def _first_covering_path(body: str, signal: str) -> str:
 def _detect_sensitivity(selection: Selection) -> Optional[RuleFinding]:
     """Detect a read signal missing from an explicit sensitivity list.
 
+    Only level-sensitive blocks are in scope: an edge-triggered
+    ``always @(posedge clk)`` block is a sequential block whose event control
+    is not a "combinational coverage" list, and ``always_comb`` / ``always @*``
+    cover every signal by construction.
+
     Single-character names are deliberately skipped: in Verilog ``x``/``z``/
     ``b``/``d``/``h`` are also number-base characters, so a one-letter read is
     not enough evidence to accuse the sensitivity list.
@@ -223,9 +256,11 @@ def _detect_sensitivity(selection: Selection) -> Optional[RuleFinding]:
     for block in _iter_blocks(selection.text):
         if block.sensitivity is None:
             continue
-        listed = set(_READ_IDENTIFIER.findall(block.sensitivity))
-        if listed & {"*", "always_comb"} or "*" in block.sensitivity:
+        if _is_edge_triggered(block.sensitivity):
             continue
+        if "*" in block.sensitivity:
+            continue
+        listed = set(_READ_IDENTIFIER.findall(block.sensitivity))
         lhs = _assigned_signals(block.body)
         reads = _read_signals(block.body)
         for read in sorted(reads):
@@ -255,11 +290,19 @@ def _detect_sensitivity(selection: Selection) -> Optional[RuleFinding]:
 
 
 def _detect_width(selection: Selection) -> Optional[RuleFinding]:
-    """Detect a constant literal wider than the signal it is assigned to."""
+    """Detect a constant literal wider than the signal it is assigned to.
+
+    Both blocking assignments (``y = 8'hff;``), non-blocking assignments
+    (``y <= 8'hff;``) and continuous assignments (``assign y = 8'hff;``) are in
+    scope, and the right-hand side must be exactly one sized literal: an
+    unsized decimal (``y = 255;``) is context-determined in Verilog, and a
+    literal inside a wider expression (``y = (a == 8'd1) ? b : c;``) carries no
+    evidence about ``y``.
+    """
     ranges = _declared_ranges(selection.text)
     if not ranges:
         return None
-    for line_number, line in enumerate(selection.text.splitlines(), start=1):
+    for line_number, line in enumerate(_strip_comments(selection.text).splitlines(), start=1):
         match = _ASSIGN_LHS.match(line) or _ASSIGN_LHS_BLOCKING.match(line)
         if not match:
             continue
@@ -267,10 +310,9 @@ def _detect_width(selection: Selection) -> Optional[RuleFinding]:
         width = ranges.get(target)
         if width is None:
             continue
-        literal = _LITERAL_WIDTH.search(line)
-        if literal is None:
+        source_width = _literal_width(line[match.end() :])
+        if source_width is None:
             continue
-        source_width = int(literal.group("width"))
         if source_width <= width:
             continue
         body = (
@@ -297,10 +339,17 @@ def _detect_width(selection: Selection) -> Optional[RuleFinding]:
     return None
 
 
+def _literal_width(rhs: str) -> Optional[int]:
+    """Return the width of a right-hand side that is a single sized literal."""
+    match = _RHS_SIZED_LITERAL.match(rhs)
+    return int(match.group("width")) if match is not None else None
+
+
 def _detect_unbalanced(selection: Selection) -> Optional[RuleFinding]:
     """Detect an unbalanced ``begin``/``end`` pair (an incomplete edit)."""
-    opens = len(_BLOCK_OPEN.findall(selection.text))
-    closes = len(_BLOCK_CLOSE.findall(selection.text))
+    code = _strip_comments(selection.text)
+    opens = len(_BLOCK_OPEN.findall(code))
+    closes = len(_BLOCK_CLOSE.findall(code))
     if opens == closes:
         return None
     body = (
@@ -332,12 +381,13 @@ _RULES = (
 
 def _iter_blocks(text: str) -> list[_Block]:
     """Recover every ``always`` block body from ``text``."""
-    lines = text.splitlines()
+    lines = _strip_comments(text).splitlines()
     blocks: list[_Block] = []
     for line_number, line in enumerate(lines):
         head = _ALWAYS.search(line)
         if head is None:
             continue
+        kind = head.group("kind") or ""
         sensitivity = head.group("sens")
         remainder = _strip_comment(head.group("rest") or "")
         body_lines: list[str]
@@ -356,11 +406,23 @@ def _iter_blocks(text: str) -> list[_Block]:
             body_lines.append(candidate)
             depth += _depth_delta(candidate)
             index += 1
-        body = _unwrap_block("\n".join(body_lines))
-        if sensitivity is None:
+        body = _unwrap_block(_normalise_layout("\n".join(body_lines)))
+        if kind == "_comb":
+            # ``always_comb`` is combinational by definition, with no list.
             combinational = True
+        elif kind in ("_ff", "_latch"):
+            # ``always_ff`` is sequential; ``always_latch`` is an intentional
+            # latch and must not be reported as an inferred one.
+            combinational = False
+        elif sensitivity is None:
+            # A bare ``always`` with no event control behaves like ``always @*``.
+            combinational = True
+        elif _is_edge_triggered(sensitivity):
+            combinational = False
         else:
-            combinational = "*" in sensitivity or "always_comb" in sensitivity
+            # A level-sensitive list (``always @(a or b)``) still describes a
+            # combinational block in Verilog-2001 style.
+            combinational = True
         blocks.append(
             _Block(
                 start=line_number,
@@ -372,10 +434,38 @@ def _iter_blocks(text: str) -> list[_Block]:
     return blocks
 
 
+def _is_edge_triggered(sensitivity: str) -> bool:
+    """Return whether an event control list is edge-triggered (sequential)."""
+    return "posedge" in sensitivity or "negedge" in sensitivity
+
+
+def _normalise_layout(body: str) -> str:
+    """Put every ``begin``/``end``/``else`` on its own line.
+
+    ``begin y = b; end``, ``end else begin`` and ``if (a) y = b; else y = c;``
+    are the same control flow as their multi-line spellings, but a
+    line-oriented walker would read the shared line as one straight-line
+    statement and then either miss a real latch or accuse a complete ``if`` of
+    missing its ``else`` path.  Splitting the layout first keeps the walker
+    honest on the spellings students actually write.
+    """
+    body = _BEGIN_INLINE.sub("begin\n", body)
+    body = _END_INLINE.sub("\nend", body)
+    return _SEMI_ELSE.sub(";\nelse", _END_ELSE.sub("end\nelse", body))
+
+
 def _strip_comment(line: str) -> str:
     """Remove a trailing ``//`` comment from one source line."""
     marker = line.find("//")
     return line[:marker] if marker >= 0 else line
+
+
+def _strip_comments(text: str) -> str:
+    """Remove ``//`` and ``/* ... */`` comments, keeping line numbers intact."""
+    text = _BLOCK_COMMENT.sub(
+        lambda match: "\n" * match.group(0).count("\n"), text
+    )
+    return "\n".join(_strip_comment(line) for line in text.splitlines())
 
 
 def _unwrap_block(body: str) -> str:
@@ -542,11 +632,10 @@ def _collect_case(lines: list[str], start: int) -> _Case:
                 items.append((current_label, "\n".join(buffer)))
             if label == "default":
                 has_default = True
-                current_label = None
-                buffer = []
-            else:
-                current_label = label
-                buffer = [tail] if tail.strip() else []
+            # The ``default`` body is a control path like any other: it has to
+            # assign the same signals, so it stays in ``items`` for ``_walk``.
+            current_label = label
+            buffer = [tail] if tail.strip() else []
             cursor += 1
             continue
         if current_label is not None:
@@ -648,19 +737,20 @@ def _assigned_direct(body: str) -> set[str]:
 
 
 def _read_signals(body: str) -> set[str]:
-    """Return every identifier referenced on the right-hand side of a line."""
+    """Return every identifier a line reads: conditions and right-hand sides."""
     reads: set[str] = set()
     for line in body.splitlines():
         stripped = line.strip()
-        if not stripped or stripped.startswith("//"):
+        stripped = _strip_comment(stripped).strip()
+        if not stripped:
             continue
-        if "=" in stripped:
-            _, _, rhs = stripped.partition("=")
-            reads.update(_READ_IDENTIFIER.findall(rhs))
-        elif _IF.search(stripped):
+        if _IF.search(stripped):
             condition = _condition_of(stripped)
             if condition:
                 reads.update(_READ_IDENTIFIER.findall(condition))
+        assign = _ASSIGN_OP.search(stripped)
+        if assign is not None:
+            reads.update(_READ_IDENTIFIER.findall(stripped[assign.end() :]))
     return reads
 
 
@@ -694,27 +784,36 @@ def _walk(body: str) -> _Assigned:
             continue
         if _IF.search(statement):
             chain, has_else, next_index = _if_arms(lines, index)
-            definite: set[str] = set()
+            definite: Optional[set[str]] = None
             possible: set[str] = set()
             for arm in chain:
-                definite |= arm.definite
+                # A signal is definite only when *every* arm assigns it: an
+                # arm that itself contains an incomplete inner ``if`` must not
+                # be unioned away.
+                definite = (
+                    set(arm.definite)
+                    if definite is None
+                    else definite & set(arm.definite)
+                )
                 possible |= arm.possible
-            if has_else:
-                definite = set(definite)
-            else:
+            if definite is None or not has_else:
                 definite = set()
             result = result.merge(_Assigned(frozenset(definite), frozenset(possible)))
             index = max(next_index, index + 1)
             continue
         if _CASE.search(statement):
             case = _collect_case(lines, index)
-            definite = set()
+            definite: Optional[set[str]] = None
             possible: set[str] = set()
             for _label, item_body in case.items:
                 coverage = _walk(item_body)
-                definite |= coverage.definite
+                definite = (
+                    set(coverage.definite)
+                    if definite is None
+                    else definite & set(coverage.definite)
+                )
                 possible |= coverage.possible
-            if not case.has_default:
+            if definite is None or not case.has_default:
                 definite = set()
             result = result.merge(_Assigned(frozenset(definite), frozenset(possible)))
             index = max(case.next_index, index + 1)
@@ -762,28 +861,47 @@ def _if_arms(lines: list[str], start: int) -> tuple[list[_Assigned], bool, int]:
     return arms, True, next_index
 
 
-def _declared_ranges(text: str) -> dict[str, int]:
-    """Map every declared signal to its declared bit width (default 1)."""
-    widths: dict[str, int] = {}
-    for line in text.splitlines():
-        for match in _DECL.finditer(line):
-            width = _range_width(line)
-            for name in match.group("names").split(","):
-                widths.setdefault(name.strip(), width)
+def _declared_ranges(text: str) -> dict[str, Optional[int]]:
+    """Map every declared signal to its declared bit width.
+
+    The width is ``None`` when the declaration uses a range the engine cannot
+    evaluate (``input [WIDTH-1:0] a``); such signals are skipped by the width
+    rule rather than guessed at.
+
+    Only the text between one declaration keyword and the next counts, so
+    ``input [3:0] a, output [3:0] y`` declares ``a`` and ``y`` separately and
+    never records ``output`` itself as a signal.
+    """
+    widths: dict[str, int | None] = {}
+    for line in _strip_comments(text).splitlines():
+        keywords = list(_DECL_KEYWORD.finditer(line))
+        for position, keyword in enumerate(keywords):
+            end = (
+                keywords[position + 1].start()
+                if position + 1 < len(keywords)
+                else len(line)
+            )
+            segment = line[keyword.end() : end]
+            width = _range_width(segment)
+            names, _, _default = segment.partition("=")
+            for name in _IDENTIFIER.findall(names):
+                if name in _DECL_QUALIFIER:
+                    continue
+                widths.setdefault(name, width)
     return widths
 
 
-def _range_width(line: str) -> int:
-    """Return the declared width encoded in an ``[msb:lsb]`` range, else 1."""
-    start = line.find("[")
-    end = line.find("]", start + 1)
+def _range_width(segment: str) -> int | None:
+    """Return the width of an ``[msb:lsb]`` range, ``1`` without a range."""
+    start = segment.find("[")
+    end = segment.find("]", start + 1)
     if start < 0 or end < 0:
         return 1
-    span = line[start + 1 : end]
+    span = segment[start + 1 : end]
     if ":" not in span:
         return 1
     high, _, low = span.partition(":")
     try:
         return abs(int(high.strip()) - int(low.strip())) + 1
     except ValueError:
-        return 1
+        return None

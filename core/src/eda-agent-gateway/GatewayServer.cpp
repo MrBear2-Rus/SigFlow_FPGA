@@ -226,7 +226,8 @@ bool ValidateGrantStep(const Grant& grant, const Json& request,
             const std::string buildJob = OptionalString(params, "build_job_id");
             const auto binding = jobBindings.find(buildJob);
             if (binding == jobBindings.end() || binding->second.value("grant_id", "") != grant.id ||
-                binding->second.value("step_id", "") != approved["build_step_id"] ||
+                binding->second.value("step_id", std::string()) !=
+                    approved["build_step_id"].get<std::string>() ||
                 binding->second.value("capability", "") != "eda.sim.build") {
                 error = "build_job_id is not the approved build step"; return false;
             }

@@ -5,6 +5,14 @@ from .models import ContextBundle, ContextItem, Omission
 
 PRIORITY = {'selection': 0, 'report': 1, 'rtl': 2, 'wave': 3, 'course': 4}
 
+def estimate_tokens(text: str) -> int:
+    """Conservative UTF-8 byte upper bound, not a model-tokenizer count.
+
+    Kept unchanged for byte-fallback tokenization safety. Byte/token budgets
+    remain separate; no English /4 heuristic or unverified Chinese ratio.
+    """
+    return len(text.encode('utf-8'))
+
 
 def build_context(items, project_id, revision, *, max_bytes=8192, max_tokens=4096):
     if any(type(n) is not int or not 0 <= n <= 1048576 for n in (max_bytes, max_tokens)):
@@ -28,15 +36,16 @@ def build_context(items, project_id, revision, *, max_bytes=8192, max_tokens=409
         except UnicodeError:
             raise EvidenceError('invalid_context') from None
         sized.append((item, size))
-    kept, omitted, used = [], [], 0
+    kept, omitted, used, tokens_used = [], [], 0, 0
     for item, size in sorted(sized, key=lambda pair: PRIORITY[pair[0].kind]):
         # One estimated token per UTF-8 byte is intentionally conservative.
         # This is not a model-tokenizer measurement or a whole-request budget.
         reason = ('byte_budget' if used + size > max_bytes else
-                  'token_budget' if used + size > max_tokens else None)
+                  'token_budget' if tokens_used + estimate_tokens(item.text) > max_tokens else None)
         if reason:
             omitted.append(Omission(item.item_id, reason))
         else:
             kept.append(item)
             used += size
-    return ContextBundle(tuple(kept), tuple(omitted), used, used)
+            tokens_used += estimate_tokens(item.text)
+    return ContextBundle(tuple(kept), tuple(omitted), used, tokens_used)

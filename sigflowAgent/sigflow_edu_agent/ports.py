@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from typing import Protocol
-from .domain import CardContext, Evidence, Plan, VerificationResult
+from .domain import CardContext, CourseBundle, Evidence, Plan, VerificationResult
 from .checkers.plan import DetailedPlan
 
 
@@ -13,6 +13,10 @@ class EvidenceSource(Protocol):
 
 class CardProvider(Protocol):
     def generate(self, context: CardContext) -> dict: ...
+
+
+class CourseProvider(Protocol):
+    def prepare(self, question: str, concept_ids: tuple[str, ...]) -> CourseBundle: ...
 
 
 class VerificationPort(Protocol):

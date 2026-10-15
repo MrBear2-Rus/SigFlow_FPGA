@@ -9,8 +9,17 @@ description = "U2 teaching loop domain core and DeepSeek development adapter"
 requires-python = ">=3.11"
 dependencies = []
 
+[project.optional-dependencies]
+course-build = ["PyYAML>=6.0"]
+
 [project.scripts]
 sigflow-agent = "sigflow_edu_agent.__main__:main"
 
 [tool.setuptools.packages.find]
 include = ["sigflow_edu_agent*"]
+
+[tool.setuptools.package-data]
+"sigflow_edu_agent.rag" = ["resources/courses/*.yaml", "resources/courses/*.jsonl", "resources/courses/passages/*.jsonl", "resources/courses/external/*.md"]
+
+[tool.setuptools.exclude-package-data]
+"sigflow_edu_agent.rag" = ["resources/courses/external_official_passages.jsonl", "resources/courses/external_official_spans.jsonl", "resources/courses/external_official_translations.jsonl"]

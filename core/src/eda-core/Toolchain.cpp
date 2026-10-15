@@ -9,8 +9,9 @@ namespace eda {
 namespace {
 
 std::string DefaultEnvironment(const std::string& name) {
-    const char* value = std::getenv(name.c_str());
-    return value != nullptr ? value : "";
+    // 走 platform::EnvUtf8：Windows 上 std::getenv 返回 ANSI 窄字节，
+    // 非 ASCII 的路径型环境变量会在后续 std::filesystem::path 构造时抛异常。
+    return platform::EnvUtf8(name);
 }
 
 bool FileExists(const std::filesystem::path& path) {

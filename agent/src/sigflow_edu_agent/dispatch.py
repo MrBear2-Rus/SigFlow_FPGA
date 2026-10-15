@@ -40,7 +40,7 @@ from .errors import AgentError
 from .gateway_client import GatewayClient
 from .model_client import ModelAnswer, ModelClient, ModelStatus
 from .rules import RuleFinding, Selection, analyse
-from .util import contains_absolute_path
+from .util import contains_absolute_path, contains_credential
 
 TRUSTED_COMPLETENESS: frozenset[str] = frozenset({"complete"})
 """Report completeness values trustworthy enough to explain an empty diagnostic list."""
@@ -51,8 +51,8 @@ _CONTEXT_TRUSTED = frozenset({"core"})
 _PLAN_TOP_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 """A module name may only ever be a bare identifier, never a path."""
 
-_MAX_MODEL_TEACHING_CHARS = 12 * 1024
-"""A model paragraph must remain small enough to be a teaching aid, not a dump."""
+_MAX_MODEL_TEACHING_BYTES = 12 * 1024
+"""A model paragraph must remain a teaching aid, not a dump (UTF-8 bytes)."""
 
 _MODEL_CODE_MARKERS: tuple[str, ...] = (
     "```",
@@ -70,21 +70,29 @@ def safe_teaching_answer(answer: ModelAnswer, level: str) -> ModelAnswer:
     The model is optional.  A rejected answer is deliberately converted to a
     normal degraded rule response instead of being redacted in-place: partial
     redaction can leave a misleading or directly usable code answer behind.
+
+    The gates are, in order: empty text, more than 12 KiB of UTF-8 text, a
+    local absolute path, a credential shape, and any code marker.  A code
+    marker is refused at *every* teaching level: the Agent never hands the
+    student a replacement module, not even at L4 (whose card is a review
+    checklist).
     """
     if not answer.ok:
         return answer
     text = answer.text.strip()
     if not text:
         return ModelAnswer(False, reason="模型没有返回可用文本，已降级为规则讲解。")
-    if len(text) > _MAX_MODEL_TEACHING_CHARS:
+    if len(text.encode("utf-8")) > _MAX_MODEL_TEACHING_BYTES:
         return ModelAnswer(False, reason="模型讲解超出长度预算，已降级为规则讲解。")
     if contains_absolute_path(text):
         return ModelAnswer(False, reason="模型返回包含本机路径，已降级为规则讲解。")
+    if contains_credential(text):
+        return ModelAnswer(False, reason="模型返回包含敏感凭据，已降级为规则讲解。")
     lowered = text.lower()
-    if level in {"L1", "L2", "L3"} and any(marker in lowered for marker in _MODEL_CODE_MARKERS):
+    if any(marker in lowered for marker in _MODEL_CODE_MARKERS):
         return ModelAnswer(
             False,
-            reason="模型返回了代码形式的内容，不符合该教学级别，已降级为规则讲解。",
+            reason="模型返回了代码形式的内容，不符合该教学级别的安全要求，已降级为规则讲解。",
         )
     return ModelAnswer(True, text=text)
 

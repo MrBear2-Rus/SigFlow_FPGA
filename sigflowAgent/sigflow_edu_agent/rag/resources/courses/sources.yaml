@@ -1,0 +1,47 @@
+sources:
+  - source_id: ysyx
+    title: 一生一芯 v26.07 官方课程资料
+    source_type: public_course
+    base_url: https://ysyx.oscc.cc/docs/2607/
+    author_or_source: 一生一芯官方文档
+    license_or_usage_note: 本地快照于 2026-09-24 获取；只在本机生成且不公开分发的 SQLite 索引中缓存经审阅的课程原文片段。页面正文再分发许可未核实；不得公开提交、打包或转发索引及原文，条件不允许本地缓存时停用正文索引。
+    review_status: team_curated_pending_course_owner_review
+    retrieved_at: '2026-09-24'
+  - source_id: hdlbits
+    title: HDLBits Verilog 练习
+    source_type: practice_site
+    base_url: https://hdlbits.01xz.net/wiki/
+    author_or_source: HDLBits, Henry Wong
+    license_or_usage_note: 只保存已人工核对的题目标题、官方 URL、概念标签和团队备注，不保存题目正文或解答。
+    review_status: metadata_verified
+    retrieved_at: '2026-09-29'
+  - source_id: lowrisc_style
+    title: lowRISC Verilog Coding Style Guide
+    source_type: tool_documentation
+    base_url: https://github.com/lowRISC/style-guides/blob/9c15ff5/VerilogCodingStyle.md
+    author_or_source: lowRISC contributors
+    additional_base_urls:
+    - https://github.com/lowRISC/style-guides/blob/9c15ff5dce23eef969e00ab3715153967419eadd/
+    license_or_usage_note: Pinned README.md states repository files use CC BY 4.0; file list, hashes, attribution and scope are recorded in external_source_files.jsonl. Original English excerpts are cached locally with URL and line locators; Chinese mappings are repository-authored metadata, not official translation. This is lowRISC project style, not a universal RTL correctness rule.
+    review_status: official_source_added_pending_teacher_review
+    retrieved_at: '2026-10-13'
+  - source_id: yosys_047
+    title: Yosys 0.47 Documentation
+    source_type: tool_documentation
+    base_url: https://yosyshq.readthedocs.io/projects/yosys/en/0.47/
+    author_or_source: YosysHQ
+    additional_base_urls:
+    - https://github.com/YosysHQ/yosys/blob/647d61dd9212365a3cd44db219660b8f90b95cbd/
+    license_or_usage_note: Pinned COPYING states ISC. The primer has no file-level license header, so ISC applicability to its prose is recorded as a repository-inheritance judgment pending review. check.cc and verilog_frontend.cc carry the ISC notice in their own files; only help strings are normalized into passages. These are versioned tool references and do not establish current SigFlow run results.
+    review_status: official_source_added_pending_teacher_review
+    retrieved_at: '2026-10-13'
+  - source_id: verilator_5052
+    title: Verilator 5.052 Documentation
+    source_type: tool_documentation
+    base_url: https://github.com/verilator/verilator/blob/v5.052/docs/guide/
+    author_or_source: Verilator contributors
+    additional_base_urls:
+    - https://github.com/verilator/verilator/blob/ea338be98e1e838d3518809ce8899f85a009963c/
+    license_or_usage_note: Pinned LICENSE declares LGPL-3.0-only OR Artistic-2.0, and warnings.rst/languages.rst each carry that SPDX declaration in-file. Generated docs/gen snippets have no per-file declaration and remain marked inherited-license unconfirmed; keep them local pending review. The current SigFlow Verilator runtime version is not established by this documentation.
+    review_status: official_source_added_pending_teacher_review
+    retrieved_at: '2026-10-13'
