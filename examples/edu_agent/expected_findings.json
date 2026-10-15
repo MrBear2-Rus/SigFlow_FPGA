@@ -1,0 +1,51 @@
+{
+  "_comment": [
+    "T7 规则引擎的期望结果：键是相对 examples/edu_agent/ 的样例路径，",
+    "rules 是 analyse() 必须返回的规则序列（空数组 = 必须一条都不报），",
+    "signals 是与 rules 一一对应的信号名。",
+    "同一份文件同时被 agent/tests/test_rules.py 与 check_rules.py 使用，",
+    "使样例、期望值与断言只有一处真源。"
+  ],
+  "samples": {
+    "rtl/latch_incomplete.v": {
+      "rules": ["RTL_LATCH_INCOMPLETE_BRANCH"],
+      "signals": ["q"]
+    },
+    "rtl/counter_reset_latch.v": {
+      "rules": ["RTL_LATCH_INCOMPLETE_BRANCH"],
+      "signals": ["count_next"]
+    },
+    "rtl/latch_intentional.sv": {
+      "rules": [],
+      "signals": []
+    },
+    "rtl/latch_complete_else.v": {
+      "rules": [],
+      "signals": []
+    },
+    "rtl/sensitivity_incomplete.v": {
+      "rules": ["RTL_SENSITIVITY_INCOMPLETE"],
+      "signals": ["valid"]
+    },
+    "rtl/sensitivity_complete.v": {
+      "rules": [],
+      "signals": []
+    },
+    "rtl/width_mismatch.v": {
+      "rules": ["RTL_WIDTH_MISMATCH"],
+      "signals": ["y"]
+    },
+    "rtl/width_match.v": {
+      "rules": [],
+      "signals": []
+    },
+    "rtl/block_unbalanced.v": {
+      "rules": ["RTL_BLOCK_UNBALANCED"],
+      "signals": [null]
+    },
+    "rtl/block_balanced.v": {
+      "rules": [],
+      "signals": []
+    }
+  }
+}
