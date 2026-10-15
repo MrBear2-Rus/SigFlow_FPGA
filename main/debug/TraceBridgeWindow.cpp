@@ -51,6 +51,7 @@ using sigflow::platform::JoinPath;
 #include <wx/tokenzr.h>
 #include <wx/thread.h>
 #include <wx/timer.h>
+#include <wx/utils.h>
 #include <wx/zipstrm.h>
 #include <wx/wfstream.h>
 #include <wx/weakref.h>
@@ -2139,7 +2140,57 @@ void TraceBridgeWindow::OnOpenMonitorSummary(wxCommandEvent&)
     }
     out << "\n说明: 该页面只读取 monitor.json、checkpoint.json、events.jsonl 和 incident 索引，"
            "不会启动/暂停监控、修改状态或执行清理。";
-    ShowTraceBridgeDetails(this, wxT("监控现场"), ToWxString(out.str()));
+    wxDialog monitorDialog(this, wxID_ANY, wxT("监控现场"), wxDefaultPosition,
+                           FromDIP(wxSize(820, 680)),
+                           wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
+    auto* monitorRoot = new wxBoxSizer(wxVERTICAL);
+    auto* monitorText = new wxTextCtrl(&monitorDialog, wxID_ANY,
+        ToWxString(out.str()), wxDefaultPosition, wxDefaultSize,
+        wxTE_MULTILINE | wxTE_READONLY | wxTE_DONTWRAP | wxHSCROLL);
+    monitorRoot->Add(monitorText, 1, wxALL | wxEXPAND, 8);
+    if (!summary.incidents.empty()) {
+        auto* incidentBox = new wxStaticBoxSizer(wxVERTICAL, &monitorDialog,
+                                                  wxT("Incident 现场索引"));
+        auto* incidentList = new wxListCtrl(&monitorDialog, wxID_ANY,
+            wxDefaultPosition, FromDIP(wxSize(-1, 150)),
+            wxLC_REPORT | wxLC_SINGLE_SEL | wxLC_HRULES | wxLC_VRULES);
+        incidentList->AppendColumn(wxT("Snapshot"), wxLIST_FORMAT_LEFT, FromDIP(150));
+        incidentList->AppendColumn(wxT("类型"), wxLIST_FORMAT_LEFT, FromDIP(120));
+        incidentList->AppendColumn(wxT("消息"), wxLIST_FORMAT_LEFT, FromDIP(240));
+        incidentList->AppendColumn(wxT("现场文件"), wxLIST_FORMAT_LEFT, FromDIP(300));
+        for (std::size_t index = 0; index < summary.incidents.size(); ++index) {
+            const auto& incident = summary.incidents[index];
+            const long row = incidentList->InsertItem(
+                incidentList->GetItemCount(), ToWxString(incident.snapshotId));
+            incidentList->SetItem(row, 1, ToWxString(incident.triggerType));
+            incidentList->SetItem(row, 2, ToWxString(incident.message));
+            incidentList->SetItem(row, 3, ToWxString(incident.path));
+            incidentList->SetItemData(row, static_cast<long>(index));
+        }
+        incidentList->Bind(wxEVT_LIST_ITEM_ACTIVATED,
+            [&summary, incidentList](wxListEvent& event) {
+                const long row = event.GetIndex();
+                if (row < 0 || static_cast<std::size_t>(row) >= summary.incidents.size()) return;
+                const wxString path = ToWxString(
+                    summary.incidents[static_cast<std::size_t>(row)].path);
+                if (path.IsEmpty() || !wxFileExists(path) || !wxLaunchDefaultApplication(path)) {
+                    wxMessageBox(wxT("无法打开 incident 现场文件：") + path,
+                                 wxT("监控现场"), wxOK | wxICON_WARNING, incidentList);
+                }
+            });
+        incidentBox->Add(incidentList, 1, wxALL | wxEXPAND, 6);
+        auto* incidentHint = new wxStaticText(&monitorDialog, wxID_ANY,
+            wxT("双击 incident 可在系统默认查看器中打开现场快照；该操作只读，不改变监控状态。"));
+        incidentBox->Add(incidentHint, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 6);
+        monitorRoot->Add(incidentBox, 1, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 8);
+    }
+    auto* monitorButtons = new wxStdDialogButtonSizer();
+    monitorButtons->AddButton(new wxButton(&monitorDialog, wxID_OK, wxT("关闭")));
+    monitorButtons->Realize();
+    monitorRoot->Add(monitorButtons, 0, wxALL | wxALIGN_RIGHT, 8);
+    monitorDialog.SetSizerAndFit(monitorRoot);
+    monitorDialog.CentreOnParent();
+    monitorDialog.ShowModal();
     AddLog(TbLogTag::INFO, wxT("已加载监控现场：") + dialog.GetPath());
 }
 
