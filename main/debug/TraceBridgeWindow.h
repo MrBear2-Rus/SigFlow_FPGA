@@ -113,6 +113,7 @@ public:
     void SetNavigationCallback(sigflow::wave::WaveNavigationCallback callback);
     void SetCaptureStatus(const wxString& message);
     void SetCaptureResult(bool success, const wxString& message, const wxString& vcdPath = wxEmptyString);
+    void SetCaptureRunResult(const sigflow::debug::CaptureRunResult& result);
 
 private:
     void ApplyTheme();
@@ -151,6 +152,7 @@ private:
     void OnBuildProgramCapture(wxCommandEvent&);
     void OnCancelCapture(wxCommandEvent&);
     void OnPauseCapture(wxCommandEvent&);
+    void OnOpenCaptureWindows(wxCommandEvent&);
     void OnOpenCaptureVcd(wxCommandEvent&);
     void OnCompareSimVcd(wxCommandEvent&);
     void OnGenerateReplay(wxCommandEvent&);
@@ -199,6 +201,8 @@ private:
     std::unique_ptr<std::thread> worker_;
     std::shared_ptr<std::atomic<bool>> m_aborted = std::make_shared<std::atomic<bool>>(false);
     std::shared_ptr<sigflow::debug::CaptureRunService> captureRunService_;
+    sigflow::debug::CaptureRunResult lastCaptureRunResult_;
+    bool hasCaptureRunResult_ = false;
 
     // T-140 / THE-030：主题刷新（THE-028：订阅句柄析构即解绑）
     UiTheme::Subscription themeSubscription_;
@@ -222,6 +226,7 @@ private:
     wxButton* evidenceReportButton_ = nullptr;
     wxButton* pauseCaptureButton_ = nullptr;
     wxButton* cancelCaptureButton_ = nullptr;
+    wxButton* captureWindowsButton_ = nullptr;
     wxButton* openHwVcdButton_ = nullptr;
     wxButton* compareSimButton_ = nullptr;
     wxButton* generateReplayButton_ = nullptr;

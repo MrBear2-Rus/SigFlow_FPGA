@@ -4030,6 +4030,7 @@ void MainFrame::RunTraceBridgeCapture(
         std::string error;
         std::string vcdPath;
         bool success = false;
+        sigflow::debug::CaptureRunResult runResult;
         auto postStatus = [captureWindow](const wxString& message) {
             if (!wxTheApp) return;
             wxTheApp->CallAfter([captureWindow, message]() {
@@ -4067,7 +4068,6 @@ void MainFrame::RunTraceBridgeCapture(
             auto runService = request.captureRunService;
             if (!runService) runService = std::make_shared<sigflow::debug::CaptureRunService>();
             sigflow::debug::DeviceControlLease deviceLease;
-            sigflow::debug::CaptureRunResult runResult;
             std::string runError;
             success = runService->Run(
                 plan,
@@ -4371,8 +4371,10 @@ void MainFrame::RunTraceBridgeCapture(
         }
 
         if (!wxTheApp) return;
-        wxTheApp->CallAfter([weakFrame, captureWindow, success, error, vcdPath, completion]() {
+        wxTheApp->CallAfter([weakFrame, captureWindow, success, error, vcdPath, runResult,
+                             completion]() {
             if (!weakFrame || !captureWindow) return;
+            captureWindow->SetCaptureRunResult(runResult);
             wxString completionMessage;
             if (success) {
                 const wxString captureVcd = wxString::FromUTF8(vcdPath);

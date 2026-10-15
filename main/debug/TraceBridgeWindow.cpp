@@ -1283,12 +1283,16 @@ void TraceBridgeWindow::BuildLeftPanel(wxPanel* left) {
     pauseCaptureButton_->Enable(false);
     cancelCaptureButton_ = new wxButton(left, wxID_ANY, wxT("取消"));
     cancelCaptureButton_->Enable(false);
+    captureWindowsButton_ = new wxButton(left, wxID_ANY, wxT("窗口列表…"));
+    captureWindowsButton_->Enable(false);
     progBox->Add(progressGauge_, 1, wxALL | wxALIGN_CENTER_VERTICAL, 8);
     progBox->Add(pauseCaptureButton_, 0, wxUP | wxDOWN | wxRIGHT | wxALIGN_CENTER_VERTICAL, 8);
     progBox->Add(cancelCaptureButton_, 0, wxUP | wxDOWN | wxRIGHT | wxALIGN_CENTER_VERTICAL, 8);
+    progBox->Add(captureWindowsButton_, 0, wxUP | wxDOWN | wxRIGHT | wxALIGN_CENTER_VERTICAL, 8);
     root->Add(progBox, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 10);
     pauseCaptureButton_->Bind(wxEVT_BUTTON, &TraceBridgeWindow::OnPauseCapture, this);
     cancelCaptureButton_->Bind(wxEVT_BUTTON, &TraceBridgeWindow::OnCancelCapture, this);
+    captureWindowsButton_->Bind(wxEVT_BUTTON, &TraceBridgeWindow::OnOpenCaptureWindows, this);
 
     // log list
     auto* logBox = new wxStaticBoxSizer(wxVERTICAL, left, wxT("运行日志"));
@@ -1456,6 +1460,81 @@ void TraceBridgeWindow::SetCaptureStatus(const wxString& message) {
         return;
     }
     stepperStatus_->SetLabel(message);
+}
+
+void TraceBridgeWindow::SetCaptureRunResult(
+    const sigflow::debug::CaptureRunResult& result) {
+    if (!wxIsMainThread()) {
+        CallAfter([this, result] { SetCaptureRunResult(result); });
+        return;
+    }
+    lastCaptureRunResult_ = result;
+    hasCaptureRunResult_ = !result.attemptResults.empty();
+    if (captureWindowsButton_) {
+        captureWindowsButton_->Enable(hasCaptureRunResult_);
+        captureWindowsButton_->SetLabel(wxString::Format(
+            wxT("窗口列表 (%zu)"), result.completedWindows));
+    }
+}
+
+void TraceBridgeWindow::OnOpenCaptureWindows(wxCommandEvent&) {
+    if (!hasCaptureRunResult_) return;
+
+    wxDialog dialog(this, wxID_ANY, wxT("TraceBridge 采集窗口"),
+                   wxDefaultPosition, FromDIP(wxSize(900, 480)),
+                   wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
+    auto* root = new wxBoxSizer(wxVERTICAL);
+    const auto& run = lastCaptureRunResult_;
+    auto* summary = new wxStaticText(&dialog, wxID_ANY, wxString::Format(
+        wxT("状态：%s    尝试：%zu    完整窗口：%zu    超时：%zu    失败：%zu"),
+        ToWxString(sigflow::debug::ToString(run.state)), run.attempts,
+        run.completedWindows, run.timeoutCount, run.failureCount));
+    summary->Wrap(FromDIP(840));
+    root->Add(summary, 0, wxALL | wxEXPAND, 8);
+
+    auto* list = new wxListCtrl(&dialog, wxID_ANY, wxDefaultPosition,
+                                wxDefaultSize, wxLC_REPORT | wxLC_SINGLE_SEL |
+                                wxLC_HRULES | wxLC_VRULES);
+    list->AppendColumn(wxT("尝试"), wxLIST_FORMAT_LEFT, FromDIP(55));
+    list->AppendColumn(wxT("状态"), wxLIST_FORMAT_LEFT, FromDIP(95));
+    list->AppendColumn(wxT("Capture ID"), wxLIST_FORMAT_LEFT, FromDIP(180));
+    list->AppendColumn(wxT("完整性"), wxLIST_FORMAT_LEFT, FromDIP(90));
+    list->AppendColumn(wxT("触发"), wxLIST_FORMAT_LEFT, FromDIP(70));
+    list->AppendColumn(wxT("样本"), wxLIST_FORMAT_RIGHT, FromDIP(85));
+    list->AppendColumn(wxT("失败原因 / VCD"), wxLIST_FORMAT_LEFT, FromDIP(360));
+    for (std::size_t index = 0; index < run.attemptResults.size(); ++index) {
+        const auto& attempt = run.attemptResults[index];
+        const long row = list->InsertItem(list->GetItemCount(),
+                                          wxString::Format(wxT("%zu"), index + 1));
+        list->SetItem(row, 1, ToWxString(sigflow::debug::ToString(attempt.state)));
+        list->SetItem(row, 2, ToWxString(attempt.window.captureId));
+        list->SetItem(row, 3, ToWxString(attempt.window.completeness));
+        list->SetItem(row, 4, attempt.window.triggerObserved ? wxT("已触发") :
+                      (attempt.window.captureId.empty() ? wxT("未知") : wxT("未观察到")));
+        list->SetItem(row, 5, wxString::Format(wxT("%llu"),
+                      static_cast<unsigned long long>(attempt.window.sampleCount)));
+        const std::string detail = !attempt.error.empty() ? attempt.error :
+                                    attempt.window.vcdPath;
+        list->SetItem(row, 6, ToWxString(detail));
+        list->SetItemData(row, static_cast<long>(index));
+    }
+    root->Add(list, 1, wxALL | wxEXPAND, 8);
+    auto* hint = new wxStaticText(&dialog, wxID_ANY,
+        wxT("双击带 VCD 路径的窗口可送入当前波形工作台；未完成窗口仍保留其失败或超时原因。"));
+    hint->Wrap(FromDIP(840));
+    root->Add(hint, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 8);
+    auto* close = new wxButton(&dialog, wxID_CANCEL, wxT("关闭"));
+    root->Add(close, 0, wxALL | wxALIGN_RIGHT, 8);
+    dialog.SetSizerAndFit(root);
+    dialog.SetSizeHints(FromDIP(640), FromDIP(300));
+    list->Bind(wxEVT_LIST_ITEM_ACTIVATED, [this, list](wxListEvent& event) {
+        const long row = event.GetIndex();
+        if (row < 0 || static_cast<std::size_t>(row) >= lastCaptureRunResult_.attemptResults.size()) return;
+        const wxString vcd = ToWxString(
+            lastCaptureRunResult_.attemptResults[static_cast<std::size_t>(row)].window.vcdPath);
+        if (!vcd.IsEmpty() && openVcdHandler_) openVcdHandler_(vcd);
+    });
+    dialog.ShowModal();
 }
 
 void TraceBridgeWindow::SetCaptureResult(bool success, const wxString& message, const wxString& vcdPath) {
@@ -2549,6 +2628,7 @@ void TraceBridgeWindow::OnBuildProgramCapture(wxCommandEvent&) {
     startCaptureButton_->Enable(false);
     buildDebugButton_->Enable(false);
     buildProgramCaptureButton_->Enable(false);
+    if (captureWindowsButton_) captureWindowsButton_->Enable(false);
     pauseCaptureButton_->Enable(captureRunService_ != nullptr);
     pauseCaptureButton_->SetLabel(wxT("暂停"));
     cancelCaptureButton_->Enable(false);
@@ -3112,6 +3192,7 @@ void TraceBridgeWindow::OnStartCapture(wxCommandEvent&) {
     m_aborted = std::make_shared<std::atomic<bool>>(false);
     captureRunService_ = request.captureRunService;
     progressGauge_->SetValue(0);
+    if (captureWindowsButton_) captureWindowsButton_->Enable(false);
     startCaptureButton_->Enable(false);
     pauseCaptureButton_->Enable(captureRunService_ != nullptr);
     pauseCaptureButton_->SetLabel(wxT("暂停"));
