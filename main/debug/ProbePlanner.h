@@ -45,6 +45,14 @@ struct ProbePlanEntry {
     std::string diagnostic;
 };
 
+struct ProbePlanGroup {
+    std::string groupKey;
+    std::string clockDomain;
+    std::string kind;
+    std::size_t entryCount = 0;
+    std::size_t selectedBits = 0;
+};
+
 struct ProbePlan {
     std::string schemaVersion = "1.0";
     std::size_t capacityBits = 32;
@@ -53,6 +61,7 @@ struct ProbePlan {
     bool requiresNewBuild = false;
     std::string contractSnapshot; // populated by contract-aware planning
     std::vector<ProbePlanEntry> entries;
+    std::vector<ProbePlanGroup> groups;
     std::vector<std::string> missingRequired;
     std::vector<std::string> diagnostics;
 

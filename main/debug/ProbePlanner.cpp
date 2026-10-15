@@ -39,6 +39,17 @@ Json::Value EntryJson(const ProbePlanEntry& entry)
     return value;
 }
 
+Json::Value GroupJson(const ProbePlanGroup& group)
+{
+    Json::Value value(Json::objectValue);
+    value["group_key"] = group.groupKey;
+    value["clock_domain"] = group.clockDomain;
+    value["kind"] = group.kind;
+    value["entry_count"] = static_cast<Json::UInt64>(group.entryCount);
+    value["selected_bits"] = static_cast<Json::UInt64>(group.selectedBits);
+    return value;
+}
+
 } // namespace
 
 std::string ProbePlan::ToJson() const
@@ -53,6 +64,9 @@ std::string ProbePlan::ToJson() const
     Json::Value entries(Json::arrayValue);
     for (const auto& entry : this->entries) entries.append(EntryJson(entry));
     root["entries"] = entries;
+    Json::Value groups(Json::arrayValue);
+    for (const auto& group : this->groups) groups.append(GroupJson(group));
+    root["groups"] = groups;
     Json::Value missing(Json::arrayValue);
     for (const auto& signal : missingRequired) missing.append(signal);
     root["missing_required"] = missing;
@@ -194,6 +208,16 @@ bool ProbePlanner::Plan(const std::vector<ProbeRequirement>& requirements,
         message << "required probes violate visibility, metadata, clock or " << capacityBits << "-bit budget constraints";
         result.diagnostics.push_back(message.str());
     }
+    std::map<std::string, ProbePlanGroup> groups;
+    for (const auto& entry : result.entries) {
+        auto& group = groups[entry.groupKey];
+        group.groupKey = entry.groupKey;
+        group.clockDomain = entry.clockDomain;
+        group.kind = entry.kind.empty() ? "auxiliary" : entry.kind;
+        ++group.entryCount;
+        if (entry.selected) group.selectedBits += entry.width;
+    }
+    for (const auto& item : groups) result.groups.push_back(item.second);
     return true;
 }
 

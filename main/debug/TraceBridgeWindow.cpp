@@ -2462,20 +2462,12 @@ void TraceBridgeWindow::OnPlanProbes(wxCommandEvent&) {
         wxString text = wxString::Format(wxT("预算 %zu/%zu bits；%s；%s\n"), plan.usedBits, plan.capacityBits,
             plan.feasible ? wxT("必选项满足") : wxT("存在必选缺口"),
             plan.requiresNewBuild ? wxT("应用后需要重新构建并下载") : wxT("未新增探针"));
-        std::map<std::string, std::pair<std::size_t, std::size_t>> groups;
-        for (const auto& entry : plan.entries) {
-            const std::string domain = entry.clockDomain.empty() ? "<unknown-clock>" : entry.clockDomain;
-            const std::string kind = entry.kind.empty() ? "auxiliary" : entry.kind;
-            const std::string group = domain + "/" + kind;
-            auto& counts = groups[group];
-            ++counts.first;
-            if (entry.selected) counts.second += entry.width;
-        }
-        if (!groups.empty()) {
+        if (!plan.groups.empty()) {
             text += wxT("分组摘要（时钟域/主题）:\n");
-            for (const auto& [group, counts] : groups) {
+            for (const auto& group : plan.groups) {
                 text += wxString::Format(wxT("- %s: %zu 项，已选 %zu bits\n"),
-                                         ToWxString(group), counts.first, counts.second);
+                                         ToWxString(group.groupKey), group.entryCount,
+                                         group.selectedBits);
             }
         }
         for (const auto& diagnostic : plan.diagnostics) text += ToWxString(diagnostic) + wxT("\n");

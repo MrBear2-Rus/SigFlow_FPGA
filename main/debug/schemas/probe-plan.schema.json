@@ -33,6 +33,21 @@
         "additionalProperties": true
       }
     },
+    "groups": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["group_key", "clock_domain", "kind", "entry_count", "selected_bits"],
+        "properties": {
+          "group_key": { "type": "string" },
+          "clock_domain": { "type": "string" },
+          "kind": { "type": "string" },
+          "entry_count": { "type": "integer", "minimum": 0 },
+          "selected_bits": { "type": "integer", "minimum": 0 }
+        },
+        "additionalProperties": true
+      }
+    },
     "missing_required": { "type": "array", "items": { "type": "string" } },
     "diagnostics": { "type": "array", "items": { "type": "string" } }
   },
