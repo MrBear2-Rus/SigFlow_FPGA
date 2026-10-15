@@ -125,6 +125,59 @@ class BootstrapParseTests(unittest.TestCase):
             read_from_stream(io.BytesIO(b"x" * 70000 + b"\n"))
 
 
+class BootstrapGatewayUrlTests(unittest.TestCase):
+    """T9/§6.7: the Gateway address handed to us must be a trusted local one."""
+
+    def _payload_with(self, gateway_url: str) -> dict:
+        payload = json.loads(VALID_LINE)
+        payload["gateway_url"] = gateway_url
+        return payload
+
+    def test_loopback_forms_are_accepted(self) -> None:
+        for accepted in (
+            "http://127.0.0.1:19999",
+            "http://localhost:8080",
+            "http://[::1]:9",
+        ):
+            with self.subTest(gateway_url=accepted):
+                self.assertEqual(
+                    from_mapping(self._payload_with(accepted)).gateway_url, accepted
+                )
+
+    def test_non_loopback_host_is_rejected(self) -> None:
+        for rejected in (
+            "http://10.0.0.5:1234",
+            "http://example.com:1234",
+            "http://192.168.1.7:1234",
+        ):
+            with self.subTest(gateway_url=rejected):
+                with self.assertRaises(BootstrapError):
+                    from_mapping(self._payload_with(rejected))
+
+    def test_userinfo_is_rejected(self) -> None:
+        with self.assertRaises(BootstrapError):
+            from_mapping(self._payload_with("http://user:pass@127.0.0.1:1234"))
+
+    def test_path_query_and_fragment_are_rejected(self) -> None:
+        for rejected in (
+            "http://127.0.0.1:1234/api/v1",
+            "http://127.0.0.1:1234?x=1",
+            "http://127.0.0.1:1234#frag",
+        ):
+            with self.subTest(gateway_url=rejected):
+                with self.assertRaises(BootstrapError):
+                    from_mapping(self._payload_with(rejected))
+
+    def test_missing_port_is_rejected(self) -> None:
+        with self.assertRaises(BootstrapError):
+            from_mapping(self._payload_with("http://127.0.0.1"))
+
+    def test_https_is_rejected(self) -> None:
+        """The Gateway is a plain loopback http server; https is not a trusted form."""
+        with self.assertRaises(BootstrapError):
+            from_mapping(self._payload_with("https://127.0.0.1:1234"))
+
+
 class ReadyRecordTests(unittest.TestCase):
     """The ready line is the only thing this process is allowed to put on stdout."""
 

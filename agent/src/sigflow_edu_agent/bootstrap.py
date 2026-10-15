@@ -16,6 +16,7 @@ import json
 from dataclasses import dataclass, field
 from typing import Any, BinaryIO, Mapping, TextIO, Union
 
+from .gateway_client import parse_loopback_base_url
 from .version import BOOTSTRAP_TYPE, PROTOCOL
 
 MAX_BOOTSTRAP_LINE_BYTES: int = 64 * 1024
@@ -95,6 +96,13 @@ def from_mapping(payload: Mapping[str, Any]) -> Bootstrap:
     gateway_url = values["gateway_url"].rstrip("/")
     if not gateway_url.startswith(("http://", "https://")):
         raise BootstrapError("bootstrap gateway_url must be an http(s) URL")
+    # T9/§6.7：只接受受信的本地地址。userinfo、任意 path/query、非 loopback
+    # 主机名一律拒绝，避免凭据被导向本机之外；判定逻辑与出站客户端共用一份。
+    if parse_loopback_base_url(gateway_url) is None:
+        raise BootstrapError(
+            "bootstrap gateway_url must be a loopback http URL with an explicit "
+            "port and no userinfo or path (http://127.0.0.1:<port>)"
+        )
     return Bootstrap(
         instance_id=values["instance_id"],
         nonce=values["nonce"],
