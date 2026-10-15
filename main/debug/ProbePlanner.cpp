@@ -18,8 +18,9 @@ int KindRank(const std::string& kind)
     if (kind == "trigger") return 1;
     if (kind == "protocol") return 2;
     if (kind == "symptom") return 3;
-    if (kind == "upstream") return 4;
-    return 5;
+    if (kind == "evidence-supplement") return 4;
+    if (kind == "upstream") return 5;
+    return 6;
 }
 
 int ImpactPenalty(const ProbeCandidate& candidate)
@@ -71,6 +72,10 @@ Json::Value EntryJson(const ProbePlanEntry& entry)
     value["impact_penalty"] = entry.impactPenalty;
     value["impact_basis"] = entry.impactBasis;
     value["impact_evidence_path"] = entry.impactEvidencePath;
+    value["fanout"] = Json::UInt64(entry.fanout);
+    value["estimated_lut_cost"] = Json::UInt64(entry.estimatedLutCost);
+    value["measured_lut_delta"] = Json::Int64(entry.measuredLutDelta);
+    value["measured_lut_delta_available"] = entry.measuredLutDeltaAvailable;
     return value;
 }
 
@@ -97,6 +102,30 @@ std::string ProbePlan::ToJson() const
     root["requires_new_build"] = requiresNewBuild;
     root["impact_feedback_used"] = impactFeedbackUsed;
     root["evidence_supplement_used"] = evidenceSupplementUsed;
+    if (!buildImpact.comparability.empty()) {
+        Json::Value context(Json::objectValue);
+        context["report_path"] = buildImpact.reportPath;
+        context["comparability"] = buildImpact.comparability;
+        context["gate_pass"] = buildImpact.gatePass;
+        context["gate_overridden"] = buildImpact.gateOverridden;
+        context["gate_reasons"] = Json::Value(Json::arrayValue);
+        for (const auto& reason : buildImpact.gateReasons) context["gate_reasons"].append(reason);
+        context["resource_summary"] = Json::Value(Json::arrayValue);
+        for (const auto& resource : buildImpact.resourceSummary) context["resource_summary"].append(resource);
+        context["scope"] = "whole_build";
+        root["build_impact"] = context;
+    }
+    if (!evidenceSource.captureId.empty()) {
+        Json::Value source(Json::objectValue);
+        source["report_path"] = evidenceSource.reportPath;
+        source["capture_id"] = evidenceSource.captureId;
+        source["analysis_id"] = evidenceSource.analysisId;
+        source["input_fingerprint"] = evidenceSource.inputFingerprint;
+        source["analyzer_version"] = evidenceSource.analyzerVersion;
+        source["rules_version"] = evidenceSource.rulesVersion;
+        source["current_build_identity_verified"] = false;
+        root["evidence_source"] = source;
+    }
     if (!contractSnapshot.empty()) root["contract_snapshot"] = contractSnapshot;
     Json::Value entries(Json::arrayValue);
     for (const auto& entry : this->entries) entries.append(EntryJson(entry));
@@ -164,7 +193,9 @@ bool ProbePlanner::Plan(const std::vector<ProbeRequirement>& requirements,
             merged.combinationalObservation = merged.combinationalObservation || candidate.combinationalObservation;
             merged.clockSensitive = merged.clockSensitive || candidate.clockSensitive;
             merged.resetSensitive = merged.resetSensitive || candidate.resetSensitive;
-            if (merged.impactEvidencePath.empty()) merged.impactEvidencePath = candidate.impactEvidencePath;
+            if (merged.impactEvidencePath.empty() || (!candidate.impactEvidencePath.empty() &&
+                candidate.impactEvidencePath < merged.impactEvidencePath))
+                merged.impactEvidencePath = candidate.impactEvidencePath;
         }
     }
 
@@ -202,17 +233,22 @@ bool ProbePlanner::Plan(const std::vector<ProbeRequirement>& requirements,
 
     std::vector<ProbeRequirement> ordered;
     ordered.reserve(requirementBySignal.size());
-    for (const auto& item : requirementBySignal) ordered.push_back(item.second);
+    for (auto& item : requirementBySignal) {
+        auto& distinguishing = item.second.distinguishingCandidates;
+        std::sort(distinguishing.begin(), distinguishing.end());
+        distinguishing.erase(std::unique(distinguishing.begin(), distinguishing.end()), distinguishing.end());
+        ordered.push_back(item.second);
+    }
     std::stable_sort(ordered.begin(), ordered.end(), [&](const auto& left, const auto& right) {
         if (left.required != right.required) return left.required > right.required;
         const auto leftCandidate = candidateBySignal.find(left.signal);
         const auto rightCandidate = candidateBySignal.find(right.signal);
-        const int leftPenalty = !left.required && leftCandidate != candidateBySignal.end()
+        const int leftPenalty = !left.required && !conflictingCandidates.count(left.signal) && leftCandidate != candidateBySignal.end()
             ? ImpactPenalty(leftCandidate->second) : 0;
-        const int rightPenalty = !right.required && rightCandidate != candidateBySignal.end()
+        const int rightPenalty = !right.required && !conflictingCandidates.count(right.signal) && rightCandidate != candidateBySignal.end()
             ? ImpactPenalty(rightCandidate->second) : 0;
-        const int leftPriority = left.priority - leftPenalty;
-        const int rightPriority = right.priority - rightPenalty;
+        const std::int64_t leftPriority = static_cast<std::int64_t>(left.priority) - leftPenalty;
+        const std::int64_t rightPriority = static_cast<std::int64_t>(right.priority) - rightPenalty;
         if (leftPriority != rightPriority) return leftPriority > rightPriority;
         if (left.priority != right.priority) return left.priority > right.priority;
         if (KindRank(left.kind) != KindRank(right.kind)) return KindRank(left.kind) < KindRank(right.kind);
@@ -246,6 +282,10 @@ bool ProbePlanner::Plan(const std::vector<ProbeRequirement>& requirements,
             entry.impactPenalty = ImpactPenalty(candidate);
             entry.impactBasis = ImpactBasis(candidate);
             entry.impactEvidencePath = candidate.impactEvidencePath;
+            entry.fanout = candidate.fanout;
+            entry.estimatedLutCost = candidate.estimatedLutCost;
+            entry.measuredLutDelta = candidate.measuredLutDelta;
+            entry.measuredLutDeltaAvailable = candidate.measuredLutDeltaAvailable;
             if (entry.impactBasis != "none") result.impactFeedbackUsed = true;
             if (!candidate.visible) entry.diagnostic = "signal is not visible in the current design";
             else if (candidate.excluded) entry.diagnostic = "signal is excluded by the current plan";
@@ -278,7 +318,10 @@ bool ProbePlanner::Plan(const std::vector<ProbeRequirement>& requirements,
             }
         }
 
-        if (entry.kind == "evidence-supplement") result.evidenceSupplementUsed = true;
+        // Use the resolved domain, including when it came from a source map.
+        entry.groupKey = (entry.clockDomain.empty() ? "<unknown-clock>" : entry.clockDomain) +
+                         "/" + (entry.kind.empty() ? "auxiliary" : entry.kind);
+        if (entry.kind == "evidence-supplement" || !entry.distinguishingCandidates.empty()) result.evidenceSupplementUsed = true;
 
         if (entry.required && !entry.selected) {
             result.feasible = false;
@@ -306,7 +349,7 @@ bool ProbePlanner::Plan(const std::vector<ProbeRequirement>& requirements,
         result.diagnostics.push_back("optional probes were ordered with implementation impact evidence; measured values are not replaced by estimates");
     }
     if (result.evidenceSupplementUsed) {
-        result.diagnostics.push_back("evidence supplement candidates are optional and require a new build when selected");
+        result.diagnostics.push_back("evidence supplement candidates are optional; newly added probes require a new build");
     }
     return true;
 }

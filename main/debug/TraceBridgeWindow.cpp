@@ -71,6 +71,7 @@ using sigflow::platform::JoinPath;
 #include <set>
 #include <stdexcept>
 #include <unordered_map>
+#include <utility>
 
 #include "json/json.h"
 
@@ -2425,7 +2426,7 @@ void TraceBridgeWindow::OnPlanProbes(wxCommandEvent&) {
         return;
     }
     wxDialog dialog(this, wxID_ANY, wxT("探针规划 · 32-bit 单时钟核"), wxDefaultPosition,
-                    FromDIP(wxSize(800, 560)), wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
+                    FromDIP(wxSize(1000, 720)), wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
     auto* layout = new wxBoxSizer(wxVERTICAL);
     auto* hint = new wxStaticText(&dialog, wxID_ANY,
         wxT("保留当前契约探针及位序；编辑器中的新增项为必选。源映射需提供完整实例路径、位宽和时钟域。"));
@@ -2447,6 +2448,22 @@ void TraceBridgeWindow::OnPlanProbes(wxCommandEvent&) {
     auto* symptom = new wxTextCtrl(&dialog, wxID_ANY);
     symptom->SetHint(wxT("可选症状信号完整路径，例如 top.uart.state"));
     layout->Add(symptom, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, FromDIP(10));
+    auto addReportRow = [&](const wxString& label, const wxString& placeholder) {
+        auto* row = new wxBoxSizer(wxHORIZONTAL);
+        row->Add(new wxStaticText(&dialog, wxID_ANY, label), 0,
+                 wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(8));
+        auto* path = new wxTextCtrl(&dialog, wxID_ANY);
+        path->SetHint(placeholder);
+        row->Add(path, 1, wxRIGHT | wxEXPAND, FromDIP(8));
+        auto* button = new wxButton(&dialog, wxID_ANY, wxT("浏览…"));
+        row->Add(button);
+        layout->Add(row, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, FromDIP(10));
+        return std::make_pair(path, button);
+    };
+    const auto impactInput = addReportRow(wxT("构建影响"),
+        wxT("可选：整体资源增量和构建门禁参考；不分摊为逐探针成本"));
+    const auto evidenceInput = addReportRow(wxT("根因证据"),
+        wxT("可选：从未观察/未知候选生成补采建议；保留原采集身份"));
     auto* rows = new wxListCtrl(&dialog, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT);
     rows->AppendColumn(wxT("选择"), wxLIST_FORMAT_LEFT, FromDIP(55));
     rows->AppendColumn(wxT("信号路径"), wxLIST_FORMAT_LEFT, FromDIP(220));
@@ -2455,7 +2472,7 @@ void TraceBridgeWindow::OnPlanProbes(wxCommandEvent&) {
     rows->AppendColumn(wxT("依据 / 未选原因"), wxLIST_FORMAT_LEFT, FromDIP(300));
     layout->Add(rows, 1, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, FromDIP(10));
     auto* summary = new wxTextCtrl(&dialog, wxID_ANY, wxEmptyString, wxDefaultPosition,
-        FromDIP(wxSize(-1, 90)), wxTE_MULTILINE | wxTE_READONLY);
+        FromDIP(wxSize(-1, 160)), wxTE_MULTILINE | wxTE_READONLY);
     layout->Add(summary, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, FromDIP(10));
     auto* buttons = new wxBoxSizer(wxHORIZONTAL);
     auto* preview = new wxButton(&dialog, wxID_ANY, wxT("生成预览"));
@@ -2481,6 +2498,38 @@ void TraceBridgeWindow::OnPlanProbes(wxCommandEvent&) {
         std::string error;
         planning.symptomSignal = ToUtf8(symptom->GetValue());
         const auto selectedMap = ToUtf8(mapPath->GetValue());
+        planning.sourceMapPath = selectedMap;
+        planning.impactReport.reset();
+        planning.evidenceReport.reset();
+        planning.impactReportPath = ToUtf8(impactInput.first->GetValue());
+        planning.evidenceReportPath = ToUtf8(evidenceInput.first->GetValue());
+        auto readableReport = [&](const std::string& path) {
+            std::error_code ec;
+            const auto size = std::filesystem::file_size(path, ec);
+            if (ec || size > 1024 * 1024) {
+                summary->SetValue(wxT("报告不可读或超过 1 MiB：") + ToWxString(path));
+                return false;
+            }
+            return true;
+        };
+        if (!planning.impactReportPath.empty()) {
+            if (!readableReport(planning.impactReportPath)) return false;
+            sigflow::debug::InstrumentationImpactReport report;
+            if (!sigflow::debug::LoadInstrumentationImpactReportFromJson(planning.impactReportPath, report, error)) {
+                summary->SetValue(ToWxString(error));
+                return false;
+            }
+            planning.impactReport = std::move(report);
+        }
+        if (!planning.evidenceReportPath.empty()) {
+            if (!readableReport(planning.evidenceReportPath)) return false;
+            sigflow::debug::RootCauseEvidenceReport report;
+            if (!sigflow::debug::LoadRootCauseEvidenceReport(planning.evidenceReportPath, report, error)) {
+                summary->SetValue(ToWxString(error));
+                return false;
+            }
+            planning.evidenceReport = std::move(report);
+        }
         if (!selectedMap.empty()) {
             std::error_code ec;
             const auto size = std::filesystem::file_size(selectedMap, ec);
@@ -2510,13 +2559,17 @@ void TraceBridgeWindow::OnPlanProbes(wxCommandEvent&) {
             rows->SetItem(row, 3, ToWxString(entry.clockDomain));
             std::string rationale = entry.selected ? entry.reason : entry.diagnostic;
             if (entry.impactBasis != "none") {
-                rationale += " | impact=" + entry.impactBasis +
-                             " penalty=" + std::to_string(entry.impactPenalty);
-                if (!entry.impactEvidencePath.empty()) rationale +=
-                    " evidence=" + entry.impactEvidencePath;
+                rationale += entry.impactBasis == "measured" ? " | 影响=实测" : " | 影响=估计";
+                rationale += "，优先级扣分=" + std::to_string(entry.impactPenalty);
+                if (entry.fanout != 0) rationale += "，扇出=" + std::to_string(entry.fanout);
+                if (entry.measuredLutDeltaAvailable)
+                    rationale += "，实测 LUT 增量=" + std::to_string(entry.measuredLutDelta);
+                else if (entry.estimatedLutCost != 0)
+                    rationale += "，估计 LUT 成本=" + std::to_string(entry.estimatedLutCost);
+                if (!entry.impactEvidencePath.empty()) rationale += "，依据=" + entry.impactEvidencePath;
             }
             if (!entry.distinguishingCandidates.empty()) {
-                rationale += " | distinguishes=";
+                rationale += " | 补采候选=";
                 for (std::size_t i = 0; i < entry.distinguishingCandidates.size(); ++i) {
                     if (i != 0) rationale += ",";
                     rationale += entry.distinguishingCandidates[i];
@@ -2527,8 +2580,20 @@ void TraceBridgeWindow::OnPlanProbes(wxCommandEvent&) {
         wxString text = wxString::Format(wxT("预算 %zu/%zu bits；%s；%s\n"), plan.usedBits, plan.capacityBits,
             plan.feasible ? wxT("必选项满足") : wxT("存在必选缺口"),
             plan.requiresNewBuild ? wxT("应用后需要重新构建并下载") : wxT("未新增探针"));
-        if (plan.impactFeedbackUsed) text += wxT("已应用 TB-27 实现影响反馈（实测与估计分开记录）。\n");
-        if (plan.evidenceSupplementUsed) text += wxT("已纳入 TB-23 证据补采候选；选中后需要新构建。\n");
+        if (plan.impactFeedbackUsed) text += wxT("已采用信号影响参考；现有探针与必选项始终保留。\n");
+        if (plan.evidenceSupplementUsed) text += wxT("已纳入证据补采候选；新增探针需要重新构建。\n");
+        if (!plan.evidenceSource.captureId.empty()) {
+            text += wxT("证据来自 capture=") + ToWxString(plan.evidenceSource.captureId) +
+                wxT("，analysis=") + ToWxString(plan.evidenceSource.analysisId) +
+                wxT("；与当前构建身份的匹配尚未验证。\n");
+        }
+        if (!plan.buildImpact.comparability.empty()) {
+            text += wxT("构建参考：") + ToWxString(plan.buildImpact.comparability) +
+                (plan.buildImpact.gatePass ? wxT("，原报告门禁通过") : wxT("，原报告门禁阻断")) +
+                (plan.buildImpact.gateOverridden ? wxT("（含显式放行）") : wxEmptyString) + wxT("。\n");
+            for (const auto& resource : plan.buildImpact.resourceSummary) text += ToWxString(resource) + wxT("\n");
+            for (const auto& reason : plan.buildImpact.gateReasons) text += wxT("门禁依据：") + ToWxString(reason) + wxT("\n");
+        }
         if (!plan.groups.empty()) {
             text += wxT("分组摘要（时钟域/主题）:\n");
             for (const auto& group : plan.groups) {
@@ -2552,6 +2617,15 @@ void TraceBridgeWindow::OnPlanProbes(wxCommandEvent&) {
                           wxT("JSON files (*.json)|*.json"), wxFD_OPEN | wxFD_FILE_MUST_EXIST);
         if (file.ShowModal() == wxID_OK) { mapPath->SetValue(file.GetPath()); generate(); }
     });
+    auto bindReportBrowse = [&](wxButton* button, wxTextCtrl* path, const wxString& title) {
+        button->Bind(wxEVT_BUTTON, [&, path, title](wxCommandEvent&) {
+            wxFileDialog file(&dialog, title, projectPath_, wxEmptyString,
+                              wxT("JSON files (*.json)|*.json"), wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+            if (file.ShowModal() == wxID_OK) { path->SetValue(file.GetPath()); generate(); }
+        });
+    };
+    bindReportBrowse(impactInput.second, impactInput.first, wxT("选择构建影响报告"));
+    bindReportBrowse(evidenceInput.second, evidenceInput.first, wxT("选择根因证据报告"));
     preview->Bind(wxEVT_BUTTON, [&](wxCommandEvent&) { generate(); });
     exportPlan->Bind(wxEVT_BUTTON, [&](wxCommandEvent&) {
         if (!generate()) return;

@@ -3,6 +3,10 @@
 #include "DebugContract.h"
 #include "ProbePlanner.h"
 #include "RootCauseGraph.h"
+#include "RootCauseEvidenceReport.h"
+#include "InstrumentationImpact.h"
+
+#include <optional>
 
 namespace sigflow::debug {
 
@@ -17,6 +21,13 @@ struct ProbePlanningRequest {
     // current budget.  They remain optional until a user explicitly applies
     // the resulting draft.
     std::vector<RootCauseProbeSuggestion> evidenceSuggestions;
+    std::optional<InstrumentationImpactReport> impactReport;
+    std::optional<RootCauseEvidenceReport> evidenceReport;
+    std::string impactReportPath;
+    std::string evidenceReportPath;
+    std::string sourceMapPath;
+    // Optional identity guard for callers planning within a specific capture.
+    std::string expectedEvidenceCaptureId;
     std::string symptomSignal;
     std::vector<std::string> excludedSignals;
     std::size_t capacityBits = 32;

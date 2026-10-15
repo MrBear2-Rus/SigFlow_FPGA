@@ -66,8 +66,31 @@ struct ProbePlanEntry {
     std::string diagnostic;
     std::vector<std::string> distinguishingCandidates;
     int impactPenalty = 0;
-    std::string impactBasis; // none / estimated / measured
+    std::string impactBasis = "none"; // none / estimated / measured
     std::string impactEvidencePath;
+    std::size_t fanout = 0;
+    std::uint64_t estimatedLutCost = 0;
+    std::int64_t measuredLutDelta = 0;
+    bool measuredLutDeltaAvailable = false;
+};
+
+struct ProbePlanBuildImpact {
+    std::string reportPath;
+    std::string comparability;
+    bool gatePass = false;
+    bool gateOverridden = false;
+    std::vector<std::string> gateReasons;
+    // Build totals are context only and must never be divided among probes.
+    std::vector<std::string> resourceSummary;
+};
+
+struct ProbePlanEvidenceSource {
+    std::string reportPath;
+    std::string captureId;
+    std::string analysisId;
+    std::string inputFingerprint;
+    std::string analyzerVersion;
+    std::string rulesVersion;
 };
 
 struct ProbePlanGroup {
@@ -86,6 +109,8 @@ struct ProbePlan {
     bool requiresNewBuild = false;
     bool impactFeedbackUsed = false;
     bool evidenceSupplementUsed = false;
+    ProbePlanBuildImpact buildImpact;
+    ProbePlanEvidenceSource evidenceSource;
     std::string contractSnapshot; // populated by contract-aware planning
     std::vector<ProbePlanEntry> entries;
     std::vector<ProbePlanGroup> groups;

@@ -13,6 +13,32 @@
     "requires_new_build": { "type": "boolean" },
     "impact_feedback_used": { "type": "boolean" },
     "evidence_supplement_used": { "type": "boolean" },
+    "build_impact": {
+      "type": "object",
+      "required": ["report_path", "comparability", "gate_pass", "gate_overridden", "gate_reasons", "resource_summary", "scope"],
+      "properties": {
+        "report_path": { "type": "string" },
+        "comparability": { "enum": ["comparable", "observation_only", "not_comparable"] },
+        "gate_pass": { "type": "boolean" },
+        "gate_overridden": { "type": "boolean" },
+        "gate_reasons": { "type": "array", "items": { "type": "string" } },
+        "resource_summary": { "type": "array", "items": { "type": "string" } },
+        "scope": { "const": "whole_build" }
+      }
+    },
+    "evidence_source": {
+      "type": "object",
+      "required": ["report_path", "capture_id", "analysis_id", "input_fingerprint", "analyzer_version", "rules_version", "current_build_identity_verified"],
+      "properties": {
+        "report_path": { "type": "string" },
+        "capture_id": { "type": "string", "minLength": 1 },
+        "analysis_id": { "type": "string", "minLength": 1 },
+        "input_fingerprint": { "type": "string", "minLength": 1 },
+        "analyzer_version": { "const": "1.0" },
+        "rules_version": { "const": "1.0" },
+        "current_build_identity_verified": { "const": false }
+      }
+    },
     "contract_snapshot": { "type": "string" },
     "entries": {
       "type": "array",
@@ -25,6 +51,7 @@
           "reason": { "type": "string" },
           "kind": { "type": "string" },
           "clock_domain": { "type": "string" },
+          "group_key": { "type": "string" },
           "width": { "type": "integer", "minimum": 0 },
           "priority": { "type": "integer" },
           "required": { "type": "boolean" },
@@ -34,7 +61,11 @@
           "distinguishing_candidates": { "type": "array", "items": { "type": "string" } },
           "impact_penalty": { "type": "integer", "minimum": 0 },
           "impact_basis": { "enum": ["none", "estimated", "measured"] },
-          "impact_evidence_path": { "type": "string" }
+          "impact_evidence_path": { "type": "string" },
+          "fanout": { "type": "integer", "minimum": 0 },
+          "estimated_lut_cost": { "type": "integer", "minimum": 0 },
+          "measured_lut_delta": { "type": "integer" },
+          "measured_lut_delta_available": { "type": "boolean" }
         },
         "additionalProperties": true
       }
