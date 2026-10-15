@@ -1497,9 +1497,10 @@ void TraceBridgeWindow::OnOpenCaptureWindows(wxCommandEvent&) {
                                 wxLC_HRULES | wxLC_VRULES);
     list->AppendColumn(wxT("尝试"), wxLIST_FORMAT_LEFT, FromDIP(55));
     list->AppendColumn(wxT("状态"), wxLIST_FORMAT_LEFT, FromDIP(95));
+    list->AppendColumn(wxT("类别"), wxLIST_FORMAT_LEFT, FromDIP(120));
     list->AppendColumn(wxT("Capture ID"), wxLIST_FORMAT_LEFT, FromDIP(180));
     list->AppendColumn(wxT("完整性"), wxLIST_FORMAT_LEFT, FromDIP(90));
-    list->AppendColumn(wxT("触发"), wxLIST_FORMAT_LEFT, FromDIP(70));
+    list->AppendColumn(wxT("触发摘要"), wxLIST_FORMAT_LEFT, FromDIP(120));
     list->AppendColumn(wxT("样本"), wxLIST_FORMAT_RIGHT, FromDIP(85));
     list->AppendColumn(wxT("失败原因 / VCD"), wxLIST_FORMAT_LEFT, FromDIP(360));
     for (std::size_t index = 0; index < run.attemptResults.size(); ++index) {
@@ -1507,18 +1508,42 @@ void TraceBridgeWindow::OnOpenCaptureWindows(wxCommandEvent&) {
         const long row = list->InsertItem(list->GetItemCount(),
                                           wxString::Format(wxT("%zu"), index + 1));
         list->SetItem(row, 1, ToWxString(sigflow::debug::ToString(attempt.state)));
-        list->SetItem(row, 2, ToWxString(attempt.window.captureId));
-        list->SetItem(row, 3, ToWxString(attempt.window.completeness));
-        list->SetItem(row, 4, attempt.window.triggerObserved ? wxT("已触发") :
-                      (attempt.window.captureId.empty() ? wxT("未知") : wxT("未观察到")));
-        list->SetItem(row, 5, wxString::Format(wxT("%llu"),
+        const wxString category = attempt.state == sigflow::debug::CaptureAttemptState::Captured
+            ? (attempt.window.triggerObserved ? wxT("触发窗口") : wxT("完整/未触发"))
+            : attempt.state == sigflow::debug::CaptureAttemptState::TimedOut ? wxT("超时")
+            : attempt.state == sigflow::debug::CaptureAttemptState::Cancelled ? wxT("用户取消")
+            : wxT("失败");
+        list->SetItem(row, 2, category);
+        list->SetItem(row, 3, ToWxString(attempt.window.captureId));
+        list->SetItem(row, 4, ToWxString(attempt.window.completeness));
+        wxString trigger = attempt.window.triggerObserved ? wxT("已触发") :
+                      (attempt.window.captureId.empty() ? wxT("未知") : wxT("未观察到"));
+        if (attempt.window.triggerObserved) {
+            trigger += wxString::Format(wxT(" @%llu"),
+                static_cast<unsigned long long>(attempt.window.triggerIndex));
+        }
+        list->SetItem(row, 5, trigger);
+        list->SetItem(row, 6, wxString::Format(wxT("%llu"),
                       static_cast<unsigned long long>(attempt.window.sampleCount)));
         const std::string detail = !attempt.error.empty() ? attempt.error :
                                     attempt.window.vcdPath;
-        list->SetItem(row, 6, ToWxString(detail));
+        list->SetItem(row, 7, ToWxString(detail));
         list->SetItemData(row, static_cast<long>(index));
     }
     root->Add(list, 1, wxALL | wxEXPAND, 8);
+    if (!run.issues.empty()) {
+        std::ostringstream diagnostics;
+        diagnostics << "run 诊断:\n";
+        for (const auto& issue : run.issues) {
+            diagnostics << "- [" << issue.code << "] " << issue.observed;
+            if (!issue.action.empty()) diagnostics << "；建议：" << issue.action;
+            diagnostics << "\n";
+        }
+        auto* diagnosticText = new wxTextCtrl(&dialog, wxID_ANY,
+            ToWxString(diagnostics.str()), wxDefaultPosition, FromDIP(wxSize(-1, 100)),
+            wxTE_MULTILINE | wxTE_READONLY | wxTE_DONTWRAP | wxHSCROLL);
+        root->Add(diagnosticText, 0, wxLEFT | wxRIGHT | wxBOTTOM | wxEXPAND, 8);
+    }
     auto* hint = new wxStaticText(&dialog, wxID_ANY,
         wxT("双击带 VCD 路径的窗口可送入当前波形工作台；未完成窗口仍保留其失败或超时原因。"));
     hint->Wrap(FromDIP(840));
