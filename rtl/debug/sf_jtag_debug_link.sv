@@ -29,11 +29,12 @@ module sf_jtag_debug_link #(
 
     wire [63:0] request;
     wire request_toggle;
-    logic [63:0] response;
-    logic response_toggle;
-    logic [63:0] command_reg;
-    logic request_seen;
-    (* ASYNC_REG = "TRUE" *) logic request_sync1, request_sync2;
+    logic [63:0] response = 64'd0;
+    logic response_toggle = 1'b0;
+    logic [63:0] command_reg = 64'd0;
+    logic request_seen = 1'b0;
+    logic read_pending = 1'b0;
+    (* ASYNC_REG = "TRUE" *) logic request_sync1 = 1'b0, request_sync2 = 1'b0;
 
     sf_gowin_jtag_register #(
         .WIDTH(64),
@@ -46,14 +47,14 @@ module sf_jtag_debug_link #(
         .response_toggle(response_toggle)
     );
 
-    logic [2:0] state;
+    logic [2:0] state = 3'd0;
     localparam logic [2:0] ST_IDLE = 3'd0;
     localparam logic [2:0] ST_EXEC = 3'd1;
     localparam logic [2:0] ST_READ_WAIT = 3'd2;
     localparam logic [2:0] ST_RESP = 3'd3;
 
-    logic [7:0] response_status;
-    logic [31:0] response_data;
+    logic [7:0] response_status = 8'd0;
+    logic [31:0] response_data = 32'd0;
     logic [31:0] status_word;
     logic [31:0] geometry_word;
 
@@ -65,6 +66,7 @@ module sf_jtag_debug_link #(
             request_sync1 <= 1'b0;
             request_sync2 <= 1'b0;
             request_seen  <= 1'b0;
+            read_pending  <= 1'b0;
             response      <= 64'd0;
             response_toggle <= 1'b0;
             command_reg   <= 64'd0;
@@ -154,11 +156,17 @@ module sf_jtag_debug_link #(
                 end
 
                 ST_READ_WAIT: begin
-                    // rd_data is a synchronous ILA read and is valid after
-                    // the clock edge that consumed rd_addr.
-                    response_status <= 8'd0;
-                    response_data   <= rd_data;
-                    state           <= ST_RESP;
+                    // sf_micro_ila exposes a synchronous read port.  Spend
+                    // one full cycle after changing rd_addr before sampling
+                    // rd_data; otherwise address zero returns stale BSRAM data.
+                    if (!read_pending) begin
+                        read_pending <= 1'b1;
+                    end else begin
+                        read_pending  <= 1'b0;
+                        response_status <= 8'd0;
+                        response_data   <= rd_data;
+                        state           <= ST_RESP;
+                    end
                 end
 
                 ST_RESP: begin

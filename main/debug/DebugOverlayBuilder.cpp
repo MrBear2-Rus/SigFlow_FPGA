@@ -521,11 +521,12 @@ std::string DebugOverlayBuilder::BuildJtagWrapper(
     out << "    input wire " << clkName << "\n";
     out << ");\n";
 
-    out << "    reg [4:0] tb_startup = 5'd0;\n";
-    out << "    wire dbg_rst_n = &tb_startup;\n";
-    out << "    always @(posedge " << clkName << ") begin\n";
-    out << "        if (!dbg_rst_n) tb_startup <= tb_startup + 1'b1;\n";
-    out << "    end\n\n";
+    // Saturate a short startup counter so the vendor synthesizer preserves a
+    // deterministic reset pulse for the JTAG link and ILA state.
+    out << "    reg [7:0] tb_startup = 8'd0;\n";
+    out << "    wire dbg_rst_n = tb_startup[7];\n";
+    out << "    always @(posedge " << clkName << ")\n";
+    out << "        if (tb_startup != 8'hFF) tb_startup <= tb_startup + 1'b1;\n\n";
 
     out << "    " << topName << " u_dut (\n";
     for (const DebugPortInfo& port : userTopPorts) {
