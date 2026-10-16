@@ -347,6 +347,292 @@ bool DecodeSpi(TraceSource& source, const SpiDecodeConfig& config,
     return true;
 }
 
+bool DecodeI2c(TraceSource& source, const I2cDecodeConfig& config,
+              std::vector<ProtocolTransaction>& out, std::string& error)
+{
+    out.clear();
+    if (config.addressTenBit) {
+        error = "I2C 10-bit address mode is reserved for a later schema version";
+        return false;
+    }
+    TimeValue start = 0, end = 0;
+    std::uint64_t tickFs = 0;
+    if (!Prepare(source, config.options, start, end, tickFs, error)) return false;
+    const SignalInfo* scl = Signal(source, config.sclSignalId, "I2C SCL", error);
+    const SignalInfo* sda = Signal(source, config.sdaSignalId, "I2C SDA", error);
+    if (!scl || !sda) return false;
+
+    bool sclLevel = false, sdaLevel = false;
+    if (!BitAt(source, *scl, start, sclLevel, error) ||
+        !BitAt(source, *sda, start, sdaLevel, error)) return false;
+    std::vector<Transition> sclTransitions, sdaTransitions;
+    if (!QueryInChunks(source, *scl, start, end, config.options.queryChunkSize,
+                       config.options, sclTransitions, error) ||
+        !QueryInChunks(source, *sda, start, end, config.options.queryChunkSize,
+                       config.options, sdaTransitions, error)) return false;
+    struct Tagged { TimeValue time; bool scl; std::string value; };
+    std::vector<Tagged> transitions;
+    transitions.reserve(sclTransitions.size() + sdaTransitions.size());
+    for (const auto& transition : sclTransitions)
+        transitions.push_back({transition.time, true, transition.value});
+    for (const auto& transition : sdaTransitions)
+        transitions.push_back({transition.time, false, transition.value});
+    // SDA is applied first at equal timestamps so a legal START/STOP is seen
+    // with the sampled SCL level; real I2C data changes while SCL is low.
+    std::stable_sort(transitions.begin(), transitions.end(),
+                     [](const Tagged& a, const Tagged& b) {
+                         if (a.time != b.time) return a.time < b.time;
+                         return static_cast<int>(a.scl) < static_cast<int>(b.scl);
+                     });
+
+    bool active = false;
+    TimeValue transactionStart = start;
+    std::uint8_t shift = 0;
+    unsigned bitCount = 0;
+    bool sawNack = false;
+    std::vector<std::uint8_t> bytes;
+    auto finish = [&](TimeValue finishTime, bool complete, const char* reason) {
+        if (!active) return;
+        ProtocolTransaction event;
+        event.protocol = "I2C";
+        event.startTime = transactionStart;
+        event.endTime = finishTime;
+        event.valid = complete && !bytes.empty() && bitCount == 0;
+        event.bytes = bytes;
+        if (!bytes.empty()) {
+            event.words.push_back(bytes.front());
+            std::ostringstream detail;
+            detail << "address 0x" << std::hex << ((bytes.front() >> 1) & 0x7F)
+                   << (bytes.front() & 1 ? " read" : " write");
+            if (sawNack) detail << "; NACK observed";
+            if (reason && *reason) detail << "; " << reason;
+            event.detail = detail.str();
+        } else {
+            event.detail = reason && *reason ? reason : "empty I2C transaction";
+        }
+        if (event.valid || config.options.includeInvalid) out.push_back(std::move(event));
+        active = false;
+        shift = 0;
+        bitCount = 0;
+        sawNack = false;
+        bytes.clear();
+    };
+
+    for (const Tagged& transition : transitions) {
+        if (CheckCancelled(config.options, error)) return false;
+        const bool next = transition.value == "1";
+        if (transition.scl) {
+            const bool previous = sclLevel;
+            sclLevel = next;
+            if (!previous && sclLevel && active) {
+                const bool bit = sdaLevel;
+                if (bitCount < 8) {
+                    shift = static_cast<std::uint8_t>((shift << 1) | (bit ? 1 : 0));
+                    ++bitCount;
+                } else {
+                    if (bit) sawNack = true;
+                    bytes.push_back(shift);
+                    shift = 0;
+                    bitCount = 0;
+                }
+            }
+        } else {
+            const bool previous = sdaLevel;
+            sdaLevel = next;
+            if (sclLevel && previous != sdaLevel) {
+                if (previous && !sdaLevel) {
+                    // After the final ACK a master may raise SCL once while
+                    // preparing a STOP/repeated-START.  That idle-high phase
+                    // is not a ninth data bit; discard the single speculative
+                    // sample while retaining genuinely truncated payloads.
+                    if (active && !bytes.empty() && bitCount == 1) {
+                        shift = 0;
+                        bitCount = 0;
+                    }
+                    if (active) {
+                        const bool complete = !bytes.empty() && bitCount == 0;
+                        finish(transition.time, complete, "repeated START");
+                    }
+                    active = true;
+                    transactionStart = transition.time;
+                    shift = 0;
+                    bitCount = 0;
+                    sawNack = false;
+                    bytes.clear();
+                } else if (!previous && sdaLevel) {
+                    if (active && !bytes.empty() && bitCount == 1) {
+                        shift = 0;
+                        bitCount = 0;
+                    }
+                    finish(transition.time, true, "STOP");
+                }
+            }
+        }
+    }
+    if (active) finish(end, false, "window ended before STOP");
+    error.clear();
+    return true;
+}
+
+bool DecodeAxiLite(TraceSource& source, const AxiLiteDecodeConfig& config,
+                  std::vector<ProtocolTransaction>& out, std::string& error)
+{
+    out.clear();
+    TimeValue start = 0, end = 0;
+    std::uint64_t tickFs = 0;
+    if (!Prepare(source, config.options, start, end, tickFs, error)) return false;
+    const SignalInfo* clock = Signal(source, config.clockSignalId, "AXI-Lite clock", error);
+    const SignalInfo* awValid = Signal(source, config.awValidSignalId, "AXI-Lite AWVALID", error);
+    const SignalInfo* awReady = Signal(source, config.awReadySignalId, "AXI-Lite AWREADY", error);
+    const SignalInfo* awAddr = Signal(source, config.awAddrSignalId, "AXI-Lite AWADDR", error);
+    const SignalInfo* wValid = Signal(source, config.wValidSignalId, "AXI-Lite WVALID", error);
+    const SignalInfo* wReady = Signal(source, config.wReadySignalId, "AXI-Lite WREADY", error);
+    const SignalInfo* wData = Signal(source, config.wDataSignalId, "AXI-Lite WDATA", error);
+    const SignalInfo* bValid = Signal(source, config.bValidSignalId, "AXI-Lite BVALID", error);
+    const SignalInfo* bReady = Signal(source, config.bReadySignalId, "AXI-Lite BREADY", error);
+    const SignalInfo* bResp = Signal(source, config.bRespSignalId, "AXI-Lite BRESP", error);
+    const SignalInfo* arValid = Signal(source, config.arValidSignalId, "AXI-Lite ARVALID", error);
+    const SignalInfo* arReady = Signal(source, config.arReadySignalId, "AXI-Lite ARREADY", error);
+    const SignalInfo* arAddr = Signal(source, config.arAddrSignalId, "AXI-Lite ARADDR", error);
+    const SignalInfo* rValid = Signal(source, config.rValidSignalId, "AXI-Lite RVALID", error);
+    const SignalInfo* rReady = Signal(source, config.rReadySignalId, "AXI-Lite RREADY", error);
+    const SignalInfo* rData = Signal(source, config.rDataSignalId, "AXI-Lite RDATA", error);
+    const SignalInfo* rResp = Signal(source, config.rRespSignalId, "AXI-Lite RRESP", error);
+    if (!clock || !awValid || !awReady || !awAddr || !wValid || !wReady || !wData ||
+        !bValid || !bReady || !bResp || !arValid || !arReady || !arAddr ||
+        !rValid || !rReady || !rData || !rResp) return false;
+    if (bResp->width > 64 || rResp->width > 64 || awAddr->width > 64 ||
+        wData->width > 64 || arAddr->width > 64 || rData->width > 64) {
+        error = "AXI-Lite address/data/response width must be at most 64 bits";
+        return false;
+    }
+    bool previousClock = false;
+    if (!BitAt(source, *clock, start, previousClock, error)) return false;
+    std::vector<Transition> transitions;
+    if (!QueryInChunks(source, *clock, start, end, config.options.queryChunkSize,
+                       config.options, transitions, error)) return false;
+
+    struct Pending {
+        bool present = false;
+        TimeValue time = 0;
+        std::uint64_t cycle = 0;
+        std::uint64_t value = 0;
+    } pendingAw, pendingW, pendingAr;
+    std::uint64_t cycle = 0;
+    auto emitPartialWrite = [&](TimeValue finishTime, const char* detail) {
+        if (!pendingAw.present && !pendingW.present) return;
+        ProtocolTransaction event;
+        event.protocol = "AXI-Lite";
+        event.startTime = pendingAw.present ? pendingAw.time : pendingW.time;
+        if (pendingAw.present && pendingW.present)
+            event.startTime = std::min(pendingAw.time, pendingW.time);
+        event.endTime = finishTime;
+        event.valid = false;
+        if (pendingAw.present) event.words.push_back(pendingAw.value);
+        if (pendingW.present) event.words.push_back(pendingW.value);
+        event.detail = detail;
+        if (config.options.includeInvalid) out.push_back(std::move(event));
+    };
+    auto emitPartialRead = [&](TimeValue finishTime) {
+        if (!pendingAr.present) return;
+        ProtocolTransaction event;
+        event.protocol = "AXI-Lite";
+        event.startTime = pendingAr.time;
+        event.endTime = finishTime;
+        event.valid = false;
+        event.words.push_back(pendingAr.value);
+        event.detail = "read response missing (window ended)";
+        if (config.options.includeInvalid) out.push_back(std::move(event));
+    };
+
+    for (const Transition& transition : transitions) {
+        if (CheckCancelled(config.options, error)) return false;
+        const bool currentClock = transition.value == "1";
+        const bool edge = config.risingEdge
+            ? (!previousClock && currentClock)
+            : (previousClock && !currentClock);
+        previousClock = currentClock;
+        if (!edge) continue;
+        ++cycle;
+        bool awV = false, awR = false, wV = false, wR = false,
+             bV = false, bR = false, arV = false, arR = false,
+             rV = false, rR = false;
+        if (!BitAt(source, *awValid, transition.time, awV, error) ||
+            !BitAt(source, *awReady, transition.time, awR, error) ||
+            !BitAt(source, *wValid, transition.time, wV, error) ||
+            !BitAt(source, *wReady, transition.time, wR, error) ||
+            !BitAt(source, *bValid, transition.time, bV, error) ||
+            !BitAt(source, *bReady, transition.time, bR, error) ||
+            !BitAt(source, *arValid, transition.time, arV, error) ||
+            !BitAt(source, *arReady, transition.time, arR, error) ||
+            !BitAt(source, *rValid, transition.time, rV, error) ||
+            !BitAt(source, *rReady, transition.time, rR, error)) return false;
+        const bool awHandshake = awV && awR;
+        const bool wHandshake = wV && wR;
+        const bool bHandshake = bV && bR;
+        const bool arHandshake = arV && arR;
+        const bool rHandshake = rV && rR;
+        if (awHandshake) {
+            std::uint64_t value = 0;
+            if (!BinaryAt(source, *awAddr, transition.time, value, error)) return false;
+            if (pendingAw.present) emitPartialWrite(transition.time, "duplicate AW before B response");
+            pendingAw = {true, transition.time, cycle, value};
+        }
+        if (wHandshake) {
+            std::uint64_t value = 0;
+            if (!BinaryAt(source, *wData, transition.time, value, error)) return false;
+            if (pendingW.present) emitPartialWrite(transition.time, "duplicate W before B response");
+            pendingW = {true, transition.time, cycle, value};
+        }
+        if (bHandshake) {
+            std::uint64_t response = 0;
+            if (!BinaryAt(source, *bResp, transition.time, response, error)) return false;
+            ProtocolTransaction event;
+            event.protocol = "AXI-Lite";
+            event.startTime = pendingAw.present && pendingW.present
+                ? std::min(pendingAw.time, pendingW.time) : transition.time;
+            event.endTime = transition.time;
+            event.valid = pendingAw.present && pendingW.present && response == 0;
+            if (pendingAw.present) event.words.push_back(pendingAw.value);
+            if (pendingW.present) event.words.push_back(pendingW.value);
+            event.words.push_back(response);
+            event.waitCycles = pendingAw.present && pendingW.present
+                ? cycle - std::min(pendingAw.cycle, pendingW.cycle) : 0;
+            event.detail = event.valid ? "write response OK" : "write channel association/response invalid";
+            if (event.valid || config.options.includeInvalid) out.push_back(std::move(event));
+            pendingAw = Pending{};
+            pendingW = Pending{};
+        }
+        if (arHandshake) {
+            std::uint64_t value = 0;
+            if (!BinaryAt(source, *arAddr, transition.time, value, error)) return false;
+            if (pendingAr.present) emitPartialRead(transition.time);
+            pendingAr = {true, transition.time, cycle, value};
+        }
+        if (rHandshake) {
+            std::uint64_t data = 0, response = 0;
+            if (!BinaryAt(source, *rData, transition.time, data, error) ||
+                !BinaryAt(source, *rResp, transition.time, response, error)) return false;
+            ProtocolTransaction event;
+            event.protocol = "AXI-Lite";
+            event.startTime = pendingAr.present ? pendingAr.time : transition.time;
+            event.endTime = transition.time;
+            event.valid = pendingAr.present && response == 0;
+            if (pendingAr.present) event.words.push_back(pendingAr.value);
+            event.words.push_back(data);
+            event.words.push_back(response);
+            event.waitCycles = pendingAr.present ? cycle - pendingAr.cycle : 0;
+            event.detail = event.valid ? "read response OK" : "read channel association/response invalid";
+            if (event.valid || config.options.includeInvalid) out.push_back(std::move(event));
+            pendingAr = Pending{};
+        }
+    }
+    emitPartialWrite(end, "write response missing or window ended");
+    emitPartialRead(end);
+    error.clear();
+    return true;
+}
+
 bool DecodeValidReady(TraceSource& source, const ValidReadyDecodeConfig& config,
                       std::vector<ProtocolTransaction>& out, std::string& error)
 {

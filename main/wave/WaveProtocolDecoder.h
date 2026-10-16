@@ -70,6 +70,35 @@ struct ValidReadyDecodeConfig {
     ProtocolDecodeOptions options;
 };
 
+struct I2cDecodeConfig {
+    int sclSignalId = -1;
+    int sdaSignalId = -1;
+    bool addressTenBit = false; // 首版保留 7-bit 地址；10-bit 作为显式边界拒绝
+    ProtocolDecodeOptions options;
+};
+
+struct AxiLiteDecodeConfig {
+    int clockSignalId = -1;
+    int awValidSignalId = -1;
+    int awReadySignalId = -1;
+    int awAddrSignalId = -1;
+    int wValidSignalId = -1;
+    int wReadySignalId = -1;
+    int wDataSignalId = -1;
+    int bValidSignalId = -1;
+    int bReadySignalId = -1;
+    int bRespSignalId = -1;
+    int arValidSignalId = -1;
+    int arReadySignalId = -1;
+    int arAddrSignalId = -1;
+    int rValidSignalId = -1;
+    int rReadySignalId = -1;
+    int rDataSignalId = -1;
+    int rRespSignalId = -1;
+    bool risingEdge = true;
+    ProtocolDecodeOptions options;
+};
+
 bool DecodeUart(sigflow::trace::TraceSource& source, const UartDecodeConfig& config,
                 std::vector<ProtocolTransaction>& out, std::string& error);
 
@@ -79,5 +108,12 @@ bool DecodeSpi(sigflow::trace::TraceSource& source, const SpiDecodeConfig& confi
 bool DecodeValidReady(sigflow::trace::TraceSource& source,
                       const ValidReadyDecodeConfig& config,
                       std::vector<ProtocolTransaction>& out, std::string& error);
+
+bool DecodeI2c(sigflow::trace::TraceSource& source, const I2cDecodeConfig& config,
+               std::vector<ProtocolTransaction>& out, std::string& error);
+
+bool DecodeAxiLite(sigflow::trace::TraceSource& source,
+                   const AxiLiteDecodeConfig& config,
+                   std::vector<ProtocolTransaction>& out, std::string& error);
 
 } // namespace sigflow::wave
