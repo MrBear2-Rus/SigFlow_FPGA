@@ -1371,6 +1371,27 @@ void TraceBridgeWindow::BuildRightPanel(wxPanel* right) {
     {
         auto* dualPage = new wxPanel(rightNotebook_, wxID_ANY);
         auto* dualRoot = new wxBoxSizer(wxVERTICAL);
+        auto* compareBar = new wxBoxSizer(wxHORIZONTAL);
+        compareBar->Add(new wxStaticText(dualPage, wxID_ANY, wxT("参考轨：")),
+                        0, wxLEFT | wxRIGHT | wxALIGN_CENTER_VERTICAL, 4);
+        compareReferenceChoice_ = new wxChoice(dualPage, wxID_ANY);
+        compareReferenceChoice_->Append(wxT("硬件 (HW)"));
+        compareReferenceChoice_->Append(wxT("仿真 / 重放 (Sim)"));
+        compareReferenceChoice_->SetSelection(0);
+        compareBar->Add(compareReferenceChoice_, 0, wxRIGHT | wxALIGN_CENTER_VERTICAL, 8);
+        compareBar->Add(new wxStaticText(dualPage, wxID_ANY, wxT("Sim 偏移：")),
+                        0, wxRIGHT | wxALIGN_CENTER_VERTICAL, 4);
+        compareSimOffset_ = new wxSpinCtrl(dualPage, wxID_ANY);
+        compareSimOffset_->SetRange(-2147483647, 2147483647);
+        compareSimOffset_->SetValue(0);
+        compareSimOffset_->SetToolTip(wxT("将 Sim 时间加到比较显示时间轴；可输入负值"));
+        compareBar->Add(compareSimOffset_, 0, wxRIGHT | wxALIGN_CENTER_VERTICAL, 8);
+        compareApplyButton_ = new wxButton(dualPage, wxID_ANY, wxT("应用对齐"));
+        compareBar->Add(compareApplyButton_, 0, wxRIGHT | wxALIGN_CENTER_VERTICAL, 8);
+        compareStateText_ = new wxStaticText(dualPage, wxID_ANY, wxT("尚未登记双轨窗口"));
+        compareStateText_->SetForegroundColour(UiTheme::Palette().text2);
+        compareBar->Add(compareStateText_, 1, wxLEFT | wxALIGN_CENTER_VERTICAL, 4);
+        dualRoot->Add(compareBar, 0, wxLEFT | wxRIGHT | wxTOP | wxEXPAND, 4);
         auto* dualSplitter = new wxSplitterWindow(dualPage, wxID_ANY,
                                                    wxDefaultPosition, wxDefaultSize,
                                                    wxSP_LIVE_UPDATE);
@@ -1414,6 +1435,10 @@ void TraceBridgeWindow::BuildRightPanel(wxPanel* right) {
     }
     root->Add(rightNotebook_, 1, wxALL | wxEXPAND, 4);
     right->SetSizer(root);
+    if (compareApplyButton_) {
+        compareApplyButton_->Bind(wxEVT_BUTTON, &TraceBridgeWindow::OnApplyCompareSettings, this);
+    }
+    RefreshCompareControls();
 }
 
 void TraceBridgeWindow::SetProjectContext(const wxString& projectPath) {
@@ -1425,6 +1450,7 @@ void TraceBridgeWindow::SetProjectContext(const wxString& projectPath) {
     compareSimButton_->Enable(false);
     generateReplayButton_->Enable(false);
     compareSession_ = sigflow::wave::WaveCompareSession();
+    RefreshCompareControls();
     LoadDefaultContract();
 }
 
@@ -1619,6 +1645,7 @@ void TraceBridgeWindow::SetCaptureResult(bool success, const wxString& message, 
                 SyncCompareTrack("hw", ToUtf8(lastSessionId_), hwWavePanel_);
             } else {
                 compareSession_ = sigflow::wave::WaveCompareSession();
+                RefreshCompareControls();
             }
             RefreshSessionList();
         }
@@ -2856,6 +2883,7 @@ void TraceBridgeWindow::OnCompareSimVcd(wxCommandEvent&) {
             AddLog(TbLogTag::ERR, wxT("仿真 VCD 打开失败，已保留当前双轨窗口"));
             std::string ignoredError;
             compareSession_.RemoveTrack("sim", ignoredError);
+            RefreshCompareControls();
             lastCaptureSimVcd_.clear();
             return;
         }
@@ -2987,6 +3015,7 @@ void TraceBridgeWindow::OnGenerateReplay(wxCommandEvent&) {
                 AddLog(TbLogTag::ERR, wxT("重放 VCD 打开失败，已取消本次双轨比对"));
                 std::string ignoredError;
                 compareSession_.RemoveTrack("sim", ignoredError);
+                RefreshCompareControls();
                 return;
             }
             if (compareSimButton_) compareSimButton_->Enable(true);
@@ -3092,6 +3121,60 @@ void TraceBridgeWindow::RunComparison() {
     });
 }
 
+void TraceBridgeWindow::RefreshCompareControls() {
+    if (!compareReferenceChoice_ || !compareSimOffset_) return;
+    const auto snapshot = compareSession_.Snapshot();
+    bool hasHw = false;
+    bool hasSim = false;
+    std::int64_t simOffset = 0;
+    for (const auto& track : snapshot.tracks) {
+        if (track.trackId == "hw") hasHw = true;
+        if (track.trackId == "sim") {
+            hasSim = true;
+            simOffset = track.timeOffset;
+        }
+    }
+    compareReferenceChoice_->Enable(!snapshot.tracks.empty());
+    compareReferenceChoice_->SetSelection(snapshot.referenceTrackId == "sim" ? 1 : 0);
+    const auto minOffset = static_cast<std::int64_t>(std::numeric_limits<int>::min());
+    const auto maxOffset = static_cast<std::int64_t>(std::numeric_limits<int>::max());
+    simOffset = std::max(minOffset, std::min(maxOffset, simOffset));
+    compareSimOffset_->SetValue(static_cast<int>(simOffset));
+    compareSimOffset_->Enable(hasSim);
+    if (compareApplyButton_) compareApplyButton_->Enable(hasHw && hasSim);
+    if (compareStateText_) {
+        if (snapshot.tracks.empty()) {
+            compareStateText_->SetLabel(wxT("尚未登记双轨窗口"));
+        } else {
+            compareStateText_->SetLabel(wxString::Format(
+                wxT("已登记 %u 轨 | 参考：%s | Sim 偏移：%d"),
+                static_cast<unsigned>(snapshot.tracks.size()),
+                snapshot.referenceTrackId == "sim" ? wxT("Sim") : wxT("HW"),
+                static_cast<int>(simOffset)));
+        }
+    }
+}
+
+void TraceBridgeWindow::OnApplyCompareSettings(wxCommandEvent&) {
+    const int selection = compareReferenceChoice_ ? compareReferenceChoice_->GetSelection() : wxNOT_FOUND;
+    if (selection == wxNOT_FOUND) return;
+    std::string error;
+    const std::string referenceTrack = selection == 1 ? "sim" : "hw";
+    if (!compareSession_.SetReference(referenceTrack, error)) {
+        AddLog(TbLogTag::ERR, ToWxString("设置参考轨失败：" + error));
+        RefreshCompareControls();
+        return;
+    }
+    if (compareSimOffset_ && !compareSession_.SetTimeOffset(
+            "sim", static_cast<std::int64_t>(compareSimOffset_->GetValue()), error)) {
+        AddLog(TbLogTag::ERR, ToWxString("设置 Sim 偏移失败：" + error));
+        RefreshCompareControls();
+        return;
+    }
+    RefreshCompareControls();
+    AddLog(TbLogTag::INFO, wxT("已应用双轨参考轨与 Sim 时间偏移；后续比对结果将使用新代数"));
+}
+
 bool TraceBridgeWindow::SyncCompareTrack(const std::string& trackId,
                                          const std::string& captureId,
                                          sigflow::wave::TraceViewPanel* panel)
@@ -3108,6 +3191,7 @@ bool TraceBridgeWindow::SyncCompareTrack(const std::string& trackId,
         AddLog(TbLogTag::ERR, ToWxString("双轨窗口登记失败：" + error));
         return false;
     }
+    RefreshCompareControls();
     return true;
 }
 
@@ -3561,6 +3645,10 @@ void TraceBridgeWindow::LoadSessionVcd(const wxString& sessionId) {
         lastCaptureHwVcd_ = vcdPath;
         if (hwWavePanel_ && hwWavePanel_->OpenTrace(std::string(vcdPath.ToUTF8().data()))) {
             SyncCompareTrack("hw", ToUtf8(sessionId), hwWavePanel_);
+        } else {
+            std::string ignoredError;
+            compareSession_.RemoveTrack("hw", ignoredError);
+            RefreshCompareControls();
         }
         openHwVcdButton_->Enable(true);
         compareSimButton_->Enable(true);

@@ -176,6 +176,8 @@ private:
     // 波形比对
     void RunComparison();
     void ShowComparisonResult(const sigflow::debug::ComparisonResult& r);
+    void RefreshCompareControls();
+    void OnApplyCompareSettings(wxCommandEvent& event);
     bool SyncCompareTrack(const std::string& trackId,
                           const std::string& captureId,
                           sigflow::wave::TraceViewPanel* panel);
@@ -249,6 +251,10 @@ private:
     wxNotebook* rightNotebook_ = nullptr;
     sigflow::wave::TraceViewPanel* hwWavePanel_ = nullptr;
     sigflow::wave::TraceViewPanel* simWavePanel_ = nullptr;
+    wxChoice* compareReferenceChoice_ = nullptr;
+    wxSpinCtrl* compareSimOffset_ = nullptr;
+    wxButton* compareApplyButton_ = nullptr;
+    wxStaticText* compareStateText_ = nullptr;
     wxTextCtrl* diffReportText_ = nullptr;
     sigflow::wave::WaveCompareSession compareSession_;
 
