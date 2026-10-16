@@ -394,6 +394,23 @@ wxString FindFpgaTool(const wxString& configuredPath, const wxString& environmen
     return wxString();
 }
 
+wxString FindGowinShell()
+{
+    const wxString configured = wxGetenv(wxT("SIGFLOW_GOWIN_SH"));
+    if (!configured.IsEmpty() && wxFileExists(configured)) return configured;
+    const std::vector<wxString> homes = {
+        wxGetenv(wxT("SIGFLOW_GOWIN")),
+        wxGetenv(wxT("GOWIN_HOME")),
+        wxT("D:/Program Files/Gowin/Gowin_V1.9.11.03_Education_x64")
+    };
+    for (const wxString& home : homes) {
+        if (home.IsEmpty()) continue;
+        const wxString candidate = JoinPath(JoinPath(home, "IDE"), "bin/gw_sh.exe");
+        if (wxFileExists(candidate)) return candidate;
+    }
+    return wxString();
+}
+
 wxString FindTraceBridgeDebugRtl(const wxString& projectPath)
 {
     const wxString executableDirectory =
@@ -409,10 +426,15 @@ wxString FindTraceBridgeDebugRtl(const wxString& projectPath)
         const wxString debugRtl = sigflow::platform::WalkUpDirectories(
             startDirectory, 10, [](const wxString& directory) -> wxString {
                 const wxString candidate = JoinPath(JoinPath(directory, "rtl"), "debug");
-                if (wxDirExists(candidate) &&
-                    wxFileExists(JoinPath(candidate, "sf_micro_ila.sv")) &&
+                const bool common = wxDirExists(candidate) &&
+                    wxFileExists(JoinPath(candidate, "sf_micro_ila.sv"));
+                const bool uart = common &&
                     wxFileExists(JoinPath(candidate, "sf_uart_link.sv")) &&
-                    wxFileExists(JoinPath(candidate, "sf_debug_link.sv"))) {
+                    wxFileExists(JoinPath(candidate, "sf_debug_link.sv"));
+                const bool jtag = common &&
+                    wxFileExists(JoinPath(candidate, "sf_gowin_jtag_register.sv")) &&
+                    wxFileExists(JoinPath(candidate, "sf_jtag_debug_link.sv"));
+                if (uart || jtag) {
                     return candidate;
                 }
                 return wxString();
@@ -4453,16 +4475,6 @@ void MainFrame::RunTraceBridgeDebugBuild(const TraceBridgeDebugBuildRequest& req
             break;
         }
     }
-    const wxString yosysExecutable = FindFpgaTool(options.yosysPath, "SIGFLOW_YOSYS", "yosys");
-    const wxString nextpnrExecutable = FindFpgaTool(options.nextpnrPath, "SIGFLOW_NEXTPNR", "nextpnr-himbaechel");
-    const wxString packExecutable = FindFpgaTool(options.gowinPackPath, "SIGFLOW_GOWIN_PACK", "gowin_pack");
-    if (yosysExecutable.IsEmpty() || nextpnrExecutable.IsEmpty() || packExecutable.IsEmpty()) {
-        wxMessageBox(wxT("调试构建需要 yosys.exe、nextpnr-himbaechel.exe 和 gowin_pack.exe。"),
-                     wxT("TraceBridge 调试构建"), wxOK | wxICON_ERROR, this);
-        finishWorkflow(false, wxT("调试构建工具链不完整。"));
-        return;
-    }
-
     sigflow::debug::DebugContract contract = request.contract;
     contract.topModule = std::string(topModule.ToUTF8().data());
     if (contract.sessionId.empty()) contract.sessionId = sigflow::debug::NewDebugSessionId();
@@ -4472,6 +4484,24 @@ void MainFrame::RunTraceBridgeDebugBuild(const TraceBridgeDebugBuildRequest& req
         wxMessageBox(wxString::FromUTF8(contractError), wxT("TraceBridge 调试构建"),
                      wxOK | wxICON_ERROR, this);
         finishWorkflow(false, wxString::FromUTF8(contractError));
+        return;
+    }
+
+    const bool jtagBuild = contract.transport.kind == "jtag";
+    const wxString yosysExecutable = jtagBuild
+        ? wxString() : FindFpgaTool(options.yosysPath, "SIGFLOW_YOSYS", "yosys");
+    const wxString nextpnrExecutable = jtagBuild
+        ? wxString() : FindFpgaTool(options.nextpnrPath, "SIGFLOW_NEXTPNR", "nextpnr-himbaechel");
+    const wxString packExecutable = jtagBuild
+        ? wxString() : FindFpgaTool(options.gowinPackPath, "SIGFLOW_GOWIN_PACK", "gowin_pack");
+    const wxString gowinShellExecutable = jtagBuild ? FindGowinShell() : wxString();
+    if ((!jtagBuild && (yosysExecutable.IsEmpty() || nextpnrExecutable.IsEmpty() || packExecutable.IsEmpty())) ||
+        (jtagBuild && gowinShellExecutable.IsEmpty())) {
+        const wxString message = jtagBuild
+            ? wxT("JTAG 调试构建需要 Gowin 官方 gw_sh.exe。请设置 SIGFLOW_GOWIN_SH 或 SIGFLOW_GOWIN。")
+            : wxT("调试构建需要 yosys.exe、nextpnr-himbaechel.exe 和 gowin_pack.exe。");
+        wxMessageBox(message, wxT("TraceBridge 调试构建"), wxOK | wxICON_ERROR, this);
+        finishWorkflow(false, message);
         return;
     }
 
@@ -4519,7 +4549,8 @@ void MainFrame::RunTraceBridgeDebugBuild(const TraceBridgeDebugBuildRequest& req
         const wxString message =
             wxT("找不到 TraceBridge 调试 RTL（rtl/debug）。请确认程序从 SigFlow 仓库运行，"
                 "或将 rtl/debug 放在工程目录/安装目录下。\n"
-                "需要 sf_micro_ila.sv、sf_uart_link.sv 和 sf_debug_link.sv。\n"
+                "UART 需要 sf_micro_ila.sv、sf_uart_link.sv、sf_debug_link.sv；"
+                "JTAG 需要 sf_micro_ila.sv、sf_gowin_jtag_register.sv、sf_jtag_debug_link.sv。\n"
                 "Debug session: ") + wxString::FromUTF8(session.id);
         sessionService.Transition(request.projectPath, session.id,
                                    sigflow::debug::DebugSessionState::Failed,
@@ -4552,7 +4583,9 @@ void MainFrame::RunTraceBridgeDebugBuild(const TraceBridgeDebugBuildRequest& req
                               "TraceBridge debug contract validated.", 0, contractError);
     sessionService.Transition(request.projectPath, session.id,
                               sigflow::debug::DebugSessionState::Building,
-                              "Debug overlay generated; starting Yosys.", 0, contractError);
+                              jtagBuild ? "JTAG overlay generated; starting official Gowin gw_sh."
+                                        : "Debug overlay generated; starting Yosys.",
+                              0, contractError);
 
     const wxWeakRef<MainFrame> weakSelf(this);
     const wxString sessionRoot = wxString::FromUTF8(paths.root);
@@ -4563,6 +4596,104 @@ void MainFrame::RunTraceBridgeDebugBuild(const TraceBridgeDebugBuildRequest& req
     const bool programAndCapture = request.programAndCapture;
     const TraceBridgeCaptureRequest captureRequest = request.captureRequest;
     m_activeDebugSessionId = buildSessionId;
+
+    if (jtagBuild) {
+        if (m_terminalCtrl) {
+            m_terminalCtrl->BeginProcessOutput(wxT("[TraceBridge] official Gowin JTAG build started\n"));
+        }
+        const wxString tclPath = wxString::FromUTF8(overlay.officialTclPath);
+        // Never accept a previous session's bitstream as a successful build.
+        // The generated project is disposable, so removing only this session's
+        // expected output is safe and makes the freshness check unambiguous.
+        if (wxFileExists(fsPath) && !wxRemoveFile(fsPath)) {
+            std::string ignored;
+            sessionService.Transition(request.projectPath, session.id,
+                                      sigflow::debug::DebugSessionState::Failed,
+                                      "Unable to remove a stale JTAG bitstream before build.",
+                                      -1, ignored);
+            finishWorkflow(false, wxT("无法删除本次会话的旧 JTAG 位流，已停止构建。"));
+            return;
+        }
+        const bool started = LaunchFpgaTool(
+            // gw_sh treats the first positional argument as the Tcl script;
+            // passing a literal "-tcl" makes this Gowin version enter an
+            // interactive console without evaluating the generated file.
+            gowinShellExecutable, { tclPath }, sessionRoot,
+            m_terminalCtrl, wxT("TraceBridge official Gowin JTAG"), {},
+            [weakSelf, projectPath, buildSessionId, overlay, fsPath, sourceSnapshot,
+             workflowCompletion, programAndCapture](int exitCode, const wxString&) {
+                if (!wxTheApp) return;
+                wxTheApp->CallAfter([weakSelf, projectPath, buildSessionId, overlay, fsPath,
+                                     sourceSnapshot, workflowCompletion, programAndCapture,
+                                     exitCode] {
+                    auto* self = weakSelf.get();
+                    if (!self) return;
+                    std::string ignored;
+                    if (exitCode != 0 || !wxFileExists(fsPath)) {
+                        sigflow::debug::DebugSessionService().Transition(
+                            std::string(projectPath.ToUTF8().data()),
+                            std::string(buildSessionId.ToUTF8().data()),
+                            sigflow::debug::DebugSessionState::Failed,
+                            "Official Gowin JTAG build failed or did not produce an .fs.",
+                            exitCode, ignored);
+                        self->SetStatusText(wxT("TraceBridge JTAG 官方构建失败"));
+                        if (workflowCompletion)
+                            workflowCompletion(false, wxT("Gowin 官方 JTAG 构建失败，或未生成新的 .fs。"));
+                        return;
+                    }
+                    std::string sourceError;
+                    if (!sigflow::debug::DebugOverlayBuilder().VerifyUserSourcesUntouched(
+                            sourceSnapshot, sourceError)) {
+                        sigflow::debug::DebugSessionService().Transition(
+                            std::string(projectPath.ToUTF8().data()),
+                            std::string(buildSessionId.ToUTF8().data()),
+                            sigflow::debug::DebugSessionState::Failed, sourceError, -1, ignored);
+                        wxMessageBox(wxString::FromUTF8(sourceError), wxT("TraceBridge 调试构建"),
+                                     wxOK | wxICON_ERROR, self);
+                        if (workflowCompletion)
+                            workflowCompletion(false, wxString::FromUTF8(sourceError));
+                        return;
+                    }
+                    sigflow::debug::DebugSessionInfo metadata;
+                    metadata.overlayPath = overlay.wrapperPath;
+                    metadata.mergedCstPath = overlay.cstPath;
+                    metadata.bitstreamPath = std::string(fsPath.ToUTF8().data());
+                    metadata.bitstreamSha256 = sigflow::debug::Sha256File(metadata.bitstreamPath);
+                    metadata.resourceReportPath = overlay.officialTclPath;
+                    metadata.timingReportPath = overlay.sdcPath;
+                    sigflow::debug::DebugSessionService service;
+                    service.UpdateBuildMetadata(std::string(projectPath.ToUTF8().data()),
+                                                std::string(buildSessionId.ToUTF8().data()),
+                                                metadata, ignored);
+                    service.Transition(std::string(projectPath.ToUTF8().data()),
+                                       std::string(buildSessionId.ToUTF8().data()),
+                                       sigflow::debug::DebugSessionState::Programming,
+                                       "Official Gowin JTAG bitstream ready.", 0, ignored);
+                    self->SetStatusText(wxT("TraceBridge JTAG 官方位流已生成"));
+                    if (programAndCapture) {
+                        // The capture backend is deliberately still guarded by
+                        // TraceBridgeWindow until the FTDI/TAP GUI acceptance
+                        // run is complete; never fall back to UART here.
+                        if (workflowCompletion)
+                            workflowCompletion(false,
+                                wxT("JTAG 位流已生成；下载/采集入口仍需完成 GUI 实板验收。"));
+                    } else if (workflowCompletion) {
+                        workflowCompletion(true, wxT("Gowin 官方 JTAG 位流已生成。"));
+                    }
+                });
+            });
+        if (!started) {
+            std::string ignored;
+            sessionService.Transition(request.projectPath, session.id,
+                                      sigflow::debug::DebugSessionState::Failed,
+                                      "Unable to start official Gowin gw_sh.", -1, ignored);
+            wxMessageBox(wxT("无法启动 Gowin 官方 gw_sh。"), wxT("TraceBridge 调试构建"),
+                         wxOK | wxICON_ERROR, this);
+            finishWorkflow(false, wxT("无法启动 Gowin 官方 gw_sh。"));
+        }
+        return;
+    }
+
     if (m_terminalCtrl) m_terminalCtrl->BeginProcessOutput(wxT("[TraceBridge] debug Yosys started\n"));
     m_yosysExecutor = std::make_unique<YosysExecutor>();
     YosysExecutor::Config yosysConfig;

@@ -13,6 +13,9 @@ namespace debug {
 struct DebugOverlayResult {
     std::string wrapperPath;
     std::string cstPath;
+    // JTAG 官方 Gowin 分支的约束与 Tcl 入口；UART 分支为空。
+    std::string sdcPath;
+    std::string officialTclPath;
     std::string yosysScriptPath;
     std::string nextpnrArgsPath;
     std::string gowinPackArgsPath;
@@ -65,6 +68,22 @@ private:
                                  const std::string& wrapperPath,
                                  bool stubLink) const;
     std::string BuildLinkStub(const DebugContract& contract) const;
+    std::string BuildJtagWrapper(const DebugContract& contract,
+                                 const std::vector<DebugPortInfo>& userTopPorts) const;
+    std::string BuildJtagCst(const DebugContract& contract,
+                             const std::string& projectPath,
+                             const std::string& configuredCstPath,
+                             std::string& error) const;
+    std::string BuildJtagSdc(const DebugContract& contract) const;
+    std::string BuildJtagOfficialTcl(const DebugContract& contract,
+                                     const std::vector<std::string>& userSourceFiles,
+                                     const std::string& debugRtlDir,
+                                     const std::string& overlayDir,
+                                     const std::string& artifactsDir,
+                                     const std::string& wrapperPath,
+                                     const std::string& cstPath,
+                                     const std::string& sdcPath,
+                                     const std::string& device) const;
 };
 
 } // namespace debug
