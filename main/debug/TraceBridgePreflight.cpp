@@ -43,6 +43,20 @@ PreflightCheckResult Passed(const std::string& id, PreflightPhase phase,
     return result;
 }
 
+PreflightCheckResult Warning(const std::string& id, PreflightPhase phase,
+                             const std::string& code, const std::string& observed,
+                             const std::string& action)
+{
+    PreflightCheckResult result;
+    result.id = id;
+    result.phase = phase;
+    result.state = PreflightState::Warning;
+    result.summary = observed;
+    result.issues.push_back(Issue(code, "preflight", DiagnosticSeverity::Warning,
+                                  observed, action));
+    return result;
+}
+
 PreflightCheckResult Failed(const std::string& id, PreflightPhase phase,
                             const std::string& code, const std::string& observed,
                             const std::string& action)
@@ -119,6 +133,19 @@ PreflightCheckResult CheckTransport(const PreflightInput& input)
             return Failed(id, PreflightPhase::Capability, "TRANSPORT_BAUD_INVALID",
                           "transport baud must be greater than zero",
                           "select a supported baud rate");
+        }
+        if (input.transport->preferFtdi && !GetTransportBuildCapabilities().ftdi) {
+            const std::string observed =
+                "FTDI backend is unavailable in this build; serial fallback is " +
+                std::string(input.transport->allowSerialFallback ? "enabled" : "disabled");
+            if (!input.transport->allowSerialFallback) {
+                return Failed(id, PreflightPhase::Capability, "BACKEND_UNAVAILABLE",
+                              observed,
+                              "install/enable libftdi or select a serial backend explicitly");
+            }
+            return Warning(id, PreflightPhase::Capability, "BACKEND_UNAVAILABLE",
+                           observed,
+                           "select serial explicitly or use a build with libftdi when FTDI is required");
         }
         if (input.transport->serialPort.empty() && !input.transport->preferFtdi) {
             return Failed(id, PreflightPhase::Capability, "TRANSPORT_PORT_MISSING",
