@@ -482,6 +482,15 @@ bool DebugOverlayBuilder::GenerateOverlay(
     DebugOverlayResult& result, std::string& error) const
 {
     if (!contract.Validate(error)) return false;
+    // The generated wrapper currently instantiates the UART link and UART
+    // pin constraints.  A valid JTAG contract must therefore stop here until
+    // the JTAG overlay/link module is actually available; otherwise a build
+    // could silently produce a UART bitstream for a JTAG-selected session.
+    if (contract.transport.kind == "jtag") {
+        error = "JTAG overlay generation is not available in the current production builder; "
+                "select UART or use the dedicated JTAG hardware build flow";
+        return false;
+    }
     if (userTopPorts.empty()) {
         error = "no user top ports provided";
         return false;
