@@ -1,4 +1,5 @@
 #include "Plug_DeepSeek_helpers.h"
+#include "platform/PlatformPaths.h"
 #include <nlohmann/json.hpp>
 #include <sstream>
 
@@ -89,9 +90,9 @@ std::string FindSolutionRoot() {
     while (true) {
         try {
             for (auto &entry : fs::directory_iterator(p)) {
-                if (entry.is_regular_file() && entry.path().extension() == ".sln") return p.string();
-                if (entry.is_regular_file() && entry.path().filename() == "sigflow.project") return p.string();
-                if (entry.is_directory() && entry.path().filename() == ".sigflow") return p.string();
+                if (entry.is_regular_file() && entry.path().extension() == ".sln") return sigflow::platform::PathToUtf8(p);
+                if (entry.is_regular_file() && entry.path().filename() == "sigflow.project") return sigflow::platform::PathToUtf8(p);
+                if (entry.is_directory() && entry.path().filename() == ".sigflow") return sigflow::platform::PathToUtf8(p);
             }
         }
         catch (...) {
@@ -99,7 +100,7 @@ std::string FindSolutionRoot() {
         if (p.has_parent_path()) p = p.parent_path();
         else break;
     }
-    return std::filesystem::current_path().string();
+    return sigflow::platform::PathToUtf8(std::filesystem::current_path());
 }
 
 std::string GatherProjectFiles(const std::string& rootPath, size_t maxTotalChars, size_t maxFiles) {
@@ -117,7 +118,7 @@ std::string GatherProjectFiles(const std::string& rootPath, size_t maxTotalChars
             try {
                 const auto& p = it->path();
                 if (p.has_filename()) {
-                    std::string fname = p.filename().string();
+                    std::string fname = sigflow::platform::PathToUtf8(p.filename());
                     for (const auto& ig : ignoreDirs) {
                         if (fname == ig) { it.disable_recursion_pending(); goto cont; }
                     }
@@ -133,7 +134,7 @@ std::string GatherProjectFiles(const std::string& rootPath, size_t maxTotalChars
                 std::string content = ss.str();
                 const size_t maxPerFile = 20000;
                 if (content.size() > maxPerFile) content = content.substr(0, maxPerFile) + "\n...<truncated>...\n";
-                std::string header = "==== " + p.string() + " ====\n";
+                std::string header = "==== " + sigflow::platform::PathToUtf8(p) + " ====\n";
                 if (total + header.size() + content.size() > maxTotalChars) break;
                 result += header;
                 result += content + "\n\n";
@@ -167,7 +168,7 @@ std::string FindVerilogSubdir(const std::string& rootPath) {
                     }
                     if (found) break;
                 }
-                if (found) return dir.string();
+                if (found) return sigflow::platform::PathToUtf8(dir);
             }
             catch (...) { continue; }
         }

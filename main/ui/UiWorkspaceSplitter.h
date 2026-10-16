@@ -1,6 +1,7 @@
 #pragma once
 #include <wx/splitter.h>
 #include <wx/dc.h>
+#include <wx/dcbuffer.h>
 #include <algorithm>
 #include <cmath>
 #include <functional>
@@ -24,6 +25,15 @@ public:
     void EnableAccessibleSash()
     {
         SetName("WorkspaceSplitter");
+        // 空画布兜底：CanvasNoteBook 无页面时不会发绘制事件，露出来的会是本 splitter 的
+        // 系统底色（BTNFACE #DCDCDC）。这里直接把"白底 + 20/100 DIP 网格"铺成背景，
+        // 保证未打开任何文件时画布区也是一块网格画布，而不是灰底。
+        SetBackgroundStyle(wxBG_STYLE_PAINT);
+        Bind(wxEVT_PAINT, [this](wxPaintEvent& e) {
+            wxAutoBufferedPaintDC dc(this);
+            UiTheme::PaintCanvasBackdrop(dc, GetClientRect(), this);
+            e.Skip();  // 继续交给基类画 sash
+        });
         Bind(wxEVT_MOTION,[this](wxMouseEvent& e) {
             UiFocusTrace::NotePointer();
             const bool hover=SashHitTest(e.GetX(),e.GetY());

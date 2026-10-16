@@ -135,10 +135,12 @@ void UiLayoutChoice::Paint() {
     const double dip = FromDIP(100) / 100.0;
     const auto r = GetClientRect();
     gc->SetPen(m_chip ? wxPen(c.strokeOnPanel) : *wxTRANSPARENT_PEN);
-    gc->SetBrush(wxBrush(m_selected ? c.selOnPanel : (m_hover && IsEnabled() ? c.hoverOnPanel : c.surfaceOnWindow)));
+    // 悬停不再改填充（原来 m_hover 会填 hoverOnPanel，浅色档下表现为黑块）；
+    // 选中/默认不变，悬停只体现在文字颜色略加深（见下方 SetFont）。
+    gc->SetBrush(wxBrush(m_selected ? c.selOnPanel : c.surfaceOnWindow));
     gc->DrawRoundedRectangle(dip, dip, std::max(0.0, r.width - 2*dip), std::max(0.0, r.height - 2*dip), (m_chip ? 13 : 6)*dip);
-    if (IsEnabled() && (m_hover || m_down || m_keyDown || m_activationFlash)) {
-        // CMP-031 / DEC-14：蓝边只在 hover / 按压（含键盘按住）时出现。
+    if (IsEnabled() && (m_down || m_keyDown || m_activationFlash)) {
+        // CMP-031 / DEC-14：蓝边只在**按压**（含键盘按住）时出现；悬停不再画边。
         gc->SetBrush(*wxTRANSPARENT_BRUSH);
         gc->SetPen(gc->CreatePen(wxGraphicsPenInfo(c.focusRingOnPanel).Width(1.5*dip)));
         gc->DrawRoundedRectangle(2*dip, 2*dip, std::max(0.0,r.width-4*dip), std::max(0.0,r.height-4*dip), (m_chip ? 12 : 5)*dip);
@@ -148,7 +150,9 @@ void UiLayoutChoice::Paint() {
         gc->StrokeLine(12*dip, r.height-5*dip, r.width-12*dip, r.height-5*dip);
     }
     gc->SetFont(UiTheme::UiFont(this, m_chip ? UiTheme::TextSize::P11 : UiTheme::TextSize::P12),
-                IsEnabled() ? (m_selected && m_chip ? c.accent : c.text1) : c.text3);
+                IsEnabled() ? (m_selected && m_chip ? c.accent
+                                                    : (m_hover ? c.text1 : c.text2))
+                            : c.text3);
     double w=0,h=0; gc->GetTextExtent(m_label,&w,&h);
     gc->DrawText(m_label, m_chip ? std::max(4*dip,(r.width-w)/2) : 10*dip, (r.height-h)/2);
     gc->SetFont(UiTheme::UiFont(this, UiTheme::TextSize::P11), c.text3);

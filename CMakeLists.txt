@@ -369,6 +369,7 @@ set(SIGFLOW_MAIN_SOURCES
     "${SIGFLOW_MAIN_DIR}/TreeSitterLinter.cpp"
     "${SIGFLOW_MAIN_DIR}/ui/UiDockArt.cpp"
     "${SIGFLOW_MAIN_DIR}/ui/UiLayoutState.cpp"
+    "${SIGFLOW_MAIN_DIR}/ui/UiMenuBar.cpp"
     "${SIGFLOW_MAIN_DIR}/ui/UiLayoutPicker.cpp"
     "${SIGFLOW_MAIN_DIR}/ui/UiRegionHost.cpp"
     "${SIGFLOW_MAIN_DIR}/ui/UiTabArt.cpp"

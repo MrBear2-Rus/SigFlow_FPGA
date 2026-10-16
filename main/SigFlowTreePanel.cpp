@@ -25,7 +25,7 @@ void ApplySigTreeLook(wxTreeCtrl* tree)
     }
 
     const UiTheme::Colours& colours = UiTheme::Palette();
-    tree->SetBackgroundColour(colours.surfaceOnPanel);
+    tree->SetBackgroundColour(wxColour(255, 255, 255));
     tree->SetForegroundColour(colours.text1);
     tree->SetFont(SigTreeItemFont(tree));
     tree->SetIndent(tree->FromDIP(UiTheme::Spacing::S2));  // CMP-035 缩进：8 DIP
@@ -377,10 +377,10 @@ void SigFlowTreePanel::InitTreeIcons() {
         return bundle.GetBitmap(sz);
         };
 
-    images->Add(GetIcon("res\\icons\\project.svg")); // Proj 0
+    images->Add(GetIcon("res\\ui_icons\\folder.svg")); // Proj 0
     const wxBitmap folderFallback = wxArtProvider::GetBitmap(wxART_FOLDER, wxART_OTHER, sz);
     wxBitmapBundle folderBundle = wxBitmapBundle::FromSVGFile(
-        sigflow::platform::ResourcePath("res\\icons\\project.svg"), sz);
+        sigflow::platform::ResourcePath("res\\ui_icons\\folder.svg"), sz);
     images->Add(folderBundle.IsOk() ? folderBundle.GetBitmap(sz) : folderFallback); // File 1
     images->Add(GetIcon("res\\svg_icons\\module.svg")); // Module 2
     images->Add(GetIcon("res\\svg_icons\\secondary.svg")); // Sec 3

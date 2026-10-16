@@ -30,4 +30,19 @@ public:
 
     /// 按 DPI 重算需要随缩放变化的度量与字体（由 wxEVT_DPI_CHANGED 调用，PLT-009）
     void UpdateMetrics(wxWindow* parent);
+
+    /// 自绘 pane 标题栏按钮（最大化-还原 / 关闭 / 最小化 / 图钉）。
+    /// 基类绘制的是 3D 位图按钮，在扁平圆角卡片上显示为"坏掉的小方块"（RV-T03）。
+    void DrawPaneButton(wxDC& dc, wxWindow* window, int button, int buttonState,
+                        const wxRect& rect, wxAuiPaneInfo& pane) override;
+
+    /// 页面底渐变（app.html §0）：AUI 的 dock 背景即"页面"，改画 160° 冷灰渐变。
+    void DrawBackground(wxDC& dc, wxWindow* window, int orientation,
+                        const wxRect& rect) override;
+
+    /// 分隔条 / pane 边框也是"页面"的一部分：不铺实色，避免在全窗渐变上留下浅色隔断。
+    void DrawSash(wxDC& dc, wxWindow* window, int orientation,
+                  const wxRect& rect) override;
+    void DrawBorder(wxDC& dc, wxWindow* window, const wxRect& rect,
+                    wxAuiPaneInfo& pane) override;
 };

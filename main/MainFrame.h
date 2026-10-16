@@ -22,7 +22,9 @@
 #include "ui/UiTabArt.h"
 #include "ui/UiTheme.h"
 #include "ui/UiToolBarArt.h"
+#include "ui/UiMenuBar.h"
 #include "ui/UiRegionHost.h"
+#include "MainMenuBar.h"
 #include "AsyncAnalysisCenter.h"
 #include "SigTextEditor.h"
 #include "ProjectTreePanel.h"
@@ -323,6 +325,10 @@ private:
     /// T-720 / F-720-01：菜单栏显隐。MSW 上 `wxMenuBar::Show()` 是**空操作**（菜单栏无窗口句柄），
     /// 必须走 Win32 `SetMenu`/`DrawMenuBar`；其它平台走原生 `Show()`。实现见 .cpp。
     void ApplyMenuBarVisibility(bool visible);
+    /// 方案 B（MSW）：把原生菜单条从非客户区摘掉、并补装加速表 —— 见实现处说明。
+    void InstallMenuAccelerators();
+    /// Alt+<字母> / F10 的菜单条键盘入口（CHAR_HOOK）。返回 true 表示已消费。
+    bool HandleMenuBarKeyboard(wxKeyEvent& event);
     void ApplyLayoutGeometry();
     void OnLayoutKey(wxKeyEvent& event);
 
@@ -359,6 +365,15 @@ private:
     UiRegionHost* m_bottomHost = nullptr;
     wxAuiNotebook* m_bottomNotebook = nullptr;
     wxControl* m_layoutControls = nullptr;
+    /* 方案 B：自绘菜单条（原生 wxMenuBar 在 MSW 上无法改高度/内边距/颜色）。
+     * 菜单对象仍是 MainMenuBar（GetMenuBar() 不受影响），只是不再挂到非客户区。 */
+    UiMenuBar* m_menuBarPanel = nullptr;
+    wxAcceleratorTable m_menuAccel;
+    MainMenuBar* m_mainMenuBar = nullptr;  ///< 非拥有（wxFrame 持有）；GetMenuBar() 同源
+#ifdef __WXMSW__
+    /// 方案 B：把原生菜单条从窗口非客户区摘掉（wxMenuBar 对象保留）。
+    void DetachNativeMenuBar();
+#endif
     UiLayoutChoice* m_layoutButtons[3] = {};
     UiLayoutPicker* m_layoutPicker = nullptr;
     /// T-620：Tab 顺序（KEY-007）用的非拥有窗指针：工具栏→活动栏→主侧栏→中区→辅助侧栏→底部面板。

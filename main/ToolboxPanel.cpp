@@ -64,7 +64,7 @@ void ApplyToolboxTreeLook(wxTreeCtrl* tree)
     }
 
     const UiTheme::Colours& colours = UiTheme::Palette();
-    tree->SetBackgroundColour(colours.surfaceOnPanel);
+    tree->SetBackgroundColour(wxColour(255, 255, 255));
     tree->SetForegroundColour(colours.text1);
     tree->SetFont(ToolboxItemFont(tree));
     tree->SetIndent(tree->FromDIP(UiTheme::Spacing::S2));  // CMP-035 缩进：8 DIP
@@ -130,7 +130,7 @@ ToolboxPanel::ToolboxPanel(wxWindow* parent)
     m_imgList = new wxImageList(iconSize.x, iconSize.y, true, 500);
     const wxBitmap folderFallback = wxArtProvider::GetBitmap(wxART_FOLDER, wxART_OTHER, iconSize);
     wxBitmapBundle folderBundle = wxBitmapBundle::FromSVGFile(
-        sigflow::platform::ResourcePath("res\\icons\\project.svg"), iconSize);
+        sigflow::platform::ResourcePath("res\\ui_icons\\folder.svg"), iconSize);
     m_imgList->Add(folderBundle.IsOk() ? folderBundle.GetBitmap(iconSize) : folderFallback);
 
     // 加载所有工具图标

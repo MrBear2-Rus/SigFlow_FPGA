@@ -6,6 +6,10 @@
 
 #include "ui/UiTheme.h"
 
+#include <wx/dc.h>
+
+#include <algorithm>
+
 UiDockArt::UiDockArt()
 {
     // --- 静态属性：不随 DPI 与主题变化（THE-031：无渐变、无拖拽柄）---
@@ -24,8 +28,11 @@ void UiDockArt::ApplyThemeColours()
 {
     const UiTheme::Colours& c = UiTheme::Palette();
 
-    SetColour(wxAUI_DOCKART_BACKGROUND_COLOUR, c.bgPanel);
-    SetColour(wxAUI_DOCKART_SASH_COLOUR, c.strokeOnPanel);
+    SetColour(wxAUI_DOCKART_BACKGROUND_COLOUR, c.bgWindow);
+    // Gap between cards: paint the pane border with the page colour so the
+    // rounded UiRegionHost card reads as a card floating on the page.
+    SetColour(wxAUI_DOCKART_BORDER_COLOUR, c.bgWindow);
+    SetColour(wxAUI_DOCKART_SASH_COLOUR, c.bgWindow);
     SetColour(wxAUI_DOCKART_INACTIVE_CAPTION_COLOUR, c.surfaceOnWindow);
     SetColour(wxAUI_DOCKART_ACTIVE_CAPTION_COLOUR, c.surfaceOnWindow);
     SetColour(wxAUI_DOCKART_INACTIVE_CAPTION_TEXT_COLOUR, c.text3);
@@ -39,8 +46,94 @@ void UiDockArt::UpdateMetrics(wxWindow* parent)
     }
     // sash 用细线（THE-031 / 原实现 FromDIP(2)）
     SetMetric(wxAUI_DOCKART_SASH_SIZE, parent->FromDIP(2));
+    // LAY: 6 DIP page-coloured gutter around every pane (card look).
+    SetMetric(wxAUI_DOCKART_PANE_BORDER_SIZE, parent->FromDIP(2));
 
     // caption 字体走 token（THE-016/THE-017：12 DIP、medium）
     SetFont(wxAUI_DOCKART_CAPTION_FONT,
             UiTheme::UiFont(parent, UiTheme::TextSize::P12, UiTheme::Weight::Medium));
+}
+
+void UiDockArt::DrawBackground(wxDC& dc, wxWindow* window, int orientation, const wxRect& rect)
+{
+    if (window == nullptr) {
+        wxAuiDefaultDockArt::DrawBackground(dc, window, orientation, rect);
+        return;
+    }
+    // wxAUI 每次只给一小块 rect，但所有块共用同一个"顶层客户区"锚点，
+    // 拼起来就是 app.html §0 的那一条 160° 冷灰渐变。
+    dc.SetPen(*wxTRANSPARENT_PEN);
+    dc.SetBrush(wxBrush(UiTheme::Palette().bgWindow));
+    dc.DrawRectangle(rect);
+    UiTheme::PaintPageGradient(dc, window->GetClientSize(), wxPoint(0, 0), rect);
+}
+
+void UiDockArt::DrawSash(wxDC& dc, wxWindow* window, int orientation, const wxRect& rect)
+{
+    if (window == nullptr) {
+        wxAuiDefaultDockArt::DrawSash(dc, window, orientation, rect);
+        return;
+    }
+    dc.SetPen(*wxTRANSPARENT_PEN);
+    dc.SetBrush(wxBrush(UiTheme::Palette().bgWindow));
+    dc.DrawRectangle(rect);
+    UiTheme::PaintPageGradient(dc, window->GetClientSize(), wxPoint(0, 0), rect);
+}
+
+void UiDockArt::DrawBorder(wxDC& dc, wxWindow* window, const wxRect& rect, wxAuiPaneInfo& pane)
+{
+    if (window == nullptr) {
+        wxAuiDefaultDockArt::DrawBorder(dc, window, rect, pane);
+        return;
+    }
+    dc.SetPen(*wxTRANSPARENT_PEN);
+    dc.SetBrush(wxBrush(UiTheme::Palette().bgWindow));
+    dc.DrawRectangle(rect);
+    UiTheme::PaintPageGradient(dc, window->GetClientSize(), wxPoint(0, 0), rect);
+}
+
+void UiDockArt::DrawPaneButton(wxDC& dc, wxWindow* window, int button, int buttonState,
+                               const wxRect& rect, wxAuiPaneInfo& pane)
+{
+    const UiTheme::Colours& c = UiTheme::Palette();
+    const int unit = window != nullptr ? std::max(1, window->FromDIP(1)) : 1;
+
+    // 扁平 hover / 按压底，替代基类的 3D 位图按钮（THE-031：无立体玻璃）。
+    if ((buttonState & (wxAUI_BUTTON_STATE_HOVER | wxAUI_BUTTON_STATE_PRESSED)) != 0) {
+        dc.SetPen(*wxTRANSPARENT_PEN);
+        dc.SetBrush(wxBrush(c.hoverOnPanel));
+        dc.DrawRoundedRectangle(rect, window != nullptr ? window->FromDIP(UiTheme::Radius::XS)
+                                                        : UiTheme::Radius::XS);
+    }
+
+    const bool disabled = (buttonState & wxAUI_BUTTON_STATE_DISABLED) != 0;
+    dc.SetPen(wxPen(disabled ? c.text3 : c.text2, unit));
+    dc.SetBrush(*wxTRANSPARENT_BRUSH);
+
+    // 图形只在按钮矩形内缩后绘制，避免贴边或被裁切。
+    const int inset = std::max(unit * 3, std::min(rect.width, rect.height) / 4);
+    const int side = std::max(unit, std::min(rect.width, rect.height) - inset * 2);
+    const wxRect glyph(rect.x + (rect.width - side) / 2, rect.y + (rect.height - side) / 2,
+                       side, side);
+
+    switch (button) {
+    case wxAUI_BUTTON_MAXIMIZE_RESTORE:
+        dc.DrawRectangle(glyph);
+        break;
+    case wxAUI_BUTTON_CLOSE:
+        dc.DrawLine(glyph.GetLeft(), glyph.GetTop(), glyph.GetRight(), glyph.GetBottom());
+        dc.DrawLine(glyph.GetRight(), glyph.GetTop(), glyph.GetLeft(), glyph.GetBottom());
+        break;
+    case wxAUI_BUTTON_MINIMIZE:
+        dc.DrawLine(glyph.GetLeft(), glyph.GetBottom(), glyph.GetRight(), glyph.GetBottom());
+        break;
+    case wxAUI_BUTTON_PIN:
+        dc.DrawCircle(glyph.x + glyph.width / 2, glyph.y + glyph.height / 2,
+                      std::max(unit, glyph.width / 2));
+        break;
+    default:
+        // 其余按钮（自定义 ID 等）保持基类行为。
+        wxAuiDefaultDockArt::DrawPaneButton(dc, window, button, buttonState, rect, pane);
+        break;
+    }
 }

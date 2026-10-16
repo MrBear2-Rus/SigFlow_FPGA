@@ -74,7 +74,10 @@ wxSize MinimumFrameSize()
 
 namespace {
 
-constexpr const char* kScopeRoot = "Ui/Layout/v2";
+// 布局**结构**版本。改动 pane 分层顺序、新增/删除 pane、或调整默认几何（如 dock 宽度上限）时
+// 必须 +1：wxAui 的 perspective 会把分层与**实际像素尺寸**一并持久化，旧存档会把这些新默认值
+// 全部覆盖掉（表现为"改了默认值但界面没变"）。换作用域版本 = 旧存档自然失效并回到新默认。
+constexpr const char* kScopeRoot = "Ui/Layout/v4";
 
 bool ShapeEquals(const LayoutState& a, const LayoutState& b)
 {
