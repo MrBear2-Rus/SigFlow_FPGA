@@ -91,7 +91,9 @@
     <ClCompile Include="wave\TraceViewPanel.cpp" />
     <ClCompile Include="wave\WaveAnalysis.cpp" />
     <ClCompile Include="wave\WaveCompareHub.cpp" />
+    <ClCompile Include="wave\WaveCompareSession.cpp" />
     <ClCompile Include="wave\WavePatternSearch.cpp" />
+    <ClCompile Include="wave\WavePerformanceProbe.cpp" />
     <ClCompile Include="wave\WaveSession.cpp" />
     <ClCompile Include="wave\WaveformGLCanvas.cpp" />
     <ClCompile Include="wave\WaveformMiniMap.cpp" />
@@ -194,7 +196,9 @@
     <ClInclude Include="wave\TraceViewPanel.h" />
     <ClInclude Include="wave\WaveAnalysis.h" />
     <ClInclude Include="wave\WaveCompareHub.h" />
+    <ClInclude Include="wave\WaveCompareSession.h" />
     <ClInclude Include="wave\WavePatternSearch.h" />
+    <ClInclude Include="wave\WavePerformanceProbe.h" />
     <ClInclude Include="wave\WaveSession.h" />
     <ClInclude Include="wave\WaveViewState.h" />
     <ClInclude Include="wave\WaveformGLCanvas.h" />

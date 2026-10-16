@@ -130,7 +130,13 @@
     <ClCompile Include="wave\WaveCompareHub.cpp">
       <Filter>源代码\trace</Filter>
     </ClCompile>
+    <ClCompile Include="wave\WaveCompareSession.cpp">
+      <Filter>源代码\trace</Filter>
+    </ClCompile>
     <ClCompile Include="wave\WavePatternSearch.cpp">
+      <Filter>源代码\trace</Filter>
+    </ClCompile>
+    <ClCompile Include="wave\WavePerformanceProbe.cpp">
       <Filter>源代码\trace</Filter>
     </ClCompile>
     <ClCompile Include="wave\WaveSession.cpp">
@@ -433,7 +439,13 @@
     <ClInclude Include="wave\WaveCompareHub.h">
       <Filter>头文件\trace</Filter>
     </ClInclude>
+    <ClInclude Include="wave\WaveCompareSession.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
     <ClInclude Include="wave\WavePatternSearch.h">
+      <Filter>头文件\trace</Filter>
+    </ClInclude>
+    <ClInclude Include="wave\WavePerformanceProbe.h">
       <Filter>头文件\trace</Filter>
     </ClInclude>
     <ClInclude Include="wave\WaveSession.h">
