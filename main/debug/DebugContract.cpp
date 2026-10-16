@@ -405,6 +405,17 @@ bool DebugContract::Validate(std::string& error) const
         error = "capture.decimation must be in 1..255 (8-bit UART field)";
         return false;
     }
+    if (trigger.kind != "none" && trigger.kind != "mask_equal" &&
+        trigger.kind != "edge_rising" && trigger.kind != "edge_falling" &&
+        trigger.kind != "comb_and") {
+        error = "unsupported trigger kind: " + trigger.kind;
+        return false;
+    }
+    if (trigger.kind == "mask_equal" &&
+        (!IsHex(trigger.mask) || !IsHex(trigger.value))) {
+        error = "mask_equal trigger requires hex mask and value";
+        return false;
+    }
     if (transport.kind != "uart" && transport.kind != "jtag") {
         error = "unsupported transport kind: " + transport.kind;
         return false;
@@ -444,17 +455,6 @@ bool DebugContract::Validate(std::string& error) const
     }
     if (transport.txPort.empty() || transport.rxPort.empty()) {
         error = "transport requires tx_port and rx_port";
-        return false;
-    }
-    if (trigger.kind != "none" && trigger.kind != "mask_equal" &&
-        trigger.kind != "edge_rising" && trigger.kind != "edge_falling" &&
-        trigger.kind != "comb_and") {
-        error = "unsupported trigger kind: " + trigger.kind;
-        return false;
-    }
-    if (trigger.kind == "mask_equal" &&
-        (!IsHex(trigger.mask) || !IsHex(trigger.value))) {
-        error = "mask_equal trigger requires hex mask and value";
         return false;
     }
     return true;
