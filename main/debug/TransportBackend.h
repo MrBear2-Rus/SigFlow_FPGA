@@ -45,6 +45,18 @@ struct TransportOpenResult {
     std::vector<TransportDiagnostic> structuredDiagnostics;
 };
 
+// Snapshot of compile-time transport support used by the UI and support
+// matrix.  It deliberately reports capability, not device presence: opening
+// a backend remains an explicit operation with its own diagnostics.
+struct TransportBuildCapabilities {
+    bool serial = true;
+    bool ftdi = false;
+    std::string platform;
+    std::string ftdiStatus;
+};
+
+TransportBuildCapabilities GetTransportBuildCapabilities();
+
 // 统一创建并打开调试字节后端。失败时保留每一条尝试和可行动的原因；
 // 不会在用户明确禁止回退时偷偷连接另一种物理后端。
 bool OpenDebugTransport(const TransportOpenOptions& options,

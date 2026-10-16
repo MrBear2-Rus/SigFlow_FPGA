@@ -94,6 +94,25 @@ const char* ToString(TransportDiagnosticCode code)
     return "OPEN_FAILED";
 }
 
+TransportBuildCapabilities GetTransportBuildCapabilities()
+{
+    TransportBuildCapabilities capabilities;
+#if defined(_WIN32)
+    capabilities.platform = "windows";
+#elif defined(__linux__)
+    capabilities.platform = "linux";
+#elif defined(__APPLE__)
+    capabilities.platform = "macos";
+#else
+    capabilities.platform = "other";
+#endif
+    capabilities.ftdi = FtdiTransport::IsSupported();
+    capabilities.ftdiStatus = capabilities.ftdi
+        ? "libftdi support compiled in"
+        : "libftdi support unavailable in this build";
+    return capabilities;
+}
+
 bool OpenDebugTransport(const TransportOpenOptions& options,
                         TransportOpenResult& result,
                         std::string& error)
