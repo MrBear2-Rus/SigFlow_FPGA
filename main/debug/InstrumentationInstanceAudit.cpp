@@ -85,6 +85,17 @@ bool CompareInstrumentationInstanceInventories(
     InstrumentationInstanceAudit& out,
     std::string& error)
 {
+    return CompareInstrumentationInstanceInventories(
+        baseline, instrumented, InstrumentationOptionalPrimitivePolicy(), out, error);
+}
+
+bool CompareInstrumentationInstanceInventories(
+    const InstrumentationInstanceInventory& baseline,
+    const InstrumentationInstanceInventory& instrumented,
+    const InstrumentationOptionalPrimitivePolicy& policy,
+    InstrumentationInstanceAudit& out,
+    std::string& error)
+{
     error.clear();
     out = InstrumentationInstanceAudit();
     if (baseline.schemaVersion != "1.0" || instrumented.schemaVersion != "1.0") {
@@ -116,6 +127,29 @@ bool CompareInstrumentationInstanceInventories(
         if (oldCount > newCount) out.removedInstances.push_back(CountText(type, oldCount - newCount));
     }
     out.noNewInstances = out.addedInstances.empty();
+
+    if (!policy.allowedTypes.empty()) {
+        for (const auto& [type, ignored] : all) {
+            const auto oldCount = base.count(type) ? base[type] : 0;
+            const auto newCount = instrumentedCounts.count(type) ? instrumentedCounts[type] : 0;
+            const auto allowed = std::find(policy.allowedTypes.begin(),
+                                           policy.allowedTypes.end(), type) !=
+                                 policy.allowedTypes.end();
+            const bool unexpected = policy.enabled
+                ? (!allowed && newCount > oldCount)
+                : (policy.requireAbsentWhenDisabled && allowed && newCount > 0);
+            if (unexpected) {
+                out.unexpectedOptionalPrimitives.push_back(
+                    CountText(type, policy.enabled ? (newCount - oldCount) : newCount));
+            }
+        }
+    }
+    out.optionalPrimitivePolicySatisfied = out.unexpectedOptionalPrimitives.empty();
+    if (!out.optionalPrimitivePolicySatisfied) {
+        out.diagnostics.push_back(policy.enabled
+            ? "instrumented netlist contains unexpected optional primitive types"
+            : "disabled optional primitive policy detected added primitive instances");
+    }
     return true;
 }
 

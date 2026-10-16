@@ -848,11 +848,19 @@ void TraceViewPanel::RunPatternSearch(bool forward)
     }
     sigflow::trace::TimeValue found = 0;
     std::string error;
-    if (WavePatternFind(*m_source, spec, from, to, forward, 1, found, error)) {
+    WavePatternSearchOptions options;
+    // Collecting only one match is safe for forward search. Reverse search
+    // still needs the full bounded result set so the latest match wins.
+    options.maxMatches = forward ? 1 : 0;
+    if (WavePatternFind(*m_source, spec, from, to, forward, 1, options,
+                        found, error)) {
         m_view->JumpToTime(found);
         m_view->SetPlayhead(found);
     } else {
-        wxMessageBox("No match in search range.", "Pattern Search",
+        const std::string message = error.empty()
+            ? "No match in search range."
+            : "Pattern search stopped: " + error;
+        wxMessageBox(message, "Pattern Search",
                      wxOK | wxICON_INFORMATION, this);
     }
 }

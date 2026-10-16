@@ -43,7 +43,7 @@ struct TraceQueryRequest {
 
 class TraceQueryService {
 public:
-    TraceQueryService();
+    explicit TraceQueryService(std::size_t maxQueuedJobs = 8);
     ~TraceQueryService();
 
     TraceQueryService(const TraceQueryService&) = delete;
@@ -52,19 +52,21 @@ public:
     std::uint64_t Submit(TraceQueryRequest request);
     bool Cancel(std::uint64_t jobId);
     void CancelAll();
+    std::size_t QueueDepth() const;
 
 private:
     struct Job;
     void WorkerLoop();
     static TraceQueryResult Execute(const std::shared_ptr<Job>& job);
 
-    std::mutex mutex_;
+    mutable std::mutex mutex_;
     std::condition_variable condition_;
     std::deque<std::shared_ptr<Job>> queue_;
     std::unordered_map<std::uint64_t, std::shared_ptr<Job>> jobs_;
     std::thread worker_;
     std::atomic<bool> stopping_{false};
     std::atomic<std::uint64_t> nextJobId_{1};
+    const std::size_t maxQueuedJobs_;
 };
 
 } // namespace trace

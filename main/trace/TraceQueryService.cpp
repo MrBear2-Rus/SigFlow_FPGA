@@ -31,7 +31,8 @@ TimeValue SubSaturated(TimeValue value, TimeValue delta)
 
 } // namespace
 
-TraceQueryService::TraceQueryService()
+TraceQueryService::TraceQueryService(std::size_t maxQueuedJobs)
+    : maxQueuedJobs_(std::max<std::size_t>(1, maxQueuedJobs))
 {
     worker_ = std::thread(&TraceQueryService::WorkerLoop, this);
 }
@@ -53,6 +54,7 @@ std::uint64_t TraceQueryService::Submit(TraceQueryRequest request)
     {
         std::lock_guard<std::mutex> lock(mutex_);
         if (stopping_.load()) return 0;
+        if (queue_.size() >= maxQueuedJobs_) return 0;
         jobs_[id] = job;
         queue_.push_back(job);
     }
@@ -73,6 +75,12 @@ void TraceQueryService::CancelAll()
 {
     std::lock_guard<std::mutex> lock(mutex_);
     for (auto& item : jobs_) item.second->cancelled.store(true);
+}
+
+std::size_t TraceQueryService::QueueDepth() const
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    return queue_.size();
 }
 
 TraceQueryResult TraceQueryService::Execute(const std::shared_ptr<Job>& job)

@@ -50,6 +50,9 @@ private:
     TraceMemoryBudget m_budget;
     std::unordered_map<std::string, CacheEntry> m_cache;
     mutable std::mutex m_mutex;
+    // Some VCD/FST readers keep mutable seek/decode state. The cache itself
+    // is thread-safe, but the wrapped reader must also be serialized.
+    mutable std::mutex m_ioMutex;
 };
 
 } // namespace trace

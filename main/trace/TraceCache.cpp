@@ -14,9 +14,12 @@ CachingTraceSource::CachingTraceSource(std::unique_ptr<TraceSource> inner,
 
 bool CachingTraceSource::Open(const std::string& path, std::string& error)
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    m_cache.clear();
-    m_budget.Clear();
+    std::lock_guard<std::mutex> ioLock(m_ioMutex);
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_cache.clear();
+        m_budget.Clear();
+    }
     return m_inner->Open(path, error);
 }
 
@@ -84,7 +87,10 @@ bool CachingTraceSource::Query(const SignalInfo& signal, TimeValue t0, TimeValue
     }
 
     std::vector<Transition> fetched;
-    if (!m_inner->Query(signal, t0, t1, fetched, error)) return false;
+    {
+        std::lock_guard<std::mutex> ioLock(m_ioMutex);
+        if (!m_inner->Query(signal, t0, t1, fetched, error)) return false;
+    }
 
     {
         std::lock_guard<std::mutex> lock(m_mutex);
@@ -118,7 +124,10 @@ bool CachingTraceSource::ValueAt(const SignalInfo& signal, TimeValue t,
     }
 
     std::string fetched;
-    if (!m_inner->ValueAt(signal, t, fetched, error)) return false;
+    {
+        std::lock_guard<std::mutex> ioLock(m_ioMutex);
+        if (!m_inner->ValueAt(signal, t, fetched, error)) return false;
+    }
 
     {
         std::lock_guard<std::mutex> lock(m_mutex);
