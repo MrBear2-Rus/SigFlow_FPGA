@@ -1,6 +1,7 @@
 #pragma once
 
 #include "WaveViewState.h"
+#include "WaveValueFormat.h"
 #include "../trace/TraceSource.h"
 
 #include <string>
@@ -22,6 +23,7 @@ struct WaveSignalBinding {
     bool visible = true;
     std::string alias;
     std::string comment;
+    WaveDisplayFormat displayFormat = WaveDisplayFormat::Binary;
 };
 
 // 波形会话（W3-07）：视口、信号列表、Marker、事件、A-B、播放头。
@@ -44,6 +46,7 @@ struct WaveSessionData {
     WaveTheme theme = WaveTheme::Dark;
     std::unordered_map<int, std::string> signalAliases;
     std::unordered_map<int, std::string> signalComments;
+    std::unordered_map<int, WaveDisplayFormat> signalDisplayFormats;
     std::string uartCapturePath;
 };
 

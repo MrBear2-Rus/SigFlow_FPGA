@@ -2,10 +2,12 @@
 
 #include "../trace/TraceTypes.h"
 #include "WaveThemeMode.h"
+#include "WaveValueFormat.h"
 
 #include <algorithm>
 #include <cstdint>
 #include <limits>
+#include <unordered_map>
 #include <vector>
 
 namespace sigflow {
@@ -31,6 +33,7 @@ struct WaveEvent {
 // 波形视图状态（软件/GL 后端共享）。
 struct WaveViewState {
     std::vector<int> visibleSignalIds;
+    std::unordered_map<int, WaveDisplayFormat> displayFormats;
     sigflow::trace::TimeValue timeOffset = 0;
     sigflow::trace::TimeValue timeSpan = 1000;
     sigflow::trace::TimeValue maxTime = 0;

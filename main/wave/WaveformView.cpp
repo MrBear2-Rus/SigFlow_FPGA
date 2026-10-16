@@ -344,6 +344,7 @@ WaveSessionData WaveformView::CaptureSession() const
     WaveSessionData session;
     session.sourcePath = m_source ? m_source->Path() : std::string();
     session.visibleSignalIds = m_state.visibleSignalIds;
+    session.signalDisplayFormats = m_state.displayFormats;
     session.timeOffset = m_state.timeOffset;
     session.timeSpan = m_state.timeSpan;
     session.markers = m_state.markers;
@@ -372,6 +373,20 @@ void WaveformView::ApplySession(const WaveSessionData& session)
     SetBackgroundColour(ColorsForThemed(m_state.theme).background);
     if (m_miniMap) m_miniMap->SetBackgroundColour(ColorsForThemed(m_state.theme).miniMapBackground);
     m_state.visibleSignalIds = session.visibleSignalIds;
+    m_state.displayFormats.clear();
+    if (m_source) {
+        for (const auto& binding : session.signalBindings) {
+            for (const auto& signal : m_source->Signals()) {
+                if (signal.fullName == binding.signalKey) {
+                    m_state.displayFormats[signal.id] = binding.displayFormat;
+                    break;
+                }
+            }
+        }
+        for (const auto& [id, format] : session.signalDisplayFormats) {
+            m_state.displayFormats[id] = format;
+        }
+    }
     m_state.Clamp();
     RefreshMiniMap();
     if (m_glCanvas) m_glCanvas->Refresh();
@@ -384,6 +399,21 @@ void WaveformView::SetVisibleSignals(const std::vector<int>& signalIds)
     m_state.Clamp();
     if (m_glCanvas) m_glCanvas->Refresh();
     Refresh();
+}
+
+void WaveformView::SetDisplayFormat(int signalId, WaveDisplayFormat format)
+{
+    if (!m_source || !m_source->SignalById(signalId)) return;
+    m_state.displayFormats[signalId] = format;
+    if (m_glCanvas) m_glCanvas->Refresh();
+    Refresh();
+    NotifyViewChanged();
+}
+
+WaveDisplayFormat WaveformView::DisplayFormat(int signalId) const
+{
+    const auto it = m_state.displayFormats.find(signalId);
+    return it == m_state.displayFormats.end() ? WaveDisplayFormat::Binary : it->second;
 }
 
 void WaveformView::AutoSelectSignals()

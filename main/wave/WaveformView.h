@@ -28,6 +28,8 @@ public:
 
     void SetTraceSource(std::shared_ptr<sigflow::trace::TraceSource> source);
     void SetVisibleSignals(const std::vector<int>& signalIds);
+    void SetDisplayFormat(int signalId, WaveDisplayFormat format);
+    WaveDisplayFormat DisplayFormat(int signalId) const;
 
     void ZoomIn();
     void ZoomOut();

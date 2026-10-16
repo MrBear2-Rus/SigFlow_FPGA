@@ -1,4 +1,5 @@
 #include "WaveformRenderData.h"
+#include "WaveValueFormat.h"
 
 #include <cmath>
 
@@ -109,6 +110,11 @@ bool BuildWaveformFrame(sigflow::trace::TraceSource& source,
         data.vector = (info->kind == sigflow::trace::SignalKind::Vector ||
                        info->kind == sigflow::trace::SignalKind::Real ||
                        info->kind == sigflow::trace::SignalKind::String);
+        WaveDisplayFormat displayFormat = WaveDisplayFormat::Binary;
+        if (const auto format = state.displayFormats.find(info->id);
+            format != state.displayFormats.end()) {
+            displayFormat = format->second;
+        }
 
         std::vector<sigflow::trace::Transition> transitions;
         std::string error;
@@ -123,6 +129,9 @@ bool BuildWaveformFrame(sigflow::trace::TraceSource& source,
             return false;
         }
         if (initial.empty()) initial = "x";
+        const auto display = [&](const std::string& value) {
+            return FormatWaveValue(value, displayFormat, info->width);
+        };
 
         if (!data.vector) {
             const float startX = WaveformTimeToX(state, width, t0);
@@ -141,7 +150,7 @@ bool BuildWaveformFrame(sigflow::trace::TraceSource& source,
                 }
                 data.polyline.push_back({ x, ScalarY(state, row, last) });
                 data.polyline.push_back({ x, ScalarY(state, row, tr.value) });
-                data.valueLabels.push_back({ tr.time, tr.value });
+                data.valueLabels.push_back({ tr.time, display(tr.value) });
                 last = tr.value;
                 lastX = x;
             }
@@ -151,10 +160,10 @@ bool BuildWaveformFrame(sigflow::trace::TraceSource& source,
             data.polyline.push_back({ WaveformTimeToX(state, width, t0), center });
             data.polyline.push_back({ WaveformTimeToX(state, width, t1), center });
             for (const sigflow::trace::Transition& tr : transitions) {
-                data.valueLabels.push_back({ tr.time, tr.value });
+                data.valueLabels.push_back({ tr.time, display(tr.value) });
             }
             if (data.valueLabels.empty()) {
-                data.valueLabels.push_back({ t0, initial });
+                data.valueLabels.push_back({ t0, display(initial) });
             }
         }
         out.signals.push_back(std::move(data));

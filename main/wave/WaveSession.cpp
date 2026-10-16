@@ -97,10 +97,13 @@ bool ParseSession(const Json::Value& root, WaveSessionData& out, std::string& er
         for (const auto& item : root["signal_bindings"]) {
             WaveSignalBinding binding;
             std::string kind;
+            std::string displayFormat = "binary";
             if (!item.isObject() || !text(item, "signal_key", binding.signalKey) || binding.signalKey.empty() ||
                 !keys.insert(binding.signalKey).second || !item["width"].isUInt() || item["width"].asUInt() == 0 ||
                 !item["visible"].isBool() || !text(item, "kind", kind) ||
-                !text(item, "alias", binding.alias) || !text(item, "comment", binding.comment)) {
+                !text(item, "alias", binding.alias) || !text(item, "comment", binding.comment) ||
+                !text(item, "display_format", displayFormat) ||
+                !WaveDisplayFormatFromName(displayFormat, binding.displayFormat)) {
                 error = "invalid or duplicate stable signal binding"; return false;
             }
             binding.width = item["width"].asUInt();
@@ -207,6 +210,10 @@ bool WaveSessionBindSignals(const sigflow::trace::TraceSource& source, WaveSessi
     error.clear();
     std::vector<WaveSignalBinding> bindings;
     std::set<std::string> used;
+    std::map<std::string, WaveDisplayFormat> previousFormats;
+    for (const auto& binding : session.signalBindings) {
+        if (!binding.signalKey.empty()) previousFormats[binding.signalKey] = binding.displayFormat;
+    }
     std::map<std::string, std::vector<const sigflow::trace::SignalInfo*>> catalogue;
     for (const auto& signal : source.Signals()) catalogue[signal.fullName].push_back(&signal);
     auto append = [&](int id, bool visible) {
@@ -215,6 +222,14 @@ bool WaveSessionBindSignals(const sigflow::trace::TraceSource& source, WaveSessi
         if (catalogue[signal->fullName].size() != 1) { error = "ambiguous full signal path in trace source"; return false; }
         if (!used.insert(signal->fullName).second) { error = "duplicate stable signal key in session"; return false; }
         WaveSignalBinding binding{signal->fullName, signal->width, signal->kind, visible};
+        if (const auto previous = previousFormats.find(signal->fullName);
+            previous != previousFormats.end()) {
+            binding.displayFormat = previous->second;
+        }
+        if (const auto runtime = session.signalDisplayFormats.find(id);
+            runtime != session.signalDisplayFormats.end()) {
+            binding.displayFormat = runtime->second;
+        }
         if (auto item = session.signalAliases.find(id); item != session.signalAliases.end()) binding.alias = item->second;
         if (auto item = session.signalComments.find(id); item != session.signalComments.end()) binding.comment = item->second;
         bindings.push_back(std::move(binding));
@@ -278,6 +293,7 @@ bool WaveSessionBindSignals(const sigflow::trace::TraceSource& source, WaveSessi
     session.schemaVersion = "2.0";
     session.sourcePath = source.Path();
     session.signalBindings = std::move(ordered);
+    session.signalDisplayFormats.clear();
     return true;
 }
 
@@ -306,6 +322,7 @@ bool WaveSessionResolve(const WaveSessionData& saved, const sigflow::trace::Trac
     session.visibleSignalIds.clear();
     session.signalAliases.clear();
     session.signalComments.clear();
+    session.signalDisplayFormats.clear();
     std::map<std::string, std::vector<const sigflow::trace::SignalInfo*>> signals;
     for (const auto& signal : source.Signals()) signals[signal.fullName].push_back(&signal);
     std::set<std::string> seen;
@@ -321,6 +338,7 @@ bool WaveSessionResolve(const WaveSessionData& saved, const sigflow::trace::Trac
         if (binding.visible) session.visibleSignalIds.push_back(id);
         if (!binding.alias.empty()) session.signalAliases[id] = binding.alias;
         if (!binding.comment.empty()) session.signalComments[id] = binding.comment;
+        session.signalDisplayFormats[id] = binding.displayFormat;
     }
     if (!resolved.sourceMatched || layoutOnly) {
         session.timeOffset = 0;
@@ -367,6 +385,7 @@ bool WaveSessionSave(const WaveSessionData& session, const std::string& path, st
         item["visible"] = binding.visible;
         item["alias"] = binding.alias;
         item["comment"] = binding.comment;
+        item["display_format"] = WaveDisplayFormatName(binding.displayFormat);
         root["signal_bindings"].append(item);
     }
     root["time_offset"] = Json::UInt64(session.timeOffset);

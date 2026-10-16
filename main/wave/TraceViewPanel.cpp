@@ -982,11 +982,26 @@ void TraceViewPanel::OnTreeContextMenu(wxTreeListEvent& event)
     const int remove = wxID_HIGHEST + 302;
     const int alias = wxID_HIGHEST + 303;
     const int comment = wxID_HIGHEST + 304;
+    const int binary = wxID_HIGHEST + 305;
+    const int hex = wxID_HIGHEST + 306;
+    const int unsignedFormat = wxID_HIGHEST + 307;
+    const int signedFormat = wxID_HIGHEST + 308;
     menu.Append(add, "Add to waveform");
     menu.Append(remove, "Remove from waveform");
     menu.AppendSeparator();
     menu.Append(alias, "Set signal alias...");
     menu.Append(comment, "Set signal comment...");
+    wxMenu* formatMenu = new wxMenu();
+    formatMenu->AppendRadioItem(binary, "Binary");
+    formatMenu->AppendRadioItem(hex, "Hexadecimal");
+    formatMenu->AppendRadioItem(unsignedFormat, "Unsigned decimal");
+    formatMenu->AppendRadioItem(signedFormat, "Signed decimal");
+    menu.AppendSubMenu(formatMenu, "Display format");
+    const WaveDisplayFormat currentFormat = m_view->DisplayFormat(signalId);
+    formatMenu->Check(currentFormat == WaveDisplayFormat::Binary ? binary :
+                      currentFormat == WaveDisplayFormat::Hex ? hex :
+                      currentFormat == WaveDisplayFormat::Unsigned ? unsignedFormat : signedFormat,
+                      true);
     menu.Bind(wxEVT_MENU, [this, signalId](wxCommandEvent&) {
         SetSignalChecked(signalId, true);
     }, add);
@@ -1016,6 +1031,18 @@ void TraceViewPanel::OnTreeContextMenu(wxTreeListEvent& event)
         wxMessageBox(value.empty() ? "Comment cleared." : value,
                      signal->fullName, wxOK | wxICON_INFORMATION, this);
     }, comment);
+    menu.Bind(wxEVT_MENU, [this, signalId](wxCommandEvent&) {
+        m_view->SetDisplayFormat(signalId, WaveDisplayFormat::Binary);
+    }, binary);
+    menu.Bind(wxEVT_MENU, [this, signalId](wxCommandEvent&) {
+        m_view->SetDisplayFormat(signalId, WaveDisplayFormat::Hex);
+    }, hex);
+    menu.Bind(wxEVT_MENU, [this, signalId](wxCommandEvent&) {
+        m_view->SetDisplayFormat(signalId, WaveDisplayFormat::Unsigned);
+    }, unsignedFormat);
+    menu.Bind(wxEVT_MENU, [this, signalId](wxCommandEvent&) {
+        m_view->SetDisplayFormat(signalId, WaveDisplayFormat::Signed);
+    }, signedFormat);
     m_tree->PopupMenu(&menu);
 }
 

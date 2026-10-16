@@ -27,7 +27,11 @@
           "kind": { "enum": ["scalar", "vector", "real", "string"] },
           "visible": { "type": "boolean" },
           "alias": { "type": "string" },
-          "comment": { "type": "string" }
+          "comment": { "type": "string" },
+          "display_format": {
+            "type": "string",
+            "enum": ["binary", "hex", "unsigned", "signed"]
+          }
         }
       }
     },

@@ -297,6 +297,7 @@ set(SIGFLOW_MAIN_SOURCES
     "${SIGFLOW_MAIN_DIR}/debug/ReplayScenario.cpp"
     "${SIGFLOW_MAIN_DIR}/debug/RootCauseGraph.cpp"
     "${SIGFLOW_MAIN_DIR}/debug/RootCauseEvidenceReport.cpp"
+    "${SIGFLOW_MAIN_DIR}/debug/RootCauseDynamicEvidence.cpp"
     "${SIGFLOW_MAIN_DIR}/debug/InstrumentationImpact.cpp"
     "${SIGFLOW_MAIN_DIR}/debug/InstrumentationBaseline.cpp"
     "${SIGFLOW_MAIN_DIR}/debug/SerialPortEnumerator.cpp"
