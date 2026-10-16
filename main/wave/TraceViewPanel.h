@@ -57,6 +57,13 @@ public:
     }
 
     WaveformView* View() { return m_view; }
+    std::shared_ptr<sigflow::trace::TraceSource> Source() const { return m_source; }
+    const WaveSourceIdentity& SourceIdentity() const { return m_sourceIdentity; }
+    std::string SourcePath() const { return m_source ? m_source->Path() : std::string(); }
+    sigflow::trace::TraceTimeRange SourceTimeRange() const
+    {
+        return m_source ? m_source->TimeRange() : sigflow::trace::TraceTimeRange{};
+    }
 
     // ── W4：Compare / 比对事件注入 ──
     // 将 compare 结果注入为事件（锚点 + 首差异）。isHwPanel=true 用 hw 时间戳，false 用 sim。

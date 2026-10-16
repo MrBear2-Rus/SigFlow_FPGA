@@ -1424,6 +1424,7 @@ void TraceBridgeWindow::SetProjectContext(const wxString& projectPath) {
     openHwVcdButton_->Enable(false);
     compareSimButton_->Enable(false);
     generateReplayButton_->Enable(false);
+    compareSession_ = sigflow::wave::WaveCompareSession();
     LoadDefaultContract();
 }
 
@@ -1592,7 +1593,9 @@ void TraceBridgeWindow::SetCaptureResult(bool success, const wxString& message, 
             openHwVcdButton_->Enable(true);
             compareSimButton_->Enable(true);
             generateReplayButton_->Enable(true);
-            if (hwWavePanel_) hwWavePanel_->OpenTrace(std::string(vcdPath.ToUTF8().data()));
+            const bool hwOpened = hwWavePanel_ != nullptr &&
+                hwWavePanel_->OpenTrace(std::string(vcdPath.ToUTF8().data()));
+            if (!hwOpened) AddLog(TbLogTag::ERR, wxT("硬件 VCD 打开失败，未登记双轨窗口"));
             if (rightNotebook_) rightNotebook_->SetSelection(0); // 切到 HW 波形 Tab
             if (waveHint_) waveHint_->SetLabel(wxT("✅ HW 捕获完成：") + vcdPath +
                 wxT("\n现在可以点【比对仿真 VCD…】选择仿真输出，查看双轨差异。"));
@@ -1611,6 +1614,11 @@ void TraceBridgeWindow::SetCaptureResult(bool success, const wxString& message, 
                         lastSessionId_ = rest.Left(static_cast<std::size_t>(sep));
                     }
                 }
+            }
+            if (hwOpened) {
+                SyncCompareTrack("hw", ToUtf8(lastSessionId_), hwWavePanel_);
+            } else {
+                compareSession_ = sigflow::wave::WaveCompareSession();
             }
             RefreshSessionList();
         }
@@ -2844,7 +2852,14 @@ void TraceBridgeWindow::OnCompareSimVcd(wxCommandEvent&) {
     lastCaptureSimVcd_ = dlg.GetPath();
     AddLog(TbLogTag::INFO, wxT("已选仿真 VCD：") + lastCaptureSimVcd_);
     if (simWavePanel_) {
-        simWavePanel_->OpenTrace(std::string(lastCaptureSimVcd_.ToUTF8().data()));
+        if (!simWavePanel_->OpenTrace(std::string(lastCaptureSimVcd_.ToUTF8().data()))) {
+            AddLog(TbLogTag::ERR, wxT("仿真 VCD 打开失败，已保留当前双轨窗口"));
+            std::string ignoredError;
+            compareSession_.RemoveTrack("sim", ignoredError);
+            lastCaptureSimVcd_.clear();
+            return;
+        }
+        SyncCompareTrack("sim", "simulation", simWavePanel_);
         if (rightNotebook_) rightNotebook_->SetSelection(0);
     }
     RunComparison();
@@ -2966,7 +2981,14 @@ void TraceBridgeWindow::OnGenerateReplay(wxCommandEvent&) {
                 return;
             }
             lastCaptureSimVcd_ = ToWxString(replayVcd);
-            if (simWavePanel_) simWavePanel_->OpenTrace(replayVcd);
+            const bool simOpened = simWavePanel_ != nullptr && simWavePanel_->OpenTrace(replayVcd);
+            if (simOpened) SyncCompareTrack("sim", "replay", simWavePanel_);
+            else {
+                AddLog(TbLogTag::ERR, wxT("重放 VCD 打开失败，已取消本次双轨比对"));
+                std::string ignoredError;
+                compareSession_.RemoveTrack("sim", ignoredError);
+                return;
+            }
             if (compareSimButton_) compareSimButton_->Enable(true);
             AddLog(TbLogTag::OK, wxT("输入重放完成：") + ToWxString(replayVcd));
             if (waveHint_) waveHint_->SetLabel(wxT("✅ replay.vcd 已生成，可直接执行双轨比对。"));
@@ -2991,6 +3013,12 @@ void TraceBridgeWindow::RunComparison() {
     const wxString dependencyGraphFile = JoinPath(sidecarRoot, "dependency-graph.json");
     const bool hasSourceMap = wxFileExists(sourceMapFile);
     const bool hasDependencyGraph = wxFileExists(dependencyGraphFile);
+    const sigflow::wave::WaveCompareToken hwToken = compareSession_.IssueToken("hw");
+    const sigflow::wave::WaveCompareToken simToken = compareSession_.IssueToken("sim");
+    if (hwToken.trackId.empty() || simToken.trackId.empty()) {
+        AddLog(TbLogTag::ERR, wxT("双轨窗口身份尚未就绪，已阻止后台比对"));
+        return;
+    }
     const sigflow::debug::DebugContract behaviorContract = contract_;
     const std::string sourceMapPath = ToUtf8(sourceMapFile);
     const std::string dependencyGraphPath = ToUtf8(dependencyGraphFile);
@@ -3002,7 +3030,7 @@ void TraceBridgeWindow::RunComparison() {
                                              dependencyGraphPath, hasSourceMap,
                                              hasDependencyGraph, replayReference,
                                              replayReportPath = ToUtf8(replayReportFile),
-                                             behaviorContract]() {
+                                             behaviorContract, hwToken, simToken]() {
         try {
             std::unique_ptr<vcd_t, void(*)(vcd_t*)> hwVcd(
                 vcd_read_from_path(const_cast<char*>(hwPath.c_str())), vcd_free);
@@ -3046,7 +3074,12 @@ void TraceBridgeWindow::RunComparison() {
             this->QueueEvent(e);
             // 在主线程显示结果
             wxString summary = ToWxString(result.summary);
-            CallAfter([this, result = std::move(result), behaviorSummary = std::move(behaviorSummary), summary] {
+            CallAfter([this, result = std::move(result), behaviorSummary = std::move(behaviorSummary),
+                       summary, hwToken, simToken] {
+                if (!compareSession_.AcceptToken(hwToken) || !compareSession_.AcceptToken(simToken)) {
+                    AddLog(TbLogTag::INFO, wxT("双轨窗口已变化，丢弃过期比对结果"));
+                    return;
+                }
                 lastComparison_ = std::move(result);
                 lastBehaviorSummary_ = std::move(behaviorSummary);
                 ShowComparisonResult(lastComparison_);
@@ -3057,6 +3090,25 @@ void TraceBridgeWindow::RunComparison() {
             PostResult(this, 0, err);
         }
     });
+}
+
+bool TraceBridgeWindow::SyncCompareTrack(const std::string& trackId,
+                                         const std::string& captureId,
+                                         sigflow::wave::TraceViewPanel* panel)
+{
+    if (panel == nullptr || panel->SourcePath().empty()) return false;
+    sigflow::wave::WaveCompareTrack track;
+    track.trackId = trackId;
+    track.captureId = captureId;
+    track.sourcePath = panel->SourcePath();
+    track.sourceIdentity = panel->SourceIdentity();
+    track.timeRange = panel->SourceTimeRange();
+    std::string error;
+    if (!compareSession_.ReplaceTrack(std::move(track), error)) {
+        AddLog(TbLogTag::ERR, ToWxString("双轨窗口登记失败：" + error));
+        return false;
+    }
+    return true;
 }
 
 void TraceBridgeWindow::ShowComparisonResult(const sigflow::debug::ComparisonResult& r) {
@@ -3507,7 +3559,9 @@ void TraceBridgeWindow::LoadSessionVcd(const wxString& sessionId) {
     const wxString vcdPath = wxFileName(captureDir, wxT("capture.vcd")).GetFullPath();
     if (wxFileName::FileExists(vcdPath)) {
         lastCaptureHwVcd_ = vcdPath;
-        if (hwWavePanel_) hwWavePanel_->OpenTrace(std::string(vcdPath.ToUTF8().data()));
+        if (hwWavePanel_ && hwWavePanel_->OpenTrace(std::string(vcdPath.ToUTF8().data()))) {
+            SyncCompareTrack("hw", ToUtf8(sessionId), hwWavePanel_);
+        }
         openHwVcdButton_->Enable(true);
         compareSimButton_->Enable(true);
         AddLog(TbLogTag::INFO, wxT("已加载会话 VCD：") + vcdPath);

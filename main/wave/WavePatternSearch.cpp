@@ -2,36 +2,50 @@
 
 #include <algorithm>
 #include <set>
+#include <unordered_map>
 
 namespace sigflow {
 namespace wave {
 
 namespace {
 
-bool EvaluateCriterion(sigflow::trace::TraceSource& source,
-                       const WavePatternCriterion& criterion,
-                       sigflow::trace::TimeValue t, std::string& error)
+struct PatternSignalState {
+    const sigflow::trace::SignalInfo* signal = nullptr;
+    sigflow::trace::TimeValue begin = 0;
+    std::vector<sigflow::trace::Transition> transitions;
+    std::string initialValue;
+    std::string beforeBeginValue;
+    bool hasBeforeBeginValue = false;
+};
+
+std::string CachedValueAt(const PatternSignalState& state,
+                          sigflow::trace::TimeValue time)
 {
-    const sigflow::trace::SignalInfo* signal = source.SignalById(criterion.signalId);
-    if (!signal) {
-        error = "unknown signal id in pattern";
-        return false;
+    if (time < state.begin) {
+        return state.hasBeforeBeginValue ? state.beforeBeginValue : state.initialValue;
     }
+    const auto it = std::upper_bound(
+        state.transitions.begin(), state.transitions.end(), time,
+        [](sigflow::trace::TimeValue value, const sigflow::trace::Transition& transition) {
+            return value < transition.time;
+        });
+    if (it == state.transitions.begin()) return state.initialValue;
+    return (it - 1)->value;
+}
+
+bool EvaluateCriterionCached(const PatternSignalState& state,
+                             const WavePatternCriterion& criterion,
+                             sigflow::trace::TimeValue t)
+{
     if (criterion.kind == WavePatternKind::DontCare) return true;
 
-    std::string valueNow;
-    if (!source.ValueAt(*signal, t, valueNow, error)) return false;
+    const std::string valueNow = CachedValueAt(state, t);
     if (criterion.kind == WavePatternKind::High) return valueNow == "1";
     if (criterion.kind == WavePatternKind::Low) return valueNow == "0";
     if (criterion.kind == WavePatternKind::Value) return valueNow == criterion.value;
 
     // 边沿：需要与 t-1 时刻的值比较
-    std::string valueBefore;
-    if (t == 0) {
-        valueBefore = valueNow;
-    } else if (!source.ValueAt(*signal, t - 1, valueBefore, error)) {
-        return false;
-    }
+    const std::string valueBefore = t == 0 ? valueNow : CachedValueAt(state, t - 1);
     if (criterion.kind == WavePatternKind::RisingEdge) {
         return valueBefore != "1" && valueNow == "1";
     }
@@ -69,19 +83,32 @@ WavePatternCollect(sigflow::trace::TraceSource& source,
 
     // 候选时刻 = 相关信号跳变时刻并集
     std::set<sigflow::trace::TimeValue> candidates;
+    std::unordered_map<int, PatternSignalState> signalStates;
     for (const WavePatternCriterion& criterion : spec.criteria) {
         if (options.shouldCancel && options.shouldCancel()) {
             error = "pattern search cancelled";
             return results;
         }
-        const sigflow::trace::SignalInfo* signal = source.SignalById(criterion.signalId);
-        if (!signal) {
-            error = "unknown signal id in pattern";
-            return results;
+        auto stateIt = signalStates.find(criterion.signalId);
+        if (stateIt == signalStates.end()) {
+            const sigflow::trace::SignalInfo* signal = source.SignalById(criterion.signalId);
+            if (!signal) {
+                error = "unknown signal id in pattern";
+                return results;
+            }
+            PatternSignalState state;
+            state.signal = signal;
+            state.begin = t0;
+            if (!source.ValueAt(*signal, t0, state.initialValue, error)) return results;
+            if (state.initialValue.empty()) state.initialValue = "x";
+            if (t0 > 0 && !source.ValueAt(*signal, t0 - 1, state.beforeBeginValue, error)) {
+                return results;
+            }
+            state.hasBeforeBeginValue = t0 > 0;
+            if (!source.Query(*signal, t0, t1, state.transitions, error)) return results;
+            stateIt = signalStates.emplace(criterion.signalId, std::move(state)).first;
         }
-        std::vector<sigflow::trace::Transition> transitions;
-        if (!source.Query(*signal, t0, t1, transitions, error)) return results;
-        for (const sigflow::trace::Transition& tr : transitions) {
+        for (const sigflow::trace::Transition& tr : stateIt->second.transitions) {
             if (options.shouldCancel && options.shouldCancel()) {
                 error = "pattern search cancelled";
                 return results;
@@ -104,7 +131,9 @@ WavePatternCollect(sigflow::trace::TraceSource& source,
         if (t < t0 || t > t1) continue;
         bool allMatch = true;
         for (const WavePatternCriterion& criterion : spec.criteria) {
-            if (!EvaluateCriterion(source, criterion, t, error)) {
+            const auto stateIt = signalStates.find(criterion.signalId);
+            if (stateIt == signalStates.end() ||
+                !EvaluateCriterionCached(stateIt->second, criterion, t)) {
                 allMatch = false;
                 break;
             }

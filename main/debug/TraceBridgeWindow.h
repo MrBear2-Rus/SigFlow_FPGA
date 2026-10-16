@@ -7,6 +7,7 @@
 #include "WaveformAligner.h"
 #include "WaveformComparator.h"
 #include "../wave/TraceViewPanel.h"
+#include "../wave/WaveCompareSession.h"
 
 #include "ui/UiTheme.h"   // T-140 / THE-030：子窗主题刷新
 
@@ -175,6 +176,9 @@ private:
     // 波形比对
     void RunComparison();
     void ShowComparisonResult(const sigflow::debug::ComparisonResult& r);
+    bool SyncCompareTrack(const std::string& trackId,
+                          const std::string& captureId,
+                          sigflow::wave::TraceViewPanel* panel);
 
     // 会话管理
     void RefreshSessionList();
@@ -246,6 +250,7 @@ private:
     sigflow::wave::TraceViewPanel* hwWavePanel_ = nullptr;
     sigflow::wave::TraceViewPanel* simWavePanel_ = nullptr;
     wxTextCtrl* diffReportText_ = nullptr;
+    sigflow::wave::WaveCompareSession compareSession_;
 
     // 会话/比对状态
     wxString lastSessionId_;
