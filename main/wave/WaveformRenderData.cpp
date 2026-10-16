@@ -139,13 +139,21 @@ bool BuildWaveformFrame(sigflow::trace::TraceSource& source,
             data.polyline.push_back({ startX, ScalarY(state, row, initial) });
             std::string last = initial;
             float lastX = startX;
+            sigflow::trace::TimeValue previousTime = 0;
+            bool havePreviousTransition = false;
             for (const sigflow::trace::Transition& tr : transitions) {
+                if (havePreviousTransition && tr.time > previousTime &&
+                    tr.time - previousTime <= state.shortPulseThreshold) {
+                    data.shortPulseTimes.push_back(previousTime);
+                }
                 const float x = WaveformTimeToX(state, width, tr.time);
                 if (tr.value == last) {
                     if (x > lastX + 0.5f) {
                         data.polyline.push_back({ x, ScalarY(state, row, last) });
                         lastX = x;
                     }
+                    previousTime = tr.time;
+                    havePreviousTransition = true;
                     continue;
                 }
                 data.polyline.push_back({ x, ScalarY(state, row, last) });
@@ -153,6 +161,8 @@ bool BuildWaveformFrame(sigflow::trace::TraceSource& source,
                 data.valueLabels.push_back({ tr.time, display(tr.value) });
                 last = tr.value;
                 lastX = x;
+                previousTime = tr.time;
+                havePreviousTransition = true;
             }
             data.polyline.push_back({ endX, ScalarY(state, row, last) });
         } else {

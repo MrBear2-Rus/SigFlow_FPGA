@@ -57,6 +57,7 @@ public:
     void SetGlitchThreshold(sigflow::trace::TimeValue threshold)
     {
         m_glitchThreshold = threshold;
+        m_state.shortPulseThreshold = threshold;
     }
 
     // ── W3：Compare 联动 / 会话 ──

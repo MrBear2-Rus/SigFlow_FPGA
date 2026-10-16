@@ -29,6 +29,9 @@ struct WaveformSignalData {
     bool vector = false;
     std::vector<WaveformPoint> polyline;
     std::vector<std::pair<sigflow::trace::TimeValue, std::string>> valueLabels;
+    // Shared by software and GL renderers. Each time identifies the start of
+    // an interval whose duration is at or below the configured threshold.
+    std::vector<sigflow::trace::TimeValue> shortPulseTimes;
 };
 
 struct WaveformTick {

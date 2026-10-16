@@ -608,6 +608,19 @@ void WaveformView::RenderSoftware(wxDC& dc)
                                      static_cast<int>(point.y)));
         }
         if (points.size() >= 2) dc.DrawLines(points.size(), points.data());
+        if (!signal.shortPulseTimes.empty()) {
+            dc.SetPen(wxPen(ui.warn, 1));
+            const int row = static_cast<int>(&signal - frame.signals.data());
+            const int rowTop = m_state.headerHeight + row * m_state.rowHeight;
+            for (const auto time : signal.shortPulseTimes) {
+                const int x = static_cast<int>(
+                    WaveformTimeToX(m_state, size.GetWidth(), time));
+                if (x >= m_state.leftMargin &&
+                    x <= size.GetWidth() - m_state.rightMargin) {
+                    dc.DrawLine(x, rowTop + 3, x, rowTop + m_state.rowHeight - 3);
+                }
+            }
+        }
     }
 
     // ── W3 覆盖层：A-B / 播放头 / Marker / 事件 ──

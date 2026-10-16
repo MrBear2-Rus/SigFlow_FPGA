@@ -178,6 +178,21 @@ void WaveformGLCanvas::RenderFrame()
                                signalColour.Green() / 255.0f,
                                signalColour.Blue() / 255.0f };
         m_renderer.DrawPolyline(signal.polyline, color);
+        if (!signal.shortPulseTimes.empty()) {
+            const WaveColor marker{ ui.warn.Red() / 255.0f,
+                                    ui.warn.Green() / 255.0f,
+                                    ui.warn.Blue() / 255.0f };
+            const int row = static_cast<int>(&signal - frame.signals.data());
+            const float rowTop = static_cast<float>(
+                m_state.headerHeight + row * m_state.rowHeight);
+            for (const auto time : signal.shortPulseTimes) {
+                const float x = WaveformTimeToX(m_state, size.GetWidth(), time);
+                if (x >= m_state.leftMargin && x <= size.GetWidth() - m_state.rightMargin) {
+                    m_renderer.DrawGridLine(x, rowTop + 3.0f, x,
+                                            rowTop + m_state.rowHeight - 3.0f, marker);
+                }
+            }
+        }
     }
 
     // ── W3 覆盖层：A-B / 播放头 / Marker / 事件 ──

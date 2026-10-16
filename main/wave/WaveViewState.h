@@ -44,6 +44,7 @@ struct WaveViewState {
     int rightMargin = 40;
     int headerHeight = 36;
     int rowHeight = 32; // CMP-064：每行 32 DIP（原 30；行内无命中测试，仅影响纵向布局）
+    sigflow::trace::TimeValue shortPulseThreshold = 2;
     bool valid = false;
 
     // W3：播放头 / Marker / A-B 测量 / 事件
