@@ -1,4 +1,5 @@
 #include "WaveformMiniMap.h"
+#include "WaveTheme.h"
 
 #include "WaveformRenderData.h"
 

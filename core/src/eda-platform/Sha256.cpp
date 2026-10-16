@@ -161,6 +161,7 @@ std::string Sha256FileHex(const std::filesystem::path& path) {
         if (count <= 0) break;
         hash.Update(buffer.data(), static_cast<std::size_t>(count));
     }
+    if (!file.eof()) return {}; // an incomplete read must never become a valid file identity
     return ToHex(hash.Finish());
 }
 

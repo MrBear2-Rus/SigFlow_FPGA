@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sigflow.local/schemas/wave-session-2.0.schema.json",
+  "title": "TraceBridge stable waveform session",
+  "type": "object",
+  "required": ["schema_version", "source_path", "source_identity", "signal_bindings"],
+  "properties": {
+    "schema_version": { "const": "2.0" },
+    "source_path": { "type": "string", "minLength": 1 },
+    "source_identity": {
+      "type": "object",
+      "required": ["sha256", "byte_size"],
+      "properties": {
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "byte_size": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "signal_bindings": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {
+        "type": "object",
+        "required": ["signal_key", "width", "kind", "visible"],
+        "properties": {
+          "signal_key": { "type": "string", "minLength": 1 },
+          "width": { "type": "integer", "minimum": 1, "maximum": 4294967295 },
+          "kind": { "enum": ["scalar", "vector", "real", "string"] },
+          "visible": { "type": "boolean" },
+          "alias": { "type": "string" },
+          "comment": { "type": "string" }
+        }
+      }
+    },
+    "time_offset": { "$ref": "#/$defs/time" },
+    "time_span": { "type": "integer", "minimum": 1, "maximum": 18446744073709551615 },
+    "playhead": { "$ref": "#/$defs/time" },
+    "ab_a": { "$ref": "#/$defs/time" },
+    "ab_b": { "$ref": "#/$defs/time" },
+    "has_playhead": { "type": "boolean" },
+    "has_ab": { "type": "boolean" },
+    "theme": { "enum": ["dark", "light"] },
+    "uart_capture_path": { "type": "string" },
+    "markers": {
+      "type": "array", "maxItems": 100000,
+      "items": {
+        "type": "object", "required": ["time", "color"],
+        "properties": {
+          "time": { "$ref": "#/$defs/time" },
+          "label": { "type": "string" },
+          "color": { "type": "integer", "minimum": 0, "maximum": 4294967295 }
+        }
+      }
+    },
+    "events": {
+      "type": "array", "maxItems": 100000,
+      "items": {
+        "type": "object", "required": ["time", "color", "source_line"],
+        "properties": {
+          "time": { "$ref": "#/$defs/time" },
+          "label": { "type": "string" },
+          "color": { "type": "integer", "minimum": 0, "maximum": 4294967295 },
+          "signal_name": { "type": "string" },
+          "source_path": { "type": "string" },
+          "source_line": { "type": "integer", "minimum": 0, "maximum": 2147483647 }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "time": { "type": "integer", "minimum": 0, "maximum": 18446744073709551615 }
+  }
+}

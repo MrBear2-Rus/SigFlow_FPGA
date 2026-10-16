@@ -11,6 +11,7 @@
 #include <wx/panel.h>
 #include <wx/choicdlg.h>
 #include <wx/dir.h>
+#include <wx/dialog.h>
 #include <wx/filedlg.h>
 #include <wx/filename.h>
 #include <wx/menu.h>
@@ -21,9 +22,37 @@
 
 #include <algorithm>
 #include <sstream>
+#include <filesystem>
 
 namespace sigflow {
 namespace wave {
+
+namespace {
+std::string Utf8FilePath(const std::filesystem::path& path)
+{
+    const auto text = path.u8string();
+    return std::string(text.begin(), text.end());
+}
+
+bool PrepareWaveSource(const std::string& path, std::shared_ptr<sigflow::trace::TraceSource>& source,
+                       WaveSourceIdentity& identity, std::string& error)
+{
+    if (!WaveSourceFingerprint(path, identity, error)) return false;
+    auto candidate = std::make_shared<sigflow::trace::CachingTraceSource>(
+        std::make_unique<sigflow::trace::VcdLazyTraceSource>(), 64 * 1024 * 1024);
+    if (!candidate->Open(path, error)) return false;
+    std::error_code ec;
+    const auto modified = std::filesystem::last_write_time(std::filesystem::u8path(path), ec);
+    if (ec || modified.time_since_epoch().count() != identity.modifiedTicks) {
+        error = "wave source changed while opening; reopen it before restoring a session";
+        return false;
+    }
+    const auto size = std::filesystem::file_size(std::filesystem::u8path(path), ec);
+    if (ec || size != identity.byteSize) { error = "wave source changed while opening"; return false; }
+    source = std::move(candidate);
+    return true;
+}
+} // namespace
 
 TraceViewPanel::TraceViewPanel(wxWindow* parent)
     : wxPanel(parent, wxID_ANY)
@@ -263,6 +292,26 @@ void TraceViewPanel::BuildUi()
     m_searchBox = new wxTextCtrl(left, wxID_ANY, wxEmptyString, wxDefaultPosition,
                                  wxDefaultSize, wxTE_PROCESS_ENTER);
     leftLayout->Add(m_searchBox, 0, wxEXPAND | wxALL, 2);
+    m_unresolvedButton = new wxButton(left, wxID_ANY, "Unresolved (0)");
+    m_unresolvedButton->Disable();
+    leftLayout->Add(m_unresolvedButton, 0, wxEXPAND | wxALL, 2);
+    m_unresolvedButton->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
+        wxDialog dialog(this, wxID_ANY, "Unresolved session signals", wxDefaultPosition,
+                        FromDIP(wxSize(700, 420)), wxDEFAULT_DIALOG_STYLE | wxRESIZE_BORDER);
+        auto* layout = new wxBoxSizer(wxVERTICAL);
+        wxString details = "Missing, ambiguous, or width/kind changed. These rows remain in the saved layout.\n\n";
+        for (const auto& binding : m_unresolvedBindings) {
+            details += wxString::FromUTF8(binding.signalKey) +
+                wxString::Format(" [%u bits]", binding.width) +
+                (binding.alias.empty() ? wxString() : " - " + wxString::FromUTF8(binding.alias)) + "\n";
+        }
+        layout->Add(new wxTextCtrl(&dialog, wxID_ANY, details, wxDefaultPosition, wxDefaultSize,
+                                  wxTE_MULTILINE | wxTE_READONLY), 1, wxALL | wxEXPAND, FromDIP(10));
+        layout->Add(dialog.CreateButtonSizer(wxOK), 0, wxALL | wxALIGN_RIGHT, FromDIP(10));
+        dialog.SetSizer(layout);
+        dialog.CentreOnParent();
+        dialog.ShowModal();
+    });
     m_tree = new wxTreeListCtrl(left, wxID_ANY, wxDefaultPosition, wxDefaultSize,
                             wxTL_CHECKBOX | wxTL_NO_HEADER);
     m_tree->AppendColumn("Signal");
@@ -353,20 +402,40 @@ void TraceViewPanel::BuildUi()
 
 bool TraceViewPanel::OpenTrace(const std::string& path)
 {
-    auto inner = std::make_unique<sigflow::trace::VcdLazyTraceSource>();
-    auto source = std::make_shared<sigflow::trace::CachingTraceSource>(
-        std::move(inner), 64 * 1024 * 1024);
+    std::shared_ptr<sigflow::trace::TraceSource> source;
+    WaveSourceIdentity identity;
     std::string error;
-    if (!source->Open(path, error)) {
+    std::error_code ec;
+    const auto absolute = std::filesystem::absolute(std::filesystem::u8path(path), ec);
+    if (ec || !PrepareWaveSource(Utf8FilePath(absolute), source, identity, error)) {
+        if (error.empty()) error = "invalid wave source path";
         wxMessageBox(error, "Open Trace", wxOK | wxICON_ERROR, this);
         return false;
     }
-    m_source = source;
+    InstallTrace(std::move(source), identity);
+    return true;
+}
+
+void TraceViewPanel::InstallTrace(std::shared_ptr<sigflow::trace::TraceSource> source,
+                                  const WaveSourceIdentity& identity)
+{
+    m_queryService.CancelAll();
+    m_source = std::move(source);
+    m_sourceIdentity = identity;
+    m_signalAliases.clear();
+    m_signalComments.clear();
+    m_sessionBindings.clear();
+    m_unresolvedBindings.clear();
+    m_unresolvedButton->SetLabel("Unresolved (0)");
+    m_unresolvedButton->Disable();
+    m_uartFrames.clear();
+    m_uartCapturePath.clear();
     m_lastProtocolReport = ProtocolEventReport();
     m_hasProtocolReport = false;
     m_queryService.Cancel(m_prefetchJobId);
     m_prefetchJobId = 0;
     m_view->SetTraceSource(m_source);
+    m_themeButton->SetLabel("Theme: Dark");
     m_view->SetVisibleSignals({});
     PopulateTree();
     RefreshEvents();
@@ -375,7 +444,6 @@ bool TraceViewPanel::OpenTrace(const std::string& path)
         "Loaded " + std::to_string(m_source->Signals().size()) +
         " signal(s), range 0.." + std::to_string(m_source->TimeRange().end));
     ScheduleVisiblePrefetch();
-    return true;
 }
 
 bool TraceViewPanel::LoadUartCapture(const std::string& path)
@@ -795,7 +863,7 @@ void TraceViewPanel::OnOpenTrace(wxCommandEvent&)
                         "Trace files (*.vcd;*.fst)|*.vcd;*.fst|All files (*.*)|*.*",
                         wxFD_OPEN | wxFD_FILE_MUST_EXIST);
     if (dialog.ShowModal() != wxID_OK) return;
-    OpenTrace(dialog.GetPath().ToStdString());
+    OpenTrace(std::string(dialog.GetPath().ToUTF8().data()));
 }
 
 void TraceViewPanel::OnAutoLoadTrace(wxCommandEvent&)
@@ -851,7 +919,7 @@ void TraceViewPanel::AutoLoadTrace()
         if (selected < 0) return;
         selectedPath = candidates[static_cast<std::size_t>(selected)].second;
     }
-    OpenTrace(selectedPath.ToStdString());
+    OpenTrace(std::string(selectedPath.ToUTF8().data()));
 }
 
 void TraceViewPanel::OnSaveSession(wxCommandEvent&)
@@ -859,7 +927,7 @@ void TraceViewPanel::OnSaveSession(wxCommandEvent&)
     wxFileDialog dialog(this, "Save Session", m_sessionDir, "wave.bws",
                         "Wave session (*.bws)|*.bws", wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
     if (dialog.ShowModal() != wxID_OK) return;
-    SaveSession(dialog.GetPath().ToStdString());
+    SaveSession(std::string(dialog.GetPath().ToUTF8().data()));
 }
 
 void TraceViewPanel::OnLoadSession(wxCommandEvent&)
@@ -867,7 +935,7 @@ void TraceViewPanel::OnLoadSession(wxCommandEvent&)
     wxFileDialog dialog(this, "Load Session", m_sessionDir, wxEmptyString,
                         "Wave session (*.bws)|*.bws", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
     if (dialog.ShowModal() != wxID_OK) return;
-    LoadSession(dialog.GetPath().ToStdString());
+    LoadSession(std::string(dialog.GetPath().ToUTF8().data()));
 }
 
 void TraceViewPanel::OnTreeItemChecked(wxTreeListEvent& event)
@@ -931,7 +999,7 @@ void TraceViewPanel::OnTreeContextMenu(wxTreeListEvent& event)
             ? wxString() : wxString::FromUTF8(it->second);
         wxTextEntryDialog dialog(this, "Alias (empty clears it):", "Signal Alias", current);
         if (dialog.ShowModal() != wxID_OK) return;
-        const std::string value = dialog.GetValue().ToStdString();
+        const std::string value(dialog.GetValue().ToUTF8().data());
         if (value.empty()) m_signalAliases.erase(signalId);
         else m_signalAliases[signalId] = value;
         PopulateTree();
@@ -942,7 +1010,7 @@ void TraceViewPanel::OnTreeContextMenu(wxTreeListEvent& event)
             ? wxString() : wxString::FromUTF8(it->second);
         wxTextEntryDialog dialog(this, "Comment (empty clears it):", "Signal Comment", current);
         if (dialog.ShowModal() != wxID_OK) return;
-        const std::string value = dialog.GetValue().ToStdString();
+        const std::string value(dialog.GetValue().ToUTF8().data());
         if (value.empty()) m_signalComments.erase(signalId);
         else m_signalComments[signalId] = value;
         wxMessageBox(value.empty() ? "Comment cleared." : value,
@@ -981,13 +1049,23 @@ void TraceViewPanel::OnEventActivated(wxListEvent& event)
 
 void TraceViewPanel::SaveSession(const std::string& path)
 {
+    if (!m_source) { wxMessageBox("Open a trace before saving its session.", "Save Session", wxOK | wxICON_INFORMATION, this); return; }
     WaveSessionData session = m_view->CaptureSession();
     session.uartCapturePath = m_uartCapturePath;
     session.signalAliases = m_signalAliases;
     session.signalComments = m_signalComments;
+    session.signalBindings = m_sessionBindings;
     std::string error;
-    if (!WaveSessionSave(session, path, error)) {
+    if (!WaveSourceFingerprint(m_source->Path(), session.sourceIdentity, error) ||
+        !WaveSourceIdentityMatches(m_sourceIdentity, session.sourceIdentity)) {
+        if (error.empty()) error = "wave source changed since opening; reopen it before saving a session";
         wxMessageBox(error, "Save Session", wxOK | wxICON_ERROR, this);
+        return;
+    }
+    if (!WaveSessionBindSignals(*m_source, session, error) || !WaveSessionSave(session, path, error)) {
+        wxMessageBox(error, "Save Session", wxOK | wxICON_ERROR, this);
+    } else {
+        m_sessionBindings = std::move(session.signalBindings);
     }
 }
 
@@ -999,20 +1077,69 @@ bool TraceViewPanel::LoadSession(const std::string& path)
         wxMessageBox(error, "Load Session", wxOK | wxICON_ERROR, this);
         return false;
     }
-    if (!session.sourcePath.empty() && (!m_source || m_source->Path() != session.sourcePath)) {
-        if (!OpenTrace(session.sourcePath)) return false;
+    auto sourcePath = std::filesystem::u8path(session.sourcePath);
+    const auto sessionDirectory = std::filesystem::u8path(path).parent_path();
+    if (sourcePath.is_relative()) sourcePath = sessionDirectory / sourcePath;
+    std::error_code ec;
+    if (!std::filesystem::is_regular_file(sourcePath, ec)) {
+        wxFileDialog relocate(this, "Locate session waveform", m_sessionDir, wxEmptyString,
+                              "VCD files (*.vcd)|*.vcd", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
+        if (relocate.ShowModal() != wxID_OK) return false;
+        sourcePath = std::filesystem::u8path(std::string(relocate.GetPath().ToUTF8().data()));
     }
-    m_view->ApplySession(session);
-    if (!session.uartCapturePath.empty()) LoadUartCapture(session.uartCapturePath);
+    sourcePath = std::filesystem::absolute(sourcePath, ec);
+    std::shared_ptr<sigflow::trace::TraceSource> source;
+    WaveSourceIdentity identity;
+    if (ec || !PrepareWaveSource(Utf8FilePath(sourcePath), source, identity, error)) {
+        if (error.empty()) error = "invalid relocated source path";
+        wxMessageBox(error, "Load Session", wxOK | wxICON_ERROR, this);
+        return false;
+    }
+    bool layoutOnly = false;
+    if (session.schemaVersion == "2.0" && !WaveSourceIdentityMatches(session.sourceIdentity, identity)) {
+        wxMessageDialog mismatch(this,
+            "Waveform content differs from the saved session. Restore signal layout only?\n"
+            "Old markers, events, playhead, A-B measurements and UART data will be cleared.",
+            "Changed waveform", wxYES_NO | wxNO_DEFAULT | wxICON_WARNING);
+        if (mismatch.ShowModal() != wxID_YES) return false;
+        layoutOnly = true;
+    }
+    WaveSessionResolution resolution;
+    if (!WaveSessionResolve(session, *source, identity, layoutOnly, resolution, error)) {
+        wxMessageBox(error, "Load Session", wxOK | wxICON_ERROR, this);
+        return false;
+    }
+    // Parse, open, fingerprint and resolve into local objects before replacing the current view.
+    auto restored = std::move(resolution.session);
+    std::vector<WaveUartFrame> uartFrames;
+    std::string uartError;
+    if (!restored.uartCapturePath.empty()) {
+        auto uartPath = std::filesystem::u8path(restored.uartCapturePath);
+        if (uartPath.is_relative()) uartPath = sessionDirectory / uartPath;
+        restored.uartCapturePath = Utf8FilePath(uartPath);
+        uartFrames = WaveUartLane::DecodeFile(restored.uartCapturePath, uartError);
+    }
+    InstallTrace(std::move(source), identity);
+    m_view->ApplySession(restored);
+    m_uartFrames = std::move(uartFrames);
+    m_uartCapturePath = restored.uartCapturePath;
+    m_sessionBindings = std::move(restored.signalBindings);
+    m_unresolvedBindings = std::move(resolution.unresolved);
+    m_unresolvedButton->SetLabel(wxString::Format("Unresolved (%zu)", m_unresolvedBindings.size()));
+    m_unresolvedButton->Enable(!m_unresolvedBindings.empty());
     if (m_themeButton) {
         m_themeButton->SetLabel(m_view->Theme() == WaveTheme::Dark
                                     ? "Theme: Dark" : "Theme: Light");
     }
-    m_signalAliases = std::move(session.signalAliases);
-    m_signalComments = std::move(session.signalComments);
+    m_signalAliases = std::move(restored.signalAliases);
+    m_signalComments = std::move(restored.signalComments);
     PopulateTree();
     RefreshEvents();
     RefreshMeasurement();
+    RefreshUartLane();
+    ScheduleVisiblePrefetch();
+    if (!uartError.empty()) wxMessageBox("Session restored; UART lane unavailable: " + uartError,
+                                       "Load Session", wxOK | wxICON_WARNING, this);
     return true;
 }
 

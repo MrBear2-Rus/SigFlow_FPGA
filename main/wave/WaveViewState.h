@@ -1,8 +1,9 @@
 #pragma once
 
 #include "../trace/TraceTypes.h"
-#include "WaveTheme.h"
+#include "WaveThemeMode.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <limits>
 #include <vector>

@@ -1,4 +1,5 @@
 #include "WaveformTextLayer.h"
+#include "WaveTheme.h"
 
 #include <wx/dcmemory.h>
 #include <wx/font.h>

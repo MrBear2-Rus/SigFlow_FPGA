@@ -1,4 +1,5 @@
 #include "WaveformGLCanvas.h"
+#include "WaveTheme.h"
 
 #include "WaveformRenderData.h"
 #include "WaveformTextLayer.h"

@@ -92,6 +92,8 @@ private:
     struct TreePlaceholderData : public wxClientData {};
 
     void BuildUi();
+    void InstallTrace(std::shared_ptr<sigflow::trace::TraceSource> source,
+                      const WaveSourceIdentity& identity);
     void PopulateTree();
     void PopulateModule(const wxTreeListItem& item);
     void AddTreePlaceholder(const wxTreeListItem& item);
@@ -150,6 +152,10 @@ private:
     bool m_hasProtocolReport = false;
     std::vector<std::size_t> m_eventRows;
     wxButton* m_themeButton = nullptr;
+    wxButton* m_unresolvedButton = nullptr;
+    WaveSourceIdentity m_sourceIdentity;
+    std::vector<WaveSignalBinding> m_sessionBindings;
+    std::vector<WaveSignalBinding> m_unresolvedBindings;
     WaveNavigationCallback m_navigationCallback;
     UiTheme::Subscription m_themeSubscription;
 };

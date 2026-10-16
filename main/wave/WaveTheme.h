@@ -4,6 +4,7 @@
 // 只新增一层适配，把背景 / 网格 / 文字接到唯一 Token 层 UiTheme（SAFE-012）。
 
 #include "ui/UiTheme.h"
+#include "WaveThemeMode.h"
 
 #include <wx/colour.h>
 
@@ -12,11 +13,6 @@
 
 namespace sigflow {
 namespace wave {
-
-enum class WaveTheme {
-    Dark,
-    Light
-};
 
 struct WaveThemeColors {
     wxColour background;
@@ -161,16 +157,6 @@ inline wxColour SignalColour(const std::string& name, bool isBus,
                              const UiTheme::Colours& ui)
 {
     return SignalColour(WaveSignalRoleOf(name, isBus), ui);
-}
-
-inline const char* ThemeName(WaveTheme theme)
-{
-    return theme == WaveTheme::Light ? "light" : "dark";
-}
-
-inline WaveTheme ThemeFromName(const std::string& name)
-{
-    return name == "light" ? WaveTheme::Light : WaveTheme::Dark;
 }
 
 } // namespace wave

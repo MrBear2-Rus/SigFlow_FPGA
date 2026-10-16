@@ -1,4 +1,5 @@
 #include "WaveformView.h"
+#include "WaveTheme.h"
 
 #include "WaveAnalysis.h"
 #include "WaveCompareHub.h"
@@ -372,6 +373,7 @@ void WaveformView::ApplySession(const WaveSessionData& session)
     if (m_miniMap) m_miniMap->SetBackgroundColour(ColorsForThemed(m_state.theme).miniMapBackground);
     m_state.visibleSignalIds = session.visibleSignalIds;
     m_state.Clamp();
+    RefreshMiniMap();
     if (m_glCanvas) m_glCanvas->Refresh();
     Refresh();
 }
