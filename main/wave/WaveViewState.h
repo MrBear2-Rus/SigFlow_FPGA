@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <limits>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace sigflow {
@@ -34,6 +35,8 @@ struct WaveEvent {
 struct WaveViewState {
     std::vector<int> visibleSignalIds;
     std::unordered_map<int, WaveDisplayFormat> displayFormats;
+    std::unordered_map<int, std::string> signalGroups;
+    std::unordered_set<int> pinnedSignalIds;
     sigflow::trace::TimeValue timeOffset = 0;
     sigflow::trace::TimeValue timeSpan = 1000;
     sigflow::trace::TimeValue maxTime = 0;

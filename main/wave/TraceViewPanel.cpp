@@ -986,6 +986,8 @@ void TraceViewPanel::OnTreeContextMenu(wxTreeListEvent& event)
     const int hex = wxID_HIGHEST + 306;
     const int unsignedFormat = wxID_HIGHEST + 307;
     const int signedFormat = wxID_HIGHEST + 308;
+    const int group = wxID_HIGHEST + 309;
+    const int pinned = wxID_HIGHEST + 310;
     menu.Append(add, "Add to waveform");
     menu.Append(remove, "Remove from waveform");
     menu.AppendSeparator();
@@ -997,6 +999,10 @@ void TraceViewPanel::OnTreeContextMenu(wxTreeListEvent& event)
     formatMenu->AppendRadioItem(unsignedFormat, "Unsigned decimal");
     formatMenu->AppendRadioItem(signedFormat, "Signed decimal");
     menu.AppendSubMenu(formatMenu, "Display format");
+    menu.AppendSeparator();
+    menu.Append(group, "Set display group...");
+    menu.AppendCheckItem(pinned, "Pin to top");
+    menu.Check(pinned, m_view->SignalPinned(signalId));
     const WaveDisplayFormat currentFormat = m_view->DisplayFormat(signalId);
     formatMenu->Check(currentFormat == WaveDisplayFormat::Binary ? binary :
                       currentFormat == WaveDisplayFormat::Hex ? hex :
@@ -1043,6 +1049,15 @@ void TraceViewPanel::OnTreeContextMenu(wxTreeListEvent& event)
     menu.Bind(wxEVT_MENU, [this, signalId](wxCommandEvent&) {
         m_view->SetDisplayFormat(signalId, WaveDisplayFormat::Signed);
     }, signedFormat);
+    menu.Bind(wxEVT_MENU, [this, signalId](wxCommandEvent&) {
+        wxTextEntryDialog dialog(this, "Group (empty clears it):", "Signal Group",
+                                 wxString::FromUTF8(m_view->SignalGroup(signalId)));
+        if (dialog.ShowModal() != wxID_OK) return;
+        m_view->SetSignalGroup(signalId, std::string(dialog.GetValue().ToUTF8().data()));
+    }, group);
+    menu.Bind(wxEVT_MENU, [this, signalId](wxCommandEvent& event) {
+        m_view->SetSignalPinned(signalId, event.IsChecked());
+    }, pinned);
     m_tree->PopupMenu(&menu);
 }
 

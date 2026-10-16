@@ -31,7 +31,9 @@
           "display_format": {
             "type": "string",
             "enum": ["binary", "hex", "unsigned", "signed"]
-          }
+          },
+          "group": { "type": "string" },
+          "pinned": { "type": "boolean" }
         }
       }
     },

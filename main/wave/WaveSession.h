@@ -24,6 +24,8 @@ struct WaveSignalBinding {
     std::string alias;
     std::string comment;
     WaveDisplayFormat displayFormat = WaveDisplayFormat::Binary;
+    std::string group;
+    bool pinned = false;
 };
 
 // 波形会话（W3-07）：视口、信号列表、Marker、事件、A-B、播放头。
@@ -47,6 +49,8 @@ struct WaveSessionData {
     std::unordered_map<int, std::string> signalAliases;
     std::unordered_map<int, std::string> signalComments;
     std::unordered_map<int, WaveDisplayFormat> signalDisplayFormats;
+    std::unordered_map<int, std::string> signalGroups;
+    std::unordered_map<int, bool> signalPinned;
     std::string uartCapturePath;
 };
 

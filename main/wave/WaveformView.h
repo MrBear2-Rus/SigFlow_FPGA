@@ -30,6 +30,10 @@ public:
     void SetVisibleSignals(const std::vector<int>& signalIds);
     void SetDisplayFormat(int signalId, WaveDisplayFormat format);
     WaveDisplayFormat DisplayFormat(int signalId) const;
+    void SetSignalGroup(int signalId, const std::string& group);
+    std::string SignalGroup(int signalId) const;
+    void SetSignalPinned(int signalId, bool pinned);
+    bool SignalPinned(int signalId) const;
 
     void ZoomIn();
     void ZoomOut();

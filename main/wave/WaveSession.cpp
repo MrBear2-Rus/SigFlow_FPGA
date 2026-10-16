@@ -103,9 +103,12 @@ bool ParseSession(const Json::Value& root, WaveSessionData& out, std::string& er
                 !item["visible"].isBool() || !text(item, "kind", kind) ||
                 !text(item, "alias", binding.alias) || !text(item, "comment", binding.comment) ||
                 !text(item, "display_format", displayFormat) ||
-                !WaveDisplayFormatFromName(displayFormat, binding.displayFormat)) {
+                !WaveDisplayFormatFromName(displayFormat, binding.displayFormat) ||
+                !text(item, "group", binding.group) ||
+                (item.isMember("pinned") && !item["pinned"].isBool())) {
                 error = "invalid or duplicate stable signal binding"; return false;
             }
+            binding.pinned = item.get("pinned", false).asBool();
             binding.width = item["width"].asUInt();
             binding.visible = item["visible"].asBool();
             if (kind == "scalar") binding.kind = sigflow::trace::SignalKind::Scalar;
@@ -211,8 +214,12 @@ bool WaveSessionBindSignals(const sigflow::trace::TraceSource& source, WaveSessi
     std::vector<WaveSignalBinding> bindings;
     std::set<std::string> used;
     std::map<std::string, WaveDisplayFormat> previousFormats;
+    std::map<std::string, std::string> previousGroups;
+    std::map<std::string, bool> previousPinned;
     for (const auto& binding : session.signalBindings) {
         if (!binding.signalKey.empty()) previousFormats[binding.signalKey] = binding.displayFormat;
+        if (!binding.signalKey.empty()) previousGroups[binding.signalKey] = binding.group;
+        if (!binding.signalKey.empty()) previousPinned[binding.signalKey] = binding.pinned;
     }
     std::map<std::string, std::vector<const sigflow::trace::SignalInfo*>> catalogue;
     for (const auto& signal : source.Signals()) catalogue[signal.fullName].push_back(&signal);
@@ -230,6 +237,14 @@ bool WaveSessionBindSignals(const sigflow::trace::TraceSource& source, WaveSessi
             runtime != session.signalDisplayFormats.end()) {
             binding.displayFormat = runtime->second;
         }
+        if (const auto previous = previousGroups.find(signal->fullName);
+            previous != previousGroups.end()) binding.group = previous->second;
+        if (const auto previous = previousPinned.find(signal->fullName);
+            previous != previousPinned.end()) binding.pinned = previous->second;
+        if (const auto runtime = session.signalGroups.find(id);
+            runtime != session.signalGroups.end()) binding.group = runtime->second;
+        if (const auto runtime = session.signalPinned.find(id);
+            runtime != session.signalPinned.end()) binding.pinned = runtime->second;
         if (auto item = session.signalAliases.find(id); item != session.signalAliases.end()) binding.alias = item->second;
         if (auto item = session.signalComments.find(id); item != session.signalComments.end()) binding.comment = item->second;
         bindings.push_back(std::move(binding));
@@ -294,6 +309,8 @@ bool WaveSessionBindSignals(const sigflow::trace::TraceSource& source, WaveSessi
     session.sourcePath = source.Path();
     session.signalBindings = std::move(ordered);
     session.signalDisplayFormats.clear();
+    session.signalGroups.clear();
+    session.signalPinned.clear();
     return true;
 }
 
@@ -323,6 +340,8 @@ bool WaveSessionResolve(const WaveSessionData& saved, const sigflow::trace::Trac
     session.signalAliases.clear();
     session.signalComments.clear();
     session.signalDisplayFormats.clear();
+    session.signalGroups.clear();
+    session.signalPinned.clear();
     std::map<std::string, std::vector<const sigflow::trace::SignalInfo*>> signals;
     for (const auto& signal : source.Signals()) signals[signal.fullName].push_back(&signal);
     std::set<std::string> seen;
@@ -339,6 +358,8 @@ bool WaveSessionResolve(const WaveSessionData& saved, const sigflow::trace::Trac
         if (!binding.alias.empty()) session.signalAliases[id] = binding.alias;
         if (!binding.comment.empty()) session.signalComments[id] = binding.comment;
         session.signalDisplayFormats[id] = binding.displayFormat;
+        if (!binding.group.empty()) session.signalGroups[id] = binding.group;
+        if (binding.pinned) session.signalPinned[id] = true;
     }
     if (!resolved.sourceMatched || layoutOnly) {
         session.timeOffset = 0;
@@ -386,6 +407,8 @@ bool WaveSessionSave(const WaveSessionData& session, const std::string& path, st
         item["alias"] = binding.alias;
         item["comment"] = binding.comment;
         item["display_format"] = WaveDisplayFormatName(binding.displayFormat);
+        item["group"] = binding.group;
+        item["pinned"] = binding.pinned;
         root["signal_bindings"].append(item);
     }
     root["time_offset"] = Json::UInt64(session.timeOffset);

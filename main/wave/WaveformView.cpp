@@ -345,6 +345,8 @@ WaveSessionData WaveformView::CaptureSession() const
     session.sourcePath = m_source ? m_source->Path() : std::string();
     session.visibleSignalIds = m_state.visibleSignalIds;
     session.signalDisplayFormats = m_state.displayFormats;
+    session.signalGroups = m_state.signalGroups;
+    for (const int id : m_state.pinnedSignalIds) session.signalPinned[id] = true;
     session.timeOffset = m_state.timeOffset;
     session.timeSpan = m_state.timeSpan;
     session.markers = m_state.markers;
@@ -374,17 +376,25 @@ void WaveformView::ApplySession(const WaveSessionData& session)
     if (m_miniMap) m_miniMap->SetBackgroundColour(ColorsForThemed(m_state.theme).miniMapBackground);
     m_state.visibleSignalIds = session.visibleSignalIds;
     m_state.displayFormats.clear();
+    m_state.signalGroups.clear();
+    m_state.pinnedSignalIds.clear();
     if (m_source) {
         for (const auto& binding : session.signalBindings) {
             for (const auto& signal : m_source->Signals()) {
                 if (signal.fullName == binding.signalKey) {
                     m_state.displayFormats[signal.id] = binding.displayFormat;
+                    if (!binding.group.empty()) m_state.signalGroups[signal.id] = binding.group;
+                    if (binding.pinned) m_state.pinnedSignalIds.insert(signal.id);
                     break;
                 }
             }
         }
         for (const auto& [id, format] : session.signalDisplayFormats) {
             m_state.displayFormats[id] = format;
+        }
+        for (const auto& [id, group] : session.signalGroups) m_state.signalGroups[id] = group;
+        for (const auto& [id, pinned] : session.signalPinned) {
+            if (pinned) m_state.pinnedSignalIds.insert(id);
         }
     }
     m_state.Clamp();
@@ -414,6 +424,44 @@ WaveDisplayFormat WaveformView::DisplayFormat(int signalId) const
 {
     const auto it = m_state.displayFormats.find(signalId);
     return it == m_state.displayFormats.end() ? WaveDisplayFormat::Binary : it->second;
+}
+
+void WaveformView::SetSignalGroup(int signalId, const std::string& group)
+{
+    if (!m_source || !m_source->SignalById(signalId)) return;
+    if (group.empty()) m_state.signalGroups.erase(signalId);
+    else m_state.signalGroups[signalId] = group;
+    Refresh();
+    NotifyViewChanged();
+}
+
+std::string WaveformView::SignalGroup(int signalId) const
+{
+    const auto it = m_state.signalGroups.find(signalId);
+    return it == m_state.signalGroups.end() ? std::string() : it->second;
+}
+
+void WaveformView::SetSignalPinned(int signalId, bool pinned)
+{
+    if (!m_source || !m_source->SignalById(signalId)) return;
+    if (pinned) {
+        m_state.pinnedSignalIds.insert(signalId);
+        auto it = std::find(m_state.visibleSignalIds.begin(), m_state.visibleSignalIds.end(), signalId);
+        if (it != m_state.visibleSignalIds.end()) {
+            m_state.visibleSignalIds.erase(it);
+            m_state.visibleSignalIds.insert(m_state.visibleSignalIds.begin(), signalId);
+        }
+    } else {
+        m_state.pinnedSignalIds.erase(signalId);
+    }
+    if (m_glCanvas) m_glCanvas->Refresh();
+    Refresh();
+    NotifyViewChanged();
+}
+
+bool WaveformView::SignalPinned(int signalId) const
+{
+    return m_state.pinnedSignalIds.count(signalId) != 0;
 }
 
 void WaveformView::AutoSelectSignals()
