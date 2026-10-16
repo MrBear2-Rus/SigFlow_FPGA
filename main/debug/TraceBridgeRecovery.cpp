@@ -48,6 +48,7 @@ const char* ToString(RecoveryActionKind kind)
 {
     switch (kind) {
         case RecoveryActionKind::SelectDevice: return "device.select";
+        case RecoveryActionKind::ReconnectTransport: return "transport.reconnect";
         case RecoveryActionKind::ReleaseControl: return "control.release";
         case RecoveryActionKind::ReduceProbeCount: return "probe.reduce";
         case RecoveryActionKind::OpenTimingReport: return "timing.open_report";
@@ -70,7 +71,8 @@ bool TraceBridgeRecoveryService::Build(const TraceBridgeRecoveryContext& context
 
     const bool deviceIssue = ContainsAny(
         codes, {"DEVICE_MISSING", "SERIAL_DEVICE_MISSING", "FTDI_DEVICE_MISSING",
-                "DEVICE_UNAVAILABLE", "DEVICE_REENUMERATED"});
+                "FTDI_DRIVER_MISMATCH", "JTAG_CHAIN_MISMATCH", "DEVICE_UNAVAILABLE",
+                "DEVICE_REENUMERATED"});
     if (deviceIssue) {
         AddAction(plan, RecoveryActionKind::SelectDevice, !context.captureActive,
                   false, false,
@@ -78,8 +80,23 @@ bool TraceBridgeRecoveryService::Build(const TraceBridgeRecoveryContext& context
                       ? "capture is active; select another device after stopping at a safe boundary"
                       : "refresh the device list and select the intended target",
                   MatchingCodes(codes, {"DEVICE_MISSING", "SERIAL_DEVICE_MISSING",
-                                        "FTDI_DEVICE_MISSING", "DEVICE_UNAVAILABLE",
+                                        "FTDI_DEVICE_MISSING", "FTDI_DRIVER_MISMATCH",
+                                        "JTAG_CHAIN_MISMATCH", "DEVICE_UNAVAILABLE",
                                         "DEVICE_REENUMERATED"}));
+    }
+
+    const bool transportRecoveryIssue = ContainsAny(
+        codes, {"JTAG_TAP_ERROR", "JTAG_PROTOCOL_TIMEOUT", "JTAG_SEQUENCE_ERROR",
+                "JTAG_STREAM_MISALIGNED", "TRANSPORT_DISCONNECTED"});
+    if (transportRecoveryIssue) {
+        AddAction(plan, RecoveryActionKind::ReconnectTransport,
+                  !context.captureActive, true, false,
+                  context.captureActive
+                      ? "stop at a safe boundary before reconnecting the transport"
+                      : "reconnect the transport, reset protocol state and revalidate identity",
+                  MatchingCodes(codes, {"JTAG_TAP_ERROR", "JTAG_PROTOCOL_TIMEOUT",
+                                        "JTAG_SEQUENCE_ERROR", "JTAG_STREAM_MISALIGNED",
+                                        "TRANSPORT_DISCONNECTED"}));
     }
 
     const bool controlIssue = ContainsAny(

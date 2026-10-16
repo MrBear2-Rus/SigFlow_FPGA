@@ -9,6 +9,7 @@ namespace sigflow::debug {
 
 enum class RecoveryActionKind {
     SelectDevice,
+    ReconnectTransport,
     ReleaseControl,
     ReduceProbeCount,
     OpenTimingReport,
