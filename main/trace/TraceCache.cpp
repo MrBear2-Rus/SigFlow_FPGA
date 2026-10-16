@@ -1,5 +1,6 @@
 #include "TraceCache.h"
 
+#include <chrono>
 #include <utility>
 
 namespace sigflow {
@@ -19,6 +20,7 @@ bool CachingTraceSource::Open(const std::string& path, std::string& error)
         std::lock_guard<std::mutex> lock(m_mutex);
         m_cache.clear();
         m_budget.Clear();
+        m_stats = TraceCacheStats();
     }
     return m_inner->Open(path, error);
 }
@@ -81,16 +83,21 @@ bool CachingTraceSource::Query(const SignalInfo& signal, TimeValue t0, TimeValue
         const auto hit = m_cache.find(key);
         if (hit != m_cache.end() && hit->second.isQuery) {
             m_budget.Touch(key);
+            ++m_stats.queryHits;
             out = hit->second.transitions;
             return true;
         }
+        ++m_stats.queryMisses;
     }
 
     std::vector<Transition> fetched;
+    const auto fetchStart = std::chrono::steady_clock::now();
     {
         std::lock_guard<std::mutex> ioLock(m_ioMutex);
         if (!m_inner->Query(signal, t0, t1, fetched, error)) return false;
     }
+    const auto fetchUs = static_cast<std::uint64_t>(std::chrono::duration_cast<
+        std::chrono::microseconds>(std::chrono::steady_clock::now() - fetchStart).count());
 
     {
         std::lock_guard<std::mutex> lock(m_mutex);
@@ -104,6 +111,8 @@ bool CachingTraceSource::Query(const SignalInfo& signal, TimeValue t0, TimeValue
             for (const std::string& victim : evicted) m_cache.erase(victim);
             m_cache[key] = std::move(entry);
         }
+        m_stats.queryFetchTimeUs += fetchUs;
+        m_stats.fetchedTransitions += fetched.size();
     }
     out = std::move(fetched);
     return true;
@@ -118,16 +127,21 @@ bool CachingTraceSource::ValueAt(const SignalInfo& signal, TimeValue t,
         const auto hit = m_cache.find(key);
         if (hit != m_cache.end() && !hit->second.isQuery) {
             m_budget.Touch(key);
+            ++m_stats.valueHits;
             value = hit->second.value;
             return true;
         }
+        ++m_stats.valueMisses;
     }
 
     std::string fetched;
+    const auto fetchStart = std::chrono::steady_clock::now();
     {
         std::lock_guard<std::mutex> ioLock(m_ioMutex);
         if (!m_inner->ValueAt(signal, t, fetched, error)) return false;
     }
+    const auto fetchUs = static_cast<std::uint64_t>(std::chrono::duration_cast<
+        std::chrono::microseconds>(std::chrono::steady_clock::now() - fetchStart).count());
 
     {
         std::lock_guard<std::mutex> lock(m_mutex);
@@ -139,6 +153,7 @@ bool CachingTraceSource::ValueAt(const SignalInfo& signal, TimeValue t,
             for (const std::string& victim : evicted) m_cache.erase(victim);
             m_cache[key] = std::move(entry);
         }
+        m_stats.valueFetchTimeUs += fetchUs;
     }
     value = std::move(fetched);
     return true;
@@ -154,6 +169,18 @@ std::size_t CachingTraceSource::CacheEntries() const
 {
     std::lock_guard<std::mutex> lock(m_mutex);
     return m_cache.size();
+}
+
+TraceCacheStats CachingTraceSource::Stats() const
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_stats;
+}
+
+void CachingTraceSource::ResetStats()
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_stats = TraceCacheStats();
 }
 
 } // namespace trace

@@ -41,6 +41,15 @@ struct TraceQueryRequest {
     std::function<void(std::uint64_t, std::size_t, std::size_t)> progress;
 };
 
+struct TraceQueryServiceStats {
+    std::uint64_t submitted = 0;
+    std::uint64_t rejected = 0;
+    std::uint64_t completed = 0;
+    std::uint64_t cancelled = 0;
+    std::uint64_t failed = 0;
+    std::size_t peakQueueDepth = 0;
+};
+
 class TraceQueryService {
 public:
     explicit TraceQueryService(std::size_t maxQueuedJobs = 8);
@@ -53,6 +62,8 @@ public:
     bool Cancel(std::uint64_t jobId);
     void CancelAll();
     std::size_t QueueDepth() const;
+    TraceQueryServiceStats Stats() const;
+    void ResetStats();
 
 private:
     struct Job;
@@ -63,6 +74,7 @@ private:
     std::condition_variable condition_;
     std::deque<std::shared_ptr<Job>> queue_;
     std::unordered_map<std::uint64_t, std::shared_ptr<Job>> jobs_;
+    TraceQueryServiceStats stats_;
     std::thread worker_;
     std::atomic<bool> stopping_{false};
     std::atomic<std::uint64_t> nextJobId_{1};

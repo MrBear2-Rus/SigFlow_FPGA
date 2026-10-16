@@ -53,10 +53,14 @@ std::uint64_t TraceQueryService::Submit(TraceQueryRequest request)
     job->id = id;
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        if (stopping_.load()) return 0;
-        if (queue_.size() >= maxQueuedJobs_) return 0;
+        if (stopping_.load() || queue_.size() >= maxQueuedJobs_) {
+            ++stats_.rejected;
+            return 0;
+        }
+        ++stats_.submitted;
         jobs_[id] = job;
         queue_.push_back(job);
+        stats_.peakQueueDepth = std::max(stats_.peakQueueDepth, queue_.size());
     }
     condition_.notify_one();
     return id;
@@ -81,6 +85,18 @@ std::size_t TraceQueryService::QueueDepth() const
 {
     std::lock_guard<std::mutex> lock(mutex_);
     return queue_.size();
+}
+
+TraceQueryServiceStats TraceQueryService::Stats() const
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    return stats_;
+}
+
+void TraceQueryService::ResetStats()
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    stats_ = TraceQueryServiceStats();
 }
 
 TraceQueryResult TraceQueryService::Execute(const std::shared_ptr<Job>& job)
@@ -160,6 +176,9 @@ void TraceQueryService::WorkerLoop()
         }
         {
             std::lock_guard<std::mutex> lock(mutex_);
+            if (result.cancelled) ++stats_.cancelled;
+            else if (result.success) ++stats_.completed;
+            else ++stats_.failed;
             jobs_.erase(job->id);
         }
     }

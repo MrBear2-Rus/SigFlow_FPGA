@@ -12,6 +12,16 @@
 namespace sigflow {
 namespace trace {
 
+struct TraceCacheStats {
+    std::uint64_t queryHits = 0;
+    std::uint64_t queryMisses = 0;
+    std::uint64_t valueHits = 0;
+    std::uint64_t valueMisses = 0;
+    std::uint64_t queryFetchTimeUs = 0;
+    std::uint64_t valueFetchTimeUs = 0;
+    std::uint64_t fetchedTransitions = 0;
+};
+
 // 查询结果缓存装饰器（W1-04）：基于 TraceMemoryBudget 的 LRU 字节预算。
 class CachingTraceSource : public TraceSource {
 public:
@@ -34,6 +44,8 @@ public:
 
     std::size_t CacheBytes() const;
     std::size_t CacheEntries() const;
+    TraceCacheStats Stats() const;
+    void ResetStats();
 
 private:
     struct CacheEntry {
@@ -49,6 +61,7 @@ private:
     std::unique_ptr<TraceSource> m_inner;
     TraceMemoryBudget m_budget;
     std::unordered_map<std::string, CacheEntry> m_cache;
+    TraceCacheStats m_stats;
     mutable std::mutex m_mutex;
     // Some VCD/FST readers keep mutable seek/decode state. The cache itself
     // is thread-safe, but the wrapped reader must also be serialized.
