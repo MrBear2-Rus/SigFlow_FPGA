@@ -24,6 +24,7 @@
 #include <wx/timer.h>
 #include <wx/weakref.h>
 #include <wx/config.h>
+#include <wx/accel.h>
 
 #include "platform/Log.h"
 #ifdef __WXMSW__
@@ -589,8 +590,37 @@ MainFrame::MainFrame()
     /* 面板加载 */
     m_auiMgr.SetManagedWindow(this);
 
+    // 页面底：整窗先铺一层 160° 冷灰渐变。AUI 只画它自己的 dock 区域，窗口上未被覆盖的
+    // 部分（例如窗口底缘、重排间隙）会露出未绘制的黑/白色块 —— 由这一层兜底填满。
+    SetBackgroundStyle(wxBG_STYLE_PAINT);
+    Bind(wxEVT_ERASE_BACKGROUND, [this](wxEraseEvent& event) {
+        wxDC* dc = event.GetDC();
+        if (dc == nullptr) { event.Skip(); return; }
+        dc->SetBackground(wxBrush(UiTheme::Palette().bgWindow));
+        dc->Clear();
+        UiTheme::PaintPageGradient(*dc, GetClientSize(), wxPoint(0, 0), GetClientRect());
+    });
+    // 兜底补全：wxBG_STYLE_PAINT 下，未被任何 pane 覆盖的窗口区域（例如左下角
+    // 侧栏底缘、重排间隙）有时走 WM_PAINT 而非 WM_ERASEBKGND。只绑 ERASE 的话
+    // 这里就没有任何绘制 → 直接露出未初始化的纯黑块（用户实测：左下角黑框）。
+    // 同时处理 PAINT，并用基色整块铺底，保证任何裸露区域都不会是黑的。
+    Bind(wxEVT_PAINT, [this](wxPaintEvent&) {
+        wxAutoBufferedPaintDC dc(this);
+        dc.SetBackground(wxBrush(UiTheme::Palette().bgWindow));
+        dc.Clear();
+        UiTheme::PaintPageGradient(dc, GetClientSize(), wxPoint(0, 0), GetClientRect());
+    });
+
     /* 菜单栏*/
-    SetMenuBar(new MainMenuBar(this));
+    m_mainMenuBar = new MainMenuBar(this);
+    SetMenuBar(m_mainMenuBar);
+#ifdef __WXMSW__
+    // 方案 B：原生菜单条在 MSW 上没有窗口句柄、属系统非客户区，wx 无法改高度/内边距/颜色。
+    // 这里保留 wxMenuBar 对象（GetMenuBar()、菜单事件/勾选/动态重建全部不变），只把它从
+    // 非客户区摘掉；「File Edit …」这一行改由自绘 UiMenuBar 呈现（见下方 menuBar pane），
+    // 被摘掉的 30 条 \tCtrl+… 加速键由 InstallMenuAccelerators() 用 wxAcceleratorTable 补齐。
+    DetachNativeMenuBar();
+#endif
     // T-340：状态栏改为 5 字段（SPEC CMP-070）
     //   0 = 左：状态灯 + 当前操作（既有业务文本继续写字段 0，SAFE-005 不动）
     //   1 = 坐标   2 = Grid   3 = Zoom   4 = 工具链版本（CMP-072 / CMP-073）
@@ -600,6 +630,8 @@ MainFrame::MainFrame()
     int style[] = { wxSB_NORMAL, wxSB_NORMAL, wxSB_NORMAL, wxSB_NORMAL, wxSB_NORMAL };
     GetStatusBar()->SetFieldsCount(5, widths);
     GetStatusBar()->SetStatusStyles(5, style);
+    // CMP-072: 12 DIP status text (app.html spec: 12px / tabular-nums).
+    GetStatusBar()->SetFont(UiTheme::UiFont(GetStatusBar(), UiTheme::TextSize::P12, UiTheme::Weight::Normal));
 
     m_busyIndicator = new wxActivityIndicator(GetStatusBar(), wxID_ANY);
     m_busyIndicator->Hide();
@@ -810,9 +842,9 @@ MainFrame::MainFrame()
         return bundle.GetBitmap(FromDIP((tbIconSize, tbIconSize)));
         };
 
-    sideBar->AddTool(ID_PROJ, wxEmptyString, GetIcon("res\\icons\\project.svg"), "Project Manager", wxITEM_CHECK);
-    sideBar->AddTool(ID_FLOW, wxEmptyString, GetIcon("res\\svg_icons\\icon.svg"), "SigFlow Tree", wxITEM_CHECK);
-    sideBar->AddTool(ID_TBOX, wxEmptyString, GetIcon("res\\icons\\lib.svg"), "Component Library", wxITEM_CHECK);
+    sideBar->AddTool(ID_PROJ, wxEmptyString, GetIcon("res\\ui_icons\\folder.svg"), "Project Manager", wxITEM_CHECK);
+    sideBar->AddTool(ID_FLOW, wxEmptyString, GetIcon("res\\ui_icons\\tree.svg"), "SigFlow Tree", wxITEM_CHECK);
+    sideBar->AddTool(ID_TBOX, wxEmptyString, GetIcon("res\\ui_icons\\components.svg"), "Component Library", wxITEM_CHECK);
     sideBar->ToggleTool(ID_PROJ, 1);
     // T-230：活动栏改用 token 化 chip 绘制（原 MyCustomToolBarArt 只处理 checked 态）
     // T-620：art 指针保留给键盘焦点环（A11Y-001；所有权仍属 wxAuiToolBar，THE-032）
@@ -958,7 +990,7 @@ MainFrame::MainFrame()
     auto* leftRegionHost = new UiRegionHost(this);
     wxSimplebook* leftSideNotebook = new wxSimplebook(leftRegionHost, wxID_ANY,
         wxDefaultPosition, wxDefaultSize, wxBORDER_NONE);
-    leftRegionHost->SetContentInset(UiTheme::Spacing::S2);
+    leftRegionHost->SetContentInset(UiTheme::Spacing::S1);
     leftRegionHost->SetContent(leftSideNotebook);
 
     m_projectTreePanel->Reparent(leftSideNotebook);
@@ -1010,16 +1042,16 @@ MainFrame::MainFrame()
     topBar->SetToolBitmapSize(tbIconSize);
 
     // --- 左侧：项目与控制组 ---
-    topBar->AddTool(ID_TB_NEW, "New", GetIcon("res\\svg_icons\\new_project.svg"), "New Project");
-    topBar->AddTool(ID_TB_OPEN, "Open", GetIcon("res\\svg_icons\\open_project.svg"), "Open Project");
-    topBar->AddTool(ID_TB_SAVE, "Save", GetIcon("res\\svg_icons\\save_project.svg"), "Save All");
+    topBar->AddTool(ID_TB_NEW, "New", GetIcon("res\\ui_icons\\new.svg"), "New Project");
+    topBar->AddTool(ID_TB_OPEN, "Open", GetIcon("res\\ui_icons\\open.svg"), "Open Project");
+    topBar->AddTool(ID_TB_SAVE, "Save", GetIcon("res\\ui_icons\\save.svg"), "Save All");
     topBar->AddSeparator();
 
-    topBar->AddTool(ID_TB_RECLAIM, "Reclaim", GetIcon("res\\svg_icons\\reclaim.svg"), "Reclaim Memory");
+    topBar->AddTool(ID_TB_RECLAIM, "Reclaim", GetIcon("res\\ui_icons\\reclaim.svg"), "Reclaim Memory");
     topBar->AddSeparator();
 
-    topBar->AddTool(ID_TB_START, "Start", GetIcon("res\\svg_icons\\start.svg"), "Start Simulation");
-    topBar->AddTool(ID_TB_STOP, "Stop", GetIcon("res\\svg_icons\\end.svg"), "Stop Simulation");
+    topBar->AddTool(ID_TB_START, "Start", GetIcon("res\\ui_icons\\start.svg"), "Start Simulation");
+    topBar->AddTool(ID_TB_STOP, "Stop", GetIcon("res\\ui_icons\\stop.svg"), "Stop Simulation");
 
     // DEC-12：按 GUI 设计增加唯一玻璃 CTA，原六项/快捷键保持。
     topBar->AddSeparator();
@@ -1049,6 +1081,12 @@ MainFrame::MainFrame()
     // 绑定顺序：后绑定的先执行 → 先绑 OnLayoutKey，保证 OnKeyboardCharHook 先跑（它只会 Skip）。
     Bind(wxEVT_CHAR_HOOK,&MainFrame::OnLayoutKey,this);
     Bind(wxEVT_CHAR_HOOK,&MainFrame::OnKeyboardCharHook,this);
+    // 方案 B：Alt+<字母> / F10 打开自绘菜单条（原生条已摘除，助记符需自行接住）。
+    // CHAR_HOOK 后绑定者先执行 → 本处理器最先看到按键，命中才消费，否则 Skip。
+    Bind(wxEVT_CHAR_HOOK, [this](wxKeyEvent& event) {
+        if (HandleMenuBarKeyboard(event)) return;
+        event.Skip();
+    });
 
 
     // T-230 / GAP-C3：顶部工具栏此前使用**默认 Art**（与活动栏外观不一致），改为同一套 chip Art。
@@ -1090,8 +1128,10 @@ MainFrame::MainFrame()
     wxAuiNotebook* rightNotebook = new wxAuiNotebook(rightRegionHost, wxID_ANY, wxDefaultPosition, wxDefaultSize,
         wxAUI_NB_TOP | wxAUI_NB_TAB_MOVE | wxAUI_NB_TAB_EXTERNAL_MOVE | wxAUI_NB_TAB_SPLIT |
         wxBORDER_NONE);
-    rightRegionHost->SetContentInset(UiTheme::Spacing::S2);
+    rightRegionHost->SetContentInset(UiTheme::Spacing::S1);
     rightRegionHost->SetContent(rightNotebook);
+    // 确保页签用 UiTabArt（纯白底 + 下端绿线）；否则落回默认 Art，选中页签会被画成黑底白字。
+    rightNotebook->SetArtProvider(new UiTabArt());
 
     m_sfnPropertyPanel->Reparent(rightNotebook);
     rightNotebook->AddPage(m_sfnPropertyPanel, "Property");
@@ -1106,7 +1146,7 @@ MainFrame::MainFrame()
     auto* mainSplitter = new UiWorkspaceSplitter(centerRegionHost, wxID_ANY,
         wxDefaultPosition, wxDefaultSize,
         wxSP_LIVE_UPDATE | wxSP_3DSASH | wxBORDER_NONE);
-    centerRegionHost->SetContentInset(UiTheme::Spacing::S2);
+    centerRegionHost->SetContentInset(UiTheme::Spacing::S1);
     centerRegionHost->SetContent(mainSplitter);
     m_editorChrome->Reparent(mainSplitter);
     m_canvas->Reparent(mainSplitter);
@@ -1127,7 +1167,9 @@ MainFrame::MainFrame()
         wxAUI_NB_TOP | wxAUI_NB_TAB_MOVE | wxAUI_NB_TAB_EXTERNAL_MOVE | wxAUI_NB_TAB_SPLIT |
         wxBORDER_NONE);
     m_bottomNotebook = bottomNotebook;
+    m_bottomHost->SetContentInset(UiTheme::Spacing::S1);   // 与其它栏统一间距，且减小与中部画布的空隙
     m_bottomHost->SetContent(bottomNotebook);
+    bottomNotebook->SetArtProvider(new UiTabArt());   // 同上：避免默认 Art 的黑色选中页签
 
     m_terminalCtrl->Reparent(bottomNotebook);
     m_wavePanel->Reparent(bottomNotebook);
@@ -1147,17 +1189,36 @@ MainFrame::MainFrame()
     const int bottomH = FromDIP(UiTheme::Skeleton::BottomH);
 
     // 3. 配置 Pane
+#ifdef __WXMSW__
+    // 方案 B：自绘菜单条（原生条已在构造开头从非客户区摘除）。
+    // Layer 11 让它成为最外层顶部行 —— 横跨整窗、压在活动栏（Layer 10）之上，
+    // 位置与设计稿的菜单条一致。
+    m_menuBarPanel = new UiMenuBar(this, m_mainMenuBar);
+    m_auiMgr.AddPane(m_menuBarPanel, wxAuiPaneInfo()
+        .Name("menuBar")
+        .Top()
+        .Layer(13)          // 最高层：菜单行在最上面，横跨整窗
+        .MinSize(-1, FromDIP(UiTheme::Skeleton::MenuBarH))
+        .BestSize(-1, FromDIP(UiTheme::Skeleton::MenuBarH))
+        .CaptionVisible(false)
+        .CloseButton(false)
+        .Gripper(false)
+        .PaneBorder(false)
+        .Fixed()
+        .Movable(false));
+    InstallMenuAccelerators();
+#endif
     m_auiMgr.AddPane(topBar, wxAuiPaneInfo()
         .Name("topBar")
         .Top()
-        .Layer(8)
+        .Layer(12)          // 高于活动栏(10)：工具栏自成一行、在菜单行之下铺满整宽
         .MinSize(-1, FromDIP(UiTheme::Skeleton::ToolBarH))
         .BestSize(-1, FromDIP(UiTheme::Skeleton::ToolBarH))
         .CaptionVisible(false)
         .CloseButton(false)
         .Gripper(false)
         .Fixed()
-        .PaneBorder(false) // 移除 AUI 管理的边框
+        .PaneBorder(true) // 移除 AUI 管理的边框
         .Movable(false)    // 固定位置，防止用户拖动导致 UI 错位
     );
 
@@ -1169,7 +1230,7 @@ MainFrame::MainFrame()
         .CloseButton(false)
         .PinButton(false)
         .Gripper(false)
-        .PaneBorder(false)       // 尝试使用 PaneBorder
+        .PaneBorder(true)       // 尝试使用 PaneBorder
         .Fixed()
         .MinSize(FromDIP(UiTheme::Skeleton::RailW), -1)
         .BestSize(FromDIP(UiTheme::Skeleton::RailW), -1));
@@ -1180,9 +1241,11 @@ MainFrame::MainFrame()
         .MinSize(FromDIP(UiTheme::Skeleton::LeftMinW), -1)
         .MaxSize(FromDIP(UiTheme::Skeleton::LeftMaxW), -1)
         .FloatingSize(leftW, 600) // 诱导 AUI 记录这个宽度
-        .PaneBorder(false)
+        .PaneBorder(true)
         .Floatable(true)          // LAY-033：工具 pane 统一可浮动（原为 false，与右/底不一致）
-        .CaptionVisible(true).CloseButton(false).MaximizeButton(true));
+        // 顶部齐平：不再显示 caption 标题条（否则会比 rail / 中区低一个标题条高度，
+        // 四块（rail / 左栏 / 中区 / 右栏）的顶边就对不齐了）。
+        .CaptionVisible(false).CloseButton(false).MaximizeButton(false));
 
     m_auiMgr.AddPane(rightRegionHost, wxAuiPaneInfo()
         .Name("right_sidebar").Caption("Side Panel").Right().Layer(8)
@@ -1191,11 +1254,12 @@ MainFrame::MainFrame()
         .MaxSize(FromDIP(UiTheme::Skeleton::RightMaxW), -1)
         .FloatingSize(rightW, 600)
         .Floatable(true)
-        .MaximizeButton(true)
+        .CaptionVisible(false)   // 顶部齐平：见左栏说明
+        .MaximizeButton(false)
         .CloseButton(false));
 
     m_auiMgr.AddPane(m_bottomHost, wxAuiPaneInfo()
-        .Name("bottom_tabs").Caption("Console").Bottom().Layer(8)
+        .Name("bottom_tabs").Caption("Console").Bottom().Layer(7)   // 内侧停靠：终端只在左/右栏之间，左栏延伸到最底（消除左下角黑块）
         .BestSize(-1, bottomH)
         .MinSize(-1, FromDIP(80))
         .FloatingSize(800, bottomH)
@@ -1206,7 +1270,7 @@ MainFrame::MainFrame()
     m_auiMgr.AddPane(centerRegionHost, wxAuiPaneInfo()
         .Name("center_area")
         .CenterPane()       // 设为中心区域
-        .PaneBorder(false));
+        .PaneBorder(true));
 
     // --- 4. 暴力修正方案：手动干预 Sash 位置 ---
     m_auiMgr.Update();
@@ -1419,7 +1483,7 @@ void MainFrame::ApplyTheme()
     }
 
     if (GetStatusBar() != nullptr) {
-        GetStatusBar()->SetBackgroundColour(colours.bgPanel);
+        GetStatusBar()->SetBackgroundColour(wxColour(255, 255, 255));
         GetStatusBar()->Refresh();
     }
 
@@ -1524,14 +1588,14 @@ void MainFrame::ApplyTheme()
         if (auto* book = dynamic_cast<wxAuiNotebook*>(container)) {
             for (size_t i = 0; i < book->GetPageCount(); ++i) {
                 if (wxWindow* page = book->GetPage(i)) {
-                    page->SetBackgroundColour(colours.bgPanel);
+                    page->SetBackgroundColour(wxColour(255, 255, 255));  // 纯白（用户要求：右/左栏去掉灰底）
                 }
             }
             return;
         }
         // 非笔记本容器（左侧栏是 wxSimplebook）：直接给其页面子窗设底
         for (wxWindow* child : container->GetChildren()) {
-            child->SetBackgroundColour(colours.bgPanel);
+            child->SetBackgroundColour(wxColour(255, 255, 255));  // 纯白
         }
     };
     applyPageBackgrounds(paneContent(m_auiMgr.GetPane("left_sidebar").window));
@@ -1555,7 +1619,7 @@ void MainFrame::ApplyTheme()
                 if (auto* list = dynamic_cast<wxListBox*>(child)) {
                     list->SetWindowStyleFlag((list->GetWindowStyleFlag() & ~wxBORDER_MASK) |
                                              wxBORDER_NONE);
-                    list->SetBackgroundColour(colours.surfaceOnPanel);
+                    list->SetBackgroundColour(wxColour(255, 255, 255));
                     list->SetForegroundColour(colours.text1);
                 } else if (auto* text = dynamic_cast<wxTextCtrl*>(child)) {
                     text->SetWindowStyleFlag((text->GetWindowStyleFlag() & ~wxBORDER_MASK) |
@@ -1627,22 +1691,143 @@ void MainFrame::SetPaneVisible(const char* paneName, bool visible)
 //    ⇒ Windows 必须直接调用 Win32 的 `SetMenu`/`DrawMenuBar`；其它平台原生 `Show()` 即可。
 void MainFrame::ApplyMenuBarVisibility(bool visible)
 {
+#ifdef __WXMSW__
+    // 方案 B：菜单条是自绘 pane（"menuBar"），显隐 = 显示/隐藏这个 pane。
+    // 原生 wxMenuBar 对象始终保留（GetMenuBar() 可用、菜单项事件/勾选/重建都不变），
+    // 但从构造期起就**永不**挂到非客户区，所以这里不再需要动 Win32 的 SetMenu。
+    if (wxMenuBar* bar = GetMenuBar()) {
+        bar->Show(visible);  // 维持 IsShown() 与 m_layoutState.menubar 一致（ApplyLayoutVisibility 依赖）
+    }
+    if (m_menuBarPanel != nullptr) {
+        m_auiMgr.GetPane("menuBar").Show(visible);
+        m_auiMgr.Update();
+    }
+#else
+    // 非 Windows：仍是原生菜单条，保持原行为。
     wxMenuBar* bar = GetMenuBar();
     if (bar == nullptr) {
         return;
     }
-    bar->Show(visible);  // 更新 wx 内部显示状态（IsShown() 依赖它）+ 其它平台的真实显隐
+    bar->Show(visible);
+#endif
+}
+
 #ifdef __WXMSW__
+void MainFrame::DetachNativeMenuBar()
+{
     if (HWND hwnd = static_cast<HWND>(GetHandle())) {
-        ::SetMenu(hwnd, visible ? bar->GetHMenu() : nullptr);
+        ::SetMenu(hwnd, nullptr);
         ::DrawMenuBar(hwnd);
-        // 关键：仅 SetMenu/DrawMenuBar 不足以让非客户区重排 —— 必须用 SWP_FRAMECHANGED 触发
-        // WM_NCCALCSIZE，客户区才会按"有/无菜单条"重新计算并重绘。
-        // （探针实证：SetMenu 后 ::GetMenu(hwnd) 已为 NULL，但截图整图 0 差异；加此行后视觉才变化。）
+        // 仅 SetMenu/DrawMenuBar 不足以让非客户区重排 —— 必须 SWP_FRAMECHANGED 触发
+        // WM_NCCALCSIZE，客户区才会按"无菜单条"重新计算并重绘（T-720 探针实证）。
         ::SetWindowPos(hwnd, nullptr, 0, 0, 0, 0,
                        SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
     }
+}
 #endif
+
+namespace {
+
+// 把菜单标签里 "\t…" 的加速键文本（"Ctrl+Shift+W" / "F6" / "Del"）解析成键码。
+bool FindKeyCode(const wxString& token, int& keyCode)
+{
+    if (token.length() == 1) {
+        const wxChar c = wxToupper(token[0]);
+        if ((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) { keyCode = c; return true; }
+    }
+    const wxString up = token.Upper();
+    if (up.length() >= 2 && up[0] == 'F') {
+        long n = 0;
+        if (up.Mid(1).ToLong(&n) && n >= 1 && n <= 24) {
+            keyCode = WXK_F1 + static_cast<int>(n) - 1;
+            return true;
+        }
+    }
+    static const std::map<wxString, int> named = {
+        { "DEL", WXK_DELETE }, { "DELETE", WXK_DELETE }, { "INS", WXK_INSERT },
+        { "INSERT", WXK_INSERT }, { "HOME", WXK_HOME }, { "END", WXK_END },
+        { "PGUP", WXK_PAGEUP }, { "PGDN", WXK_PAGEDOWN }, { "ENTER", WXK_RETURN },
+        { "RETURN", WXK_RETURN }, { "ESC", WXK_ESCAPE }, { "SPACE", WXK_SPACE },
+        { "TAB", WXK_TAB }, { "BACK", WXK_BACK }, { "LEFT", WXK_LEFT },
+        { "RIGHT", WXK_RIGHT }, { "UP", WXK_UP }, { "DOWN", WXK_DOWN },
+        { "PLUS", '+' }, { "MINUS", '-' },
+    };
+    const auto it = named.find(up);
+    if (it != named.end()) { keyCode = it->second; return true; }
+    return false;
+}
+
+// 递归（含子菜单）收集所有带加速键文本的菜单项，供 wxAcceleratorTable 使用。
+// 原生菜单条被摘除后，这些键必须由加速表补回来（红线：快捷键语义全保留）。
+void CollectAccelerators(wxMenu* menu, std::vector<wxAcceleratorEntry>& out)
+{
+    if (menu == nullptr) return;
+    for (wxMenuItem* item : menu->GetMenuItems()) {
+        if (item == nullptr || item->IsSeparator()) continue;
+        if (wxMenu* sub = item->GetSubMenu()) { CollectAccelerators(sub, out); continue; }
+        if (item->GetId() == wxID_ANY) continue;
+
+        const wxString label = item->GetItemLabel();  // 形如 "&Save\tCtrl+S"
+        const int tab = label.Find('\t');
+        if (tab == wxNOT_FOUND) continue;
+
+        int flags = 0;
+        wxString keys;
+        wxString token;
+        const wxString spec = label.Mid(tab + 1);
+        for (size_t i = 0; i <= spec.length(); ++i) {
+            if (i == spec.length() || spec[i] == '+') {
+                if (!token.IsEmpty()) {
+                    const wxString up = token.Upper();
+                    if (up == "CTRL" || up == "CONTROL")      flags |= wxACCEL_CTRL;
+                    else if (up == "ALT")                     flags |= wxACCEL_ALT;
+                    else if (up == "SHIFT")                   flags |= wxACCEL_SHIFT;
+                    else                                      keys = token;
+                }
+                token.clear();
+            } else {
+                token += spec[i];
+            }
+        }
+        if (keys.IsEmpty()) continue;
+        int code = 0;
+        if (!FindKeyCode(keys, code)) continue;
+        out.emplace_back(flags, code, item->GetId());
+    }
+}
+
+}  // namespace
+
+void MainFrame::InstallMenuAccelerators()
+{
+    std::vector<wxAcceleratorEntry> entries;
+    if (wxMenuBar* bar = GetMenuBar()) {
+        for (size_t i = 0; i < bar->GetMenuCount(); ++i) {
+            CollectAccelerators(bar->GetMenu(i), entries);
+        }
+    }
+    if (entries.empty()) return;
+    m_menuAccel = wxAcceleratorTable(static_cast<int>(entries.size()), entries.data());
+    SetAcceleratorTable(m_menuAccel);
+    MyLog("MainFrame: menu accelerators installed = %d\n", static_cast<int>(entries.size()));
+}
+
+bool MainFrame::HandleMenuBarKeyboard(wxKeyEvent& event)
+{
+#ifdef __WXMSW__
+    if (m_menuBarPanel == nullptr || !m_layoutState.menubar) return false;
+    if (event.GetKeyCode() == WXK_F10 && !event.AltDown()) {
+        m_menuBarPanel->FocusFromKeyboard();
+        return true;
+    }
+    if (event.AltDown() && !event.ControlDown()) {
+        const int code = event.GetKeyCode();
+        if ((code >= 'A' && code <= 'Z') || (code >= 'a' && code <= 'z')) {
+            return m_menuBarPanel->ActivateMnemonic(static_cast<wxChar>(code));
+        }
+    }
+#endif
+    return false;
 }
 
 void MainFrame::SyncPanelMenuChecks()
@@ -2058,6 +2243,9 @@ void MainFrame::ApplyLayoutVisibility()
     // individual SetPanelVisibility calls would redraw the entire frame six times.
     if(auto* bar=GetMenuBar(); bar && bar->IsShown()!=m_layoutState.menubar) ApplyMenuBarVisibility(m_layoutState.menubar);
     if(auto* bar=GetStatusBar(); bar && bar->IsShown()!=m_layoutState.statusbar) bar->Show(m_layoutState.statusbar);
+    // 方案 B：menuBar 是新增 pane，而 wxAuiManager::LoadPerspective 会先隐藏所有 pane、
+    // 只显示 perspective 里出现过的项 —— 旧存档里没有 "menuBar"，不在这里补一次就会永久消失。
+    SetPaneVisible("menuBar", m_layoutState.menubar);
     SetPaneVisible("sideNav",m_layoutState.rail);
     SetPaneVisible("left_sidebar",m_layoutState.left);
     SetPaneVisible("right_sidebar",m_layoutState.right);

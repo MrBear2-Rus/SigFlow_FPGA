@@ -11,7 +11,12 @@
 
 #include <wx/config.h>
 #include <wx/settings.h>
+#include <wx/brush.h>
+#include <wx/dc.h>
+#include <wx/graphics.h>
 
+#include <cmath>
+#include <memory>
 #include <vector>
 
 #ifdef __WXMSW__
@@ -48,9 +53,9 @@ Colours MakeLight()
     Colours c;
 
     // ---- 底色 ----
-    c.bgWindow = wxColour(251, 251, 253);  // #fbfbfd
-    c.bgPanel  = wxColour(245, 245, 247);  // #f5f5f7
-    c.bgDeep   = wxColour(232, 232, 237);  // #e8e8ed
+    c.bgWindow = wxColour(247, 247, 250);  // #f7f7fa（渐变上半略微加深，但不深于下半 #f2f2f6）  // #fbfbfd
+    c.bgPanel  = wxColour(250, 250, 252);  // #f5f5f7
+    c.bgDeep   = wxColour(242, 242, 246);  // #e8e8ed
 
     // ---- 面板 / 交互面（保留原始 alpha；仅自绘路径可用，THE-021）----
     c.surface       = wxColour(245, 245, 247, 168);  // rgba(245,245,247,.66)
@@ -98,7 +103,7 @@ Colours MakeLight()
 
     // ---- 合成实色（SPEC §3.5，工程适配建议值）----
     c.surfaceOnWindow     = wxColour(247, 247, 249);  // #f7f7f9
-    c.surfaceOnPanel      = wxColour(245, 245, 247);  // #f5f5f7
+    c.surfaceOnPanel      = wxColour(250, 250, 252);  // #f5f5f7
     c.surfaceOnCanvas     = wxColour(247, 247, 248);  // #f7f7f8
     c.strongOnPanel       = wxColour(254, 254, 254);  // #fefefe
     c.sunkenOnPanel       = wxColour(235, 235, 237);  // #ebebed
@@ -462,6 +467,55 @@ wxColour CanvasSeedColour(const wxColour& seed, bool selected)
     if (seed==wxColour(0,0,0) || seed==p.text1) return p.text2;
     if (seed==wxColour(255,255,255)) return p.canvas;
     return seed; // 用户数据中的语义/自定义色保持原值。
+}
+
+void PaintPageGradient(wxDC& dc, const wxSize& clientSize, const wxPoint& dcOrigin,
+                       const wxRect& rect)
+{
+    const Colours& c = Palette();
+    if (clientSize.x <= 0 || clientSize.y <= 0) {
+        dc.SetPen(*wxTRANSPARENT_PEN);
+        dc.SetBrush(wxBrush(c.bgPanel));
+        dc.DrawRectangle(rect);
+        return;
+    }
+
+    // 落在 55% 处的 bg-2 把渐变分成两段（wxDC::GradientFillLinear 每段只吃两个停靠色）。
+    const int split = std::max(1, static_cast<int>(clientSize.y * 0.55));
+    const int lower = std::max(1, clientSize.y - split);
+
+    // 以顶层客户区为锚铺满，再裁剪到本区域 —— 分块绘制后接缝处颜色连续。
+    // 坐标换算：DC 原点对应帧客户区的 (ox,oy)，所以帧客户区 [0,W]×[0,H] 映射到 DC 坐标
+    // 是 [-ox, W-ox] —— 必须取负号，否则整块会偏出裁剪区（表现为一片黑）。
+    wxDCClipper clip(dc, rect);
+    dc.GradientFillLinear(wxRect(-dcOrigin.x, -dcOrigin.y, clientSize.x, split),
+                          c.bgWindow, c.bgPanel, wxSOUTH);
+    dc.GradientFillLinear(wxRect(-dcOrigin.x, -dcOrigin.y + split, clientSize.x, lower),
+                          c.bgPanel, c.bgDeep, wxSOUTH);
+}
+
+void PaintCanvasBackdrop(wxDC& dc, const wxRect& rect, const wxWindow* window)
+{
+    const Colours& c = Palette();
+
+    // 白底 --canvas
+    dc.SetPen(*wxTRANSPARENT_PEN);
+    dc.SetBrush(wxBrush(c.canvas));
+    dc.DrawRectangle(rect);
+
+    if (rect.width <= 0 || rect.height <= 0) return;
+
+    const double dip = window != nullptr ? window->FromDIP(100) / 100.0 : 1.0;
+    const int fine = std::max(1, static_cast<int>(20 * dip));    // CMP-041：20 DIP 细网格
+    const int coarse = std::max(1, static_cast<int>(100 * dip)); // 100 DIP 粗网格
+
+    dc.SetPen(wxPen(c.grid, 1));
+    for (int x = rect.x + fine; x < rect.GetRight(); x += fine) dc.DrawLine(x, rect.y, x, rect.GetBottom());
+    for (int y = rect.y + fine; y < rect.GetBottom(); y += fine) dc.DrawLine(rect.x, y, rect.GetRight(), y);
+
+    dc.SetPen(wxPen(c.gridStrong, 1));
+    for (int x = rect.x + coarse; x < rect.GetRight(); x += coarse) dc.DrawLine(x, rect.y, x, rect.GetBottom());
+    for (int y = rect.y + coarse; y < rect.GetBottom(); y += coarse) dc.DrawLine(rect.x, y, rect.GetRight(), y);
 }
 
 const TeachingColours& Teaching()

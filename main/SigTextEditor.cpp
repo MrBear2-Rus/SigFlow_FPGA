@@ -205,7 +205,7 @@ void SigTextEditor::SetVerilogIDE() {
     const UiTheme::Colours& pal = UiTheme::Palette();
 
     // --- A. Margin 1: 逻辑块健康状态条 ---
-    SetMarginWidth(1, 10);
+    SetMarginWidth(1, FromDIP(3));
     SetMarginType(1, wxSTC_MARGIN_SYMBOL);
     SetMarginSensitive(1, false);
     SetMarginMask(1, 0xFFFFFFFF);

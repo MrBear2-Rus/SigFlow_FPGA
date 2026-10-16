@@ -22,6 +22,20 @@ CanvasNoteBook::CanvasNoteBook(MainFrame* pa, SigFlowTree* sftree, wxWindowID id
             CallAfter(&CanvasNoteBook::AddCustomButton);
         }
         });
+
+    // 空画布：未打开任何文件时也给"白底 + 网格"，不再露出笔记本的空灰底（用户要求）。
+    SetBackgroundColour(UiTheme::Palette().canvas);
+    Bind(wxEVT_PAINT, &CanvasNoteBook::OnPaintEmpty, this);
+}
+
+void CanvasNoteBook::OnPaintEmpty(wxPaintEvent& event) {
+    // 未打开任何文件时画布区也必须是一块"白底 + 20/100 DIP 网格"的画布：
+    // 先在本层无条件铺底，再 Skip 让基类把页签/当前页画在上层。
+    // （原因：CanvasPanel 用 wxBG_STYLE_PAINT，其 dc.Clear() 落在 BTNFACE 灰上，
+    //   无页面/无内容时就会露出一块 #DCDCDC 死灰。）
+    wxAutoBufferedPaintDC dc(this);
+    UiTheme::PaintCanvasBackdrop(dc, GetClientRect(), this);
+    event.Skip();
 }
 
 bool CanvasNoteBook::AddCanvasPage(CanvasPanel* panel, const wxString& caption, bool select) {

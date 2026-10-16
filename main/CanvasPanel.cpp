@@ -928,7 +928,8 @@ void CanvasPanel::UpdateHoverInfo(const wxPoint& screenPos) {
             m_hoverInfo.textIndex));
     }
     else {
-        hover = "Blank Space";
+        // 未悬停任何对象：留空，不再打印 "Blank Space" 占位文案（RV-019）。
+        hover = "";
     }
 
     wxString cursor = wxString::Format("(%d, %d)", m_hoverInfo.canvasPos.x, m_hoverInfo.canvasPos.y);

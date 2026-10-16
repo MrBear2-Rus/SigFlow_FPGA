@@ -96,7 +96,7 @@ inline constexpr int Baseline = 8;
 namespace RegionMetrics {
 inline constexpr int ContentInset = 8;   ///< 圆角宿主内容安全内缩
 inline constexpr int FieldHeight  = 28;  ///< 原生输入/下拉最小高度
-inline constexpr int FieldRadius  = 9;   ///< 输入壳圆角
+inline constexpr int FieldRadius  = 12;  ///< 输入壳圆角（加大到 12，更接近设计稿）
 inline constexpr int FieldPadX    = 8;   ///< 输入文字与壳边缘的水平余量
 inline constexpr int FieldGap     = 8;   ///< 表单行之间的紧凑间距
 inline constexpr int CardGap      = 12;  ///< 面板卡片之间的常规间距
@@ -122,10 +122,10 @@ namespace Skeleton {
 inline constexpr int TitleBarH = 38;
 inline constexpr int MenuBarH  = 32;
 inline constexpr int ToolBarH  = 48;
-inline constexpr int RailW     = 46;
+inline constexpr int RailW     = 56;
 inline constexpr int LeftW     = 282;
 inline constexpr int LeftMinW  = 210;
-inline constexpr int LeftMaxW  = 460;
+inline constexpr int LeftMaxW  = 340;
 inline constexpr int RightW    = 264;  // DEC-04 裁决
 inline constexpr int RightMinW = 210;
 inline constexpr int RightMaxW = 520;
@@ -139,7 +139,8 @@ inline constexpr int SplitMinPx = 50;
 inline constexpr double SplitRatio = 0.62;  ///< 中区画布占比（LAY-010：画布 62% / 编辑器 38%）
 inline constexpr int ToolBarChipH = 30;     ///< 顶部工具栏 chip 高度（CMP-021）
 inline constexpr int ChipPadX     = 10;     ///< chip 左右内距（设计稿 .chip `padding:0 10px`，app.html:254-266）
-inline constexpr int RailKeySize  = 34;     ///< 活动栏按键 34×34（LAY-003 / CMP-032）
+inline constexpr int RailKeySize  = 40;     ///< 活动栏按键 40×40（正方形；LAY-003 / CMP-032）
+inline constexpr int RailKeyGap   = 10;     ///< 活动栏相邻按键之间的垂直间距（图标之间的高度差）
 inline constexpr int ToolIconSize = 14;     ///< 工具栏图标基准 14 DIP（DES-014 chip 档）
 }  // namespace Skeleton
 
@@ -304,6 +305,21 @@ Mode ModeFromString(const wxString& value, Mode fallback = Mode::System);
 /// 当前生效档的调色板
 const Colours& Palette();
 wxColour CanvasSeedColour(const wxColour& seed, bool selected = false);
+
+/// 页面底：160° 线性渐变 bgWindow → bgPanel(55%) → bgDeep（app.html §0）。
+/// 由「页面」上的各绘制方（AUI dock 背景、区域宿主）共同调用；以**顶层窗口客户区**为锚，
+/// 保证多块拼接后仍是一条连续的渐变。
+///   clientSize —— 顶层窗口客户区尺寸
+///   dcOrigin   —— 当前 DC 原点在**顶层客户区**坐标系里的偏移（帧自绘时传 (0,0)）
+///   rect       —— 本次要填充的区域（当前 DC 坐标系）
+/// 说明：wxDC::GradientFillLinear 只支持正交方向，因此用**两段垂直**渐变近似 160°；
+///       该角度相对垂直只偏 20°，在这种极淡的冷灰上肉眼不可辨。颜色全部取自 token。
+void PaintPageGradient(wxDC& dc, const wxSize& clientSize, const wxPoint& dcOrigin,
+                       const wxRect& rect);
+
+/// 画布底：白底 `--canvas` + 20 DIP 细网格 `--grid` + 100 DIP 粗网格 `--gridStrong`。
+/// 用于"未打开任何文件"的空画布 —— 不能露出笔记本的空灰底。
+void PaintCanvasBackdrop(wxDC& dc, const wxRect& rect, const wxWindow* window);
 
 /// 指定档的调色板；传入 System 时按系统探测解析
 const Colours& PaletteFor(Mode mode);

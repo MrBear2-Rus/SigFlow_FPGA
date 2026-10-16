@@ -37,6 +37,9 @@ public:
     void DrawButton(wxDC& dc, wxWindow* wnd, const wxAuiToolBarItem& item,
                     const wxRect& rect) override;
 
+    /// 分组分隔线：1×18 DIP，--stroke 色（app.html `.sep`）。
+    void DrawSeparator(wxDC& dc, wxWindow* wnd, const wxRect& rect) override;
+
     /// chip / 活动栏按键的最小尺寸（CMP-021 chip 高 30 DIP；LAY-003 活动栏键 34×34）
     wxSize GetToolSize(wxDC& dc, wxWindow* wnd, const wxAuiToolBarItem& item) override;
 

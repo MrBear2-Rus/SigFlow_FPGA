@@ -11,6 +11,7 @@
 #include <wx/dc.h>  // aui.h 只前置声明 wxDC；绘制需要完整类型
 #include <wx/dcbuffer.h>
 #include <wx/graphics.h>
+#include <wx/image.h>
 #include <wx/timer.h>
 #include <wx/window.h>
 #ifdef __WXMSW__
@@ -50,6 +51,37 @@ wxColour GlassOpacity(const wxColour& colour, double opacity)
 {
     return wxColour(colour.Red(), colour.Green(), colour.Blue(),
                     static_cast<unsigned char>(colour.Alpha() * opacity));
+}
+
+// 单色图标按当前 token 重着色。资源 SVG 自带固定填充色，wx 侧无法直接改色；
+// 这里按 alpha 掩码整幅替换 RGB，既能让活动栏选中态变 --accent（CMP-028），
+// 又让图标在深色档下跟随 --text-1，而无需为每个主题各出一套资源。
+wxBitmap TintMonochrome(const wxBitmap& source, const wxColour& target)
+{
+    if (!source.IsOk()) return source;
+    wxImage image = source.ConvertToImage();
+    if (!image.IsOk() || !image.HasAlpha()) return source;
+
+    unsigned char* data = image.GetData();
+    const unsigned char* alpha = image.GetAlpha();
+    const long pixels = static_cast<long>(image.GetWidth()) * image.GetHeight();
+    for (long i = 0; i < pixels; ++i) {
+        if (alpha[i] == 0) continue;  // 保留透明区，抗锯齿边缘仍按 alpha 合成
+        data[i * 3]     = target.Red();
+        data[i * 3 + 1] = target.Green();
+        data[i * 3 + 2] = target.Blue();
+    }
+    return wxBitmap(image);
+}
+
+// 颜色混合：t = 第二色的权重（0..1）。用于由 --brand 派生 Synthesize 的
+// 渐变/描边，避免在源码里写死十六进制（SAFE-012）。
+wxColour MixColour(const wxColour& a, const wxColour& b, double t)
+{
+    const auto ch = [t](unsigned char x, unsigned char y) {
+        return static_cast<unsigned char>(x * (1.0 - t) + y * t + 0.5);
+    };
+    return wxColour(ch(a.Red(), b.Red()), ch(a.Green(), b.Green()), ch(a.Blue(), b.Blue()));
 }
 
 // Soft composited shadow and directional bevels replace the old concentric
@@ -112,6 +144,64 @@ void DrawPrimaryChip(wxGraphicsContext& gc, const wxRect2DDouble& r,
         gc.SetPen(gc.CreatePen(wxGraphicsPenInfo(c.text3).Width(dip)));
         gc.StrokeLine(r.m_x + radius, r.GetBottom() - 3*dip,
                        r.GetRight() - radius, r.GetBottom() - 3*dip);
+    }
+}
+
+// Synthesize 主 CTA（app.html 的 .lg-glass 在 wx 侧的近似）：
+//   绿色垂直渐变本体 + 顶部 1px 白高光 + 深绿描边 + 外投影，
+//   白字白图标。这是全工具栏唯一保留"玻璃"复合工艺的按钮（材质三条之唯一例外）。
+void DrawSynthesizeChip(wxGraphicsContext& gc, const wxRect2DDouble& r, double dip,
+                        bool hover, bool pressed, bool focus, bool disabled)
+{
+    const auto& c = UiTheme::Palette();
+    const double radius = r.m_height / 2.0;
+    const wxColour bodyTop = MixColour(c.brand, wxColour(255, 255, 255), 0.08);
+    const wxColour bodyBottom = c.brand;
+    const wxColour edge = MixColour(c.brand, wxColour(0, 0, 0), 0.30);
+    const wxColour ink = disabled ? c.text3 : wxColour(255, 255, 255);
+
+    // 1) 外投影：层叠的半透明圆角矩形近似 0 4px 8px / hover 0 8px 20px。
+    gc.SetPen(*wxTRANSPARENT_PEN);
+    const int layers = hover ? 5 : 3;
+    for (int i = layers; i >= 1; --i) {
+        const double grow = i * 1.1 * dip;
+        const unsigned char alpha = static_cast<unsigned char>(hover ? 20 : 14);
+        gc.SetBrush(wxBrush(wxColour(0, 0, 0, alpha)));
+        gc.DrawRoundedRectangle(r.m_x - grow, r.m_y + grow * 0.55,
+                                r.m_width + grow * 2.0, r.m_height + grow,
+                                radius + grow * 0.5);
+    }
+
+    // 2) 绿色垂直渐变本体。
+    gc.SetBrush(gc.CreateLinearGradientBrush(r.m_x, r.m_y, r.m_x, r.GetBottom(),
+                                             bodyTop, bodyBottom));
+    gc.DrawRoundedRectangle(r.m_x, r.m_y, r.m_width, r.m_height, radius);
+
+    // 3) 顶部 30% 白内高光（lg-glass 的顶部高光层）。
+    if (!disabled) {
+        auto sheen = gc.CreatePath();
+        const double sheenH = r.m_height * 0.30;
+        sheen.AddRoundedRectangle(r.m_x + dip, r.m_y + dip, r.m_width - 2.0 * dip,
+                                  sheenH, std::max(1.0, radius - dip));
+        gc.SetPen(*wxTRANSPARENT_PEN);
+        gc.SetBrush(wxBrush(wxColour(255, 255, 255, hover ? 62 : 48)));
+        gc.FillPath(sheen);
+    }
+
+    // 4) 深绿描边（近似双向内描边 + 暗内环）。
+    gc.SetBrush(*wxTRANSPARENT_BRUSH);
+    gc.SetPen(gc.CreatePen(wxGraphicsPenInfo(edge).Width(std::max(1.0, dip))));
+    gc.DrawRoundedRectangle(r.m_x, r.m_y, r.m_width, r.m_height, radius);
+
+    // 5) 焦点/悬停反馈。
+    if (!disabled && (hover || pressed)) {
+        gc.SetPen(gc.CreatePen(wxGraphicsPenInfo(c.focusRingOnPanel).Width(1.5 * dip)));
+        gc.DrawRoundedRectangle(r.m_x - dip, r.m_y - dip, r.m_width + 2.0 * dip,
+                                r.m_height + 2.0 * dip, radius + dip);
+    } else if (!disabled && focus) {
+        gc.SetPen(gc.CreatePen(wxGraphicsPenInfo(ink).Width(dip)));
+        gc.StrokeLine(r.m_x + radius, r.GetBottom() - 3.0 * dip,
+                      r.GetRight() - radius, r.GetBottom() - 3.0 * dip);
     }
 }
 
@@ -218,17 +308,21 @@ private:
         gc->Scale(m_scale, m_scale);
         gc->Translate(-size.x / 2.0, -size.y / 2.0);
         const double dip = FromDIP(100) / 100.0;
-        DrawPrimaryChip(*gc, wxRect2DDouble(4*dip, 4*dip, size.x-8*dip, size.y-8*dip),
-                        dip, m_hover, m_mousePressed || m_keyPressed, HasFocus(), !IsEnabled());
-        // 品牌绿的综合逻辑符号；不依赖位图缓存，规避 CMP-082 空窗口断言。
-        gc->SetPen(gc->CreatePen(wxGraphicsPenInfo(IsEnabled() ? c.brand : c.text3).Width(1.5*dip)));
+        // 注意用 IsThisEnabled()：MSW 上 IsEnabled() 会连带祖先窗口（工程加载期
+        // 主窗曾被短暂禁用），会让主 CTA 被画成灰色且不重绘。这里只按自身启用态取色。
+        const bool ctaEnabled = IsThisEnabled();
+        DrawSynthesizeChip(*gc, wxRect2DDouble(4*dip, 4*dip, size.x-8*dip, size.y-8*dip),
+                        dip, m_hover, m_mousePressed || m_keyPressed, HasFocus(), !ctaEnabled);
+        // 白色的综合逻辑符号；不依赖位图缓存，规避 CMP-082 空窗口断言。
+        const wxColour synthInk = ctaEnabled ? wxColour(255, 255, 255) : c.text3;
+        gc->SetPen(gc->CreatePen(wxGraphicsPenInfo(synthInk).Width(1.5*dip)));
         gc->SetBrush(*wxTRANSPARENT_BRUSH);
         gc->DrawRoundedRectangle(14*dip, size.y/2.0-5*dip, 12*dip, 10*dip, 2*dip);
         for (int i = -1; i <= 1; ++i) {
             gc->StrokeLine(11*dip, size.y/2.0+i*3*dip, 14*dip, size.y/2.0+i*3*dip);
             gc->StrokeLine(26*dip, size.y/2.0+i*3*dip, 29*dip, size.y/2.0+i*3*dip);
         }
-        gc->SetFont(GetFont(), IsEnabled() ? c.text1 : c.text3);
+        gc->SetFont(GetFont(), synthInk);
         dc.SetFont(GetFont());
         const wxString label = wxControl::Ellipsize(GetLabel(), dc, wxELLIPSIZE_END,
                                                     std::max(1, size.x - FromDIP(42)));
@@ -288,8 +382,9 @@ wxSize UiToolBarArt::GetToolSize(wxDC& dc, wxWindow* wnd, const wxAuiToolBarItem
     // 活动栏（纵向）：按键固定 34×34（LAY-003 / CMP-032）
     if (vertical) {
         const int key = wnd->FromDIP(UiTheme::Skeleton::RailKeySize);
+        const int gap = wnd->FromDIP(UiTheme::Skeleton::RailKeyGap);
         return wxSize(std::max(key, bitmapSize.x + padX * 2),
-                      std::max(key, bitmapSize.y + padY * 2));
+                      std::max(key, bitmapSize.y + padY * 2) + gap);
     }
 
     // 顶部工具栏（横向 chip）：宽度 = 内距×2 + 图标 + 间距 + 文字（CMP-021）。
@@ -312,9 +407,9 @@ wxSize UiToolBarArt::GetToolSize(wxDC& dc, wxWindow* wnd, const wxAuiToolBarItem
 
 void UiToolBarArt::DrawBackground(wxDC& dc, wxWindow* /*wnd*/, const wxRect& rect)
 {
-    // 工具栏底 = 结构面（THE-031 / DES-004）
+    // 模块栏底 = **纯白**（与模块面板一致；页面冷灰渐变只在卡片之外的缝隙里可见）。
     dc.SetPen(*wxTRANSPARENT_PEN);
-    dc.SetBrush(wxBrush(UiTheme::Palette().surfaceOnWindow));
+    dc.SetBrush(wxBrush(wxColour(255, 255, 255)));
     dc.DrawRectangle(rect);
 }
 
@@ -323,6 +418,16 @@ void UiToolBarArt::DrawPlainBackground(wxDC& dc, wxWindow* wnd, const wxRect& re
     // wxAUI_TB_PLAIN_BACKGROUND bypasses DrawBackground. Both paths must share
     // the control surface, otherwise custom children sit on pale rectangles.
     DrawBackground(dc, wnd, rect);
+}
+
+void UiToolBarArt::DrawSeparator(wxDC& dc, wxWindow* wnd, const wxRect& rect)
+{
+    // app.html `.sep`：1×18 DIP、--stroke 色，垂直居中。
+    const int height = std::min(rect.height, wnd->FromDIP(18));
+    const int x = rect.x + rect.width / 2;
+    const int top = rect.y + (rect.height - height) / 2;
+    dc.SetPen(wxPen(UiTheme::Palette().strokeOnWindow, std::max(1, wnd->FromDIP(1))));
+    dc.DrawLine(x, top, x, top + height);
 }
 
 void UiToolBarArt::DrawChipBackground(wxDC& dc, wxWindow* wnd, const wxRect& rect, bool disabled,
@@ -338,14 +443,24 @@ void UiToolBarArt::DrawChipBackground(wxDC& dc, wxWindow* wnd, const wxRect& rec
         stroke = c.strokeOnPanel;
     } else if (pressed || checked) {
         fill = c.selOnPanel;
+        stroke = c.focusRingOnPanel;  // 选中：淡蓝描边（图2 的圆角方形选中态）
     } else if (hover) {
         fill = c.strongOnPanel;
     }
     if (!disabled && (hover || pressed)) stroke = c.focusRingOnPanel;
 
+    // 顶部工具栏 chip = 胶囊（radius = 高/2）；活动栏按键 = **圆角正方形**（不要椭圆）。
+    wxRect shape = rect;
+    if (pressed) {
+        shape.Deflate(std::max(1, rect.width / 66), std::max(1, rect.height / 66));
+    }
+    const bool vertical = (m_flags & wxAUI_TB_VERTICAL) != 0;
+    const double radius = vertical
+        ? static_cast<double>(wnd->FromDIP(UiTheme::Radius::SM))
+        : shape.height / 2.0;
     dc.SetPen(wxPen(stroke, 1));
     dc.SetBrush(wxBrush(fill));
-    dc.DrawRoundedRectangle(rect, wnd->FromDIP(UiTheme::Radius::XS));
+    dc.DrawRoundedRectangle(shape, radius);
 }
 
 void UiToolBarArt::DrawButton(wxDC& dc, wxWindow* wnd, const wxAuiToolBarItem& item,
@@ -362,21 +477,43 @@ void UiToolBarArt::DrawButton(wxDC& dc, wxWindow* wnd, const wxAuiToolBarItem& i
                                item.GetKind() == wxITEM_RADIO);
 
     // 1) chip 底 + 描边
+    //    活动栏（纵向）：只有**选中/悬停/按压**项才有圆角方形蓝底，未选中不画任何灰框（用户要求，图2）；
+    //    顶部工具栏（横向）：保持常规 chip。
+    const bool verticalBar = (m_flags & wxAUI_TB_VERTICAL) != 0;
     const bool wantsChip = (item.GetKind() == wxITEM_NORMAL) || (item.GetKind() == wxITEM_CHECK);
-    if (wantsChip) {
-        DrawChipBackground(dc, wnd, rect, disabled, hover, pressed, checked);
+    const bool drawChip = verticalBar ? (checked || hover || pressed) : wantsChip;
+
+    // 活动栏：把按键画成**正中心的正方形**（图6），并在上下留出间距。
+    wxRect chipRect = rect;
+    if (verticalBar && wnd != nullptr) {
+        const int gap = wnd->FromDIP(UiTheme::Skeleton::RailKeyGap);
+        const int side = std::max(1, std::min(rect.width,
+                                             std::max(1, rect.height - gap)));
+        chipRect = wxRect(rect.x + (rect.width - side) / 2,
+                          rect.y + (rect.height - side) / 2,
+                          side, side);
+    }
+
+    if (drawChip) {
+        DrawChipBackground(dc, wnd, chipRect, disabled, hover, pressed, checked);
     }
 
     // 2) 活动栏 / 工具选中指示条（CMP-028：3 × 18 DIP、圆角 2、accent）
     if (checked) {
-        const int inset = wnd->FromDIP(2);
-        const int availH = std::max(1, rect.height - inset * 2);
+        const bool vertical = (m_flags & wxAUI_TB_VERTICAL) != 0;
         const int markW = wnd->FromDIP(UiTheme::Radius::RailMark);
-        const int markH = std::max(1, std::min(wnd->FromDIP(UiTheme::Radius::RailMarkL), availH));
+        const int markH = std::max(1, std::min(wnd->FromDIP(UiTheme::Radius::RailMarkL),
+                                               std::max(1, chipRect.height)));
+        // 活动栏：指示条贴在**栏的最左侧边界**（x = 0 = 工具栏客户区左缘），竖直居中对齐按键。
+        const int markX = vertical ? 0 : chipRect.x + wnd->FromDIP(2);
+        const int markY = vertical
+            ? chipRect.y + (chipRect.height - markH) / 2
+            : chipRect.y + wnd->FromDIP(2) +
+                  (std::max(1, chipRect.height - wnd->FromDIP(4)) - markH) / 2;
         dc.SetPen(*wxTRANSPARENT_PEN);
         dc.SetBrush(wxBrush(c.accent));
-        dc.DrawRoundedRectangle(rect.x + inset, rect.y + inset + (availH - markH) / 2, markW,
-                                markH, wnd->FromDIP(UiTheme::Radius::Indicator));
+        dc.DrawRoundedRectangle(markX, markY, markW, markH,
+                                wnd->FromDIP(UiTheme::Radius::Indicator));
     }
 
     // 3) 内容：图标（+ 文字）居中排版。基类不再调用，避免覆盖上面绘制的底。
@@ -388,6 +525,11 @@ void UiToolBarArt::DrawButton(wxDC& dc, wxWindow* wnd, const wxAuiToolBarItem& i
     //    → wxTrap/__debugbreak → 进程直接退出（用户表现为"点进工程后界面卡退"）。
     //    基类 wxAuiGenericToolBarArt 正是使用传入的 wnd 参数，这里与之保持一致。
     const wxBitmap bitmap = disabled ? item.GetDisabledBitmapFor(wnd) : item.GetBitmapFor(wnd);
+
+    // CMP-028：活动栏选中项图标用 --accent；其余用 --text-1。禁用态保留原样。
+    const wxBitmap tinted = disabled || !bitmap.IsOk()
+        ? bitmap
+        : TintMonochrome(bitmap, checked ? c.accent : c.text1);
 
     // ⚠️ 文字只在工具栏**确实启用 wxAUI_TB_TEXT** 时绘制：
     //    否则工具栏的 GetToolSize 不会为文字预留宽度，绘制会溢出到相邻按钮上
@@ -401,14 +543,14 @@ void UiToolBarArt::DrawButton(wxDC& dc, wxWindow* wnd, const wxAuiToolBarItem& i
     const int gap = ChipInnerGap(wnd);
 
     wxSize bitmapSize(0, 0);
-    if (bitmap.IsOk()) {
-        bitmapSize = bitmap.GetSize();
+    if (tinted.IsOk()) {
+        bitmapSize = tinted.GetSize();
     }
 
     wxSize labelSize(0, 0);
     if (!label.empty()) {
         const int available =
-            rect.width - bitmapSize.x - (bitmapSize.x > 0 ? gap : 0) - padX * 2;
+            chipRect.width - bitmapSize.x - (bitmapSize.x > 0 ? gap : 0) - padX * 2;
         if (available <= gap) {
             label.clear();  // 放不下就宁可不画，也不溢出到相邻按钮
         } else {
@@ -423,11 +565,11 @@ void UiToolBarArt::DrawButton(wxDC& dc, wxWindow* wnd, const wxAuiToolBarItem& i
 
     const int textGap = (bitmapSize.x > 0 && labelSize.x > 0) ? gap : 0;
     const int totalWidth = bitmapSize.x + textGap + labelSize.x;
-    const int centerY = rect.y + rect.height / 2;
+    const int centerY = chipRect.y + chipRect.height / 2;
 
-    int cursorX = rect.x + (rect.width - totalWidth) / 2;
-    if (bitmap.IsOk()) {
-        dc.DrawBitmap(bitmap, cursorX, centerY - bitmapSize.y / 2, true);
+    int cursorX = chipRect.x + (chipRect.width - totalWidth) / 2;
+    if (tinted.IsOk()) {
+        dc.DrawBitmap(tinted, cursorX, centerY - bitmapSize.y / 2, true);
         cursorX += bitmapSize.x + textGap;
     }
     if (!label.empty()) {

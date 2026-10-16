@@ -27,7 +27,7 @@ void ApplyProjectTreeLook(wxTreeCtrl* tree)
     }
 
     const UiTheme::Colours& colours = UiTheme::Palette();
-    tree->SetBackgroundColour(colours.surfaceOnPanel);
+    tree->SetBackgroundColour(wxColour(255, 255, 255));
     tree->SetForegroundColour(colours.text1);
     tree->SetFont(ProjectTreeItemFont(tree));
     tree->SetIndent(tree->FromDIP(UiTheme::Spacing::S2));  // CMP-035 缩进：8 DIP
@@ -179,6 +179,30 @@ bool ProjectTreePanel::IsGeneratedPath(const wxString& path) const
 }
 
 
+namespace {
+
+// T-310 / RV-T05：项目树的单色图标槽位（顺序必须与 InitTreeIcons 的 Add 顺序一致）。
+enum TreeIcon
+{
+    TreeIconFolder = 0,
+    TreeIconGenericFile,
+    TreeIconVerilog,
+    TreeIconMarkdown,
+    TreeIconSigFlowProject
+};
+
+// 按扩展名选择文件图标；未知类型回退到通用文件图标。
+int TreeIconForFile(const wxFileName& file)
+{
+    const wxString ext = file.GetExt().Lower();
+    if (ext == "v" || ext == "vh" || ext == "sv" || ext == "svh") return TreeIconVerilog;
+    if (ext == "md" || ext == "markdown") return TreeIconMarkdown;
+    if (ext == "sigflow" || ext == "project") return TreeIconSigFlowProject;
+    return TreeIconGenericFile;
+}
+
+}  // namespace
+
 void ProjectTreePanel::InitTreeIcons() {
 
     // T-310 / PLT-001：图标与行高基准由硬编码 24px 改为 24 DIP。
@@ -193,12 +217,15 @@ void ProjectTreePanel::InitTreeIcons() {
         return bundle.IsOk() ? bundle.GetBitmap(sz) : fallback;
     };
 
-    // 不再使用平台黄色文件夹/文件图标；优先使用项目内单色 SVG，失败时
-    // 仍保留有效的原生 bitmap 回退，避免资源缺失导致空图标。
+    // 不再使用平台黄色文件夹/文件图标；统一走项目内单色 SVG（res/ui_icons），
+    // 失败时仍保留有效的原生 bitmap 回退，避免资源缺失导致空图标。
     const wxBitmap folderFallback = wxArtProvider::GetBitmap(wxART_FOLDER, wxART_OTHER, sz);
     const wxBitmap fileFallback = wxArtProvider::GetBitmap(wxART_NORMAL_FILE, wxART_OTHER, sz);
-    images->Add(GetIcon("res\\icons\\project.svg", folderFallback)); // Folder 0
-    images->Add(GetIcon("res\\svg_icons\\module.svg", fileFallback)); // File 1
+    images->Add(GetIcon("res\\ui_icons\\folder.svg", folderFallback));      // TreeIconFolder
+    images->Add(GetIcon("res\\ui_icons\\file.svg", fileFallback));          // TreeIconGenericFile
+    images->Add(GetIcon("res\\ui_icons\\file_v.svg", fileFallback));        // TreeIconVerilog
+    images->Add(GetIcon("res\\ui_icons\\file_md.svg", fileFallback));       // TreeIconMarkdown
+    images->Add(GetIcon("res\\ui_icons\\file_project.svg", fileFallback));  // TreeIconSigFlowProject
     // 将图像列表交给树控件管理
     m_tree->AssignImageList(images);
     
@@ -258,7 +285,7 @@ void ProjectTreePanel::RefreshTree()
 
     wxTreeItemId rootId = m_tree->AddRoot(
         wxFileName(m_projectRoot).GetFullName(),
-        0, 0,
+        TreeIconFolder, TreeIconFolder,
         new FileTreeItemData(m_projectRoot)
     );
 
@@ -292,17 +319,18 @@ void ProjectTreePanel::BuildTree(const wxString& path, wxTreeItemId parent)
             auto id = m_tree->AppendItem(
                 parent,
                 filename,
-                0, 0,
+                TreeIconFolder, TreeIconFolder,
                 new FileTreeItemData(full)
             );
             m_tree->SetItemHasChildren(id, true);
             BuildTree(full, id);
         }
         else {
+            const int icon = TreeIconForFile(fn);
             m_tree->AppendItem(
                 parent,
                 filename,
-                1, 1,
+                icon, icon,
                 new FileTreeItemData(full)
             );
         }

@@ -2,6 +2,7 @@
 #include "platform/PlatformPaths.h"
 #include "platform/Log.h"
 #include <iostream>
+#include <exception>
 
 namespace fs = std::filesystem;
 
@@ -55,7 +56,24 @@ void PluginManager::LoadPlugins(const std::string& folderPath) {
 
             if (createFunc) {
                 // 3. 创建插件实例
-                ISigPlugin* pPlugin = createFunc();
+                // 插件构造函数可能抛异常（例如在非 ASCII 用户目录下，插件内部用
+                // std::filesystem::path(窄字符串) 做转换会抛 filesystem 转换错误）。
+                // 异常一旦逃出 MainFrame 构造函数，表现就是启动即
+                // "Unhandled unknown exception"。这里隔离：某个插件创建失败只记录
+                // 日志并跳过它，不影响主程序启动与其它插件。
+                ISigPlugin* pPlugin = nullptr;
+                try {
+                    pPlugin = createFunc();
+                }
+                catch (const std::exception& e) {
+                    SIGFLOW_LOG("PluginManager: CreateSigPlugin threw for " + dllPath +
+                                ": " + e.what() + "\n");
+                }
+                catch (...) {
+                    SIGFLOW_LOG("PluginManager: CreateSigPlugin threw unknown exception for " +
+                                dllPath + "\n");
+                }
+
                 if (pPlugin) {
                     m_plugins.push_back(pPlugin);
                     m_loadedModules.push_back({ std::move(library), pPlugin });

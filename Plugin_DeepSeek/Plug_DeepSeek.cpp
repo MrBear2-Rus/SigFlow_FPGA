@@ -27,6 +27,11 @@
 
 using json = nlohmann::json;
 #include "Plug_DeepSeek_helpers.h"
+// 统一的 UTF-8 <-> std::filesystem::path 边界转换（见 main/platform/PlatformPaths.h）。
+// 严禁用 wxString::ToStdString() 或 path::string() 得到路径再喂给 fs::path：
+// 它们走当前 locale/ANSI 代码页，非 ASCII（例如中文用户名）下会抛
+// filesystem 转换异常或静默丢串。
+#include "platform/PlatformPaths.h"
 
 // 跨平台 HTTP 走 wxWebRequest：Windows 用 WinHTTP（自带），Linux/macOS 用 libcurl。
 // Linux 上若 wx 构建时没找到 libcurl，wxUSE_WEBREQUEST 会是 0 —— 此时插件无法工作，
@@ -68,7 +73,7 @@ std::string ResolveDeepSeekApiKey() {
     try {
         const wxString dataDir = wxStandardPaths::Get().GetUserLocalDataDir();
         if (!dataDir.IsEmpty()) {
-            std::ifstream keyFile((std::filesystem::path(dataDir.ToStdString()) / "deepseek.key").string());
+            std::ifstream keyFile(sigflow::platform::Utf8Path(dataDir) / "deepseek.key");
             if (keyFile) {
                 std::string key;
                 std::getline(keyFile, key);
@@ -91,17 +96,17 @@ Plug_DeepSeek::Plug_DeepSeek() {
     const wxString dataRoot = wxStandardPaths::Get().GetUserLocalDataDir();
     const std::filesystem::path dataDir = dataRoot.IsEmpty()
         ? std::filesystem::current_path() / ".sigflow" / ".pluginDeepSeek"
-        : std::filesystem::path(dataRoot.ToStdString()) / "pluginDeepSeek";
-    m_dataDir = dataDir.string();
-    m_historyFile = (dataDir / "history.json").string();
+        : sigflow::platform::Utf8Path(dataRoot) / "pluginDeepSeek";
+    m_dataDir = sigflow::platform::PathToUtf8(dataDir);
+    m_historyFile = sigflow::platform::PathToUtf8(dataDir / "history.json");
 
     // 尝试加载已有的历史对话
     try {
         // create dir if needed
         std::error_code ec;
-        std::filesystem::create_directories(m_dataDir, ec);
+        std::filesystem::create_directories(sigflow::platform::Utf8Path(m_dataDir), ec);
         if (!ec) {
-            std::ifstream ifs(m_historyFile);
+            std::ifstream ifs(sigflow::platform::Utf8Path(m_historyFile));
             if (ifs) {
                 nlohmann::json j;
                 ifs >> j;
@@ -147,7 +152,7 @@ void Plug_DeepSeek::SaveConversationsToDisk() {
             j.push_back(it);
         }
 
-        std::ofstream ofs(m_historyFile, std::ios::trunc);
+        std::ofstream ofs(sigflow::platform::Utf8Path(m_historyFile), std::ios::trunc);
         if (ofs) ofs << j.dump(2);
     }
     catch (...) { /* 忽略写盘错误 */ }
@@ -203,7 +208,7 @@ void Plug_DeepSeek::ExportConversation(const std::string& name, const std::strin
     auto it = m_conversationContents.find(name);
     if (it == m_conversationContents.end()) return;
     try {
-        std::ofstream ofs(path, std::ios::binary);
+        std::ofstream ofs(sigflow::platform::Utf8Path(path), std::ios::binary);
         if (ofs) ofs << it->second;
     }
     catch (...) { }
@@ -225,28 +230,28 @@ void Plug_DeepSeek::SetProjectRoot(const std::string& path) {
     m_projectRoot = path;
     try {
         namespace fs = std::filesystem;
-        fs::path newDataDir = fs::path(m_projectRoot) / ".sigflow" / ".pluginDeepSeek";
+        fs::path newDataDir = sigflow::platform::Utf8Path(m_projectRoot) / ".sigflow" / ".pluginDeepSeek";
         std::error_code ec;
         fs::create_directories(newDataDir, ec);
-        std::string newHistory = (newDataDir / "history.json").string();
+        std::string newHistory = sigflow::platform::PathToUtf8(newDataDir / "history.json");
 
         // If we previously had a history file somewhere else and the new one doesn't exist,
         // try to copy it to the project folder so user history is preserved.
         try {
-            if (!fs::exists(newHistory)) {
-                if (!m_historyFile.empty() && fs::exists(m_historyFile)) {
-                    fs::copy_file(m_historyFile, newHistory, fs::copy_options::skip_existing, ec);
+            if (!fs::exists(sigflow::platform::Utf8Path(newHistory))) {
+                if (!m_historyFile.empty() && fs::exists(sigflow::platform::Utf8Path(m_historyFile))) {
+                    fs::copy_file(sigflow::platform::Utf8Path(m_historyFile), sigflow::platform::Utf8Path(newHistory), fs::copy_options::skip_existing, ec);
                 }
                 else {
-                    fs::path legacyProjectHistory = fs::path(m_projectRoot) / ".DeepSeekPlugin" / "history.json";
+                    fs::path legacyProjectHistory = sigflow::platform::Utf8Path(m_projectRoot) / ".DeepSeekPlugin" / "history.json";
                     if (fs::exists(legacyProjectHistory)) {
-                        fs::copy_file(legacyProjectHistory, newHistory, fs::copy_options::skip_existing, ec);
+                        fs::copy_file(legacyProjectHistory, sigflow::platform::Utf8Path(newHistory), fs::copy_options::skip_existing, ec);
                     }
                 }
             }
         } catch (...) { /* ignore migration errors */ }
 
-        m_dataDir = newDataDir.string();
+        m_dataDir = sigflow::platform::PathToUtf8(newDataDir);
         m_historyFile = newHistory;
 
         // Persist whatever is currently in memory into the project-local history file
@@ -310,7 +315,7 @@ static bool UpdateProjectFileList(const std::filesystem::path& projectRoot,
 	if (projectFile.empty()) return false;
 
 	if (projectFilePathOut) {
-		*projectFilePathOut = projectFile.string();
+		*projectFilePathOut = sigflow::platform::PathToUtf8(projectFile);
 	}
 
 	json j;
@@ -559,9 +564,9 @@ std::string Plug_DeepSeek::ProcessCommand(const std::string& cmd) {
         if (!userPath.empty()) {
             // 如果用户指定了路径，支持相对路径（相对于 solution root）或绝对路径
             namespace fs = std::filesystem;
-            fs::path p(userPath);
-            if (p.is_relative()) p = fs::path(root) / p;
-            if (fs::exists(p) && fs::is_directory(p)) targetRoot = p.string();
+            fs::path p = sigflow::platform::Utf8Path(userPath);
+            if (p.is_relative()) p = sigflow::platform::Utf8Path(root) / p;
+            if (fs::exists(p) && fs::is_directory(p)) targetRoot = sigflow::platform::PathToUtf8(p);
         }
 
         // 如果没有用户路径，尝试智能定位 Verilog 源码目录
@@ -1244,15 +1249,15 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
                     this->m_generationCreatedFiles.clear();
                     this->m_generationActive = true;
                     namespace fs = std::filesystem;
-                    fs::path base = !this->m_dataDir.empty() ? fs::path(this->m_dataDir) : (this->m_projectRoot.empty() ? fs::current_path() : fs::path(this->m_projectRoot));
+                    fs::path base = !this->m_dataDir.empty() ? sigflow::platform::Utf8Path(this->m_dataDir) : (this->m_projectRoot.empty() ? fs::current_path() : sigflow::platform::Utf8Path(this->m_projectRoot));
                     std::error_code ec; fs::create_directories(base, ec);
 
                     auto now = std::chrono::system_clock::now();
                     std::time_t t = std::chrono::system_clock::to_time_t(now);
                     std::tm tm; LocalTimeSafe(&t, &tm);
                     std::ostringstream ss; ss << "gen_tmp_" << std::put_time(&tm, "%Y%m%d%H%M%S") << ".txt";
-                    this->m_generationTempPath = (base / ss.str()).string();
-                    this->m_generationTempStream.reset(new std::ofstream(this->m_generationTempPath, std::ios::out | std::ios::binary | std::ios::trunc));
+                    this->m_generationTempPath = sigflow::platform::PathToUtf8(base / ss.str());
+                    this->m_generationTempStream.reset(new std::ofstream(sigflow::platform::Utf8Path(this->m_generationTempPath), std::ios::out | std::ios::binary | std::ios::trunc));
                 }
                 catch (...) {}
 
@@ -1427,7 +1432,7 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
                     this->m_generationBackups.clear();
                     this->m_generationCreatedFiles.clear();
                     if (!this->m_generationTempPath.empty()) {
-                        std::error_code ec2; std::filesystem::remove(this->m_generationTempPath, ec2);
+                        std::error_code ec2; std::filesystem::remove(sigflow::platform::Utf8Path(this->m_generationTempPath), ec2);
                         this->m_generationTempPath.clear();
                     }
                     this->m_generationActive = false;
@@ -1506,7 +1511,7 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
 				if (userChoice == wxID_OK) {
 					bool writeSuccess = true;
 					namespace fs = std::filesystem;
-					fs::path baseSrc = (!this->m_projectRoot.empty()) ? fs::path(this->m_projectRoot) : fs::current_path();
+					fs::path baseSrc = (!this->m_projectRoot.empty()) ? sigflow::platform::Utf8Path(this->m_projectRoot) : fs::current_path();
 					fs::path srcDir = baseSrc / "src";
 					fs::path libDir = baseSrc / "lib";
 					std::error_code ec;
@@ -1536,7 +1541,7 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
 
                             if (fileName.empty()) {
                                 std::string defName = this->m_autoFilename.empty() ? "temp.v" : this->m_autoFilename;
-                                outPath = srcDir / defName;
+                                outPath = srcDir / sigflow::platform::Utf8Path(defName);
                             }
                             else {
                                 while (!fileName.empty() && (fileName.front() == '/' || fileName.front() == '\\')) {
@@ -1544,12 +1549,12 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
                                 }
 
                                 // 【此处保留了你上一个要求：无路径的放 ./src 下，有路径的尊重原路径】
-                                std::filesystem::path parsedPath(fileName);
+                                std::filesystem::path parsedPath = sigflow::platform::Utf8Path(fileName);
                                 if (!parsedPath.has_parent_path()) {
-                                    outPath = srcDir / fileName;
+                                    outPath = srcDir / parsedPath;
                                 }
                                 else {
-                                    outPath = baseSrc / fileName;
+                                    outPath = baseSrc / parsedPath;
                                 }
 
                                 fs::create_directories(outPath.parent_path(), ec);
@@ -1558,22 +1563,22 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
                             // 备份已有文件
                             if (fs::exists(outPath)) {
                                 std::ifstream ifs(outPath, std::ios::in | std::ios::binary);
-                                if (ifs) { std::ostringstream oss; oss << ifs.rdbuf(); this->m_generationBackups[outPath.string()] = oss.str(); }
+                                if (ifs) { std::ostringstream oss; oss << ifs.rdbuf(); this->m_generationBackups[sigflow::platform::PathToUtf8(outPath)] = oss.str(); }
                             }
                             else {
-                                this->m_generationCreatedFiles.push_back(outPath.string());
+                                this->m_generationCreatedFiles.push_back(sigflow::platform::PathToUtf8(outPath));
                             }
 
                             // 写入文件
 							std::ofstream ofs(outPath, std::ios::out | std::ios::binary);
-							if (!ofs) throw std::runtime_error("无法打开文件进行写入: " + outPath.string());
+							if (!ofs) throw std::runtime_error("无法打开文件进行写入: " + sigflow::platform::PathToUtf8(outPath));
 							ofs << p.second;
 							if (!ofs.good()) {
-								throw std::runtime_error("写入文件失败: " + outPath.string());
+								throw std::runtime_error("写入文件失败: " + sigflow::platform::PathToUtf8(outPath));
 							}
 
 							// 只有真正写成功了，才记录
-							writtenFiles.push_back(outPath.string());
+							writtenFiles.push_back(sigflow::platform::PathToUtf8(outPath));
 
 							hasFileWritten = true;
 							currentFileIdx++; // 记得在循环结束增加索引
@@ -1603,16 +1608,16 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
 
                         // 触发回滚恢复！
 						for (const auto& pathStr : this->m_generationCreatedFiles) {
-							fs::remove(fs::path(pathStr), ec);
+							fs::remove(sigflow::platform::Utf8Path(pathStr), ec);
 						}
 						for (const auto& kv : this->m_generationBackups) {
-							std::ofstream ofs(kv.first, std::ios::out | std::ios::binary);
+							std::ofstream ofs(sigflow::platform::Utf8Path(kv.first), std::ios::out | std::ios::binary);
 							if (ofs) ofs << kv.second;
 						}
 
 						// 新增：如果 .project 已经被改过，也要回滚
 						if (projectUpdated && !projectFilePath.empty()) {
-							std::ofstream pofs(projectFilePath, std::ios::out | std::ios::binary | std::ios::trunc);
+							std::ofstream pofs(sigflow::platform::Utf8Path(projectFilePath), std::ios::out | std::ios::binary | std::ios::trunc);
 							if (pofs) {
 								pofs << projectFileBackup;
 							}
@@ -1631,7 +1636,7 @@ wxPanel* Plug_DeepSeek::CreatePanel(wxWindow* parent) {
                 this->m_generationBackups.clear();
                 this->m_generationCreatedFiles.clear();
                 if (!this->m_generationTempPath.empty()) {
-                    std::error_code ec2; std::filesystem::remove(this->m_generationTempPath, ec2);
+                    std::error_code ec2; std::filesystem::remove(sigflow::platform::Utf8Path(this->m_generationTempPath), ec2);
                     this->m_generationTempPath.clear();
                 }
                 this->m_generationActive = false;

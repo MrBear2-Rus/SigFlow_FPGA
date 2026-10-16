@@ -34,6 +34,8 @@ public:
     void SetStatusText(const wxString& text, int number = 0);
 
     void AdjustScaleToFit();
+    /// 空画布底：未打开任何文件时也要"白底 + 网格"，不能露出笔记本的空灰底。
+    void OnPaintEmpty(wxPaintEvent& event);
     bool SaveOrNotWindow();
     bool SaveModifiedCanvases();
     bool HasUnsavedChanges() const { return m_isModified; }

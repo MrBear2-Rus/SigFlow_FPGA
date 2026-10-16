@@ -39,8 +39,8 @@ public:
             Refresh(false);
             if (m_content != nullptr) {
                 const auto& colours = UiTheme::Palette();
-                m_content->SetBackgroundColour(m_readOnly ? colours.bgPanel : colours.sunkenOnPanel);
-                m_content->SetForegroundColour(m_readOnly ? colours.text3 : colours.text1);
+                m_content->SetBackgroundColour(colours.surfaceOnWindow);
+                m_content->SetForegroundColour(colours.text1);
                 m_content->Refresh(false);
             }
         });
@@ -54,10 +54,10 @@ public:
             return;
 
         m_content->SetWindowStyleFlag(m_content->GetWindowStyleFlag() & ~wxBORDER_MASK);
-        m_content->SetBackgroundColour(readOnly ? UiTheme::Palette().bgPanel
-                                                 : UiTheme::Palette().sunkenOnPanel);
-        m_content->SetForegroundColour(readOnly ? UiTheme::Palette().text3
-                                                : UiTheme::Palette().text1);
+        // 图三：输入框底色**统一**，只读/可编辑同色（原来的 bgPanel/sunken 色差会在
+        // 壳内形成一圈"边框"观感，用户实测：仍有边框、颜色不一致）。
+        m_content->SetBackgroundColour(UiTheme::Palette().surfaceOnWindow);
+        m_content->SetForegroundColour(UiTheme::Palette().text1);   // 三个框字体颜色统一
         m_content->Bind(wxEVT_SET_FOCUS, [this](wxFocusEvent& event) {
             m_focus = true;
             Refresh(false);
@@ -93,15 +93,11 @@ private:
         if (!gc)
             return;
         const wxRect bounds = GetClientRect();
-        const double radius = FromDIP(UiTheme::RegionMetrics::FieldRadius);
-        const wxColour fill = m_readOnly ? colours.bgPanel : colours.sunkenOnPanel;
-        wxColour edge = colours.strokeOnPanel;
-        if (m_focus)
-            edge = colours.accent;
-        else if (m_hover)
-            edge = colours.focusRingOnPanel;
+        // 复用"绿色框"（顶部工具条 chip）的颜色与形状：surfaceOnWindow 底 + 1px 描边 + 半高圆角。
+        const double radius = bounds.height / 2.0;
+        const wxColour fill = colours.surfaceOnWindow;
         gc->SetBrush(gc->CreateBrush(wxBrush(fill)));
-        gc->SetPen(gc->CreatePen(wxGraphicsPenInfo(edge).Width(std::max(1, FromDIP(1)))));
+        gc->SetPen(gc->CreatePen(wxGraphicsPenInfo(colours.strokeOnWindow).Width(std::max(1, FromDIP(1)))));
         gc->DrawRoundedRectangle(0.5, 0.5,
                                  std::max(0, bounds.width - 1),
                                  std::max(0, bounds.height - 1), radius);
@@ -116,11 +112,13 @@ private:
 
 static void SetFieldMinimum(UiFieldChrome* shell, wxWindow* ctrl, wxWindow* parent)
 {
+    // 与顶部工具条 chip 取同一高度（ToolBarChipH），保证"完全一样的胶囊形状"。
+    const int fieldH = parent->FromDIP(UiTheme::Skeleton::ToolBarChipH);
     wxSize minimum = ctrl->GetMinSize();
-    minimum.y = std::max(parent->FromDIP(UiTheme::RegionMetrics::FieldHeight),
-                         ctrl->GetBestSize().y);
+    minimum.y = fieldH;
     ctrl->SetMinSize(minimum);
-    shell->SetMinSize(wxSize(-1, minimum.y));
+    shell->SetMinSize(wxSize(-1, fieldH));
+    shell->SetMaxSize(wxSize(-1, fieldH));
 }
 
 static wxTextCtrl* MakeTextField(wxWindow* parent, const wxString& value,
@@ -166,16 +164,15 @@ static wxFont InputFont(const wxWindow* parent) {
 // 只在既有样式 helper 中设置，不改 LoadNode、端口回调或表达式业务。
 static void ApplyInputHeight(wxWindow* ctrl, wxWindow* parent) {
     wxSize minimum = ctrl->GetMinSize();
-    minimum.y = std::max(parent->FromDIP(UiTheme::RegionMetrics::FieldHeight),
-                         ctrl->GetBestSize().y);
+    minimum.y = parent->FromDIP(UiTheme::Skeleton::ToolBarChipH);
     ctrl->SetMinSize(minimum);
 }
 
 // 辅助函数：设置只读文本框（CMP-055 只读项色弱：文字 text3 + 底 bgPanel 表示不可编辑）
 static void SetReadOnlyBackground(wxTextCtrl* ctrl, wxWindow* parent) {
     ctrl->SetEditable(false);
-    ctrl->SetBackgroundColour(UiTheme::Palette().bgPanel);
-    ctrl->SetForegroundColour(UiTheme::Palette().text3);
+    ctrl->SetBackgroundColour(UiTheme::Palette().surfaceOnWindow);
+    ctrl->SetForegroundColour(UiTheme::Palette().text1);   // 统一为 text1（原来是 text3 偏灰）
     ctrl->SetFont(InputFont(parent));
     ApplyInputHeight(ctrl, parent);
 }
@@ -185,7 +182,7 @@ static void ApplyInputLook(wxWindow* ctrl, wxWindow* parent) {
     ctrl->SetFont(InputFont(parent));
     ApplyInputHeight(ctrl, parent);
     ctrl->SetForegroundColour(UiTheme::Palette().text1);
-    ctrl->SetBackgroundColour(UiTheme::Palette().sunkenOnPanel);
+    ctrl->SetBackgroundColour(UiTheme::Palette().surfaceOnWindow);
 }
 
 // 标签：11 DIP / Medium / text3
@@ -211,65 +208,66 @@ wxSizer* PropertyPanelBuilder::CreateSectionTitle(wxWindow* parent, const wxStri
     return vSizer;
 }
 
+// 图三：统一"字段行"骨架 —— label 固定列宽（灰字） + 右侧圆角输入壳 + 行末 1px 分隔线，
+// 让各行输入框左侧成列对齐（原来 label 宽度随文字变化，输入框起始位置参差不齐）。
+static wxSizer* WrapFieldRow(wxWindow* parent, wxStaticText* lbl, wxWindow* shell) {
+    lbl->SetMinSize(wxSize(parent->FromDIP(88), -1));
+    auto* h = new wxBoxSizer(wxHORIZONTAL);
+    h->Add(lbl, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, parent->FromDIP(10));
+    h->Add(shell, 1, wxEXPAND);
+    auto* v = new wxBoxSizer(wxVERTICAL);
+    v->Add(h, 0, wxEXPAND | wxTOP | wxBOTTOM, parent->FromDIP(7));
+    v->Add(MakeSeparator(parent), 0, wxEXPAND);
+    return v;
+}
+
 wxSizer* PropertyPanelBuilder::CreateTextRow(wxWindow* parent, const wxString& label, const wxString& value) {
-    auto hSizer = new wxBoxSizer(wxHORIZONTAL);
     auto lbl = new wxStaticText(parent, wxID_ANY, label);
     ApplyLabelLook(lbl, parent);
-    hSizer->Add(lbl, 0, wxALIGN_CENTER_VERTICAL);
     UiFieldChrome* shell = nullptr;
     auto txt = MakeTextField(parent, value, wxTE_READONLY, wxDefaultPosition,
                              wxDefaultSize, true, &shell);
     SetReadOnlyBackground(txt, parent);
-    hSizer->Add(shell, 1, wxEXPAND);
-    return hSizer;
+    return WrapFieldRow(parent, lbl, shell);
 }
 
 wxSizer* PropertyPanelBuilder::CreateIdentifierRow(wxWindow* parent, const wxString& label,
     const wxString& initialValue, wxTextCtrl** textCtrlOut) {
-    auto hSizer = new wxBoxSizer(wxHORIZONTAL);
     auto lbl = new wxStaticText(parent, wxID_ANY, label);
     ApplyLabelLook(lbl, parent);
-    hSizer->Add(lbl, 0, wxALIGN_CENTER_VERTICAL);
     UiFieldChrome* shell = nullptr;
     auto txt = MakeTextField(parent, initialValue, wxTE_PROCESS_ENTER,
         wxDefaultPosition, wxDefaultSize, false, &shell);
     txt->SetEditable(true);
     ApplyInputLook(txt, parent);
-    hSizer->Add(shell, 1, wxEXPAND);
     if (textCtrlOut) *textCtrlOut = txt;
-    return hSizer;
+    return WrapFieldRow(parent, lbl, shell);
 }
 
 wxSizer* PropertyPanelBuilder::CreateEditableTextRow(wxWindow* parent, const wxString& label,
     const wxString& initialValue, wxTextCtrl** textCtrlOut) {
-    auto hSizer = new wxBoxSizer(wxHORIZONTAL);
     auto lbl = new wxStaticText(parent, wxID_ANY, label);
     ApplyLabelLook(lbl, parent);
-    hSizer->Add(lbl, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 5);
     UiFieldChrome* shell = nullptr;
     auto txt = MakeTextField(parent, initialValue, wxTE_PROCESS_ENTER,
         wxDefaultPosition, wxDefaultSize, false, &shell);
     txt->SetEditable(true);
     ApplyInputLook(txt, parent);
-    hSizer->Add(shell, 1, wxEXPAND);
     if (textCtrlOut) *textCtrlOut = txt;
-    return hSizer;
+    return WrapFieldRow(parent, lbl, shell);
 }
 
 wxSizer* PropertyPanelBuilder::CreateChoiceRow(wxWindow* parent, const wxString& label,
     const wxArrayString& choices, int initialSelection,
     wxChoice** choiceOut) {
-    auto hSizer = new wxBoxSizer(wxHORIZONTAL);
     auto lbl = new wxStaticText(parent, wxID_ANY, label);
     ApplyLabelLook(lbl, parent);
-    hSizer->Add(lbl, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 5);
     UiFieldChrome* shell = nullptr;
     auto ch = MakeChoiceField(parent, choices, &shell);
     ch->SetSelection(initialSelection);
     ApplyInputLook(ch, parent);
-    hSizer->Add(shell, 1, wxEXPAND);
     if (choiceOut) *choiceOut = ch;
-    return hSizer;
+    return WrapFieldRow(parent, lbl, shell);
 }
 
 wxSizer* PropertyPanelBuilder::CreateTopPortRow(wxWindow* parent, const wxString& direction,
