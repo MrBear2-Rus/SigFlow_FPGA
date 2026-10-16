@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 import unittest
 
 
@@ -10,9 +11,11 @@ class CliTests(unittest.TestCase):
     def run_cli(self, *args, text=''):
         env = {k: v for k, v in os.environ.items() if not k.startswith('DEEPSEEK_')}
         env['PYTHONUTF8'] = '1'
-        return subprocess.run([sys.executable, '-m', 'sigflow_edu_agent', *args],
-                              input=text, capture_output=True, encoding='utf-8',
-                              cwd=Path(__file__).resolve().parents[1], env=env, timeout=10)
+        with tempfile.TemporaryDirectory() as directory:
+            env['SIGFLOW_DEEPSEEK_CONFIG'] = str(Path(directory)/'no-user-credentials.json')
+            return subprocess.run([sys.executable, '-m', 'sigflow_edu_agent', *args],
+                                  input=text, capture_output=True, encoding='utf-8',
+                                  cwd=Path(__file__).resolve().parents[1], env=env, timeout=10)
 
     def test_demo_runs_without_network_or_key_and_reports_all_scenarios(self):
         result = self.run_cli('--demo')

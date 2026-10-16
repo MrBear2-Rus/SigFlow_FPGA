@@ -1,0 +1,50 @@
+{
+  "action_replay": "verified",
+  "baseline_evidence_ids": [
+    "gateway-2c6a618efae87586721b6ef9f92e1e26355d3619286da7707168f0a5af2dbb5c"
+  ],
+  "baseline_job_id": "job-20261016T042308-1",
+  "build_job_id": "job-20261016T042311-2",
+  "cleanup": "completed",
+  "completed_status": "Completed",
+  "evidence_origin": "tool",
+  "functional_correctness": "not_evaluated",
+  "grant_used_jobs": [
+    1,
+    2
+  ],
+  "harness": "single_evaluation",
+  "invalid_build_dependency": "denied",
+  "job_count": 3,
+  "limits": [
+    "dynamic_stimulus",
+    "trusted_exact_waveform",
+    "student_prediction",
+    "GUI",
+    "teaching_correctness"
+  ],
+  "model_calls": 0,
+  "model_mode": "rule",
+  "observation_actions": 1,
+  "real_core": true,
+  "real_verilator": true,
+  "real_yosys": true,
+  "reason": "outcome_indeterminate",
+  "result_evidence_ids": [
+    "gateway-0d0021fb14a0c3f9c0359a050cf95ec423219c977eba72f70793daedcc40980e",
+    "gateway-f8569cb81f9dc36889e8c1715901d44fd8484363ec4d48272b45d07107fea4a2"
+  ],
+  "run_job_id": "job-20261016T042353-3",
+  "stale_version": "denied",
+  "status": "passed",
+  "successor_confirmations": 1,
+  "time_advance_verified": false,
+  "waveform": {
+    "artifact_id": "art-7b4ade044599c954751fcd14",
+    "exact_samples_verified": false,
+    "metadata_verified": true,
+    "schema": "eda.wave.vcd.v1",
+    "sha256": "14b5628858c4ad44ff828e30627afce7b4bbabe5b91b89f902c3d46052cc0c20",
+    "size_bytes": 394
+  }
+}

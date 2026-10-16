@@ -89,26 +89,49 @@ class GatewayClient:
             raise GatewayError('INVALID_ARGUMENT')
         return value
 
-    def _get(self, route, *, job_id=None):
+    def _get(self, route, *, job_id=None, artifact_id=None):
         # Only these route factories can reach the transport; no caller URL,
         # query string, redirect, or alternate HTTP method is accepted.
-        if route in ('health', 'capabilities') and job_id is None:
+        if route in ('health', 'capabilities') and job_id is None and artifact_id is None:
             path = '/api/v1/' + route
         elif route == 'job_report':
             path = '/api/v1/jobs/' + self._identifier(job_id) + '/report'
+        elif route == 'artifact_metadata' and job_id is None:
+            path = '/api/v1/artifacts/' + self._identifier(artifact_id)
         else:
             raise GatewayError('UNSUPPORTED_MAPPING')
+        data = self._exchange('GET', path, authenticated=route != 'health')
+        if route in ('job_report', 'artifact_metadata'):
+            return data
+        if data.get('protocol_version') != PROTOCOL:
+            raise GatewayError('PROTOCOL_MISMATCH')
+        if data.get('instance_id') != self.config.instance_id:
+            raise GatewayError('INSTANCE_MISMATCH')
+        if data.get('edition') != 'edu':
+            raise GatewayError('POLICY_DENIED')
+        return data
+
+    def _exchange(self, method, path, body=None, *, authenticated=True, max_bytes=None):
+        """Internal loopback transport; public methods own route construction."""
+        if method not in ('GET', 'POST') or not path.startswith('/api/v1/') or any(c in path for c in '\r\n'):
+            raise GatewayError('UNSUPPORTED_MAPPING')
+        limit = self.MAX_RESPONSE_BYTES if max_bytes is None else max_bytes
         connection = http.client.HTTPConnection('127.0.0.1', self.config.port, timeout=self.config.timeout)
         headers = {'Accept': 'application/json'}
-        if route != 'health':
+        if authenticated:
             headers['Authorization'] = 'Bearer ' + self.config.token
+        if body is not None:
+            headers['Content-Type'] = 'application/json'
         try:
-            connection.request('GET', path, headers=headers)
+            if body is None:
+                connection.request(method,path,headers=headers)
+            else:
+                connection.request(method,path,body=json.dumps(body,allow_nan=False).encode('utf-8'),headers=headers)
             response = connection.getresponse()
             if 300 <= response.status < 400:
                 raise GatewayError('REDIRECT_DENIED')
-            raw = response.read(self.MAX_RESPONSE_BYTES + 1)
-            if len(raw) > self.MAX_RESPONSE_BYTES:
+            raw = response.read(limit + 1)
+            if len(raw) > limit:
                 raise GatewayError('RESOURCE_EXHAUSTED')
             status = response.status
         except TimeoutError:
@@ -136,18 +159,34 @@ class GatewayClient:
         data = envelope.get('data')
         if 'error' in envelope or not isinstance(data, dict):
             raise GatewayError('INVALID_RESPONSE')
-        if route == 'job_report':
-            return data
-        if data.get('protocol_version') != PROTOCOL:
-            raise GatewayError('PROTOCOL_MISMATCH')
-        if data.get('instance_id') != self.config.instance_id:
-            raise GatewayError('INSTANCE_MISMATCH')
-        if data.get('edition') != 'edu':
-            raise GatewayError('POLICY_DENIED')
         return data
 
     def health(self):
         return self._get('health')
+
+    def artifact_metadata(self, artifact_id, *, project_id, revision, job_id, sha256):
+        """Read metadata only, checking exact ownership and the report's hash.
+
+        Snapshot binding belongs to the report: this route exposes no snapshot.
+        Core Describe rehashes the artifact and rejects expired/modified files.
+        """
+        for value in (artifact_id, project_id, revision, job_id):
+            self._identifier(value)
+        if type(sha256) is not str or re.fullmatch(r'(?:sha256:)?[a-fA-F0-9]{64}', sha256) is None:
+            raise GatewayError('INVALID_ARGUMENT')
+        self.health()
+        data = self._get('artifact_metadata', artifact_id=artifact_id)
+        if tuple(data.get(k) for k in ('artifact_id', 'project_id', 'revision', 'job_id', 'sha256')) != (
+                artifact_id, project_id, revision, job_id, sha256):
+            raise GatewayError('INVALID_RESPONSE')
+        if (any(type(data.get(k)) is not str or len(data[k]) > 4096
+                for k in ('schema', 'role', 'media_type'))
+                or type(data.get('size')) is not str
+                or re.fullmatch(r'0|[1-9][0-9]{0,19}', data['size']) is None
+                or int(data['size']) > 18446744073709551615
+                or type(data.get('inline_readable')) is not bool):
+            raise GatewayError('INVALID_RESPONSE')
+        return data
 
     def job_report(self, job_id, *, project_id, revision, snapshot_id):
         """Fetch a bound raw report; this does not certify evidence or anchors."""

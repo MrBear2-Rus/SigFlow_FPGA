@@ -79,12 +79,12 @@ class GatewaySessionTests(unittest.TestCase):
                 replace(self.binding, **changes)
 
     def test_default_deepseek_requires_configuration(self):
-        with patch.dict(os.environ, {}, clear=True), self.assertRaises(ProviderError):
+        with patch.dict(os.environ, {}, clear=True), patch('sigflow_edu_agent.credentials.load_config',return_value=None), self.assertRaises(ProviderError):
             create_gateway_session(binding=self.binding, request=self.request, gateway=self.config,
                                    anchors=[self.anchor])
         self.client.job_report.assert_not_called()
 
-    @patch('sigflow_edu_agent.runtime.gateway_session.DeepSeekProvider.from_env')
+    @patch('sigflow_edu_agent.runtime.gateway_session.DeepSeekProvider.from_settings')
     def test_missing_evidence_never_calls_model_or_records_occurrence(self, provider):
         session = self.create(mode='deepseek', anchors=[])
         state = self.advance(session)

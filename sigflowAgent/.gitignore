@@ -21,3 +21,4 @@ data/baseline-*
 data/candidate-*
 data/final-*
 data/validation-*
+.local/

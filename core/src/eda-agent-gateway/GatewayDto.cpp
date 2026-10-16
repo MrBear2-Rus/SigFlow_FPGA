@@ -108,6 +108,7 @@ Json BuildCapabilitiesData(const std::string& instanceId, const std::string& pro
     }
     Json data = BuildHealthData(instanceId, protocolVersion, edition, build);
     data["capabilities"] = list;
+    data["waveform_query_contract"] = "whole-signals-v1";
     return data;
 }
 

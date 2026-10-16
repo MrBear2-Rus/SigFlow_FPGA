@@ -16,7 +16,8 @@ class SQLiteCourseProvider:
 
     def prepare(self, question: str, concept_ids: tuple[str, ...]) -> CourseBundle:
         from .rag.agent_adapter import prepare_course_context
-        prepared = prepare_course_context(question, [c for c in concept_ids if c != 'unknown'],
+        # Internal neutral task observations are not hardware/course concepts.
+        prepared = prepare_course_context(question, [c for c in concept_ids if c not in ('unknown', 'job_observation')],
                                           db_path=self.db_path, candidate_limit=20)
         child_ids=[p.reference.passage_id for p in prepared.passages
                    if p.reference.parent_id and p.reference.parent_id!=p.reference.passage_id]

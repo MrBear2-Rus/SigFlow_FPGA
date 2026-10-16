@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+SIGFLOW_U2_PACKAGE=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+export PYTHONPATH="$SIGFLOW_U2_PACKAGE"
+exec "${SIGFLOW_EDU_AGENT_PYTHON:-python3}" -P -m sigflow_edu_agent.host "$@"

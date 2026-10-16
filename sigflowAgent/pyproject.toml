@@ -14,6 +14,8 @@ course-build = ["PyYAML>=6.0"]
 
 [project.scripts]
 sigflow-agent = "sigflow_edu_agent.__main__:main"
+sigflow-u2-host = "sigflow_edu_agent.host.__main__:main"
+sigflow-deepseek = "sigflow_edu_agent.model_config:main"
 
 [tool.setuptools.packages.find]
 include = ["sigflow_edu_agent*"]

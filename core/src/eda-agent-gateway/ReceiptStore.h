@@ -35,8 +35,8 @@ struct UiReceipt {
 
 enum class ReceiptDecision {
     Ok,            // 首次核销成功
-    Replayed,      // 同 action 重复核销（返回原结果，幂等）
-    ActionMismatch,  // 已核销，但核销的是另一个 action（409）
+    Replayed,      // 同 run/action/state version 重放（返回原结果，幂等）
+    ActionMismatch,  // run/action 缺失或不符（409）
     StateConflict,   // expected_state_version 不符（409）
     NotFound,
     Invalid,       // 已失效（invalid/过期）
@@ -55,7 +55,7 @@ public:
                const std::string& issue, const std::string& level, const std::string& policy,
                const std::string& revision, const std::string& challengeId,
                const std::string& actionId, std::uint64_t ttlSeconds, UiReceipt& out,
-               std::string& error);
+               std::string& error, std::uint64_t issuedStateVersion = 0);
 
     bool Lookup(const std::string& receiptId, UiReceipt& out) const;
 
@@ -64,11 +64,12 @@ public:
 
     // 原子核销：
     // - 未失效 + expected_state_version 命中 → 首次扣减，Ok
-    // - 已 consumed 且 actionId 相同 → Replayed（幂等重放，返回原结果）
-    // - 已 consumed 且 actionId 不同 → ActionMismatch（409）
+    // - project/run/action 必须非空，签发时非空 actionId 必须匹配
+    // - 已 consumed 且 run/action/state version 相同 → Replayed（TTL 后仍可恢复原结果）
+    // - 已 consumed 且 run/action 不同 → ActionMismatch（409）
     // - expected_state_version 不符 → StateConflict（409）
     // - project 归属不符 → ProjectMismatch（403）
-    // - 已 invalid/过期 → Invalid（403）
+    // - 显式 invalid 或尚未核销且过期 → Invalid（403）
     bool Consume(const std::string& receiptId, const std::string& projectId,
                  const std::string& runId, const std::string& actionId,
                  std::uint64_t expectedStateVersion, ReceiptDecision& decision,

@@ -1,0 +1,178 @@
+{
+  "schema_version": "edu.simulation-loop-verification.v1",
+  "date": "2026-10-16",
+  "status": "passed",
+  "accepted_scope": "owned_headless_single_evaluation_verilator_pipeline_and_teaching_feedback",
+  "repository": {
+    "branch": "SigFlow_FPGA_CMake",
+    "head": "8b067b2fdabf9abdbe63764dfcf5259be88170fd",
+    "uncommitted": true,
+    "staged_files": 0,
+    "committed_this_stage": false,
+    "pushed_this_stage": false,
+    "preserved_stashes": [
+      "824925a13fd8cf79dfb559a392ef918c911fa100",
+      "e0b4b8bfd25640492df0d0ad3b9606bc35b7edfe"
+    ]
+  },
+  "python": {
+    "version": "3.13.5",
+    "source_sha256": "c35443312c987457f3ef6cda28f2705acc59ece9602ff07f771179a7092add70",
+    "conda_activation_required": false,
+    "ucagent_required": false
+  },
+  "file_sha256": {
+    "sigflowAgent/sigflow_edu_agent/host/simulation_acceptance.py": "acc5a941f1f5bd76df1ccf91d363c96ad4336c4a6e6a2652b3912f6c7d8b0d40",
+    "sigflowAgent/sigflow_edu_agent/host/closed_loop.py": "7dc00a9bda063f21c5c37b89798a802773797950037bb934aaaa096d207373b1",
+    "sigflowAgent/integration/edu_u2_gateway.cpp": "86444d381950ecd3b15050786ab6ca77ba8d1c5e1f2e8d3e236408fe99be2b0f",
+    "sigflowAgent/integration/CMakeLists.txt": "71f55aefc542fc61605c1fc52746dacee7494b835372756f45e666f222ea6f9f",
+    "sigflowAgent/integration/sim_artifact_test.cpp": "4d584ddb3d05d8f5758b94c7e0b706024cc509a32fbdf6ea48309e524ce51f38",
+    "sigflowAgent/tests/test_simulation_acceptance.py": "e66291b1ef65918e0d7d3f8aa5abb580d8afb668d4a0a63a97c0a7214c50232f",
+    "sigflowAgent/tests/test_simulation_transition.py": "6604e233d5e04d25d681b881cef3123aeafdb345ced32ab9a2247aaf8e9eaafc",
+    "sigflowAgent/tests/test_closed_loop.py": "719a43a9ee6bf684a78bfd17c38dd3331111155e6789931dbb56d24965bf4e05",
+    "InnerPlugin/eda-sim-verilator/src/VerilatorSimulator.cpp": "07aa3cd981af1874e788f83c0a220428c07b33c772500f96777805d64335f359",
+    "InnerPlugin/eda-sim-verilator/src/VerilatorRunJob.cpp": "8a69728766cd0239a1b849bddd7377a28691593d4075f93bc211ea73a0a845f9",
+    "build-main-msvcrt/sigflowAgent/integration/edu_u2_gateway.exe": "19b67236c88f15d3c436c5c5d71c9af815c63e68873dd4e3684515700341d1ce",
+    "build-main-msvcrt/sigflowAgent/integration/edu_u2_sim_artifact_test.exe": "a9c6b60a2a95a4844d35abcb461c5bd28980f4e639f1b0955be4a9454b409dd8",
+    "tools/verilator/verilator-install/bin/verilator_bin_dbg.exe": "d87f0d7a17c94bd78d4feb0a0f20a0ec5d278ad9d8653049bbce7ad3c07200aa",
+    "tools/verilator/verilator-install/include/verilated.mk": "1700dedde0b94aad29cfb4a84c3177368e8acf77e8f2256f84570c36ae54d521"
+  },
+  "course_database_sha256": "4a98cecdc34a16446c3a5860072db18776871f437c329b2c62cda153fe662b01",
+  "course_database_unchanged": true,
+  "unit_tests": {
+    "tests_run": 514,
+    "passed": 481,
+    "skipped_entries": 35,
+    "skipped_test_methods": 33,
+    "skipped_classes": 2,
+    "methods_not_run_due_to_class_skip": 18,
+    "collected_test_methods": 532,
+    "failed": 0,
+    "errors": 0,
+    "seconds": 72.904,
+    "log_sha256": "b17be1c7bd429c9fe5b9d90bf898e155c43c1470f1d2b37813447fb662dc7a48",
+    "count_semantics": "testsRun=514 includes 481 successes and 33 method skips; skipped=35 also includes two class skips covering 18 additional collected methods",
+    "skipped_reasons": {
+      "historical_optional_ucagent_methods": 6,
+      "original_course_snapshot_unavailable_methods": 27,
+      "original_course_snapshot_unavailable_classes": 2
+    },
+    "command": "PYTHONPATH=sigflowAgent; sigflowAgent/.venv/Scripts/python.exe -P -m unittest discover -s sigflowAgent/tests -v",
+    "context": "normal_current_Windows_user_for_fake_key_DPAPI"
+  },
+  "cpp_producer_regression": {
+    "target": "edu_u2_sim_artifact_test",
+    "exit_code": 0,
+    "build_hash_verified": true,
+    "run_hash_verified": true,
+    "process_host": "fixture",
+    "real_eda": false,
+    "red_before_fix": "exit=1 build_hash=0 run_hash=0",
+    "green_after_fix": "exit=0 build_hash=1 run_hash=1"
+  },
+  "development_evaluation": {
+    "report": "evaluation-stage16.json",
+    "sha256": "c716b59b307053247fc506f0b04b0a1938e4ffdde70e6b4fa4d6f00f6020315e",
+    "total": 40,
+    "passed": 40,
+    "failed": 0,
+    "source_hash_verified": true,
+    "rule_cases": 37,
+    "mock_provider_cases": 3,
+    "real_model": false,
+    "real_tool": false
+  },
+  "real_acceptance": {
+    "simulation": {
+      "report": "closed-loop-stage16-simulation.json",
+      "sha256": "81f7f9ff2b0d53371c5b2eb299c4f0aa90cdb101425256497a74566407a1d8e3",
+      "jobs": 3,
+      "real_core": true,
+      "real_yosys": true,
+      "real_verilator": true,
+      "model_calls": 0,
+      "observation_actions": 1,
+      "successor_confirmations": 1,
+      "grant_used_jobs": [
+        1,
+        2
+      ],
+      "waveform": {
+        "artifact_id": "art-7b4ade044599c954751fcd14",
+        "exact_samples_verified": false,
+        "metadata_verified": true,
+        "schema": "eda.wave.vcd.v1",
+        "sha256": "14b5628858c4ad44ff828e30627afce7b4bbabe5b91b89f902c3d46052cc0c20",
+        "size_bytes": 394
+      },
+      "harness": "single_evaluation",
+      "time_advance_verified": false,
+      "functional_correctness": "not_evaluated",
+      "cleanup": "completed"
+    },
+    "course_compatibility": {
+      "report": "closed-loop-stage16-courses.json",
+      "sha256": "ca2798101b2fcd39e13164a8f69540d23cfb874394a08e97a8b96be301eca845",
+      "jobs": 2,
+      "real_core": true,
+      "real_yosys": true,
+      "course": {
+        "answerability": "not_assessed",
+        "index_versions": [
+          "sha256:45eab8c89e52b37f067084d6f740a1333d919d125ead02630b6cc435de64bf86"
+        ],
+        "initial_card_citation_count": 0,
+        "metadata_verified": true,
+        "reference_count": 4,
+        "status": "partial"
+      },
+      "model_calls": 0,
+      "cleanup": "completed"
+    }
+  },
+  "independent_review": {
+    "status": "passed_after_fix",
+    "report_sha256": "280bdbb0f8fc861f768d6bb8c3d381efed1604ba6ba824122ae40fc17ee7c6cd",
+    "addressed": [
+      "observation_Completed_could_bypass_successor_confirmation",
+      "missing_or_malformed_completed_steps_could_bypass_build_barrier"
+    ],
+    "independently_run_simulation_tests": 9
+  },
+  "environment_fix": {
+    "scope": "owned_Core_child_only",
+    "installed_tool_files_modified": false,
+    "make_alias": "owned_temporary_directory",
+    "make_variables": [
+      "CXX=g++",
+      "LINK=g++",
+      "AR=ar",
+      "PYTHON3=python3"
+    ],
+    "root_cause": "bundled_verilated_mk_hardcoded_absent_packager_MSVC_and_Python_paths"
+  },
+  "producer_fix": "real_Verilator_build_run_artifacts_now_hash_file_contents_before_registration",
+  "not_accepted": [
+    "dynamic_simulation_stimulus",
+    "trusted_exact_waveform_queries",
+    "student_prediction_actions",
+    "all_eight_real_detectors",
+    "GUI",
+    "teacher_review",
+    "real_DeepSeek_course_generation_quality",
+    "hardware_functional_correctness",
+    "L4_dual_confirmation",
+    "cross_platform_release"
+  ],
+  "next": "repair_and_test_S2_waveform_truncation_then_trusted_query_and_explicit_prediction",
+  "documentation_verification": {
+    "files_checked": 4,
+    "missing_local_links": 0,
+    "markdown_fences": "balanced",
+    "unchecked_plan_items": 0,
+    "current_file_hashes_verified": true,
+    "git_diff_check": "passed",
+    "staged_files": 0,
+    "unmerged_files": 0
+  }
+}

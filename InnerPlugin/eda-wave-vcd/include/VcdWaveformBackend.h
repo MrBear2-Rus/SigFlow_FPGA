@@ -25,7 +25,7 @@ public:
 private:
     std::vector<WaveSignal> signals_;
     std::vector<std::vector<WaveTransition>> changes_;  // 与 signals_ 同序
-    std::map<std::string, int> idToIndex_;
+    std::map<std::string, std::vector<int>> idToIndices_;
     std::string timescale_;
     WaveTimeRange timeRange_;
 };

@@ -14,7 +14,7 @@ import re
 from ..domain import CardContext, EvidenceError, RunRequest, RunState, Status, Trace
 from ..loop import TeachingLoop
 from ..patterns import PATTERN_VERSION, POLICY_VERSION
-from ..pedagogy import checked_card, valid_evidence
+from ..pedagogy import checked_card, valid_evidence, RuleProvider
 from .gateway_session import Occurrence, SessionBinding
 from .session import TeachingSession
 
@@ -165,11 +165,12 @@ def _validate(data):
         _invalid()
 
 
-def _cards(data, request, evidence):
+def _cards(data, request, evidence, course_status='disabled'):
     result = []
     for saved in data['state']['cards']:
         candidate = {name: saved[name] for name in ('level', 'hint', 'question', 'evidence_ids')}
-        card = checked_card(candidate, CardContext(request.question, saved['level'], evidence),
+        card = checked_card(candidate, CardContext(request.question, saved['level'], evidence,
+                                                  course_status=course_status),
                             saved['producer'])
         if card is None:
             _invalid()
@@ -194,9 +195,18 @@ def export_readonly_checkpoint(loop, binding):
                   ('run_id', 'stage', 'status', 'level', 'version', 'steps', 'model_calls', 'reason')},
         'actions': {key: list(value) for key, value in loop._actions.items()},
     }
+    recovery_cards = state.cards
+    if loop.course_provider is not None:
+        # Course text/references and their model interpretation are deliberately
+        # not replayed from a v1 checkpoint. Rebuild same-level engineering rules;
+        # current background is retrieved only after engineering reconciliation.
+        recovery_cards = []
+        for card in state.cards:
+            context = CardContext(loop.request.question, card.level, loop._evidence)
+            recovery_cards.append(checked_card(RuleProvider().generate(context), context, 'rule'))
     data['state']['cards'] = [
         {**{name: getattr(card, name) for name in ('level', 'hint', 'question', 'producer')},
-         'evidence_ids': list(card.evidence_ids)} for card in state.cards]
+         'evidence_ids': list(card.evidence_ids)} for card in recovery_cards]
     # Apply the same validation to exports; no write occurs on rejection.
     payload = _canonical(data)
     data = _decode(payload)
@@ -255,8 +265,9 @@ class RecoveredTeachingSession(TeachingSession):
             else:
                 state.reason = '' if matched else 'recovery_evidence_mismatch'
             if matched:
-                cards = _cards(self._saved, self._loop.request, evidence)
                 self._loop._evidence = evidence
+                self._loop._prepare_courses()
+                cards = _cards(self._saved, self._loop.request, evidence, state.course_status)
                 state.cards = cards
                 state.stage = self._saved['state']['stage']
                 state.status = Status(self._saved['state']['status'])
@@ -282,7 +293,8 @@ class _FixedObservationSource:
         return evidence
 
 
-def restore_readonly_session(payload, *, binding, request, source, provider=None):
+def restore_readonly_session(payload, *, binding, request, source, provider=None,
+                             course_provider=None, state_version=None):
     """Validate without I/O; source must already enforce authenticated scope.
 
     Does not authenticate a checkpoint or load a Provider from stored settings.
@@ -293,13 +305,18 @@ def restore_readonly_session(payload, *, binding, request, source, provider=None
     if data['binding'] != asdict(binding) or data['request_sha256'] != _digest(asdict(request)):
         raise ValueError('checkpoint_scope_mismatch')
     saved = data['state']
+    restored_version = saved['version'] + 1
+    if state_version is not None:
+        if type(state_version) is not int or not restored_version <= state_version <= 2**63 - 3:
+            raise ValueError('invalid_recovery_version')
+        restored_version = state_version
     if ((request.intent == 'explain' and (saved['stage'] != 'E4' or saved['level'] != 1))
             or (request.intent == 'diagnose' and saved['stage'] != 'E5')):
         _invalid()
     fixed = _FixedObservationSource(source, binding, request, data['evidence_sha256'])
-    loop = TeachingLoop(request, fixed, provider, **data['budgets'])
+    loop = TeachingLoop(request, fixed, provider, course_provider=course_provider, **data['budgets'])
     loop._state = RunState(saved['run_id'], stage=saved['stage'], status=Status.RECOVERY_REQUIRED,
-                           level=saved['level'], version=saved['version'] + 1,
+                           level=saved['level'], version=restored_version,
                            steps=saved['steps'], model_calls=saved['model_calls'], reason='recovery_required')
     loop._actions = {key: tuple(value) for key, value in data['actions'].items()}
     return RecoveredTeachingSession(loop, binding, data)

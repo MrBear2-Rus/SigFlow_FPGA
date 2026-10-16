@@ -1,0 +1,416 @@
+{
+  "schema_version": "edu.development-evaluation.v1",
+  "suite_version": "development-v1",
+  "suite_sha256": "4133919fc4de1e0b14d06defe8ae823db2012d0586301e8365859e2f6c105db4",
+  "versions": {
+    "source_sha256": "f47a20a0748e1a96874370222d64f31b216cf6f06707c20321571290d0105aab",
+    "workflow": "u2-e0-e7",
+    "policy": "l1-l3-l4-denied",
+    "prompt": "not_used",
+    "upstream": "not_used",
+    "model": "not_used",
+    "rag": "not_used"
+  },
+  "evidence_type": "synthetic_development",
+  "real_model": "not_run",
+  "real_tools": "not_run",
+  "teacher_review": "not_run",
+  "temperature": null,
+  "by_execution_kind": {
+    "rule": {
+      "total": 37,
+      "passed": 37,
+      "failed": 0,
+      "status": "run"
+    },
+    "mock_provider": {
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "status": "run"
+    },
+    "real_tool": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0,
+      "status": "not_run"
+    },
+    "real_model": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0,
+      "status": "not_run"
+    },
+    "teacher_review": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0,
+      "status": "not_run"
+    }
+  },
+  "total": 40,
+  "passed": 40,
+  "failed": 0,
+  "results": [
+    {
+      "case_id": "dev-001",
+      "probe": "card_level4",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-002",
+      "probe": "card_level2",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-003",
+      "probe": "card_bool_level",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-004",
+      "probe": "card_forged_reference",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-005",
+      "probe": "card_extra_reference",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-006",
+      "probe": "card_code_fence",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-007",
+      "probe": "card_rtl",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-008",
+      "probe": "card_extra_tool",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-009",
+      "probe": "card_blank_question",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-010",
+      "probe": "card_oversized",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-011",
+      "probe": "evidence_cross_project",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-012",
+      "probe": "evidence_stale",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-013",
+      "probe": "evidence_partial",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-014",
+      "probe": "evidence_hypothesis",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-015",
+      "probe": "plan_shell",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-016",
+      "probe": "plan_unbuilt_sim",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-017",
+      "probe": "plan_over_budget",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-018",
+      "probe": "reference_request",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-019",
+      "probe": "reference_confirm",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-020",
+      "probe": "teacher_text",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-021",
+      "probe": "repeat_action",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-022",
+      "probe": "stale_action",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-023",
+      "probe": "hint_cap",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-024",
+      "probe": "cancel_stops",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-025",
+      "probe": "step_budget",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-026",
+      "probe": "model_budget",
+      "execution_kind": "mock_provider",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-027",
+      "probe": "repair_limit",
+      "execution_kind": "mock_provider",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-028",
+      "probe": "provider_error",
+      "execution_kind": "mock_provider",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-029",
+      "probe": "source_injection",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-030",
+      "probe": "course_injection",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-031",
+      "probe": "log_injection",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-032",
+      "probe": "detailed_unknown_parameter",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-033",
+      "probe": "detailed_forward_dependency",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-034",
+      "probe": "detailed_hash_binding",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-035",
+      "probe": "outcome_reused_job",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-036",
+      "probe": "outcome_cross_project",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-037",
+      "probe": "outcome_old_revision",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-038",
+      "probe": "pattern_fake_detector",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-039",
+      "probe": "pattern_cross_anchor",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    },
+    {
+      "case_id": "dev-040",
+      "probe": "pattern_partial_wave",
+      "execution_kind": "rule",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "reason": "matched"
+    }
+  ]
+}

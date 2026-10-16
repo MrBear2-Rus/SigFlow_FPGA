@@ -1,0 +1,48 @@
+{
+  "action_replay": "verified",
+  "baseline_evidence_ids": [
+    "gateway-ba7bafac4baae5642e5f797ff06fac6127f2e457485840bdcb3bac76f3804358"
+  ],
+  "baseline_job_id": "job-20261016T042306-1",
+  "cancel_before_approval": "Cancelled",
+  "cleanup": "completed",
+  "completed_status": "Completed",
+  "completed_version": "8",
+  "course": {
+    "answerability": "not_assessed",
+    "index_versions": [
+      "sha256:45eab8c89e52b37f067084d6f740a1333d919d125ead02630b6cc435de64bf86"
+    ],
+    "initial_card_citation_count": 0,
+    "metadata_verified": true,
+    "reference_count": 4,
+    "status": "partial"
+  },
+  "evidence_origin": "tool",
+  "feedback_producer": "rule",
+  "functional_correctness": "not_evaluated",
+  "grant_used_jobs": [
+    1,
+    1
+  ],
+  "initial_producer": "rule",
+  "job_count": 2,
+  "limits": [
+    "real_simulation",
+    "cross_revision_student_edit",
+    "GUI",
+    "teaching_correctness"
+  ],
+  "model_calls": 0,
+  "model_mode": "rule",
+  "real_core": true,
+  "real_yosys": true,
+  "reason": "outcome_indeterminate",
+  "result_evidence_ids": [
+    "gateway-23100107dda93e2468815fd17cb48e7eea2d063cdf333dd84883ca7f281be406"
+  ],
+  "result_job_id": "job-20261016T042309-2",
+  "stale_version": "denied",
+  "status": "passed",
+  "waiting_version": "5"
+}

@@ -2,6 +2,7 @@
 
 #include "Platform.h"
 #include "eda-core/Toolchain.h"
+#include "Sha256.h"
 
 #include <eda/api/abi.h>
 #include <eda/api/plugin_registry.h>
@@ -530,6 +531,10 @@ Error VerilatorSimulator::startJob(const JobRequest& request, JobContext& ctx) {
     artifact.path = executable;
     artifact.schema = "eda.sim.verilator-executable.v1";
     artifact.role = "primary";
+    artifact.sha256 = platform::Sha256FileHex(artifact.path);
+    if (artifact.sha256.empty()) {
+        return Error{ErrorCode::Internal, "unable to hash simulation executable", ""};
+    }
     ctx.registerArtifact(artifact);
     ctx.progress(100, "simulation build complete");
     return Error::Ok();

@@ -1,0 +1,38 @@
+{
+  "action_replay": "verified",
+  "baseline_evidence_ids": [
+    "gateway-fc6dc774937af2487a036322241fe7553fd07ccbc0d306a5203cf48164976313"
+  ],
+  "baseline_job_id": "job-20261015T150007-1",
+  "cancel_before_approval": "Cancelled",
+  "cleanup": "completed",
+  "completed_status": "Completed",
+  "completed_version": "8",
+  "evidence_origin": "tool",
+  "feedback_producer": "rule",
+  "functional_correctness": "not_evaluated",
+  "grant_used_jobs": [
+    1,
+    1
+  ],
+  "initial_producer": "model",
+  "job_count": 2,
+  "limits": [
+    "real_simulation",
+    "cross_revision_student_edit",
+    "GUI",
+    "teaching_correctness"
+  ],
+  "model_calls": 1,
+  "model_mode": "deepseek",
+  "real_core": true,
+  "real_yosys": true,
+  "reason": "outcome_indeterminate",
+  "result_evidence_ids": [
+    "gateway-76cc39833fffe17e368b6ba7080c3175e88bb34472ab499c6abbae8c967f8660"
+  ],
+  "result_job_id": "job-20261015T150012-2",
+  "stale_version": "denied",
+  "status": "passed",
+  "waiting_version": "5"
+}

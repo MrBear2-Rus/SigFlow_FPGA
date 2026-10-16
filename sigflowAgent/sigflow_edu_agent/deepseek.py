@@ -23,6 +23,8 @@ translated_source 是未教师审阅的机器中文译稿，不是官方译文�
 L1 只给方向性问题；L2 缩小检查范围；L3 给具体检查线索。
 不提供完整根因链（L1）、完整修复代码、改名答案、工具调用或授权。
 如果设计目标未确定，不把锁存器当成错误。hint 和 question 各不超过 1200 字符。
+job_observation 仅观察完整任务报告的状态和范围；综合或工具成功不证明功能正确，诊断消失也不证明修复。
+对此观察保持中性，只围绕任务、版本、snapshot、产物和独立验证期望提问，不虚构硬件错误或源码位置。
 若 repair=true，前次候选未通过结构/引用/等级检查，请重新按上述 JSON 规范作答。
 '''
 
@@ -101,6 +103,19 @@ class DeepSeekProvider:
             os.environ.get('DEEPSEEK_MODEL', ''),
             os.environ.get('DEEPSEEK_BASE_URL', 'https://api.deepseek.com').rstrip('/'),
         ))
+
+    @classmethod
+    def from_settings(cls):
+        if any(key in os.environ for key in ('DEEPSEEK_API_KEY','DEEPSEEK_MODEL','DEEPSEEK_BASE_URL')):
+            return cls.from_env()
+        from .credentials import load_config,CredentialError
+        try:
+            config=load_config()
+        except CredentialError:
+            raise ProviderError('model_unconfigured') from None
+        if config is None:
+            raise ProviderError('model_unconfigured')
+        return cls(config)
 
     def generate(self, context: CardContext) -> dict:
         body = serialize_request(context, model=self.config.model, max_tokens=self.config.max_tokens)

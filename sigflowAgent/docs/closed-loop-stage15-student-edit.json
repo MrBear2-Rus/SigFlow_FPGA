@@ -1,0 +1,70 @@
+{
+  "action_replay": "verified",
+  "baseline_evidence_ids": [
+    "gateway-51815a490792b2f6aca1833827156b9d3d9ec57f5de5681bfbbac1999d35928f"
+  ],
+  "baseline_job_id": "job-20261016T032025-1",
+  "cancel_before_approval": "Cancelled",
+  "cleanup": "completed",
+  "completed_status": "Completed",
+  "completed_version": "8",
+  "evidence_origin": "tool",
+  "feedback_producer": "rule",
+  "functional_correctness": "not_evaluated",
+  "grant_used_jobs": [
+    1,
+    1,
+    0,
+    1,
+    1
+  ],
+  "initial_producer": "rule",
+  "job_count": 4,
+  "limits": [
+    "real_simulation",
+    "GUI",
+    "teaching_correctness"
+  ],
+  "model_calls": 0,
+  "model_mode": "rule",
+  "real_core": true,
+  "real_yosys": true,
+  "reason": "outcome_indeterminate",
+  "result_evidence_ids": [
+    "gateway-d70da91ff6b180df01adf8343106143cce3978cb98803de1115a9830429f57ff"
+  ],
+  "result_job_id": "job-20261016T032028-2",
+  "stale_version": "denied",
+  "status": "passed",
+  "student_edit": {
+    "action_replay": "verified",
+    "baseline_evidence_ids": [
+      "gateway-1cb3ad3818d365d6026ba19fcb3a8f8acb0de70ba4640214112bae5c80855e45"
+    ],
+    "baseline_job_id": "job-20261016T032030-3",
+    "completed_status": "Completed",
+    "evidence_origin": "tool",
+    "functional_correctness": "not_evaluated",
+    "grant_used_jobs": [
+      0,
+      1,
+      1
+    ],
+    "new_approval": "verified",
+    "new_input_fingerprint": "9d716b0727fa986fe3e62fb25d542fdb19658862b774c71126935deed45bda11",
+    "new_revision": "rev-2-bf07cec91ff8",
+    "new_snapshot_id": "snap-ca37326f7fe0ff023ae56c21",
+    "old_grant_on_new_revision": "denied",
+    "old_input_fingerprint": "cace3bfa924761f75425d24726991bb2285dd944b9e23d2d358e1d402fc453cf",
+    "old_revision": "rev-1-a6b8a8ce0da7",
+    "old_scope_job": "denied",
+    "old_scope_teaching": "denied",
+    "old_snapshot_id": "snap-3904d9d007ed81b17411329f",
+    "reason": "outcome_indeterminate",
+    "result_evidence_ids": [
+      "gateway-4615f16bd964ec6b55961f4a64de81ae8893ca9d2d9a75525ce7311bc2b466d5"
+    ],
+    "result_job_id": "job-20261016T032033-4"
+  },
+  "waiting_version": "5"
+}

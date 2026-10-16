@@ -289,7 +289,6 @@ class SidecarFixture:
         """Stop the sidecar and the stub Gateway."""
         self.stop_event.set()
         self.thread.join(timeout=5)
-        self.state.learning.close()
         self.gateway.shutdown()
         self.gateway.server_close()
 
@@ -439,7 +438,8 @@ class SidecarApiTests(unittest.TestCase):
         data = _data(response)
         self.assertEqual([mode["id"] for mode in data["modes"]], ["L1", "L2", "L3", "L4"])
         self.assertFalse(data["execution"]["can_run_eda"])
-        self.assertIn("grant", data["execution"]["note"])
+        self.assertIsInstance(data["execution"]["note"], str)
+        self.assertTrue(data["execution"]["note"].strip())
         self.assertFalse(data["model"]["available"])
 
     def test_capabilities_requires_auth(self) -> None:

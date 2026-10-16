@@ -1,0 +1,79 @@
+{
+  "action_replay": "verified",
+  "baseline_evidence_ids": [
+    "gateway-1097a2fbd23554889499b2a5c59c272131bf7aa458e85fc9c2dfed09b890ce45"
+  ],
+  "baseline_job_id": "job-20261016T110818-1",
+  "build_job_id": "job-20261016T110821-2",
+  "cleanup": "completed",
+  "completed_status": "Completed",
+  "evidence_origin": "tool",
+  "functional_correctness": "not_evaluated",
+  "grant_used_jobs": [
+    1,
+    2
+  ],
+  "harness": "single_evaluation",
+  "invalid_build_dependency": "denied",
+  "job_count": 3,
+  "limits": [
+    "dynamic_stimulus",
+    "GUI",
+    "teaching_correctness"
+  ],
+  "model_calls": 0,
+  "model_mode": "rule",
+  "observation_actions": 1,
+  "prediction": {
+    "additional_jobs": 0,
+    "challenge_before_observation": true,
+    "evidence_id": "wave-89d5953a249a33ec7212e42297866c7bc3e45ce424286c1bdaa4a562ed2c4346",
+    "expected": "0",
+    "level_unchanged": true,
+    "limitation": "single fixed sample; no dynamic stimulus or whole-design verdict",
+    "model_calls": 0,
+    "observed": "0",
+    "outcome": "matches",
+    "replay": "verified",
+    "sample_tick": "0",
+    "status": "passed"
+  },
+  "real_core": true,
+  "real_verilator": true,
+  "real_yosys": true,
+  "reason": "outcome_indeterminate",
+  "result_evidence_ids": [
+    "gateway-d5282a61b221b92ee8eab0606cb16a109abf9e2c99085da829eefea47a150a4a",
+    "gateway-2b9347488d8daf93764abe2bd8eb072821935a31554759d9d83b1c9ada10740e"
+  ],
+  "run_job_id": "job-20261016T110912-3",
+  "stale_version": "denied",
+  "status": "passed",
+  "successor_confirmations": 1,
+  "time_advance_verified": false,
+  "wave_observation": {
+    "artifact_hash": "14b5628858c4ad44ff828e30627afce7b4bbabe5b91b89f902c3d46052cc0c20",
+    "artifact_id": "art-cd60a96893cb2d205aacf092",
+    "end_tick": "0",
+    "evidence_id": "wave-89d5953a249a33ec7212e42297866c7bc3e45ce424286c1bdaa4a562ed2c4346",
+    "exact_window_verified": true,
+    "full_name": "TOP.q",
+    "job_id": "job-20261016T110912-3",
+    "origin": "tool",
+    "revision": "rev-1-6f564dae9523",
+    "signal_id": 3,
+    "snapshot_id": "snap-9eeb3b11357e93e0ffc46401",
+    "start_tick": "0",
+    "timescale": "1ps",
+    "transitions": 1,
+    "width": 1
+  },
+  "waveform": {
+    "artifact_id": "art-cd60a96893cb2d205aacf092",
+    "exact_samples_verified": true,
+    "metadata_verified": true,
+    "schema": "eda.wave.vcd.v1",
+    "sha256": "14b5628858c4ad44ff828e30627afce7b4bbabe5b91b89f902c3d46052cc0c20",
+    "size_bytes": 394
+  }
+}
