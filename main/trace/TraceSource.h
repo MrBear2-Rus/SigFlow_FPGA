@@ -22,6 +22,7 @@ public:
     virtual TraceTimeRange TimeRange() const = 0;
     virtual std::string Timescale() const = 0;
     virtual TraceTimeDomain TimeDomain() const { return TraceTimeDomain::Unknown; }
+    virtual TraceCoverageInfo Coverage() const { return TraceCoverageInfo{}; }
     virtual const std::string& Path() const = 0;
 
     // 返回时间在 [t0, t1] 闭区间内的全部跳变（不含 t0 之前的初始值）。

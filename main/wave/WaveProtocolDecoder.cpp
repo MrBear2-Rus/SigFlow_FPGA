@@ -34,6 +34,15 @@ bool Prepare(TraceSource& source, const ProtocolDecodeOptions& options,
         error = "invalid protocol decode time range";
         return false;
     }
+    sigflow::trace::TraceCoverageRange gap;
+    if (source.Coverage().FindGap(start, end, gap)) {
+        std::ostringstream message;
+        message << "TRACE_GAP: protocol decode range crosses uncovered trace interval ["
+                << gap.begin << "," << gap.end << "]";
+        if (!gap.reason.empty()) message << " (" << gap.reason << ")";
+        error = message.str();
+        return false;
+    }
     return true;
 }
 

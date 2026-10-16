@@ -37,5 +37,25 @@ struct TraceTimeRange {
     bool valid = false;
 };
 
+// Optional acquisition coverage metadata. A source may leave this unknown
+// when the file format cannot distinguish an intentional idle period from a
+// missing capture interval. When known, ranges are inclusive and describe
+// portions of the requested time domain for which samples are trustworthy.
+struct TraceCoverageRange {
+    TimeValue begin = 0;
+    TimeValue end = 0;
+    std::string reason;
+};
+
+struct TraceCoverageInfo {
+    bool known = false;
+    std::vector<TraceCoverageRange> covered;
+
+    // Returns the first uncovered interval in [begin, end], if any. Unknown
+    // coverage deliberately returns no gap so legacy sources retain their
+    // previous behavior.
+    bool FindGap(TimeValue begin, TimeValue end, TraceCoverageRange& gap) const;
+};
+
 } // namespace trace
 } // namespace sigflow

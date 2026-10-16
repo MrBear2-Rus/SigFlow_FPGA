@@ -112,6 +112,9 @@
     <ClCompile Include="trace\TraceSidecarIndex.cpp">
       <Filter>源代码\trace</Filter>
     </ClCompile>
+    <ClCompile Include="trace\TraceTypes.cpp">
+      <Filter>源代码\trace</Filter>
+    </ClCompile>
     <ClCompile Include="trace\VcdLazyTraceSource.cpp">
       <Filter>源代码\trace</Filter>
     </ClCompile>

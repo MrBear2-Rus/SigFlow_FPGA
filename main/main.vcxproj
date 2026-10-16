@@ -85,6 +85,7 @@
     <ClCompile Include="trace\TraceCache.cpp" />
     <ClCompile Include="trace\TraceMemoryBudget.cpp" />
     <ClCompile Include="trace\TraceSidecarIndex.cpp" />
+    <ClCompile Include="trace\TraceTypes.cpp" />
     <ClCompile Include="trace\VcdLazyTraceSource.cpp" />
     <ClCompile Include="trace\TraceQueryService.cpp" />
     <ClCompile Include="wave\TraceViewPanel.cpp" />

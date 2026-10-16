@@ -45,6 +45,11 @@ std::string CachingTraceSource::Timescale() const
     return m_inner->Timescale();
 }
 
+TraceCoverageInfo CachingTraceSource::Coverage() const
+{
+    return m_inner->Coverage();
+}
+
 const std::string& CachingTraceSource::Path() const
 {
     return m_inner->Path();

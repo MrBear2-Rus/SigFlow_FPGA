@@ -34,6 +34,7 @@ public:
     const SignalInfo* SignalById(int id) const override;
     TraceTimeRange TimeRange() const override;
     std::string Timescale() const override;
+    TraceCoverageInfo Coverage() const override;
     const std::string& Path() const override;
     bool HasSidecar() const override;
 

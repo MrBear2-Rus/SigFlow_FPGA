@@ -360,6 +360,7 @@ set(SIGFLOW_MAIN_SOURCES
     "${SIGFLOW_MAIN_DIR}/trace/TraceMemoryBudget.cpp"
     "${SIGFLOW_MAIN_DIR}/trace/TraceQueryService.cpp"
     "${SIGFLOW_MAIN_DIR}/trace/TraceSidecarIndex.cpp"
+    "${SIGFLOW_MAIN_DIR}/trace/TraceTypes.cpp"
     "${SIGFLOW_MAIN_DIR}/trace/VcdLazyTraceSource.cpp"
     "${SIGFLOW_MAIN_DIR}/trace/WaveformBackendTraceSource.cpp"
     "${SIGFLOW_MAIN_DIR}/TreeSitterLinter.cpp"
