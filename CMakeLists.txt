@@ -267,6 +267,7 @@ set(SIGFLOW_MAIN_SOURCES
     "${SIGFLOW_MAIN_DIR}/Composer.cpp"
     "${SIGFLOW_MAIN_DIR}/debug/CaptureDecoder.cpp"
     "${SIGFLOW_MAIN_DIR}/debug/CaptureRunService.cpp"
+    "${SIGFLOW_MAIN_DIR}/debug/DiagnosticCatalog.cpp"
     "${SIGFLOW_MAIN_DIR}/debug/MonitorService.cpp"
     "${SIGFLOW_MAIN_DIR}/debug/MonitorScheduler.cpp"
     "${SIGFLOW_MAIN_DIR}/debug/MonitorIncidentService.cpp"
