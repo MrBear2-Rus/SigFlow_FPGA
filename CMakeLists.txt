@@ -292,6 +292,7 @@ set(SIGFLOW_MAIN_SOURCES
     "${SIGFLOW_MAIN_DIR}/debug/DebugNetlistValidator.cpp"
     "${SIGFLOW_MAIN_DIR}/debug/DebugOverlayBuilder.cpp"
     "${SIGFLOW_MAIN_DIR}/debug/DebugProtocol.cpp"
+    "${SIGFLOW_MAIN_DIR}/debug/JtagDebugProtocol.cpp"
     "${SIGFLOW_MAIN_DIR}/debug/DebugSession.cpp"
     "${SIGFLOW_MAIN_DIR}/debug/FtdiTransport.cpp"
     "${SIGFLOW_MAIN_DIR}/debug/PipeTransport.cpp"
