@@ -445,5 +445,144 @@ bool RootCauseAnalyzer::SuggestProbes(
     return true;
 }
 
+namespace {
+
+RootCauseEvidenceObservation BenchmarkObservation(
+    const std::string& signal, const std::string& captureId,
+    const std::string& analysisId, EvidenceObservationState state,
+    bool waveformChanged, bool protocolError, bool mappingAvailable,
+    bool timeAligned, bool dataComplete, std::string fact,
+    std::string missing)
+{
+    RootCauseEvidenceObservation observation;
+    observation.signalName = signal;
+    observation.captureId = captureId;
+    observation.analysisId = analysisId;
+    observation.state = state;
+    observation.waveformChanged = waveformChanged;
+    observation.protocolError = protocolError;
+    observation.mappingAvailable = mappingAvailable;
+    observation.timeAligned = timeAligned;
+    observation.dataComplete = dataComplete;
+    if (!fact.empty()) observation.supportingFacts.push_back(std::move(fact));
+    if (!missing.empty()) observation.missingConditions.push_back(std::move(missing));
+    return observation;
+}
+
+RootCauseBenchmarkCase MakeBenchmarkCase(
+    std::string id, std::string label, std::string firstDifference,
+    std::string expected, std::string risk,
+    RootCauseEvidenceObservation observation)
+{
+    RootCauseBenchmarkCase result;
+    result.id = std::move(id);
+    result.label = std::move(label);
+    result.firstDifferenceSignal = std::move(firstDifference);
+    result.evidence.captureId = observation.captureId;
+    result.evidence.analysisId = observation.analysisId;
+    result.evidence.observations.push_back(std::move(observation));
+    result.expectedCandidates.push_back(std::move(expected));
+    result.misleadingRisk = std::move(risk);
+    return result;
+}
+
+} // namespace
+
+std::vector<RootCauseBenchmarkCase> DefaultRootCauseBenchmarkCases(
+    const std::string& captureId, const std::string& analysisId)
+{
+    std::vector<RootCauseBenchmarkCase> cases;
+    if (captureId.empty() || analysisId.empty()) return cases;
+    cases.push_back(MakeBenchmarkCase(
+        "reset-release", "reset release before symptom", "dut.output",
+        "dut.reset", "reset changes can be coincident with normal startup release",
+        BenchmarkObservation("dut.reset", captureId, analysisId,
+            EvidenceObservationState::Observed, true, false, true, true, true,
+            "reset released before the first output divergence", "")));
+    cases.push_back(MakeBenchmarkCase(
+        "handshake-block", "valid-ready backpressure", "dut.output",
+        "dut.ready", "a ready-low interval may be expected backpressure rather than a fault",
+        BenchmarkObservation("dut.ready", captureId, analysisId,
+            EvidenceObservationState::Observed, true, true, true, true, true,
+            "valid remained asserted while ready was low", "")));
+    cases.push_back(MakeBenchmarkCase(
+        "fifo-control", "FIFO control error", "dut.output",
+        "dut.fifo_full", "full/empty flags can lag by one clock when the sampling edge is ambiguous",
+        BenchmarkObservation("dut.fifo_full", captureId, analysisId,
+            EvidenceObservationState::Observed, true, false, true, true, true,
+            "FIFO control flag changed before the output divergence", "")));
+    cases.push_back(MakeBenchmarkCase(
+        "width-signedness", "width or signedness mismatch", "dut.output",
+        "dut.payload", "a truncated or sign-extended value can resemble an upstream arithmetic fault",
+        BenchmarkObservation("dut.payload", captureId, analysisId,
+            EvidenceObservationState::Observed, true, false, true, true, true,
+            "payload changed with a width/sign interpretation mismatch", "")));
+    cases.push_back(MakeBenchmarkCase(
+        "observation-insufficient", "insufficient observation", "dut.output",
+        "dut.hidden", "an unobserved internal signal must not be promoted to a confirmed cause",
+        BenchmarkObservation("dut.hidden", captureId, analysisId,
+            EvidenceObservationState::Unknown, false, false, false, false, false,
+            "", "candidate signal was not captured; add a distinguishing probe")));
+    return cases;
+}
+
+bool RunRootCauseBenchmark(
+    const DependencyGraph& graph,
+    const SignalSourceMap& sourceMap,
+    const std::vector<RootCauseBenchmarkCase>& cases,
+    std::vector<RootCauseBenchmarkResult>& out,
+    std::string& error,
+    std::size_t maxDepth,
+    std::size_t maxCandidates)
+{
+    error.clear();
+    out.clear();
+    if (cases.empty() || cases.size() > 64) {
+        error = "root-cause benchmark requires 1..64 cases";
+        return false;
+    }
+    out.reserve(cases.size());
+    for (const RootCauseBenchmarkCase& testCase : cases) {
+        if (testCase.id.empty() || testCase.firstDifferenceSignal.empty() ||
+            testCase.evidence.captureId.empty() || testCase.evidence.analysisId.empty()) {
+            error = "root-cause benchmark case has incomplete identity: " + testCase.id;
+            out.clear();
+            return false;
+        }
+        RootCauseBenchmarkResult result;
+        result.id = testCase.id;
+        result.label = testCase.label;
+        result.expectedCandidates = testCase.expectedCandidates;
+        result.misleadingRisk = testCase.misleadingRisk;
+        std::string caseError;
+        if (!RootCauseAnalyzer::RankWithEvidence(
+                testCase.firstDifferenceSignal, graph, sourceMap,
+                testCase.evidence, result.ranked, caseError,
+                maxDepth, maxCandidates)) {
+            error = "benchmark case " + testCase.id + ": " + caseError;
+            out.clear();
+            return false;
+        }
+        const std::size_t top = std::min<std::size_t>(3, result.ranked.size());
+        for (std::size_t index = 0; index < top && !result.expectedCandidateInTop3; ++index) {
+            for (const std::string& expected : testCase.expectedCandidates) {
+                if (result.ranked[index].candidate.location.signalName == expected) {
+                    result.expectedCandidateInTop3 = true;
+                    break;
+                }
+            }
+        }
+        result.observationInsufficient = !testCase.evidence.observations.empty();
+        for (const auto& observation : testCase.evidence.observations) {
+            if (observation.state == EvidenceObservationState::Observed) {
+                result.observationInsufficient = false;
+                break;
+            }
+        }
+        out.push_back(std::move(result));
+    }
+    return true;
+}
+
 } // namespace debug
 } // namespace sigflow

@@ -90,6 +90,43 @@ struct RootCauseProbeSuggestion {
     std::vector<std::string> distinguishingCandidates;
 };
 
+// Deterministic, board-independent benchmark cases for validating the
+// evidence ranking contract. These cases carry their own expected candidate
+// names and misleading-risk note so a report can explain both hits and misses.
+struct RootCauseBenchmarkCase {
+    std::string id;
+    std::string label;
+    std::string firstDifferenceSignal;
+    RootCauseEvidenceContext evidence;
+    std::vector<std::string> expectedCandidates;
+    std::string misleadingRisk;
+};
+
+struct RootCauseBenchmarkResult {
+    std::string id;
+    std::string label;
+    std::vector<RootCauseEvidenceCandidate> ranked;
+    std::vector<std::string> expectedCandidates;
+    std::string misleadingRisk;
+    bool expectedCandidateInTop3 = false;
+    bool observationInsufficient = false;
+};
+
+class SignalSourceMap;
+class DependencyGraph;
+
+std::vector<RootCauseBenchmarkCase> DefaultRootCauseBenchmarkCases(
+    const std::string& captureId, const std::string& analysisId);
+
+bool RunRootCauseBenchmark(
+    const DependencyGraph& graph,
+    const SignalSourceMap& sourceMap,
+    const std::vector<RootCauseBenchmarkCase>& cases,
+    std::vector<RootCauseBenchmarkResult>& out,
+    std::string& error,
+    std::size_t maxDepth = 4,
+    std::size_t maxCandidates = 8);
+
 class SignalSourceMap {
 public:
     void Add(SignalLocation location);
