@@ -108,6 +108,11 @@ void DebugContract::ApplyDefaults()
     if (transport.baud == 0) transport.baud = DebugDefaults::kUartBaud;
     if (transport.kind.empty()) transport.kind = "uart";
     if (transport.protocol.empty()) transport.protocol = "minimal";
+    if (transport.kind == "jtag" && transport.protocol == "minimal") transport.protocol = "jtag";
+    if (transport.protocolVersion.empty()) {
+        transport.protocolVersion = transport.kind == "jtag" ? "jtag-1" : "uart-1";
+    }
+    if (transport.kind == "jtag" && transport.tckHz == 0) transport.tckHz = 6000000;
     if (transport.txPin == 0) transport.txPin = DebugDefaults::kUartTxPin;
     if (transport.rxPin == 0) transport.rxPin = DebugDefaults::kUartRxPin;
     if (trigger.kind.empty()) trigger.kind = "none";
@@ -188,6 +193,7 @@ bool DebugContract::ParseJson(const std::string& json, std::string& error)
     if (trans.isObject()) {
         transport.kind = trans.get("kind", "uart").asString();
         transport.protocol = trans.get("protocol", "minimal").asString();
+        transport.protocolVersion = trans.get("protocol_version", "").asString();
         transport.txPort = trans.get("tx_port", "").asString();
         transport.rxPort = trans.get("rx_port", "").asString();
         transport.baud = static_cast<std::uint32_t>(trans.get("baud", 0).asUInt());
@@ -195,6 +201,10 @@ bool DebugContract::ParseJson(const std::string& json, std::string& error)
         transport.txPin = trans.get("tx_pin", 0).asInt();
         transport.rxPin = trans.get("rx_pin", 0).asInt();
         transport.rstPin = trans.get("rst_pin", 0).asInt();
+        transport.tckHz = static_cast<std::uint32_t>(trans.get("tck_hz", 0).asUInt());
+        transport.probeId = trans.get("probe_id", "").asString();
+        transport.targetId = trans.get("target_id", "").asString();
+        transport.interfaceIndex = trans.get("interface_index", 0).asInt();
     }
 
     const Json::Value& fp = root["fingerprints"];
@@ -266,6 +276,7 @@ std::string DebugContract::ToJson() const
     Json::Value trans(Json::objectValue);
     trans["kind"] = transport.kind;
     trans["protocol"] = transport.protocol;
+    trans["protocol_version"] = transport.protocolVersion;
     trans["tx_port"] = transport.txPort;
     trans["rx_port"] = transport.rxPort;
     trans["baud"] = transport.baud;
@@ -273,6 +284,10 @@ std::string DebugContract::ToJson() const
     trans["tx_pin"] = transport.txPin;
     trans["rx_pin"] = transport.rxPin;
     trans["rst_pin"] = transport.rstPin;
+    trans["tck_hz"] = transport.tckHz;
+    trans["probe_id"] = transport.probeId;
+    trans["target_id"] = transport.targetId;
+    trans["interface_index"] = transport.interfaceIndex;
     root["transport"] = trans;
 
     Json::Value fp(Json::objectValue);
@@ -390,9 +405,32 @@ bool DebugContract::Validate(std::string& error) const
         error = "capture.decimation must be in 1..255 (8-bit UART field)";
         return false;
     }
-    if (transport.kind != "uart") {
+    if (transport.kind != "uart" && transport.kind != "jtag") {
         error = "unsupported transport kind: " + transport.kind;
         return false;
+    }
+    if (transport.kind == "jtag") {
+        if (transport.protocol != "jtag") {
+            error = "JTAG transport requires protocol=jtag";
+            return false;
+        }
+        if (transport.protocolVersion != "jtag-1") {
+            error = "unsupported JTAG protocol version: " + transport.protocolVersion;
+            return false;
+        }
+        if (transport.tckHz < 100000 || transport.tckHz > 30000000) {
+            error = "JTAG tck_hz must be in 100000..30000000";
+            return false;
+        }
+        if (transport.probeId.empty() || transport.targetId.empty()) {
+            error = "JTAG transport requires probe_id and target_id";
+            return false;
+        }
+        if (transport.interfaceIndex < 0 || transport.interfaceIndex > 7) {
+            error = "JTAG interface_index must be in 0..7";
+            return false;
+        }
+        return true;
     }
     if (transport.protocol != "minimal" && transport.protocol != "full") {
         error = "unsupported UART debug protocol: " + transport.protocol;

@@ -302,11 +302,21 @@ void DebugContractConfigWindow::BuildUi()
     auto* transportSizer = new wxBoxSizer(wxVERTICAL);
     auto* transportGrid = new wxFlexGridSizer(0, 2, 8, 10);
     transportGrid->AddGrowableCol(1, 1);
-    transportGrid->Add(new wxStaticText(transportPage, wxID_ANY, wxT("UART 协议")), 0, wxALIGN_CENTER_VERTICAL);
+    transportGrid->Add(new wxStaticText(transportPage, wxID_ANY, wxT("传输后端")), 0, wxALIGN_CENTER_VERTICAL);
+    transportKindChoice_ = new wxChoice(transportPage, wxID_ANY);
+    transportKindChoice_->Append(wxT("uart"));
+    transportKindChoice_->Append(wxT("jtag"));
+    transportGrid->Add(transportKindChoice_, 1, wxEXPAND);
+    transportGrid->Add(new wxStaticText(transportPage, wxID_ANY, wxT("协议")), 0, wxALIGN_CENTER_VERTICAL);
     protocolChoice_ = new wxChoice(transportPage, wxID_ANY);
     protocolChoice_->Append(wxT("minimal"));
     protocolChoice_->Append(wxT("full"));
+    protocolChoice_->Append(wxT("jtag"));
     transportGrid->Add(protocolChoice_, 1, wxEXPAND);
+    transportGrid->Add(new wxStaticText(transportPage, wxID_ANY, wxT("协议版本")), 0, wxALIGN_CENTER_VERTICAL);
+    protocolVersionCtrl_ = new wxTextCtrl(transportPage, wxID_ANY);
+    protocolVersionCtrl_->SetToolTip(wxT("UART 使用 uart-1；JTAG 使用 jtag-1"));
+    transportGrid->Add(protocolVersionCtrl_, 1, wxEXPAND);
     transportGrid->Add(new wxStaticText(transportPage, wxID_ANY, wxT("波特率")), 0, wxALIGN_CENTER_VERTICAL);
     baudChoice_ = new wxChoice(transportPage, wxID_ANY);
     for (const wxString& baud : {wxT("115200"), wxT("460800"), wxT("921600"),
@@ -328,6 +338,18 @@ void DebugContractConfigWindow::BuildUi()
     addPin(wxT("TX 管脚"), txPinCtrl_);
     addPin(wxT("RX 管脚"), rxPinCtrl_);
     addPin(wxT("复位管脚"), rstPinCtrl_);
+    transportGrid->Add(new wxStaticText(transportPage, wxID_ANY, wxT("JTAG TCK Hz")), 0, wxALIGN_CENTER_VERTICAL);
+    tckHzCtrl_ = new wxSpinCtrl(transportPage, wxID_ANY, wxT("6000000"),
+                                wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS,
+                                100000, 30000000, 6000000);
+    transportGrid->Add(tckHzCtrl_, 1, wxEXPAND);
+    addTransportText(wxT("JTAG 探针 ID"), probeIdCtrl_);
+    addTransportText(wxT("JTAG 目标 ID"), targetIdCtrl_);
+    transportGrid->Add(new wxStaticText(transportPage, wxID_ANY, wxT("JTAG 接口号")), 0, wxALIGN_CENTER_VERTICAL);
+    interfaceIndexCtrl_ = new wxSpinCtrl(transportPage, wxID_ANY, wxT("0"),
+                                         wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS,
+                                         0, 7, 0);
+    transportGrid->Add(interfaceIndexCtrl_, 1, wxEXPAND);
     transportGrid->Add(new wxStaticText(transportPage, wxID_ANY, wxT("同步校准")), 0, wxALIGN_CENTER_VERTICAL);
     syncEnabledCtrl_ = new wxCheckBox(transportPage, wxID_ANY, wxT("启用 55 AA 同步校准"));
     transportGrid->Add(syncEnabledCtrl_, 1, wxEXPAND);
@@ -360,6 +382,11 @@ void DebugContractConfigWindow::BuildUi()
     validate->Bind(wxEVT_BUTTON, &DebugContractConfigWindow::OnValidate, this);
     saveAs->Bind(wxEVT_BUTTON, &DebugContractConfigWindow::OnSaveAs, this);
     save->Bind(wxEVT_BUTTON, &DebugContractConfigWindow::OnSave, this);
+    transportKindChoice_->Bind(wxEVT_CHOICE, [this](wxCommandEvent&) {
+        const bool jtag = transportKindChoice_->GetStringSelection() == wxT("jtag");
+        protocolChoice_->SetSelection(protocolChoice_->FindString(jtag ? wxT("jtag") : wxT("minimal")));
+        protocolVersionCtrl_->SetValue(jtag ? wxT("jtag-1") : wxT("uart-1"));
+    });
 }
 
 void DebugContractConfigWindow::SetProjectContext(const wxString& projectPath)
@@ -475,13 +502,20 @@ void DebugContractConfigWindow::ApplyContractToUi()
     depthCtrl_->SetValue(static_cast<int>(contract_.capture.depth));
     pretriggerCtrl_->SetValue(static_cast<int>(contract_.capture.pretriggerSamples));
     decimationCtrl_->SetValue(static_cast<int>(contract_.capture.decimation));
+    transportKindChoice_->SetSelection(ChoiceIndex(transportKindChoice_, FromUtf8(contract_.transport.kind)));
     protocolChoice_->SetSelection(ChoiceIndex(protocolChoice_, FromUtf8(contract_.transport.protocol)));
+    protocolVersionCtrl_->SetValue(FromUtf8(contract_.transport.protocolVersion));
     baudChoice_->SetSelection(ChoiceIndex(baudChoice_, wxString::Format(wxT("%u"), contract_.transport.baud)));
     txPortCtrl_->SetValue(FromUtf8(contract_.transport.txPort));
     rxPortCtrl_->SetValue(FromUtf8(contract_.transport.rxPort));
     txPinCtrl_->SetValue(contract_.transport.txPin);
     rxPinCtrl_->SetValue(contract_.transport.rxPin);
     rstPinCtrl_->SetValue(contract_.transport.rstPin);
+    tckHzCtrl_->SetValue(static_cast<int>(contract_.transport.tckHz == 0
+        ? 6000000 : contract_.transport.tckHz));
+    probeIdCtrl_->SetValue(FromUtf8(contract_.transport.probeId));
+    targetIdCtrl_->SetValue(FromUtf8(contract_.transport.targetId));
+    interfaceIndexCtrl_->SetValue(contract_.transport.interfaceIndex);
     syncEnabledCtrl_->SetValue(contract_.transport.syncEnabled);
     const wxString displayedPath = contractFilePath_.IsEmpty()
         ? (projectPath_.IsEmpty() ? wxString(wxT("未打开工程")) : DefaultContractPath())
@@ -547,8 +581,10 @@ bool DebugContractConfigWindow::BuildContract(sigflow::debug::DebugContract& con
     contract.capture.depth = static_cast<std::uint32_t>(depthCtrl_->GetValue());
     contract.capture.pretriggerSamples = static_cast<std::uint32_t>(pretriggerCtrl_->GetValue());
     contract.capture.decimation = static_cast<std::uint32_t>(decimationCtrl_->GetValue());
-    contract.transport.kind = "uart";
-    contract.transport.protocol = ToUtf8(protocolChoice_->GetStringSelection());
+    const bool isJtag = transportKindChoice_ && transportKindChoice_->GetStringSelection() == wxT("jtag");
+    contract.transport.kind = isJtag ? "jtag" : "uart";
+    contract.transport.protocol = isJtag ? "jtag" : ToUtf8(protocolChoice_->GetStringSelection());
+    contract.transport.protocolVersion = ToUtf8(protocolVersionCtrl_->GetValue());
     contract.transport.txPort = ToUtf8(txPortCtrl_->GetValue());
     contract.transport.rxPort = ToUtf8(rxPortCtrl_->GetValue());
     std::uint64_t baud = 0;
@@ -560,6 +596,10 @@ bool DebugContractConfigWindow::BuildContract(sigflow::debug::DebugContract& con
     contract.transport.txPin = txPinCtrl_->GetValue();
     contract.transport.rxPin = rxPinCtrl_->GetValue();
     contract.transport.rstPin = rstPinCtrl_->GetValue();
+    contract.transport.tckHz = static_cast<std::uint32_t>(tckHzCtrl_->GetValue());
+    contract.transport.probeId = ToUtf8(probeIdCtrl_->GetValue());
+    contract.transport.targetId = ToUtf8(targetIdCtrl_->GetValue());
+    contract.transport.interfaceIndex = interfaceIndexCtrl_->GetValue();
     contract.transport.syncEnabled = syncEnabledCtrl_->GetValue();
     contract.ApplyDefaults();
     std::string contractError;

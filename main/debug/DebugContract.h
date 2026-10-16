@@ -51,6 +51,8 @@ struct DebugTransport {
     std::string kind = "uart";
     // minimal：专用固定帧 UART（默认）；full：COBS + CRC 通用协议。
     std::string protocol = "minimal";
+    // 独立于 UART 的传输协议版本；JTAG 首版使用 jtag-1。
+    std::string protocolVersion = "uart-1";
     std::string txPort;
     std::string rxPort;
     std::uint32_t baud = 0;             // 0 = 使用默认值
@@ -58,6 +60,11 @@ struct DebugTransport {
     int txPin = 0;                      // 0 = 未分配（由引脚面板/用户 CST 提供）
     int rxPin = 0;
     int rstPin = 0;
+    // JTAG 契约字段；kind=uart 时保持缺省并不参与校验。
+    std::uint32_t tckHz = 0;
+    std::string probeId;
+    std::string targetId;
+    int interfaceIndex = 0;
 };
 
 struct DebugFingerprints {

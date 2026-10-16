@@ -74,12 +74,18 @@ private:
     wxSpinCtrl* pretriggerCtrl_ = nullptr;
     wxSpinCtrl* decimationCtrl_ = nullptr;
 
+    wxChoice* transportKindChoice_ = nullptr;
     wxChoice* protocolChoice_ = nullptr;
+    wxTextCtrl* protocolVersionCtrl_ = nullptr;
     wxChoice* baudChoice_ = nullptr;
     wxTextCtrl* txPortCtrl_ = nullptr;
     wxTextCtrl* rxPortCtrl_ = nullptr;
     wxSpinCtrl* txPinCtrl_ = nullptr;
     wxSpinCtrl* rxPinCtrl_ = nullptr;
     wxSpinCtrl* rstPinCtrl_ = nullptr;
+    wxSpinCtrl* tckHzCtrl_ = nullptr;
+    wxTextCtrl* probeIdCtrl_ = nullptr;
+    wxTextCtrl* targetIdCtrl_ = nullptr;
+    wxSpinCtrl* interfaceIndexCtrl_ = nullptr;
     wxCheckBox* syncEnabledCtrl_ = nullptr;
 };

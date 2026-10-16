@@ -67,18 +67,45 @@
     },
     "transport": {
       "type": "object",
-      "required": ["tx_port", "rx_port"],
+      "required": ["kind"],
       "properties": {
-        "kind": { "type": "string", "enum": ["uart"] },
-        "protocol": { "type": "string", "enum": ["minimal", "full"], "default": "minimal" },
+        "kind": { "type": "string", "enum": ["uart", "jtag"] },
+        "protocol": { "type": "string", "enum": ["minimal", "full", "jtag"], "default": "minimal" },
+        "protocol_version": { "type": "string", "enum": ["uart-1", "jtag-1"] },
         "tx_port": { "type": "string" },
         "rx_port": { "type": "string" },
         "baud": { "type": "integer", "enum": [115200, 460800, 921600, 1500000, 3000000] },
         "sync_enabled": { "type": "boolean" },
         "tx_pin": { "type": "integer", "minimum": 0 },
         "rx_pin": { "type": "integer", "minimum": 0 },
-        "rst_pin": { "type": "integer", "minimum": 0 }
-      }
+        "rst_pin": { "type": "integer", "minimum": 0 },
+        "tck_hz": { "type": "integer", "minimum": 100000, "maximum": 30000000 },
+        "probe_id": { "type": "string", "minLength": 1 },
+        "target_id": { "type": "string", "minLength": 1 },
+        "interface_index": { "type": "integer", "minimum": 0, "maximum": 7 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "uart" } } },
+          "then": {
+            "required": ["tx_port", "rx_port"],
+            "properties": {
+              "protocol": { "enum": ["minimal", "full"] },
+              "protocol_version": { "const": "uart-1" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "jtag" } } },
+          "then": {
+            "required": ["protocol", "protocol_version", "tck_hz", "probe_id", "target_id", "interface_index"],
+            "properties": {
+              "protocol": { "const": "jtag" },
+              "protocol_version": { "const": "jtag-1" }
+            }
+          }
+        }
+      ]
     },
     "fingerprints": {
       "type": "object",

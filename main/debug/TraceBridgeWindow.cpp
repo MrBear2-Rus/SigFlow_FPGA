@@ -3366,6 +3366,10 @@ bool TraceBridgeWindow::BuildCaptureRequest(TraceBridgeCaptureRequest& request, 
         error = wxT("请先打开一个 SigFlow 项目（File → Open Project）。");
         return false;
     }
+    if (contract_.transport.kind == "jtag") {
+        error = wxT("当前契约已选择 JTAG（jtag-1），但 TraceBridge 生产采集后端尚未接入；请先切回 UART，避免静默回退到串口。");
+        return false;
+    }
     if (contract_.probes.empty() && contractFilePath_.empty()) {
         error = wxT("请先加载 Debug Contract JSON（Tab 1 → 浏览）。");
         return false;
