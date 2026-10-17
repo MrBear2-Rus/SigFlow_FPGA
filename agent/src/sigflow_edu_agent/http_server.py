@@ -526,7 +526,7 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
                 "model": status.to_wire(),
                 "execution": {
                     "can_run_eda": False,
-                    "note": "v1 runs 不执行 EDA，也不持有工程执行权限。",
+                    "note": "v1 runs 不执行 EDA，也不持有工程执行权限。执行需凭 UI 签发的 grant。",
                 },
             },
         )
