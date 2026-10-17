@@ -773,6 +773,15 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
                 "level must be one of %s" % ", ".join(LEVELS),
                 http_status=400,
             )
+        if level == "L4":
+            # A base /runs request has no trusted confirmation object.  Refuse
+            # before parsing selection/job/kind-specific fields so the policy
+            # answer is exactly the same 403 regardless of those values.
+            raise AgentError(
+                "POLICY_DENIED",
+                "L4 参考解必须经过可信两步确认；more 不构成授权。请使用受支持的教学动作。",
+                http_status=403,
+            )
         more = body.get("more", False)
         if not isinstance(more, bool):
             raise AgentError("INVALID_ARGUMENT", "more must be a boolean", http_status=400)
@@ -788,12 +797,6 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
                 "INVALID_ARGUMENT",
                 "kind=report_review requires job_id",
                 http_status=400,
-            )
-        if level == "L4":
-            raise AgentError(
-                "POLICY_DENIED",
-                "L4 参考解必须经过可信两步确认；more 不构成授权。请使用受支持的教学动作。",
-                http_status=403,
             )
         return RunRequest(
             kind=kind,
