@@ -324,7 +324,12 @@ class SidecarFixture:
                 return _Response(response.status, json.loads(response.read().decode("utf-8")))
         except Exception as exc:  # urllib raises HTTPError for non-2xx
             status = int(getattr(exc, "code", 0) or 0)
-            body_bytes = getattr(exc, "read", lambda: b"")()
+            try:
+                body_bytes = getattr(exc, "read", lambda: b"")()
+            finally:
+                close = getattr(exc, "close", None)
+                if close is not None:
+                    close()
             parsed = json.loads(body_bytes.decode("utf-8")) if body_bytes else None
             return _Response(status, parsed)
 
