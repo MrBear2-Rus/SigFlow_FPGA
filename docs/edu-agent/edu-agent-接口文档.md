@@ -101,7 +101,9 @@
 | `GATEWAY_UNAVAILABLE` | Gateway 不可达/拒绝 | 503 |
 | `SERVICE_UNAVAILABLE` | 服务/存储/Job 服务不可用 | 503（唯一 retryable=true） |
 
-> 实现回传但**不在** `envelope.schema.json` 枚举内的三个码（不依赖）：`PATH_OUTSIDE_PROJECT`、`SOURCE_UNAVAILABLE`、`PLUGIN_UNAVAILABLE`。
+> 接口 A 只回传上表中的 Agent 冻结码。Gateway 历史码在 U1 客户端映射后才会跨接口：
+> `PATH_OUTSIDE_PROJECT → POLICY_DENIED`、`SOURCE_UNAVAILABLE → GATEWAY_UNAVAILABLE`、
+> `PLUGIN_UNAVAILABLE → CAPABILITY_UNAVAILABLE`。这三个历史码不会出现在 Agent 响应中。
 
 ### 2.4 ID 约定
 
@@ -124,12 +126,14 @@
 | `selection.text` | 64 KiB |
 | 集合分页 | 默认 100 / 最多 500（jobs、events）；波形信号默认 256 / 最多 4096 |
 | 事件保留 | 最新 10,000 条且 ≤ 24h |
-| 长轮询 `wait_ms` | 默认 20000 / 上限 25000 ms |
+| 长轮询 `wait_ms` | 仅接口 B；接口 A events 立即返回，带 `wait_ms` → 400 `INVALID_ARGUMENT` |
 | 响应护栏 | 普通响应 2 MiB（超出 429，不截断 JSON） |
 | grant TTL / max_jobs | 600 s / 3 |
 | receipt TTL | 900 s（一次性核销） |
 | 单次运行卡片 | 16 张（超出记 `omitted`） |
 | 会话 | 32 个（LRU 淘汰） |
+| 每会话 run | 64 个（裁最旧） |
+| 每会话事件 | 最新 1000 条（接口 A） |
 
 ---
 
@@ -193,13 +197,15 @@ CLI 参数：`--bootstrap-stdin`（必需）、`--port`（默认 `0`，系统分
   - `explain`/`hint`：在 `selection.text` 上跑确定性规则引擎；命中锁存器/敏感列表/位宽/结构规则时返回 `source:"rule"` 的 TeachingCard。
   - `plan`：返回 `PlanCard`；只用 `eda.synth`/`eda.sim.build`/`eda.sim.run`，`requires_approval=true`，不含路径/可执行文件/脚本/工作目录。
   - `report_review`：**必须**带 `job_id`；Agent 用 gateway_token 调 Gateway 的 `GET /api/v1/jobs/{job_id}/report`，把 `diagnostics` 映射为 `diagnostic_explanation` 卡片。`diagnostics` 为空时，仅在 `completeness∈{complete,exact}` 且 `origin≠legacy` 才解释为“无诊断”，否则返回证据不足卡片，绝不宣称“电路没问题”。
-- **L4 可信门控**：基础 `/runs` 的 L4 恒 403，`more=true` 不构成授权。协商教学扩展先逐级到 L3，再 reference_request + 原生 UI 独立签发 receipt + reference_confirm 全绑定核销；第一步不含参考内容。
+- **L4 可信门控**：基础 `/runs` 的 L4 恒 403，`more=true` 不构成授权。v1 sidecar 没有
+  `hint_next`、`reference_request`、`reference_confirm` 或 `execute_plan` 路由；
+  未来扩展必须新增版本化动作契约，并由原生 UI 独立签发、核销凭据，不能复用基础 run 字段自行解锁。
 - **模型降级**：未配置模型 Key 时 `model_used=false`、`state=degraded`，被跳过的模型步骤记入 `omitted`，绝不伪造模型回答。
 - **事件**：至少一次投递，消费者按 `event_id` 去重；`after` 为会话内 sequence 游标；每会话保留最新 1000 条，游标过期 → `410 CURSOR_EXPIRED`。
 
 ### 4.3 运行模型（sidecar 无 E0–E7 状态机）
 
-sidecar 是**无状态、按 run 一次性调度**：每次 `POST /runs` 由 `RunDispatcher` 按 `kind` 直接产出卡片，`run.state ∈ {succeeded, degraded, failed}`。没有 E0–E7 阶段、没有 WaitingStudent / WaitingApproval 挂起态、没有 `hint_next` / `execute_plan` 之类的宿主动作；L4 的“两步放行”由请求里的 `more` 布尔位实现（见 §4.2），而非会话阶段机。
+sidecar 是**无状态、按 run 一次性调度**：每次 `POST /runs` 由 `RunDispatcher` 按 `kind` 直接产出卡片，`run.state ∈ {succeeded, degraded, failed}`。没有 E0–E7 阶段、没有 WaitingStudent / WaitingApproval 挂起态、没有 `hint_next` / `execute_plan` 之类的宿主动作；`more` 在 v1 仅是可校验的请求字段，不是授权或阶段迁移依据。
 
 > E0–E7 状态机（`Status` / `TeachingLoop.act()` / `host_action` / `grant_ref`）属于 `sigflowAgent/sigflow_edu_agent/`（U2 教学主控）的设计参考，sidecar 未实现该运行时。
 
@@ -275,7 +281,8 @@ sidecar 是**无状态、按 run 一次性调度**：每次 `POST /runs` 由 `Ru
 ### 5.3 边界约束
 
 - `POST /jobs/{jobId}/cancel` 不带工程参数，跨工程取消在协议上不可表达。
-- 波形查询入参 `start_tick`/`end_tick` 为 JSON 无符号整数，响应 tick 为十进制字符串。
+- 波形查询入参 `start_tick`/`end_tick` 接受 uint64 十进制字符串，并兼容 JSON 无符号整数；
+  客户端发送前统一为十进制字符串。响应 tick 仍为十进制字符串。
 - `GET /artifacts/{id}`、`/content` 为全局（非工程作用域）路由，只认 opaque artifact ID。
 
 ---
@@ -374,7 +381,9 @@ class SessionStore:     # RLock 保护
     def append_event(...) / read_events(after, limit=100): ...
 ```
 
-- 32 会话 LRU；每会话最多 64 个 run、1000 条事件（超限裁最旧，游标越界 → `410 CURSOR_EXPIRED`）；`create_run` 使 `state_version+1`。
+- 32 会话 LRU；每会话最多 64 个 run、1000 条事件（超限裁最旧，游标越界 → `410 CURSOR_EXPIRED`）；
+  `state_version` 在提交锁内统一分配给 run、卡片和事件。进行中会话不能被 LRU 淘汰，淘汰后的旧对象不得继续写入。
+- 事件可按 `event_id` 去重；重复读取同一游标会返回同一批事件。接口 A 无长轮询、无 Agent `/state`。
 
 ### 6.7 Gateway 客户端（`gateway_client.py`）
 
@@ -419,6 +428,8 @@ def success_envelope(request_id, trace_id, data) / failure_envelope(...): ...
 
 - `util.py`：`decimal`（64 位计数 → 十进制字符串）、`iso_utc`、`contains_absolute_path`、`redact`、`sanitize_message`、`RedactionFilter`（bootstrap 后立即挂到 logging 防泄漏）、`json_dumps`、`env_flag`；`REDACTED="***redacted***"`。
 - `version.py`：`AGENT_VERSION="0.1.0"`、`PROTOCOL="edu.api.v1"`、`BOOTSTRAP_TYPE="sigflow-bootstrap"`、`READY_TYPE="ready"`、`PLAN_CAPABILITIES`(3 能力)、`LEVELS`(L1–L4)、`RUN_KINDS`(4)、`CARD_KINDS`(4)、`MAX_CARD_BYTES=64 KiB`、`MAX_CARDS_PER_RUN=16`、`MAX_SESSIONS=32`、`MAX_EVENTS_PER_SESSION=1000`。
+- `session.py`：`MAX_RUNS_PER_SESSION=64`、`MAX_SESSION_RUN_BYTES=2 MiB`。
+- `contract_schema.py`：零第三方依赖的 v1 JSON Schema 运行期校验器，支持 `$ref`、内部 pointer、`required`、`enum`、`const`、边界和 `oneOf`。
 
 > **与 U2 教学主控（`sigflowAgent/sigflow_edu_agent/`）的关系**：后者是设计参考（`TeachingLoop` / `TeachingSession` / E0–E7 / `ports.py` 的 `EvidenceSource`/`CardProvider`/`VerificationPort` / DeepSeek `deepseek.py` / Gateway `clients/gateway.py` / 上下文 `context/*`），不进 CMake 构建；sidecar 把同一套教学目标重写为“按 run 一次性调度”的精简实现，二者类型不互通。
 
@@ -470,6 +481,8 @@ def success_envelope(request_id, trace_id, data) / failure_envelope(...): ...
 - 事件无长轮询（接口 A）；会话/运行/事件在内存，重启失效。扩展有 SQLite 最小学习元数据/恢复检查点，默认不收集学习数据，不自动恢复会话或续跑。
 - 无课程库：`course_refs` 恒为空数组，`/capabilities.course.available=false`。
 - 无波形内联读取：证据只引用 opaque artifact/report 字段。
-- L4 只返回“参考解要点”清单，不代写工程文件。
+- 基础 `/runs` 的 L4 恒 403；v1 没有 `hint_next`、`reference_request`、`reference_confirm` 或 `execute_plan` 路由，`more=true` 不构成授权。后续扩展必须新增并联合冻结契约。
+- L4 卡片构建器只产出“参考解要点”清单，不代写工程文件。
 - `--selftest-fail` / `--selftest-ready-delay-ms` 为仅供测试的故障注入开关，不属于冻结契约。
-- 实现与 schema 的若干不一致（如 `source-ref.end_line` 空区间返回 0、波形入参 tick 不接受字符串等）详见 `sigflow.openapi.yaml` 的 info.description「已知实现与 schema/决策的偏差」。
+- 历史契约偏差已收口：`SourceRef.end_line` 最小为 1，空区间不返回 `end_line=0`；波形 tick 同时接受十进制字符串和 uint64 JSON 整数；三个 Gateway 历史错误码映射到 Agent 冻结枚举。
+- 当前仅在 Windows x64、Python 3.13.16 完成 sidecar 全量测试。Linux x64 与麒麟目标机尚未实测，双平台发布验收未完成；不得把 Windows 结果外推为 Linux/麒麟已支持。

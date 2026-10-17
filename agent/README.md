@@ -89,7 +89,7 @@ token 处理约定：`gateway_token` / `ui_token` **只存在于内存**，不�
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | GET | `/api/v1/health` | 协议、版本、实例 ID、`model.available` |
-| GET | `/api/v1/capabilities` | L1–L4 模式、能力就绪状态、`execution.can_run_eda=false` |
+| GET | `/api/v1/capabilities` | L1–L4 模式、能力就绪状态、`execution.can_run_eda=false`、`course.available=false` |
 | POST | `/api/v1/sessions` | 创建会话，201 |
 | GET | `/api/v1/sessions/{sid}` | 会话摘要 |
 | POST | `/api/v1/sessions/{sid}/runs` | 请求一次教学运行，201 |
@@ -136,15 +136,17 @@ token 处理约定：`gateway_token` / `ui_token` **只存在于内存**，不�
   （`RTL_LATCH_INCOMPLETE_BRANCH`、`RTL_SENSITIVITY_INCOMPLETE`、`RTL_WIDTH_MISMATCH`、
   `RTL_BLOCK_UNBALANCED`）。命中时返回 `source:"rule"`、`level` 为请求难度的卡片，
   `evidence[0].kind == "rule_match"`，正文只说明推理过程，**不给出可直接替换的完整代码**。
-- **`level=L4`**：基础 runs 始终 403，`more=true` 不是授权。扩展先 observe/hint_next 到 L3，
-  再 reference_request 取得 challenge，原生 UI 独立确认签发 receipt 后 reference_confirm 原子核销。
-  只给参考检查要点，不代写工程；challenge/receipt 与 issue/session/版本/策略/动作严格绑定。
+- **`level=L4`**：基础 runs 始终 403，`more=true` 不是授权。原设计中的
+  observe/hint_next、reference_request、原生 UI receipt 和 reference_confirm 扩展动作
+  **尚未在 edu.api.v1 sidecar 实现**；v1 请求 L4 一律由 HTTP 与调度器双层拒绝。
+  后续扩展必须新增版本化路由并与 S1/S3 联合冻结，不能靠 `more=true` 或客户端字段自行解锁。
 - **`kind=report_review`**：必须带 `job_id`。用 `gateway_token` 调用
   `GET {gateway_url}/api/v1/jobs/{job_id}/report`，把 `diagnostics` 映射为
   `diagnostic_explanation` 卡片；`code`/`raw_code`/`severity`/`location` 原样进入证据，
   报告的 `revision`/`snapshot_id`/`input_fingerprint`/`completeness`/`origin` 一并入证据，
   正文不补造报告未给出的根因。
-- **空 `diagnostics`**：只有报告归属/版本相符、state=Succeeded、completeness=complete、origin=core，
+- **空 `diagnostics`**：只有报告归属/版本相符、state=Succeeded、completeness∈{complete,exact}、
+  origin∈{core,gateway}（非 legacy），
   且存在 snapshot_id/input_fingerprint 时，才解释为“工具本次没有报告诊断”；
   否则返回 `issue_id: null` 的 `source:"rule"` 卡片说明**证据不足**，
   绝不宣称“电路没有问题”。
@@ -206,11 +208,12 @@ agent/
     gateway_client.py  唯一工程/EDA 通道（受限 Gateway HTTP，不签发 grant/receipt）
     rules.py           确定性、无模型的 RTL 规则引擎
     cards.py           TeachingCard / PlanCard 构造与校验
-    dispatch.py        运行调度与教学策略（L4 两步放行、报告可信度判定）
+    dispatch.py        运行调度与教学策略（基础 L4 拒绝、报告可信度判定）
     model_client.py    可选模型端点（无 Key 即降级，绝不伪造回答）
     session.py         内存 session/run/event 存储与容量上限
     http_server.py     loopback HTTP 服务、路由、鉴权、限额、信封
     errors.py          错误码与信封辅助
+    contract_schema.py v1 JSON Schema 运行期校验器
     util.py            ID、时间戳、脱敏、日志过滤器
     version.py         版本与协议常量
   tests/               unittest 套件
