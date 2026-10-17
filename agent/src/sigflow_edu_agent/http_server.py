@@ -59,6 +59,9 @@ MAX_RESPONSE_BYTES = 2 * 1024 * 1024
 MAX_WORKERS = 16
 """Hard cap for a request body: 1 MiB, matching the EDA Gateway."""
 
+_UNCOMMITTED_STATE_VERSION = "0"
+"""Placeholder used only while building cards; commit assigns the real version."""
+
 MAX_EVENT_PAGE: int = 500
 """Upper bound for one ``/events`` page."""
 
@@ -598,6 +601,10 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
                 "modes": modes,
                 "capabilities": capabilities,
                 "model": status.to_wire(),
+                "course": {
+                    "available": False,
+                    "reason": "edu.api.v1 不提供课程库，course_refs 恒为空数组。",
+                },
                 "execution": {
                     "can_run_eda": False,
                     "note": "v1 runs 不执行 EDA，也不持有工程执行权限。执行需凭 UI 签发的 grant。",
@@ -648,15 +655,17 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
 
     def _handle_session(self, session_id: str) -> None:
         """``GET /api/v1/sessions/{sid}``."""
-        session = self._require_session(session_id)
-        self._respond_data(HTTPStatus.OK, session.to_wire())
+        view = self.state.sessions.get_session_view(session_id)
+        if view is None:
+            raise AgentError("NOT_FOUND", "unknown session", http_status=404)
+        self._respond_data(HTTPStatus.OK, view)
 
     def _handle_run(self, run_id: str) -> None:
         """``GET /api/v1/runs/{rid}``."""
-        run = self.state.sessions.get_run(run_id)
-        if run is None:
+        view = self.state.sessions.get_run_view(run_id)
+        if view is None:
             raise AgentError("NOT_FOUND", "unknown run", http_status=404)
-        self._respond_data(HTTPStatus.OK, run.to_wire())
+        self._respond_data(HTTPStatus.OK, view)
 
     def _handle_create_run(self, session_id: str) -> None:
         """``POST /api/v1/sessions/{sid}/runs``."""
@@ -666,8 +675,10 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
 
     def _execute_run(self, session: SessionRecord, body: Mapping[str, Any]) -> None:
         request = self._parse_run_request(session, body)
-        state_version = decimal(session.state_version + 1)
-        outcome = self.state.dispatcher.dispatch(request, state_version)
+        # Final state_version assignment belongs to the locked commit.  Card
+        # builders need a syntactically valid placeholder, but no caller may
+        # predict the committed counter while the run is still in flight.
+        outcome = self.state.dispatcher.dispatch(request, _UNCOMMITTED_STATE_VERSION)
         if outcome.error_code:
             run = self.state.sessions.commit_run(
                 session=session,
@@ -711,7 +722,14 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
     def _handle_events(self, session_id: str) -> None:
         """``GET /api/v1/sessions/{sid}/events?after=<seq>``."""
         session = self._require_session(session_id)
-        raw_after = self._query().get("after", [None])[0]
+        query = self._query()
+        if "wait_ms" in query:
+            raise AgentError(
+                "INVALID_ARGUMENT",
+                "interface A does not support long polling or wait_ms",
+                http_status=400,
+            )
+        raw_after = query.get("after", [None])[0]
         cursor: Optional[int] = None
         if raw_after not in (None, ""):
             if not re.fullmatch(r"[0-9]{1,20}", str(raw_after)) or int(raw_after) > 2**64 - 1:

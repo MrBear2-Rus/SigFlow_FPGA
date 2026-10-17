@@ -1,0 +1,24 @@
+{
+  "valid": {
+    "project_id": "project-0123456789abcdef01234567",
+    "revision": "rev-12",
+    "source_id": "source-000000000000000000000001",
+    "file_hash": "sha256:abc",
+    "start_line": 7,
+    "end_line": 7,
+    "node_id": "node-1",
+    "start_column": 1,
+    "end_column": 8
+  },
+  "negative": {
+    "empty_interval_returns_zero": {
+      "project_id": "project-0123456789abcdef01234567",
+      "revision": "rev-12",
+      "source_id": "source-000000000000000000000001",
+      "file_hash": "sha256:abc",
+      "start_line": 7,
+      "end_line": 0,
+      "node_id": "node-1"
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "edu-agent/v1/schemas/teaching-action.schema.json",
+  "title": "TeachingActionFixture",
+  "description": "Existing contract fixture for an Agent teaching action. The sidecar does not expose this B-stage action route in edu.api.v1.",
+  "type": "object",
+  "required": ["kind", "action_id", "expected_state_version"],
+  "additionalProperties": false,
+  "properties": {
+    "kind": { "type": "string", "enum": ["observe", "poll_execution"] },
+    "action_id": { "type": "string", "minLength": 1 },
+    "expected_state_version": { "type": "string", "pattern": "^[0-9]+$" },
+    "execution_id": { "type": "string", "minLength": 1 },
+    "selection": {
+      "type": "object",
+      "required": ["text", "source_id", "start_line", "end_line"],
+      "additionalProperties": false,
+      "properties": {
+        "text": { "type": "string", "maxLength": 65536 },
+        "source_id": { "type": "string", "minLength": 1 },
+        "start_line": { "type": "integer", "minimum": 1 },
+        "end_line": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}

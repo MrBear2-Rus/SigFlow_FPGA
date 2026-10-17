@@ -389,13 +389,30 @@ class ErrorMappingTests(unittest.TestCase):
                 finally:
                     gateway.close()
 
-    def test_code_outside_the_frozen_set_becomes_gateway_unavailable(self) -> None:
-        # PATH_OUTSIDE_PROJECT belongs to another interface (接口 B 早期草案) and
-        # must never surface through the Agent's own vocabulary.
-        for reported in ("PATH_OUTSIDE_PROJECT", "SOURCE_UNAVAILABLE", "TOTALLY_MADE_UP", ""):
+    def test_legacy_codes_are_mapped_and_unknown_codes_fail_closed(self) -> None:
+        mapped = {
+            "PATH_OUTSIDE_PROJECT": "POLICY_DENIED",
+            "SOURCE_UNAVAILABLE": "GATEWAY_UNAVAILABLE",
+            "PLUGIN_UNAVAILABLE": "CAPABILITY_UNAVAILABLE",
+        }
+        for reported, expected in mapped.items():
             with self.subTest(reported=reported):
                 gateway = ServerFixture(
                     status_code=500, body=error_envelope(reported, "should not surface")
+                )
+                try:
+                    client = GatewayClient("http://127.0.0.1:%d" % gateway.port, "tok-test")
+                    outcome = client.fetch_job_report("job-1")
+                    self.assertFalse(outcome.ok)
+                    self.assertEqual(outcome.code, expected)
+                    self.assertIn(outcome.code, ERROR_CODES)
+                finally:
+                    gateway.close()
+
+        for reported in ("TOTALLY_MADE_UP", ""):
+            with self.subTest(reported=reported):
+                gateway = ServerFixture(
+                    status_code=500, body=error_envelope(reported, "unknown code")
                 )
                 try:
                     client = GatewayClient("http://127.0.0.1:%d" % gateway.port, "tok-test")
