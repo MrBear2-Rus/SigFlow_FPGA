@@ -1,8 +1,10 @@
 #include "WaveformService.h"
 
 #include "eda-platform/Sha256.h"
+#include <eda/api/Types.h>
 
 #include <algorithm>
+#include <limits>
 
 namespace eda {
 namespace agent {
@@ -133,6 +135,7 @@ WaveformService::Status WaveformService::QueryRange(const std::string& artifactI
                                                     std::size_t maxTransitions,
                                                     std::size_t maxBytes,
                                                     WaveQueryPage& out) {
+    out = WaveQueryPage{};
     // cursor: "q:<offset>:<queryhash>"；空表示从头。
     std::size_t offset = 0;
     std::string queryHash;
@@ -140,13 +143,19 @@ WaveformService::Status WaveformService::QueryRange(const std::string& artifactI
         if (cursor.rfind("q:", 0) != 0) return Status::kBadCursor;
         const std::size_t sep = cursor.find(':', 2);
         if (sep == std::string::npos) return Status::kBadCursor;
+        const auto digits = cursor.substr(2, sep - 2);
+        if (digits.empty() || digits.size() > 20 ||
+            !std::all_of(digits.begin(), digits.end(), [](char c) { return c >= '0' && c <= '9'; }))
+            return Status::kBadCursor;
         try {
-            offset = static_cast<std::size_t>(std::stoull(cursor.substr(2, sep - 2)));
+            const auto parsed = std::stoull(digits);
+            if (parsed > std::numeric_limits<std::size_t>::max()) return Status::kBadCursor;
+            offset = static_cast<std::size_t>(parsed);
         } catch (const std::exception&) {
             return Status::kBadCursor;
         }
         queryHash = cursor.substr(sep + 1);
-        if (offset == 0) return Status::kBadCursor;
+        if (offset == 0 || queryHash.size() != 16) return Status::kBadCursor;
     }
 
     // 绑定查询：hash = artifactId|sha256|start|end|信号集合。
@@ -169,7 +178,7 @@ WaveformService::Status WaveformService::QueryRange(const std::string& artifactI
             if (current.empty() || current != record.sha256) return Status::kExpired;
         }
         const std::string expectedHash = makeQueryHash(record.sha256);
-        if (!queryHash.empty() && queryHash != expectedHash) return Status::kBadCursor;
+        if (!cursor.empty() && queryHash != expectedHash) return Status::kBadCursor;
 
         std::string error;
         auto backend = OpenLocked(record, error);
@@ -187,14 +196,14 @@ WaveformService::Status WaveformService::QueryRange(const std::string& artifactI
             if (std::find(ids.begin(), ids.end(), id) == ids.end()) ids.push_back(id);
         }
         out.timescale = backend->Timescale();
+        if (maxSignals == 0 || (!cursor.empty() && offset >= ids.size())) return Status::kBadCursor;
 
         std::size_t transitionsUsed = 0;
-        std::size_t bytesUsed = 0;
+        // Reserve bounded envelope/range/cursor overhead as well as row data.
+        std::size_t bytesUsed = maxBytes == 0 ? 1024 : std::min<std::size_t>(1024,maxBytes);
         std::size_t processed = 0;
-        bool truncated = false;
         for (std::size_t i = offset; i < ids.size(); ++i) {
             if (out.signals.size() >= maxSignals) {
-                truncated = true;
                 break;
             }
             const int id = ids[i];
@@ -214,40 +223,37 @@ WaveformService::Status WaveformService::QueryRange(const std::string& artifactI
             if (!backend->Query(id, request.startTick, request.endTick, transitions, error)) {
                 return Status::kUnavailable;
             }
-            // 限额：跳变总数与载荷字节。
+            // Only publish a whole signal. A partial signal has no resumable
+            // event cursor, so retaining its prefix would lose transitions.
             const std::size_t remainingTransitions = maxTransitions - transitionsUsed;
-            if (transitions.size() > remainingTransitions) {
-                transitions.resize(remainingTransitions);
-                truncated = true;
-            }
+            if (transitions.size() > remainingTransitions) break;
+            const auto budget = maxBytes == 0 ? std::numeric_limits<std::size_t>::max() : maxBytes;
+            std::size_t signalBytes = Json{{"signal_id",id},
+                {"initial_value",result.hasInitial?Json(result.initialValue):Json(nullptr)},
+                {"initial_known",result.hasInitial},{"transitions",Json::array()}}.dump().size()+1;
+            bool fits = signalBytes <= budget - bytesUsed;
             for (const auto& t : transitions) {
-                const std::size_t cost = 8 + t.value.size() + 24;  // tick/json 估算
-                if (bytesUsed + cost > maxBytes) {
-                    truncated = true;
-                    break;
-                }
-                bytesUsed += cost;
-                result.transitions.push_back(t);
+                const auto cost = Json{{"tick",std::to_string(t.time)},{"value",t.value}}.dump().size()+1;
+                if (!fits || cost > budget - bytesUsed - signalBytes) { fits = false; break; }
+                signalBytes += cost;
             }
-            if (result.transitions.size() < transitions.size() ||
-                transitions.size() == remainingTransitions) {
-                truncated = true;
-            }
+            if (!fits) break;
+            result.transitions = std::move(transitions);
+            bytesUsed += signalBytes;
             transitionsUsed += result.transitions.size();
             out.signals.push_back(std::move(result));
             ++processed;
-            if (truncated) break;
         }
 
         out.transitionCount = transitionsUsed;
-        out.hasMore = truncated && (offset + processed) < ids.size();
+        out.omittedSignals = ids.size() - (offset + processed);
+        out.completeness = out.omittedSignals ? WaveQueryCompleteness::kPartial : WaveQueryCompleteness::kExact;
+        // A zero-progress page asks the caller to narrow its window, never to
+        // retry an identical cursor forever. partial is independent of hasMore.
+        out.hasMore = out.omittedSignals > 0 && processed > 0;
         if (out.hasMore) {
             out.nextCursor = "q:" + std::to_string(offset + processed) + ":" + expectedHash;
-            out.completeness = WaveQueryCompleteness::kPartial;
-        } else {
-            out.completeness = WaveQueryCompleteness::kExact;
         }
-        out.omittedSignals = ids.size() > (offset + processed) ? ids.size() - (offset + processed) : 0;
     }
     return Status::kOk;
 }

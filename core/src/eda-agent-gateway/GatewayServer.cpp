@@ -1936,6 +1936,13 @@ bool GatewayServer::Start(std::string& error) {
         const std::string challengeId = body.value("challenge_id", std::string());
         const std::string actionId = body.value("action_id", std::string());
         std::uint64_t ttl = 900;
+        std::uint64_t issuedStateVersion = 0;
+        if (body.contains("state_version") && !ParseDecimal(body["state_version"], issuedStateVersion)) {
+            res.status = 400;
+            send(res, FailureEnvelope(MakeRequestId(), MakeTraceId(), "INVALID_ARGUMENT",
+                                      "state_version must be an unsigned decimal", false));
+            return;
+        }
         if (body.contains("ttl_seconds") && body["ttl_seconds"].is_number_unsigned()) {
             ttl = body["ttl_seconds"].get<std::uint64_t>();
         }
@@ -1955,7 +1962,7 @@ bool GatewayServer::Start(std::string& error) {
         UiReceipt receipt;
         std::string storeError;
         if (!impl_->receipts.Issue(projectId, sessionId, issue, level, policy, revision,
-                                   challengeId, actionId, ttl, receipt, storeError)) {
+                                   challengeId, actionId, ttl, receipt, storeError, issuedStateVersion)) {
             res.status = 503;
             send(res, FailureEnvelope(MakeRequestId(), MakeTraceId(), "SERVICE_UNAVAILABLE",
                                       storeError.empty() ? "receipt could not be issued"
@@ -2008,6 +2015,7 @@ bool GatewayServer::Start(std::string& error) {
         data["status"] = receipt.status;
         data["expires_at"] = receipt.expiresAt;
         res.status = 200;
+        data["state_version"] = std::to_string(receipt.stateVersion);
         send(res, SuccessEnvelope(MakeRequestId(), MakeTraceId(), data));
     });
 
@@ -2040,20 +2048,8 @@ bool GatewayServer::Start(std::string& error) {
         }
         std::uint64_t expectedStateVersion = 0;
         bool versionValid = false;
-        if (body.contains("expected_state_version")) {
-            if (body["expected_state_version"].is_number_unsigned()) {
-                expectedStateVersion = body["expected_state_version"].get<std::uint64_t>();
-                versionValid = true;
-            } else if (body["expected_state_version"].is_string()) {
-                try {
-                    expectedStateVersion = std::stoull(body["expected_state_version"]
-                                                           .get<std::string>());
-                    versionValid = true;
-                } catch (const std::exception&) {
-                    versionValid = false;
-                }
-            }
-        }
+        if (body.contains("expected_state_version"))
+            versionValid = ParseDecimal(body["expected_state_version"], expectedStateVersion);
         if (!versionValid) {
             res.status = 400;
             send(res, FailureEnvelope(MakeRequestId(), MakeTraceId(), "INVALID_ARGUMENT",
@@ -2180,6 +2176,17 @@ bool GatewayServer::Start(std::string& error) {
             res.status = 422;
             send(res, FailureEnvelope(MakeRequestId(), MakeTraceId(), "CAPABILITY_UNAVAILABLE",
                                       "no ready plugin provides the requested capability", false));
+            return;
+        }
+
+        // Pin execution/report provenance to the resolved Core provider. A caller
+        // cannot substitute a different plugin for an available capability.
+        const std::string requestedPlugin = OptionalString(body, "plugin_id");
+        if (body.contains("plugin_id") &&
+            (!body["plugin_id"].is_string() || requestedPlugin != available->pluginId)) {
+            res.status = 422;
+            send(res, FailureEnvelope(MakeRequestId(), MakeTraceId(), "UNSUPPORTED_MAPPING",
+                                      "plugin_id does not provide the requested capability", false));
             return;
         }
 
@@ -2404,6 +2411,7 @@ bool GatewayServer::Start(std::string& error) {
 
         JobRequest jobRequest;
         jobRequest.jobType = jobType;
+        jobRequest.pluginId = available->pluginId;
         jobRequest.projectId = projectId;
         // 只把 Gateway 推导的可信参数交给 provider；HTTP 请求中的 params 不含路径，
         // 也不会被原样持久化进 Job manifest。

@@ -1,0 +1,135 @@
+{
+  "schema_version": "edu.revision-loop-verification.v1",
+  "date": "2026-10-16",
+  "status": "passed",
+  "accepted_scope": "owned_headless_project_cross_revision_synthesis_workflow_after_pull",
+  "repository": {
+    "branch": "SigFlow_FPGA_CMake",
+    "head": "8b067b2fdabf9abdbe63764dfcf5259be88170fd",
+    "uncommitted": true,
+    "pull": {
+      "status": "passed",
+      "attempts": 4,
+      "initial_network_failures": 3,
+      "from": "ecb1188e89da75dcd090607129aa48d69379dcd1",
+      "to": "8b067b2fdabf9abdbe63764dfcf5259be88170fd",
+      "method": "fast_forward_only",
+      "remote_ref_verified": true
+    },
+    "preserved_stashes": [
+      "824925a13fd8cf79dfb559a392ef918c911fa100",
+      "e0b4b8bfd25640492df0d0ad3b9606bc35b7edfe"
+    ],
+    "restored_with": "stash_apply",
+    "backups_retained": true,
+    "conflicts_resolved": [
+      "core/src/eda-agent-gateway/GatewayServer.cpp",
+      "sigflowAgent/.gitignore"
+    ],
+    "staged_files": 0
+  },
+  "python_source_sha256": "b973e6b7d067f1fcd330d3aad3cc1cadfcdcde7d17cc082bbc5b607675205e09",
+  "file_sha256": {
+    "CMakeLists.txt": "3e672f91896b71cd2942dff408978706988704ea0efff45e7c9865e58acced39",
+    "core/src/eda-agent-gateway/GatewayServer.cpp": "7bbd95063a0d9d2b2dcd16f6f7a9d77d646532f049c5157f0b8541b84e5bb20a",
+    "sigflowAgent/integration/edu_u2_gateway.cpp": "15193cce77db8d4a648f2400c862a1c9496f200f237ff802187c671d494871fe",
+    "sigflowAgent/sigflow_edu_agent/host/verification.py": "3a4eccc9bc94b97d357c0238ab7b9d8d462806fc7a37d2d08ed80ed2c372b144",
+    "sigflowAgent/sigflow_edu_agent/host/closed_loop.py": "9838bf916c9a07891c7ea1bcf899a832ac30f7db66e8a9e56cd43c68458b9874",
+    "sigflowAgent/sigflow_edu_agent/host/revision_acceptance.py": "d271fef5fb1516b11460cd1117db24f2442c28e54cc7715cebe75a7aa0e8f5d9",
+    "sigflowAgent/sigflow_edu_agent/host/acceptance_support.py": "c08d8ac383c43b015f6cbe70a79c2a76f75a5bea978642163aa0a16972923153",
+    "sigflowAgent/tests/test_host_verification.py": "46fb6be4a4acc2c0948e7c47c0a6482a8fe679579ac31f1fa55cb80349b42f75",
+    "sigflowAgent/tests/test_closed_loop.py": "f84d71cc5b0a2dacb2377d88b7d04a30cfc1cbe6b52992dbe5978f478cf69ea1",
+    "sigflowAgent/tests/test_rag_v01_closeout.py": "69cd189f70591df505a3b247f04a962cb43fd22e54b9d6354e1ce153c62ab4f3",
+    "build-main-msvcrt/sigflowAgent/integration/edu_u2_gateway.exe": "2e210a25b9d6011f0931d6de957ce70b1712d87a1b265934e553f7e2baaec1c6"
+  },
+  "course_database_sha256": "4a98cecdc34a16446c3a5860072db18776871f437c329b2c62cda153fe662b01",
+  "unit_tests": {
+    "total": 482,
+    "passed": 447,
+    "skipped": 35,
+    "failed": 0,
+    "seconds": 68.298,
+    "skipped_breakdown": {
+      "historical_optional_ucagent": 6,
+      "original_course_snapshot_unavailable": 29
+    }
+  },
+  "legacy_agent_tests": {
+    "total": 221,
+    "passed": 220,
+    "skipped": 1,
+    "failed": 0,
+    "seconds": 58.585,
+    "skip_reason": "Windows_signal_test_unavailable"
+  },
+  "rag_portability_regression": {
+    "tests": 9,
+    "passed": 9,
+    "uses": "owned_copy_of_shipped_database",
+    "source_rebuild_claimed": false,
+    "assertions_unchanged": true
+  },
+  "development_evaluation": {
+    "total": 40,
+    "passed": 40,
+    "failed": 0,
+    "report": "evaluation-d12.json",
+    "source_hash_verified": true
+  },
+  "real_acceptance": {
+    "same_revision": {
+      "report": "closed-loop-d12-same-revision.json",
+      "jobs": 2,
+      "sha256": "5dec72bffb7ef7502c4262904c6cd1ffce2d13ada069939fa572872e920cf35a"
+    },
+    "student_edit": {
+      "report": "closed-loop-student-edit.json",
+      "jobs": 4,
+      "grant_used_jobs": [
+        1,
+        1,
+        0,
+        1,
+        1
+      ],
+      "sha256": "b61f4d2cddb47bc690108aca09abe0a70bc52dd486879348ad623bdd766cf57d"
+    },
+    "real_core": true,
+    "real_yosys": true,
+    "model_calls_this_stage": 0,
+    "cleanup": "completed",
+    "rebuilt_and_rerun_after_pull": true
+  },
+  "independent_review": {
+    "task_1": "passed",
+    "task_2_and_combined": "passed",
+    "post_pull_conflicts_and_portability": "passed",
+    "blocking_findings": 0,
+    "additional_control_probes": [
+      "extra_path_rejected",
+      "unknown_command_rejected",
+      "4096_byte_valid_refresh_accepted",
+      "oversized_rejected",
+      "truncated_line_rejected",
+      "EOF_shutdown_accepted"
+    ]
+  },
+  "known_limitations": [
+    "failed_run_report_may_omit_partial_execution_facts"
+  ],
+  "not_evaluated": [
+    "GUI_save_and_sync_timing",
+    "cross_revision_diagnostic_correlation",
+    "real_verilator_simulation",
+    "waveform_joint_acceptance",
+    "hardware_functional_correctness",
+    "teacher_teaching_quality",
+    "POSIX_runtime",
+    "original_course_snapshot_rebuild",
+    "real_tool_plus_course_joint_display"
+  ],
+  "git_actions": {
+    "local_development_committed": false,
+    "pushed": false
+  }
+}

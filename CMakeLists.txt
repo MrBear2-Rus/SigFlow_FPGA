@@ -593,6 +593,11 @@ add_subdirectory(InnerPlugin/eda-cst-gowin-cst)
 add_subdirectory(InnerPlugin/eda-wave-vcd)
 add_subdirectory(InnerPlugin/eda-lib-basic)
 
+option(SIGFLOW_BUILD_U2_INTEGRATION "Build the headless U2 real closed-loop host" OFF)
+if(SIGFLOW_BUILD_U2_INTEGRATION)
+    add_subdirectory(sigflowAgent/integration)
+endif()
+
 # -----------------------------------------------------------------------------
 # 插件化（P0）后，main/ 下很多 .cpp 变成薄封装，直接 #include 插件/核心的头：
 #   main/fpga/FpgaPinData.cpp         -> PinDatabaseStore.h      (eda-target-tangnano9k)

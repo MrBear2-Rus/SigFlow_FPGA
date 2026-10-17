@@ -1,0 +1,20 @@
+{
+  "status": "passed",
+  "real_core": true,
+  "agent_issuance": "denied",
+  "issued_version": "verified",
+  "malformed_versions": "denied",
+  "wrong_version": "denied",
+  "wrong_action": "denied",
+  "empty_project": "denied",
+  "same_run_replay": "verified",
+  "cross_run_replay": "denied",
+  "synthetic_reference_fixture": true,
+  "default_zero_version_compatibility": "verified",
+  "teaching_HTTP_L4": "disabled",
+  "real_reviewed_reference": "not_available",
+  "GUI_signoff": "not_run",
+  "job_count": 0,
+  "model_calls": 0,
+  "cleanup": "completed"
+}

@@ -109,6 +109,6 @@ def create_gateway_session(*, binding: SessionBinding, request: RunRequest,
         diagnostic_id=binding.diagnostic_id, anchors=anchors,
         origin=evidence_origin, combinational_goal=combinational_goal, context_items=context_items)
     observed = _ObservedSource(source, binding, request)
-    provider = DeepSeekProvider.from_env() if mode == 'deepseek' else None
+    provider = DeepSeekProvider.from_settings() if mode == 'deepseek' else None
     loop = TeachingLoop(request, observed, provider, max_steps=max_steps, max_model_calls=max_model_calls)
     return GatewayTeachingSession(loop, observed)

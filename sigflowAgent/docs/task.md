@@ -1,6 +1,6 @@
 # U2 本地阶段执行清单
 
-更新日期：2026-10-14。
+更新日期：2026-10-16。
 当前依据：[团队自研 task](../../docs/edu-agent/ucagent/task.md)、[自研决策](../../docs/edu-agent/DECISION-2026-10-07.md)。
 旧 `Plan/周期四/edu-agent/ucagent/task.md` 仅作为阶段 4–10 的历史规划背景。
 设计：[后续阶段设计](u2-next-stages-design.md)。
@@ -32,12 +32,55 @@
 - [x] 阶段 13 再规划：runner 与评分接口齐备，等待真实模型批次和两名教师独立评审。
 - [x] 阶段 14：只读检查点、RecoveryRequired、重新取证恢复、固定报告与动作幂等，22 项定向测试及独立复审通过。
 - [x] 阶段 14 再规划：格式可交接 U1；事务提交与模型预算预留仍待宿主，真实执行和 L4 不恢复。
-- [~] UA-05：已有基础主循环与上下文；真实 Job 闭环尚未验收。
-- [~] UA-06：已有 L1–L3 与默认拒绝；真实 L4 双确认尚未实现。
-- [ ] UA-07：八类真实证据与精确波形联合验收。
-- [~] UA-08：重复 runner 与评分汇总已实现；冻结集、真实模型批次与双人教师评审待验收。
+- [x] U1 依赖 D1：SQLite 状态/动作/检查点事务、单进程写入锁、持久模型预算与取消门禁，20 项通过。
+- [x] U1 依赖 D2：承载真实教学核心、异步动作、隔离重放、显式恢复与受控取消，20 项通过。
+- [x] U1 依赖 D3：严格 loopback HTTP、u2.host.v1 扩展、可信工厂与只读联调探针，16 项通过。
+- [x] U1 依赖 D4：scoped grant/Job 映射、持久幂等、未知回执、计划取消门禁及会话审批隔离，49 项通过并独立复审。
+- [x] U1 依赖 D5：bootstrap/ready/health/shutdown、Windows 启动器与环境锚点，4 项进程测试通过；全量及旧服务回归通过。
+- [x] U1 依赖再规划：本地宿主已具备，按 D5 顺序对接 UI 扩展、真实报告/锚点、受控执行、模型与 Linux；不扩大真实验收结论。
+- [x] U2 耦合 D6：可信目录动态快照、现有会话重新取证、结果 resolver 更新与 CLI 真实进程联调，11 项通过。
+- [x] U2 耦合 D7：长 Job 显式只读观察、证据稍晚到达、后继重新审批、网络瞬断保持、完整审批包隔离及终态停止，19 项观察测试通过。
+- [x] U2 耦合 D8：状态/高水位同事务读取、410 事件重同步、进展和有界 trace，store25 与组合 HTTP5 通过。
+- [x] D6–D8 再规划：live 会话闭环已接通；真实可信生产方、UI、跨进程验证恢复、完整功能观察和真实工具继续按独立边界验收；保留 U1 单独发布工作。
+- [x] 本机 DeepSeek 配置：Windows 当前用户加密保存、隐藏输入、来源优先级、status 与单次真实 API test 入口，17 项定向测试通过；当前用户配置已用于 D11 真实模型闭环。
+- [x] U1 闭环 D9：验证检查点、执行前事务位置、跨进程只读恢复、运行级取消隔离；80 项修复定向回归通过，独立审查通过。
+- [x] D9 再规划：补齐可信 Gateway 证据生产、无诊断任务观察及真实工具闭环入口；原检查点缺失的历史验证会话不自动恢复。
+- [x] U1 闭环 D10：显式 Gateway 自动取证、认证产物核验、空诊断任务观察、中性 L1–L3 Provider 路径；108 项定向回归和独立审查通过。
+- [x] D10 再规划：构建真实 Core/Gateway 测试宿主，运行 Yosys 与真实 DeepSeek 闭环；补齐 Verilator build/run 插件 ID 差异的执行适配。
+- [x] U1 闭环 D11：可选 CMake 宿主、真实 Core/Gateway/sidecar/Yosys、精确 provider 映射；规则和真实 DeepSeek 两种模式均通过，每次两个真实 Job；独立复审通过。
+- [x] D11 再规划：当前同 revision 综合任务闭环可复现；后续分别推进真实 Verilator、跨 revision 学生编辑与重新审批、GUI 对接及教师验收，不将本地测试替代团队 Gate。
+- [x] U1 闭环 D12：执行前当前版本/保存状态门禁，跨 revision 的真实四 Job 编辑/重新审批场景通过；拉取至 8b067b2 并合回后，全量 482 项中 447 通过、35 项依赖/平台场景跳过，两阶段独立审查及组合检查通过。
+- [x] D12 再规划：测试宿主已覆盖跨版本保存；下一阶段优先真实 Verilator build/run 与精确波形联合测试，GUI 保存/同步时序和教师验收继续独立签收。
+- [x] U2 阶段 15：常驻宿主默认课程端口、工程/课程上下文分离、元数据状态、恢复重新检索和恢复前旧动作隔离；unittest 报告运行 503 项、35 条跳过记录，无失败；逐项成功 470（跳过含 2 个类级记录），开发评测 40 项通过，独立审查修复复核通过。
+- [x] 阶段 15 再规划：真实 Core/Yosys 与课程背景完成联合测试（2 Job、4 条背景元数据）；下一阶段按 UA-07 对接真实 Verilator build/run、可信精确波形及预测动作，再推进真实模型课程批次与教师评分。课程 partial/not_assessed 不计作完整材料或质量验收。
+- [x] U2 阶段 16：真实 Verilator build/run 及常驻教学反馈通过，长 build 只读观察后等待显式后继确认；补齐真实插件的可执行/VCD 摘要，修复本机工具安装保留打包机器路径的问题。独立审查发现的后继验收及缺失进度字段绕过均已修复复核。
+- [x] 阶段 16 再规划：先修复 S2 波形末信号截断的完整性语义并运行限额回归，再对接可信波形查询与显式学生预测；现有 harness 仅一次 eval/dump，不将本次执行链验收等同于动态仿真或硬件功能验证。
+- [~] UA-05：主循环、上下文、常驻课程背景及同版本/跨版本的真实综合 Job 闭环已本地验收；GUI 保存同步及完整团队 Gate 签收待进行。
+- [x] U2 阶段 17：整信号分页与预算/游标绑定、VCD 别名和严格数字解析、可信认证读取；C++ 波形 11 项、VCD 41 项通过，独立审查发现的展开资源问题已修复复核。
+- [x] U2 阶段 18：元数据 challenge、明确二态预测后查询、有限采样比较、宿主事务重放/恢复隔离及 HTTP 注入拒绝；真实三 Job 静态预测闭环通过，不增加 Job、模型或提示等级。
+- [x] U2 阶段 19：Core receipt 39 项回归与真实路由探针、未启用的受审阅材料协议端口、八类 detector 支持矩阵和固定摘要的冻结 probe 校验/交接入口。
+- [x] 阶段 17–19 再规划：波形与静态预测本地链路已可验收；参考答案缺材料，继续禁止主循环/HTTP L4。动态刺激、其余真实 detector、冻结 ModelCase、教师评分、GUI 与目标 OS 分项签收，禁止用开发 probe 冒充。
+- [~] UA-06：L1–L3 与默认拒绝保持；receipt 底层作用域/重放补强和协议准备已完成，真实审阅材料、L4 持久发布事务及 GUI 双确认尚未启用。
+- [~] UA-07：真实 Verilator、可信精确波形和显式静态预测已核验；动态 stimuli、复位契约及其余模式的真实 detector/独立事实仍待交付。
+- [~] UA-08：重复 runner、评分汇总及冻结 probe 摘要校验已实现；团队冻结 ModelCase、真实模型批次与双人教师评审待验收。
 
 ## 完成证据
+
+- [阶段 17 可信波形](stage-17-trusted-waveform.md)、[阶段 18 预测](stage-18-prediction.md)、[阶段 19 交接](stage-19-handoff.md)：新服务全量 551 项，成功 518、单项跳过 33，另 2 个类级跳过覆盖 18 个方法，失败/错误 0；旧 agent 221 项，220 成功、1 跳过。C++ 波形 11、VCD 41、receipt 39 项通过。[真实预测](closed-loop-stage18-prediction.json)为 3 Job，q/tick0 显式预测 matches，仍为单次求值；[真实 receipt](receipt-stage19-core.json)只验证协议，[课程兼容](closed-loop-stage19-courses.json)为 2 Job/4 条 partial 背景。开发评测 40/40，冻结集缺失、教师/模型批次未运行。源码摘要、复审和边界见[汇总](verification-stage17-19.json)。不暂存、不提交、不推送。
+
+- [阶段 16 仿真执行链](stage-16-simulation.md)：[计划](u2-stage16-simulation-plan.md)各项完成。最终 unittest 运行 514 项，无失败，耗时 72.904 秒；逐项成功 481、单项跳过 33，另有 2 个类级跳过覆盖 18 个未运行方法，报告跳过记录总计 35。[开发评测](evaluation-stage16.json) 40/40 通过，源码摘要匹配。C++ 生产方摘要回归先失败后通过；[真实三 Job 报告](closed-loop-stage16-simulation.json)记录 1 个 Yosys 基线、1 个 Verilator build 和 1 个 run、1 次只读观察、1 次后继确认，以及 394 字节 VCD 的元数据核验；[课程兼容报告](closed-loop-stage16-courses.json)另完成 2 Job/4 条背景。规则模式，真实模型调用 0；单次求值、功能不作判定，精确波形门禁保持。[摘要汇总](verification-stage16.json)记录源码/二进制、范围及独立审查。本批不暂存、不提交、不推送。
+
+- [阶段 15 课程宿主](stage-15-course-host.md)：[计划](u2-stage15-course-host-plan.md)各项完成。最终 unittest 报告运行 503 项、35 条跳过记录，无失败，耗时 69.867 秒；逐项成功 470、单项跳过 33（6 历史 UCAgent、27 缺原始课程快照），另有 2 个类级跳过覆盖 18 个未运行方法。[开发评测](evaluation-stage15.json) 40 项通过，源码摘要匹配。[联合报告](closed-loop-stage15-courses.json)记录 2 个真实 Core/Yosys Job 与 4 条数据库核验背景，课程 partial、answerability=not_assessed、规则卡实际引用 0、模型调用 0；[跨版本回归](closed-loop-stage15-student-edit.json)另完成 4 Job。恢复后的旧动作重放漏洞经先失败后通过的回归与独立复核修复；[验收汇总](verification-stage15.json)记录范围、摘要和证据。本批无真实 API 调用，不修改 U3 数据库或检索算法，不提交、不推送。
+
+- [D12 跨版本手册](u1-d12-student-edit.md)：拉取至 8b067b2 后全量 482 项（447 通过、35 跳过；其中 6 历史 UCAgent、29 课程原文重建依赖未提供），原 agent 独立 221 项（220 通过、1 平台跳过）；[开发评测](evaluation-d12.json) 40 项通过。[跨版本报告](closed-loop-student-edit.json) 4 个真实 Job，[默认场景回归](closed-loop-d12-same-revision.json) 2 个真实 Job，[摘要汇总](closed-loop-d12-verification.json)记录版本、审查及验收范围。网络恢复后第四次 pull 成功，两份 stash 均保留；两处冲突已解决，RAG 日常测试改用随仓库数据库的临时副本，原断言保持不变。
+
+- [D11 真实闭环](u1-d11-closed-loop.md)：全量 421 项（415 通过、6 历史可选跳过），旧服务 124 项通过，[开发评测](evaluation-u1-closed-loop.json) 40 项通过。[规则报告](closed-loop-rule.json)及[真实 DeepSeek 报告](closed-loop-deepseek.json)均为真实 Core/Yosys 执行；后者实际模型调用 1 次。源码摘要和验收范围见[汇总记录](closed-loop-verification.json)。D9/D10 分阶段及最终组合审查通过。
+
+- [DeepSeek 配置与测试](deepseek-local-config.md)：全量 385 项（379 通过、6 历史跳过）；17 项新配置测试包含真实 DPAPI 虚构 Key 验证。真实 API 由显式 test 命令执行，不以模拟响应替代验收。
+
+- [D8 最新兼容记录](u1-d8-compatibility.md)：全量 368 项（362 通过、6 历史跳过）；宿主及续查 149 项通过，旧服务 124 项通过。[开发评测](evaluation-d8.json) 40 项通过，记录当前源码摘要。D6–D8 已独立审查及修复复审。
+
+- [U1 依赖联调手册](u1-d5-integration.md)：全量 328 项（322 通过、6 历史跳过），其中新宿主 109 项通过；旧服务独立 124 项通过。D1–D4 分阶段文档和接口说明由手册链接。
 
 - [阶段 14](stage-14-checkpoint.md)：最新全量 219 项，213 项核心通过，6 项历史上游实验跳过。
 - [阶段 14 开发评测](evaluation-stage14.json)：40 项离线场景通过，不代表崩溃事务或真实工具验收。
@@ -63,7 +106,7 @@
 
 ## 执行约束
 
-- 源码、测试、阶段文档均位于 sigflowAgent；保留 agent。
+- 新 Python 服务、测试、阶段文档位于 sigflowAgent；保留 agent。真实闭环所需的根 CMake 接线与 Core Gateway 兼容修正位于原模块。
 - 本批不 push，不把既有无关删除纳入提交。
 - 不随意删除工作区外文件；不清理不属于本批的文件。
 - 不以 Mock、skip 或单元测试代替真实工具、运行时与教师验收。

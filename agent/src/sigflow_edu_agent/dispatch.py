@@ -41,11 +41,12 @@ from .gateway_client import GatewayClient
 from .model_client import ModelAnswer, ModelClient, ModelStatus
 from .rules import RuleFinding, Selection, analyse
 from .util import contains_absolute_path, contains_credential
+from .version import LEVELS, RUN_KINDS
 
-TRUSTED_COMPLETENESS: frozenset[str] = frozenset({"complete"})
+TRUSTED_COMPLETENESS: frozenset[str] = frozenset({"complete", "exact"})
 """Report completeness values trustworthy enough to explain an empty diagnostic list."""
 
-_CONTEXT_TRUSTED = frozenset({"core"})
+_CONTEXT_TRUSTED = frozenset({"core", "gateway"})
 """Report origins considered attributable to this instance's real run."""
 
 _PLAN_TOP_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
@@ -53,6 +54,9 @@ _PLAN_TOP_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*$")
 
 _MAX_MODEL_TEACHING_BYTES = 12 * 1024
 """A model paragraph must remain a teaching aid, not a dump (UTF-8 bytes)."""
+
+RUN_STATES: frozenset[str] = frozenset({"succeeded", "degraded", "failed"})
+"""The only run states in the one-shot edu.api.v1 scheduler."""
 
 _MODEL_CODE_MARKERS: tuple[str, ...] = (
     "```",
@@ -181,23 +185,53 @@ class RunDispatcher:
     # -- public entry points ---------------------------------------------
 
     def dispatch(self, request: RunRequest, state_version: str) -> Outcome:
-        """Dispatch a run request.  Raises :class:`AgentError` for policy refusals."""
+        """Dispatch one base run after enforcing the frozen policy boundary.
+
+        The base ``POST /sessions/{id}/runs`` route never carries a trusted L4
+        grant or receipt.  ``more`` is advisory input only, so L4 is refused
+        here as well as in the HTTP parser: no caller can reach a reference
+        solution by calling the dispatcher directly.
+        """
+        if request.kind not in RUN_KINDS:
+            raise AgentError(
+                "INVALID_ARGUMENT",
+                "kind must be one of %s" % ", ".join(RUN_KINDS),
+                http_status=400,
+            )
+        if request.level not in LEVELS:
+            raise AgentError(
+                "INVALID_ARGUMENT",
+                "level must be one of %s" % ", ".join(LEVELS),
+                http_status=400,
+            )
+        if not isinstance(request.more, bool):
+            raise AgentError("INVALID_ARGUMENT", "more must be a boolean", http_status=400)
+        if request.level == "L4":
+            raise AgentError(
+                "POLICY_DENIED",
+                "L4 参考解必须经过可信两步确认；more 不构成授权。请使用受支持的教学动作。",
+                http_status=403,
+            )
         if request.kind == "plan":
-            return self._dispatch_plan(request, state_version)
-        if request.kind == "report_review":
-            return self._dispatch_report_review(request, state_version)
-        if request.kind == "hint":
-            return self._dispatch_hint(request, state_version)
-        return self._dispatch_explain(request, state_version)
+            outcome = self._dispatch_plan(request, state_version)
+        elif request.kind == "report_review":
+            outcome = self._dispatch_report_review(request, state_version)
+        elif request.kind == "hint":
+            outcome = self._dispatch_hint(request, state_version)
+        else:
+            outcome = self._dispatch_explain(request, state_version)
+        if outcome.state not in RUN_STATES:
+            raise ValueError("run dispatcher produced a non-contract state: %r" % outcome.state)
+        return outcome
 
     # -- explain / hint ---------------------------------------------------
 
     def _dispatch_explain(self, request: RunRequest, state_version: str) -> Outcome:
         """Serve ``kind=explain``: deterministic rule cards plus optional model prose.
 
-        ``level=L4`` is the reference-solution request.  ``more=true`` is the
-        second half of the two-step policy and is enforced by the HTTP layer
-        before this method is reached; here we only build the solution card.
+    L4 is rejected by :meth:`dispatch` before this method is reached.  The
+    dedicated reference-solution builder remains isolated for a future,
+    authenticated teaching action and is never exposed by the base route.
         """
         if request.level == "L4":
             return self._dispatch_reference_solution(request, state_version)
@@ -517,9 +551,9 @@ class RunDispatcher:
                     "revision", "state", "completeness")
         if (any(name not in report for name in required)
                 or report.get("schema_version") != "edu.jobreport.v1"
-                or report.get("origin") not in ("core", "legacy")
+                or report.get("origin") not in ("core", "gateway", "legacy")
                 or report.get("completeness") not in
-                    ("complete", "partial", "unavailable", "legacy_unverified")
+                    ("complete", "exact", "partial", "unavailable", "legacy_unverified")
                 or report.get("state") not in
                     ("Queued", "Running", "Cancelling", "Cancelled", "Succeeded",
                      "Failed", "TimedOut", "Rejected", "Unknown")

@@ -27,10 +27,10 @@ def main(argv=None) -> int:
         print(json.dumps(run_demo(), ensure_ascii=False, indent=2))
         return 0
     try:
-        provider = DeepSeekProvider.from_env() if args.provider == 'deepseek' else None
+        provider = DeepSeekProvider.from_settings() if args.provider == 'deepseek' else None
         request = RunRequest('demo', 'r1', 'latch', args.question, args.intent)
     except (ProviderError, ValueError) as error:
-        print(f'{error}: 请配置 DEEPSEEK_API_KEY / DEEPSEEK_MODEL；离线可用 --provider rule。', file=sys.stderr)
+        print(f'{error}: 运行 python -m sigflow_edu_agent.model_config configure 配置本机密钥，或设置 DEEPSEEK_API_KEY / DEEPSEEK_MODEL；离线可用 --provider rule。', file=sys.stderr)
         return 2
     plan = Plan('demo', 'r1', '复核综合结果', ('eda.synth',)) if args.intent == 'verify' else None
     from .courses import SQLiteCourseProvider

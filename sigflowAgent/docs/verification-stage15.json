@@ -1,0 +1,161 @@
+{
+  "schema_version": "edu.course-host-verification.v1",
+  "date": "2026-10-16",
+  "status": "passed",
+  "accepted_scope": "persistent_course_context_recovery_and_headless_synthesis_integration",
+  "repository": {
+    "branch": "SigFlow_FPGA_CMake",
+    "head": "8b067b2fdabf9abdbe63764dfcf5259be88170fd",
+    "uncommitted": true,
+    "staged_files": 0,
+    "committed_this_stage": false,
+    "pushed_this_stage": false,
+    "preserved_stashes": [
+      "824925a13fd8cf79dfb559a392ef918c911fa100",
+      "e0b4b8bfd25640492df0d0ad3b9606bc35b7edfe"
+    ]
+  },
+  "python_source_sha256": "beea0d0932d48c29e467fda09025efbdde13c34f8fa09d8a22080d9f99bc244b",
+  "file_sha256": {
+    "sigflowAgent/sigflow_edu_agent/loop.py": "66534da56fc704152f05ff649a7828fdd22683c83ae8d7694cb29d162cb41565",
+    "sigflowAgent/sigflow_edu_agent/courses.py": "165f2df1d78d26c6eec2a709b4e7617d8ec4263dd4122fb38e602b6cf7bb3041",
+    "sigflowAgent/sigflow_edu_agent/patterns/__init__.py": "931b10c9784cb47960ea415652ab8d70dca1596d755d53cdb48c80d17afcf536",
+    "sigflowAgent/sigflow_edu_agent/runtime/checkpoint.py": "274f059ea9cddfae4b8b97593a469b4517231796d49a373860abdc9f332e1190",
+    "sigflowAgent/sigflow_edu_agent/runtime/verification_checkpoint.py": "540bf590b3da1cbf016d18c8dd52b90aa4462af20bd2de8ea9ae02d7f71becd6",
+    "sigflowAgent/sigflow_edu_agent/host/factory.py": "6b2103339aa4fe55bcf1f27555ec6c1ed6389dcf038f9b56f39b0dd417fb1da8",
+    "sigflowAgent/sigflow_edu_agent/host/__main__.py": "50116026e070b942179544292d82062555889b5a53c31161b93161c9efd59f37",
+    "sigflowAgent/sigflow_edu_agent/host/runtime.py": "0b2014ccea9ee78253d2a44683d778db617822b723966dc8781b82e16f7df9e1",
+    "sigflowAgent/sigflow_edu_agent/host/http.py": "ed3928409362330cd02bd0fc81f052c5446d203ddd0ff6eb54641b7b2e1e568f",
+    "sigflowAgent/sigflow_edu_agent/host/course_state.py": "b422a090ec876be10f23aa3ab9b92fb4b6fa8ca981f18676135334e9594bdf7c",
+    "sigflowAgent/sigflow_edu_agent/host/closed_loop.py": "021294e4fe00272da945ed73f7233106bf987202f58073d4f0099c60a826107f",
+    "sigflowAgent/sigflow_edu_agent/host/course_acceptance.py": "91598c60fde06bdeea787dacb51f449f5a1ecb5dc5fa650b34e7fcd13d7f2531",
+    "sigflowAgent/tests/test_course_recovery.py": "91a0a0b1a2c573b7b94cb563865e8e01ef09e3930379bafc610a16177e7e8a90",
+    "sigflowAgent/tests/test_host_courses.py": "7b4eb45f3466d7f97af393083e0981e9b4675b7f4b5f63c5d2c47671f05b6c75",
+    "sigflowAgent/tests/test_verification_restart.py": "b2225703c62e0c9e2ad5c561eb46d56203d8236ef8dc319274a05e56960d9528",
+    "sigflowAgent/tests/test_host_process.py": "590eaa3478f5d23c35eb59cae5b455bea37489c655b0f2c20e0444f764bfee54",
+    "sigflowAgent/tests/test_closed_loop.py": "636e956b5d7a16951a6a50d61f91dbb10a8b495cf2a5bfa266b29d4cc3d96c67",
+    "CMakeLists.txt": "3e672f91896b71cd2942dff408978706988704ea0efff45e7c9865e58acced39",
+    "core/src/eda-agent-gateway/GatewayServer.cpp": "7bbd95063a0d9d2b2dcd16f6f7a9d77d646532f049c5157f0b8541b84e5bb20a",
+    "sigflowAgent/integration/edu_u2_gateway.cpp": "15193cce77db8d4a648f2400c862a1c9496f200f237ff802187c671d494871fe",
+    "build-main-msvcrt/sigflowAgent/integration/edu_u2_gateway.exe": "2e210a25b9d6011f0931d6de957ce70b1712d87a1b265934e553f7e2baaec1c6"
+  },
+  "course_database": {
+    "sha256": "4a98cecdc34a16446c3a5860072db18776871f437c329b2c62cda153fe662b01",
+    "unchanged_from_d12": true,
+    "retrieval_algorithm_changed": false
+  },
+  "unit_tests": {
+    "total": 503,
+    "passed": 470,
+    "skipped": 35,
+    "failed": 0,
+    "errors": 0,
+    "seconds": 69.867,
+    "collected_test_methods": 521,
+    "skipped_test_methods": 33,
+    "skipped_classes": 2,
+    "methods_not_run_due_to_class_skip": 18,
+    "count_semantics": "unittest testsRun=503 includes 470 successes and 33 method skips; skipped=35 also includes two setUpClass skips covering 18 additional collected methods. Do not subtract all skip entries from testsRun.",
+    "command": "PYTHONPATH=sigflowAgent; sigflowAgent/.venv/Scripts/python.exe -P -m unittest discover -s sigflowAgent/tests -v",
+    "execution_context": "normal_current_Windows_user_for_fake_key_DPAPI_tests",
+    "log_sha256": "d3dba5dd4e1e2fc740df51ef88ceb2e3e069700559acfdb4e617accd6681c99a",
+    "skipped_breakdown": {
+      "historical_optional_ucagent_methods": 6,
+      "original_course_snapshot_unavailable_methods": 27,
+      "original_course_snapshot_unavailable_classes": 2
+    },
+    "expected_negative_runner_output": "gateway_missing JSON after OK summary belongs to an asserted negative test"
+  },
+  "development_evaluation": {
+    "report": "evaluation-stage15.json",
+    "sha256": "aac2df967a796a899cda2acc0620144a73c2c932ca1f1e41a1aa6750b9fa6703",
+    "total": 40,
+    "passed": 40,
+    "failed": 0,
+    "rule_cases": 37,
+    "mock_provider_cases": 3,
+    "source_hash_verified": true,
+    "real_models": false,
+    "real_tools": false
+  },
+  "real_acceptance": {
+    "course_synthesis": {
+      "report": "closed-loop-stage15-courses.json",
+      "sha256": "00d8b95f6b8f216e96981ab5b87cd4ca0c7f1a26e639b9d12278a98fb5c18cad",
+      "jobs": 2,
+      "real_core": true,
+      "real_yosys": true,
+      "course": {
+        "answerability": "not_assessed",
+        "index_versions": [
+          "sha256:45eab8c89e52b37f067084d6f740a1333d919d125ead02630b6cc435de64bf86"
+        ],
+        "initial_card_citation_count": 0,
+        "metadata_verified": true,
+        "reference_count": 4,
+        "status": "partial"
+      },
+      "grant_used_jobs": [
+        1,
+        1
+      ],
+      "model_calls": 0,
+      "cleanup": "completed",
+      "functional_correctness": "not_evaluated"
+    },
+    "student_edit_compatibility": {
+      "report": "closed-loop-stage15-student-edit.json",
+      "sha256": "1bf1c6b3ebd20d2bdf083b12e5e0aa683a52a24a3a59c72830a6d46469f42c73",
+      "jobs": 4,
+      "courses_enabled": false,
+      "grant_used_jobs": [
+        1,
+        1,
+        0,
+        1,
+        1
+      ],
+      "old_revision_and_grant_denied": true,
+      "new_approval_verified": true,
+      "model_calls": 0,
+      "cleanup": "completed",
+      "run_timing": "before_final_recovery_replay_fix; normal execution path unchanged"
+    }
+  },
+  "independent_review": {
+    "status": "passed_after_fix",
+    "addressed": "pre_recovery_action_replay_republished_old_course_and_card",
+    "fix": "persisted_recovery_version_boundary_returns_current_validated_projection",
+    "regression": "test_pre_recovery_action_replays_current_projection_after_successful_recovery",
+    "report_sha256": "7baad34404bbd60c5b8771306a954c1fee3524433289072ddc5eef3ce9ac1300",
+    "extra_fixture": "barrier_survives_hint_finish_and_store_reopen; post_barrier_actions_keep_historical_results"
+  },
+  "legacy_agent": {
+    "modified_this_stage": false,
+    "rerun_this_stage": false,
+    "previous_evidence": "closed-loop-d12-verification.json"
+  },
+  "not_accepted": [
+    "real_DeepSeek_course_generation_quality",
+    "teacher_review",
+    "GUI",
+    "real_Verilator_simulation",
+    "trusted_exact_waveform_integration",
+    "all_eight_real_detectors",
+    "hardware_functional_correctness",
+    "L4_dual_confirmation",
+    "cross_platform_release",
+    "course_material_completeness_and_question_answerability"
+  ],
+  "next": "UA-07 real Verilator build/run, trusted exact waveform and prediction actions; then model course batches and teacher review",
+  "documentation_verification": {
+    "files_checked": 4,
+    "missing_local_links": 0,
+    "unchecked_stage_plan_items": 0,
+    "source_hash_current": true,
+    "git_diff_check": "passed",
+    "new_file_whitespace_and_conflict_markers": "passed",
+    "staged_files": 0,
+    "unmerged_files": 0
+  }
+}

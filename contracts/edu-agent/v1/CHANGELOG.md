@@ -261,6 +261,36 @@
   只尝试一次。`SnapshotService` 现在做有界退避重试（约 150 ms），失败原因仍如实上报。
   行为与响应契约不变，只是不再把可恢复的瞬时错误报成 503。
 
+### 2026-10-17：U1 sidecar v1 收口
+
+**完成范围**
+
+- sidecar 自带测试、bootstrap/ready、接口 A 路由/鉴权/边界、信封与错误码、四种 run 语义、
+  卡片/PlanCard、确定性 RTL 规则、会话/run/事件存储、Gateway 客户端、模型降级已收口。
+- 新增 U1 零第三方依赖的 `contract_schema.py` 运行期 JSON Schema 校验器；真实 loopback
+  Agent 响应和共同 fixtures 覆盖 25 份 schema。
+- 全量测试在两个标准入口均为 `289` 项、0 失败、0 错误、1 个 Windows SIGTERM 平台跳过。
+
+**契约对齐（向后兼容）**
+
+- `/capabilities` 实际响应补齐 schema 已要求的 `course` 对象；v1 固定
+  `available=false`，`course_refs` 为空数组。
+- 波形查询入参同时接受 uint64 十进制字符串和 JSON 无符号整数，统一转换为字符串后发送；
+  响应 tick 保持十进制字符串。
+- `PATH_OUTSIDE_PROJECT`、`SOURCE_UNAVAILABLE`、`PLUGIN_UNAVAILABLE` 在 Agent 客户端分别映射到
+  `POLICY_DENIED`、`GATEWAY_UNAVAILABLE`、`CAPABILITY_UNAVAILABLE`；接口 A 仍只允许 12 个冻结码。
+- `SourceRef.end_line` 保持最小 1；空区间由 Gateway 返回 422，U1 客户端拒绝非法区间，不返回 0。
+- 补齐 golden fixtures 已引用但缺失的 `teaching-action` / `teaching-action-result` schema；
+  这些 schema 只描述既有 B 阶段 fixture，不代表 sidecar 已暴露对应路由。
+- 新增 `fixtures/source-ref.json`，包含有效引用和 `end_line=0` 负例。
+
+**兼容性与边界**
+
+- 未删除或重命名既有路由/字段；新增字段均为 schema 已要求或向后兼容的可选/追加字段。
+- 基础 `/runs` 的 L4 继续恒 403，`more=true` 不授权；没有新增 B 阶段动作路由。
+- 接口 A events 立即返回，没有长轮询、`wait_ms` 或 Agent `/state`。
+- 当前只记录 Windows x64 / Python 3.13.16 实测；Linux x64 与麒麟未测，双平台发布验收不因本记录完成。
+
 ### 变更规则
 
 1. 提变更者在本文件记录：问题、旧/新字段与语义、影响路由、兼容性、迁移窗口、双方代码/测试清单。

@@ -83,6 +83,13 @@ rejected / the job service is down), not a decision the UI can act on.  That is
 the mapping the published behaviour table documents.
 """
 
+_LEGACY_ERROR_CODE_MAP: Mapping[str, str] = {
+    "PATH_OUTSIDE_PROJECT": "POLICY_DENIED",
+    "SOURCE_UNAVAILABLE": "GATEWAY_UNAVAILABLE",
+    "PLUGIN_UNAVAILABLE": "CAPABILITY_UNAVAILABLE",
+}
+"""Older Gateway codes mapped onto the frozen Agent vocabulary."""
+
 
 class _RefuseRedirects(urllib.request.HTTPRedirectHandler):
     """AD-04: never follow a redirect.
@@ -336,6 +343,8 @@ class GatewayClient:
                 reported = error.get("code")
                 if isinstance(reported, str) and reported in _DOMAIN_ERROR_CODES:
                     code = reported
+                elif isinstance(reported, str) and reported in _LEGACY_ERROR_CODE_MAP:
+                    code = _LEGACY_ERROR_CODE_MAP[reported]
                 detail = str(error.get("message", "")).strip()
                 if detail and code != "NOT_FOUND":
                     message = _safe(detail, self._secrets)
@@ -381,13 +390,28 @@ class GatewayClient:
         return self._get_json("/api/v1/projects/%s/design/nodes/%s" % (self.identifier(project_id), self.identifier(node_id)))
 
     def wave_query(self, artifact_id: str, body: Mapping[str, Any]) -> GatewayOutcome:
+        if not isinstance(body, Mapping):
+            raise ValueError("wave query body must be an object")
+        normalized = dict(body)
         for key in ("start_tick", "end_tick"):
             value = body.get(key)
-            if not isinstance(value, str) or not value.isascii() or not value.isdigit() or len(value) > 20 or int(value) > 2**64 - 1:
-                raise ValueError("tick must be a uint64 decimal string")
-        if int(body["start_tick"]) > int(body["end_tick"]):
+            if isinstance(value, str):
+                if (not value.isascii() or not value.isdigit()
+                        or len(value) > 20 or int(value) > 2**64 - 1):
+                    raise ValueError("tick must be a uint64 decimal value")
+                normalized_value = value
+            elif type(value) is int and 0 <= value <= 2**64 - 1:
+                normalized_value = str(value)
+            else:
+                raise ValueError("tick must be a uint64 decimal value")
+            normalized[key] = normalized_value
+        if int(normalized["start_tick"]) > int(normalized["end_tick"]):
             raise ValueError("reversed wave interval")
-        return self.request("POST", "/api/v1/waves/%s/query" % self.identifier(artifact_id), body)
+        return self.request(
+            "POST",
+            "/api/v1/waves/%s/query" % self.identifier(artifact_id),
+            normalized,
+        )
 
     def wave_signals(self, artifact_id: str) -> GatewayOutcome:
         return self._get_json("/api/v1/waves/%s/signals" % self.identifier(artifact_id))

@@ -469,7 +469,7 @@ int main() {
         const std::string consumePath = "/api/v1/ui-receipts/" + receiptId + "/consume";
         const eda::Json first = PostJson(
             "127.0.0.1", server.Port(), consumePath, "test-token",
-            eda::Json{{"run_id", "run-1"}, {"action_id", "act-a"}, {"expected_state_version", 0}},
+            eda::Json{{"project_id", "prj-1"}, {"run_id", "run-1"}, {"action_id", "act-a"}, {"expected_state_version", 0}},
             status);
         Check(status == 200 && first["data"].value("consumed", false) &&
                   !first["data"].value("replayed", true),
@@ -478,14 +478,14 @@ int main() {
         // 同 action 重放 -> 幂等返回原结果。
         const eda::Json replay = PostJson(
             "127.0.0.1", server.Port(), consumePath, "test-token",
-            eda::Json{{"run_id", "run-1"}, {"action_id", "act-a"}, {"expected_state_version", 0}},
+            eda::Json{{"project_id", "prj-1"}, {"run_id", "run-1"}, {"action_id", "act-a"}, {"expected_state_version", 0}},
             status);
         Check(status == 200 && replay["data"].value("replayed", false),
               "same action replay returns idempotent success");
 
         // 其他 action 重用 -> 409。
         PostJson("127.0.0.1", server.Port(), consumePath, "test-token",
-                 eda::Json{{"run_id", "run-2"}, {"action_id", "act-b"},
+            eda::Json{{"project_id", "prj-1"}, {"run_id", "run-2"}, {"action_id", "act-b"},
                            {"expected_state_version", 0}},
                  status);
         Check(status == 409, "reuse by different action rejected (409)");

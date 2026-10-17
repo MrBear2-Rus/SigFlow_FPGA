@@ -1,0 +1,63 @@
+{
+  "schema_version": "edu.closed-loop-verification.v1",
+  "date": "2026-10-15",
+  "status": "passed",
+  "python_source_sha256": "78234aed1f04e332d1c5bef23a62599aa5219ee437d934d94114257641f91ee8",
+  "file_sha256": {
+    "CMakeLists.txt": "999e5411244c1a49fecda237940769050df260fb8f043918235e0aa88cfc956c",
+    "core/src/eda-agent-gateway/GatewayServer.cpp": "373d697ffdb9c91209cf5096cfcb1d38dfa1d184fc00dfa0257141083ce280b7",
+    "sigflowAgent/integration/CMakeLists.txt": "1f1c6446bd4c800697b5d4d00c4427c65984d8501dfffc93d7de9005e0aeb547",
+    "sigflowAgent/integration/edu_u2_gateway.cpp": "4ea2d99bc454638bdfaf3b7a73277205afe35bc3b18fa2155e3e924505bf033e",
+    "build-main-msvcrt/sigflowAgent/integration/edu_u2_gateway.exe": "c3a8173db0987f5e9a96ccdc91ccfbfe0e2ffe33d70e53c20a7051161a8e9d04"
+  },
+  "unit_tests": {
+    "total": 421,
+    "passed": 415,
+    "skipped": 6,
+    "failed": 0,
+    "seconds": 68.448,
+    "skip_scope": "historical_optional_ucagent"
+  },
+  "legacy_agent_tests": {
+    "total": 124,
+    "passed": 124,
+    "failed": 0
+  },
+  "development_evaluation": {
+    "total": 40,
+    "passed": 40,
+    "failed": 0,
+    "report": "evaluation-u1-closed-loop.json",
+    "evidence_type": "synthetic_development"
+  },
+  "real_rule": {
+    "report": "closed-loop-rule.json",
+    "model_calls": 0,
+    "jobs": 2
+  },
+  "real_deepseek": {
+    "report": "closed-loop-deepseek.json",
+    "model_calls": 1,
+    "initial_producer": "model",
+    "jobs": 2
+  },
+  "independent_review": {
+    "task_1": "passed_after_run_isolation_fix",
+    "task_2": "passed",
+    "task_3_and_combined": "passed_after_cleanup_failure_fixes"
+  },
+  "accepted_scope": "same_revision_real_synthesis_workflow",
+  "not_evaluated": [
+    "real_verilator_simulation",
+    "cross_revision_student_edit",
+    "GUI",
+    "hardware_functional_correctness",
+    "teacher_teaching_quality",
+    "POSIX_runtime"
+  ],
+  "git_actions": {
+    "staged": false,
+    "committed": false,
+    "pushed": false
+  }
+}

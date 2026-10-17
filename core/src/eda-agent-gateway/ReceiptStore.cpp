@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <charconv>
 #include <ctime>
 #include <fstream>
 #include <system_error>
@@ -51,6 +52,7 @@ Json ReceiptToJson(const UiReceipt& receipt) {
                 {"revision", receipt.revision},
                 {"challenge_id", receipt.challengeId},
                 {"action_id", receipt.actionId},
+                {"state_version", std::to_string(receipt.stateVersion)},
                 {"status", receipt.status},
                 {"expires_at", receipt.expiresAt},
                 {"issued_at_epoch", std::to_string(receipt.issuedAtEpoch)},
@@ -62,8 +64,10 @@ bool ParseUnsigned(const Json& object, const char* key, std::uint64_t& out) {
     if (!object.contains(key)) return false;
     try {
         if (object[key].is_string()) {
-            out = std::stoull(object[key].get<std::string>());
-            return true;
+            const auto text = object[key].get<std::string>();
+            if (text.empty() || text.front()<'0' || text.front()>'9') return false;
+            const auto parsed=std::from_chars(text.data(),text.data()+text.size(),out);
+            return parsed.ec==std::errc() && parsed.ptr==text.data()+text.size();
         }
         if (object[key].is_number_unsigned()) {
             out = object[key].get<std::uint64_t>();
@@ -88,6 +92,8 @@ bool ParseReceipt(const Json& value, UiReceipt& out) {
     receipt.actionId = value.value("action_id", std::string());
     receipt.status = value.value("status", std::string());
     receipt.expiresAt = value.value("expires_at", std::string());
+    if (value.contains("state_version") &&
+        !ParseUnsigned(value, "state_version", receipt.stateVersion)) return false;
     if (!ParseUnsigned(value, "issued_at_epoch", receipt.issuedAtEpoch) ||
         !ParseUnsigned(value, "ttl_seconds", receipt.ttlSeconds)) {
         return false;
@@ -97,8 +103,10 @@ bool ParseReceipt(const Json& value, UiReceipt& out) {
         if (!consumed.empty()) {
             receipt.consumedByRunId = consumed.value("run_id", std::string());
             receipt.consumedActionId = consumed.value("action_id", std::string());
-            receipt.stateVersion = 0;
-            ParseUnsigned(consumed, "state_version", receipt.stateVersion);
+            std::uint64_t consumedVersion = 0;
+            if (!ParseUnsigned(consumed, "state_version", consumedVersion) ||
+                (value.contains("state_version") && receipt.stateVersion != consumedVersion)) return false;
+            receipt.stateVersion = consumedVersion;
             ParseUnsigned(consumed, "at_epoch", receipt.consumedAtEpoch);
         }
     }
@@ -204,7 +212,8 @@ bool ReceiptStore::Issue(const std::string& projectId, const std::string& sessio
                          const std::string& issue, const std::string& level,
                          const std::string& policy, const std::string& revision,
                          const std::string& challengeId, const std::string& actionId,
-                         std::uint64_t ttlSeconds, UiReceipt& out, std::string& error) {
+                         std::uint64_t ttlSeconds, UiReceipt& out, std::string& error,
+                         std::uint64_t issuedStateVersion) {
     error.clear();
     std::lock_guard<std::mutex> lock(mutex_);
     const std::uint64_t now = NowEpoch();
@@ -218,6 +227,7 @@ bool ReceiptStore::Issue(const std::string& projectId, const std::string& sessio
     receipt.revision = revision;
     receipt.challengeId = challengeId;
     receipt.actionId = actionId;
+    receipt.stateVersion = issuedStateVersion;
     receipt.status = "active";
     receipt.issuedAtEpoch = now;
     receipt.ttlSeconds = ttlSeconds == 0 ? 900 : ttlSeconds;
@@ -269,25 +279,42 @@ bool ReceiptStore::Consume(const std::string& receiptId, const std::string& proj
         return false;
     }
     UiReceipt& receipt = it->second;
-    if (!projectId.empty() && receipt.projectId != projectId) {
+    if (projectId.empty() || receipt.projectId != projectId) {
         decision = ReceiptDecision::ProjectMismatch;
         error = "receipt belongs to another project";
         return false;
     }
-    if (receipt.status == "invalid" || IsExpired(receipt, NowEpoch())) {
+    if (runId.empty() || actionId.empty() ||
+        (!receipt.actionId.empty() && receipt.actionId != actionId)) {
+        decision = ReceiptDecision::ActionMismatch;
+        error = "receipt run/action binding does not match";
+        return false;
+    }
+    if (receipt.status == "invalid") {
         decision = ReceiptDecision::Invalid;
         error = "receipt is no longer active";
         return false;
     }
     if (receipt.status == "consumed") {
-        if (receipt.consumedActionId == actionId) {
-            // 幂等重放：同一 action 重复核销返回原结果。
-            decision = ReceiptDecision::Replayed;
-            out = receipt;
-            return true;
+        if (receipt.consumedByRunId != runId || receipt.consumedActionId != actionId) {
+            decision = ReceiptDecision::ActionMismatch;
+            error = "receipt was consumed by another run/action";
+            return false;
         }
-        decision = ReceiptDecision::ActionMismatch;
-        error = "receipt was consumed by another action";
+        if (receipt.stateVersion != expectedStateVersion) {
+            decision = ReceiptDecision::StateConflict;
+            error = "state version does not match the consumed receipt";
+            return false;
+        }
+        // A committed result remains recoverable after TTL; explicit invalidation
+        // still denies replay above. No fresh approval is inherited here.
+        decision = ReceiptDecision::Replayed;
+        out = receipt;
+        return true;
+    }
+    if (IsExpired(receipt, NowEpoch())) {
+        decision = ReceiptDecision::Invalid;
+        error = "receipt is no longer active";
         return false;
     }
     if (expectedStateVersion != receipt.stateVersion) {

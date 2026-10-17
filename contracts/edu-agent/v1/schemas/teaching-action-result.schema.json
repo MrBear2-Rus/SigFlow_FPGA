@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "edu-agent/v1/schemas/teaching-action-result.schema.json",
+  "title": "TeachingActionResultFixture",
+  "description": "Existing contract fixture result. The sidecar does not expose this B-stage action route in edu.api.v1.",
+  "type": "object",
+  "required": [
+    "action_id", "action_kind", "session_id", "state_version",
+    "phase", "phase_name", "issue_id", "level", "courses"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "action_id": { "type": "string", "minLength": 1 },
+    "action_kind": { "type": "string", "minLength": 1 },
+    "session_id": { "type": "string", "minLength": 1 },
+    "state_version": { "type": "string", "pattern": "^[0-9]+$" },
+    "phase": { "type": "string", "minLength": 1 },
+    "phase_name": { "type": "string", "minLength": 1 },
+    "issue_id": { "type": ["string", "null"] },
+    "level": { "type": "string", "enum": ["L0", "L1", "L2", "L3", "L4"] },
+    "courses": { "type": "array", "items": { "type": "object" } }
+  }
+}

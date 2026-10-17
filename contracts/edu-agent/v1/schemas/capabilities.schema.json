@@ -11,6 +11,7 @@
     "protocol_version": { "type": "string", "minLength": 1 },
     "edition": { "type": "string", "enum": ["edu", "pro", "dev"] },
     "build": { "type": ["string", "null"] },
+    "waveform_query_contract": { "type": "string", "enum": ["whole-signals-v1"], "description": "可选只读语义标记：查询只返回完整信号；无进展截断仍为 partial，不代表已配置波形后端或授予执行权限。" },
     "capabilities": {
       "type": "array",
       "items": {

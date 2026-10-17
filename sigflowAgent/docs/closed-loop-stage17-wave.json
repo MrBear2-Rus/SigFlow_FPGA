@@ -1,0 +1,68 @@
+{
+  "action_replay": "verified",
+  "baseline_evidence_ids": [
+    "gateway-bf8b3fc3d638d731ac50fd5bdc54276ba4e0a06821476427334b34576f785f11"
+  ],
+  "baseline_job_id": "job-20261016T053319-1",
+  "build_job_id": "job-20261016T053325-2",
+  "cleanup": "completed",
+  "completed_status": "Completed",
+  "evidence_origin": "tool",
+  "functional_correctness": "not_evaluated",
+  "grant_used_jobs": [
+    1,
+    2
+  ],
+  "harness": "single_evaluation",
+  "invalid_build_dependency": "denied",
+  "job_count": 3,
+  "limits": [
+    "dynamic_stimulus",
+    "student_prediction",
+    "GUI",
+    "teaching_correctness"
+  ],
+  "model_calls": 0,
+  "model_mode": "rule",
+  "observation_actions": 1,
+  "real_core": true,
+  "real_verilator": true,
+  "real_yosys": true,
+  "reason": "outcome_indeterminate",
+  "result_evidence_ids": [
+    "gateway-8709ea51c8058a54559867e1a87c87119a395827257ceb0a8e8814363ca81d92",
+    "gateway-9be34d4278e19caed53a0509e65ee2719b57fdae1146fe356621225a83b33710"
+  ],
+  "run_job_id": "job-20261016T053452-3",
+  "stale_version": "denied",
+  "status": "historical_not_accepted",
+  "successor_confirmations": 1,
+  "time_advance_verified": false,
+  "wave_observation": {
+    "artifact_hash": "14b5628858c4ad44ff828e30627afce7b4bbabe5b91b89f902c3d46052cc0c20",
+    "artifact_id": "art-d8f0e319e6078c56f13dc480",
+    "end_tick": "0",
+    "evidence_id": "wave-369f800f27dac0193e01c4675d400c1dfb1030c5bb15d88b7d1797fb518fe411",
+    "exact_window_verified": true,
+    "full_name": "TOP.q",
+    "job_id": "job-20261016T053452-3",
+    "origin": "tool",
+    "revision": "rev-1-d70f20102495",
+    "signal_id": 3,
+    "snapshot_id": "snap-a434eaca583cb61bc7860b67",
+    "start_tick": "0",
+    "timescale": "1ps",
+    "transitions": 0,
+    "width": 1
+  },
+  "waveform": {
+    "artifact_id": "art-d8f0e319e6078c56f13dc480",
+    "exact_samples_verified": true,
+    "metadata_verified": true,
+    "schema": "eda.wave.vcd.v1",
+    "sha256": "14b5628858c4ad44ff828e30627afce7b4bbabe5b91b89f902c3d46052cc0c20",
+    "size_bytes": 394
+  },
+  "superseded_by": "closed-loop-stage18-prediction.json",
+  "acceptance_note": "Pre-alias-fix exploration; excluded from accepted waveform evidence."
+}

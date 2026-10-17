@@ -38,6 +38,7 @@ class TeachingLoop:
         self.plan, self.verification = plan, verification or DenyVerification()
         self.course_provider = course_provider
         self._course_refs = ()
+        self._course_evidence = None
         self.max_steps, self.max_model_calls = max_steps, max_model_calls
         self._state = RunState(uuid4().hex)
         self._evidence = None
@@ -47,10 +48,40 @@ class TeachingLoop:
         self._results = []
         self._baseline_evidence = baseline_evidence
         self._needs_replan = False
+        self._observation_only = False
+        self._last_verification = None
+        self._last_verification_index = None
 
     @property
     def state(self) -> RunState:
         return deepcopy(self._state)
+
+    @property
+    def verification_progress(self):
+        if self.plan is None:
+            return None
+        result = self._last_verification
+        known_states = {'Created', 'Validating', 'Queued', 'Running', 'ValidatingArtifact', 'Cancelling',
+                        'Succeeded', 'Failed', 'Cancelled', 'TimedOut', 'Rejected', 'Unknown'}
+        evidence = result.evidence if isinstance(result, VerificationResult) else None
+        job_id = result.job_id if isinstance(result, VerificationResult) else None
+        if job_id is None and isinstance(evidence, Evidence):
+            job_id = evidence.job_id
+        import re
+        if type(job_id) is not str or re.fullmatch(r'[A-Za-z0-9_-]{1,128}', job_id) is None:
+            job_id = None
+        ready = valid_evidence(evidence, self.request)
+        if ready and isinstance(self.plan, DetailedPlan):
+            ready = evidence.anchor is not None and evidence.anchor.snapshot_id == self.plan.snapshot_id
+        return dict(completed_steps=self._job_index, step_count=len(self.plan.steps),
+                    last_observed_step_index=self._last_verification_index,
+                    job_id=job_id, job_state=result.state if isinstance(result, VerificationResult)
+                    and type(result.state) is str and result.state in known_states else None,
+                    result_evidence_ready=ready,
+                    can_observe=(self._state.status == Status.RECOVERY_REQUIRED
+                        and self._state.reason in ('verification_status_pending', 'verification_evidence_pending')
+                        and getattr(self.verification, 'supports_observation', True) is True
+                        and callable(getattr(self.verification, 'observe', None))))
 
     def run_until_pause(self) -> RunState:
         while self._state.status == Status.RUNNING:
@@ -106,6 +137,9 @@ class TeachingLoop:
         return self.state
 
     def _prepare_courses(self):
+        # Retrieval is teaching context, never a replacement for the fixed
+        # engineering observation used by approval, execution and checkpoints.
+        self._course_evidence = self._evidence
         self._course_refs = ()
         self._state.course_omitted = ()
         self._state.course_status = 'disabled'
@@ -121,13 +155,13 @@ class TeachingLoop:
         except Exception:
             self._state.course_status = 'unavailable'
             return
-        self._evidence, self._course_refs = evidence, refs
+        self._course_evidence, self._course_refs = evidence, refs
         self._state.course_status, self._state.course_omitted = status, omitted
         self._state.course_diagnostics = evidence.course_diagnostics
 
     def _generate_card(self) -> Card:
         state = self._state
-        context = CardContext(self.request.question, state.level, self._evidence,
+        context = CardContext(self.request.question, state.level, self._course_evidence or self._evidence,
                               course_refs=self._course_refs, course_status=state.course_status)
         assessment = assess(context.evidence)
         if assessment.status != 'supported':
@@ -169,7 +203,7 @@ class TeachingLoop:
         state = self._state
         if type(expected_version) is not int or expected_version != state.version:
             raise ValueError('stale_state')
-        if kind not in {'cancel', 'finish', 'hint_next', 'refresh_evidence', 'execute_plan',
+        if kind not in {'cancel', 'finish', 'hint_next', 'refresh_evidence', 'execute_plan', 'observe_verification',
                         'reference_request', 'reference_confirm'}:
             raise ValueError('unknown_action')
         if state.status in {Status.COMPLETED, Status.CANCELLED, Status.FAILED, Status.BUDGET_EXCEEDED}:
@@ -192,6 +226,12 @@ class TeachingLoop:
             if not self._authorized(grant_ref):
                 raise ValueError('approval_denied')
             self._grant_ref = grant_ref
+            self._observation_only = False
+            state.stage, state.status = 'E6', Status.RUNNING
+        elif (kind == 'observe_verification' and self.request.intent == 'verify'
+                and self.verification_progress['can_observe'] and not grant_ref):
+            self._grant_ref = ''
+            self._observation_only = True
             state.stage, state.status = 'E6', Status.RUNNING
         else:
             raise ValueError('action_not_allowed')
@@ -220,19 +260,42 @@ class TeachingLoop:
                     current.anchor.snapshot_id != self.plan.snapshot_id):
                 state.status, state.reason = Status.FAILED, 'snapshot_mismatch'
                 return
-            if not self._authorized(self._grant_ref):
+            if not self._observation_only and not self._authorized(self._grant_ref):
                 state.status, state.reason = Status.FAILED, 'approval_denied'
                 return
             key = f'{state.run_id}:{self.plan.fingerprint}:{self._job_index}'
-            result = self.verification.execute(self.plan, self._job_index, self._grant_ref, key)
-        except Exception:
+            if self._observation_only:
+                result = self.verification.observe(self.plan, self._job_index, key)
+            else:
+                result = self.verification.execute(self.plan, self._job_index, self._grant_ref, key)
+        except Exception as error:
             # Unknown submission outcome never causes automatic retry.
-            state.status, state.reason = Status.FAILED, 'verification_unavailable'
+            code = getattr(error, 'code', '')
+            if self._observation_only and code in ('TIMEOUT', 'SERVICE_UNAVAILABLE'):
+                previous_job = self.verification_progress['job_id']
+                self._last_verification = VerificationResult('Unknown', None, None, previous_job)
+                state.status, state.reason = Status.RECOVERY_REQUIRED, 'verification_status_pending'
+            elif self._observation_only and isinstance(error, EvidenceError) and code in (
+                    'unresolved_evidence', 'incomplete_report', 'diagnostic_missing'):
+                state.status, state.reason = Status.RECOVERY_REQUIRED, 'verification_evidence_pending'
+            else:
+                state.status, state.reason = Status.FAILED, 'verification_unavailable'
             return
+        self._last_verification, self._last_verification_index = result, self._job_index
         if not isinstance(result, VerificationResult) or result.state != 'Succeeded':
+            if isinstance(result, VerificationResult) and result.state in {
+                    'Created', 'Validating', 'Queued', 'Running', 'ValidatingArtifact', 'Cancelling', 'Unknown'}:
+                state.status, state.reason = Status.RECOVERY_REQUIRED, 'verification_status_pending'
+                return
             state.status, state.reason = Status.FAILED, 'job_not_succeeded'
             return
         if not valid_evidence(result.evidence, self.request):
+            if result.evidence is None:
+                state.status, state.reason = Status.RECOVERY_REQUIRED, 'verification_evidence_pending'
+            else:
+                state.status, state.reason = Status.FAILED, 'invalid_result_evidence'
+            return
+        if result.job_id is not None and result.job_id != result.evidence.job_id:
             state.status, state.reason = Status.FAILED, 'invalid_result_evidence'
             return
         outcome = OutcomeChecker().compare(
@@ -255,6 +318,8 @@ class TeachingLoop:
                 outcome.state == 'mismatch' and isinstance(self.plan, DetailedPlan)
                 and 'observation_mismatch' in self.plan.stop_conditions):
             state.stage = 'E7'
+        elif self._observation_only:
+            state.stage, state.status, state.reason = 'E5', Status.WAITING_APPROVAL, 'successor_approval_required'
 
     def _feedback(self):
         flags = [result.matches_expected for result in self._results]

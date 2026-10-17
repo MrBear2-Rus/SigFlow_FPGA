@@ -3,10 +3,12 @@ from contextlib import closing
 from dataclasses import replace
 from pathlib import Path
 import sqlite3
+import shutil
 import tempfile
 import unittest
 
-from sigflow_edu_agent.rag.importer import build_index, DEFAULT_RESOURCES_DIR, _write_index_file, content_hash
+from sigflow_edu_agent.rag.importer import _write_index_file, content_hash
+from sigflow_edu_agent.rag.database import DEFAULT_DB_PATH
 from sigflow_edu_agent.rag.agent_adapter import prepare_course_context
 from sigflow_edu_agent.rag.retriever import retrieve_course_candidates
 from sigflow_edu_agent.rag.external_materials import _concepts
@@ -22,8 +24,11 @@ class CloseoutTests(unittest.TestCase):
     def setUpClass(cls):
         root=Path(__file__).parent/'.rag-tmp';root.mkdir(exist_ok=True)
         cls.temp=tempfile.TemporaryDirectory(dir=root)
+        cls.addClassCleanup(cls.temp.cleanup)
         cls.db=Path(cls.temp.name)/'full.sqlite'
-        build_index(DEFAULT_RESOURCES_DIR,cls.db,snapshot_dir=Path('D:/EDA/doc/sources/ysyx/2607'))
+        # Exercise the shipped retrieval artifact without a contributor's local
+        # textbook snapshot. Importer/source reconstruction has separate tests.
+        shutil.copyfile(DEFAULT_DB_PATH,cls.db)
         cls.provider=SQLiteCourseProvider(cls.db)
         # A single self-authored source enables deterministic complete/partial
         # source coverage tests independent of production retrieval quality.
@@ -46,9 +51,6 @@ class CloseoutTests(unittest.TestCase):
         _write_index_file(cls.small,[source,missing_source],[{'concept_id':'latch','aliases':['latch']},
                           {'concept_id':'unsupported_fixture','aliases':['unsupported fixture']}],[passage],[],[document],
                           {'fixture:latch':evidence},'trigram','sha256:'+'a'*64)
-
-    @classmethod
-    def tearDownClass(cls):cls.temp.cleanup()
 
     def evidence(self, size=0):
         return Evidence('ev','p','r','j','unknown',True,'Offline fixture',context_items=(

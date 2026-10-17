@@ -166,6 +166,7 @@ class VerificationResult:
     state: str
     evidence: Evidence | None
     matches_expected: bool | None
+    job_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -198,7 +199,7 @@ class ProviderError(Exception):
 
     CODES = {'model_unconfigured', 'model_timeout', 'model_unavailable',
              'model_auth_failed', 'model_rate_limited', 'invalid_output',
-             'context_too_large', 'response_too_large'}
+             'context_too_large', 'response_too_large', 'model_budget_exceeded'}
 
     def __init__(self, code):
         self.code = code if code in self.CODES else 'model_unavailable'

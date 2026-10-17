@@ -22,8 +22,10 @@ class CourseProvider(Protocol):
 class VerificationPort(Protocol):
     """Adapter validates real grant/snapshot/params and owns Job waiting/cancel.
 
-    execute must reuse the supplied idempotency key, return a terminal Job
-    observation, and never resolve sim.run inputs outside this plan's build.
+    execute must reuse the supplied idempotency key and return a bounded Job
+    observation. Nonterminal/unknown observations require host reconciliation;
+    they never authorize a following step or prove success. sim.run inputs
+    must not resolve outside this plan's successful build.
     This synchronous development interface is not a shared Gateway DTO.
     """
 
@@ -32,10 +34,18 @@ class VerificationPort(Protocol):
     def execute(self, plan: Plan | DetailedPlan, step_index: int, grant_ref: str,
                 idempotency_key: str) -> VerificationResult: ...
 
+    def observe(self, plan: Plan | DetailedPlan, step_index: int,
+                idempotency_key: str) -> VerificationResult:
+        """Observe an already reserved step; never submit, retry POST or grant successors."""
+        ...
+
 
 class DenyVerification:
     def authorized(self, plan, grant_ref):
         return False
 
     def execute(self, plan, step_index, grant_ref, idempotency_key):
+        raise PermissionError('verification_unavailable')
+
+    def observe(self, plan, step_index, idempotency_key):
         raise PermissionError('verification_unavailable')

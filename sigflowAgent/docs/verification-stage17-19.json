@@ -1,0 +1,187 @@
+{
+  "schema_version": "edu.u2-available-dependency-verification.v1",
+  "date": "2026-10-16",
+  "status": "passed_available_scope",
+  "all_U2_dependencies_complete": false,
+  "accepted_scope": [
+    "whole_signal_waveform_service",
+    "trusted_static_wave_read",
+    "explicit_prediction_transaction_and_recovery",
+    "receipt_protocol_prerequisites",
+    "offline_probe_handoff"
+  ],
+  "repository": {
+    "branch": "SigFlow_FPGA_CMake",
+    "head": "8b067b2fdabf9abdbe63764dfcf5259be88170fd",
+    "uncommitted": true,
+    "staged_files": 0,
+    "committed_this_turn": false,
+    "pushed_this_turn": false,
+    "preserved_stashes": [
+      "824925a13fd8cf79dfb559a392ef918c911fa100",
+      "e0b4b8bfd25640492df0d0ad3b9606bc35b7edfe"
+    ]
+  },
+  "python": {
+    "source_sha256": "f47a20a0748e1a96874370222d64f31b216cf6f06707c20321571290d0105aab",
+    "runtime": "3.13.5",
+    "conda_activation_required": false,
+    "ucagent_required": false
+  },
+  "file_sha256": {
+    "CMakeLists.txt": "3e672f91896b71cd2942dff408978706988704ea0efff45e7c9865e58acced39",
+    "core/src/eda-agent-gateway/WaveformService.cpp": "914eef3f2ed7d32958ff50d172e9da1ec634fdff4884763f5add7fe6484e2b08",
+    "core/src/eda-agent-gateway/GatewayServer.cpp": "25abf48664d64f3c38ea8760162964a9b4cf1b1d3b59f3196a84b49e5052bf7d",
+    "core/src/eda-agent-gateway/GatewayDto.cpp": "2bfb7028b0f214b5bd2706effdea8db0c57bdadb81900e83c798efb8f17bd1eb",
+    "core/src/eda-agent-gateway/ReceiptStore.cpp": "aad0fcc1fb8cfd14c1ca17040fb17b3c07b13551120db49493785a21d821b123",
+    "core/src/eda-agent-gateway/ReceiptStore.h": "79d8ffdbeb529e87a838ce48f8896b900a1763b9f52e1e8a42d30fe85ff9ccd0",
+    "InnerPlugin/eda-wave-vcd/src/VcdWaveformBackend.cpp": "6c64158794ae0c1c7e8d0ee7c7526dea83c1b90afffc978b7532f4a1eb7a3224",
+    "InnerPlugin/eda-wave-vcd/include/VcdWaveformBackend.h": "fa78d33b4a140e0f43690c97972d7d552a46b4ba84986de3bd541c870513d559",
+    "contracts/edu-agent/v1/schemas/capabilities.schema.json": "daf59bd18d4541b4b5ac0352d2f691d0f15cee2109f27b55a2ec2e5c301f3c63",
+    "sigflowAgent/integration/CMakeLists.txt": "e2075f06697e117aec7544da8f343f7f59c318b1006ff709e1c39f68baa60d27",
+    "sigflowAgent/integration/edu_u2_gateway.cpp": "142dd7609f13e120e9601990b7a218a1d95167bfa66b60451bb1cf52aeaf66a4",
+    "sigflowAgent/integration/wave_service_test.cpp": "4aaa0ac20961a7aa53d0d4f9b361d5452beca7b45beec57f4d8e48e11f9e31be",
+    "sigflowAgent/integration/vcd_integrity_test.cpp": "2577fa896eb804cb3543e3dbcda01f7a1f5c8637e741b09039c2886eb088999b",
+    "sigflowAgent/integration/receipt_store_test.cpp": "97786a1be16442436b797b87f782edebb0c2f70bf44405eb2bc3341fc22c545d",
+    "tests/agent/edu_gateway_smoke.cpp": "cb52e2bd15cba3c0df6c133369389de22a333f9069993db9d84b67dba18c5f47",
+    "build-main-msvcrt/sigflowAgent/integration/edu_u2_gateway.exe": "2d2c1e2c11cd8d55c9d88001ff910709ab4e0409d39d68383b83d2d6877ce99b",
+    "build-main-msvcrt/sigflowAgent/integration/edu_u2_receipt_store_test.exe": "fe085c549b179cbdc6e66cef4d6c1105f90a6d7a4b2cdca5e62ccd0b876b8867",
+    "build-main-msvcrt/sigflowAgent/integration/edu_u2_sim_artifact_test.exe": "a9c6b60a2a95a4844d35abcb461c5bd28980f4e639f1b0955be4a9454b409dd8",
+    "build-main-msvcrt/sigflowAgent/integration/edu_u2_vcd_integrity_test.exe": "4c4db5e9bbaed13cba96695e8133a580ce8f14c157bc54b1a63bc7b4dcb61629",
+    "build-main-msvcrt/sigflowAgent/integration/edu_u2_wave_service_test.exe": "9e3400d955ebdb3f0117ca9b1842f0412980010c56152fbb415de637868de557",
+    "sigflowAgent/docs/closed-loop-stage18-prediction.json": "b62f28c1437e59b203a06ed23b22d42c3e3eccfbfe0750f22bc9f3cf98b7e4d1",
+    "sigflowAgent/docs/closed-loop-stage19-courses.json": "fde8cf2dc86e3595ce2441a83246590d9a0d48fd0910b453a572a08a0729b02f",
+    "sigflowAgent/docs/receipt-stage19-core.json": "576222488e5d1c9c25232d8c8465f1417bcfcbeb1d018a06b1add0516376f26a",
+    "sigflowAgent/docs/evaluation-stage19.json": "23f5b88cf1a7394cef5bc112423ba6f9005efd294b3fefcf21d94fec888f0850",
+    "sigflowAgent/docs/evaluation-stage19-handoff.json": "663c159be16e34fd4c6b42e9f86a1aec9c7286c84eee566c31f669b3fd17218f"
+  },
+  "unit_tests": {
+    "tests_run": 551,
+    "passed": 518,
+    "collected": 569,
+    "skipped_entries": 35,
+    "failures": 0,
+    "errors": 0,
+    "seconds": 111.852,
+    "skip_reasons": {
+      "Set SIGFLOW_UCAGENT_SOURCE and install the optional runtime dependencies.": 6,
+      "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression": 27,
+      "set SIGFLOW_YSYX_SNAPSHOT to the pinned YSYX snapshot for full external-material DB tests": 1,
+      "Pinned original snapshot unavailable": 1
+    },
+    "log_sha256": "b6fc5b495b1be4f0d2b0e07211201f2b876e4ba2edf321d7c0956db41d6a68d5",
+    "skipped_test_methods": 33,
+    "skipped_classes": 2,
+    "methods_not_run_due_to_class_skip": 18,
+    "count_semantics": "testsRun=551 includes518 successes+33method skips;35skipentries include2classskips covering18additional collected methods"
+  },
+  "legacy_python_tests": {
+    "tests_run": 221,
+    "passed": 220,
+    "skipped": 1,
+    "failures": 0,
+    "errors": 0,
+    "seconds": 58.844,
+    "log_sha256": "161e3993e34e3da8bf659af36f4a96201c719866ca2a8e789d9ca2dcf5719a00"
+  },
+  "cpp_tests": {
+    "edu_u2_wave_service_test": {
+      "exit_code": 0,
+      "output": "checks=11 failures=0"
+    },
+    "edu_u2_vcd_integrity_test": {
+      "exit_code": 0,
+      "output": "checks=41 failures=0"
+    },
+    "edu_u2_receipt_store_test": {
+      "exit_code": 0,
+      "output": "receipt store: 39 checks, 0 failures"
+    }
+  },
+  "cpp_legacy_smoke": {
+    "executed": false,
+    "reason": "fixed_directory_recursive_cleanup_not_used",
+    "three_consume_bodies_updated_to_require_project": true,
+    "compatibility_covered_by_owned_real_probe": true
+  },
+  "directed_tests": {
+    "gateway_waveform": 9,
+    "prediction_controller": 8,
+    "prediction_host_and_HTTP": 7,
+    "reference_protocol": 5,
+    "evaluation_handoff": 6
+  },
+  "development_evaluation": {
+    "total": 40,
+    "passed": 40,
+    "failed": 0,
+    "evidence_type": "synthetic_development",
+    "model_calls": 0
+  },
+  "real_simulation": {
+    "report": "closed-loop-stage18-prediction.json",
+    "jobs": 3,
+    "exact_window": "tick0",
+    "transitions": 1,
+    "prediction": "matches",
+    "additional_prediction_jobs": 0,
+    "model_calls": 0,
+    "dynamic_stimulus_verified": false,
+    "functional_correctness": "not_evaluated"
+  },
+  "real_course_compatibility": {
+    "report": "closed-loop-stage19-courses.json",
+    "jobs": 2,
+    "references": 4,
+    "course_status": "partial",
+    "answerability": "not_assessed",
+    "rule_card_course_citations": 0,
+    "model_calls": 0
+  },
+  "real_receipt_protocol": {
+    "report": "receipt-stage19-core.json",
+    "jobs": 0,
+    "model_calls": 0,
+    "synthetic_reference_only": true,
+    "teaching_HTTP_L4": "disabled",
+    "GUI_signoff": "not_run"
+  },
+  "course_database_sha256": "4a98cecdc34a16446c3a5860072db18776871f437c329b2c62cda153fe662b01",
+  "course_database_unchanged": true,
+  "independent_review": {
+    "status": "passed_source_review_and_scoped_rereview",
+    "unresolved_P1_P2": 0,
+    "source_report_sha256": "a0f8072ab03c252533bfef3900fe2569368935b487d661088de721f958c38567",
+    "findings": [
+      {
+        "severity": "P2",
+        "issue": "unbounded_compressed_VCD_alias_expansion",
+        "resolution": "4096bit_width_65536signals_64MiB_event_alias_charge_before_allocation",
+        "root_RED": "41checks3failures",
+        "root_GREEN": "41checks0failures"
+      }
+    ],
+    "expiry_race_rereview": "passed_after_RED7_1_GREEN7_0",
+    "reviewer_reran_tests": false,
+    "final_green_run_by": "root",
+    "minor_deferred": "validation_statement_formatting"
+  },
+  "remaining_dependencies": [
+    "dynamic_input_clock_reset_contract",
+    "other_trusted_hardware_detectors",
+    "reviewed_reference_material",
+    "durable_L4_publication_transaction_before_activation",
+    "GUI_double_confirmation",
+    "team_frozen_ModelCase_dataset",
+    "real_model_course_batch",
+    "two_teacher_scores",
+    "native_Linux_Kylin_acceptance"
+  ],
+  "limits": {
+    "harness": "single_evaluation",
+    "reference_gate": "prepared_process_local_not_HTTP_enabled",
+    "frozen_probe_manifest": "hash_validation_not_authenticated_teacher_approval",
+    "frozen_JSONL": "empty_and_not_accepted",
+    "real_API_calls_this_turn": 0
+  }
+}

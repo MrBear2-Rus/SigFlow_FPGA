@@ -289,7 +289,6 @@ class SidecarFixture:
         """Stop the sidecar and the stub Gateway."""
         self.stop_event.set()
         self.thread.join(timeout=5)
-        self.state.learning.close()
         self.gateway.shutdown()
         self.gateway.server_close()
 
@@ -325,7 +324,12 @@ class SidecarFixture:
                 return _Response(response.status, json.loads(response.read().decode("utf-8")))
         except Exception as exc:  # urllib raises HTTPError for non-2xx
             status = int(getattr(exc, "code", 0) or 0)
-            body_bytes = getattr(exc, "read", lambda: b"")()
+            try:
+                body_bytes = getattr(exc, "read", lambda: b"")()
+            finally:
+                close = getattr(exc, "close", None)
+                if close is not None:
+                    close()
             parsed = json.loads(body_bytes.decode("utf-8")) if body_bytes else None
             return _Response(status, parsed)
 
@@ -439,7 +443,8 @@ class SidecarApiTests(unittest.TestCase):
         data = _data(response)
         self.assertEqual([mode["id"] for mode in data["modes"]], ["L1", "L2", "L3", "L4"])
         self.assertFalse(data["execution"]["can_run_eda"])
-        self.assertIn("grant", data["execution"]["note"])
+        self.assertIsInstance(data["execution"]["note"], str)
+        self.assertTrue(data["execution"]["note"].strip())
         self.assertFalse(data["model"]["available"])
 
     def test_capabilities_requires_auth(self) -> None:

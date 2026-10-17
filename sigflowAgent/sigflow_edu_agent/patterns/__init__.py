@@ -64,6 +64,14 @@ PATTERNS = MappingProxyType({p.concept: p for p in (
         ('同一输入下期望观察到什么？', '最早出现差异的精确事件在哪里？', '比较窗口、初值和采样时刻是否一致？'), '固定测试输入、期望和采样窗口，用完整精确事件重新比较结果。'),
 )})
 
+# Neutral report teaching is separate from the eight hardware error patterns.
+JOB_OBSERVATION = Pattern('job_observation', ('certified_job_report',), (),
+    'report:job_observation', (
+        ('工具任务已完成；综合成功不证明功能正确。', '这份报告证明了哪项工具任务、绑定了哪个工程版本？'),
+        ('核对任务状态与报告范围；工具成功不证明功能正确。', '报告与产物分别能支持哪些有界观察？'),
+        ('核对相同 snapshot、任务及产物引用；工具成功不证明功能正确。', '还需要哪些独立期望和验证来判断设计功能？')),
+    '固定项目、revision 与 snapshot 重新执行任务；功能判断仍需要独立可信期望。')
+
 
 def assess(evidence: Evidence, facts: PatternFacts | None = None) -> PatternAssessment:
     """Fail closed on malformed, stale or unsupported host facts.
@@ -73,14 +81,22 @@ def assess(evidence: Evidence, facts: PatternFacts | None = None) -> PatternAsse
     """
     if not isinstance(evidence, Evidence) or type(evidence.concept) is not str:
         return PatternAssessment('insufficient', 'malformed_evidence', None)
+    incomplete = (evidence.complete is not True or type(evidence.omitted) is not tuple or any(
+        not isinstance(item, Omission) or type(item.item_id) is not str
+        or not item.item_id.startswith('course:') for item in evidence.omitted))
+    if evidence.concept == 'job_observation':
+        if (incomplete or facts is not None
+                or evidence.origin != 'tool' or evidence.confidence_kind != 'tool'
+                or not valid_anchor(evidence.anchor, evidence.project_id, evidence.revision, evidence.job_id)
+                or evidence.anchor.evidence_id != evidence.evidence_id):
+            return PatternAssessment('insufficient', 'invalid_job_observation', JOB_OBSERVATION)
+        return PatternAssessment('supported', 'bounded_job_observation', JOB_OBSERVATION)
     pattern = PATTERNS.get(evidence.concept)
     if pattern is None:
         return PatternAssessment('unsupported', 'unknown_pattern', None)
     # Optional course omissions describe background retrieval, not missing
     # engineering observations. Keep every engineering/malformed omission closed.
-    if (evidence.complete is not True or type(evidence.omitted) is not tuple or any(
-            not isinstance(item, Omission) or type(item.item_id) is not str
-            or not item.item_id.startswith('course:') for item in evidence.omitted)):
+    if incomplete:
         return PatternAssessment('insufficient', 'incomplete_evidence', pattern)
     if evidence.anchor is not None and (
             not valid_anchor(evidence.anchor, evidence.project_id, evidence.revision, evidence.job_id)

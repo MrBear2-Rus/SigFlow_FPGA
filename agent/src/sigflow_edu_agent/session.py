@@ -7,6 +7,7 @@ guarded by a single lock because the HTTP server is threaded.
 Caps are enforced rather than reported:
 
 * at most :data:`MAX_SESSIONS` sessions, least recently used evicted first;
+* at most :data:`MAX_RUNS_PER_SESSION` runs per session, trimmed oldest first;
 * at most :data:`MAX_CARDS_PER_RUN` cards per run (enforced by ``cards.py``);
 * at most :data:`MAX_EVENTS_PER_SESSION` events per session, trimmed from the
   oldest end, which is what makes ``after`` cursors expire with 410.
@@ -26,6 +27,12 @@ from typing import Any, Optional
 from .util import decimal, iso_utc
 from .version import MAX_EVENTS_PER_SESSION, MAX_SESSIONS
 from .errors import AgentError
+
+MAX_RUNS_PER_SESSION: int = 64
+"""Per-session run retention cap; oldest runs are removed first."""
+
+MAX_SESSION_RUN_BYTES: int = 2 * 1024 * 1024
+"""Per-session serialized-card budget for retained runs."""
 
 
 @dataclass
@@ -93,7 +100,7 @@ class SessionRecord:
             "project_id": self.project_id,
             "revision": self.revision,
             "top": self.top,
-            "target": self.target,
+            "target": deepcopy(self.target),
             "locale": self.locale,
             "state_version": decimal(self.state_version),
             "created_at": self.created_at,
@@ -150,7 +157,7 @@ class SessionStore:
                 project_id=project_id,
                 revision=revision,
                 top=top,
-                target=target,
+                target=deepcopy(target),
                 locale=locale,
                 created_at=iso_utc(),
                 last_used=time.monotonic(),
@@ -168,6 +175,25 @@ class SessionStore:
             record.last_used = time.monotonic()
             self._sessions.move_to_end(session_id)
             return record
+
+    def get_session_view(self, session_id: str) -> Optional[dict[str, Any]]:
+        """Return a consistent session summary while holding the store lock."""
+        with self._lock:
+            record = self._sessions.get(session_id)
+            if record is None:
+                return None
+            record.last_used = time.monotonic()
+            self._sessions.move_to_end(session_id)
+            return record.to_wire()
+
+    def get_run_view(self, run_id: str) -> Optional[dict[str, Any]]:
+        """Return a consistent run view while holding the store lock."""
+        with self._lock:
+            for session in self._sessions.values():
+                record = session.runs.get(run_id)
+                if record is not None:
+                    return record.to_wire()
+            return None
 
     def _evict_locked(self) -> None:
         """Drop the least recently used sessions beyond the cap."""
@@ -218,10 +244,14 @@ class SessionStore:
         error_code: Optional[str] = None,
         error_message: Optional[str] = None,
     ) -> RunRecord:
-        """Append a run to a session and return the stored record."""
+        """Append a run to a session and assign its committed state version."""
         with self._lock:
+            if self._sessions.get(session.session_id) is not session:
+                raise AgentError("NOT_FOUND", "session expired", http_status=404)
+            cards = deepcopy(cards)
+            omitted = deepcopy(omitted)
             size = len(json.dumps(cards, ensure_ascii=False).encode("utf-8"))
-            if size > 2 * 1024 * 1024 or session.state_version >= 2**64 - 1:
+            if size > MAX_SESSION_RUN_BYTES or session.state_version >= 2**64 - 1:
                 raise AgentError("RESOURCE_EXHAUSTED", "session/run budget exceeded", http_status=429)
             self._next_run += 1
             run_id = "run-%d" % self._next_run
@@ -242,7 +272,8 @@ class SessionStore:
             )
             session.runs[run_id] = record
             session.run_bytes += size
-            while len(session.runs) > 64 or session.run_bytes > 2 * 1024 * 1024:
+            while (len(session.runs) > MAX_RUNS_PER_SESSION
+                   or session.run_bytes > MAX_SESSION_RUN_BYTES):
                 _, removed = session.runs.popitem(last=False)
                 session.run_bytes -= len(json.dumps(removed.cards, ensure_ascii=False).encode("utf-8"))
             return record
@@ -266,6 +297,8 @@ class SessionStore:
     ) -> dict[str, Any]:
         """Append one session event and return it."""
         with self._lock:
+            if self._sessions.get(session.session_id) is not session:
+                raise AgentError("NOT_FOUND", "session expired", http_status=404)
             self._next_event += 1
             session.sequence += 1
             event = {
@@ -273,12 +306,12 @@ class SessionStore:
                 "event_id": "ev-%d" % self._next_event,
                 "type": event_type,
                 "at": iso_utc(),
-                "data": data,
+                "data": deepcopy(data),
             }
             session.events.append(event)
             if len(session.events) > MAX_EVENTS_PER_SESSION:
                 del session.events[: len(session.events) - MAX_EVENTS_PER_SESSION]
-            return event
+            return deepcopy(event)
 
     def read_events(
         self,
@@ -293,6 +326,8 @@ class SessionStore:
         window.
         """
         with self._lock:
+            if self._sessions.get(session.session_id) is not session:
+                raise AgentError("NOT_FOUND", "session expired", http_status=404)
             high = session.sequence
             oldest = session.oldest_sequence
             cursor = 0 if after is None else int(after)

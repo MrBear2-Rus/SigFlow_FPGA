@@ -106,7 +106,7 @@ class SampleComparison:
 
 
 def check_waveform(*, catalog, page, anchor, project_id, revision, job_id, snapshot_id,
-                   signal_ids, start_tick, end_tick, origin='tool'):
+                   signal_ids, start_tick, end_tick, origin='tool', service_contract=None):
     """Return an immutable single-page observation with host-supplied provenance.
 
     The host must verify artifact hash ownership before supplying the anchor.
@@ -114,10 +114,9 @@ def check_waveform(*, catalog, page, anchor, project_id, revision, job_id, snaps
     """
     if origin not in ('fixture', 'tool'):
         raise WaveformError()
-    if origin == 'tool':
-        # Current C++ QueryRange can label the final truncated signal exact
-        # (including byte-cap truncation below 10000 events). Fail closed until
-        # S2 repairs completeness and supplies a verified service baseline.
+    if origin == 'tool' and service_contract != 'whole-signals-v1':
+        # Only a trusted host reader may attest the repaired Gateway baseline.
+        # Old or unversioned services retain the historical fail-closed gate.
         raise WaveformError('incomplete_waveform')
     if (not valid_anchor(anchor, project_id, revision, job_id) or anchor.snapshot_id != snapshot_id
             or re.fullmatch(r'(?:sha256:)?[a-fA-F0-9]{64}', anchor.artifact_hash) is None):
