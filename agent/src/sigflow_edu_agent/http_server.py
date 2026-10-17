@@ -33,7 +33,12 @@ from typing import Any, Mapping, Optional
 from urllib.parse import parse_qs, urlsplit
 
 from .dispatch import RunDispatcher, RunRequest
-from .errors import AgentError, failure_envelope, success_envelope
+from .errors import (
+    AgentError,
+    failure_envelope,
+    success_envelope,
+    validate_response_envelope,
+)
 from .gateway_client import GatewayClient
 from .model_client import ModelClient, ModelStatus
 from .rules import Selection
@@ -181,6 +186,7 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
 
     def _send_json(self, status: int, payload: Mapping[str, Any]) -> None:
         """Serialize and send one JSON response."""
+        validate_response_envelope(payload, status)
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         # Last-line defence: untrusted rule/model/report strings must not echo
         # bootstrap credentials or local paths, even through optional fields.
@@ -188,13 +194,27 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
         if contains_absolute_path(rendered) or redact(rendered, self.state.config.secrets) != rendered:
             status = 503
             request_id, trace_id = self.state.next_ids()
-            body = json.dumps(failure_envelope(request_id, trace_id, "SERVICE_UNAVAILABLE",
-                                              "response rejected by privacy boundary", False)).encode("utf-8")
+            payload = failure_envelope(
+                request_id,
+                trace_id,
+                "SERVICE_UNAVAILABLE",
+                "response rejected by privacy boundary",
+                http_status=status,
+            )
+            validate_response_envelope(payload, status)
+            body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         if len(body) > MAX_RESPONSE_BYTES:
             status = 429
             request_id, trace_id = self.state.next_ids()
-            body = json.dumps(failure_envelope(request_id, trace_id, "RESOURCE_EXHAUSTED",
-                                              "response exceeds 2 MiB", False)).encode("utf-8")
+            payload = failure_envelope(
+                request_id,
+                trace_id,
+                "RESOURCE_EXHAUSTED",
+                "response exceeds 2 MiB",
+                http_status=status,
+            )
+            validate_response_envelope(payload, status)
+            body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.close_connection = True
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -215,7 +235,13 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
         message = sanitize_message(error.message, self.state.config.secrets)
         self._send_json(
             error.http_status,
-            failure_envelope(request_id, trace_id, error.code, message, error.retryable),
+            failure_envelope(
+                request_id,
+                trace_id,
+                error.code,
+                message,
+                http_status=error.http_status,
+            ),
         )
 
     def _fail(
