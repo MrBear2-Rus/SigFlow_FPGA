@@ -154,10 +154,14 @@ private:
     /* 布局预设事件回调（T-510；id 段 wxID_HIGHEST+330..333） */
     void OnApplyLayoutPreset(wxCommandEvent&);
 
-    /* 布局保存 / 重置（T-250；id 段 wxID_HIGHEST+340..341；SPEC LAY-031/LAY-032） */
+    /* 布局保存 / 重置（T-250；id 段 wxID_HIGHEST+340..345；SPEC LAY-031/LAY-032） */
     void OnSaveLayout(wxCommandEvent&);
     void OnResetLayout(wxCommandEvent&);
     void OnCustomizeLayout(wxCommandEvent&);
+    /* T-730：显式浮动/收回面板（不依赖 caption 拖拽；Debug 构建实测拖不动） */
+    void OnFloatSidePanel(wxCommandEvent&);
+    void OnFloatLeftPanel(wxCommandEvent&);
+    void OnFloatBottomPanel(wxCommandEvent&);
 
     /* Window 菜单业务接口 */
     void DoWindowCombinationalAnalysis();

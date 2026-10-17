@@ -1266,9 +1266,13 @@ MainFrame::MainFrame()
         .FloatingSize(leftW, 600) // 诱导 AUI 记录这个宽度
         .PaneBorder(true)
         .Floatable(true)          // LAY-033：工具 pane 统一可浮动（原为 false，与右/底不一致）
-        // 顶部齐平：不再显示 caption 标题条（否则会比 rail / 中区低一个标题条高度，
-        // 四块（rail / 左栏 / 中区 / 右栏）的顶边就对不齐了）。
-        .CaptionVisible(false).CloseButton(false).MaximizeButton(false));
+        // ⚠️ 恢复（合并回归修复）：caption 必须可见 —— wxAUI 只能**由 caption 起拖**
+        //    （`wxAuiManager::OnLeftDown` 要求命中 `typeCaption` part）。
+        //    合并后的 GUI 重设计为"顶部齐平"把 caption 隐掉，导致左/右栏**没有任何拖放把手**，
+        //    用户报"类似 VSCode 的可拖放页面机制没了"。
+        //    `.PinButton(true)`：caption 右端给出**看得见、点得着**的图钉按钮 ——
+        //    点一下即浮动、再点收回（wxAUI 的 pin 语义），用户不必"猜哪里能拖"。
+        .CaptionVisible(true).CloseButton(false).MaximizeButton(true).PinButton(true));
 
     m_auiMgr.AddPane(rightRegionHost, wxAuiPaneInfo()
         .Name("right_sidebar").Caption("Side Panel").Right().Layer(8)
@@ -1277,8 +1281,11 @@ MainFrame::MainFrame()
         .MaxSize(FromDIP(UiTheme::Skeleton::RightMaxW), -1)
         .FloatingSize(rightW, 600)
         .Floatable(true)
-        .CaptionVisible(false)   // 顶部齐平：见左栏说明
-        .MaximizeButton(false)
+        // ⚠️ 恢复（同左栏）：caption 是 wxAUI 唯一的拖放把手，隐掉就等于禁用了拖放/浮动。
+        //    Pin 按钮 = caption 右端的可点击"浮动/收回"入口。
+        .CaptionVisible(true)
+        .MaximizeButton(true)
+        .PinButton(true)
         .CloseButton(false));
 
     m_auiMgr.AddPane(m_bottomHost, wxAuiPaneInfo()
@@ -1288,6 +1295,7 @@ MainFrame::MainFrame()
         .FloatingSize(800, bottomH)
         .Floatable(true)
         .MaximizeButton(true)
+        .PinButton(true)        // 与左/右栏一致：caption 上的图钉按钮 = 浮动/收回
         .CloseButton(false));
 
     m_auiMgr.AddPane(centerRegionHost, wxAuiPaneInfo()
@@ -1853,6 +1861,31 @@ bool MainFrame::HandleMenuBarKeyboard(wxKeyEvent& event)
     return false;
 }
 
+// T-730：显式浮动/收回（Window 菜单入口）——不依赖 caption 拖拽
+void MainFrame::TogglePaneFloating(const char* paneName)
+{
+    wxAuiPaneInfo& pane = m_auiMgr.GetPane(wxString::FromUTF8(paneName));
+    if (!pane.IsOk()) {
+        return;
+    }
+    if (pane.IsFloating()) {
+        pane.Dock();
+        SetStatusText(wxString::Format(wxS("%s docked"), wxString::FromUTF8(paneName)), 0);
+    } else {
+        // 浮动窗给一个不遮住主体的初始位置/尺寸
+        const wxRect client = GetClientRect();
+        const int w = FromDIP(560);
+        const int h = FromDIP(520);
+        pane.Float()
+            .FloatingPosition(wxPoint(client.x + FromDIP(80), client.y + FromDIP(120)))
+            .FloatingSize(w, h);
+        SetStatusText(wxString::Format(wxS("%s floated (drag its title bar anywhere)"),
+                                       wxString::FromUTF8(paneName)),
+                      0);
+    }
+    m_auiMgr.Update();
+}
+
 void MainFrame::SyncPanelMenuChecks()
 {
     if (auto* bar = dynamic_cast<MainMenuBar*>(GetMenuBar())) {
@@ -2262,6 +2295,17 @@ void MainFrame::ResetLayout()
 
 void MainFrame::ApplyLayoutVisibility()
 {
+    // A saved AUI perspective contains capability flags as well as geometry.
+    // Old pro layouts hid the sidebar captions, so LoadPerspective() can remove
+    // the drag handle even after the constructor enables it. Restore current
+    // pane capabilities without resetting the user's dock/floating geometry.
+    for (const char* name : { "left_sidebar", "right_sidebar", "bottom_tabs" }) {
+        wxAuiPaneInfo& pane = m_auiMgr.GetPane(name);
+        if (pane.IsOk()) {
+            pane.CaptionVisible(true).Floatable(true).Movable(true)
+                .PinButton(true).MaximizeButton(true);
+        }
+    }
     // Batch presets/restores: set all shape fields before one AUI reflow. Six
     // individual SetPanelVisibility calls would redraw the entire frame six times.
     if(auto* bar=GetMenuBar(); bar && bar->IsShown()!=m_layoutState.menubar) ApplyMenuBarVisibility(m_layoutState.menubar);
@@ -2317,7 +2361,14 @@ void MainFrame::ApplyResponsiveLayout()
     // <760：辅助侧边栏自动隐藏（LAY-019）
     const bool wantRight =
         UiTheme::GetVisibility(m_layoutState, UiTheme::Visibility::Right) && !autoHidden;
-    SetPaneVisible("right_sidebar", wantRight);
+    // ⚠️ 同上：右栏若已被用户拖成**浮动**，窄屏自动隐藏不得把它藏掉（否则"放出去就消失"）。
+    {
+        wxAuiPaneInfo& rightPane = m_auiMgr.GetPane("right_sidebar");
+        const bool rightFloating = rightPane.IsOk() && rightPane.IsFloating();
+        if (!rightFloating) {
+            SetPaneVisible("right_sidebar", wantRight);
+        }
+    }
 
     // ⚠️ T-520 缺陷 A 修复（已定位到 wx 源码）：wxAuiManager 只在 `dock.size == 0` 时才按 pane 的
     //   `best_size` 重算 dock 尺寸（3rd/wxWidgets-src/src/aui/framemanager.cpp:2196），而普通可拖拽
@@ -2331,6 +2382,14 @@ void MainFrame::ApplyResponsiveLayout()
                                            int maxDip) {
         wxAuiPaneInfo& pane = m_auiMgr.GetPane(paneName);
         if (!pane.IsOk()) {
+            return;
+        }
+        // ⚠️ 回归修复（用户报"右侧那块整体不能像 Terminal 那样到处放"）：
+        //    本函数会在**窗口尺寸事件**里被调用，而下面的 `DockFixed(true)+BestSize+Update()`
+        //    会把已经浮动的 pane **重新拉回停靠位** —— 于是"一拖就被拽回去"。
+        //    只有左/右栏经过这里（底部 Console 不经过）⇒ 现象正好是"右栏放不动、底部能放"。
+        //    用户一旦把它拖成浮动，就不再压制它；拖回停靠后本逻辑自动恢复。
+        if (pane.IsFloating()) {
             return;
         }
         // ⚠️ wxAuiPaneInfo 的尺寸单位是**像素**，必须 FromDIP。

@@ -258,8 +258,24 @@ void UiMenuBar::OpenMenu(int index)
     const wxString title = m_menus->GetMenuLabel(static_cast<size_t>(index));
     m_menus->Remove(static_cast<size_t>(index));
 
+    // ⚠️ 关键修复（菜单项静默失效 / TraceBridge 点不开）：
+    //    菜单一旦被从菜单栏"摘下"，wx 的 `wxMenuBase::DoProcessEvent`
+    //    （src/common/menucmn.cpp:684-750）就拿不到菜单栏 —— 它先看
+    //    `mb = menu->GetMenuBar()`（此时为 nullptr），再退回
+    //    `win = 弹出它的窗口`（= 本自绘面板），事件只会沿窗口链冒泡到 MainFrame。
+    //    而本仓**绝大多数菜单项的处理器挂在 `MainMenuBar` 上**（95 个 EVT_MENU；
+    //    `MainMenuBar` 是 wxMenuBar，不是窗口、不在窗口链上）⇒ 这些项全部静默失效，
+    //    只有 6 个挂在 MainFrame 上的项（面板显隐等）还活着。
+    //    修法：弹出期间把该菜单的**事件处理器临时指向菜单栏**，让 DoProcessEvent 的
+    //    `handler->SafelyProcessEvent(event)` 那一步先跑到 MainMenuBar 的处理器；
+    //    弹完恢复原处理器。菜单结构 / id / 勾选态一律不变。
+    wxEvtHandler* const previousHandler = menu->GetEventHandler();
+    menu->SetEventHandler(m_menus);
+
     const wxRect rect = m_items[index].pill;
     PopupMenu(menu, ClientToScreen(wxPoint(rect.x, rect.GetBottom())));
+
+    menu->SetEventHandler(previousHandler);
 
     m_menus->Insert(static_cast<size_t>(index), menu, title);
 

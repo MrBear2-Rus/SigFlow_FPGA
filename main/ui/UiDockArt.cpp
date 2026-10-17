@@ -33,10 +33,16 @@ void UiDockArt::ApplyThemeColours()
     // rounded UiRegionHost card reads as a card floating on the page.
     SetColour(wxAUI_DOCKART_BORDER_COLOUR, c.bgWindow);
     SetColour(wxAUI_DOCKART_SASH_COLOUR, c.bgWindow);
-    SetColour(wxAUI_DOCKART_INACTIVE_CAPTION_COLOUR, c.surfaceOnWindow);
-    SetColour(wxAUI_DOCKART_ACTIVE_CAPTION_COLOUR, c.surfaceOnWindow);
-    SetColour(wxAUI_DOCKART_INACTIVE_CAPTION_TEXT_COLOUR, c.text3);
-    SetColour(wxAUI_DOCKART_ACTIVE_CAPTION_TEXT_COLOUR, c.text2);
+    // ⚠️ caption 是**功能部件**而非装饰：wxAUI 只能由 caption part 起拖
+    // （`LayoutAddPane` 仅在 `pane.HasCaption()` 时分配，见 SPEC **LAY-031**）。
+    // 之前把 caption 底色设成 `surfaceOnWindow`（= pane 卡片同色）+ `text3` 灰字，
+    // 整条"抓取条"在视觉上消失了 → 用户找不到可以拖的地方（实测反馈：
+    // "整个右侧边栏不能像 Terminal 那样自由脱出"）。改为用**页面色**做底，
+    // 与卡片形成一条看得见的分隔条，标题用 text2/text1。
+    SetColour(wxAUI_DOCKART_INACTIVE_CAPTION_COLOUR, c.bgWindow);
+    SetColour(wxAUI_DOCKART_ACTIVE_CAPTION_COLOUR, c.bgWindow);
+    SetColour(wxAUI_DOCKART_INACTIVE_CAPTION_TEXT_COLOUR, c.text2);
+    SetColour(wxAUI_DOCKART_ACTIVE_CAPTION_TEXT_COLOUR, c.text1);
 }
 
 void UiDockArt::UpdateMetrics(wxWindow* parent)
@@ -48,6 +54,11 @@ void UiDockArt::UpdateMetrics(wxWindow* parent)
     SetMetric(wxAUI_DOCKART_SASH_SIZE, parent->FromDIP(2));
     // LAY: 6 DIP page-coloured gutter around every pane (card look).
     SetMetric(wxAUI_DOCKART_PANE_BORDER_SIZE, parent->FromDIP(2));
+
+    // ⚠️ caption 高度**显式设定**（基类默认 FromDIP(17)；这里按设计给 26 DIP）。
+    //    必须保证 > 0：为 0 时 wxAUI 不分配 caption part → 该 pane **完全无法拖放**
+    //    （SPEC LAY-031；实测反馈"整个右侧边栏不能像 Terminal 那样自由脱出"）。
+    SetMetric(wxAUI_DOCKART_CAPTION_SIZE, parent->FromDIP(26));
 
     // caption 字体走 token（THE-016/THE-017：12 DIP、medium）
     SetFont(wxAUI_DOCKART_CAPTION_FONT,

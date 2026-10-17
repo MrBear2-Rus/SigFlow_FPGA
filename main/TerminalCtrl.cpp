@@ -1,4 +1,4 @@
-﻿#include "TerminalCtrl.h"//引用头文件
+#include "TerminalCtrl.h"//引用头文件
 #include "TerminalController.h" 
 
 #include "ui/UiTheme.h"   // T-320：唯一取色/字体来源（SAFE-012 / THE-001）
@@ -68,10 +68,15 @@ TerminalCtrl::TerminalCtrl(wxWindow* parent)
 }
 
 // T-320：终端外观（SPEC CMP-062）。只设置外观，不触碰任何文本内容。
+//
+// 2026-10-17 用户要求：**终端背景改为白色**。
+// 原实现是"固定深色终端"（`TerminalPalette()` 的 termBg + 深色档前景，SPEC §3.5）。
+// ⚠️ 只换底色会让前景不可读，因此前景一并改用**浅色档 token**（白底上可读），
+//    语义前缀色（accent/brand/warn/danger）也随之取浅色档。
 void TerminalCtrl::ApplyTerminalStyle()
 {
-    const UiTheme::Colours& term = TermColours();
-    const wxColour termBg = UiTheme::Palette().termBg;                    // SPEC §3.5 补充 token
+    const UiTheme::Colours& term = UiTheme::PaletteFor(UiTheme::Mode::Light);
+    const wxColour termBg(0xFF, 0xFF, 0xFF);   // 白色底（用户指定）
     const wxFont   mono   = UiTheme::MonoFont(this, UiTheme::TextSize::P12);  // 12 DIP 等宽（PLT-002）
 
     // 默认样式：既是 STYLE_DEFAULT 模板，也是未显式着色文本（Scintilla 对新插入字节
@@ -102,10 +107,9 @@ void TerminalCtrl::ApplyTerminalStyle()
     // 控件自身底色（文本区之外的空白）与光标色
     SetBackgroundColour(termBg);
     SetCaretForeground(term.text1);
-    // 终端选择态也固定使用终端语义色；避免切换主题/重绘后出现原生浅蓝
-    // 选择框压在深底上的低对比度组合。文本与内容本身不被改写。
+    // 终端选择态：白底终端用强调色底 + **白字**（深色字压在蓝底上对比不足）
     SetSelBackground(true, term.accent);
-    SetSelForeground(true, term.text1);
+    SetSelForeground(true, wxColour(0xFF, 0xFF, 0xFF));
     SetWhitespaceForeground(false, term.text3);
 
     // 行距 1.7（SPEC CMP-062）

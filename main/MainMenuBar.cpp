@@ -38,7 +38,11 @@ enum
 {
     idSaveLayout  = wxID_HIGHEST + 340,
     idResetLayout = wxID_HIGHEST + 341,
-    idCustomizeLayout = wxID_HIGHEST + 342
+    idCustomizeLayout = wxID_HIGHEST + 342,
+    // T-730：显式浮动/收回（不依赖 caption 拖拽）
+    idFloatSidePanel = wxID_HIGHEST + 343,
+    idFloatLeftPanel = wxID_HIGHEST + 344,
+    idFloatBottomPanel = wxID_HIGHEST + 345
 };
 
 enum
@@ -150,6 +154,9 @@ EVT_MENU(idPresetChat, MainMenuBar::OnApplyLayoutPreset)
 EVT_MENU(idSaveLayout, MainMenuBar::OnSaveLayout)
 EVT_MENU(idResetLayout, MainMenuBar::OnResetLayout)
 EVT_MENU(idCustomizeLayout, MainMenuBar::OnCustomizeLayout)
+EVT_MENU(idFloatSidePanel, MainMenuBar::OnFloatSidePanel)
+EVT_MENU(idFloatLeftPanel, MainMenuBar::OnFloatLeftPanel)
+EVT_MENU(idFloatBottomPanel, MainMenuBar::OnFloatBottomPanel)
 
 EVT_MENU(wxID_HIGHEST + 500, MainMenuBar::OnTutorial)
 EVT_MENU(wxID_HIGHEST + 501, MainMenuBar::OnUserGuide)
@@ -457,6 +464,15 @@ void MainMenuBar::RebuildWindowMenu() //这个版本会把window放在simulate�
         m_windowMenu->Append(idCustomizeLayout, "Customize Layout...", "Open the keyboard-accessible layout picker");
         m_windowMenu->Append(idResetLayout, "Reset Layout", "恢复默认布局（不触碰业务状态）");
         m_windowMenu->AppendSeparator();
+        // T-730：显式浮动/收回。wxAUI 只能由 caption 起拖，而 caption 在部分构建下不可见/不可命中
+        //（实测 build-local(Debug) 拖不动、build-release-size(Release) 正常）→ 给出稳定的菜单入口。
+        m_windowMenu->Append(idFloatSidePanel, "Float / Dock Side Panel",
+                             "把右侧栏弹出为浮动窗（或收回停靠）—— 不依赖标题条拖拽");
+        m_windowMenu->Append(idFloatLeftPanel, "Float / Dock Project Manager",
+                             "把左侧栏弹出为浮动窗（或收回停靠）");
+        m_windowMenu->Append(idFloatBottomPanel, "Float / Dock Console",
+                             "把底部面板弹出为浮动窗（或收回停靠）");
+        m_windowMenu->AppendSeparator();
     }
 
     /* 3. 动态文档列表（初始 Untitled） */
@@ -576,6 +592,13 @@ void MainMenuBar::OnResetLayout(wxCommandEvent&)
 }
 
 void MainMenuBar::OnCustomizeLayout(wxCommandEvent&) { if(m_owner) m_owner->ShowLayoutPicker(); }
+
+// T-730：显式浮动/收回面板（不依赖 caption 拖拽）。
+// 背景：wxAUI 只能由 caption part 起拖，而 caption 在部分构建下不可见/不可命中
+// （实测 build-local(Debug) 拖不动、build-release-size(Release) 正常），故给出菜单入口。
+void MainMenuBar::OnFloatSidePanel(wxCommandEvent&) { if (m_owner) m_owner->TogglePaneFloating("right_sidebar"); }
+void MainMenuBar::OnFloatLeftPanel(wxCommandEvent&) { if (m_owner) m_owner->TogglePaneFloating("left_sidebar"); }
+void MainMenuBar::OnFloatBottomPanel(wxCommandEvent&) { if (m_owner) m_owner->TogglePaneFloating("bottom_tabs"); }
 
 // T-120：主题菜单单选态同步
 void MainMenuBar::UpdateThemeMenuChecks()

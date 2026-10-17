@@ -288,6 +288,11 @@ public:
     void DoTraceBridge();
     void DoDebugContract();
 
+    /// 显式浮动/收回一个 pane（Window 菜单入口，T-730）。
+    /// 旧版布局存档可能隐藏 caption；恢复布局时已重新启用拖拽入口。
+    /// 菜单同时提供不依赖拖拽的浮动/停靠操作。
+    void TogglePaneFloating(const char* paneName);
+
     /* Window 菜单业务接口 */
     void DoWindowCombinationalAnalysis();
     void DoWindowPreferences();
