@@ -5,6 +5,7 @@
 #include "../trace/TraceSource.h"
 
 #include <string>
+#include <cstdint>
 #include <unordered_map>
 
 namespace sigflow {

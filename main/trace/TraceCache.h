@@ -4,6 +4,7 @@
 #include "TraceSource.h"
 
 #include <memory>
+#include <cstdint>
 #include <mutex>
 #include <string>
 #include <unordered_map>

@@ -46,9 +46,9 @@ public:
     eda::PluginInfo DefaultProvider(const std::string& capability,
                                     const std::string& preferredId = {}) const;
 
-    // P1-8：是否启用"经 IJobService 提交"的新路径（默认关闭，保持 legacy 行为）。
-    // 开关来源：环境变量 SIGFLOW_USE_JOB_SERVICE=1。
-    // GUI 行为等价性验证通过后，可把默认值改为 true。
+    // P1-8：是否启用"经 IJobService 提交"的统一路径。
+    // 教育版默认开启；SIGFLOW_USE_JOB_SERVICE=0 可显式回退排障，
+    // 其它版本仍需设置为 1 才开启迁移路径。
     static bool UseJobService();
     // P1-8：经 IJobService 提交一个 Job（返回 jobId；失败返回空串）。
     std::string SubmitJob(const std::string& jobType, const std::string& projectId,

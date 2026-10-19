@@ -6,6 +6,7 @@
 #include <cctype>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <map>
 #include <sstream>
 
@@ -16,7 +17,7 @@ SimMainGenerator::SimMainGenerator() = default;
 SimMainGenerator::~SimMainGenerator() = default;
 
 bool SimMainGenerator::Generate(const Timeline& timeline, const std::string& outputPath,
-                                const std::string& /*vcdRelativePath*/) {
+                                const std::string& vcdRelativePath) {
     std::ofstream file{platform::PathFromUtf8(outputPath)};
     if (!file.is_open()) {
         lastError_ = "cannot create file: " + outputPath;
@@ -25,7 +26,7 @@ bool SimMainGenerator::Generate(const Timeline& timeline, const std::string& out
     std::string code;
     code += GenerateIncludes(timeline);
     code += "\n\nint main(int argc, char** argv) {\n";
-    code += GenerateInitialization(timeline);
+    code += GenerateInitialization(timeline, vcdRelativePath);
     code += GenerateEventDriving(timeline);
     code += GenerateCleanup();
     code += "}\n";
@@ -42,18 +43,38 @@ std::string SimMainGenerator::GenerateIncludes(const Timeline& timeline) {
     ss << "#include \"verilated.h\"\n";
     ss << "#include \"verilated_vcd_c.h\"\n";
     ss << "#include <map>\n#include <string>\n";
+    // Verilator's generated model references this SystemC-compatible hook even
+    // when the harness uses an explicit integer tick loop.
+    ss << "double sc_time_stamp() { return 0.0; }\n";
     return ss.str();
 }
 
-std::string SimMainGenerator::GenerateInitialization(const Timeline& timeline) {
+std::string SimMainGenerator::GenerateInitialization(const Timeline& timeline,
+                                                      const std::string& vcdRelativePath) {
     std::ostringstream ss;
+    std::string escapedPath;
+    escapedPath.reserve(vcdRelativePath.size());
+    for (const char c : vcdRelativePath) {
+        if (c == '\\' || c == '"') escapedPath.push_back('\\');
+        escapedPath.push_back(c);
+    }
     ss << "    Verilated::commandArgs(argc, argv);\n";
     ss << "    Verilated::traceEverOn(true);\n\n";
     ss << "    V" << timeline.topModuleName << "* top = new V" << timeline.topModuleName << ";\n\n";
     ss << "    VerilatedVcdC* tfp = new VerilatedVcdC;\n";
     ss << "    top->trace(tfp, 99);\n";
-    ss << "    tfp->open(\"waveform/wave.vcd\");\n\n";
+    ss << "    tfp->open(\"" << escapedPath << "\");\n\n";
     ss << "    vluint64_t sim_time = 0;\n\n";
+    ss << "    vluint64_t sim_end = " << DefaultSimulationEnd(timeline) << ";\n";
+    ss << "    for (int arg = 1; arg + 1 < argc; ++arg) {\n";
+    ss << "        if (std::string(argv[arg]) == \"--sigflow-duration-ticks\") {\n";
+    ss << "            try {\n";
+    ss << "                const auto parsed = std::stoull(argv[arg + 1]);\n";
+    ss << "                sim_end = static_cast<vluint64_t>(parsed);\n";
+    ss << "            } catch (...) { return 2; }\n";
+    ss << "            ++arg;\n";
+    ss << "        }\n";
+    ss << "    }\n\n";
     ss << "    std::map<std::string, bool> signalStates;\n\n";
     ss << "    top->eval();\n";
     ss << "    tfp->dump(sim_time);\n\n";
@@ -65,15 +86,17 @@ std::string SimMainGenerator::GenerateEventDriving(const Timeline& timeline) {
     ss << "    // === Timeline event handling ===\n";
     ss << "    // Max simulation time: " << timeline.maxSimTime << "\n\n";
 
+    const bool clockActive = timeline.clock.valid && timeline.clock.halfPeriod > 0 &&
+                             !timeline.clock.signalName.empty();
     const std::string halfPeriod = std::to_string(timeline.clock.halfPeriod);
 
     std::map<std::uint64_t, std::vector<const TimelineEvent*>> eventsByTime;
     for (const auto& evt : timeline.events) eventsByTime[evt.time].push_back(&evt);
 
     const auto emitAdvanceLoop = [&](std::uint64_t targetTime) {
-        ss << "    while (sim_time < " << targetTime << ") {\n";
+        ss << "    while (sim_time < " << targetTime << " && sim_time < sim_end) {\n";
         ss << "        sim_time++;\n";
-        if (timeline.clock.valid) {
+        if (clockActive) {
             ss << "        if (sim_time % " << halfPeriod << " == 0) {\n";
             ss << "            top->" << timeline.clock.signalName << " = !top->"
                << timeline.clock.signalName << ";\n";
@@ -92,24 +115,20 @@ std::string SimMainGenerator::GenerateEventDriving(const Timeline& timeline) {
         }
         if (assignments.empty() && comments.empty()) continue;
         if (time > lastTime) emitAdvanceLoop(time);
-        for (const auto& comment : comments) ss << "    // " << comment << "\n";
+        ss << "    if (sim_end >= " << time << ") {\n";
+        for (const auto& comment : comments) ss << "        // " << comment << "\n";
         for (const auto& [signal, value] : assignments) {
-            ss << "    // [" << time << "] " << signal << " = " << value << "\n";
-            ss << "    top->" << signal << " = " << value << ";\n";
+            ss << "        // [" << time << "] " << signal << " = " << value << "\n";
+            ss << "        top->" << signal << " = " << value << ";\n";
         }
-        if (!assignments.empty()) {
-            ss << "    top->eval();\n    tfp->dump(sim_time);\n\n";
-            lastTime = time;
-        }
+        if (!assignments.empty()) ss << "        top->eval();\n        tfp->dump(sim_time);\n";
+        ss << "    }\n\n";
+        lastTime = time;
     }
 
-    std::uint64_t extraSteps = 100;
-    if (timeline.clock.valid) {
-        extraSteps = std::max(extraSteps, timeline.clock.halfPeriod * 10);
-    }
-    ss << "    for (vluint64_t i = 0; i < " << extraSteps << "; i++) {\n";
+    ss << "    while (sim_time < sim_end) {\n";
     ss << "        sim_time++;\n";
-    if (timeline.clock.valid) {
+    if (clockActive) {
         ss << "        if (sim_time % " << halfPeriod << " == 0) {\n";
         ss << "            top->" << timeline.clock.signalName << " = !top->"
            << timeline.clock.signalName << ";\n";
@@ -123,6 +142,20 @@ std::string SimMainGenerator::GenerateCleanup() {
     std::ostringstream ss;
     ss << "    tfp->close();\n    delete tfp;\n    delete top;\n\n    return 0;\n";
     return ss.str();
+}
+
+std::uint64_t SimMainGenerator::DefaultSimulationEnd(const Timeline& timeline) const {
+    const bool clockActive = timeline.clock.valid && timeline.clock.halfPeriod > 0 &&
+                             !timeline.clock.signalName.empty();
+    const std::uint64_t tenHalfPeriods =
+        clockActive && timeline.clock.halfPeriod <= std::numeric_limits<std::uint64_t>::max() / 10
+            ? timeline.clock.halfPeriod * 10
+            : std::numeric_limits<std::uint64_t>::max();
+    const std::uint64_t extra = clockActive ? std::max<std::uint64_t>(100, tenHalfPeriods) : 100;
+    if (timeline.maxSimTime > std::numeric_limits<std::uint64_t>::max() - extra) {
+        return std::numeric_limits<std::uint64_t>::max();
+    }
+    return timeline.maxSimTime + extra;
 }
 
 std::string SimMainGenerator::VerilogValueToCpp(const std::string& value) {

@@ -3,6 +3,7 @@
 #include "WaveProtocolDecoder.h"
 
 #include <cstddef>
+#include <cstdint>
 #include <list>
 #include <iterator>
 #include <string>

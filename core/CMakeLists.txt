@@ -53,6 +53,7 @@ if(SIGFLOW_BUILD_EDU_AGENT)
     add_library(eda_agent_gateway STATIC
         "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-agent-gateway/GatewayDto.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-agent-gateway/GatewayServer.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-agent-gateway/UiAuthorizationService.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-agent-gateway/EventStore.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-agent-gateway/JobEventSource.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-agent-gateway/IdempotencyStore.cpp"

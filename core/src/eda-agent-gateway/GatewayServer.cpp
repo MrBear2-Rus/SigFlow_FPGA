@@ -65,6 +65,16 @@ std::string OptionalString(const Json& object, const char* key) {
                                                         : std::string();
 }
 
+std::string SimulationInputFingerprint(const SnapshotRecord& snapshot,
+                                       const std::string& topModule,
+                                       const std::string& testbench) {
+    const Json descriptor{{"snapshot_input_fingerprint", snapshot.inputFingerprint},
+                          {"top_module", topModule},
+                          {"testbench", testbench}};
+    const std::string canonical = descriptor.dump();
+    return platform::Sha256Hex(canonical.data(), canonical.size());
+}
+
 // SF-03：教育能力参数白名单。没有 provider schema 前，按能力固定允许字段；
 // 模型可控的危险字段（可执行文件/工作目录/输出路径/脚本/环境）一律 422 拒绝，
 // 不静默剥离——宁可失败也不能把任意路径交给工具。
@@ -85,11 +95,12 @@ bool ValidateCapabilityParams(const std::string& capability, const Json& params,
         }
     }
     std::set<std::string> allowed;
-    if (capability == "eda.sim.build" || capability == "eda.synth") {
+    if (capability == "eda.synth") {
         allowed = {"top_module", "strategy", "opts"};
-        if (capability == "eda.sim.build") allowed.insert("testbench");
+    } else if (capability == "eda.sim.build") {
+        allowed = {"top_module", "testbench"};
     } else if (capability == "eda.sim.run") {
-        allowed = {"top_module", "testbench", "duration_ticks", "build_job_id"};
+        allowed = {"duration_ticks", "build_job_id"};
     } else {
         error = "capability has no params policy";
         return false;
@@ -113,10 +124,13 @@ bool ValidateCapabilityParams(const std::string& capability, const Json& params,
                 }
             }
         } else if (it.key() == "duration_ticks") {
-            // The current trace harness has a build-time bound, not a run-time
-            // duration switch. Never accept a parameter that would be ignored.
-            error = "duration_ticks is not supported by the current simulation harness";
-            return false;
+            const std::string duration = value.is_string() ? value.get<std::string>() : std::string();
+            if (duration.empty() || duration.size() > 20 ||
+                !std::all_of(duration.begin(), duration.end(),
+                             [](unsigned char c) { return std::isdigit(c) != 0; })) {
+                error = "duration_ticks must be a decimal uint64 string";
+                return false;
+            }
         } else if (!value.is_string()) {
             error = "params field '" + it.key() + "' must be a string";
             return false;
@@ -232,6 +246,34 @@ bool ValidateGrantStep(const Grant& grant, const Json& request,
                 error = "build_job_id is not the approved build step"; return false;
             }
             approved.erase("build_step_id"); approved["build_job_id"] = buildJob;
+        } else if (capability == "eda.sim.run" && params.contains("build_job_id")) {
+            // Compatibility for plans issued before symbolic build_step_id was
+            // introduced: the approved dependency edge still has to name a
+            // preceding sim.build step, and the submitted concrete job must
+            // be that succeeded step under this grant/snapshot.
+            const std::string buildJob = OptionalString(params, "build_job_id");
+            bool approvedBuild = false;
+            if (step->contains("depends_on") && (*step)["depends_on"].is_array()) {
+                for (const Json& dependency : (*step)["depends_on"]) {
+                    if (!dependency.is_string()) continue;
+                    const auto binding = jobBindings.find(buildJob);
+                    if (binding != jobBindings.end() &&
+                        binding->second.value("grant_id", "") == grant.id &&
+                        binding->second.value("step_id", std::string()) == dependency.get<std::string>() &&
+                        binding->second.value("project_id", "") == projectId &&
+                        binding->second.value("snapshot_id", "") == snapshotId &&
+                        binding->second.value("capability", "") == "eda.sim.build") {
+                        const auto record = service ? service->get(buildJob) : std::nullopt;
+                        approvedBuild = record.has_value() && record->state == JobState::Succeeded;
+                        if (approvedBuild) break;
+                    }
+                }
+            }
+            if (!approvedBuild) {
+                error = "build_job_id is not the approved build dependency";
+                return false;
+            }
+            approved["build_job_id"] = buildJob;
         }
         if (params.size() != approved.size()) {
             error = "requested params do not exactly match the approved plan step";
@@ -332,9 +374,11 @@ bool BuildTrustedJobParams(const std::string& capability, const Json& requested,
                 error = "testbench must be a module identifier, never a file path";
                 return false;
             }
-            // All inputs still come from the approved snapshot. Verilator checks
-            // whether this module actually exists; no Agent-supplied path is used.
-            trusted["top_module"] = testbench;
+            // The DUT top remains the snapshot top. The testbench module is a
+            // stimulus specification consumed by the controlled C++ harness;
+            // it is never passed as an Agent-supplied source path or Verilator
+            // command-line override.
+            trusted["testbench"] = testbench;
         }
         return true;
     }
@@ -355,6 +399,15 @@ bool BuildTrustedJobParams(const std::string& capability, const Json& requested,
             return false;
         }
         trusted["sim_exe"] = platform::PathToUtf8(executable->path);
+        if (requested.contains("duration_ticks")) {
+            trusted["duration_ticks"] = requested["duration_ticks"];
+        }
+        const auto buildRecord = service->get(buildJobId);
+        if (buildRecord.has_value() && buildRecord->request.metadata.is_object()) {
+            const std::string fingerprint =
+                buildRecord->request.metadata.value("build_input_fingerprint", std::string());
+            if (!fingerprint.empty()) trusted["build_input_fingerprint"] = fingerprint;
+        }
         return true;
     }
 
@@ -2381,6 +2434,38 @@ bool GatewayServer::Start(std::string& error) {
             return;
         }
 
+        // A stepped grant authorizes one concrete execution per step.  A
+        // different idempotency key must not be able to spend the same grant
+        // step again after the first submit; the original key remains the only
+        // legal replay path.  This closes the duplicate-click race at the
+        // grant boundary rather than relying on provider timing.
+        if (!OptionalString(body, "step_id").empty()) {
+            const std::string requestedStep = OptionalString(body, "step_id");
+            bool alreadySubmitted = false;
+            {
+                std::lock_guard<std::mutex> lock(impl_->jobMutex);
+                for (const auto& binding : impl_->jobBindings) {
+                    const Json& value = binding.second;
+                    if (value.value("grant_id", std::string()) == checkedGrant.id &&
+                        value.value("step_id", std::string()) == requestedStep &&
+                        value.value("project_id", std::string()) == projectId &&
+                        value.value("snapshot_id", std::string()) == snapshotId) {
+                        alreadySubmitted = true;
+                        break;
+                    }
+                }
+            }
+            if (alreadySubmitted) {
+                impl_->idempotency.Abandon(idempotencyScope, idempotencyKey, requestHash);
+                res.status = 403;
+                send(res, FailureEnvelope(
+                              MakeRequestId(), MakeTraceId(), "POLICY_DENIED",
+                              "approved plan step already has a Job; replay the original idempotency key",
+                              false));
+                return;
+            }
+        }
+
         // Build all provider-facing input before consuming a grant.  This work
         // is read-only, so invalid mappings cannot burn a student's quota.
         Json trustedParams;
@@ -2431,6 +2516,38 @@ bool GatewayServer::Start(std::string& error) {
                                    {"idempotency_scope", idempotencyScope},
                                    {"idempotency_key", idempotencyKey},
                                    {"request_hash", requestHash}};
+        if (capability == "eda.sim.build") {
+            if (!jobRequest.params.is_object()) {
+                impl_->idempotency.Abandon(idempotencyScope, idempotencyKey, requestHash);
+                res.status = 500;
+                send(res, FailureEnvelope(MakeRequestId(), MakeTraceId(), "INTERNAL",
+                                          "trusted simulation parameters are invalid", false));
+                return;
+            }
+            const std::string buildTop = jobRequest.params.contains("top_module") &&
+                                                 jobRequest.params["top_module"].is_string()
+                                             ? jobRequest.params["top_module"].get<std::string>()
+                                             : snapshot.top;
+            const std::string stimulusModule = jobRequest.params.contains("testbench") &&
+                                                       jobRequest.params["testbench"].is_string()
+                                                   ? jobRequest.params["testbench"].get<std::string>()
+                                                   : std::string();
+            jobRequest.metadata["build_input_fingerprint"] =
+                SimulationInputFingerprint(snapshot, buildTop, stimulusModule);
+            jobRequest.metadata["stimulus_module"] = stimulusModule.empty()
+                                                            ? Json(nullptr)
+                                                            : Json(stimulusModule);
+        }
+        if (capability == "eda.sim.run" && params.contains("build_job_id") &&
+            params["build_job_id"].is_string()) {
+            // The provider receives only the trusted executable path, but the
+            // concrete build binding remains auditable and restart-safe.
+            jobRequest.metadata["build_job_id"] = params["build_job_id"];
+            if (jobRequest.params.contains("build_input_fingerprint")) {
+                jobRequest.metadata["build_input_fingerprint"] =
+                    jobRequest.params["build_input_fingerprint"];
+            }
+        }
         jobRequest.requireConfirm = false;
         const std::string jobId = service->submit(jobRequest);
         if (jobId.empty()) {
@@ -2456,6 +2573,10 @@ bool GatewayServer::Start(std::string& error) {
                                              {"step_id", OptionalString(body, "step_id")},
                                              {"job_type", jobType},
                                              {"state", "Queued"}};
+            if (jobRequest.metadata.contains("build_input_fingerprint")) {
+                impl_->jobBindings[jobId]["build_input_fingerprint"] =
+                    jobRequest.metadata["build_input_fingerprint"];
+            }
         }
         // SF-02：登记到事件源，后续 PollJobEvents 才能观察到该 Job 的状态变化。
         impl_->jobEvents.Track(jobId, projectId, capability, snapshotId, expectedRevision);
@@ -2535,7 +2656,17 @@ bool GatewayServer::Start(std::string& error) {
             // SF-02：保持绑定中的状态最新（/state 的 active_jobs 据此反映进行中 Job）。
             std::lock_guard<std::mutex> lock(impl_->jobMutex);
             const auto it = impl_->jobBindings.find(jobId);
-            if (it != impl_->jobBindings.end()) it->second["state"] = data["state"];
+            if (it != impl_->jobBindings.end()) {
+                it->second["state"] = data["state"];
+                // Read-only provenance fields let the UI reconcile a lost
+                // submit response without creating a duplicate Job.
+                data["snapshot_id"] = it->second.value("snapshot_id", std::string());
+                data["revision"] = it->second.value("revision", std::string());
+                data["capability"] = it->second.value("capability", std::string());
+                data["plan_hash"] = it->second.value("plan_hash", std::string());
+                data["grant_id"] = it->second.value("grant_id", std::string());
+                data["step_id"] = it->second.value("step_id", std::string());
+            }
         }
         res.status = 200;
         send(res, SuccessEnvelope(MakeRequestId(), MakeTraceId(), data));
@@ -2794,6 +2925,11 @@ bool GatewayServer::Start(std::string& error) {
                 const auto it = impl_->jobBindings.find(id);
                 if (it != impl_->jobBindings.end()) {
                     it->second["state"] = summary["state"];
+                    summary["snapshot_id"] = it->second.value("snapshot_id", std::string());
+                    summary["revision"] = it->second.value("revision", std::string());
+                    summary["plan_hash"] = it->second.value("plan_hash", std::string());
+                    summary["grant_id"] = it->second.value("grant_id", std::string());
+                    summary["step_id"] = it->second.value("step_id", std::string());
                 }
             }
         }
@@ -3031,6 +3167,9 @@ bool GatewayServer::UpdateProjectSnapshotState(const ProjectSnapshotState& state
                          {"plan_hash", metadata.value("plan_hash", std::string())},
                          {"step_id", metadata.value("step_id", std::string())},
                          {"state", JobStateName(record.state)}};
+            if (metadata.contains("build_input_fingerprint")) {
+                binding["build_input_fingerprint"] = metadata["build_input_fingerprint"];
+            }
             {
                 std::lock_guard<std::mutex> lock(impl_->jobMutex);
                 impl_->jobProjects[record.id] = projectId;

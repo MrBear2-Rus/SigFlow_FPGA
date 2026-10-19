@@ -118,6 +118,21 @@ std::string MakeEphemeralGatewayToken() {
     return token;
 }
 
+std::string ClampUtf8ForAgent(const std::string& value, std::size_t maxBytes,
+                              bool& truncated) {
+    if (value.size() <= maxBytes) {
+        truncated = false;
+        return value;
+    }
+    truncated = true;
+    std::size_t cut = maxBytes;
+    while (cut > 0 &&
+           (static_cast<unsigned char>(value[cut]) & 0xC0u) == 0x80u) {
+        --cut;
+    }
+    return value.substr(0, cut);
+}
+
 struct FpgaProjectOptions {
     wxString targetProfileId;
     wxString yosysPath;
@@ -667,6 +682,15 @@ MainFrame::MainFrame()
     // 画布
     m_canvas = new CanvasNoteBook(this, sigTree, wxID_ANY, FromDIP(1123), FromDIP(794));
 
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+    // 画布只把不可变选择/修改事实交给 Agent Gateway；Gateway 自己负责裁剪、去重和
+    // revision 绑定，UI 线程不直接拼 HTTP 或证据 JSON。
+    m_canvas->Bind(wxEVT_CANVAS_MODIFIED, [this](wxCommandEvent& evt) {
+        MarkAgentContextDirty();
+        evt.Skip();
+    });
+#endif
+
     // T-340：状态栏右区随"当前画布页"联动（坐标 / Grid / Zoom；CMP-072）
     m_canvas->Bind(wxEVT_AUINOTEBOOK_PAGE_CHANGED, [this](wxAuiNotebookEvent& evt) {
         evt.Skip();
@@ -939,6 +963,16 @@ MainFrame::MainFrame()
         std::string gatewayError;
         if (m_agentGateway->Start(gatewayError)) {
             m_agentGateway->RunAsync();
+            // M3：UI 审批与 Agent 执行共享同一个 Core Gateway Job 链路。
+            // 这里仅保存进程内的双 token 客户端；授权服务本身不依赖 wx，
+            // 因而计划哈希、grant、幂等、观察和取消不会在界面层复制一套语义。
+            eda::agent::CoreGatewayClient::Config coreGatewayClientConfig;
+            coreGatewayClientConfig.host = "127.0.0.1";
+            coreGatewayClientConfig.port = m_agentGateway->Port();
+            coreGatewayClientConfig.agentToken = gatewayToken;
+            coreGatewayClientConfig.uiToken = gatewayConfig.uiToken;
+            m_agentAuthorization = std::make_unique<eda::agent::UiAuthorizationService>(
+                std::move(coreGatewayClientConfig));
             m_agentEventTimer.SetOwner(this);
             Bind(wxEVT_TIMER, &MainFrame::OnAgentEventTimer, this, m_agentEventTimer.GetId());
             m_agentEventTimer.Start(500);
@@ -950,7 +984,8 @@ MainFrame::MainFrame()
             AgentServiceController::Config sidecarConfig;
             const std::string configuredSidecar =
                 eda::platform::EnvUtf8("SIGFLOW_EDU_AGENT_EXECUTABLE");
-            sidecarConfig.executable = wxString::FromUTF8(configuredSidecar.c_str());
+            sidecarConfig.executable = AgentServiceController::DiscoverExecutable(
+                wxString::FromUTF8(configuredSidecar.c_str()), exeDir);
             sidecarConfig.instanceId = gatewayConfig.instanceId;
             sidecarConfig.gatewayUrl = "http://127.0.0.1:" +
                 std::to_string(m_agentGateway->Port());
@@ -960,7 +995,56 @@ MainFrame::MainFrame()
                 eda::platform::PathToUtf8(eda::platform::AppDataRoot() / "sigflow-edu-agent" /
                                           "local").c_str());
             sidecarConfig.workingDirectory = sidecarConfig.dataDirectory;
-            sidecarConfig.onStatus = [this](const AgentServiceController::Status& status) {
+            m_teachingSession = std::make_unique<TeachingSessionController>(
+                [this](const TeachingSessionController::Result& result) {
+                    if (m_terminalCtrl == nullptr) return;
+                    if (result.state == TeachingSessionController::Result::State::Cancelled) {
+                        m_terminalCtrl->PrintOutput("[edu-agent] teaching request cancelled\n");
+                        return;
+                    }
+                    if (result.state == TeachingSessionController::Result::State::Failed) {
+                        m_terminalCtrl->PrintOutput(
+                            "[edu-agent] teaching request failed: " +
+                            wxString::FromUTF8(result.errorCode.c_str()) + " " +
+                            wxString::FromUTF8(result.errorMessage.c_str()) + "\n");
+                        return;
+                    }
+                    const Json::Value cards = result.data["cards"];
+                    std::string firstCardTitle;
+                    std::size_t firstEvidenceCount = 0;
+                    if (cards.isArray() && !cards.empty() && cards[0].isObject()) {
+                        firstCardTitle = cards[0].get("title", "").asString();
+                        const Json::Value evidence = cards[0]["evidence"];
+                        firstEvidenceCount = evidence.isArray() ? evidence.size() : 0;
+                    }
+                    m_terminalCtrl->PrintOutput(wxString::Format(
+                        "[edu-agent] teaching %s: %llu card(s), evidence=%llu, %s, project=%s revision=%s\n",
+                        result.state == TeachingSessionController::Result::State::Degraded
+                            ? "degraded" : "succeeded",
+                        static_cast<unsigned long long>(cards.isArray() ? cards.size() : 0),
+                        static_cast<unsigned long long>(firstEvidenceCount),
+                        wxString::FromUTF8(firstCardTitle.c_str()),
+                        wxString::FromUTF8(result.projectId.c_str()),
+                        wxString::FromUTF8(result.revision.c_str())));
+                });
+            sidecarConfig.onStatus = [this, agentInstanceId = gatewayConfig.instanceId](
+                                         const AgentServiceController::Status& status) {
+                if (m_teachingSession && status.generation != m_agentClientGeneration) {
+                    m_agentClientGeneration = status.generation;
+                    m_agentApiClient.reset();
+                    m_teachingSession->InvalidateGeneration(status.generation);
+                }
+                if (status.state == AgentServiceController::State::Ready && m_agentSidecar) {
+                    if (!m_agentApiClient || m_agentClientGeneration != status.generation) {
+                        AgentApiClient::Config clientConfig;
+                        clientConfig.port = status.port;
+                        clientConfig.token = m_agentSidecar->uiToken();
+                        clientConfig.instanceId = agentInstanceId;
+                        m_agentApiClient = std::make_shared<const AgentApiClient>(
+                            std::move(clientConfig));
+                        m_agentClientGeneration = status.generation;
+                    }
+                }
                 if (m_terminalCtrl == nullptr) return;
                 const char* state = "stopped";
                 switch (status.state) {
@@ -992,6 +1076,13 @@ MainFrame::MainFrame()
                 m_agentGateway && !m_agentProjectId.empty()) {
                 m_agentGateway->MarkProjectDirty(m_agentProjectId, true);
             }
+            if (!m_verilogEditor->m_isLoading) MarkAgentContextDirty();
+            event.Skip();
+        });
+        m_verilogEditor->Bind(wxEVT_STC_UPDATEUI, [this](wxStyledTextEvent& event) {
+            // UPDATEUI covers caret/selection movement without reading Scintilla from a
+            // Gateway worker.  The 500 ms Agent timer performs the bounded snapshot.
+            MarkAgentContextDirty();
             event.Skip();
         });
     }
@@ -2689,9 +2780,192 @@ void MainFrame::OnAgentEventTimer(wxTimerEvent& event)
         // NG-08：快照保留调度。内部按 5 分钟节流，因此可以跟着 500 ms 定时器一起调用；
         // 活跃 Job/grant 引用与当前 revision 的快照由 Gateway 固定保留。
         m_agentGateway->RunSnapshotRetention(20, 7ull * 24ull * 3600ull);
+        if (m_agentContextPending) RefreshAgentDesignContext();
     }
     if (m_agentSidecar) m_agentSidecar->Tick();
+    if (m_teachingSession) m_teachingSession->Tick();
     event.Skip();
+}
+
+void MainFrame::MarkAgentContextDirty()
+{
+    m_agentContextPending = true;
+}
+
+void MainFrame::RefreshAgentDesignContext()
+{
+    m_agentContextPending = false;
+    if (!m_agentGateway || m_agentProjectId.empty() || m_currentProjectPath.IsEmpty()) return;
+
+    eda::agent::ProjectSnapshotState projectState;
+    if (!m_agentGateway->ProjectState(m_agentProjectId, projectState)) return;
+    const std::string revision = projectState.request.currentRevision;
+    if (revision.empty()) return;
+
+    eda::agent::SelectionContext selection;
+    selection.revision = revision;
+    selection.dirty = (m_verilogEditor && m_verilogEditor->GetModify()) ||
+                      (m_canvas && m_canvas->HasUnsavedChanges());
+    std::vector<eda::agent::DesignNodeRecord> nodes;
+    std::vector<std::string> selectedNodeIds;
+
+    // 画布选择映射到 SigTree 的稳定 uid。没有可靠 RTL 映射的图形节点标为
+    // unsaved_only，允许教学解释但不会成为 snapshot/job 的执行输入。
+    if (m_canvas) {
+        for (CanvasPanel* panel : m_canvas->cvses) {
+            if (!panel) continue;
+            const auto& elements = panel->GetSecond();
+            for (const SecondElement& element : elements) {
+                if (!element.self || element.self->uid == 0) continue;
+                eda::agent::DesignNodeRecord node;
+                node.nodeId = "canvas-" + std::to_string(element.self->uid);
+                node.kind = "instance";
+                node.name = sigflow::platform::Utf8String(element.GetIdentifier());
+                node.moduleName = sigflow::platform::Utf8String(element.type);
+                node.instancePath = node.name;
+                node.origin = "schematic";
+                node.revision = revision;
+                node.unsavedOnly = selection.dirty;
+                nodes.push_back(std::move(node));
+            }
+        }
+        if (CanvasPanel* panel = m_canvas->GetSelectedPage()) {
+            for (int index : panel->GetSelectedElementIndexes()) {
+                const auto& elements = panel->GetSecond();
+                if (index < 0 || index >= static_cast<int>(elements.size())) continue;
+                const SecondElement& element = elements[static_cast<std::size_t>(index)];
+                if (element.self && element.self->uid != 0) {
+                    selectedNodeIds.push_back("canvas-" + std::to_string(element.self->uid));
+                }
+            }
+        }
+    }
+
+    // 编辑器上下文只携带当前文件的有界行区间。未保存时只生成 buffer excerpt，
+    // 不登记 source_ref，确保旧磁盘内容不会被误当成当前教学证据。
+    if (m_verilogEditor && !m_verilogEditor->GetCurrentPath().IsEmpty() &&
+        !m_currentProjectPath.IsEmpty()) {
+        const int textLength = m_verilogEditor->GetTextLength();
+        int start = std::clamp(m_verilogEditor->GetSelectionStart(), 0, textLength);
+        int end = std::clamp(m_verilogEditor->GetSelectionEnd(), start, textLength);
+        int startLine = m_verilogEditor->LineFromPosition(start);
+        int endLine = m_verilogEditor->LineFromPosition(std::max(start, end - 1));
+        if (start == end) {
+            const int lineStart = m_verilogEditor->PositionFromLine(startLine);
+            const int lineEnd = m_verilogEditor->GetLineEndPosition(startLine);
+            start = std::max(0, lineStart);
+            end = std::max(start, lineEnd);
+        }
+        wxString selectedText = m_verilogEditor->GetTextRange(start, end);
+        const std::string selectedUtf8Text = sigflow::platform::Utf8String(selectedText);
+        bool selectedTruncated = false;
+        const std::string text = ClampUtf8ForAgent(selectedUtf8Text, 64 * 1024,
+                                                   selectedTruncated);
+
+        wxFileName fileName(m_verilogEditor->GetCurrentPath());
+        wxFileName projectRoot(m_currentProjectPath);
+        fileName.MakeRelativeTo(projectRoot.GetFullPath());
+        wxString relativeWx = fileName.GetFullPath();
+        std::string relative = sigflow::platform::Utf8String(relativeWx);
+        std::replace(relative.begin(), relative.end(), '\\', '/');
+        const bool relativeSafe = !relative.empty() && relative.rfind("../", 0) != 0 &&
+                                  relative != ".." && relative.find(':') == std::string::npos &&
+                                  relative.front() != '/';
+        if (relativeSafe && endLine >= startLine) {
+            const std::string absolutePath = sigflow::platform::Utf8String(
+                m_verilogEditor->GetCurrentPath());
+            const std::string diskHash = eda::platform::Sha256FileHex(
+                sigflow::platform::Utf8Path(absolutePath));
+            const wxScopedCharBuffer allUtf8 = m_verilogEditor->GetText().ToUTF8();
+            const std::string allText = allUtf8.data() ? std::string(allUtf8.data()) : std::string();
+            const std::string bufferHash = eda::platform::Sha256Hex(
+                allText.data(), allText.size());
+            selection.bufferHash = selection.dirty ? bufferHash : std::string();
+            if (selection.dirty) {
+                eda::agent::BufferExcerpt excerpt;
+                excerpt.path = relative;
+                excerpt.bufferHash = bufferHash;
+                excerpt.startLine = static_cast<std::uint64_t>(startLine + 1);
+                excerpt.endLine = static_cast<std::uint64_t>(endLine + 1);
+                excerpt.text = text;
+                excerpt.truncated = selectedTruncated;
+                selection.bufferExcerpts.push_back(std::move(excerpt));
+            } else if (!diskHash.empty()) {
+                eda::agent::DesignSourceRef ref;
+                ref.sourceId = "source-" +
+                    eda::platform::Sha256Hex(relative.data(), relative.size()).substr(0, 24);
+                ref.path = relative;
+                ref.fileHash = diskHash;
+                ref.startLine = static_cast<std::uint64_t>(startLine + 1);
+                ref.endLine = static_cast<std::uint64_t>(endLine + 1);
+                selection.sourceRefs.push_back(std::move(ref));
+            }
+        }
+    }
+    selection.selectedNodeIds = std::move(selectedNodeIds);
+
+    std::string fingerprint = revision + "|" + (selection.dirty ? "1" : "0") + "|" +
+                              selection.bufferHash + "|";
+    for (const auto& id : selection.selectedNodeIds) fingerprint += id + ",";
+    for (const auto& ref : selection.sourceRefs) {
+        fingerprint += ref.sourceId + ":" + std::to_string(ref.startLine) + ":" +
+                        std::to_string(ref.endLine) + ",";
+    }
+    for (const auto& excerpt : selection.bufferExcerpts) {
+        fingerprint += excerpt.path + ":" + excerpt.bufferHash + ":" +
+                       std::to_string(excerpt.startLine) + ":" + std::to_string(excerpt.endLine) + ",";
+    }
+    if (fingerprint == m_agentContextFingerprint) return;
+    m_agentContextFingerprint = std::move(fingerprint);
+    selection.stateVersion = ++m_agentContextStateVersion;
+    m_agentGateway->SetDesignNodes(m_agentProjectId, revision, std::move(nodes));
+    m_agentGateway->UpdateSelectionContext(m_agentProjectId, selection);
+}
+
+void MainFrame::StartTeachingQuestion(const std::string& question)
+{
+    StartTeachingRequest(question, "explain");
+}
+
+void MainFrame::ContinueTeachingHint(const std::string& question)
+{
+    StartTeachingRequest(question, "hint");
+}
+
+void MainFrame::CancelTeachingQuestion()
+{
+    if (m_teachingSession) m_teachingSession->Cancel();
+}
+
+void MainFrame::StartTeachingRequest(const std::string& question, const std::string& kind)
+{
+    if (!m_teachingSession || !m_agentApiClient || m_agentProjectId.empty() || question.empty()) {
+        if (m_terminalCtrl) {
+            m_terminalCtrl->PrintOutput(
+                "[edu-agent] teaching is unavailable until the verified sidecar and project are ready\n");
+        }
+        return;
+    }
+    std::string revision = "working-tree";
+    eda::agent::ProjectSnapshotState projectState;
+    if (m_agentGateway && m_agentGateway->ProjectState(m_agentProjectId, projectState)) {
+        if (!projectState.request.currentRevision.empty()) {
+            revision = projectState.request.currentRevision;
+        }
+    } else if (m_terminalCtrl) {
+        m_terminalCtrl->PrintOutput(
+            "[edu-agent] project revision is unavailable; teaching request was not sent\n");
+        return;
+    }
+    TeachingSessionController::Request request;
+    request.projectId = m_agentProjectId;
+    request.revision = revision;
+    request.question = question;
+    request.kind = kind;
+    if (!m_teachingSession->Start(m_agentApiClient, m_agentClientGeneration, std::move(request)) &&
+        m_terminalCtrl) {
+        m_terminalCtrl->PrintOutput("[edu-agent] another teaching request is still running\n");
+    }
 }
 
 void MainFrame::RefreshAgentProjectSnapshotState(bool dirty, bool synchronized)
@@ -2721,6 +2995,8 @@ void MainFrame::RefreshAgentProjectSnapshotState(bool dirty, bool synchronized)
     } else {
         m_agentGateway->NotifyProjectSaved(m_agentProjectId);
     }
+    m_agentContextFingerprint.clear();
+    MarkAgentContextDirty();
 }
 #endif
 
@@ -5234,7 +5510,7 @@ void MainFrame::RunFpgaSynthesis()
         return;
     }
 
-    // P1-8：可选新路径——经核心 IJobService 提交综合（默认仍走 legacy）。
+    // M2：教育版手动综合经核心 IJobService 提交，与 Agent 共用 Job/报告来源。
     if (m_composer && sigflow::Composer::UseJobService()) {
         std::string submitError;
         eda::Json synthParams{
@@ -5798,7 +6074,7 @@ void MainFrame::RunFpgaRoute()
         }
     }
 
-    // P1-8：可选新路径——经核心 IJobService 提交布线（默认仍走 legacy）。
+    // M2：教育版手动布线经核心 IJobService 提交，与 Agent 共用 Job/报告来源。
     if (m_composer && sigflow::Composer::UseJobService()) {
         std::string submitError;
         eda::Json pnrParams{
@@ -6226,8 +6502,7 @@ void MainFrame::RunFpgaPack()
     jobRequest.arguments = arguments;
     jobRequest.workingDirectory = nextpnrDirectory;
 
-    // P1-8：可选新路径——经核心 IJobService 提交综合/布线/打包/烧录（默认仍走 legacy，
-    // 由 SIGFLOW_USE_JOB_SERVICE=1 启用；GUI 行为等价性验证通过后可改默认）。
+    // M2：教育版手动打包经核心 IJobService 提交，与 Agent 共用 Job/报告来源。
     if (m_composer && sigflow::Composer::UseJobService()) {
         std::string submitError;
         eda::Json packParams{
@@ -6482,7 +6757,7 @@ void MainFrame::RunFpgaProgram(
     // UI 确认通过后，Job 层仍保留同一确认门；默认调用路径必须经过上面的对话框。
     jobRequest.requireConfirm = confirmProgramming;
 
-    // P1-8：可选新路径——经核心 IJobService 提交烧录（默认仍走 legacy）。
+    // M2：教育版手动烧录经核心 IJobService 提交，与 Agent 共用 Job/报告来源。
     if (m_composer && sigflow::Composer::UseJobService()) {
         std::string submitError;
         eda::Json flashParams{

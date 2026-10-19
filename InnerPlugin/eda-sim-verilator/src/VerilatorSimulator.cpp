@@ -1,6 +1,9 @@
 #include "VerilatorSimulator.h"
 
 #include "Platform.h"
+#include "SimMainCodeGen.h"
+#include "StimulusModel.h"
+#include "SimTimeline.h"
 #include "eda-core/Toolchain.h"
 #include "Sha256.h"
 
@@ -13,7 +16,9 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <memory>
+#include <regex>
 #include <string>
 #include <utility>
 #include <vector>
@@ -36,40 +41,45 @@ bool RegularNonEmptyFile(const std::filesystem::path& path) {
     return !error && size > 0;
 }
 
-// `verilator --binary --trace` generates an automatic `--main` harness when
-// no C++ source is supplied.  That harness enables tracing but never opens a
-// trace file, so sim.run can succeed without producing a waveform.  Supply a
-// deliberately small, generated harness that owns a VCD destination instead.
+// Build a controlled C++ harness from the snapshot's testbench.  The harness
+// drives the DUT directly, so a testbench is a stimulus specification rather
+// than an Agent-controlled executable or an opaque Verilator top override.
 bool WriteTraceMain(const std::filesystem::path& path, const std::string& topModule,
-                    std::string& error) {
-    std::ofstream file(path, std::ios::binary | std::ios::trunc);
-    if (!file.is_open()) {
-        error = "unable to create generated simulation main: " + platform::PathToUtf8(path);
-        return false;
+                    const std::vector<std::string>& sourceFiles,
+                    const std::string& testbench, std::string& error) {
+    Timeline timeline;
+    timeline.topModuleName = topModule;
+    if (!testbench.empty()) {
+        StimulusParser parser;
+        bool found = false;
+        std::regex modulePattern("\\bmodule\\s+" + testbench + "\\b");
+        for (const std::string& source : sourceFiles) {
+            std::ifstream input(platform::PathFromUtf8(source), std::ios::binary);
+            if (!input.is_open()) continue;
+            const std::string code((std::istreambuf_iterator<char>(input)),
+                                   std::istreambuf_iterator<char>());
+            if (!std::regex_search(code, modulePattern)) continue;
+            TestbenchInfo info;
+            if (!parser.ParseCode(code, info)) {
+                error = "unable to parse testbench '" + testbench + "': " + parser.LastError();
+                return false;
+            }
+            TimelineGenerator generator;
+            timeline = generator.Generate(info, topModule);
+            found = true;
+            break;
+        }
+        if (!found) {
+            error = "testbench module '" + testbench + "' was not found in the snapshot sources";
+            return false;
+        }
+    } else {
+        timeline.maxSimTime = 200;
     }
-    file << "#include \"verilated.h\"\n"
-            "#include \"verilated_vcd_c.h\"\n"
-            "#include \"V" << topModule << ".h\"\n"
-            "#include <filesystem>\n\n"
-            "double sc_time_stamp() { return 0.0; }\n\n"
-            "int main(int argc, char** argv) {\n"
-            "  VerilatedContext context;\n"
-            "  context.commandArgs(argc, argv);\n"
-            "  context.traceEverOn(true);\n"
-            "  V" << topModule << " top{&context, \"TOP\"};\n"
-            "  VerilatedVcdC trace;\n"
-            "  top.trace(&trace, 99);\n"
-            "  std::filesystem::create_directories(\"waveform\");\n"
-            "  trace.open(\"waveform/wave.vcd\");\n"
-            "  top.eval();\n"
-            "  trace.dump(context.time());\n"
-            "  top.final();\n"
-            "  trace.close();\n"
-            "  return 0;\n"
-            "}\n";
-    file.close();
-    if (!file) {
-        error = "unable to write generated simulation main: " + platform::PathToUtf8(path);
+
+    SimMainGenerator generator;
+    if (!generator.Generate(timeline, platform::PathToUtf8(path), "waveform/wave.vcd")) {
+        error = generator.LastError();
         return false;
     }
     return true;
@@ -458,7 +468,7 @@ Error VerilatorSimulator::startJob(const JobRequest& request, JobContext& ctx) {
     }
     const std::filesystem::path traceMain = outDir / "sigflow_trace_main.cpp";
     std::string traceMainError;
-    if (!WriteTraceMain(traceMain, topModule, traceMainError)) {
+    if (!WriteTraceMain(traceMain, topModule, sourceFiles, testbench, traceMainError)) {
         return Error{ErrorCode::Internal, traceMainError, ""};
     }
 
@@ -494,7 +504,6 @@ Error VerilatorSimulator::startJob(const JobRequest& request, JobContext& ctx) {
     // the build fully native while making the produced waveform deterministic.
     spec.arguments = {"--cc", "--exe", "--build", "--trace", "-Wno-fatal", "--top-module",
                       topModule};
-    if (!testbench.empty()) spec.arguments.push_back(testbench);
     for (const std::string& source : sourceFiles) spec.arguments.push_back(source);
     // Supplying this C++ file prevents Verilator from falling back to its
     // no-waveform autogenerated --main harness.

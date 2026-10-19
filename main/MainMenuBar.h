@@ -173,6 +173,11 @@ private:
     void OnUserGuide(wxCommandEvent&);
     void OnLibraryRef(wxCommandEvent&);
     void OnAbout(wxCommandEvent&);
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+    void OnTeachingQuestion(wxCommandEvent&);
+    void OnTeachingHint(wxCommandEvent&);
+    void OnTeachingCancel(wxCommandEvent&);
+#endif
     void OnMenuOpen(wxMenuEvent&);          // P1-8：Help 打开时懒重建后端子菜单
     DECLARE_EVENT_TABLE()
 };

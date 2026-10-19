@@ -8,6 +8,7 @@
 #include <wx/mstream.h>
 
 #include <memory>
+#include <cstdint>
 #include <functional>
 #include <chrono>
 #include <algorithm>
@@ -43,6 +44,8 @@
 
 #if defined(SIGFLOW_BUILD_EDU_AGENT)
 #include "eda-agent-gateway/GatewayServer.h"
+#include "eda-agent-gateway/UiAuthorizationService.h"
+#include "agent/AgentApiClient.h"
 #include "agent/AgentServiceController.h"
 #include <memory>
 #endif
@@ -117,12 +120,22 @@ private:
 #if defined(SIGFLOW_BUILD_EDU_AGENT)
     // Gateway 与 Python sidecar 都由 IDE 生命周期持有；sidecar 不可用不影响既有 EDA 流程。
     std::unique_ptr<eda::agent::GatewayServer> m_agentGateway;
+    std::unique_ptr<eda::agent::UiAuthorizationService> m_agentAuthorization;
     std::unique_ptr<AgentServiceController> m_agentSidecar;
+    std::shared_ptr<const AgentApiClient> m_agentApiClient;
+    std::unique_ptr<TeachingSessionController> m_teachingSession;
+    std::uint64_t m_agentClientGeneration = 0;
     std::string m_agentProjectId;
+    bool m_agentContextPending = false;
+    std::uint64_t m_agentContextStateVersion = 0;
+    std::string m_agentContextFingerprint;
     wxTimer m_agentEventTimer;
     void ConfigureAgentProjectStorage();
     void RefreshAgentProjectSnapshotState(bool dirty, bool synchronized);
+    void MarkAgentContextDirty();
+    void RefreshAgentDesignContext();
     void OnAgentEventTimer(wxTimerEvent& event);
+    void StartTeachingRequest(const std::string& question, const std::string& kind);
 #endif
 
     VerilogManager* m_verilogMgr;
@@ -148,6 +161,14 @@ private:
     void OnAnalysisComplete(wxThreadEvent& event);
 
 public:
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+    // Native education entry point.  The same verified sidecar instance is
+    // used for the entire session; callers may bind this to a panel, command
+    // or selection action without duplicating HTTP or generation handling.
+    void StartTeachingQuestion(const std::string& question);
+    void ContinueTeachingHint(const std::string& question);
+    void CancelTeachingQuestion();
+#endif
     // P1-8：Help 菜单的 "Toolchain Backends" 子菜单构建（动态；MainMenuBar 调用）。
     void BuildToolchainBackendsMenu(wxMenu* menu);
     // P1-8：工具链后端能力查询（供能力选择子菜单/插件管理中心使用）。

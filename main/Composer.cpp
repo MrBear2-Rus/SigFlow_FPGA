@@ -256,7 +256,15 @@ eda::PluginInfo Composer::DefaultProvider(const std::string& capability,
 
 bool Composer::UseJobService() {
     const char* value = std::getenv("SIGFLOW_USE_JOB_SERVICE");
+    // 教育版的手动综合/仿真/工具流程与 Agent 共用 CoreJobService，
+    // 这样 GUI 和 Agent 看到的是同一份 Job、报告、artifact 和事件。
+    // 显式设为 0 仍保留迁移期回退，便于排障；其它版本继续保持原开关语义。
+    if (value != nullptr && value[0] == '0') return false;
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+    return true;
+#else
     return value != nullptr && value[0] == '1';
+#endif
 }
 
 std::string Composer::SubmitJob(const std::string& jobType, const std::string& projectId,

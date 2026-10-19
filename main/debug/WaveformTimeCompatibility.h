@@ -1,6 +1,7 @@
 #pragma once
 #include "../trace/TraceTimebase.h"
 #include <limits>
+#include <cstdint>
 #include <string>
 extern "C" {
 #include "vcd.h"

@@ -1,6 +1,7 @@
 #include "GatewayDto.h"
 
 #include <algorithm>
+#include <utility>
 
 namespace eda {
 namespace agent {
@@ -30,6 +31,32 @@ bool PluginProvides(const ReadyPlugin& plugin, const std::string& capability) {
            plugin.capabilities.end();
 }
 
+Json InputSchemaFor(const std::string& capability) {
+    Json properties = Json::object();
+    if (capability == "eda.synth") {
+        properties["top_module"] = Json{{"type", "string"},
+                                         {"pattern", "^[A-Za-z_][A-Za-z0-9_$]*$"}};
+        properties["strategy"] = Json{{"type", "string"}};
+        properties["opts"] = Json{{"type", "array"},
+                                   {"items", Json{{"type", "string"}}}};
+    } else if (capability == "eda.sim.build") {
+        properties["top_module"] = Json{{"type", "string"},
+                                         {"pattern", "^[A-Za-z_][A-Za-z0-9_$]*$"}};
+        properties["testbench"] = Json{{"type", "string"},
+                                        {"pattern", "^[A-Za-z_][A-Za-z0-9_$]*$"}};
+    } else if (capability == "eda.sim.run") {
+        properties["duration_ticks"] = Json{{"type", "string"},
+                                              {"pattern", "^[0-9]{1,20}$"},
+                                              {"description", "uint64 simulation end tick"}};
+        properties["build_step_id"] = Json{{"type", "string"},
+                                            {"pattern", "^s[1-9][0-9]*$"}};
+        properties["build_job_id"] = Json{{"type", "string"},
+                                           {"description", "successful sim.build job"}};
+    }
+    return Json{{"type", "object"}, {"additionalProperties", false},
+                {"properties", std::move(properties)}};
+}
+
 } // namespace
 
 const std::vector<CapabilityMap>& EducationCapabilities() { return kEducationCapabilities; }
@@ -51,7 +78,7 @@ std::vector<CapabilityStatus> ResolveEducationCapabilities(const std::vector<Rea
         if (found != nullptr) {
             status.pluginId = found->id;
             status.pluginVersion = found->version;
-            status.inputSchema = Json::object();
+            status.inputSchema = InputSchemaFor(mapping.capability);
             if (found->ready) {
                 status.ready = true;
             } else {
@@ -66,6 +93,7 @@ std::vector<CapabilityStatus> ResolveEducationCapabilities(const std::vector<Rea
         } else {
             status.ready = false;
             status.reason = "no ready plugin provides jobType '" + mapping.jobType + "'";
+            status.inputSchema = InputSchemaFor(mapping.capability);
         }
         result.push_back(std::move(status));
     }
@@ -108,6 +136,7 @@ Json BuildCapabilitiesData(const std::string& instanceId, const std::string& pro
     }
     Json data = BuildHealthData(instanceId, protocolVersion, edition, build);
     data["capabilities"] = list;
+    data["extensions"] = Json::array();
     data["waveform_query_contract"] = "whole-signals-v1";
     return data;
 }

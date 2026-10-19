@@ -6,6 +6,9 @@
 #include <eda/api/process.hpp>
 
 #include <cstdint>
+#include <charconv>
+#include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <string>
 #include <utility>
@@ -34,6 +37,26 @@ std::string FindVcd(const std::filesystem::path& directory) {
     return {};
 }
 
+bool ParseDuration(const Json& params, std::uint64_t& duration, std::string& error) {
+    if (!params.is_object() || !params.contains("duration_ticks")) return true;
+    if (!params["duration_ticks"].is_string()) {
+        error = "duration_ticks must be a decimal uint64 string";
+        return false;
+    }
+    const std::string value = params["duration_ticks"].get<std::string>();
+    if (value.empty() || value.size() > 20 ||
+        !std::all_of(value.begin(), value.end(), [](unsigned char c) { return std::isdigit(c) != 0; })) {
+        error = "duration_ticks must be a decimal uint64 string";
+        return false;
+    }
+    const auto parsed = std::from_chars(value.data(), value.data() + value.size(), duration);
+    if (parsed.ec != std::errc() || parsed.ptr != value.data() + value.size()) {
+        error = "duration_ticks exceeds uint64";
+        return false;
+    }
+    return true;
+}
+
 } // namespace
 
 Json VerilatorRunJob::paramsSchema() const {
@@ -44,6 +67,8 @@ Json VerilatorRunJob::paramsSchema() const {
             {"sim_exe", {{"type", "string"}}},
             {"working_dir", {{"type", "string"}}},
             {"vcd_out", {{"type", "string"}}},
+            {"duration_ticks", {{"type", "string"}, {"pattern", "^[0-9]{1,20}$"}}},
+            {"build_input_fingerprint", {{"type", "string"}}},
         }},
     };
 }
@@ -57,6 +82,11 @@ Error VerilatorRunJob::startJob(const JobRequest& request, JobContext& ctx) {
     const std::string simExe = ParamString(params, "sim_exe");
     if (simExe.empty()) {
         return Error{ErrorCode::InvalidArgument, "sim.run requires sim_exe", ""};
+    }
+    std::uint64_t duration = 0;
+    std::string durationError;
+    if (!ParseDuration(params, duration, durationError)) {
+        return Error{ErrorCode::InvalidArgument, durationError, ""};
     }
     std::filesystem::path workingDir = ParamString(params, "working_dir");
     // The generated harness intentionally uses a relative waveform/wave.vcd
@@ -79,11 +109,20 @@ Error VerilatorRunJob::startJob(const JobRequest& request, JobContext& ctx) {
 
     ProcessSpec spec;
     spec.executable = simExe;
+    if (params.contains("duration_ticks")) {
+        spec.arguments = {"--sigflow-duration-ticks", std::to_string(duration)};
+    }
     spec.workingDirectory = workingDir;
     const ProcessResult process = ctx.processHost().Run(
         spec, [&ctx](const std::string& line, bool isError) { ctx.log(line, isError); });
 
     ctx.emitMetric(Json{{"exit_code", process.exitCode}});
+    if (params.contains("duration_ticks")) {
+        ctx.emitMetric(Json{{"duration_ticks", std::to_string(duration)}});
+    }
+    if (params.contains("build_input_fingerprint") && params["build_input_fingerprint"].is_string()) {
+        ctx.emitMetric(Json{{"build_input_fingerprint", params["build_input_fingerprint"]}});
+    }
     if (process.outcome == ProcessOutcome::Cancelled) {
         return Error{ErrorCode::Cancelled, "simulation cancelled", ""};
     }

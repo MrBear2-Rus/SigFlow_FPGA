@@ -4,6 +4,7 @@
 #include <wx/string.h>
 
 #include <chrono>
+#include <cstdint>
 #include <functional>
 #include <future>
 #include <string>
@@ -15,6 +16,8 @@ public:
     enum class State {
         Disabled,
         Starting,
+        // Lifecycle only: verified ready record and first health response.
+        // Gateway, EDA plugins, model and courses require separate capability checks.
         Ready,
         BackingOff,
         Failed,
@@ -99,6 +102,16 @@ public:
 
     Status status() const;
     bool ready() const { return status_.state == State::Ready; }
+
+    // The environment variable remains the explicit override.  When it is
+    // absent, the desktop resolves the launcher from the release directory
+    // next to the executable so an installed build does not depend on a
+    // developer checkout or PYTHONPATH.
+    static wxString DiscoverExecutable(const wxString& environmentOverride,
+                                       const wxString& releaseDirectory);
+    // The UI client uses the token generated for the currently verified
+    // sidecar generation.  It is intentionally exposed only in memory.
+    const std::string& uiToken() const { return config_.agentUiToken; }
 
 private:
     class SidecarProcess;

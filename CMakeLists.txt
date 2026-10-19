@@ -254,6 +254,7 @@ endif()
 
 # P0-7（R16）：显式源列表取代 file(GLOB_RECURSE)。旧 main.vcxproj 不再作为受支持的构建入口。
 set(SIGFLOW_MAIN_SOURCES
+    "${SIGFLOW_MAIN_DIR}/agent/AgentApiClient.cpp"
     "${SIGFLOW_MAIN_DIR}/agent/AgentServiceController.cpp"
     "${SIGFLOW_MAIN_DIR}/AsyncAnalysisCenter.cpp"
     "${SIGFLOW_MAIN_DIR}/BuildProgressBar.cpp"

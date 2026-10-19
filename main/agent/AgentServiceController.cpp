@@ -162,6 +162,29 @@ AgentServiceController::AgentServiceController(Config config) : config_(std::mov
 
 AgentServiceController::~AgentServiceController() { Stop(); }
 
+wxString AgentServiceController::DiscoverExecutable(const wxString& environmentOverride,
+                                                    const wxString& releaseDirectory) {
+    if (!environmentOverride.empty()) return environmentOverride;
+    if (releaseDirectory.empty()) return {};
+    const wxString separator = wxFileName::GetPathSeparator();
+    const wxString root = releaseDirectory;
+    const std::vector<wxString> candidates = {
+        root + separator + "agent" + separator + "bin" + separator + "sigflow-edu-agent.cmd",
+        root + separator + "agent" + separator + "bin" + separator + "sigflow-edu-agent.bat",
+        root + separator + "agent" + separator + "bin" + separator + "sigflow-edu-agent",
+        root + separator + "bin" + separator + "sigflow-edu-agent.cmd",
+        root + separator + "bin" + separator + "sigflow-edu-agent",
+        root + separator + "sigflow-edu-agent.cmd",
+        root + separator + "sigflow-edu-agent",
+        root + separator + "run-agent.cmd",
+        root + separator + "run-agent",
+    };
+    for (const wxString& candidate : candidates) {
+        if (wxFileExists(candidate)) return candidate;
+    }
+    return {};
+}
+
 std::vector<wxString> AgentServiceController::BuildLaunchCommand(
     const wxString& executable, const std::vector<wxString>& arguments) {
     std::vector<wxString> command;

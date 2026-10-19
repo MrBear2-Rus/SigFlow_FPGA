@@ -162,6 +162,11 @@ EVT_MENU(wxID_HIGHEST + 500, MainMenuBar::OnTutorial)
 EVT_MENU(wxID_HIGHEST + 501, MainMenuBar::OnUserGuide)
 EVT_MENU(wxID_HIGHEST + 502, MainMenuBar::OnLibraryRef)
 EVT_MENU(wxID_ABOUT, MainMenuBar::OnAbout)
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+EVT_MENU(wxID_HIGHEST + 503, MainMenuBar::OnTeachingQuestion)
+EVT_MENU(wxID_HIGHEST + 504, MainMenuBar::OnTeachingHint)
+EVT_MENU(wxID_HIGHEST + 505, MainMenuBar::OnTeachingCancel)
+#endif
 EVT_MENU_OPEN(MainMenuBar::OnMenuOpen)
 wxEND_EVENT_TABLE()
 
@@ -671,6 +676,12 @@ wxMenu* MainMenuBar::CreateHelpMenu()
     m->Append(wxID_HIGHEST + 500, wxT("Tutorial"));
     m->Append(wxID_HIGHEST + 501, wxT("User's Guide"));
     m->Append(wxID_HIGHEST + 502, wxT("Library Reference"));
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+    m->AppendSeparator();
+    m->Append(wxID_HIGHEST + 503, wxT("Ask Teaching Agent..."));
+    m->Append(wxID_HIGHEST + 504, wxT("Ask for a Hint..."));
+    m->Append(wxID_HIGHEST + 505, wxT("Cancel Teaching Request"));
+#endif
     m->AppendSeparator();
     // P1-8：工具链后端选择（能力 → 插件）放在 Help 下拉栏；先建空子菜单，
     // 待 Help 菜单打开时（插件已加载）再由 OnMenuOpen → RebuildToolchainBackendsMenu 填充。
@@ -681,6 +692,31 @@ wxMenu* MainMenuBar::CreateHelpMenu()
     m_helpMenu = m;
     return m;
 }
+
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+void MainMenuBar::OnTeachingQuestion(wxCommandEvent&)
+{
+    wxTextEntryDialog dialog(m_owner, wxT("What would you like to understand?"),
+                             wxT("Teaching Agent"));
+    if (dialog.ShowModal() == wxID_OK && !dialog.GetValue().IsEmpty()) {
+        m_owner->StartTeachingQuestion(std::string(dialog.GetValue().ToUTF8()));
+    }
+}
+
+void MainMenuBar::OnTeachingHint(wxCommandEvent&)
+{
+    wxTextEntryDialog dialog(m_owner, wxT("What should the next hint focus on?"),
+                             wxT("Teaching Agent Hint"));
+    if (dialog.ShowModal() == wxID_OK && !dialog.GetValue().IsEmpty()) {
+        m_owner->ContinueTeachingHint(std::string(dialog.GetValue().ToUTF8()));
+    }
+}
+
+void MainMenuBar::OnTeachingCancel(wxCommandEvent&)
+{
+    m_owner->CancelTeachingQuestion();
+}
+#endif
 
 // P1-8：按当前已加载插件重建 Toolchain Backends 子菜单。
 void MainMenuBar::RebuildToolchainBackendsMenu()

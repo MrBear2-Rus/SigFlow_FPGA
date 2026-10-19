@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include <vector>
+#include <cstdint>
 #include <list>
 #include <unordered_map>
 #include <wx/stc/stc.h>

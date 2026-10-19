@@ -2,6 +2,7 @@
 
 #include "SimTimeline.h"
 
+#include <cstdint>
 #include <string>
 
 namespace eda {
@@ -21,10 +22,12 @@ private:
     std::string lastError_;
 
     std::string GenerateIncludes(const Timeline& timeline);
-    std::string GenerateInitialization(const Timeline& timeline);
+    std::string GenerateInitialization(const Timeline& timeline,
+                                       const std::string& vcdRelativePath);
     std::string GenerateEventDriving(const Timeline& timeline);
     std::string GenerateCleanup();
     std::string VerilogValueToCpp(const std::string& value);
+    std::uint64_t DefaultSimulationEnd(const Timeline& timeline) const;
 };
 
 } // namespace sim
