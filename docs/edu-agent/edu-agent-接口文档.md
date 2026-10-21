@@ -289,7 +289,7 @@ sidecar 是**无状态、按 run 一次性调度**：每次 `POST /runs` 由 `Ru
 
 ## 6. 接口 C：Agent sidecar 内部 Python 接口（进程内，非 HTTP）
 
-实现真源：`agent/src/sigflow_edu_agent/`（仅标准库；包声明 Python >=3.9，本轮实测 3.13.7，其他版本待矩阵验证）。sidecar 自包含，不 import `sigflowAgent/`。模型输出不能实现接口或取得工具权限。
+实现真源：`agent/src/sigflow_edu_agent/`（仅标准库；包声明 Python >=3.9，已在 Windows x64 实测 3.9.13–3.14.8）。sidecar 自包含，不 import `sigflowAgent/`。模型输出不能实现接口或取得工具权限。
 
 ### 6.1 启动配置（`bootstrap.py`）
 
@@ -485,4 +485,4 @@ def success_envelope(request_id, trace_id, data) / failure_envelope(...): ...
 - L4 卡片构建器只产出“参考解要点”清单，不代写工程文件。
 - `--selftest-fail` / `--selftest-ready-delay-ms` 为仅供测试的故障注入开关，不属于冻结契约。
 - 历史契约偏差已收口：`SourceRef.end_line` 最小为 1，空区间不返回 `end_line=0`；波形 tick 同时接受十进制字符串和 uint64 JSON 整数；三个 Gateway 历史错误码映射到 Agent 冻结枚举。
-- 当前仅在 Windows x64、Python 3.13.16 完成 sidecar 全量测试。Linux x64 与麒麟目标机尚未实测，双平台发布验收未完成；不得把 Windows 结果外推为 Linux/麒麟已支持。
+- 当前在 Windows x64、Python 3.9.13–3.14.8 完成 sidecar 全量测试。Linux x64 与麒麟目标机尚未实测，双平台发布验收未完成；不得把 Windows 结果外推为 Linux/麒麟已支持。

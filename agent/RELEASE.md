@@ -12,7 +12,7 @@ HTTP 契约见 [`contracts/edu-agent/v1/agent.openapi.yaml`](../../contracts/edu
 | 包名 | `sigflow-edu-agent` |
 | 版本 | `0.1.0`（`src/sigflow_edu_agent/version.py` 的 `AGENT_VERSION`） |
 | 协议 | `edu.api.v1`（与 SigFlow Gateway 同主版本） |
-| Python | >= 3.9（CI/实测：3.13.7 on Windows x64） |
+| Python | >= 3.9（Windows x64 实测：3.9.13–3.14.8） |
 | 运行时依赖 | **无**。只用标准库；`pyproject.toml` 的 `dependencies = []` 是刻意的 |
 | 构建依赖 | `setuptools>=61`（仅打包时需要） |
 | 许可证 | MIT，见 `LICENSE` |
@@ -20,6 +20,23 @@ HTTP 契约见 [`contracts/edu-agent/v1/agent.openapi.yaml`](../../contracts/edu
 
 **没有锁文件是设计结果**：零运行时依赖意味着没有需要锁定的第三方版本。如果将来引入依赖，
 必须同时补 `requirements.lock` 与依赖审计，并更新本文件。
+
+### 1.1 Python 兼容矩阵
+
+测试日期：2026-10-22。所有版本均使用同一份 sidecar 源码和无第三方依赖环境。
+
+| Python | 平台 | 架构 | `verify_install.py` | 全量测试 | 结论 |
+|---|---|---|---|---|---|
+| 3.9.13 | Windows 11 x64 | AMD64 | ALL PASS | `run=297 failures=0 errors=0 skipped=1` | PASS |
+| 3.10.11 | Windows 11 x64 | AMD64 | ALL PASS | `run=297 failures=0 errors=0 skipped=1` | PASS |
+| 3.11.9 | Windows 11 x64 | AMD64 | ALL PASS | `run=297 failures=0 errors=0 skipped=1` | PASS |
+| 3.12.9 | Windows 11 x64 | AMD64 | ALL PASS | `run=297 failures=0 errors=0 skipped=1` | PASS |
+| 3.13.16 | Windows 11 x64 | AMD64 | ALL PASS | `run=297 failures=0 errors=0 skipped=1` | PASS |
+| 3.14.8 | Windows 11 x64 | AMD64 | ALL PASS | `run=297 failures=0 errors=0 skipped=1` | PASS |
+
+唯一跳过项是 Windows 无法捕获 SIGTERM 的平台差异，不影响
+`POST /api/v1/shutdown` 的正常退出验证。Linux x64 与麒麟不在本表内，
+仍按平台矩阵单独验收。
 
 ## 2. 安装
 
