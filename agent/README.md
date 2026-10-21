@@ -229,7 +229,7 @@ agent/
 | 现象 | 排查方向 |
 |---|---|
 | 宿主一直停在 `Starting` | stdout 是否为空？ready 行是否**恰好一行**且带换行？`nonce`/`protocol` 是否与 bootstrap 一致？ |
-| 进程立刻退出，码 2 | stderr 的第一行会写明确原因（缺字段、类型不符、协议不符、非 http(s) 的 `gateway_url`）；stdout 必须为空才算符合契约 |
+| 进程立刻退出，码 2 | stderr 的第一行会写明确原因（缺字段、类型不符、协议不符、非受信 loopback HTTP 的 `gateway_url`）；stdout 必须为空才算符合契约 |
 | 进程立刻退出，码 3 | loopback 端口被占用或权限不足；`--port 0` 让系统分配 |
 | `/health` 返回 403 | 客户端把请求发给了非 loopback 的 Host（例如用具名地址或反向代理） |
 | 除 `/health` 外全部 401 | `Authorization: Bearer <ui_token>` 缺失或 token 不是本次 bootstrap 下发的那个 |

@@ -1,4 +1,4 @@
-"""T11 runtime contract, fixture and known-deviation tests."""
+"""Runtime contract, fixture and historical-deviation tests."""
 
 from __future__ import annotations
 
@@ -295,7 +295,7 @@ class FixtureSchemaTests(unittest.TestCase):
 
 
 class KnownDeviationTests(unittest.TestCase):
-    """Each T11 known deviation has an implementation/fixture conclusion."""
+    """Each historical contract deviation has an implementation/fixture conclusion."""
 
     def setUp(self) -> None:
         self.validator = ContractSchemaValidator(SCHEMA_DIR)

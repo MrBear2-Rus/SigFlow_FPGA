@@ -95,7 +95,9 @@ def from_mapping(payload: Mapping[str, Any]) -> Bootstrap:
         values[name] = value
     gateway_url = values["gateway_url"].rstrip("/")
     if not gateway_url.startswith(("http://", "https://")):
-        raise BootstrapError("bootstrap gateway_url must be an http(s) URL")
+        raise BootstrapError(
+            "bootstrap gateway_url must be an http:// URL on a trusted loopback host"
+        )
     # T9/§6.7：只接受受信的本地地址。userinfo、任意 path/query、非 loopback
     # 主机名一律拒绝，避免凭据被导向本机之外；判定逻辑与出站客户端共用一份。
     if parse_loopback_base_url(gateway_url) is None:

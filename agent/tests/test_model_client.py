@@ -16,6 +16,7 @@ it.
 from __future__ import annotations
 
 import contextlib
+import io
 import json
 import os
 import sys
@@ -324,7 +325,11 @@ class ModelResponsePolicyTests(ModelTestCase):
 
     def test_http_error_and_redirect_degrade(self) -> None:
         error = urllib.error.HTTPError(
-            "https://api.openai.com/v1/chat/completions", 302, "redirect refused", {}, None
+            "https://api.openai.com/v1/chat/completions",
+            302,
+            "redirect refused",
+            {},
+            io.BytesIO(b""),
         )
         self.addCleanup(error.close)
         self.endpoint.error = error
@@ -339,7 +344,7 @@ class ModelResponsePolicyTests(ModelTestCase):
             401,
             "unauthorized " + API_KEY,
             {},
-            None,
+            io.BytesIO(b""),
         )
         self.addCleanup(error.close)
         self.endpoint.error = error

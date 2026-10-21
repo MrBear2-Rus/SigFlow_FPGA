@@ -1,6 +1,6 @@
 # SigFlow 教育版 Agent：自研 Agent 组执行任务清单
 
-> 2026-10-10：10.8 调整的基础教学动作、授权执行、课程/记录服务已实现，见 [AD 对照与验收](../sigflow/10.10-Agent接口调整实现与验收.md)。后续仍需问题模式/课程审校扩充、跨 revision 教学策略、真实模型/双平台与压力验收；不把最小闭环当成下文完整 U2/U3 任务完成。
+> 2026-10-10：10.8 调整的基础教学动作、授权执行、课程/记录服务已实现；当前发布边界与验收材料见 [agent/RELEASE.md](../../../agent/RELEASE.md)。后续仍需问题模式/课程审校扩充、跨 revision 教学策略、真实模型/双平台与压力验收；不把最小闭环当成下文完整 U2/U3 任务完成。
 
 > 版本：v1.1 · 2026-10-07  
 > 依据：[Agent 组 spec](spec.md)；跨组接口见 [SigFlow 组 spec](../sigflow/spec.md#5-共享-http-契约-v1两组共同执行)；联合执行见 [Cooperate.md](../Cooperate.md)；架构决策见 [自研决策](../DECISION-2026-10-07.md)。  
@@ -34,7 +34,7 @@ W1 决定自研代码放在本仓库 `agent/` 还是独立仓库；无论在哪�
 - [x] 工具注册表采用默认拒绝：sidecar 只允许 loopback HTTP 入口和受限 Gateway 出站，不包含 shell、任意文件读写、实板烧录或任意网络调用入口；相关边界测试全绿。
 - [x] 与 S1 确定本地服务启动材料、令牌传递、随机端口/nonce、数据目录、日志目录及无模型启动方式；bootstrap/ready/health/shutdown 测试全绿。
 
-**完成证据**：[runtime-baseline.md](runtime-baseline.md) 记录 Windows x64 / Python 3.13.16 的 `289` 项测试结果、零第三方依赖与 Linux 未测状态。双平台证据不全，D-01 保持进行中。**依赖**：无。**影响 Gate**：G0。
+**完成证据**：[runtime-baseline.md](runtime-baseline.md) 记录 Windows x64 / Python 3.13.16 主验收、3.14.8 补充、3.9–3.14 兼容矩阵和 `306` 项测试结果；零第三方依赖。Linux x64 与麒麟仍未原生验收，D-01 保持进行中。**依赖**：无。**影响 Gate**：G0。
 
 ### D-02 联合契约与教学样例｜U1/U2/U3 联合，S1/S2 参与｜W1 D1–D3
 

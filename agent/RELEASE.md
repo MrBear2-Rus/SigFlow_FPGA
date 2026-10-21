@@ -27,12 +27,12 @@ HTTP 契约见 [`contracts/edu-agent/v1/agent.openapi.yaml`](../../contracts/edu
 
 | Python | 平台 | 架构 | `verify_install.py` | 全量测试 | 结论 |
 |---|---|---|---|---|---|
-| 3.9.13 | Windows 11 x64 | AMD64 | ALL PASS | `run=297 failures=0 errors=0 skipped=1` | PASS |
-| 3.10.11 | Windows 11 x64 | AMD64 | ALL PASS | `run=297 failures=0 errors=0 skipped=1` | PASS |
-| 3.11.9 | Windows 11 x64 | AMD64 | ALL PASS | `run=297 failures=0 errors=0 skipped=1` | PASS |
-| 3.12.9 | Windows 11 x64 | AMD64 | ALL PASS | `run=297 failures=0 errors=0 skipped=1` | PASS |
-| 3.13.16 | Windows 11 x64 | AMD64 | ALL PASS | `run=297 failures=0 errors=0 skipped=1` | PASS |
-| 3.14.8 | Windows 11 x64 | AMD64 | ALL PASS | `run=297 failures=0 errors=0 skipped=1` | PASS |
+| 3.9.13 | Windows 11 x64 | AMD64 | ALL PASS | `run=306 failures=0 errors=0 skipped=1` | PASS |
+| 3.10.11 | Windows 11 x64 | AMD64 | ALL PASS | `run=306 failures=0 errors=0 skipped=1` | PASS |
+| 3.11.9 | Windows 11 x64 | AMD64 | ALL PASS | `run=306 failures=0 errors=0 skipped=1` | PASS |
+| 3.12.9 | Windows 11 x64 | AMD64 | ALL PASS | `run=306 failures=0 errors=0 skipped=1` | PASS |
+| 3.13.16 | Windows 11 x64 | AMD64 | ALL PASS | `run=306 failures=0 errors=0 skipped=1` | PASS |
+| 3.14.8 | Windows 11 x64 | AMD64 | ALL PASS | `run=306 failures=0 errors=0 skipped=1` | PASS |
 
 唯一跳过项是 Windows 无法捕获 SIGTERM 的平台差异，不影响
 `POST /api/v1/shutdown` 的正常退出验证。Linux x64 与麒麟不在本表内，
@@ -109,15 +109,16 @@ cd build-agent && ctest -R edu_agent_sidecar_smoke --output-on-failure
 ## 5. 回滚
 
 - **pip 安装**：`python -m pip uninstall sigflow-edu-agent`，再装回上一版本目录。
-- **源码树**：恢复上一版本代码；先备份 bootstrap 用户数据目录的 SQLite 数据，不假定旧版本理解新数据。
+- **源码树**：恢复上一版本代码。当前 sidecar 不持久化会话、学习元数据或执行检查点，
+  因此没有需要迁移的 SQLite 数据；未来启用持久化扩展时按该扩展的迁移文档执行。
 - **只停用不卸载**：清空 `SIGFLOW_EDU_AGENT_EXECUTABLE`（或删除该变量）后重启 SigFlow，
   sidecar 进入 `Disabled` 状态，IDE 原有功能照常。
 
 本包**不写注册表、不装服务、不改系统 PATH**，因此回滚不需要清理系统状态。
-它只在 bootstrap `data_directory` 下持久化最小学习元数据和执行恢复检查点；当前宿主用稳定的
-用户数据路径 `AppData/sigflow-edu-agent/local/learning.sqlite3`，不是安装/工程目录。
-学习记录默认不同意、保留 90 天；恢复日志不含源代码，独立于学习同意。卸载不自动删除用户数据，
-需要删除时先导出/备份并确认。详见 [实现与验收](../docs/edu-agent/sigflow/10.10-Agent接口调整实现与验收.md)。
+当前 sidecar **不打开或创建 SQLite 数据库**，不持久化学习元数据、执行检查点或会话；
+bootstrap 的 `data_directory` 只是必填契约字段，运行期不使用。SQLite 学习记录与恢复检查点
+属于 B 阶段延期扩展，尚未实现，见
+[b-stage-scope.md](../docs/edu-agent/ucagent/b-stage-scope.md)。
 
 ## 6. 已知边界与未验证项
 
@@ -133,5 +134,7 @@ cd build-agent && ctest -R edu_agent_sidecar_smoke --output-on-failure
 - **Docker 不是一期门槛**：容器/统一远端服务是按目标用户需求再评估的可选方案，
   不能替代原生 Windows/Linux 验收。
 - **没有独立执行权限**：基础 `execution.can_run_eda=false` 保留；教学扩展只能拿 UI 签发、精确绑定计划/快照的 grant 请求 Gateway Job，不执行命令。
-- **会话数据在内存中**：session/run 退出即丢失；最小学习元数据（显式同意后）及执行检查点由 SQLite 保存。恢复只查询事实，不自动续跑。
-- **完整教学产品仍有 Gate**：目前 4 规则/4 自编材料，不替代 8 类问题/20 审校片段及真实模型、原生双平台和压力验收。
+- **会话与学习数据不持久化**：session/run 退出即丢失；当前没有 SQLite、学习元数据或执行
+  检查点实现。相关能力在 B 阶段延期范围中登记，见
+  [b-stage-scope.md](../docs/edu-agent/ucagent/b-stage-scope.md)。
+- **完整教学产品仍有 Gate**：目前 4 规则/4 自编材料，不替代 8 类问题/20 审校片段；真实模型端点与 Linux/麒麟原生平台验收仍未完成。限额与压力矩阵已单独记录，见 [stress-matrix.md](../docs/edu-agent/ucagent/stress-matrix.md)。

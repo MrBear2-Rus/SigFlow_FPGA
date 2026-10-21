@@ -150,7 +150,7 @@
      "gateway_token": "...", "ui_token": "...", "data_directory": "..." }
    ```
 
-   - `type` 必须为 `sigflow-bootstrap`，`protocol` 必须为 `edu.api.v1`，`gateway_url` 必须为 http(s)。
+   - `type` 必须为 `sigflow-bootstrap`，`protocol` 必须为 `edu.api.v1`，`gateway_url` 必须为**仅受信 loopback HTTP**（`127.0.0.1`/`localhost`/`[::1]`，显式端口，无 userinfo/path/query）。
    - `gateway_token` / `ui_token` / `data_directory` 为秘密值：sidecar 只在进程内存保存，`__repr__` 不打印，并立即挂 `RedactionFilter` 对后续所有日志脱敏。
 
 2. sidecar **先绑定 `127.0.0.1`，再宣布就绪**：bootstrap 行非法 → 退出码 `2`；绑定失败 → 退出码 `3`。两种情况 **stdout 均保持为空**（宿主把 ready 之前的任何 stdout 字节视为协议违例）。
@@ -303,7 +303,7 @@ def read_from_stream(stream, limit=64*1024) -> Bootstrap: ...   # 读 stdin 一�
 class BootstrapError(Exception): ...            # .reason
 ```
 
-- 校验：`type=="sigflow-bootstrap"`、`protocol=="edu.api.v1"`、6 个文本字段非空字符串、`gateway_url` 必须 http(s)。行 > 64 KiB 或非法 UTF-8 / JSON → `BootstrapError`。
+- 校验：`type=="sigflow-bootstrap"`、`protocol=="edu.api.v1"`、6 个文本字段非空字符串、`gateway_url` 必须是仅受信 loopback HTTP 地址（显式端口，无 userinfo/path/query）。行 > 64 KiB 或非法 UTF-8 / JSON → `BootstrapError`。
 
 ### 6.2 HTTP 服务（`http_server.py`）
 
@@ -478,7 +478,7 @@ def success_envelope(request_id, trace_id, data) / failure_envelope(...): ...
 
 ## 9. 已知偏差与限制（v1）
 
-- 事件无长轮询（接口 A）；会话/运行/事件在内存，重启失效。扩展有 SQLite 最小学习元数据/恢复检查点，默认不收集学习数据，不自动恢复会话或续跑。
+- 事件无长轮询（接口 A）；会话/运行/事件在内存，重启失效。当前**没有 SQLite 实现**，不持久化学习元数据或恢复检查点；该能力属于 B 阶段延期扩展，见 [`ucagent/b-stage-scope.md`](ucagent/b-stage-scope.md)。
 - 无课程库：`course_refs` 恒为空数组，`/capabilities.course.available=false`。
 - 无波形内联读取：证据只引用 opaque artifact/report 字段。
 - 基础 `/runs` 的 L4 恒 403；v1 没有 `hint_next`、`reference_request`、`reference_confirm` 或 `execute_plan` 路由，`more=true` 不构成授权。后续扩展必须新增并联合冻结契约。
