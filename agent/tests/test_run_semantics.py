@@ -25,6 +25,12 @@ from sigflow_edu_agent.errors import AgentError  # noqa: E402
 from sigflow_edu_agent.gateway_client import GatewayOutcome  # noqa: E402
 from sigflow_edu_agent.model_client import ModelClient, ModelStatus  # noqa: E402
 from sigflow_edu_agent.rules import Selection  # noqa: E402
+from sigflow_edu_agent.util import (  # noqa: E402
+    REDACTED_PATH,
+    contains_absolute_path,
+    redact_local_paths,
+    redact_structure_paths,
+)
 from tests.test_http_api import SidecarFixture  # noqa: E402
 
 LATCH_SNIPPET = (
@@ -315,6 +321,76 @@ class ReportTrustTests(unittest.TestCase):
         self.assertEqual(outcome.cards, [])
         self.assertEqual(outcome.error_code, "GATEWAY_UNAVAILABLE")
         self.assertFalse(outcome.model_used)
+
+    def test_malformed_diagnostic_still_rejects_the_report(self) -> None:
+        malformed = _report(
+            job_id="job-malformed",
+            diagnostics=[
+                {
+                    "id": "diag-broken",
+                    "code": "EDU_LATCH_INFERRED",
+                    "severity": "warning",
+                    "stage": "synth",
+                    "origin": "core",
+                    "confidence_kind": "tool",
+                }
+            ],
+        )
+        with self.assertRaises(AgentError) as caught:
+            _dispatcher(_FakeGateway({"job-malformed": malformed})).dispatch(
+                _request("report_review", job_id="job-malformed"),
+                "2",
+            )
+        self.assertEqual(caught.exception.code, "GATEWAY_UNAVAILABLE")
+        self.assertEqual(caught.exception.http_status, 503)
+
+
+class ReportPathRedactionTests(unittest.TestCase):
+    """A2: paths in free text are redacted, not treated as a broken report."""
+
+    PATHS = (
+        r"C:\Users\张三\我的 项目\rtl\top.v",
+        "C:/Users/Alice/My Project/rtl/top.v",
+        r"c:\Temp\学生 工程\top.sv",
+        r"\\fileserver\share\team\长 路径\top.vhd",
+        "//fileserver/share/team/top.v",
+        "/home/学生/项目/rtl/top.v",
+        "/Users/Alice/My Project/rtl/top.v",
+        "/HOME/CASE/Top.V",
+        "~/proj/rtl/top.v",
+        "C:\\Users\\long\\" + "\\".join(["segment%02d" % i for i in range(40)]) + "\\top.v",
+    )
+
+    def test_path_variants_are_replaced_with_the_stable_placeholder(self) -> None:
+        for path in self.PATHS:
+            with self.subTest(path=path[:48]):
+                text = '诊断指出 "%s" 处存在问题。' % path
+                cleaned, count = redact_local_paths(text)
+                self.assertEqual(count, 1)
+                self.assertIn(REDACTED_PATH, cleaned)
+                self.assertNotIn(path, cleaned)
+                self.assertTrue(contains_absolute_path(text))
+                self.assertFalse(contains_absolute_path(cleaned))
+
+    def test_url_paths_are_not_mistaken_for_local_paths(self) -> None:
+        text = "GET http://127.0.0.1:19387/api/v1/jobs/job-1/report returned 200"
+        self.assertFalse(contains_absolute_path(text))
+        self.assertEqual(redact_local_paths(text), (text, 0))
+
+    def test_artifact_and_plugin_descriptions_are_redacted_recursively(self) -> None:
+        report = {
+            "artifacts": [
+                {"description": "generated at C:\\Users\\student\\proj\\out"},
+                {"description": "copied from /mnt/data/课程 项目/out"},
+            ],
+            "plugin": {"description": "installed in \\\\server\\share\\tools"},
+        }
+        cleaned, count = redact_structure_paths(report)
+        self.assertEqual(count, 3)
+        self.assertNotIn("C:\\Users", str(cleaned))
+        self.assertNotIn("/mnt/data", str(cleaned))
+        self.assertNotIn("\\\\server", str(cleaned))
+        self.assertEqual(str(cleaned).count(REDACTED_PATH), 3)
 
 
 class RunValidationTests(unittest.TestCase):

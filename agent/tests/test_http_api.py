@@ -119,10 +119,66 @@ REPORT_EMPTY_LEGACY: dict[str, Any] = {
     "reason": "legacy job has no input fingerprint or revision",
 }
 
+REPORT_WITH_REDACTED_PATHS: dict[str, Any] = {
+    "schema_version": "edu.jobreport.v1",
+    "job_id": "job-redacted",
+    "origin": "core",
+    "capability": "eda.synth",
+    "plugin_id": "eda-synth-yosys",
+    "plugin_version": "1.0.0",
+    "plugin": {
+        "description": "Yosys installed at /opt/sigflow/tools/yosys/bin/yosys",
+    },
+    "project_id": "prj-1",
+    "revision": "rev-12",
+    "snapshot_id": "snap-12",
+    "state": "Succeeded",
+    "exit_code": 1,
+    "diagnostics": [
+        {
+            "id": "diag-redacted",
+            "code": "EDU_LATCH_INFERRED",
+            "raw_code": "LATCH",
+            "severity": "warning",
+            "stage": "synth",
+            "summary": (
+                "Latch inferred at C:\\Users\\张三\\我的 项目\\rtl\\top.v; "
+                "also see /home/alice/project/rtl/top.v and "
+                "\\\\fileserver\\share\\team\\top.v."
+            ),
+            "origin": "core",
+            "confidence_kind": "tool",
+            "location": {
+                "file": "C:\\Users\\张三\\我的 项目\\rtl\\top.v",
+                "start_line": 7,
+                "end_line": 7,
+            },
+        }
+    ],
+    "metrics": {
+        "workdir": {
+            "value": "\\\\fileserver\\share\\team\\build",
+            "unit": None,
+            "source": "tool",
+            "availability": "present",
+        }
+    },
+    "artifacts": [
+        {
+            "artifact_id": "artifact-1",
+            "description": "generated under C:\\Users\\张三\\我的 项目\\build",
+        }
+    ],
+    "completeness": "complete",
+    "input_fingerprint": "sha256:redacted",
+    "raw_report_schema": "eda.jobreport.v1",
+}
+
 REPORTS: dict[str, dict[str, Any]] = {
     "job-1": REPORT_WITH_DIAGNOSTIC,
     "job-empty": REPORT_EMPTY_TRUSTED,
     "job-legacy": REPORT_EMPTY_LEGACY,
+    "job-redacted": REPORT_WITH_REDACTED_PATHS,
 }
 
 
@@ -720,6 +776,36 @@ class SidecarApiTests(unittest.TestCase):
         card = _data(response)["cards"][0]
         self.assertIn("不会替你推断", card["body"])
         self.assertNotIn("因为你忘记", card["body"])
+
+    def test_report_review_redacts_free_text_paths_instead_of_rejecting(self) -> None:
+        session_id = self.fixture.create_session("rev-12")
+        response = self.fixture.run(
+            session_id,
+            {"kind": "report_review", "job_id": "job-redacted", "selection": _selection()},
+        )
+        self.assertEqual(response.status, 201, response.payload)
+        data = _data(response)
+        self.assertEqual(data["state"], "degraded")
+        card = data["cards"][0]
+        self.assertEqual(card["kind"], "diagnostic_explanation")
+        self.assertIn("***redacted-path***", card["body"])
+        self.assertIn("路径已脱敏", card["evidence"][0]["note"])
+        diagnostic_ref = card["evidence"][0]["ref"]
+        self.assertTrue(diagnostic_ref["summary_paths_redacted"])
+        self.assertTrue(diagnostic_ref["path_redacted"])
+        self.assertTrue(diagnostic_ref["location"]["path_redacted"])
+        self.assertTrue(diagnostic_ref["location"]["file_redacted"])
+        report_ref = card["evidence"][1]["ref"]
+        self.assertTrue(report_ref["path_redacted"])
+        self.assertGreaterEqual(report_ref["redacted_path_count"], 4)
+        for text in _walk_strings(response.payload):
+            for fragment in (
+                "C:\\Users\\张三",
+                "/home/alice",
+                "\\\\fileserver",
+                "/opt/sigflow",
+            ):
+                self.assertNotIn(fragment, text)
 
     def test_report_review_requires_job_id(self) -> None:
         session_id = self.fixture.create_session()

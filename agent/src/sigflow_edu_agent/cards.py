@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from typing import Any, Mapping, Optional, Sequence
 
 from .rules import RuleFinding, Selection
-from .util import contains_absolute_path, decimal
+from .util import REDACTED_PATH, contains_absolute_path, decimal
 from .version import CARD_KINDS, LEVELS, MAX_CARDS_PER_RUN, PLAN_CAPABILITIES
 
 _CARD_ID_PATTERN = re.compile(r"^card-[1-9][0-9]*$")
@@ -208,9 +208,11 @@ def build_diagnostic_card(
 ) -> dict[str, Any]:
     """Build a ``diagnostic_explanation`` card for one tool diagnostic.
 
-    The diagnostic's ``code``/``raw_code``/``severity``/``location`` are copied
-    verbatim into the evidence.  The body explains what the tool said; it never
-    invents a root cause that the report did not provide.
+    The diagnostic's ``code``/``raw_code``/``severity`` are copied into the
+    evidence.  Free-text fields are expected to have been path-redacted by the
+    dispatcher; the marker fields make that visible.  The body explains what
+    the tool said; it never invents a root cause that the report did not
+    provide.
     """
     if level not in LEVELS:
         raise ValueError("unsupported level: %s" % level)
@@ -221,6 +223,14 @@ def build_diagnostic_card(
     severity = str(diagnostic_copy.get("severity") or "unknown")
     summary = str(diagnostic_copy.get("summary") or "").strip()
     location = diagnostic_copy.get("location")
+    summary_paths_redacted = bool(
+        diagnostic_copy.get("summary_paths_redacted") or REDACTED_PATH in summary
+    )
+    location_paths_redacted = False
+    if isinstance(location, Mapping):
+        location_paths_redacted = any(
+            isinstance(item, str) and REDACTED_PATH in item for item in location.values()
+        ) or bool(location.get("path_redacted") or location.get("file_redacted"))
     evidence: list[dict[str, Any]] = [
         {
             "kind": "diagnostic",
@@ -234,8 +244,14 @@ def build_diagnostic_card(
                 "origin": diagnostic_copy.get("origin"),
                 "confidence_kind": diagnostic_copy.get("confidence_kind"),
                 "summary": summary,
+                "summary_paths_redacted": summary_paths_redacted,
+                "path_redacted": summary_paths_redacted or location_paths_redacted,
             },
-            "note": "工具报告的原始诊断字段，未经改写",
+            "note": (
+                "工具报告的诊断字段；其中的本机路径已脱敏"
+                if summary_paths_redacted or location_paths_redacted
+                else "工具报告的原始诊断字段，未经改写"
+            ),
         },
         {
             "kind": "job_report",

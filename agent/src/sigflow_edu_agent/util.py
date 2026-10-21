@@ -11,17 +11,39 @@ import json
 import os
 import re
 from datetime import datetime, timezone
-from typing import Any, Iterable, Optional
+from typing import Any, Iterable, Mapping, Optional
 
 REDACTED: str = "***redacted***"
 """Replacement text for any secret value that would otherwise be rendered."""
 
-_ABSOLUTE_PATH_PATTERNS: tuple[re.Pattern[str], ...] = (
-    re.compile(r"[A-Za-z]:[\\/]"),
-    re.compile(r"\\\\[^\\\s]+\\"),
-    re.compile(r"(?<![\w.])/(?:home|tmp|var|usr|etc|root|opt|mnt|media)/"),
+REDACTED_PATH: str = "***redacted-path***"
+"""Stable placeholder for a local absolute path embedded in free text."""
+
+_LOCAL_PATH_START: re.Pattern[str] = re.compile(
+    r"(?<![A-Za-z0-9+.-])"
+    r"(?:"
+    r"[A-Za-z]:[\\/]"
+    r"|\\\\[^\\/\s\"'<>|?*]+[\\/]"
+    r"|(?<!:)//[^/\s\"'<>|?*]+/"
+    r"|~[\\/]"
+    r"|/(?i:Users|home|tmp|var|usr|etc|root|opt|mnt|media|srv|private|"
+    r"Volumes|workspace|workspaces|run|proc|sys|dev|boot)"
+    r"(?:/|(?=$|[\s\"',;:)\]]))"
+    r")"
 )
-"""Patterns that identify a leaked local absolute path (Windows or POSIX)."""
+"""Start of a Windows drive, UNC, home-relative or known POSIX absolute path.
+
+The leading look-behind keeps URL schemes such as ``http://`` from being
+misread as a Windows path (``p:/``).  The POSIX branch is intentionally scoped
+to well-known roots so ordinary URL paths such as ``/api/v1/jobs`` are not
+rewritten.
+"""
+
+_PATH_TERMINATORS: frozenset[str] = frozenset("\r\n\t\"'<>|`")
+_PATH_SENTENCE_END: frozenset[str] = frozenset("，。；、！？")
+_PATH_EXTENSION: re.Pattern[str] = re.compile(
+    r"\.[A-Za-z][A-Za-z0-9_+-]{0,15}[.,;:)\]}]*$"
+)
 
 _CREDENTIAL_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"\bsk-[A-Za-z0-9_-]{16,}"),
@@ -57,7 +79,7 @@ def decimal(value: int) -> str:
 
 def contains_absolute_path(text: str) -> bool:
     """Return ``True`` when ``text`` looks like it contains a local absolute path."""
-    return any(pattern.search(text) for pattern in _ABSOLUTE_PATH_PATTERNS)
+    return _LOCAL_PATH_START.search(text) is not None
 
 
 def contains_credential(text: str, secrets: Iterable[str] = ()) -> bool:
@@ -89,9 +111,101 @@ def redact(text: str, secrets: Iterable[str]) -> str:
 def sanitize_message(text: str, secrets: Iterable[str]) -> str:
     """Redact secrets and absolute paths from a message bound for a client."""
     result = redact(text, secrets)
-    for pattern in _ABSOLUTE_PATH_PATTERNS:
-        result = pattern.sub("<path>", result)
-    return result
+    return redact_local_paths(result)[0]
+
+
+def _path_end(text: str, start: int) -> int:
+    """Find the end of one path that starts at ``start``.
+
+    Unquoted paths may contain spaces, so a whitespace alone cannot end the
+    match.  We stop at a quoted/delimited boundary, at a second consecutive
+    space, or after a filename extension when prose follows it.  This keeps
+    common sentences readable without ever truncating a directory prefix.
+    """
+    index = start
+    chunk_start = start
+    depth = 0
+    while index < len(text):
+        char = text[index]
+        if char in _PATH_TERMINATORS:
+            break
+        if char in _PATH_SENTENCE_END:
+            break
+        if char in ",;:" and (index + 1 == len(text) or text[index + 1].isspace()):
+            break
+        if char in "([{":
+            depth += 1
+        elif char in ")]}":
+            if depth:
+                depth -= 1
+            else:
+                break
+        elif char.isspace():
+            if index + 1 < len(text) and text[index + 1].isspace():
+                break
+            if _PATH_EXTENSION.search(text[chunk_start:index]):
+                break
+        if char in "\\/":
+            chunk_start = index + 1
+        index += 1
+    while index > start and text[index - 1].isspace():
+        index -= 1
+    return index
+
+
+def redact_local_paths(text: str) -> tuple[str, int]:
+    """Replace every local absolute path in *text* with :data:`REDACTED_PATH`.
+
+    Returns ``(redacted_text, replacement_count)``.  The walk is deterministic
+    and only rewrites path-shaped spans; other prose and URL paths are left
+    untouched.
+    """
+    pieces: list[str] = []
+    cursor = 0
+    replacements = 0
+    for match in _LOCAL_PATH_START.finditer(text):
+        if match.start() < cursor:
+            continue
+        end = _path_end(text, match.start())
+        if end <= match.start():
+            continue
+        pieces.append(text[cursor:match.start()])
+        pieces.append(REDACTED_PATH)
+        cursor = end
+        replacements += 1
+    pieces.append(text[cursor:])
+    return "".join(pieces), replacements
+
+
+def redact_structure_paths(value: Any) -> tuple[Any, int]:
+    """Deep-copy *value* while replacing local paths in every string field."""
+    if isinstance(value, str):
+        return redact_local_paths(value)
+    if isinstance(value, Mapping):
+        total = 0
+        redacted: dict[Any, Any] = {}
+        for key, item in value.items():
+            cleaned, count = redact_structure_paths(item)
+            redacted[key] = cleaned
+            total += count
+        return redacted, total
+    if isinstance(value, list):
+        total = 0
+        items: list[Any] = []
+        for item in value:
+            cleaned, count = redact_structure_paths(item)
+            items.append(cleaned)
+            total += count
+        return items, total
+    if isinstance(value, tuple):
+        total = 0
+        items: list[Any] = []
+        for item in value:
+            cleaned, count = redact_structure_paths(item)
+            items.append(cleaned)
+            total += count
+        return tuple(items), total
+    return value, 0
 
 
 class RedactionFilter:
@@ -110,7 +224,7 @@ class RedactionFilter:
             message = record.getMessage()
         except Exception:  # pragma: no cover - defensive
             return True
-        redacted = redact(message, self._secrets)
+        redacted = sanitize_message(message, self._secrets)
         if redacted != message:
             record.msg = redacted
             record.args = ()

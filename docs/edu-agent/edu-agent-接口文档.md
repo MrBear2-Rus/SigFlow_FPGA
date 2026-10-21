@@ -426,7 +426,7 @@ def success_envelope(request_id, trace_id, data) / failure_envelope(...): ...
 
 ### 6.10 共享工具与常量（`util.py` / `version.py`）
 
-- `util.py`：`decimal`（64 位计数 → 十进制字符串）、`iso_utc`、`contains_absolute_path`、`redact`、`sanitize_message`、`RedactionFilter`（bootstrap 后立即挂到 logging 防泄漏）、`json_dumps`、`env_flag`；`REDACTED="***redacted***"`。
+- `util.py`：`decimal`（64 位计数 → 十进制字符串）、`iso_utc`、`contains_absolute_path`、`redact`、`redact_local_paths`、`redact_structure_paths`、`sanitize_message`、`RedactionFilter`（bootstrap 后立即挂到 logging 防泄漏）、`json_dumps`、`env_flag`；`REDACTED="***redacted***"`、`REDACTED_PATH="***redacted-path***"`。
 - `version.py`：`AGENT_VERSION="0.1.0"`、`PROTOCOL="edu.api.v1"`、`BOOTSTRAP_TYPE="sigflow-bootstrap"`、`READY_TYPE="ready"`、`PLAN_CAPABILITIES`(3 能力)、`LEVELS`(L1–L4)、`RUN_KINDS`(4)、`CARD_KINDS`(4)、`MAX_CARD_BYTES=64 KiB`、`MAX_CARDS_PER_RUN=16`、`MAX_SESSIONS=32`、`MAX_EVENTS_PER_SESSION=1000`。
 - `session.py`：`MAX_RUNS_PER_SESSION=64`、`MAX_SESSION_RUN_BYTES=2 MiB`。
 - `contract_schema.py`：零第三方依赖的 v1 JSON Schema 运行期校验器，支持 `$ref`、内部 pointer、`required`、`enum`、`const`、边界和 `oneOf`。
@@ -468,7 +468,7 @@ def success_envelope(request_id, trace_id, data) / failure_envelope(...): ...
 ## 8. 安全与边界约定（汇总）
 
 1. **token 管理**：只经继承管道/环境变量；禁止进入 URL、日志、卡片、错误消息、工程文件、模型上下文。
-2. **路径脱敏**：任何响应不含本机绝对路径；结构化路径替换为文件名并标记 `path_redacted`/`file_redacted`（已知残留风险：工具自由文本 `diagnostics[].summary` 可能自带路径，需另立任务做文本级裁剪）。
+2. **路径脱敏**：任何响应不含本机绝对路径；结构化路径替换为文件名，报告自由文本（`diagnostics[].summary`、`location`、`artifacts`、`plugin` 等）中的 Windows 盘符、UNC、POSIX 和 `~` 路径替换为 `***redacted-path***`，并标记 `path_redacted`/`summary_paths_redacted`/`file_redacted`。
 3. **危险字段白名单**：Job `params` 白名单见 §5.2，多出/危险字段 → 422，不静默剥离。
 4. **身份分离**：UI 专用 token 仅用于 grant/receipt 签发撤销；Agent token 无法执行这些路由（失败关闭）。
 5. **幂等**：`Idempotency-Key` + 请求 hash；同键不同内容 → 409，同键同内容飞行中 → `RECOVERY_REQUIRED`。

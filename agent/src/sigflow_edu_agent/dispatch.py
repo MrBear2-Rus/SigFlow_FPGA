@@ -40,7 +40,12 @@ from .errors import AgentError
 from .gateway_client import GatewayClient
 from .model_client import ModelAnswer, ModelClient, ModelStatus
 from .rules import RuleFinding, Selection, analyse
-from .util import contains_absolute_path, contains_credential
+from .util import (
+    REDACTED_PATH,
+    contains_absolute_path,
+    contains_credential,
+    redact_structure_paths,
+)
 from .version import LEVELS, RUN_KINDS
 
 TRUSTED_COMPLETENESS: frozenset[str] = frozenset({"complete", "exact"})
@@ -546,7 +551,11 @@ class RunDispatcher:
                 error_message=outcome.message
                 or "无法从 EDA Gateway 读取该 Job 的报告，本次不提供任何报告解读。",
             )
-        report = outcome.report
+        report, redacted_path_count = redact_structure_paths(outcome.report)
+        if not isinstance(report, Mapping):
+            raise AgentError("GATEWAY_UNAVAILABLE", "报告格式无效或证据不完整。",
+                             http_status=503, retryable=True)
+        _mark_redacted_diagnostic_fields(report)
         required = ("schema_version", "job_id", "origin", "capability", "project_id",
                     "revision", "state", "completeness")
         if (any(name not in report for name in required)
@@ -573,14 +582,21 @@ class RunDispatcher:
                     diagnostic["origin"] not in ("core", "legacy") or
                     diagnostic["confidence_kind"] not in ("tool", "rule", "hypothesis")):
                 raise AgentError("GATEWAY_UNAVAILABLE", "报告包含格式无效的诊断。", http_status=503)
-        def unsafe(value):
-            if isinstance(value, str): return contains_absolute_path(value)
-            if isinstance(value, Mapping): return any(unsafe(item) for item in value.values())
-            if isinstance(value, list): return any(unsafe(item) for item in value)
+        def unsafe(value: Any) -> bool:
+            if isinstance(value, str):
+                return contains_absolute_path(value)
+            if isinstance(value, Mapping):
+                return any(unsafe(item) for item in value.values())
+            if isinstance(value, list):
+                return any(unsafe(item) for item in value)
             return False
-        if unsafe(report):
-            raise AgentError("GATEWAY_UNAVAILABLE", "报告包含未脱敏的路径，拒绝输出。", http_status=503)
-        report_ref = _report_reference(job_id, report)
+        if unsafe(report):  # defence in depth: never serve a path the redactor missed
+            raise AgentError(
+                "GATEWAY_UNAVAILABLE",
+                "报告路径脱敏失败，拒绝输出。",
+                http_status=503,
+            )
+        report_ref = _report_reference(job_id, report, redacted_path_count)
         diagnostics = report.get("diagnostics")
         cards: list[dict[str, Any]] = []
         omitted: list[dict[str, str]] = []
@@ -718,9 +734,13 @@ def _empty_diagnostics_body(report: Mapping[str, Any]) -> str:
     )
 
 
-def _report_reference(job_id: str, report: Mapping[str, Any]) -> dict[str, Any]:
-    """Build the job-report evidence reference, keeping report fields verbatim."""
-    return {
+def _report_reference(
+    job_id: str,
+    report: Mapping[str, Any],
+    redacted_path_count: int = 0,
+) -> dict[str, Any]:
+    """Build the bounded, path-free job-report evidence reference."""
+    reference = {
         "job_id": job_id,
         "origin": report.get("origin"),
         "completeness": report.get("completeness"),
@@ -732,6 +752,39 @@ def _report_reference(job_id: str, report: Mapping[str, Any]) -> dict[str, Any]:
         "state": report.get("state"),
         "raw_report_schema": report.get("raw_report_schema"),
     }
+    if redacted_path_count:
+        reference["path_redacted"] = True
+        reference["redacted_path_count"] = redacted_path_count
+    return reference
+
+
+def _mark_redacted_diagnostic_fields(report: Mapping[str, Any]) -> None:
+    """Annotate diagnostics whose free text contained a local path.
+
+    The redacted report is never returned verbatim, but its diagnostics flow
+    into card evidence.  ``summary_paths_redacted`` is part of the frozen
+    Diagnostic schema; the nested location markers follow the existing
+    ``file_redacted`` convention used by the Gateway.
+    """
+    diagnostics = report.get("diagnostics")
+    if not isinstance(diagnostics, list):
+        return
+    for diagnostic in diagnostics:
+        if not isinstance(diagnostic, dict):
+            continue
+        summary = diagnostic.get("summary")
+        if isinstance(summary, str) and REDACTED_PATH in summary:
+            diagnostic["summary_paths_redacted"] = True
+        location = diagnostic.get("location")
+        if not isinstance(location, dict):
+            continue
+        redacted = False
+        for key, value in list(location.items()):
+            if isinstance(value, str) and REDACTED_PATH in value:
+                redacted = True
+                location["%s_redacted" % key] = True
+        if redacted:
+            location["path_redacted"] = True
 
 
 def trusted_completeness() -> frozenset[str]:

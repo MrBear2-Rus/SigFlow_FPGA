@@ -142,7 +142,10 @@ token 处理约定：`gateway_token` / `ui_token` **只存在于内存**，不�
   后续扩展必须新增版本化路由并与 S1/S3 联合冻结，不能靠 `more=true` 或客户端字段自行解锁。
 - **`kind=report_review`**：必须带 `job_id`。用 `gateway_token` 调用
   `GET {gateway_url}/api/v1/jobs/{job_id}/report`，把 `diagnostics` 映射为
-  `diagnostic_explanation` 卡片；`code`/`raw_code`/`severity`/`location` 原样进入证据，
+  `diagnostic_explanation` 卡片；报告的 `summary`、`location`、`artifacts` 和
+  `plugin` 等自由文本中的本机绝对路径先替换为 `***redacted-path***`，再用
+  `path_redacted`/`summary_paths_redacted` 显式标记；`code`/`raw_code`/`severity`
+  仍原样进入证据，
   报告的 `revision`/`snapshot_id`/`input_fingerprint`/`completeness`/`origin` 一并入证据，
   正文不补造报告未给出的根因。
 - **空 `diagnostics`**：只有报告归属/版本相符、state=Succeeded、completeness∈{complete,exact}、
