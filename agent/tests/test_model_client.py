@@ -323,13 +323,46 @@ class ModelResponsePolicyTests(ModelTestCase):
         self.assertEqual(answer.text, "")
 
     def test_http_error_and_redirect_degrade(self) -> None:
-        self.endpoint.error = urllib.error.HTTPError(
+        error = urllib.error.HTTPError(
             "https://api.openai.com/v1/chat/completions", 302, "redirect refused", {}, None
         )
+        self.addCleanup(error.close)
+        self.endpoint.error = error
         with self.assertLogs("sigflow_edu_agent.model_client", level="WARNING"):
             answer = self.client().complete("i", "e")
         self.assertFalse(answer.ok)
         self.assertEqual(answer.text, "")
+
+    def test_401_degrades_without_echoing_the_key(self) -> None:
+        error = urllib.error.HTTPError(
+            "https://api.openai.com/v1/chat/completions",
+            401,
+            "unauthorized " + API_KEY,
+            {},
+            None,
+        )
+        self.addCleanup(error.close)
+        self.endpoint.error = error
+        with self.assertLogs("sigflow_edu_agent.model_client", level="WARNING") as logs:
+            answer = self.client().complete("i", "e")
+        self.assertFalse(answer.ok)
+        self.assertEqual(answer.text, "")
+        self.assertNotIn(API_KEY, answer.reason)
+        self.assertNotIn(API_KEY, "\n".join(logs.output))
+
+    def test_timeout_degrades(self) -> None:
+        for error in (
+            TimeoutError("timed out after 30s"),
+            urllib.error.URLError(TimeoutError("timed out after 30s")),
+        ):
+            with self.subTest(error=type(error).__name__):
+                self.endpoint.error = error
+                with self.assertLogs("sigflow_edu_agent.model_client", level="WARNING") as logs:
+                    answer = self.client().complete("i", "e")
+                self.assertFalse(answer.ok)
+                self.assertEqual(answer.text, "")
+                self.assertIn("超时", answer.reason)
+                self.assertIn("timed out", "\n".join(logs.output))
 
     def test_unreachable_endpoint_degrades(self) -> None:
         self.endpoint.error = urllib.error.URLError("connection refused")

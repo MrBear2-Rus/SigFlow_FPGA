@@ -25,6 +25,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import socket
 import urllib.error
 import urllib.request
 from urllib.parse import urlsplit
@@ -191,7 +192,16 @@ class ModelClient:
                 "model endpoint returned status %d", int(getattr(exc, "code", 0) or 0)
             )
             return ModelAnswer(ok=False, reason="模型端点拒绝了本次请求，已降级为规则讲解。")
-        except (urllib.error.URLError, TimeoutError, OSError):
+        except (TimeoutError, socket.timeout):
+            LOGGER.warning("model endpoint timed out")
+            return ModelAnswer(ok=False, reason="模型请求超时，已降级为规则讲解。")
+        except urllib.error.URLError as exc:
+            if isinstance(getattr(exc, "reason", None), (TimeoutError, socket.timeout)):
+                LOGGER.warning("model endpoint timed out")
+                return ModelAnswer(ok=False, reason="模型请求超时，已降级为规则讲解。")
+            LOGGER.warning("model endpoint unreachable")
+            return ModelAnswer(ok=False, reason="模型端点不可达，已降级为规则讲解。")
+        except OSError:
             LOGGER.warning("model endpoint unreachable")
             return ModelAnswer(ok=False, reason="模型端点不可达，已降级为规则讲解。")
         if len(body) > MAX_COMPLETION_BYTES:

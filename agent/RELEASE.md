@@ -124,8 +124,12 @@ cd build-agent && ctest -R edu_agent_sidecar_smoke --output-on-failure
 - **Linux x64 未实测**：`agent/bin/sigflow-edu-agent` 是 POSIX sh 启动器（LF、`#!/bin/sh`），
   逻辑与 Windows 版一致，但**没有在 Linux 主机上运行过**。按项目约束，不能用 WSL 或 Docker
   代替原生验收，因此这里明确标注为未完成。
-- **真实模型端点未实测**：未配置 `SIGFLOW_EDU_MODEL_API_KEY` 时服务降级为确定性规则讲解
-  （`model.available=false`、`model_used=false`）。真实模型的往返调用未验证。
+- **真实模型端点仍为 SKIP**：2026-10-22 再次确认
+  `SIGFLOW_EDU_MODEL_API_KEY`/`SIGFLOW_EDU_MODEL_BASE_URL`/`SIGFLOW_EDU_MODEL_NAME`
+  在 Process/User/Machine 三个作用域均未配置。无 Key 降级和 31 项模型失败模式测试已通过
+  （含 401、超时、不可达、256 KiB 超限、非 JSON、流式、代码、路径、凭据拒绝），但真实
+  `/chat/completions` 成功往返没有证据，不能写成 PASS。配置后运行
+  `python agent/scripts/model_endpoint_probe.py`；该探针不打印 Key、提示词或回答正文。
 - **Docker 不是一期门槛**：容器/统一远端服务是按目标用户需求再评估的可选方案，
   不能替代原生 Windows/Linux 验收。
 - **没有独立执行权限**：基础 `execution.can_run_eda=false` 保留；教学扩展只能拿 UI 签发、精确绑定计划/快照的 grant 请求 Gateway Job，不执行命令。
