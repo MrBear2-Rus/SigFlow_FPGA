@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "sigflow-edu-agent"
+name = "sigflow-u2-teaching"
 version = "0.1.0"
 description = "U2 teaching loop domain core and DeepSeek development adapter"
 requires-python = ">=3.11"
@@ -13,15 +13,27 @@ dependencies = []
 course-build = ["PyYAML>=6.0"]
 
 [project.scripts]
-sigflow-agent = "sigflow_edu_agent.__main__:main"
-sigflow-u2-host = "sigflow_edu_agent.host.__main__:main"
-sigflow-deepseek = "sigflow_edu_agent.model_config:main"
+sigflow-agent = "sigflow_u2.__main__:main"
+sigflow-u2-host = "sigflow_u2.host.__main__:main"
+sigflow-deepseek = "sigflow_u2.model_config:main"
 
-[tool.setuptools.packages.find]
-include = ["sigflow_edu_agent*"]
+[tool.setuptools]
+package-dir = { sigflow_u2 = "sigflow_edu_agent" }
+packages = [
+    "sigflow_u2",
+    "sigflow_u2.checkers",
+    "sigflow_u2.clients",
+    "sigflow_u2.context",
+    "sigflow_u2.contracts",
+    "sigflow_u2.evaluation",
+    "sigflow_u2.host",
+    "sigflow_u2.patterns",
+    "sigflow_u2.rag",
+    "sigflow_u2.runtime",
+]
 
 [tool.setuptools.package-data]
-"sigflow_edu_agent.rag" = ["resources/courses/*.yaml", "resources/courses/*.jsonl", "resources/courses/passages/*.jsonl", "resources/courses/external/*.md"]
+"sigflow_u2.rag" = ["resources/courses/*.yaml", "resources/courses/*.jsonl", "resources/courses/passages/*.jsonl", "resources/courses/external/*.md"]
 
 [tool.setuptools.exclude-package-data]
-"sigflow_edu_agent.rag" = ["resources/courses/external_official_passages.jsonl", "resources/courses/external_official_spans.jsonl", "resources/courses/external_official_translations.jsonl"]
+"sigflow_u2.rag" = ["resources/courses/external_official_passages.jsonl", "resources/courses/external_official_spans.jsonl", "resources/courses/external_official_translations.jsonl"]

@@ -56,7 +56,8 @@ def parse_bootstrap(raw):
     return Bootstrap(body['instance_id'], body['nonce'], url.port, body['gateway_token'], body['ui_token'], body['data_directory'])
 
 
-def main(argv=None):
+def main(argv=None, *, teaching_memory=None):
+    """Accept optional trusted in-process composition; never load adapters from input."""
     parser = argparse.ArgumentParser(prog='sigflow-u2-host')
     parser.add_argument('--bootstrap-stdin', action='store_true', required=True)
     evidence = parser.add_mutually_exclusive_group()
@@ -92,7 +93,8 @@ def main(argv=None):
         factory = make_factory(gateway, anchors=anchors, evidence_origin=args.evidence_origin,
                                verification=verification, course_provider=course_provider,
                                waveform_reader=GatewayWaveformReader(gateway) if args.gateway_evidence else None)
-        runtime = Runtime(store, bootstrap.instance_id, factory, evidence_origin=args.evidence_origin)
+        runtime = Runtime(store, bootstrap.instance_id, factory, evidence_origin=args.evidence_origin,
+                          teaching_memory=teaching_memory)
         secrets = [bootstrap.gateway_token]
         secrets.extend(factory.model_secrets)
         if os.environ.get('DEEPSEEK_API_KEY'):

@@ -1,0 +1,46 @@
+{
+  "checked": [
+    "no_report_no_job",
+    "single_job_scoped_collect",
+    "L1_L2_L3_finish_reset_cancel",
+    "dirty_and_unsynchronized_refused",
+    "instance_and_generation_isolation",
+    "cross_project_action_refused",
+    "external_edit_revision_invalidation",
+    "new_revision_new_snapshot_and_fingerprint",
+    "no_active_session_leak"
+  ],
+  "cleanup": "completed",
+  "evidence_origin": "tool",
+  "formal_host": true,
+  "functional_correctness": "not_evaluated",
+  "gui": {
+    "actual_native_controls": true,
+    "formal_host": true,
+    "full_mainframe_manual": "not_evaluated",
+    "stages": 9,
+    "status": "passed"
+  },
+  "job_count": 2,
+  "limits": [
+    "hardware",
+    "real_DeepSeek_API",
+    "full_MainFrame_manual_clicks",
+    "UA10_delivery",
+    "L4_verification"
+  ],
+  "model_mode": "rule",
+  "native_client": true,
+  "real_core": true,
+  "real_model_calls": 0,
+  "real_yosys": true,
+  "session_count": 9,
+  "status": "passed",
+  "teaching_memory": {
+    "configured": false,
+    "fact_origin": "tool",
+    "queued_facts": 38,
+    "real_receiver": "not_connected",
+    "reason": "adapter_required"
+  }
+}

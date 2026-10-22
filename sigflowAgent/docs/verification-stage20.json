@@ -1,0 +1,137 @@
+{
+  "schema_version": "edu.durable-reference-verification.v1",
+  "date": "2026-10-17",
+  "status": "passed_internal_protocol",
+  "accepted_scope": "internal_durable_receipt_protocol_with_synthetic_teaching_context",
+  "all_U2_dependencies_complete": false,
+  "repository": {
+    "branch": "SigFlow_FPGA_CMake",
+    "head": "a8431c58612fbe3e836c91319c7b57c2d2a2e123",
+    "pushed_baseline": "a8431c58612fbe3e836c91319c7b57c2d2a2e123",
+    "new_stage_committed": false,
+    "new_stage_pushed": false,
+    "staged_files": 0,
+    "preserved_stashes": [
+      "f7df7a6a246c53b9eac4d1b43b791ab9bef95196",
+      "824925a13fd8cf79dfb559a392ef918c911fa100",
+      "e0b4b8bfd25640492df0d0ad3b9606bc35b7edfe"
+    ]
+  },
+  "python_source_sha256": "d3fba5fceed677e1a7fb4dc61f52fe0fa98d1c804ef122857509dbaf5a30415c",
+  "file_sha256": {
+    "sigflowAgent/sigflow_edu_agent/host/reference_journal.py": "8bb04c7cbd24820320c2a44cc1ac8c17fc62b1b9e9151bc75e9ea4d0723eb90c",
+    "sigflowAgent/sigflow_edu_agent/host/durable_reference.py": "7a1ab497263430e822cccc55bbbf6f91214ce227e38d6392ee376b57ae6fed3c",
+    "sigflowAgent/sigflow_edu_agent/host/durable_reference_acceptance.py": "0717a9ca73fc3083dfbc76bccbbaa658107fc36dcf19ec04e33191feeccaaa87",
+    "sigflowAgent/sigflow_edu_agent/host/receipt_acceptance.py": "0ee654f9040e14c0fbf82de306b374506edebecb4d5b6eed4334ec6c39ab116c",
+    "sigflowAgent/tests/test_reference_journal.py": "d549bd2672f4c33a31c547b616cf0c56285d18a687fc9c86f21327d8112d779b",
+    "sigflowAgent/tests/test_durable_reference.py": "c6bae67955b033c4ad03a54610b5ff58509ef2cda9c9e8e4690af44588931ea2",
+    "sigflowAgent/tests/test_receipt_acceptance.py": "291408a022f332a02e5e908c4d984e25987cef0e1bbc73e386bdacf526ca46fe",
+    "sigflowAgent/docs/receipt-stage20-durable.json": "3417ed6204413c2b8ad22a37aedf4082562f14e01e8701c42bf4fed8a85990ad",
+    "sigflowAgent/docs/evaluation-stage20.json": "a57b3a247cd513c8ee15dfb005c32e32f43435c09ae4ae9f0e39a29094244136",
+    "sigflowAgent/docs/evaluation-stage20-handoff.json": "da3a7ef094a6110e9d68fabd07b07abd3f1c2328b2fc85dd080f371e861b38cc",
+    "build-main-msvcrt/sigflowAgent/integration/edu_u2_gateway.exe": "e5330e8d44ba330173f08b6da00cd698c8802fcd0a2b7b5930e157f2101217c7"
+  },
+  "unit_tests": {
+    "tests_run": 586,
+    "passed": 553,
+    "collected": 604,
+    "skipped_entries": 35,
+    "failures": 0,
+    "errors": 0,
+    "seconds": 102.972,
+    "skip_reasons": {
+      "Set SIGFLOW_UCAGENT_SOURCE and install the optional runtime dependencies.": 6,
+      "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression": 27,
+      "set SIGFLOW_YSYX_SNAPSHOT to the pinned YSYX snapshot for full external-material DB tests": 1,
+      "Pinned original snapshot unavailable": 1
+    },
+    "log_sha256": "00ffbc700a40042d04ba750fcaebaed5dbd39202e6f1489bec4881dd83e54c91",
+    "skipped_test_methods": 33,
+    "skipped_classes": 2,
+    "methods_not_run_due_to_class_skip": 18,
+    "count_semantics": "586testsRun=553success+33methodskips;35skipentries include2classskips covering18additional collectedmethods"
+  },
+  "directed_tests": {
+    "reference_journal": 17,
+    "durable_reference_gate": 17,
+    "receipt_CLI": 1
+  },
+  "development_evaluation": {
+    "total": 40,
+    "passed": 40,
+    "failed": 0,
+    "evidence_type": "synthetic_development",
+    "real_model": "not_run",
+    "teacher_review": "not_run"
+  },
+  "real_Core_probe": {
+    "report": "receipt-stage20-durable.json",
+    "status": "passed",
+    "teaching_context": "synthetic",
+    "fault": "discard_successful_consume_response",
+    "receipt_issuances": 1,
+    "consume_attempts": 2,
+    "acknowledged_replays": [
+      false,
+      true
+    ],
+    "database_reopened": true,
+    "process_force_kill_tested": false,
+    "quarantine": "verified",
+    "revalidation": "explicit_synthetic_fixture",
+    "original_approval_version": 7,
+    "new_host_version": 9,
+    "released_replay_extra_consumes": 0,
+    "Jobs": 0,
+    "model_calls": 0,
+    "GUI_signoff": "not_run",
+    "teaching_HTTP_L4": "disabled"
+  },
+  "independent_review": {
+    "status": "scoped_source_and_spec_approved",
+    "unresolved_P1_P2": 0,
+    "report_sha256": "62af6197744733ad497e64cac2872d80f49fb5ea64c95276b5b3e05e8b1cbb46",
+    "resolved_findings": [
+      "active_challenge_expiry_while_SQLite_claim_blocks",
+      "invalidating_unknown_consume_must_not_allow_overwrite"
+    ],
+    "reviewer_independently_reproduced": "unknown_record_overwrite_before_and_after_fix",
+    "reviewer_reran_full_suite": false,
+    "reviewer_reran_real_Core": false,
+    "scope_excludes": [
+      "production_HTTP_L4_activation",
+      "real_teacher_material",
+      "GUI_signoff"
+    ]
+  },
+  "red_green": {
+    "journal_initial": "15missingimplementation_failures_then15pass",
+    "journal_review_fix": "17tests2failures_then17pass",
+    "gate_initial": "missingimplementation_then16pass",
+    "gate_TTL_fix": "17tests1failure_then17pass",
+    "CLI": "missing_durable_flag_then1pass"
+  },
+  "course_database_sha256": "4a98cecdc34a16446c3a5860072db18776871f437c329b2c62cda153fe662b01",
+  "course_database_unchanged": true,
+  "raw_material_body_in_new_journal": false,
+  "receipt_identifiers_in_machine_report": false,
+  "next_stage": [
+    "production_teaching_action_metadata_publication_and_explicit_recovery_wiring",
+    "trusted_reviewed_material_provider",
+    "GUI_double_confirmation"
+  ],
+  "external_acceptance_pending": [
+    "teacher_reviewed_content",
+    "team_frozen_ModelCase",
+    "real_model_course_batch",
+    "two_teacher_scores",
+    "dynamic_stimulus_and_reset_contract",
+    "other_hardware_detectors",
+    "native_Linux_Kylin"
+  ],
+  "limitations": [
+    "internal_gate_not_production_HTTP_activation",
+    "fixture_reviewer_IDs_are_not_authenticated_teacher_approval",
+    "database_reopen_is_not_an_OS_process_crash_test"
+  ]
+}

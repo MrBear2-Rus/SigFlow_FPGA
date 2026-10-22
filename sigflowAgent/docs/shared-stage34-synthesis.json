@@ -1,0 +1,41 @@
+{
+  "cancel_after_revision_change": "accepted",
+  "cleanup": "completed",
+  "extension": "u1.u2-teaching.v1",
+  "functional_correctness": "not_evaluated",
+  "hint_replay": "verified",
+  "host": "formal_u1",
+  "http_l4": "denied",
+  "job_count": 2,
+  "l1_l2_l3": "verified",
+  "limitations": [
+    "GUI not exercised",
+    "actual UA-10 and reviewed materials not configured",
+    "teacher and target-platform acceptance pending"
+  ],
+  "model_calls": 0,
+  "new_revision": "rev-2-b981d4c7b764",
+  "prediction": null,
+  "real_core": true,
+  "real_verilator": false,
+  "real_yosys": true,
+  "restart": {
+    "additional_jobs": 0,
+    "explicit_recovery": "verified",
+    "external_ids": "preserved",
+    "old_cards": "quarantined"
+  },
+  "scenario": "synthesis",
+  "schema_version": "edu.u1-u2-acceptance.v1",
+  "session_run_replay": "verified",
+  "shared_port": true,
+  "stale_revision": "denied",
+  "status": "passed",
+  "verification": {
+    "explicit_successor_confirmations": 0,
+    "model_used": false,
+    "observations": 0,
+    "result_jobs": 1,
+    "status": "Completed"
+  }
+}

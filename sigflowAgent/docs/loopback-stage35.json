@@ -1,0 +1,29 @@
+{
+  "schema_version": "edu.loopback-environment-verification.v1",
+  "verified_at_utc": "2026-10-22T11:58:07.266799+00:00",
+  "status": "passed",
+  "requests": 3000,
+  "result": {
+    "successes": 3000,
+    "errors": []
+  },
+  "snapshot": {
+    "tcp_states": {
+      "LISTENING": 57,
+      "TIME_WAIT": 1778,
+      "ESTABLISHED": 112,
+      "CLOSE_WAIT": 1,
+      "SYN_SENT": 1
+    },
+    "loopback_states": {
+      "LISTENING": 20,
+      "TIME_WAIT": 1763,
+      "ESTABLISHED": 78
+    }
+  },
+  "seconds": 21.827,
+  "independent_of_u1_u2": true,
+  "automatic_retries": 0,
+  "system_configuration_changed": false,
+  "production_cause": "unconfirmed; previous independent Winsock failure no longer reproduced"
+}

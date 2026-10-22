@@ -1,0 +1,193 @@
+{
+  "schema_version": "edu.u2.verification.v1",
+  "date": "2026-10-19",
+  "verified_at_utc": "2026-10-19T12:17:24.152696+00:00",
+  "status": "passed",
+  "complete_u2_dependencies_ready": false,
+  "unit_tests": {
+    "tests": 628,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 35,
+    "successful": true,
+    "seconds": 100.162,
+    "verified_at_utc": "2026-10-19T12:14:30.396665+00:00",
+    "failed_cases": []
+  },
+  "optional_skip_reasons": {
+    "Set SIGFLOW_UCAGENT_SOURCE and install the optional runtime dependencies.": 6,
+    "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression": 27,
+    "set SIGFLOW_YSYX_SNAPSHOT to the pinned YSYX snapshot for full external-material DB tests": 1,
+    "Pinned original snapshot unavailable": 1
+  },
+  "focused_teaching_port_tests": 14,
+  "host_targeted_tests": 171,
+  "gui_regression_tests": 31,
+  "gui": {
+    "checked": [
+      "no_report_no_job",
+      "single_job_scoped_collect",
+      "L1_L2_L3_finish_reset_cancel",
+      "dirty_and_unsynchronized_refused",
+      "instance_and_generation_isolation",
+      "cross_project_action_refused",
+      "external_edit_revision_invalidation",
+      "new_revision_new_snapshot_and_fingerprint",
+      "no_active_session_leak"
+    ],
+    "cleanup": "completed",
+    "evidence_origin": "tool",
+    "formal_host": true,
+    "functional_correctness": "not_evaluated",
+    "gui": {
+      "actual_native_controls": true,
+      "formal_host": true,
+      "full_mainframe_manual": "not_evaluated",
+      "stages": 9,
+      "status": "passed"
+    },
+    "job_count": 2,
+    "limits": [
+      "hardware",
+      "real_DeepSeek_API",
+      "full_MainFrame_manual_clicks",
+      "UA10_delivery",
+      "L4_verification"
+    ],
+    "model_mode": "rule",
+    "native_client": true,
+    "real_core": true,
+    "real_model_calls": 0,
+    "real_yosys": true,
+    "session_count": 9,
+    "status": "passed",
+    "teaching_memory": {
+      "configured": false,
+      "fact_origin": "tool",
+      "queued_facts": 38,
+      "real_receiver": "not_connected",
+      "reason": "adapter_required"
+    }
+  },
+  "simulation": {
+    "action_replay": "verified",
+    "baseline_evidence_ids": [
+      "gateway-299bb4a03834ab5589a40bb245223810e9006f860745a29c2c60d7f42039236c"
+    ],
+    "baseline_job_id": "job-20261019T121045-1",
+    "build_job_id": "job-20261019T121048-2",
+    "cleanup": "completed",
+    "completed_status": "Completed",
+    "evidence_origin": "tool",
+    "functional_correctness": "not_evaluated",
+    "grant_used_jobs": [
+      1,
+      2
+    ],
+    "harness": "single_evaluation",
+    "invalid_build_dependency": "denied",
+    "job_count": 3,
+    "limits": [
+      "dynamic_stimulus",
+      "GUI",
+      "teaching_correctness"
+    ],
+    "model_calls": 0,
+    "model_mode": "rule",
+    "observation_actions": 1,
+    "prediction": {
+      "additional_jobs": 0,
+      "challenge_before_observation": true,
+      "evidence_id": "wave-e67b01903fe2c4d57685b0589dd0717870198b3407a22456580244a45b526e5c",
+      "expected": "0",
+      "level_unchanged": true,
+      "limitation": "single fixed sample; no dynamic stimulus or whole-design verdict",
+      "model_calls": 0,
+      "observed": "0",
+      "outcome": "matches",
+      "replay": "verified",
+      "sample_tick": "0",
+      "status": "passed"
+    },
+    "real_core": true,
+    "real_verilator": true,
+    "real_yosys": true,
+    "reason": "outcome_indeterminate",
+    "result_evidence_ids": [
+      "gateway-c346e766e8ae85a763d9bac96a58bf31a7ff9e2829f0c047d195b24b3e7c3ea1",
+      "gateway-245996ea28ca21fe5c08f9b2835e313c78cf6b37707b2bbee04d475fc105e0ef"
+    ],
+    "run_job_id": "job-20261019T121154-3",
+    "stale_version": "denied",
+    "status": "passed",
+    "successor_confirmations": 1,
+    "time_advance_verified": false,
+    "wave_observation": {
+      "artifact_hash": "14b5628858c4ad44ff828e30627afce7b4bbabe5b91b89f902c3d46052cc0c20",
+      "artifact_id": "art-5afc1618fa95a9ea206ff40e",
+      "end_tick": "0",
+      "evidence_id": "wave-e67b01903fe2c4d57685b0589dd0717870198b3407a22456580244a45b526e5c",
+      "exact_window_verified": true,
+      "full_name": "TOP.q",
+      "job_id": "job-20261019T121154-3",
+      "origin": "tool",
+      "revision": "rev-1-037e7f3b6248",
+      "signal_id": 3,
+      "snapshot_id": "snap-fea18fa2d7fd97a6ff6fda89",
+      "start_tick": "0",
+      "timescale": "1ps",
+      "transitions": 1,
+      "width": 1
+    },
+    "waveform": {
+      "artifact_id": "art-5afc1618fa95a9ea206ff40e",
+      "exact_samples_verified": true,
+      "metadata_verified": true,
+      "schema": "eda.wave.vcd.v1",
+      "sha256": "14b5628858c4ad44ff828e30627afce7b4bbabe5b91b89f902c3d46052cc0c20",
+      "size_bytes": 394
+    }
+  },
+  "real_model_calls": 0,
+  "ua10_real_receiver": "not_connected",
+  "dependency_audit": "dependency-stage22.json",
+  "preservation": {
+    "backup_files": 74,
+    "unexpected_prior_changes": [],
+    "original_cpp_and_gui_unchanged": true,
+    "other_member_implementations_modified": false,
+    "diff_check": "passed",
+    "conflicts": 0,
+    "staged_files": 0,
+    "committed": false,
+    "pushed": false,
+    "git_head": "ff5fd89cd840cd62e23a67c88efb103c2127f62e"
+  },
+  "source_sha256": {
+    "sigflowAgent/sigflow_edu_agent/domain.py": "ca1fb39a90689ec0823cb3484d73ebfecbfb6f1c2047e858369cb7a60d5f9089",
+    "sigflowAgent/sigflow_edu_agent/ports.py": "31bfe573c44132f3a50729cd99fbd2839781865adff785c78324c4beb3e70824",
+    "sigflowAgent/sigflow_edu_agent/learning.py": "1a7f30ba3d25841e86cd183e71a77fb818e356e5ee1a7e190bd00c0aba4ded73",
+    "sigflowAgent/sigflow_edu_agent/loop.py": "50d33f15f8b0c6310fe65148c0fb702dc1a7e77953066e7cb84c9e9157f2f7b1",
+    "sigflowAgent/sigflow_edu_agent/deepseek.py": "82172984ffda94187c027b468c59706e27ba093d050c9cd45105ebc7ec2f89a3",
+    "sigflowAgent/sigflow_edu_agent/host/http.py": "20db49b3caa51cb68a1c891164a53949a41c68c59662ab7652bb9adcfa1b6f1b",
+    "sigflowAgent/sigflow_edu_agent/host/runtime.py": "fcb85f03bd96e325c987ea5f6bcba1ac77e28a922898b9975711a37aa493e2a1",
+    "sigflowAgent/sigflow_edu_agent/host/store.py": "eb79377a833c50e14cd01695f6d5fb602eab37952141e62411aed4a02f39ed61",
+    "sigflowAgent/sigflow_edu_agent/host/teaching_memory.py": "50832d3178ac4eea54af7f8015a84ecf9ab2acd871854aa86de1c5550a15db42",
+    "sigflowAgent/sigflow_edu_agent/patterns/support.py": "8b2b6d4026a512b5f562912f8904ef3e136247a1227e13d9a1a1e7dd27ecefd7",
+    "sigflowAgent/tests/test_teaching_memory.py": "93f3b1f1d2d4243d7eae3befd968d79970cc134c3ac1cd98fda13c59710bee44",
+    "sigflowAgent/tests/test_teaching_history.py": "2904f901dbc351a4a6ec85d1fed5072774306f6adb8e78ce4f4ee2331607d3c5",
+    "sigflowAgent/tests/test_host_http.py": "717775f92918b4563cbfcf3a0be3b72a79c453ab79087e3ab8c416ec52d9cb30",
+    "sigflowAgent/tests/test_evaluation_handoff.py": "19945bdfc4c65252f5ad70135ffb7a16446dd3a330f0fff57c83557589d1fd07",
+    "sigflowAgent/demo/tests/host_integration.py": "94e5323e3df68ab073de8a6df94896e196cec37e78251937fb78346519981d88"
+  },
+  "limits": [
+    "UA10_real_adapter_and_signature_signoff",
+    "shared_API_unification",
+    "real_diagnostic_producers",
+    "dynamic_stimuli",
+    "reviewed_L4_material_and_GUI",
+    "frozen_model_quality_and_teacher_scores",
+    "native_platform_release",
+    "MainFrame_manual_acceptance"
+  ]
+}

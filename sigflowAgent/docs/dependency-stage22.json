@@ -1,0 +1,201 @@
+{
+  "schema_version": "edu.u2.dependencies.v1",
+  "date": "2026-10-19",
+  "checked_at_utc": "2026-10-19T12:10:35.755282+00:00",
+  "complete_u2_dependencies_ready": false,
+  "environment": {
+    "python": "3.13.5",
+    "sqlite": "3.45.3",
+    "fts5": true,
+    "runtime_dependency": "standard_library",
+    "requires_ucagent": false,
+    "requires_conda_activation": false
+  },
+  "course": {
+    "database_present": true,
+    "schema_version": 4,
+    "readonly_query": "passed",
+    "status": "ok",
+    "materials": 34
+  },
+  "frozen_fixture_bytes": 0,
+  "local_binaries": {
+    "build-main-msvcrt/sigflow.exe": true,
+    "build-main-msvcrt/sigflow_agent_demo.exe": true,
+    "build-main-msvcrt/sigflow_host_client_probe.exe": true,
+    "build-main-msvcrt/sigflowAgent/integration/edu_u2_gateway.exe": true,
+    "external/fpga-tools/runtime/yosys/bin/yosys.exe": true
+  },
+  "detector_support": [
+    {
+      "concept": "syntax",
+      "detector": "unavailable:parser",
+      "production_detector": false,
+      "report_adapter_available": false,
+      "producer_status": "external_delivery_required",
+      "required_facts": [
+        "parser_diagnostic",
+        "source_location"
+      ],
+      "exclusions": [
+        "accepted_language_construct"
+      ],
+      "bounded_observation": "report_label_only",
+      "limitation": "Pinned language mode, parser diagnostic and source location are required."
+    },
+    {
+      "concept": "latch",
+      "detector": "report:EDU_LATCH_INFERRED",
+      "production_detector": false,
+      "report_adapter_available": true,
+      "producer_status": "external_delivery_required",
+      "required_facts": [
+        "storage_observed",
+        "combinational_goal"
+      ],
+      "exclusions": [
+        "intentional_storage"
+      ],
+      "bounded_observation": "certified_storage_report",
+      "limitation": "The EDU_LATCH_INFERRED report adapter exists; a certified producer and independently stated combinational goal still require delivery."
+    },
+    {
+      "concept": "width_signedness",
+      "detector": "unavailable:type-analysis",
+      "production_detector": false,
+      "report_adapter_available": false,
+      "producer_status": "external_delivery_required",
+      "required_facts": [
+        "operand_types",
+        "expression_width",
+        "expected_range"
+      ],
+      "exclusions": [
+        "intentional_conversion"
+      ],
+      "bounded_observation": "report_label_only",
+      "limitation": "WIDTH alone does not establish operand types, expected range or unintended conversion."
+    },
+    {
+      "concept": "drivers",
+      "detector": "unavailable:driver-analysis",
+      "production_detector": false,
+      "report_adapter_available": false,
+      "producer_status": "external_delivery_required",
+      "required_facts": [
+        "driver_inventory",
+        "net_kind"
+      ],
+      "exclusions": [
+        "legal_resolved_net"
+      ],
+      "bounded_observation": "report_label_only",
+      "limitation": "MULTIDRIVEN alone does not distinguish illegal drivers from legal resolved nets."
+    },
+    {
+      "concept": "combinational_feedback",
+      "detector": "unavailable:dependency-analysis",
+      "production_detector": false,
+      "report_adapter_available": false,
+      "producer_status": "external_delivery_required",
+      "required_facts": [
+        "dependency_cycle",
+        "combinational_path"
+      ],
+      "exclusions": [
+        "sequential_boundary"
+      ],
+      "bounded_observation": "report_label_only",
+      "limitation": "UNOPTFLAT alone does not prove a hardware cycle without a sequential boundary."
+    },
+    {
+      "concept": "ports",
+      "detector": "unavailable:port-analysis",
+      "production_detector": false,
+      "report_adapter_available": false,
+      "producer_status": "external_delivery_required",
+      "required_facts": [
+        "interface_declaration",
+        "connection_map"
+      ],
+      "exclusions": [
+        "intentional_open_port"
+      ],
+      "bounded_observation": "report_label_only",
+      "limitation": "A trusted interface declaration and complete connection map are required."
+    },
+    {
+      "concept": "reset",
+      "detector": "unavailable:exact-waveform",
+      "production_detector": false,
+      "report_adapter_available": false,
+      "producer_status": "external_delivery_required",
+      "required_facts": [
+        "reset_contract",
+        "exact",
+        "complete",
+        "all_pages",
+        "initial_values",
+        "timescale"
+      ],
+      "exclusions": [
+        "contract_allows_behavior"
+      ],
+      "bounded_observation": "report_label_only",
+      "limitation": "An independently supplied reset contract and controlled clock/reset stimulus are required."
+    },
+    {
+      "concept": "simulation_mismatch",
+      "detector": "unavailable:exact-waveform",
+      "production_detector": false,
+      "report_adapter_available": false,
+      "producer_status": "external_delivery_required",
+      "required_facts": [
+        "expected_result",
+        "observed_result",
+        "exact",
+        "complete",
+        "all_pages",
+        "initial_values",
+        "timescale"
+      ],
+      "exclusions": [
+        "comparison_matches"
+      ],
+      "bounded_observation": "explicit_point_comparison",
+      "limitation": "Explicit point comparison is available; general dynamic testbench expectations are not yet supplied."
+    }
+  ],
+  "remaining": [
+    {
+      "owner": "U3",
+      "dependency": "UA10_real_adapter_and_signature_signoff",
+      "state": "not_delivered"
+    },
+    {
+      "owner": "S2",
+      "dependency": "certified_diagnostic_producers_and_dynamic_stimuli",
+      "state": "partial"
+    },
+    {
+      "owner": "U3/teachers",
+      "dependency": "reviewed_L4_material_and_frozen_ModelCase",
+      "state": "missing"
+    },
+    {
+      "owner": "U2/U3/teachers",
+      "dependency": "real_model_repeated_quality_and_two_teacher_scores",
+      "state": "not_verified"
+    },
+    {
+      "owner": "S3/U1",
+      "dependency": "shared_API_unification_and_MainFrame_acceptance",
+      "state": "pending"
+    },
+    {
+      "owner": "U1/S1",
+      "dependency": "native_target_platform_and_release_acceptance",
+      "state": "pending"
+    }
+  ]
+}

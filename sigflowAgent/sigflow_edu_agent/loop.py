@@ -51,6 +51,7 @@ class TeachingLoop:
         self._observation_only = False
         self._last_verification = None
         self._last_verification_index = None
+        self.history_provider = None
 
     @property
     def state(self) -> RunState:
@@ -163,6 +164,16 @@ class TeachingLoop:
         state = self._state
         context = CardContext(self.request.question, state.level, self._course_evidence or self._evidence,
                               course_refs=self._course_refs, course_status=state.course_status)
+        if self.history_provider is not None:
+            from .learning import bounded_history
+            from .deepseek import serialize_request, DeepSeekProvider
+            try:
+                history=bounded_history(self.history_provider((self._evidence.concept,)))
+                candidate=replace(context,learning_history=history,repair=False)
+                if history and len(serialize_request(candidate,model='m'*128,max_tokens=8192))<=DeepSeekProvider.MAX_REQUEST_BYTES:
+                    context=replace(context,learning_history=history)
+            except Exception:
+                pass  # Optional history cannot change evidence or block teaching.
         assessment = assess(context.evidence)
         if assessment.status != 'supported':
             state.reason = assessment.reason

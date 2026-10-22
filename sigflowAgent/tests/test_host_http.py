@@ -98,6 +98,9 @@ class HostHTTPTests(unittest.TestCase):
         self.assertIn('u2.host.v1', value['data']['extensions'])
         self.assertFalse(value['data']['modes'][3]['available'])
         self.assertFalse(value['data']['execution']['can_run_eda'])
+        self.assertIn('teaching_memory',value['data'])
+        self.assertFalse(value['data']['teaching_memory']['configured'])
+        self.assertEqual(value['data']['teaching_memory']['reason'],'adapter_required')
 
     def probe(self, *, instance='inst-1', body=None):
         from sigflow_edu_agent.host.probe import main

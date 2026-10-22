@@ -276,6 +276,10 @@ class Handler(BaseHTTPRequestHandler):
                     verification=dict(configured=bool(getattr(runtime.factory, 'verification_available', False)), requires_gateway_grant=True),
                     prediction=dict(configured=bool(getattr(runtime.factory,'prediction_available',False)),
                                     requires_explicit_expectation=True,starts_jobs=False),
+                    teaching_memory=dict(configured=runtime.teaching_memory_configured,
+                        reason='configured' if runtime.teaching_memory_configured else 'adapter_required',
+                        fact_schema='edu.u2.teaching-fact.v1',delivery='at_least_once',
+                        history_is_engineering_evidence=False),
                     modes=[dict(id=f'L{level}', available=level <= 3, reason='readonly_teaching' if level <= 3 else 'receipt_unavailable') for level in range(1, 5)],
                     capabilities=[dict(name='u2.host.v1', ready=True, reason='readonly_teaching', plugin_version=self.server.agent_version)],
                     course=dict(available=bool(getattr(runtime.factory, 'course_enabled', False)),
@@ -325,6 +329,10 @@ class Handler(BaseHTTPRequestHandler):
                         or ('grant_ref' in body and type(body['grant_ref']) is not str)):
                     raise HTTPFault(400, 'unknown_fields')
                 version = self._version(body['expected_version'])
+                if body['kind'] in ('reference_request', 'reference_confirm', 'reference_reconcile'):
+                    # Trusted Python metadata ports do not enable public L4.
+                    runtime.snapshot(sid, learner)
+                    raise HTTPFault(403, 'receipt_unavailable')
                 if body['kind'] == 'recover':
                     self._reply(202, runtime.recover(sid, learner, body['action_id'], version, body['question']))
                 elif prediction_kind:

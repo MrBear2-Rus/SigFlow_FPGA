@@ -1,0 +1,88 @@
+{
+  "action_replay": "verified",
+  "baseline_evidence_ids": [
+    "gateway-33ed76f7e1baf74d1bc1006b0339aa083008cffeb2b1ed5b01ba6e382477cd69"
+  ],
+  "baseline_job_id": "job-20261021T022052-1",
+  "build_job_id": "job-20261021T022055-2",
+  "cleanup": "completed",
+  "completed_status": "Completed",
+  "evidence_origin": "tool",
+  "functional_correctness": "not_evaluated",
+  "grant_used_jobs": [
+    1,
+    2
+  ],
+  "harness": "controlled_timeline",
+  "invalid_build_dependency": "denied",
+  "job_count": 3,
+  "limits": [
+    "GUI",
+    "teaching_correctness"
+  ],
+  "model_calls": 0,
+  "model_mode": "rule",
+  "observation_actions": 1,
+  "prediction": {
+    "additional_jobs": 0,
+    "challenge_before_observation": true,
+    "evidence_id": "wave-6e28461c71aca65689314423d4d8234dc816763f67d613c2ed8c947a09162bfa",
+    "expected": "1",
+    "level_unchanged": true,
+    "limitation": "single fixed sample; no whole-design verdict",
+    "model_calls": 0,
+    "observed": "1",
+    "outcome": "matches",
+    "replay": "verified",
+    "sample_tick": "15",
+    "status": "passed"
+  },
+  "real_core": true,
+  "real_verilator": true,
+  "real_yosys": true,
+  "reason": "outcome_indeterminate",
+  "result_evidence_ids": [
+    "gateway-213fc59f038dae510c39ed0cb0edb48c7f649ef62c68775bb9f64d623017c78a",
+    "gateway-f930085ff0c0c4a97b6425c017ca957f34d5f70180458805bdf30faf14424f54"
+  ],
+  "run_job_id": "job-20261021T022141-3",
+  "stale_version": "denied",
+  "status": "passed",
+  "stimulus": {
+    "clock_half_period_ticks": "5",
+    "contract_origin": "owned_test_input",
+    "data_change_tick": "30",
+    "duration_ticks": "40",
+    "expected": "1",
+    "expected_sample_tick": "15",
+    "reset_release_tick": "12",
+    "teacher_review": "not_assessed"
+  },
+  "successor_confirmations": 1,
+  "time_advance_verified": true,
+  "wave_observation": {
+    "artifact_hash": "28cd2a91016f4c85dff8f0e41c8812d257feef0183e6b5d887fb827d2e02b417",
+    "artifact_id": "art-f438fe58e1dd4903ee88dd2c",
+    "end_tick": "40",
+    "evidence_id": "wave-6e28461c71aca65689314423d4d8234dc816763f67d613c2ed8c947a09162bfa",
+    "exact_window_verified": true,
+    "full_name": "TOP.q",
+    "job_id": "job-20261021T022141-3",
+    "origin": "tool",
+    "revision": "rev-1-881a357903ea",
+    "signal_id": 4,
+    "snapshot_id": "snap-42331309c658cbcc85cd1603",
+    "start_tick": "0",
+    "timescale": "1ps",
+    "transitions": 3,
+    "width": 1
+  },
+  "waveform": {
+    "artifact_id": "art-f438fe58e1dd4903ee88dd2c",
+    "exact_samples_verified": true,
+    "metadata_verified": true,
+    "schema": "eda.wave.vcd.v1",
+    "sha256": "28cd2a91016f4c85dff8f0e41c8812d257feef0183e6b5d887fb827d2e02b417",
+    "size_bytes": 564
+  }
+}

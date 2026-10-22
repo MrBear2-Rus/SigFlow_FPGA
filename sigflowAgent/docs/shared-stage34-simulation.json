@@ -1,0 +1,57 @@
+{
+  "cancel_after_revision_change": "accepted",
+  "cleanup": "completed",
+  "event_metadata": "verified",
+  "extension": "u1.u2-teaching.v1",
+  "functional_correctness": "not_evaluated",
+  "hint_replay": "verified",
+  "host": "formal_u1",
+  "http_l4": "denied",
+  "job_count": 3,
+  "l1_l2_l3": "verified",
+  "limitations": [
+    "GUI not exercised",
+    "actual UA-10 and reviewed materials not configured",
+    "teacher and target-platform acceptance pending"
+  ],
+  "model_calls": 0,
+  "new_revision": "rev-2-a787dd03b7df",
+  "prediction": {
+    "additional_jobs": 0,
+    "artifact_hash": "28cd2a91016f4c85dff8f0e41c8812d257feef0183e6b5d887fb827d2e02b417",
+    "challenge_before_observation": true,
+    "exact_window": [
+      "0",
+      "40"
+    ],
+    "expected": "1",
+    "model_calls": 0,
+    "observed": "1",
+    "outcome": "matches",
+    "sample_tick": "15",
+    "status": "passed",
+    "teacher_review": "not_assessed"
+  },
+  "real_core": true,
+  "real_verilator": true,
+  "real_yosys": true,
+  "restart": {
+    "additional_jobs": 0,
+    "explicit_recovery": "verified",
+    "external_ids": "preserved",
+    "old_cards": "quarantined"
+  },
+  "scenario": "simulation",
+  "schema_version": "edu.u1-u2-acceptance.v1",
+  "session_run_replay": "verified",
+  "shared_port": true,
+  "stale_revision": "denied",
+  "status": "passed",
+  "verification": {
+    "explicit_successor_confirmations": 1,
+    "model_used": false,
+    "observations": 1,
+    "result_jobs": 2,
+    "status": "Completed"
+  }
+}

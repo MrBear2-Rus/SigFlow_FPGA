@@ -1,0 +1,1403 @@
+{
+  "schema_version": "edu.u2-current-adaptation.v1",
+  "date": "2026-10-22",
+  "verified_at_utc": "2026-10-22T12:00:25.258438+00:00",
+  "head": "deb6bd984d540fc8ef6b043ac850a05f379f8031",
+  "status": "current_dependency_available_implementation_verified_external_acceptance_pending",
+  "python": "3.13.5",
+  "runtime_source_sha256": "ac756e10ee7dff3d76c72a352d27369b3cbbee5b0169ebcc6db2b9bb184cfc39",
+  "normalized_source_sha256": {
+    "agent/src/sigflow_edu_agent/__init__.py": "92043cc27a2bd4c29f1cc6df6dc4838c747f4e891c1155809941c0a943741fb6",
+    "agent/src/sigflow_edu_agent/__main__.py": "c3d289516c40923631d15295081d82aa8e24bc3efa0cdf0c96f498e819f8887c",
+    "agent/src/sigflow_edu_agent/bootstrap.py": "c7d9c20b0c5237888efdb002a20b0de737d2d2033aca82885382aedfa7198d65",
+    "agent/src/sigflow_edu_agent/cards.py": "b246ba4b5abc0baeda38782530d8ab5c3ab29bdf1066e123aa5436623defc49b",
+    "agent/src/sigflow_edu_agent/contract_schema.py": "26015b7fc29db7ba0b3b77370d192fbb816f54715ab53134b29856def5ed8857",
+    "agent/src/sigflow_edu_agent/dispatch.py": "38686e53667676c4efacb58bbe3f2a9008481318ed3548453aec74af50fea813",
+    "agent/src/sigflow_edu_agent/errors.py": "51378a7c4a3356b66b568b8199da7f5606e89d552043460a685163e12130a8df",
+    "agent/src/sigflow_edu_agent/gateway_client.py": "bb31cd9664bb8b62831823eda3956e086782de3ed0b6c48084cc10aa1d213cd9",
+    "agent/src/sigflow_edu_agent/http_server.py": "ef660b1f4da90a93c0f0fa7c8eb119eeb8ba8b7f370beec0b39322881c92ebed",
+    "agent/src/sigflow_edu_agent/model_client.py": "61ce2fe9caeebfbd061f7545842d54fb9a02ba6bc247a921dec2721ecc6b0bd5",
+    "agent/src/sigflow_edu_agent/rules.py": "fb2bd410421a83dc6930c91859eb722ace2128b5f0f693a7dc34edca1f1aadd8",
+    "agent/src/sigflow_edu_agent/session.py": "844692bacbe2d27f74bfdbdfdc7141c922850ce63b2e9abbd23c9b8fb73bfddc",
+    "agent/src/sigflow_edu_agent/teaching.py": "c33acc3f9da2e7b55c8479c71806f22a03c85b01c6c6ecb1c61f576af1b2f047",
+    "agent/src/sigflow_edu_agent/teaching_factory.py": "e4a8d200882616c1abbdfd701f18fe26b77944b2ef5f8e91b9ec4fcfbd2c1406",
+    "agent/src/sigflow_edu_agent/teaching_routes.py": "ecea970b855df4b181d324110a27c3941e2ececbea3486bc9f1dbb8fcadccb93",
+    "agent/src/sigflow_edu_agent/teaching_store.py": "f9f3817fb07adb0f4fdd788a53f5d62cff0f73dd82e2a1b9c365d3da5f0d9343",
+    "agent/src/sigflow_edu_agent/util.py": "111b68d420b45260cfe80767bc4ec037229b239f48255c84e8f381c398f4d221",
+    "agent/src/sigflow_edu_agent/version.py": "e041efc0d668057bf31c21502ef8b8b8e54725cc905c81c4b842a04318e2cb9e",
+    "sigflowAgent/sigflow_edu_agent/__init__.py": "f02dbfcd381aac34d7bad0a041688e97890fe0c33b82aa7ab489ac77d3b9c2aa",
+    "sigflowAgent/sigflow_edu_agent/__main__.py": "43fc497b5dc05776306364532ecae416daa244356bbdc520e1eb0a9d7ea0b054",
+    "sigflowAgent/sigflow_edu_agent/checkers/__init__.py": "1aa6f7994de0817dff5a857f85a75abbd054c4e3ecc5aba58aadb3a21140059d",
+    "sigflowAgent/sigflow_edu_agent/checkers/outcome.py": "27fb2e7416dd6b0625a7bfcc8c0a410a089dac003b71897bab4f70f9c79aea28",
+    "sigflowAgent/sigflow_edu_agent/checkers/plan.py": "660c62d3fa878205f8e6bcad718e78ee1c0499bc75175b50a8c05641a9ba63ec",
+    "sigflowAgent/sigflow_edu_agent/clients/__init__.py": "e678eea2c6ef6d2fb8e23e7d41d36c3a966fc2993dd1eccb1012c885073e4401",
+    "sigflowAgent/sigflow_edu_agent/clients/gateway.py": "019c70d6ce15fb032ccda9d3afca68ff8d67df25a785087d27e05a494ad6f3d3",
+    "sigflowAgent/sigflow_edu_agent/clients/probe.py": "cb7134884dabfa2120baf7fbba9c40cac24ad5550fdbb7382d6ff409536886c9",
+    "sigflowAgent/sigflow_edu_agent/clients/receipts.py": "cc4c764b49afbd8c7769c214a939d866b3522bd6e5975749269c342d6a8760c0",
+    "sigflowAgent/sigflow_edu_agent/clients/waveform.py": "4ca9362bc06a3c2d7c609f21421e417bee0f447bff44ccdbaa66d9584154335e",
+    "sigflowAgent/sigflow_edu_agent/context/__init__.py": "91b2f8b2ded726549b28a425df4af14e47ac52053dd02aed8d9dbc469c218f17",
+    "sigflowAgent/sigflow_edu_agent/context/builder.py": "695de109965c06b9897addbd1fd2879fea0284795741f6fbd7229d1bc08f615b",
+    "sigflowAgent/sigflow_edu_agent/context/gateway_report.py": "9de771b2a2fb29dccf61a5b18482f9a0c02aa6c760759bf1ac24d3145d658e13",
+    "sigflowAgent/sigflow_edu_agent/context/models.py": "5ec372edc8e250d0339ee8d96a4523df2d1aa1a25f09fba61bf89bb0faea315c",
+    "sigflowAgent/sigflow_edu_agent/context/report.py": "0d685e3d3579e4d5932a464b7c7933db8e35348ad39d1f6326b7b87ea26fa85b",
+    "sigflowAgent/sigflow_edu_agent/context/waveform.py": "83fb4d53e6d7e6256667d59eac2544ebe1931631e41f132c15a1f2eaf0285f9d",
+    "sigflowAgent/sigflow_edu_agent/contracts/__init__.py": "27e222141a78c5200069e67943f2ce45f9c11b5072c60c819d0ac2f8e123a13d",
+    "sigflowAgent/sigflow_edu_agent/contracts/plan.py": "b586dc495730428454eecea142a0473f234f6a69fc47605def6405e003b23600",
+    "sigflowAgent/sigflow_edu_agent/courses.py": "61e6984326e26b796de25c04a2275c4eab1076b965a124e9ef7a428fc305c9b5",
+    "sigflowAgent/sigflow_edu_agent/credentials.py": "0c75a64479914f51c048b9f005b9d81890a80fe4bf1857042b7b213df4ee44aa",
+    "sigflowAgent/sigflow_edu_agent/deepseek.py": "b4a6e1b29fa2ed1021bb2a8784185cf501fcd665e9421d4de2f751e92f525dab",
+    "sigflowAgent/sigflow_edu_agent/demo.py": "36e73d4c9e982250615176fbad555466c61dbf42df48cd492c1154f90351e98c",
+    "sigflowAgent/sigflow_edu_agent/domain.py": "a3509442550bc42b6d773ca79361c5bf6ec04d7a601951fe5daed4959da119a4",
+    "sigflowAgent/sigflow_edu_agent/evaluation/__init__.py": "bd619256888f4cb9c63220c574843725d820b100f3d9045749486cc912ad98ad",
+    "sigflowAgent/sigflow_edu_agent/evaluation/__main__.py": "57cf210761f747f245ff8dc9cd1749de4dbaf444089c9f42f279dbc7a905e9b8",
+    "sigflowAgent/sigflow_edu_agent/evaluation/frozen.py": "ac4715ad57c699722084867f83122d9bd7bb953483b966d13c4509affd2d4768",
+    "sigflowAgent/sigflow_edu_agent/evaluation/handoff.py": "c6710a7825957347f66c1f5fb9a996e70672427de5e54c1dc5230d4cc049ffc4",
+    "sigflowAgent/sigflow_edu_agent/evaluation/model.py": "52c73d5a2553e3aab4181293b14b5a7961ea4a8ab0b298e11416f8902097cd16",
+    "sigflowAgent/sigflow_edu_agent/evaluation/preflight.py": "f618c84b6c4ce0ed3c9be01805f199dcf51a1423291edfc71caadaa6bba4de32",
+    "sigflowAgent/sigflow_edu_agent/evaluation/probes.py": "b3443cc664726909171ba8740208f9bed88fae2a6b85e8c62f55feba9ac027dc",
+    "sigflowAgent/sigflow_edu_agent/evaluation/review.py": "5ad4ffa67bbe78c7a8df216b827854877661fe6c17b7ab7575b61d3f0f06d7cd",
+    "sigflowAgent/sigflow_edu_agent/evaluation/runner.py": "2b6e22e919ce66c4774cfc2cf43951ba06c4711e4189a38a57a95bb7658a86fa",
+    "sigflowAgent/sigflow_edu_agent/host/__init__.py": "4a26381422493c9874b2f09e0fe75e2a3354e83a2a1670df24b26e0a6b26dd20",
+    "sigflowAgent/sigflow_edu_agent/host/__main__.py": "df549b0148703754ffc06352ff2c8973f7c6b54095705c1d5c73fe4612cb5499",
+    "sigflowAgent/sigflow_edu_agent/host/acceptance_support.py": "8dcef849ef8b6f2478df4bd72fefed80715d8db410a8843d263926928152a60e",
+    "sigflowAgent/sigflow_edu_agent/host/catalog.py": "8ba0fe20b1a3026ab5f74835a417d9b63a1362f401b9d79cc69108d612b969b9",
+    "sigflowAgent/sigflow_edu_agent/host/closed_loop.py": "1135e741a4d4b05f9048e62f985962031696cf36ae8274416d6b552f7d7a8780",
+    "sigflowAgent/sigflow_edu_agent/host/course_acceptance.py": "91598c60fde06bdeea787dacb51f449f5a1ecb5dc5fa650b34e7fcd13d7f2531",
+    "sigflowAgent/sigflow_edu_agent/host/course_state.py": "b422a090ec876be10f23aa3ab9b92fb4b6fa8ca981f18676135334e9594bdf7c",
+    "sigflowAgent/sigflow_edu_agent/host/durable_reference.py": "e00b81db5d10e34fdcf917a81493a3821f2681516f2c6f7f7f71865d322e8790",
+    "sigflowAgent/sigflow_edu_agent/host/durable_reference_acceptance.py": "0717a9ca73fc3083dfbc76bccbbaa658107fc36dcf19ec04e33191feeccaaa87",
+    "sigflowAgent/sigflow_edu_agent/host/factory.py": "344244397cdecaea2f3eb40f5dabc72d5c6d482c5689119b98ab4b985d328122",
+    "sigflowAgent/sigflow_edu_agent/host/gateway_evidence.py": "45ca45c4dd98ef0af6a9850528462cbaa074bdeb1c0b5c7409e0aae867ff108c",
+    "sigflowAgent/sigflow_edu_agent/host/http.py": "8cf8477c4205ab2f9a9fc8025cb06cea88b057147bd6d8958a04a57502fb7bbf",
+    "sigflowAgent/sigflow_edu_agent/host/materials.py": "ee5ef69b225d298ba7ea2c983eedc317f1999c83cc6161b96631ad32e171df92",
+    "sigflowAgent/sigflow_edu_agent/host/memory_adapter.py": "cff55c993fbd42b0801828c8c4ba1379fa44fa8a5849e4ea56b190b6059a0eaa",
+    "sigflowAgent/sigflow_edu_agent/host/prediction.py": "f96f51a1938e2153db6c5ed33fa1ee6b200715d037a2321b073d35c31c2b924f",
+    "sigflowAgent/sigflow_edu_agent/host/probe.py": "1f6dde8b2ab6b6fcbc28612c527e4fac10dde449d5f6b91dbcca87d89cde4940",
+    "sigflowAgent/sigflow_edu_agent/host/receipt_acceptance.py": "e8661bc1a546fd97e2f3c2f3319c4e98127a5f1d80273af5d9e7fa7ec7654925",
+    "sigflowAgent/sigflow_edu_agent/host/reference.py": "a69c897fdafec427ed4c9e57a2b693b487654467deb29af61dd23034aecd3cde",
+    "sigflowAgent/sigflow_edu_agent/host/reference_actions.py": "2fdbd2e7b8f33079b381ae5d1db97e17f1bfea553a862d63778ed620d320ce15",
+    "sigflowAgent/sigflow_edu_agent/host/reference_host_acceptance.py": "703d5896079e6f4a8383307c74e57bc16e0b7b050c44799e4d8801353fae721f",
+    "sigflowAgent/sigflow_edu_agent/host/reference_journal.py": "40cad0ecac581072d09ed043428e4bf826eb452e5add836953ff296852ee4cad",
+    "sigflowAgent/sigflow_edu_agent/host/repetition.py": "ed9237aba55a57b27eab039bd79501ecaad29db9e3ab88e92063a3becd29aa63",
+    "sigflowAgent/sigflow_edu_agent/host/revision_acceptance.py": "d0b2eaac47707d78473d343d6988122d6f0710f495d36ba78c5f8bb156068bcf",
+    "sigflowAgent/sigflow_edu_agent/host/runtime.py": "f7259e66a5065b2b55ae1f99973cce7595a39748d2114d6a5eed9249edd88176",
+    "sigflowAgent/sigflow_edu_agent/host/shared_acceptance.py": "f7a9d39c66680b485e559282fe0669eafdb28c099dd3332074403d030f6ba18b",
+    "sigflowAgent/sigflow_edu_agent/host/shared_adapter.py": "9d3deeae9a7ac616fef958ef176ef335de49d6b798fba9860f5d1f621791ee0d",
+    "sigflowAgent/sigflow_edu_agent/host/simulation_acceptance.py": "dd322f0f5de87c598e2fd915f6306f2902b8f8d9309d69561ff1b023e93f0e25",
+    "sigflowAgent/sigflow_edu_agent/host/store.py": "959738931fe6e19cde1be208813130d6d7210ba883769afe35fa1f17f7729e4b",
+    "sigflowAgent/sigflow_edu_agent/host/teaching_memory.py": "50832d3178ac4eea54af7f8015a84ecf9ab2acd871854aa86de1c5550a15db42",
+    "sigflowAgent/sigflow_edu_agent/host/verification.py": "85a5d827070039c166ebff9b18635e4a7134c1ea60051051972a5050329508d6",
+    "sigflowAgent/sigflow_edu_agent/learning.py": "1a7f30ba3d25841e86cd183e71a77fb818e356e5ee1a7e190bd00c0aba4ded73",
+    "sigflowAgent/sigflow_edu_agent/loop.py": "2ec0782d795691a701fb38d32951f0288c7e81ca87744933b16c1aad5b5be41b",
+    "sigflowAgent/sigflow_edu_agent/model_config.py": "de8c4b5ecfe026d62a330170a5f57d8c1330694ed6443ae3b07d811ed4594b50",
+    "sigflowAgent/sigflow_edu_agent/patterns/__init__.py": "c82cdc7c6ce602b2ee1571d1fe6e7e0929f7f5f230510e8ab8eefb0aea288f4c",
+    "sigflowAgent/sigflow_edu_agent/patterns/support.py": "ec450f03e1460a86d1ad16ebd7868fb3ac095c92e1c9f7a1fb5d42a99e13a926",
+    "sigflowAgent/sigflow_edu_agent/pedagogy.py": "e7e3ed7d31f8f1c3f72d8ed74f4a46395a2106924c8c1f88733c727a8d292150",
+    "sigflowAgent/sigflow_edu_agent/ports.py": "4e0cbc6a00c7b77f09d9d7daa62b7b1fb66f9e5de138dfe0662bf8abb2a40aef",
+    "sigflowAgent/sigflow_edu_agent/rag/__init__.py": "038d78a09fefb8922b22264081b632c546dd87de9e54ece3e33cedb08c4cca58",
+    "sigflowAgent/sigflow_edu_agent/rag/agent_adapter.py": "3bf31c0102c3c160ba09bb4e7ce82c399db1bcff12feeab066afc2e0cf3629db",
+    "sigflowAgent/sigflow_edu_agent/rag/chunks.py": "ed676e34ae0f70bf3691da38a9c98bf71d789d1454b78da64be08f593eb1affb",
+    "sigflowAgent/sigflow_edu_agent/rag/citations.py": "bb84ddd1d6ba6558496f33b65c9295d1a564efc25da1cf8f57d8e99909d8c91b",
+    "sigflowAgent/sigflow_edu_agent/rag/database.py": "30b5e3a76c71af5d552aa223fa12d559f26f89c5e6c5fc230891217c7935a2bc",
+    "sigflowAgent/sigflow_edu_agent/rag/evaluation.py": "c5dc2499a3262ad64b3aefbe2cfbe3e5fecbbaa8936cbdf9fe12a1d14338c75b",
+    "sigflowAgent/sigflow_edu_agent/rag/external_materials.py": "5dcb4a964cc196e2404522958c49f3730afb97e410ef1b1eccdec91721e7d2f7",
+    "sigflowAgent/sigflow_edu_agent/rag/importer.py": "ff104123e9d837eb7c4d156a8db3b109cb67d0ea56bf24b888ef1c624ba52e68",
+    "sigflowAgent/sigflow_edu_agent/rag/query_cli.py": "30a7831505684c2c668d2adda8a97d8f1b5ef4eeccf33274d6c2034153540d76",
+    "sigflowAgent/sigflow_edu_agent/rag/register_sections.py": "08b54722e2dc97a249c54c17205ea1b840f84e79b68a4b7bd2166dd11d6ae3c9",
+    "sigflowAgent/sigflow_edu_agent/rag/retriever.py": "c58c4d885a500902cbd465648a9a36a0173ef5a1af9a95f5533f13dff2171856",
+    "sigflowAgent/sigflow_edu_agent/rag/source_evidence.py": "1f153c5760048171a257ddd851efb976da60956e59eb54f8a7be5d4e84dd0391",
+    "sigflowAgent/sigflow_edu_agent/runtime/__init__.py": "b9724d5eba94378e54a222da347481c37a54e15ee88b99185eb1484aa872c6be",
+    "sigflowAgent/sigflow_edu_agent/runtime/checkpoint.py": "621113eb7c0d855ecf1f9b6b33eee819ed530fd7153017f205f07bcdd43f7127",
+    "sigflowAgent/sigflow_edu_agent/runtime/gateway_session.py": "649ea723ecd09338276c2f414c4d227333d64611f2287685ae9f591554ed4075",
+    "sigflowAgent/sigflow_edu_agent/runtime/session.py": "74a66a517f374d524b53e8f04cd910d92bf9e4350692e38e4b5ebabf8de3ea07",
+    "sigflowAgent/sigflow_edu_agent/runtime/smoke.py": "1c300a68c61dfe3762eb1e155f313f8d10628f83ff91e2bd2d6f31c67287bc2e",
+    "sigflowAgent/sigflow_edu_agent/runtime/ucagent_adapter.py": "28df40f95d6fa91a8c9beb1af7d9e4f2c9ba4e60e43cb08895576127591a784a",
+    "sigflowAgent/sigflow_edu_agent/runtime/verification_checkpoint.py": "29ca7ba6210e52e5d785e75270a11b9753987571646df4b73dedf03dd07ec67c",
+    "sigflowAgent/sigflow_u2/__init__.py": "03bc6aca818c5123e108f5e05c1c2dfcf16baf4c35ec6e6c315822eb12d3f462",
+    "agent/pyproject.toml": "3ff5859d784c76c8065405fa3233cd0e80d62a0caab4d4cc53d9e4882df36c46",
+    "sigflowAgent/pyproject.toml": "007ca4ac1ce9470d18e5ad719a4dc8fc525da394d78fa8829f0d2041c4e260d3",
+    "agent/bin/sigflow-edu-agent": "514d5edf427e61b8759ef3d5f8627648a252a37c494ac82a4e9f47953dba6988",
+    "agent/bin/.gitattributes": "835bdc46f9bfc6f451a6bcd61adc5333fc922ffb537fbf89ff515a6216410097",
+    "sigflowAgent/bin/sigflow-shared-u2.cmd": "9b7a235db283ee109c67b70b933199d99b65b80eac6ed1fe2db3be61cbd8aa51"
+  },
+  "normalized_test_sha256": {
+    "agent/tests/run_all.py": "d813a64f58389772db54f58006946460bd508f1b883b2a9acdac31c5b1a10b5c",
+    "agent/tests/test_bootstrap.py": "c86dca06b0d8b1d39e7be2bbc327fb0a6022558b8d5b625832ce8807376fc31b",
+    "agent/tests/test_bootstrap_process.py": "2207ada5b5eb5d992a34c27e64b75959601ee1d2f08180fb28e62cc6770953e9",
+    "agent/tests/test_cards_contract.py": "6d4c82ec05a5a2f02a5acafe915449621fadb8e0a52edeb8f21e13e91fe4effb",
+    "agent/tests/test_contract_consistency.py": "6d958647df180700c9553e91d8a7ff20ee58834c6adc49c40a304e9fcc8c1920",
+    "agent/tests/test_envelope_contract.py": "fcd487f75230f3cd8a72977ba7f155c3a80ccea27f506b3041bd624c27fc3f29",
+    "agent/tests/test_gateway_client.py": "6267053e5ba38c44778be7874b829600bd2d265a3ac350c4abec44a967446107",
+    "agent/tests/test_http_api.py": "52702d78ae9600b9c62ff77d4f563e860db27f0696af12f128d3cff8812fc4bc",
+    "agent/tests/test_http_surface_boundaries.py": "cb54b5361b5623ebd7322993b63a408f9ea39f99c563adcca256fb32f1efa4ec",
+    "agent/tests/test_launchers.py": "8b96748537a4612857c4af09ef33c0d754c01ac94080d607671bcda843c838c1",
+    "agent/tests/test_model_client.py": "48c317dc7222a2d6dab7525c6fa29b52e6cb98d2319c1e2ddb59f4d0627e66ae",
+    "agent/tests/test_rules.py": "908337471b2b09e66135fb180f3257456bb48c0714b9cdd01859f8ffdfc1ff57",
+    "agent/tests/test_run_semantics.py": "8c821f8d202497ae1a0b2a08ca101fd1d27e72d2227d778f962b17fe9fa92783",
+    "agent/tests/test_session_store.py": "aa536964926eba87dfa4c74194d61ee9b8f07fcb9bcb89414d821701e671d804",
+    "agent/tests/test_stress_matrix.py": "dc293eaa3ca56c42881134a1a5864d7d9e2a04b8a379cf14373bafbd8da27b5f",
+    "agent/tests/test_teaching_http.py": "24dc462d54956d9c0e14e90e4d2b8d2a947971ad18238bb8e755360fad7e649a",
+    "agent/tests/test_teaching_process.py": "db1aac74a0bcbac7d2db4a0dacac61cbf1c18e5ba55355cda4eda100149567ec",
+    "agent/tests/test_teaching_service.py": "fb73bbfdda13a7be2a7b127ef2bc8d0892546f2424d05da70c268176f4039cdb",
+    "agent/tests/test_teaching_store.py": "64d76d2f2cf84f34acea51bdb92540df50feae86f4a8ac2efb6c0b8bf2755edb",
+    "agent/tests/test_u2_compatibility.py": "f6e653077a5107dd3734e2919a14d662d4dc78aa3a87912425172b87c8ee0d53",
+    "agent/tests/__init__.py": "3fa1e17ffafb0f9ac6a666615ae8ae7a730aa66ec0de5e2218e1425a393de439",
+    "sigflowAgent/tests/test_acceptance_http.py": "97af8dcf479acd3897fde6af14567ed1e92af186ca64e7d40cab425ca0f71586",
+    "sigflowAgent/tests/test_checkers.py": "49b9c09c412bdd577383daa968b4e5e423373ae768db2689e8f0134a0febe223",
+    "sigflowAgent/tests/test_checkpoint.py": "26551ef998a8e5eb4dd0b2ae68223c8e59086b2fce174f1d8362d0e64c995779",
+    "sigflowAgent/tests/test_cli.py": "427cea7fed08514fd17eab73ba6bd04a5f7fa73d59c592127a89d6e02ba62bf8",
+    "sigflowAgent/tests/test_closed_loop.py": "bda5682d3abc8a34a202441530bb9f873e67a739cd1250da91062bcab54310ea",
+    "sigflowAgent/tests/test_context.py": "462b251ee5b220b195f8ff7b532ca7af188f47cc875b600ffbdd9138e1fc2e3f",
+    "sigflowAgent/tests/test_courses.py": "9c945f6d8641027f2e58c8c30955e85537516ae1a7d46423ec3fd0a281d6554f",
+    "sigflowAgent/tests/test_course_pattern_merge.py": "9dd26c2fbcc41556cd6fdbdd05497a6eab2f4485a3cf87433d7b86c6b2e8316b",
+    "sigflowAgent/tests/test_course_recovery.py": "91a0a0b1a2c573b7b94cb563865e8e01ef09e3930379bafc610a16177e7e8a90",
+    "sigflowAgent/tests/test_credentials.py": "9ce2f38bb836ffafdb0332362dac5c2d90211e341c7170c0ecbdd96d0a710aa7",
+    "sigflowAgent/tests/test_deepseek.py": "e696e039f3ce5cb9de1bb318413c7a5c1bcbda4d997d39fcc8ff6ea73f146dbe",
+    "sigflowAgent/tests/test_durable_reference.py": "92cb850b347ed1ff3ec00c2ad3f3ebddab265d736168385c7e35380616634e29",
+    "sigflowAgent/tests/test_duration_ticks.py": "c4836af1ac0f3e2583d4947eb00d245e01fe90f0a94f7d39498ddbbba9dbbfc8",
+    "sigflowAgent/tests/test_evaluation.py": "2766324e538b8b55436cfa821794b9de6305196adf2a0e664b6c6dc7b1997736",
+    "sigflowAgent/tests/test_evaluation_handoff.py": "27778b2fb5fe0a64bb9d96d9df2dabfa7b5127cf0ffe9d9d2102bd74caa28e24",
+    "sigflowAgent/tests/test_evaluation_preflight.py": "2730f22bb1de165f810507de14426092f2ac58315416fa4c829e7fb73eef8922",
+    "sigflowAgent/tests/test_evaluation_runner.py": "f915062a4111250ebe5f368c1c0b87609c92a51698f759f6e86c695361ba8f84",
+    "sigflowAgent/tests/test_external_materials.py": "d5c61c41cadfe7f20db65bb986d83d30b280f551e1bf8fc42264107d495a56ff",
+    "sigflowAgent/tests/test_frozen_model_suite.py": "43c07ad28a6db99f7545ac20e9e6a41beab8f2c0cec3b3cb86f54174a2b99f14",
+    "sigflowAgent/tests/test_gateway.py": "f1d8ce7bcff2dcba4eabbd51ba9326263de4aeecdd64cb4d453433bea20dfac2",
+    "sigflowAgent/tests/test_gateway_evidence.py": "9874ae0b9a97babf58fa6598611f15ba72152be4be6a01053dbff569305719d3",
+    "sigflowAgent/tests/test_gateway_probe.py": "bb1edfa7e3e5789b624e4dfa98aace085afeb3188a1a7e4615920029cbeb4cf0",
+    "sigflowAgent/tests/test_gateway_report.py": "c4ae3d2d6707bf2c251c94a474f807c74c1f44fef40bdd7a14363fe806ac84de",
+    "sigflowAgent/tests/test_gateway_session.py": "63c74a64b7f612e1bbdaa8f30edeedf1b7a37da9f2fe2f8b851999867cd6ff61",
+    "sigflowAgent/tests/test_gateway_source.py": "3b3a4056ddf93b4e12e5f9aefd1d8c9f310316cc1ce3b7f5f995a0e1fcf43117",
+    "sigflowAgent/tests/test_gateway_waveform.py": "291e24c51b45092874c79efd6a5693461854df35d88459d2937c5ae314f1d33d",
+    "sigflowAgent/tests/test_host_catalog.py": "7301beaca4a6178601130e65dc3ff1ee9dc0a8b6165214197b4b31fc54a1e0ac",
+    "sigflowAgent/tests/test_host_coupled.py": "1958ee9558b61222f7f6ff0a613e60ecd6f1d4c30a51aba856c6aaeb7667b3f7",
+    "sigflowAgent/tests/test_host_courses.py": "7b4eb45f3466d7f97af393083e0981e9b4675b7f4b5f63c5d2c47671f05b6c75",
+    "sigflowAgent/tests/test_host_http.py": "de69a9ca0c7a7cb040532de540fa434e7ea01d185fde51bfe1bbb6263235aa03",
+    "sigflowAgent/tests/test_host_prediction.py": "49c190887036f13492874c8a5ec576b295017ea87d99c7083cc227f525c6eeaa",
+    "sigflowAgent/tests/test_host_process.py": "19fdc12ef8a3fce3df93c4465709aa032cf8b19227f194f7192fca2867af9ca6",
+    "sigflowAgent/tests/test_host_reference.py": "3b2a41ed5d5a35250de1b40b2b05e768c2e0f7de3c4d63c5873f49c36b90c621",
+    "sigflowAgent/tests/test_host_runtime.py": "00a770be6ecc34b97125fc31f32867ab7d44bbfdd1a0f10d391f113fb9dc6d81",
+    "sigflowAgent/tests/test_host_store.py": "97852ca87191aab475cf131a974a3d10e139d87039381fc2a2add9da4a6135ce",
+    "sigflowAgent/tests/test_host_verification.py": "365b17af80bc89e4e6b2e32437b55bb556bc68180a1453cfd54b96076de41cac",
+    "sigflowAgent/tests/test_loop.py": "2495252ce980fae121e2d7b302f2f70c6ca0ac80a9696c8b48ae0e48f9726dea",
+    "sigflowAgent/tests/test_materials.py": "f456fb599ae02f14891ecbc8459fb197063b0a3594b73ab7e4b6e48fe3fe3fb1",
+    "sigflowAgent/tests/test_memory_adapter.py": "c3fb8621c92b5766df3fc4f54db462ac88fef6107f955632a98166a79b3aa67c",
+    "sigflowAgent/tests/test_model_evaluation.py": "2901180cc59a8435fc6483706425e751cd889e8f74bd4adfde23fdc0d20b9d2f",
+    "sigflowAgent/tests/test_namespace_packaging.py": "e373d771fd498bbcbff58a0b35bfac4cd60aba73b0051f1aab6ade0fa8b2f80b",
+    "sigflowAgent/tests/test_patterns.py": "e738095b524529325204a7ce7890113e48118275563b1c18f0afc0e36127ae34",
+    "sigflowAgent/tests/test_pattern_loop.py": "989ac8fa515b2fc5b7e2983588c8f1d072ae3a0b13af3ae9e4317be4d0f61583",
+    "sigflowAgent/tests/test_plan_contract.py": "bfaa274f3c336908dd39b728cd8e5ac055897aac733f8fd47a76d24524cb2a9c",
+    "sigflowAgent/tests/test_prediction.py": "bbb5607dfcceea8d91dd3bc9886609d53554a132613bbd6565c4dd297cf65485",
+    "sigflowAgent/tests/test_rag_evidence_units.py": "22e07c5e56b914af386447fa204ecb05aa0131dfbcc46bcc7f2b813fd58c532e",
+    "sigflowAgent/tests/test_rag_v01_closeout.py": "4d33c67c8a9b717f44685a0a7de897fa60e8af26fd3f9963bed0a2696d397c41",
+    "sigflowAgent/tests/test_receipt_acceptance.py": "291408a022f332a02e5e908c4d984e25987cef0e1bbc73e386bdacf526ca46fe",
+    "sigflowAgent/tests/test_reference_body.py": "3e2b83e632540cc2d7dc0b47dabc37b4ea8a38823b77f0087bad1dac3184c26e",
+    "sigflowAgent/tests/test_reference_host_acceptance.py": "de2211e56e38ef6a26682945688cbb80c147084adeeb58a071ce67f87363b90d",
+    "sigflowAgent/tests/test_reference_journal.py": "0ad063bbe7ef1f4055bfffd44ec09fe96e336b4cb84b03aea9d15777e0c68fd2",
+    "sigflowAgent/tests/test_reference_protocol.py": "dceed4d9231407a51e5906025450f647e75f9ab90aea80f7aeceaf4460a9b5c4",
+    "sigflowAgent/tests/test_repetition.py": "ea19516ef403175ca9b21fc161e785fbcc40541db86c9ec0c85bbfb42215af31",
+    "sigflowAgent/tests/test_runtime.py": "6314a4e9fe3e18e0ef2b59054b8b4256c0434f6ff13f67f2cf90c98c9c1d429a",
+    "sigflowAgent/tests/test_shared_acceptance.py": "091e71acb986d53ca60921467b9c1a2c6cf1457ba297749fd5dc9062d6a80c52",
+    "sigflowAgent/tests/test_shared_adapter.py": "d17d9931a98c93f418f758b77839ca10479502428d2cb486216ff82970300daf",
+    "sigflowAgent/tests/test_shared_prediction.py": "5a06c842d023dd93195ac9f3875cb60dee87b41a4cc166307605db11726a03ed",
+    "sigflowAgent/tests/test_simulation_acceptance.py": "e66291b1ef65918e0d7d3f8aa5abb580d8afb668d4a0a63a97c0a7214c50232f",
+    "sigflowAgent/tests/test_simulation_transition.py": "6604e233d5e04d25d681b881cef3123aeafdb345ced32ab9a2247aaf8e9eaafc",
+    "sigflowAgent/tests/test_teacher_review.py": "8c35d69e918bd2b41d8f25a1dbf069cdf6f1b02f8370688d3e8e7ac7ab76495e",
+    "sigflowAgent/tests/test_teaching_history.py": "450ce9009a7ce98e73643f6e766a9de0c8a8bb0fc2184c88a5911bae0fbaabba",
+    "sigflowAgent/tests/test_teaching_memory.py": "1dd2eaa46fc2bb59d552f3a8d1dcdcec9bc125cf8542bae9d044a2918a499611",
+    "sigflowAgent/tests/test_teaching_memory_process.py": "c6caaf2002ab8822017d041fa5eb1538074eaf3d0ebd76d4566a7852c635a89b",
+    "sigflowAgent/tests/test_verification_observation.py": "b04ccf13327c33c248ce48986b246a23f8f8bd213b458b3ef13bea5e832e1b3b",
+    "sigflowAgent/tests/test_verification_restart.py": "86841653eba905fe7593dac4bf9e5fa8d8355012b96be81b858e861c72845399",
+    "sigflowAgent/tests/test_waveform.py": "f0ad67c486fd1660fcf7714e3784fc10d87b9dd0f2b9344c68500176194c2281",
+    "sigflowAgent/tests/_model_isolation.py": "ea38f527ae288c3a694b626b3694edce68c59bd9ebce995ea5dd836fdca82767",
+    "sigflowAgent/tests/_wave_gateway.py": "5569604980831a5a9b7b61a92cc6fb1842e9d3c3ab00316e61aba9959bdfc905",
+    "sigflowAgent/tests/helpers/teaching_memory_host.py": "e1397ff3758b5a9c733adaa079da3470922aeaadffe0c329a9a1cfbfa340e26a",
+    "sigflowAgent/tests/integration/test_ucagent_runtime.py": "b56045a1d9b7c658f60b7768b7f97f58bde8424f65b6bc941e677bf122ef04c8",
+    "sigflowAgent/tests/integration/__init__.py": "47fef8709652edcb891956aedf52c69ee0a9a7d7175ef4b958ecbed55ebe18a7",
+    "sigflowAgent/tests/rag/test_agent_adapter.py": "67625d050514b4b06520ce1a4c739c02a5784743d5cb529d9a9d92019c7afb99",
+    "sigflowAgent/tests/rag/test_course_kb.py": "0d7c7862c450a3e78a95ad80a5972b1b6cb4440beebd3e2c2f8376a74639ee33",
+    "sigflowAgent/tests/rag/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "upstream": {
+    "files": 22,
+    "normalized_content_preserved": {
+      "agent/README.md": false,
+      "agent/RELEASE.md": true,
+      "agent/bin/sigflow-edu-agent": true,
+      "agent/pyproject.toml": true,
+      "agent/scripts/model_endpoint_probe.py": true,
+      "agent/src/sigflow_edu_agent/bootstrap.py": true,
+      "agent/src/sigflow_edu_agent/cards.py": true,
+      "agent/src/sigflow_edu_agent/dispatch.py": true,
+      "agent/src/sigflow_edu_agent/model_client.py": true,
+      "agent/src/sigflow_edu_agent/util.py": true,
+      "agent/tests/test_contract_consistency.py": true,
+      "agent/tests/test_http_api.py": true,
+      "agent/tests/test_launchers.py": true,
+      "agent/tests/test_model_client.py": true,
+      "agent/tests/test_run_semantics.py": true,
+      "agent/tests/test_stress_matrix.py": true,
+      "contracts/edu-agent/v1/CHANGELOG.md": true,
+      "docs/edu-agent/edu-agent-接口文档.md": true,
+      "docs/edu-agent/ucagent/b-stage-scope.md": true,
+      "docs/edu-agent/ucagent/runtime-baseline.md": true,
+      "docs/edu-agent/ucagent/stress-matrix.md": true,
+      "docs/edu-agent/ucagent/task.md": true
+    },
+    "additive_readme_lines": 7,
+    "readme_link_target_corrections": 8,
+    "readme_unrelated_text_changed": false,
+    "launcher_raw_bytes_equal_head": true,
+    "launcher_eol_attribute": "lf",
+    "global_git_settings_modified": false
+  },
+  "tests": {
+    "u1": {
+      "tests": 326,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1,
+      "successful": true,
+      "seconds": 77.464,
+      "verified_at_utc": "2026-10-22T11:54:30.206269+00:00",
+      "failed_cases": [],
+      "optional_skips": [
+        {
+          "case": "test_sigterm_and_sigint_exit_zero (tests.test_bootstrap_process.StopTests.test_sigterm_and_sigint_exit_zero)",
+          "reason": "Windows has no catchable SIGTERM: os.kill maps to TerminateProcess, so the host stops the sidecar with POST /shutdown instead (see AgentServiceController)"
+        }
+      ]
+    },
+    "u2": {
+      "tests": 719,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 37,
+      "successful": true,
+      "seconds": 137.592,
+      "verified_at_utc": "2026-10-22T11:57:05.817114+00:00",
+      "failed_cases": [],
+      "optional_skips": [
+        {
+          "case": "test_old_model_tool_call_cannot_advance_twice (integration.test_ucagent_runtime.UCAgentIntegrationTests.test_old_model_tool_call_cannot_advance_twice)",
+          "reason": "Set SIGFLOW_UCAGENT_SOURCE and install the optional runtime dependencies."
+        },
+        {
+          "case": "test_real_gates_wait_for_host_approval_then_verify_and_finish (integration.test_ucagent_runtime.UCAgentIntegrationTests.test_real_gates_wait_for_host_approval_then_verify_and_finish)",
+          "reason": "Set SIGFLOW_UCAGENT_SOURCE and install the optional runtime dependencies."
+        },
+        {
+          "case": "test_real_stage_tool_and_checker_complete_explanation (integration.test_ucagent_runtime.UCAgentIntegrationTests.test_real_stage_tool_and_checker_complete_explanation)",
+          "reason": "Set SIGFLOW_UCAGENT_SOURCE and install the optional runtime dependencies."
+        },
+        {
+          "case": "test_registry_rejects_unknown_or_duplicate_tools (integration.test_ucagent_runtime.UCAgentIntegrationTests.test_registry_rejects_unknown_or_duplicate_tools)",
+          "reason": "Set SIGFLOW_UCAGENT_SOURCE and install the optional runtime dependencies."
+        },
+        {
+          "case": "test_template_projection_does_not_advance_loop (integration.test_ucagent_runtime.UCAgentIntegrationTests.test_template_projection_does_not_advance_loop)",
+          "reason": "Set SIGFLOW_UCAGENT_SOURCE and install the optional runtime dependencies."
+        },
+        {
+          "case": "test_tool_has_no_host_action_or_grant_parameters (integration.test_ucagent_runtime.UCAgentIntegrationTests.test_tool_has_no_host_action_or_grant_parameters)",
+          "reason": "Set SIGFLOW_UCAGENT_SOURCE and install the optional runtime dependencies."
+        },
+        {
+          "case": "test_context_is_path_free_and_does_not_repeat_authored_notes (rag.test_agent_adapter.AgentAdapterTests.test_context_is_path_free_and_does_not_repeat_authored_notes)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_explicit_database_ignores_manifest_and_prepared_refs_are_frozen (rag.test_agent_adapter.AgentAdapterTests.test_explicit_database_ignores_manifest_and_prepared_refs_are_frozen)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_missing_database_is_not_created (rag.test_agent_adapter.AgentAdapterTests.test_missing_database_is_not_created)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_no_match_is_not_a_database_failure (rag.test_agent_adapter.AgentAdapterTests.test_no_match_is_not_a_database_failure)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_only_admitted_retrieved_ids_can_be_resolved (rag.test_agent_adapter.AgentAdapterTests.test_only_admitted_retrieved_ids_can_be_resolved)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_real_u2_loop_receives_course_and_returns_verified_reference (rag.test_agent_adapter.AgentAdapterTests.test_real_u2_loop_receives_course_and_returns_verified_reference)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_authored_note_keeps_identity_without_displacing_official_context (rag.test_course_kb.CourseKnowledgeBaseTests.test_authored_note_keeps_identity_without_displacing_official_context)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_citation_url_and_cross_source_refs_come_from_sqlite (rag.test_course_kb.CourseKnowledgeBaseTests.test_citation_url_and_cross_source_refs_come_from_sqlite)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_citations_are_limited_to_this_retrieval (rag.test_course_kb.CourseKnowledgeBaseTests.test_citations_are_limited_to_this_retrieval)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_concept_search_has_priority_and_top_k_is_capped (rag.test_course_kb.CourseKnowledgeBaseTests.test_concept_search_has_priority_and_top_k_is_capped)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_content_hash_mismatch_is_rejected (rag.test_course_kb.CourseKnowledgeBaseTests.test_content_hash_mismatch_is_rejected)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_development_evaluation_includes_no_match_case (rag.test_course_kb.CourseKnowledgeBaseTests.test_development_evaluation_includes_no_match_case)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_duplicate_passage_id_is_rejected (rag.test_course_kb.CourseKnowledgeBaseTests.test_duplicate_passage_id_is_rejected)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_fts_text_search_works_without_concept_hint (rag.test_course_kb.CourseKnowledgeBaseTests.test_fts_text_search_works_without_concept_hint)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_hash_is_verified_against_stored_content (rag.test_course_kb.CourseKnowledgeBaseTests.test_hash_is_verified_against_stored_content)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_importer_builds_complete_seed_and_fts_schema (rag.test_course_kb.CourseKnowledgeBaseTests.test_importer_builds_complete_seed_and_fts_schema)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_index_can_be_deleted_and_rebuilt (rag.test_course_kb.CourseKnowledgeBaseTests.test_index_can_be_deleted_and_rebuilt)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_mutated_snapshot_is_rejected (rag.test_course_kb.CourseKnowledgeBaseTests.test_mutated_snapshot_is_rejected)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_partial_evidence_is_not_passed_to_agent (rag.test_course_kb.CourseKnowledgeBaseTests.test_partial_evidence_is_not_passed_to_agent)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_practices_are_separate_and_use_verified_metadata (rag.test_course_kb.CourseKnowledgeBaseTests.test_practices_are_separate_and_use_verified_metadata)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_query_aliases_map_without_explicit_concepts (rag.test_course_kb.CourseKnowledgeBaseTests.test_query_aliases_map_without_explicit_concepts)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_registered_sections_cover_every_body_line_once (rag.test_course_kb.CourseKnowledgeBaseTests.test_registered_sections_cover_every_body_line_once)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_source_text_is_exact_snapshot_slice_through_sqlite_and_context (rag.test_course_kb.CourseKnowledgeBaseTests.test_source_text_is_exact_snapshot_slice_through_sqlite_and_context)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_top_k_greater_than_three_is_rejected (rag.test_course_kb.CourseKnowledgeBaseTests.test_top_k_greater_than_three_is_rejected)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_unknown_concept_is_rejected (rag.test_course_kb.CourseKnowledgeBaseTests.test_unknown_concept_is_rejected)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_unknown_query_returns_no_match_and_no_practices (rag.test_course_kb.CourseKnowledgeBaseTests.test_unknown_query_returns_no_match_and_no_practices)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_unknown_source_is_rejected (rag.test_course_kb.CourseKnowledgeBaseTests.test_unknown_source_is_rejected)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "setUpClass (test_external_materials.ExternalMaterialIntegrationTests)",
+          "reason": "set SIGFLOW_YSYX_SNAPSHOT to the pinned YSYX snapshot for full external-material DB tests"
+        },
+        {
+          "case": "test_symlink_escape_is_rejected (test_materials.MaterialsTests.test_symlink_escape_is_rejected)",
+          "reason": "Windows symlink creation not permitted: 1314"
+        },
+        {
+          "case": "test_offline_wheel_installs_only_new_namespace_with_resources_and_cli (test_namespace_packaging.NamespacePackagingTests.test_offline_wheel_installs_only_new_namespace_with_resources_and_cli)",
+          "reason": "offline wheel verification requires existing pip/setuptools/wheel"
+        },
+        {
+          "case": "setUpClass (test_rag_evidence_units.EvidenceUnitIntegrationTests)",
+          "reason": "Pinned original snapshot unavailable"
+        }
+      ]
+    },
+    "u1_passed_methods": 325,
+    "u2_passed_methods": 684,
+    "u2_skipped_methods": 35,
+    "u2_class_skip_records": 2
+  },
+  "directed": {
+    "teaching_portability": {
+      "tests": 20,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "successful": true,
+      "seconds": 11.318,
+      "verified_at_utc": "2026-10-22T00:17:15.466547+00:00",
+      "failed_cases": [],
+      "optional_skips": []
+    },
+    "launcher": {
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "successful": true,
+      "seconds": 0.821,
+      "verified_at_utc": "2026-10-22T06:33:05.022646+00:00",
+      "failed_cases": [],
+      "optional_skips": []
+    },
+    "offline_namespace_install": {
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "successful": true,
+      "seconds": 43.353,
+      "verified_at_utc": "2026-10-22T00:12:39.802151+00:00",
+      "failed_cases": [],
+      "optional_skips": []
+    }
+  },
+  "development": {
+    "total": 40,
+    "passed": 40,
+    "failed": 0,
+    "real_model": "not_run",
+    "real_tools": "not_run",
+    "teacher_review": "not_run"
+  },
+  "preflight": {
+    "budget": {
+      "first_pass_sufficient": false,
+      "max_model_calls": 256,
+      "repeats": 3,
+      "required_first_pass": null,
+      "required_with_repair": null,
+      "with_repair_sufficient": false
+    },
+    "budget_policy": "first_pass_plus_at_most_one_repair_per_sample",
+    "can_run_real_batch": false,
+    "case_counts": {
+      "eligible": 0,
+      "evidence_rejected": 0,
+      "total": 0,
+      "unsupported_pattern": 0
+    },
+    "declarations": {
+      "reviewers_count": 0,
+      "suite_version_valid": false
+    },
+    "input_status": "not_provided",
+    "issues": [
+      "frozen_model_suite_not_provided"
+    ],
+    "origin_counts": {
+      "fixture": 0,
+      "rule": 0,
+      "tool": 0
+    },
+    "product_acceptance": "not_determined",
+    "real_model": "not_run",
+    "real_tools": "not_run",
+    "review_authenticity": "external_signoff_required",
+    "schema_version": "edu.evaluation-preflight.v1",
+    "semantic_quality": "not_scored",
+    "status": "blocked",
+    "teacher_review": "pending"
+  },
+  "loopback": {
+    "schema_version": "edu.loopback-environment-verification.v1",
+    "verified_at_utc": "2026-10-22T11:58:07.266799+00:00",
+    "status": "passed",
+    "requests": 3000,
+    "result": {
+      "successes": 3000,
+      "errors": []
+    },
+    "snapshot": {
+      "tcp_states": {
+        "LISTENING": 57,
+        "TIME_WAIT": 1778,
+        "ESTABLISHED": 112,
+        "CLOSE_WAIT": 1,
+        "SYN_SENT": 1
+      },
+      "loopback_states": {
+        "LISTENING": 20,
+        "TIME_WAIT": 1763,
+        "ESTABLISHED": 78
+      }
+    },
+    "seconds": 21.827,
+    "independent_of_u1_u2": true,
+    "automatic_retries": 0,
+    "system_configuration_changed": false,
+    "production_cause": "unconfirmed; previous independent Winsock failure no longer reproduced"
+  },
+  "real_acceptance": {
+    "cancel_after_revision_change": "accepted",
+    "cleanup": "completed",
+    "event_metadata": "verified",
+    "extension": "u1.u2-teaching.v1",
+    "functional_correctness": "not_evaluated",
+    "hint_replay": "verified",
+    "host": "formal_u1",
+    "http_l4": "denied",
+    "job_count": 3,
+    "l1_l2_l3": "verified",
+    "limitations": [
+      "GUI not exercised",
+      "actual UA-10 and reviewed materials not configured",
+      "teacher and target-platform acceptance pending"
+    ],
+    "model_calls": 0,
+    "new_revision": "rev-2-ce5848bf6e11",
+    "prediction": {
+      "additional_jobs": 0,
+      "artifact_hash": "28cd2a91016f4c85dff8f0e41c8812d257feef0183e6b5d887fb827d2e02b417",
+      "challenge_before_observation": true,
+      "exact_window": [
+        "0",
+        "40"
+      ],
+      "expected": "1",
+      "model_calls": 0,
+      "observed": "1",
+      "outcome": "matches",
+      "sample_tick": "15",
+      "status": "passed",
+      "teacher_review": "not_assessed"
+    },
+    "real_core": true,
+    "real_verilator": true,
+    "real_yosys": true,
+    "restart": {
+      "additional_jobs": 0,
+      "explicit_recovery": "verified",
+      "external_ids": "preserved",
+      "old_cards": "quarantined"
+    },
+    "scenario": "simulation",
+    "schema_version": "edu.u1-u2-acceptance.v1",
+    "session_run_replay": "verified",
+    "shared_port": true,
+    "stale_revision": "denied",
+    "status": "passed",
+    "verification": {
+      "explicit_successor_confirmations": 1,
+      "model_used": false,
+      "observations": 1,
+      "result_jobs": 2,
+      "status": "Completed"
+    }
+  },
+  "binary_sha256": "109b2ba5bcf8c3a96945079d92b3379e53a650f5c10ebc6e922707ed15e99732",
+  "cpp_rebuilt_this_stage": false,
+  "historical_reports": {
+    "sigflowAgent/docs/dependency-stage22.json": {
+      "json_content_equals_saved_stash": true,
+      "sha256": "35860e85a14ce96f8536fb020e34784bf489cafb4668754929dfb4c2baf94015"
+    },
+    "sigflowAgent/docs/dynamic-stage27.json": {
+      "json_content_equals_saved_stash": true,
+      "sha256": "9337fae82af69019dbc6f5d5f1b584330b9b9a9c895d5383bb8bdd7692a47eb3"
+    },
+    "sigflowAgent/docs/dynamic-stage31.json": {
+      "json_content_equals_saved_stash": true,
+      "sha256": "da39472a48b1cefad0f1d948567645879ca1af8d8a5a8bd192b81f8aac83afd6"
+    },
+    "sigflowAgent/docs/evaluation-stage20-handoff.json": {
+      "json_content_equals_saved_stash": true,
+      "sha256": "da3a7ef094a6110e9d68fabd07b07abd3f1c2328b2fc85dd080f371e861b38cc"
+    },
+    "sigflowAgent/docs/evaluation-stage20.json": {
+      "json_content_equals_saved_stash": true,
+      "sha256": "a57b3a247cd513c8ee15dfb005c32e32f43435c09ae4ae9f0e39a29094244136"
+    },
+    "sigflowAgent/docs/evaluation-stage21-handoff.json": {
+      "json_content_equals_saved_stash": true,
+      "sha256": "1bca07f11c8b40796fbf050c12715d08187670e9f589b15b1481eafebe1191ae"
+    },
+    "sigflowAgent/docs/evaluation-stage21.json": {
+      "json_content_equals_saved_stash": true,
+      "sha256": "eb1de2d9eba380a758260406c0efd3b17c46be3f822acad2ed9aaeab97d1abcb"
+    },
+    "sigflowAgent/docs/evaluation-stage27.json": {
+      "json_content_equals_saved_stash": true,
+      "sha256": "f0b901e9240a06e7a108d16f9c78a6fed709fd4305d8a0572880100ac853753e"
+    },
+    "sigflowAgent/docs/evaluation-stage31.json": {
+      "json_content_equals_saved_stash": true,
+      "sha256": "40d47208eccab593000a668751f05c6844d66cb9e82ef3e3fe72b220f754ffa5"
+    },
+    "sigflowAgent/docs/evaluation-stage34.json": {
+      "json_content_equals_saved_stash": true,
+      "sha256": "f91e9a7ee1b5887f6c9b8b8db0ca4c7ace82003a8f0ecf901d727ecae5bc2fc6"
+    },
+    "sigflowAgent/docs/gui-stage23.json": {
+      "json_content_equals_saved_stash": true,
+      "sha256": "ec50b11b735b413363d2eac373eeb14a532623b30bcc25c18c75e6d970cb909d"
+    },
+    "sigflowAgent/docs/preflight-stage31.json": {
+      "json_content_equals_saved_stash": true,
+      "sha256": "2e575e70eb0b34d66177c9d5e1d7994f80e4257e413521ffaac270b8bfcee48d"
+    },
+    "sigflowAgent/docs/receipt-stage20-durable.json": {
+      "json_content_equals_saved_stash": true,
+      "sha256": "3417ed6204413c2b8ad22a37aedf4082562f14e01e8701c42bf4fed8a85990ad"
+    },
+    "sigflowAgent/docs/receipt-stage21-host.json": {
+      "json_content_equals_saved_stash": true,
+      "sha256": "e2169720535c6e64a464a7b1761b0db6b58c1ae9ee1f9c64c73b036e08c38960"
+    },
+    "sigflowAgent/docs/shared-stage34-simulation.json": {
+      "json_content_equals_saved_stash": true,
+      "sha256": "1b7f94ee55b4fe0d983617434f8042eda5a907430b6351bd81db0d4070f33a10"
+    },
+    "sigflowAgent/docs/shared-stage34-synthesis.json": {
+      "json_content_equals_saved_stash": true,
+      "sha256": "e2c4e59ff5e63d8d5d68dcdb8e4884b2f6038c2a4961eec62c3352dbefaba26b"
+    },
+    "sigflowAgent/docs/simulation-stage23.json": {
+      "json_content_equals_saved_stash": true,
+      "sha256": "3990095b3b5a89624e9944d495ed320324cc20f722bd83542843dbc135ef4d48"
+    },
+    "sigflowAgent/docs/verification-stage20.json": {
+      "json_content_equals_saved_stash": true,
+      "sha256": "f8a3a0bb0735ef96621d6cd53bf0b7f226576fb5d522f90810d00fbb0d851ecd"
+    },
+    "sigflowAgent/docs/verification-stage21.json": {
+      "json_content_equals_saved_stash": true,
+      "sha256": "db8a66e3a2abcca7ca7e59422160890e665c0aebe3c95ff3d6e89b2c53d06657"
+    },
+    "sigflowAgent/docs/verification-stage22-23.json": {
+      "json_content_equals_saved_stash": true,
+      "sha256": "cb713d16eb43a55c575582b284495807a79c3c2541fa1f4645df60542a5ad8c7"
+    },
+    "sigflowAgent/docs/verification-stage24.json": {
+      "json_content_equals_saved_stash": true,
+      "sha256": "78b083881f6a79e155b4ed07d6054e7b83a84fdd354b06df94e4d507de76453d"
+    },
+    "sigflowAgent/docs/verification-stage25-27.json": {
+      "json_content_equals_saved_stash": true,
+      "sha256": "2fb62c3cddf4ad5ce5cd2fc563cb675988d062a432630058481da1b003040da6"
+    },
+    "sigflowAgent/docs/verification-stage28-31.json": {
+      "json_content_equals_saved_stash": true,
+      "sha256": "b9f9d4e4e505f5d4ec6be5232260b2c07882a75100a95ceb8d315c38b8d21090"
+    },
+    "sigflowAgent/docs/verification-stage32-34.json": {
+      "json_content_equals_saved_stash": true,
+      "sha256": "0aa97fe6d0cd6863e90a9a680109fcd43f9e41da412ade91be9bfbc48bad9b2e"
+    }
+  },
+  "isolation": {
+    "stash": "875fb732e81f57e5002405891573158c3e2a5c8d",
+    "stash_preserved": true,
+    "staged": false,
+    "committed": false,
+    "pushed": false,
+    "demo_implementation_restored": false,
+    "protected_modules_modified": false
+  },
+  "review": {
+    "mode": "independent_readonly_with_scoped_followup",
+    "unresolved_blocking_findings": 0,
+    "fresh_python39_or310_run": false,
+    "simulated_version_guard_only": true,
+    "closeout_status": "completed_clean",
+    "reviewed_by": "independent scoped closeout reviewer",
+    "checked": [
+      "raw regression summaries/logs and skip arithmetic",
+      "112 source and 95 test hashes",
+      "24 historical JSON against retained saved content",
+      "96 document links and formatting",
+      "independent probe implementation/result, release and external acceptance boundaries"
+    ],
+    "limitations": [
+      "review did not rerun full tests/model/business API",
+      "specific Windows OS trigger unconfirmed",
+      "fresh older Python, native target-platform and GUI acceptance not performed"
+    ]
+  },
+  "failed_attempts": {
+    "first_full_u1": {
+      "tests": 326,
+      "failures": 2,
+      "errors": 0,
+      "skipped": 1,
+      "successful": false,
+      "seconds": 77.785,
+      "verified_at_utc": "2026-10-22T00:20:08.103199+00:00",
+      "failed_cases": [
+        "test_install_verifier_accepts_the_launcher (tests.test_launchers.PosixLauncherTests.test_install_verifier_accepts_the_launcher)",
+        "test_is_utf8_lf_only_shell_script_without_bom (tests.test_launchers.PosixLauncherTests.test_is_utf8_lf_only_shell_script_without_bom)"
+      ],
+      "optional_skips": [
+        {
+          "case": "test_sigterm_and_sigint_exit_zero (tests.test_bootstrap_process.StopTests.test_sigterm_and_sigint_exit_zero)",
+          "reason": "Windows has no catchable SIGTERM: os.kill maps to TerminateProcess, so the host stops the sidecar with POST /shutdown instead (see AgentServiceController)"
+        }
+      ]
+    },
+    "loopback_environment_u1": {
+      "tests": 326,
+      "failures": 108,
+      "errors": 19,
+      "skipped": 1,
+      "successful": false,
+      "seconds": 87.638,
+      "verified_at_utc": "2026-10-22T06:35:20.299966+00:00",
+      "failed_cases": [
+        "test_all_http_shapes_pass_the_envelope_and_wire_scan (tests.test_envelope_contract.HttpEnvelopeScanTests.test_all_http_shapes_pass_the_envelope_and_wire_scan)",
+        "test_source_id_is_not_used_as_a_global_key (tests.test_envelope_contract.HttpEnvelopeScanTests.test_source_id_is_not_used_as_a_global_key)",
+        "test_frozen_codes_are_preserved_verbatim (tests.test_gateway_client.ErrorMappingTests.test_frozen_codes_are_preserved_verbatim) (code='CURSOR_EXPIRED')",
+        "test_frozen_codes_are_preserved_verbatim (tests.test_gateway_client.ErrorMappingTests.test_frozen_codes_are_preserved_verbatim) (code='RESOURCE_EXHAUSTED')",
+        "test_valid_job_ids_are_accepted (tests.test_gateway_client.OpaqueIdentifierTests.test_valid_job_ids_are_accepted) (job_id='JOB_1')",
+        "test_valid_job_ids_are_accepted (tests.test_gateway_client.OpaqueIdentifierTests.test_valid_job_ids_are_accepted) (job_id='xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')",
+        "test_valid_job_ids_are_accepted (tests.test_gateway_client.OpaqueIdentifierTests.test_valid_job_ids_are_accepted)",
+        "test_response_at_the_budget_is_accepted (tests.test_gateway_client.ResponseBudgetTests.test_response_at_the_budget_is_accepted)",
+        "test_response_over_the_budget_is_refused (tests.test_gateway_client.ResponseBudgetTests.test_response_over_the_budget_is_refused)",
+        "test_every_helper_reaches_the_gateway (tests.test_gateway_client.RouteCoverageTests.test_every_helper_reaches_the_gateway) (helper='project(state)')",
+        "test_every_helper_reaches_the_gateway (tests.test_gateway_client.RouteCoverageTests.test_every_helper_reaches_the_gateway) (helper='project(jobs)')",
+        "test_every_helper_reaches_the_gateway (tests.test_gateway_client.RouteCoverageTests.test_every_helper_reaches_the_gateway) (helper='project(legacy/jobs)')",
+        "test_every_helper_reaches_the_gateway (tests.test_gateway_client.RouteCoverageTests.test_every_helper_reaches_the_gateway) (helper='capabilities')",
+        "test_every_helper_reaches_the_gateway (tests.test_gateway_client.RouteCoverageTests.test_every_helper_reaches_the_gateway) (helper='source')",
+        "test_every_helper_reaches_the_gateway (tests.test_gateway_client.RouteCoverageTests.test_every_helper_reaches_the_gateway) (helper='design_node')",
+        "test_every_helper_reaches_the_gateway (tests.test_gateway_client.RouteCoverageTests.test_every_helper_reaches_the_gateway) (helper='wave_query')",
+        "test_every_helper_reaches_the_gateway (tests.test_gateway_client.RouteCoverageTests.test_every_helper_reaches_the_gateway) (helper='wave_signals')",
+        "test_every_helper_reaches_the_gateway (tests.test_gateway_client.RouteCoverageTests.test_every_helper_reaches_the_gateway) (helper='snapshot')",
+        "test_every_helper_reaches_the_gateway (tests.test_gateway_client.RouteCoverageTests.test_every_helper_reaches_the_gateway) (helper='context_query')",
+        "test_every_helper_reaches_the_gateway (tests.test_gateway_client.RouteCoverageTests.test_every_helper_reaches_the_gateway) (helper='job(read)')",
+        "test_every_helper_reaches_the_gateway (tests.test_gateway_client.RouteCoverageTests.test_every_helper_reaches_the_gateway) (helper='job(cancel)')",
+        "test_every_helper_reaches_the_gateway (tests.test_gateway_client.RouteCoverageTests.test_every_helper_reaches_the_gateway) (helper='submit')",
+        "test_every_helper_reaches_the_gateway (tests.test_gateway_client.RouteCoverageTests.test_every_helper_reaches_the_gateway) (helper='grant')",
+        "test_every_helper_reaches_the_gateway (tests.test_gateway_client.RouteCoverageTests.test_every_helper_reaches_the_gateway) (helper='consume_ui_receipt')",
+        "test_every_helper_reaches_the_gateway (tests.test_gateway_client.RouteCoverageTests.test_every_helper_reaches_the_gateway)",
+        "test_token_is_in_the_header_and_never_in_the_url (tests.test_gateway_client.TokenHygieneTests.test_token_is_in_the_header_and_never_in_the_url)",
+        "test_reading_a_grant_and_consuming_a_receipt_are_still_allowed (tests.test_gateway_client.UiOnlyRouteTests.test_reading_a_grant_and_consuming_a_receipt_are_still_allowed)",
+        "test_absent_origin_is_allowed_for_native_clients (tests.test_http_api.OriginBoundaryTests.test_absent_origin_is_allowed_for_native_clients)",
+        "test_loopback_origin_is_allowed (tests.test_http_api.OriginBoundaryTests.test_loopback_origin_is_allowed)",
+        "test_non_loopback_origin_is_denied (tests.test_http_api.OriginBoundaryTests.test_non_loopback_origin_is_denied) (origin='http://evil.example')",
+        "test_non_loopback_origin_is_denied (tests.test_http_api.OriginBoundaryTests.test_non_loopback_origin_is_denied) (origin='https://evil.example:443')",
+        "test_non_loopback_origin_is_denied (tests.test_http_api.OriginBoundaryTests.test_non_loopback_origin_is_denied) (origin='null')",
+        "test_shutdown_stops_the_loop (tests.test_http_api.ShutdownTests.test_shutdown_stops_the_loop)",
+        "test_capabilities_reports_indexing_mismatch_and_no_execution (tests.test_http_api.SidecarApiTests.test_capabilities_reports_indexing_mismatch_and_no_execution)",
+        "test_capabilities_requires_auth (tests.test_http_api.SidecarApiTests.test_capabilities_requires_auth)",
+        "test_card_cap_records_omissions (tests.test_http_api.SidecarApiTests.test_card_cap_records_omissions)",
+        "test_create_and_get_session (tests.test_http_api.SidecarApiTests.test_create_and_get_session)",
+        "test_create_session_validates_project_and_revision (tests.test_http_api.SidecarApiTests.test_create_session_validates_project_and_revision)",
+        "test_empty_diagnostics_on_a_legacy_report_refuses_to_conclude (tests.test_http_api.SidecarApiTests.test_empty_diagnostics_on_a_legacy_report_refuses_to_conclude)",
+        "test_empty_diagnostics_on_a_trusted_report_is_explained (tests.test_http_api.SidecarApiTests.test_empty_diagnostics_on_a_trusted_report_is_explained)",
+        "test_events_are_returned_with_cursors (tests.test_http_api.SidecarApiTests.test_events_are_returned_with_cursors)",
+        "test_expired_cursor_is_410 (tests.test_http_api.SidecarApiTests.test_expired_cursor_is_410)",
+        "test_explain_kind_rejects_a_full_corrected_module (tests.test_http_api.SidecarApiTests.test_explain_kind_rejects_a_full_corrected_module)",
+        "test_explain_on_clean_code_still_refuses_to_conclude (tests.test_http_api.SidecarApiTests.test_explain_on_clean_code_still_refuses_to_conclude)",
+        "test_explain_without_model_key_degrades_to_a_rule_card (tests.test_http_api.SidecarApiTests.test_explain_without_model_key_degrades_to_a_rule_card)",
+        "test_health_accepts_an_authorization_header (tests.test_http_api.SidecarApiTests.test_health_accepts_an_authorization_header)",
+        "test_health_requires_no_token_and_reports_protocol (tests.test_http_api.SidecarApiTests.test_health_requires_no_token_and_reports_protocol)",
+        "test_hint_never_contains_the_fix (tests.test_http_api.SidecarApiTests.test_hint_never_contains_the_fix)",
+        "test_invalid_cursor_is_400 (tests.test_http_api.SidecarApiTests.test_invalid_cursor_is_400)",
+        "test_l4_with_more_is_not_authorization (tests.test_http_api.SidecarApiTests.test_l4_with_more_is_not_authorization)",
+        "test_l4_without_more_is_policy_denied_and_leaks_no_answer (tests.test_http_api.SidecarApiTests.test_l4_without_more_is_policy_denied_and_leaks_no_answer)",
+        "test_more_must_be_boolean (tests.test_http_api.SidecarApiTests.test_more_must_be_boolean)",
+        "test_no_card_ever_leaks_a_path_or_a_token (tests.test_http_api.SidecarApiTests.test_no_card_ever_leaks_a_path_or_a_token)",
+        "test_non_json_body_is_400 (tests.test_http_api.SidecarApiTests.test_non_json_body_is_400)",
+        "test_oversized_body_is_413 (tests.test_http_api.SidecarApiTests.test_oversized_body_is_413)",
+        "test_oversized_selection_text_is_400 (tests.test_http_api.SidecarApiTests.test_oversized_selection_text_is_400)",
+        "test_plan_card_shape_and_capabilities (tests.test_http_api.SidecarApiTests.test_plan_card_shape_and_capabilities)",
+        "test_report_review_does_not_invent_a_root_cause (tests.test_http_api.SidecarApiTests.test_report_review_does_not_invent_a_root_cause)",
+        "test_report_review_for_an_unknown_job_is_404 (tests.test_http_api.SidecarApiTests.test_report_review_for_an_unknown_job_is_404)",
+        "test_report_review_maps_a_diagnostic_verbatim (tests.test_http_api.SidecarApiTests.test_report_review_maps_a_diagnostic_verbatim)",
+        "test_report_review_redacts_free_text_paths_instead_of_rejecting (tests.test_http_api.SidecarApiTests.test_report_review_redacts_free_text_paths_instead_of_rejecting)",
+        "test_report_review_requires_job_id (tests.test_http_api.SidecarApiTests.test_report_review_requires_job_id)",
+        "test_report_review_without_a_gateway_fails_without_fake_cards (tests.test_http_api.SidecarApiTests.test_report_review_without_a_gateway_fails_without_fake_cards)",
+        "test_run_is_readable_by_its_id (tests.test_http_api.SidecarApiTests.test_run_is_readable_by_its_id)",
+        "test_session_cap_evicts_the_oldest (tests.test_http_api.SidecarApiTests.test_session_cap_evicts_the_oldest)",
+        "test_unknown_api_v1_path_is_404 (tests.test_http_api.SidecarApiTests.test_unknown_api_v1_path_is_404)",
+        "test_unknown_path_is_404 (tests.test_http_api.SidecarApiTests.test_unknown_path_is_404)",
+        "test_unknown_run_is_404 (tests.test_http_api.SidecarApiTests.test_unknown_run_is_404)",
+        "test_unknown_session_is_404 (tests.test_http_api.SidecarApiTests.test_unknown_session_is_404)",
+        "test_unsupported_kind_is_400 (tests.test_http_api.SidecarApiTests.test_unsupported_kind_is_400)",
+        "test_unsupported_level_is_400 (tests.test_http_api.SidecarApiTests.test_unsupported_level_is_400)",
+        "test_unsupported_method_is_404 (tests.test_http_api.SidecarApiTests.test_unsupported_method_is_404)",
+        "test_wrong_token_is_rejected (tests.test_http_api.SidecarApiTests.test_wrong_token_is_rejected)",
+        "test_invalid_unicode_selection_is_400_not_500 (tests.test_http_surface_boundaries.HttpPathAndLimitTests.test_invalid_unicode_selection_is_400_not_500)",
+        "test_request_body_one_byte_over_one_mib_is_413 (tests.test_http_surface_boundaries.HttpPathAndLimitTests.test_request_body_one_byte_over_one_mib_is_413)",
+        "test_selection_text_accepts_64_kib_and_rejects_one_more_byte (tests.test_http_surface_boundaries.HttpPathAndLimitTests.test_selection_text_accepts_64_kib_and_rejects_one_more_byte)",
+        "test_all_documented_routes_have_a_positive_case (tests.test_http_surface_boundaries.HttpRouteMatrixTests.test_all_documented_routes_have_a_positive_case)",
+        "test_health_accepts_absent_or_non_matching_credentials (tests.test_http_surface_boundaries.HttpRouteMatrixTests.test_health_accepts_absent_or_non_matching_credentials)",
+        "test_missing_token_is_rejected_on_every_non_health_route (tests.test_http_surface_boundaries.HttpRouteMatrixTests.test_missing_token_is_rejected_on_every_non_health_route) (method='GET', path='/api/v1/capabilities')",
+        "test_missing_token_is_rejected_on_every_non_health_route (tests.test_http_surface_boundaries.HttpRouteMatrixTests.test_missing_token_is_rejected_on_every_non_health_route) (method='POST', path='/api/v1/sessions')",
+        "test_missing_token_is_rejected_on_every_non_health_route (tests.test_http_surface_boundaries.HttpRouteMatrixTests.test_missing_token_is_rejected_on_every_non_health_route) (method='GET', path='/api/v1/sessions/sess-1')",
+        "test_missing_token_is_rejected_on_every_non_health_route (tests.test_http_surface_boundaries.HttpRouteMatrixTests.test_missing_token_is_rejected_on_every_non_health_route) (method='POST', path='/api/v1/sessions/sess-1/runs')",
+        "test_missing_token_is_rejected_on_every_non_health_route (tests.test_http_surface_boundaries.HttpRouteMatrixTests.test_missing_token_is_rejected_on_every_non_health_route) (method='GET', path='/api/v1/sessions/sess-1/events')",
+        "test_missing_token_is_rejected_on_every_non_health_route (tests.test_http_surface_boundaries.HttpRouteMatrixTests.test_missing_token_is_rejected_on_every_non_health_route) (method='GET', path='/api/v1/runs/run-1')",
+        "test_missing_token_is_rejected_on_every_non_health_route (tests.test_http_surface_boundaries.HttpRouteMatrixTests.test_missing_token_is_rejected_on_every_non_health_route) (method='POST', path='/api/v1/shutdown')",
+        "test_non_loopback_origin_is_rejected_on_every_route (tests.test_http_surface_boundaries.HttpRouteMatrixTests.test_non_loopback_origin_is_rejected_on_every_route) (method='GET', path='/api/v1/health')",
+        "test_non_loopback_origin_is_rejected_on_every_route (tests.test_http_surface_boundaries.HttpRouteMatrixTests.test_non_loopback_origin_is_rejected_on_every_route) (method='GET', path='/api/v1/capabilities')",
+        "test_non_loopback_origin_is_rejected_on_every_route (tests.test_http_surface_boundaries.HttpRouteMatrixTests.test_non_loopback_origin_is_rejected_on_every_route) (method='POST', path='/api/v1/sessions')",
+        "test_non_loopback_origin_is_rejected_on_every_route (tests.test_http_surface_boundaries.HttpRouteMatrixTests.test_non_loopback_origin_is_rejected_on_every_route) (method='GET', path='/api/v1/sessions/sess-1')",
+        "test_non_loopback_origin_is_rejected_on_every_route (tests.test_http_surface_boundaries.HttpRouteMatrixTests.test_non_loopback_origin_is_rejected_on_every_route) (method='POST', path='/api/v1/sessions/sess-1/runs')",
+        "test_non_loopback_origin_is_rejected_on_every_route (tests.test_http_surface_boundaries.HttpRouteMatrixTests.test_non_loopback_origin_is_rejected_on_every_route) (method='GET', path='/api/v1/sessions/sess-1/events')",
+        "test_non_loopback_origin_is_rejected_on_every_route (tests.test_http_surface_boundaries.HttpRouteMatrixTests.test_non_loopback_origin_is_rejected_on_every_route) (method='GET', path='/api/v1/runs/run-1')",
+        "test_non_loopback_origin_is_rejected_on_every_route (tests.test_http_surface_boundaries.HttpRouteMatrixTests.test_non_loopback_origin_is_rejected_on_every_route) (method='POST', path='/api/v1/shutdown')",
+        "test_wrong_token_is_rejected_on_every_non_health_route (tests.test_http_surface_boundaries.HttpRouteMatrixTests.test_wrong_token_is_rejected_on_every_non_health_route) (method='GET', path='/api/v1/capabilities')",
+        "test_wrong_token_is_rejected_on_every_non_health_route (tests.test_http_surface_boundaries.HttpRouteMatrixTests.test_wrong_token_is_rejected_on_every_non_health_route) (method='POST', path='/api/v1/sessions')",
+        "test_wrong_token_is_rejected_on_every_non_health_route (tests.test_http_surface_boundaries.HttpRouteMatrixTests.test_wrong_token_is_rejected_on_every_non_health_route) (method='GET', path='/api/v1/sessions/sess-1')",
+        "test_wrong_token_is_rejected_on_every_non_health_route (tests.test_http_surface_boundaries.HttpRouteMatrixTests.test_wrong_token_is_rejected_on_every_non_health_route) (method='POST', path='/api/v1/sessions/sess-1/runs')",
+        "test_wrong_token_is_rejected_on_every_non_health_route (tests.test_http_surface_boundaries.HttpRouteMatrixTests.test_wrong_token_is_rejected_on_every_non_health_route) (method='GET', path='/api/v1/sessions/sess-1/events')",
+        "test_wrong_token_is_rejected_on_every_non_health_route (tests.test_http_surface_boundaries.HttpRouteMatrixTests.test_wrong_token_is_rejected_on_every_non_health_route) (method='GET', path='/api/v1/runs/run-1')",
+        "test_wrong_token_is_rejected_on_every_non_health_route (tests.test_http_surface_boundaries.HttpRouteMatrixTests.test_wrong_token_is_rejected_on_every_non_health_route) (method='POST', path='/api/v1/shutdown')",
+        "test_http_refuses_l4_before_kind_specific_validation (tests.test_run_semantics.L4PolicyTests.test_http_refuses_l4_before_kind_specific_validation) (kind='hint')",
+        "test_http_refuses_l4_before_kind_specific_validation (tests.test_run_semantics.L4PolicyTests.test_http_refuses_l4_before_kind_specific_validation) (kind='plan')",
+        "test_http_refuses_l4_before_kind_specific_validation (tests.test_run_semantics.L4PolicyTests.test_http_refuses_l4_before_kind_specific_validation) (kind='report_review')",
+        "test_default_http_level_is_l1 (tests.test_run_semantics.RunValidationTests.test_default_http_level_is_l1)",
+        "test_two_projects_can_run_in_parallel (tests.test_stress_matrix.CapacityAndIdentifierTests.test_two_projects_can_run_in_parallel)",
+        "test_unicode_space_and_long_revision_are_round_tripped (tests.test_stress_matrix.CapacityAndIdentifierTests.test_unicode_space_and_long_revision_are_round_tripped)",
+        "test_model_and_gateway_outages_are_survivable_together (tests.test_stress_matrix.ReportAndOutageTests.test_model_and_gateway_outages_are_survivable_together)",
+        "test_ready_failure_and_early_exit_release_bound_socket_and_teaching (tests.test_teaching_service.TeachingServiceTests.test_ready_failure_and_early_exit_release_bound_socket_and_teaching)",
+        "test_non_loopback_host_is_denied (tests.test_http_api.SidecarApiTests.test_non_loopback_host_is_denied)",
+        "test_host_and_loopback_origin_names_are_case_insensitive (tests.test_http_surface_boundaries.HttpRouteMatrixTests.test_host_and_loopback_origin_names_are_case_insensitive)",
+        "test_non_loopback_host_is_rejected_on_every_route (tests.test_http_surface_boundaries.HttpRouteMatrixTests.test_non_loopback_host_is_rejected_on_every_route) (method='GET', path='/api/v1/health')",
+        "test_non_loopback_host_is_rejected_on_every_route (tests.test_http_surface_boundaries.HttpRouteMatrixTests.test_non_loopback_host_is_rejected_on_every_route) (method='GET', path='/api/v1/capabilities')",
+        "test_non_loopback_host_is_rejected_on_every_route (tests.test_http_surface_boundaries.HttpRouteMatrixTests.test_non_loopback_host_is_rejected_on_every_route) (method='POST', path='/api/v1/sessions')",
+        "test_non_loopback_host_is_rejected_on_every_route (tests.test_http_surface_boundaries.HttpRouteMatrixTests.test_non_loopback_host_is_rejected_on_every_route) (method='GET', path='/api/v1/sessions/sess-1')",
+        "test_non_loopback_host_is_rejected_on_every_route (tests.test_http_surface_boundaries.HttpRouteMatrixTests.test_non_loopback_host_is_rejected_on_every_route) (method='POST', path='/api/v1/sessions/sess-1/runs')",
+        "test_non_loopback_host_is_rejected_on_every_route (tests.test_http_surface_boundaries.HttpRouteMatrixTests.test_non_loopback_host_is_rejected_on_every_route) (method='GET', path='/api/v1/sessions/sess-1/events')",
+        "test_non_loopback_host_is_rejected_on_every_route (tests.test_http_surface_boundaries.HttpRouteMatrixTests.test_non_loopback_host_is_rejected_on_every_route) (method='GET', path='/api/v1/runs/run-1')",
+        "test_non_loopback_host_is_rejected_on_every_route (tests.test_http_surface_boundaries.HttpRouteMatrixTests.test_non_loopback_host_is_rejected_on_every_route) (method='POST', path='/api/v1/shutdown')",
+        "test_auth_owner_origin_and_scope_are_checked_before_mutation (tests.test_teaching_http.TeachingHTTPTests.test_auth_owner_origin_and_scope_are_checked_before_mutation)",
+        "test_disabled_extension_is_404_and_does_not_import_a_second_server (tests.test_teaching_http.TeachingHTTPTests.test_disabled_extension_is_404_and_does_not_import_a_second_server)",
+        "test_extension_projection_uses_latest_u1_privacy_failure_envelope (tests.test_teaching_http.TeachingHTTPTests.test_extension_projection_uses_latest_u1_privacy_failure_envelope) (unsafe='~/private.v')",
+        "test_extension_projection_uses_latest_u1_privacy_failure_envelope (tests.test_teaching_http.TeachingHTTPTests.test_extension_projection_uses_latest_u1_privacy_failure_envelope) (unsafe='~\\\\private.v')",
+        "test_extension_projection_uses_latest_u1_privacy_failure_envelope (tests.test_teaching_http.TeachingHTTPTests.test_extension_projection_uses_latest_u1_privacy_failure_envelope) (unsafe='/proc/private.v')",
+        "test_extension_projection_uses_latest_u1_privacy_failure_envelope (tests.test_teaching_http.TeachingHTTPTests.test_extension_projection_uses_latest_u1_privacy_failure_envelope) (unsafe='/etc/private.v')",
+        "test_extension_projection_uses_latest_u1_privacy_failure_envelope (tests.test_teaching_http.TeachingHTTPTests.test_extension_projection_uses_latest_u1_privacy_failure_envelope) (unsafe='u1-ui')",
+        "test_same_port_extension_discovery_pending_actions_events_and_terminal (tests.test_teaching_http.TeachingHTTPTests.test_same_port_extension_discovery_pending_actions_events_and_terminal)",
+        "test_one_ready_line_same_port_extension_and_authenticated_shutdown (tests.test_teaching_process.TeachingProcessTests.test_one_ready_line_same_port_extension_and_authenticated_shutdown)"
+      ],
+      "optional_skips": [
+        {
+          "case": "test_sigterm_and_sigint_exit_zero (tests.test_bootstrap_process.StopTests.test_sigterm_and_sigint_exit_zero)",
+          "reason": "Windows has no catchable SIGTERM: os.kill maps to TerminateProcess, so the host stops the sidecar with POST /shutdown instead (see AgentServiceController)"
+        }
+      ]
+    },
+    "loopback_environment_u2": {
+      "tests": 719,
+      "failures": 44,
+      "errors": 123,
+      "skipped": 37,
+      "successful": false,
+      "seconds": 159.836,
+      "verified_at_utc": "2026-10-22T06:34:16.447589+00:00",
+      "failed_cases": [
+        "test_string_booleans_and_duplicate_capabilities_are_rejected (test_gateway.GatewayTests.test_string_booleans_and_duplicate_capabilities_are_rejected)",
+        "test_real_cli_reads_only_health_and_bound_report (test_gateway_probe.ProbeTransportTests.test_real_cli_reads_only_health_and_bound_report)",
+        "test_stale_report_and_server_error_do_not_leak_body (test_gateway_probe.ProbeTransportTests.test_stale_report_and_server_error_do_not_leak_body)",
+        "test_bad_handshake_prevents_token_disclosure (test_gateway_report.GatewayReportTests.test_bad_handshake_prevents_token_disclosure)",
+        "test_binding_and_legacy_fail_closed (test_gateway_report.GatewayReportTests.test_binding_and_legacy_fail_closed) (key='job_id')",
+        "test_binding_and_legacy_fail_closed (test_gateway_report.GatewayReportTests.test_binding_and_legacy_fail_closed) (key='project_id')",
+        "test_binding_and_legacy_fail_closed (test_gateway_report.GatewayReportTests.test_binding_and_legacy_fail_closed) (key='revision')",
+        "test_binding_and_legacy_fail_closed (test_gateway_report.GatewayReportTests.test_binding_and_legacy_fail_closed) (key='snapshot_id')",
+        "test_binding_and_legacy_fail_closed (test_gateway_report.GatewayReportTests.test_binding_and_legacy_fail_closed) (key='schema_version')",
+        "test_binding_and_legacy_fail_closed (test_gateway_report.GatewayReportTests.test_binding_and_legacy_fail_closed) (key='origin')",
+        "test_binding_and_legacy_fail_closed (test_gateway_report.GatewayReportTests.test_binding_and_legacy_fail_closed) (key='completeness')",
+        "test_binding_and_legacy_fail_closed (test_gateway_report.GatewayReportTests.test_binding_and_legacy_fail_closed) (key='state')",
+        "test_binding_and_legacy_fail_closed (test_gateway_report.GatewayReportTests.test_binding_and_legacy_fail_closed) (key='diagnostics')",
+        "test_binding_and_legacy_fail_closed (test_gateway_report.GatewayReportTests.test_binding_and_legacy_fail_closed) (key='metrics')",
+        "test_binding_and_legacy_fail_closed (test_gateway_report.GatewayReportTests.test_binding_and_legacy_fail_closed) (key='artifacts')",
+        "test_envelope_protocol_and_identifiers_checked (test_gateway_report.GatewayReportTests.test_envelope_protocol_and_identifiers_checked)",
+        "test_nonstandard_numbers_and_duplicate_keys_are_rejected (test_gateway_report.GatewayReportTests.test_nonstandard_numbers_and_duplicate_keys_are_rejected)",
+        "test_transport_errors_are_bounded_redacted_and_never_followed (test_gateway_report.GatewayReportTests.test_transport_errors_are_bounded_redacted_and_never_followed)",
+        "test_factory_uses_real_read_transport_and_stops_on_new_revision (test_gateway_session.GatewaySessionHttpTests.test_factory_uses_real_read_transport_and_stops_on_new_revision)",
+        "test_http_report_reaches_loop_and_hint_rereads_changed_revision (test_gateway_source.GatewaySourceHTTPTests.test_http_report_reaches_loop_and_hint_rereads_changed_revision)",
+        "test_same_session_source_refreshes_when_catalog_gains_anchor (test_host_catalog.LiveCatalogFactoryTests.test_same_session_source_refreshes_when_catalog_gains_anchor)",
+        "test_static_sequence_is_copied_for_factory_and_resolver (test_host_catalog.LiveCatalogFactoryTests.test_static_sequence_is_copied_for_factory_and_resolver)",
+        "test_verify_plan_requires_explicit_verifier_and_composes_real_session (test_host_http.HostFactoryTests.test_verify_plan_requires_explicit_verifier_and_composes_real_session)",
+        "test_readonly_probe_refuses_foreign_host_and_execution_requests (test_host_http.HostHTTPTests.test_readonly_probe_refuses_foreign_host_and_execution_requests)",
+        "test_readonly_probe_reports_missing_trusted_evidence (test_host_http.HostHTTPTests.test_readonly_probe_reports_missing_trusted_evidence)",
+        "test_readonly_probe_runs_bound_teaching_session_without_sensitive_output (test_host_http.HostHTTPTests.test_readonly_probe_runs_bound_teaching_session_without_sensitive_output)",
+        "test_cancel_before_any_job_persistently_fences_later_submission (test_host_verification.VerificationHTTPFixture.test_cancel_before_any_job_persistently_fences_later_submission)",
+        "test_failure_cancellation_and_timeout_stop_later_steps (test_host_verification.VerificationHTTPFixture.test_failure_cancellation_and_timeout_stop_later_steps)",
+        "test_instance_protocol_edition_handshake_before_credentials (test_host_verification.VerificationHTTPFixture.test_instance_protocol_edition_handshake_before_credentials)",
+        "test_new_revision_denied_before_job_post_or_submission_reservation (test_host_verification.VerificationHTTPFixture.test_new_revision_denied_before_job_post_or_submission_reservation)",
+        "test_real_core_distinct_build_run_provider_and_readonly_observe (test_host_verification.VerificationHTTPFixture.test_real_core_distinct_build_run_provider_and_readonly_observe)",
+        "test_reconciliation_cannot_clear_previously_observed_terminal_failure (test_host_verification.VerificationHTTPFixture.test_reconciliation_cannot_clear_previously_observed_terminal_failure)",
+        "test_success_and_idempotent_duplicate_have_one_submission (test_host_verification.VerificationHTTPFixture.test_success_and_idempotent_duplicate_have_one_submission)",
+        "test_unsaved_or_unsynchronized_context_denied_before_submission (test_host_verification.VerificationHTTPFixture.test_unsaved_or_unsynchronized_context_denied_before_submission) (changes={'dirty': True})",
+        "test_unsaved_or_unsynchronized_context_denied_before_submission (test_host_verification.VerificationHTTPFixture.test_unsaved_or_unsynchronized_context_denied_before_submission) (changes={'synchronized': False})",
+        "test_wrong_project_and_untyped_context_fail_closed (test_host_verification.VerificationHTTPFixture.test_wrong_project_and_untyped_context_fail_closed) (changes={'project_id': 'project-other'})",
+        "test_wrong_project_and_untyped_context_fail_closed (test_host_verification.VerificationHTTPFixture.test_wrong_project_and_untyped_context_fail_closed) (changes={'revision': None})",
+        "test_wrong_project_and_untyped_context_fail_closed (test_host_verification.VerificationHTTPFixture.test_wrong_project_and_untyped_context_fail_closed) (changes={'revision': ''})",
+        "test_wrong_project_and_untyped_context_fail_closed (test_host_verification.VerificationHTTPFixture.test_wrong_project_and_untyped_context_fail_closed) (changes={'dirty': 0})",
+        "test_wrong_project_and_untyped_context_fail_closed (test_host_verification.VerificationHTTPFixture.test_wrong_project_and_untyped_context_fail_closed) (changes={'synchronized': 1})",
+        "test_health_outage_cannot_erase_a_terminal_job_failure_or_enable_successor (test_verification_observation.GatewayObservationTests.test_health_outage_cannot_erase_a_terminal_job_failure_or_enable_successor)",
+        "test_process_loss_after_receipt_before_final_commit_observes_original_run (test_verification_restart.VerificationRestartTests.test_process_loss_after_receipt_before_final_commit_observes_original_run)",
+        "test_question_plan_and_scope_tampering_rejected_before_gateway_reads (test_verification_restart.VerificationRestartTests.test_question_plan_and_scope_tampering_rejected_before_gateway_reads)",
+        "test_reopened_store_reads_pending_receipt_and_requires_fresh_successor_approval (test_verification_restart.VerificationRestartTests.test_reopened_store_reads_pending_receipt_and_requires_fresh_successor_approval)",
+        "test_real_http_uses_only_frozen_routes_and_scope (test_gateway.GatewayTests.test_real_http_uses_only_frozen_routes_and_scope)",
+        "test_explicit_mode_boots_and_teaches_from_authenticated_loopback_metadata (test_gateway_evidence.GatewayEvidenceProcessTests.test_explicit_mode_boots_and_teaches_from_authenticated_loopback_metadata)",
+        "test_nonterminal_and_incomplete_reports_remain_raw_for_evidence_layer (test_gateway_report.GatewayReportTests.test_nonterminal_and_incomplete_reports_remain_raw_for_evidence_layer)",
+        "test_complete_authenticated_window_keeps_tool_origin_and_binding (test_gateway_waveform.GatewayWaveformTests.test_complete_authenticated_window_keeps_tool_origin_and_binding)",
+        "test_describe_exposes_signal_metadata_without_querying_values (test_gateway_waveform.GatewayWaveformTests.test_describe_exposes_signal_metadata_without_querying_values)",
+        "test_metadata_budget_includes_signals_beyond_gateway_default_page (test_gateway_waveform.GatewayWaveformTests.test_metadata_budget_includes_signals_beyond_gateway_default_page)",
+        "test_partial_last_signal_never_certifies_even_without_cursor (test_gateway_waveform.GatewayWaveformTests.test_partial_last_signal_never_certifies_even_without_cursor)",
+        "test_tool_checker_requires_explicit_trusted_service_contract (test_gateway_waveform.GatewayWaveformTests.test_tool_checker_requires_explicit_trusted_service_contract)",
+        "test_existing_source_rejects_withdrawn_corrupt_missing_or_expired_catalog (test_host_catalog.LiveCatalogFactoryTests.test_existing_source_rejects_withdrawn_corrupt_missing_or_expired_catalog)",
+        "test_resolver_observes_new_anchor_then_revocation_and_corruption (test_host_catalog.LiveCatalogFactoryTests.test_resolver_observes_new_anchor_then_revocation_and_corruption)",
+        "test_cli_overrides_environment_and_keeps_existing_session_catalog_live (test_host_catalog.LiveCatalogProcessTests.test_cli_overrides_environment_and_keeps_existing_session_catalog_live)",
+        "test_baseline_gateway_outage_does_not_permanently_end_readonly_continuation (test_host_coupled.CoupledHostTests.test_baseline_gateway_outage_does_not_permanently_end_readonly_continuation)",
+        "test_late_result_anchor_reaches_feedback_through_get_only_observation (test_host_coupled.CoupledHostTests.test_late_result_anchor_reaches_feedback_through_get_only_observation)",
+        "test_observe_rejects_grant_injection_and_cross_learner_before_mutation (test_host_coupled.CoupledHostTests.test_observe_rejects_grant_injection_and_cross_learner_before_mutation)",
+        "test_temporary_observation_gateway_failure_can_be_explicitly_retried (test_host_coupled.CoupledHostTests.test_temporary_observation_gateway_failure_can_be_explicitly_retried)",
+        "test_trimmed_cursor_recovers_from_atomic_state_watermark (test_host_coupled.CoupledHostTests.test_trimmed_cursor_recovers_from_atomic_state_watermark)",
+        "test_capabilities_report_configuration_without_claiming_retrieval_success (test_host_courses.HostCoursesTests.test_capabilities_report_configuration_without_claiming_retrieval_success)",
+        "test_http_cannot_select_database_or_inject_course_material (test_host_courses.HostCoursesTests.test_http_cannot_select_database_or_inject_course_material)",
+        "test_http_preserves_verified_https_reference_and_keeps_learner_isolation (test_host_courses.HostCoursesTests.test_http_preserves_verified_https_reference_and_keeps_learner_isolation)",
+        "test_missing_database_is_unavailable_without_failing_teaching (test_host_courses.HostCoursesTests.test_missing_database_is_unavailable_without_failing_teaching)",
+        "test_no_match_and_cancel_are_explicit_and_clear_references (test_host_courses.HostCoursesTests.test_no_match_and_cancel_are_explicit_and_clear_references)",
+        "test_pre_recovery_action_replays_current_projection_after_successful_recovery (test_host_courses.HostCoursesTests.test_pre_recovery_action_replays_current_projection_after_successful_recovery)",
+        "test_restarted_get_and_create_replay_hide_old_courses_until_recovered (test_host_courses.HostCoursesTests.test_restarted_get_and_create_replay_hide_old_courses_until_recovered)",
+        "test_trusted_report_resolver_refetches_only_matching_anchor (test_host_http.HostFactoryTests.test_trusted_report_resolver_refetches_only_matching_anchor)",
+        "test_bad_envelope_is_rejected_before_session_creation (test_host_http.HostHTTPTests.test_bad_envelope_is_rejected_before_session_creation) (headers=['POST /api/v1/teaching/sessions HTTP/1.1', 'Host: 127.0.0.1:63058', 'Authorization: Bearer ui-secret', 'X-Learner-ID: learner-1', 'Idempotency-Key: unsafe', 'Content-Type: application/json', 'Transfer-Encoding: chunked', 'Content-Length: 2'])",
+        "test_bad_envelope_is_rejected_before_session_creation (test_host_http.HostHTTPTests.test_bad_envelope_is_rejected_before_session_creation) (headers=['POST /api/v1/teaching/sessions HTTP/1.1', 'Host: 127.0.0.1:63058', 'Authorization: Bearer ui-secret', 'X-Learner-ID: learner-1', 'Idempotency-Key: unsafe', 'Content-Type: application/json', 'Content-Length: 65537'])",
+        "test_bad_envelope_is_rejected_before_session_creation (test_host_http.HostHTTPTests.test_bad_envelope_is_rejected_before_session_creation) (headers=['POST /api/v1/teaching/sessions HTTP/1.1', 'Host: 127.0.0.1:63058', 'Authorization: Bearer ui-secret', 'X-Learner-ID: learner-1', 'Idempotency-Key: unsafe', 'Content-Type: application/json', 'Content-Length: 13'])",
+        "test_bad_envelope_is_rejected_before_session_creation (test_host_http.HostHTTPTests.test_bad_envelope_is_rejected_before_session_creation) (headers=['POST /api/v1/teaching/sessions HTTP/1.1', 'Host: 127.0.0.1:63058', 'Authorization: Bearer ui-secret', 'X-Learner-ID: learner-1', 'Idempotency-Key: unsafe', 'Content-Type: application/json', 'Content-Length: 9'])",
+        "test_bad_envelope_is_rejected_before_session_creation (test_host_http.HostHTTPTests.test_bad_envelope_is_rejected_before_session_creation) (headers=['POST /api/v1/teaching/sessions HTTP/1.1', 'Host: 127.0.0.1:63058', 'Authorization: Bearer ui-secret', 'X-Learner-ID: learner-1', 'Idempotency-Key: unsafe', 'Content-Type: application/json', 'Content-Length: 2', 'Origin: https://evil.test'])",
+        "test_bad_envelope_is_rejected_before_session_creation (test_host_http.HostHTTPTests.test_bad_envelope_is_rejected_before_session_creation) (headers=['POST /api/v1/teaching/sessions HTTP/1.1', 'Host: 127.0.0.1:63058', 'Authorization: Bearer ui-secret', 'X-Learner-ID: learner-1', 'Idempotency-Key: unsafe', 'Content-Type: application/json', 'Content-Length: 2', 'Host: evil.test'])",
+        "test_explicit_recovery_after_restart_refetches_fixture_evidence (test_host_http.HostHTTPTests.test_explicit_recovery_after_restart_refetches_fixture_evidence)",
+        "test_health_public_capabilities_authenticated_and_truthful (test_host_http.HostHTTPTests.test_health_public_capabilities_authenticated_and_truthful)",
+        "test_json_shape_unknown_keys_scope_and_versions_rejected (test_host_http.HostHTTPTests.test_json_shape_unknown_keys_scope_and_versions_rejected) (body={'learner_id': 'learner-1', 'project_id': 'prj-1', 'revision': 'rev-12', 'snapshot_id': 'snap-12', 'job_id': 'job-21', 'diagnostic_id': 'diag-1', 'issue_id': 'issue-1', 'question': '解释存储行为', 'mode': 'rule', 'anchors': []})",
+        "test_json_shape_unknown_keys_scope_and_versions_rejected (test_host_http.HostHTTPTests.test_json_shape_unknown_keys_scope_and_versions_rejected) (body={'learner_id': 'other', 'project_id': 'prj-1', 'revision': 'rev-12', 'snapshot_id': 'snap-12', 'job_id': 'job-21', 'diagnostic_id': 'diag-1', 'issue_id': 'issue-1', 'question': '解释存储行为', 'mode': 'rule'})",
+        "test_json_shape_unknown_keys_scope_and_versions_rejected (test_host_http.HostHTTPTests.test_json_shape_unknown_keys_scope_and_versions_rejected) (body={'learner_id': 'learner-1', 'project_id': 'prj-1', 'revision': 'rev-12', 'snapshot_id': 'snap-12', 'job_id': 'job-21', 'diagnostic_id': 'diag-1', 'issue_id': 'issue-1', 'question': '\\ud800', 'mode': 'rule'})",
+        "test_json_shape_unknown_keys_scope_and_versions_rejected (test_host_http.HostHTTPTests.test_json_shape_unknown_keys_scope_and_versions_rejected)",
+        "test_loopback_fixture_create_hint_replay_scope_events_cancel (test_host_http.HostHTTPTests.test_loopback_fixture_create_hint_replay_scope_events_cancel)",
+        "test_missing_anchors_and_unconfigured_model_publish_no_invented_evidence (test_host_http.HostHTTPTests.test_missing_anchors_and_unconfigured_model_publish_no_invented_evidence)",
+        "test_model_authored_text_cannot_echo_process_secrets_or_absolute_paths (test_host_http.HostHTTPTests.test_model_authored_text_cannot_echo_process_secrets_or_absolute_paths)",
+        "test_unknown_future_cursor_reports_gone (test_host_http.HostHTTPTests.test_unknown_future_cursor_reports_gone)",
+        "test_verify_http_accepts_ui_grant_and_does_not_invent_new_job_evidence (test_host_http.HostHTTPTests.test_verify_http_accepts_ui_grant_and_does_not_invent_new_job_evidence)",
+        "test_action_replay_does_not_read_again_and_changed_payload_conflicts (test_host_prediction.HostPredictionTests.test_action_replay_does_not_read_again_and_changed_payload_conflicts)",
+        "test_challenge_expiring_after_reservation_keeps_teaching_available (test_host_prediction.HostPredictionTests.test_challenge_expiring_after_reservation_keeps_teaching_available)",
+        "test_hint_expires_challenge_and_cross_learner_is_denied (test_host_prediction.HostPredictionTests.test_hint_expires_challenge_and_cross_learner_is_denied)",
+        "test_http_prediction_contract_rejects_untrusted_fields_and_requires_learner (test_host_prediction.HostPredictionTests.test_http_prediction_contract_rejects_untrusted_fields_and_requires_learner)",
+        "test_prediction_publishes_finite_result_without_level_or_job_advancement (test_host_prediction.HostPredictionTests.test_prediction_publishes_finite_result_without_level_or_job_advancement)",
+        "test_restart_hides_old_result_and_recovery_requires_new_challenge (test_host_prediction.HostPredictionTests.test_restart_hides_old_result_and_recovery_requires_new_challenge)",
+        "test_unavailable_wave_does_not_fail_other_teaching_actions (test_host_prediction.HostPredictionTests.test_unavailable_wave_does_not_fail_other_teaching_actions)",
+        "test_course_configuration_is_trusted_startup_only_and_path_free (test_host_process.HostProcessTests.test_course_configuration_is_trusted_startup_only_and_path_free) (extra=('--no-course',))",
+        "test_http_reference_stays_denied_even_with_internal_configuration (test_host_reference.HostReferenceTests.test_http_reference_stays_denied_even_with_internal_configuration)",
+        "test_budget_exhaustion_cannot_prevent_safe_duplicate_observation (test_host_verification.VerificationHTTPFixture.test_budget_exhaustion_cannot_prevent_safe_duplicate_observation)",
+        "test_callback_failure_exposes_no_sensitive_exception (test_host_verification.VerificationHTTPFixture.test_callback_failure_exposes_no_sensitive_exception)",
+        "test_cancel_after_close_is_safe_and_cannot_touch_gateway (test_host_verification.VerificationHTTPFixture.test_cancel_after_close_is_safe_and_cannot_touch_gateway)",
+        "test_cancel_duplicate_ack_does_not_repeat_post (test_host_verification.VerificationHTTPFixture.test_cancel_duplicate_ack_does_not_repeat_post)",
+        "test_cancel_during_inflight_post_cancels_late_job_receipt (test_host_verification.VerificationHTTPFixture.test_cancel_during_inflight_post_cancels_late_job_receipt)",
+        "test_cancel_excludes_unbound_legacy_ledger_record (test_host_verification.VerificationHTTPFixture.test_cancel_excludes_unbound_legacy_ledger_record)",
+        "test_cancel_intent_stops_later_execution_even_if_build_finishes (test_host_verification.VerificationHTTPFixture.test_cancel_intent_stops_later_execution_even_if_build_finishes)",
+        "test_cancel_owned_avoids_terminal_and_unknown_id_jobs (test_host_verification.VerificationHTTPFixture.test_cancel_owned_avoids_terminal_and_unknown_id_jobs)",
+        "test_cancel_owned_only_targets_exact_plan_journal_job (test_host_verification.VerificationHTTPFixture.test_cancel_owned_only_targets_exact_plan_journal_job)",
+        "test_cancel_rejection_and_untyped_ack_never_claim_cancellation (test_host_verification.VerificationHTTPFixture.test_cancel_rejection_and_untyped_ack_never_claim_cancellation)",
+        "test_cancel_wait_is_bounded_before_post (test_host_verification.VerificationHTTPFixture.test_cancel_wait_is_bounded_before_post)",
+        "test_cancel_wrong_actual_job_scope_is_rejected_before_post (test_host_verification.VerificationHTTPFixture.test_cancel_wrong_actual_job_scope_is_rejected_before_post)",
+        "test_concurrent_adapters_cancel_at_most_once (test_host_verification.VerificationHTTPFixture.test_concurrent_adapters_cancel_at_most_once)",
+        "test_cross_instance_restart_cannot_reuse_prior_key (test_host_verification.VerificationHTTPFixture.test_cross_instance_restart_cannot_reuse_prior_key)",
+        "test_delayed_cancel_keeps_original_approval_and_cannot_fence_successor (test_host_verification.VerificationHTTPFixture.test_delayed_cancel_keeps_original_approval_and_cannot_fence_successor)",
+        "test_disk_refusal_after_post_preserves_unknown_reservation (test_host_verification.VerificationHTTPFixture.test_disk_refusal_after_post_preserves_unknown_reservation)",
+        "test_disk_refusal_before_reservation_cannot_submit (test_host_verification.VerificationHTTPFixture.test_disk_refusal_before_reservation_cannot_submit)",
+        "test_invalid_refresh_cannot_leave_successful_build_eligible (test_host_verification.VerificationHTTPFixture.test_invalid_refresh_cannot_leave_successful_build_eligible)",
+        "test_known_job_readonly_observation_survives_current_revision_change (test_host_verification.VerificationHTTPFixture.test_known_job_readonly_observation_survives_current_revision_change)",
+        "test_malformed_post_keeps_unknown_instead_of_retry (test_host_verification.VerificationHTTPFixture.test_malformed_post_keeps_unknown_instead_of_retry)",
+        "test_mismatch_remains_stopped_after_invalid_report_refresh (test_host_verification.VerificationHTTPFixture.test_mismatch_remains_stopped_after_invalid_report_refresh)",
+        "test_mismatch_remains_stopped_after_missing_evidence_and_restart (test_host_verification.VerificationHTTPFixture.test_mismatch_remains_stopped_after_missing_evidence_and_restart)",
+        "test_observation_mismatch_stops_later_steps (test_host_verification.VerificationHTTPFixture.test_observation_mismatch_stops_later_steps)",
+        "test_partial_report_never_certifies_observations (test_host_verification.VerificationHTTPFixture.test_partial_report_never_certifies_observations)",
+        "test_report_wrong_provider_or_missing_verified_anchor_not_success_evidence (test_host_verification.VerificationHTTPFixture.test_report_wrong_provider_or_missing_verified_anchor_not_success_evidence)",
+        "test_restarted_known_job_reuses_original_id_without_new_post (test_host_verification.VerificationHTTPFixture.test_restarted_known_job_reuses_original_id_without_new_post)",
+        "test_same_key_different_step_or_grant_is_conflict (test_host_verification.VerificationHTTPFixture.test_same_key_different_step_or_grant_is_conflict)",
+        "test_same_step_cannot_be_submitted_again_under_another_key (test_host_verification.VerificationHTTPFixture.test_same_step_cannot_be_submitted_again_under_another_key)",
+        "test_sim_run_requires_this_plans_successful_build (test_host_verification.VerificationHTTPFixture.test_sim_run_requires_this_plans_successful_build)",
+        "test_success_does_not_infer_expected_observation (test_host_verification.VerificationHTTPFixture.test_success_does_not_infer_expected_observation)",
+        "test_synthesis_uses_only_real_yosys_mapping (test_host_verification.VerificationHTTPFixture.test_synthesis_uses_only_real_yosys_mapping)",
+        "test_terminal_failure_is_sticky_on_duplicate_observation (test_host_verification.VerificationHTTPFixture.test_terminal_failure_is_sticky_on_duplicate_observation)",
+        "test_typed_job_response_rejects_boolean_exit_code (test_host_verification.VerificationHTTPFixture.test_typed_job_response_rejects_boolean_exit_code)",
+        "test_unknown_can_only_reconcile_exact_actual_job_binding (test_host_verification.VerificationHTTPFixture.test_unknown_can_only_reconcile_exact_actual_job_binding)",
+        "test_unknown_cancel_is_durable_and_never_automatically_repeated (test_host_verification.VerificationHTTPFixture.test_unknown_cancel_is_durable_and_never_automatically_repeated)",
+        "test_unknown_post_is_durable_and_never_automatically_resubmitted (test_host_verification.VerificationHTTPFixture.test_unknown_post_is_durable_and_never_automatically_resubmitted)",
+        "test_untrusted_anchor_not_returned_even_with_successful_job (test_host_verification.VerificationHTTPFixture.test_untrusted_anchor_not_returned_even_with_successful_job)",
+        "test_wait_is_bounded_and_repeat_only_polls_known_job (test_host_verification.VerificationHTTPFixture.test_wait_is_bounded_and_repeat_only_polls_known_job)",
+        "test_wrong_report_binding_or_provider_cannot_enable_build_dependency (test_host_verification.VerificationHTTPFixture.test_wrong_report_binding_or_provider_cannot_enable_build_dependency)",
+        "test_expired_challenge_is_denied_without_query (test_prediction.PredictionTests.test_expired_challenge_is_denied_without_query)",
+        "test_incomplete_or_changed_wave_is_unavailable_not_guessed (test_prediction.PredictionTests.test_incomplete_or_changed_wave_is_unavailable_not_guessed)",
+        "test_mismatch_and_four_state_unknown_remain_finite_point_conclusions (test_prediction.PredictionTests.test_mismatch_and_four_state_unknown_remain_finite_point_conclusions)",
+        "test_replaced_invalidated_and_reused_challenges_do_not_query (test_prediction.PredictionTests.test_replaced_invalidated_and_reused_challenges_do_not_query)",
+        "test_request_reads_only_metadata_then_submit_compares_explicit_expected (test_prediction.PredictionTests.test_request_reads_only_metadata_then_submit_compares_explicit_expected)",
+        "test_uint64_sample_round_trip_uses_decimal_text (test_prediction.PredictionTests.test_uint64_sample_round_trip_uses_decimal_text)",
+        "test_unknown_or_malformed_expected_is_denied_before_value_query (test_prediction.PredictionTests.test_unknown_or_malformed_expected_is_denied_before_value_query)",
+        "test_cancel_during_evidence_resolution_rejects_stale_challenge (test_shared_prediction.SharedPredictionTests.test_cancel_during_evidence_resolution_rejects_stale_challenge)",
+        "test_prediction_metadata_rejects_secrets_paths_and_unlisted_private_fields (test_shared_prediction.SharedPredictionTests.test_prediction_metadata_rejects_secrets_paths_and_unlisted_private_fields)",
+        "test_restart_hides_observation_and_replay_ack_until_explicit_recovery (test_shared_prediction.SharedPredictionTests.test_restart_hides_observation_and_replay_ack_until_explicit_recovery)",
+        "test_shared_client_can_receive_challenge_then_compare_without_private_state (test_shared_prediction.SharedPredictionTests.test_shared_client_can_receive_challenge_then_compare_without_private_state)",
+        "test_shared_request_and_replay_ack_never_publish_private_runtime_state (test_shared_prediction.SharedPredictionTests.test_shared_request_and_replay_ack_never_publish_private_runtime_state)",
+        "test_foreign_history_is_discarded_without_changing_model_budget (test_teaching_memory_process.TeachingMemoryProcessTests.test_foreign_history_is_discarded_without_changing_model_budget)",
+        "test_trusted_adapter_reaches_formal_http_and_committed_outbox (test_teaching_memory_process.TeachingMemoryProcessTests.test_trusted_adapter_reaches_formal_http_and_committed_outbox)",
+        "test_health_outage_cannot_erase_a_terminal_job_failure_or_enable_successor (test_verification_observation.GatewayObservationTests.test_health_outage_cannot_erase_a_terminal_job_failure_or_enable_successor) (state='Failed')",
+        "test_health_outage_cannot_erase_a_terminal_job_failure_or_enable_successor (test_verification_observation.GatewayObservationTests.test_health_outage_cannot_erase_a_terminal_job_failure_or_enable_successor) (state='Cancelled')",
+        "test_health_outage_cannot_erase_a_terminal_job_failure_or_enable_successor (test_verification_observation.GatewayObservationTests.test_health_outage_cannot_erase_a_terminal_job_failure_or_enable_successor) (state='TimedOut')",
+        "test_health_outage_cannot_erase_a_terminal_job_failure_or_enable_successor (test_verification_observation.GatewayObservationTests.test_health_outage_cannot_erase_a_terminal_job_failure_or_enable_successor) (state='Rejected')",
+        "test_job_success_without_anchor_stays_an_uncertified_observation (test_verification_observation.GatewayObservationTests.test_job_success_without_anchor_stays_an_uncertified_observation)",
+        "test_legacy_receipt_needs_original_request_proof_before_readonly_observation (test_verification_observation.GatewayObservationTests.test_legacy_receipt_needs_original_request_proof_before_readonly_observation)",
+        "test_observation_after_cancel_cannot_post_or_clear_the_plan_fence (test_verification_observation.GatewayObservationTests.test_observation_after_cancel_cannot_post_or_clear_the_plan_fence)",
+        "test_other_approval_step_or_plan_cannot_observe_original_record (test_verification_observation.GatewayObservationTests.test_other_approval_step_or_plan_cannot_observe_original_record)",
+        "test_pending_job_can_be_observed_after_grant_expires_without_post (test_verification_observation.GatewayObservationTests.test_pending_job_can_be_observed_after_grant_expires_without_post)",
+        "test_same_hash_different_approval_package_cannot_observe_or_cancel_old_job (test_verification_observation.GatewayObservationTests.test_same_hash_different_approval_package_cannot_observe_or_cancel_old_job)",
+        "test_transient_health_failure_keeps_the_known_job_observable (test_verification_observation.GatewayObservationTests.test_transient_health_failure_keeps_the_known_job_observable)",
+        "test_unknown_submission_never_guesses_or_reposts (test_verification_observation.GatewayObservationTests.test_unknown_submission_never_guesses_or_reposts)",
+        "test_cancel_after_recovery_keeps_original_run_ownership (test_verification_restart.VerificationRestartTests.test_cancel_after_recovery_keeps_original_run_ownership)",
+        "test_cancel_after_restart_uses_original_exact_approval_binding (test_verification_restart.VerificationRestartTests.test_cancel_after_restart_uses_original_exact_approval_binding)",
+        "test_completed_predecessor_is_revalidated_after_another_restart (test_verification_restart.VerificationRestartTests.test_completed_predecessor_is_revalidated_after_another_restart)",
+        "test_fresh_baseline_mismatch_cannot_observe_receipt_and_remains_recoverable (test_verification_restart.VerificationRestartTests.test_fresh_baseline_mismatch_cannot_observe_receipt_and_remains_recoverable)",
+        "test_late_result_evidence_can_be_observed_after_second_restart (test_verification_restart.VerificationRestartTests.test_late_result_evidence_can_be_observed_after_second_restart)",
+        "test_recovered_approval_metadata_retains_last_completed_index (test_verification_restart.VerificationRestartTests.test_recovered_approval_metadata_retains_last_completed_index)",
+        "test_restart_cancel_isolates_receipts_and_fences_with_reused_approval (test_verification_restart.VerificationRestartTests.test_restart_cancel_isolates_receipts_and_fences_with_reused_approval)",
+        "test_unknown_receipt_stays_unknown_after_restart_without_resubmission (test_verification_restart.VerificationRestartTests.test_unknown_receipt_stays_unknown_after_restart_without_resubmission)"
+      ],
+      "optional_skips": [
+        {
+          "case": "test_old_model_tool_call_cannot_advance_twice (integration.test_ucagent_runtime.UCAgentIntegrationTests.test_old_model_tool_call_cannot_advance_twice)",
+          "reason": "Set SIGFLOW_UCAGENT_SOURCE and install the optional runtime dependencies."
+        },
+        {
+          "case": "test_real_gates_wait_for_host_approval_then_verify_and_finish (integration.test_ucagent_runtime.UCAgentIntegrationTests.test_real_gates_wait_for_host_approval_then_verify_and_finish)",
+          "reason": "Set SIGFLOW_UCAGENT_SOURCE and install the optional runtime dependencies."
+        },
+        {
+          "case": "test_real_stage_tool_and_checker_complete_explanation (integration.test_ucagent_runtime.UCAgentIntegrationTests.test_real_stage_tool_and_checker_complete_explanation)",
+          "reason": "Set SIGFLOW_UCAGENT_SOURCE and install the optional runtime dependencies."
+        },
+        {
+          "case": "test_registry_rejects_unknown_or_duplicate_tools (integration.test_ucagent_runtime.UCAgentIntegrationTests.test_registry_rejects_unknown_or_duplicate_tools)",
+          "reason": "Set SIGFLOW_UCAGENT_SOURCE and install the optional runtime dependencies."
+        },
+        {
+          "case": "test_template_projection_does_not_advance_loop (integration.test_ucagent_runtime.UCAgentIntegrationTests.test_template_projection_does_not_advance_loop)",
+          "reason": "Set SIGFLOW_UCAGENT_SOURCE and install the optional runtime dependencies."
+        },
+        {
+          "case": "test_tool_has_no_host_action_or_grant_parameters (integration.test_ucagent_runtime.UCAgentIntegrationTests.test_tool_has_no_host_action_or_grant_parameters)",
+          "reason": "Set SIGFLOW_UCAGENT_SOURCE and install the optional runtime dependencies."
+        },
+        {
+          "case": "test_context_is_path_free_and_does_not_repeat_authored_notes (rag.test_agent_adapter.AgentAdapterTests.test_context_is_path_free_and_does_not_repeat_authored_notes)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_explicit_database_ignores_manifest_and_prepared_refs_are_frozen (rag.test_agent_adapter.AgentAdapterTests.test_explicit_database_ignores_manifest_and_prepared_refs_are_frozen)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_missing_database_is_not_created (rag.test_agent_adapter.AgentAdapterTests.test_missing_database_is_not_created)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_no_match_is_not_a_database_failure (rag.test_agent_adapter.AgentAdapterTests.test_no_match_is_not_a_database_failure)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_only_admitted_retrieved_ids_can_be_resolved (rag.test_agent_adapter.AgentAdapterTests.test_only_admitted_retrieved_ids_can_be_resolved)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_real_u2_loop_receives_course_and_returns_verified_reference (rag.test_agent_adapter.AgentAdapterTests.test_real_u2_loop_receives_course_and_returns_verified_reference)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_authored_note_keeps_identity_without_displacing_official_context (rag.test_course_kb.CourseKnowledgeBaseTests.test_authored_note_keeps_identity_without_displacing_official_context)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_citation_url_and_cross_source_refs_come_from_sqlite (rag.test_course_kb.CourseKnowledgeBaseTests.test_citation_url_and_cross_source_refs_come_from_sqlite)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_citations_are_limited_to_this_retrieval (rag.test_course_kb.CourseKnowledgeBaseTests.test_citations_are_limited_to_this_retrieval)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_concept_search_has_priority_and_top_k_is_capped (rag.test_course_kb.CourseKnowledgeBaseTests.test_concept_search_has_priority_and_top_k_is_capped)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_content_hash_mismatch_is_rejected (rag.test_course_kb.CourseKnowledgeBaseTests.test_content_hash_mismatch_is_rejected)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_development_evaluation_includes_no_match_case (rag.test_course_kb.CourseKnowledgeBaseTests.test_development_evaluation_includes_no_match_case)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_duplicate_passage_id_is_rejected (rag.test_course_kb.CourseKnowledgeBaseTests.test_duplicate_passage_id_is_rejected)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_fts_text_search_works_without_concept_hint (rag.test_course_kb.CourseKnowledgeBaseTests.test_fts_text_search_works_without_concept_hint)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_hash_is_verified_against_stored_content (rag.test_course_kb.CourseKnowledgeBaseTests.test_hash_is_verified_against_stored_content)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_importer_builds_complete_seed_and_fts_schema (rag.test_course_kb.CourseKnowledgeBaseTests.test_importer_builds_complete_seed_and_fts_schema)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_index_can_be_deleted_and_rebuilt (rag.test_course_kb.CourseKnowledgeBaseTests.test_index_can_be_deleted_and_rebuilt)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_mutated_snapshot_is_rejected (rag.test_course_kb.CourseKnowledgeBaseTests.test_mutated_snapshot_is_rejected)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_partial_evidence_is_not_passed_to_agent (rag.test_course_kb.CourseKnowledgeBaseTests.test_partial_evidence_is_not_passed_to_agent)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_practices_are_separate_and_use_verified_metadata (rag.test_course_kb.CourseKnowledgeBaseTests.test_practices_are_separate_and_use_verified_metadata)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_query_aliases_map_without_explicit_concepts (rag.test_course_kb.CourseKnowledgeBaseTests.test_query_aliases_map_without_explicit_concepts)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_registered_sections_cover_every_body_line_once (rag.test_course_kb.CourseKnowledgeBaseTests.test_registered_sections_cover_every_body_line_once)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_source_text_is_exact_snapshot_slice_through_sqlite_and_context (rag.test_course_kb.CourseKnowledgeBaseTests.test_source_text_is_exact_snapshot_slice_through_sqlite_and_context)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_top_k_greater_than_three_is_rejected (rag.test_course_kb.CourseKnowledgeBaseTests.test_top_k_greater_than_three_is_rejected)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_unknown_concept_is_rejected (rag.test_course_kb.CourseKnowledgeBaseTests.test_unknown_concept_is_rejected)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_unknown_query_returns_no_match_and_no_practices (rag.test_course_kb.CourseKnowledgeBaseTests.test_unknown_query_returns_no_match_and_no_practices)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_unknown_source_is_rejected (rag.test_course_kb.CourseKnowledgeBaseTests.test_unknown_source_is_rejected)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "setUpClass (test_external_materials.ExternalMaterialIntegrationTests)",
+          "reason": "set SIGFLOW_YSYX_SNAPSHOT to the pinned YSYX snapshot for full external-material DB tests"
+        },
+        {
+          "case": "test_symlink_escape_is_rejected (test_materials.MaterialsTests.test_symlink_escape_is_rejected)",
+          "reason": "Windows symlink creation not permitted: 1314"
+        },
+        {
+          "case": "test_offline_wheel_installs_only_new_namespace_with_resources_and_cli (test_namespace_packaging.NamespacePackagingTests.test_offline_wheel_installs_only_new_namespace_with_resources_and_cli)",
+          "reason": "offline wheel verification requires existing pip/setuptools/wheel"
+        },
+        {
+          "case": "setUpClass (test_rag_evidence_units.EvidenceUnitIntegrationTests)",
+          "reason": "Pinned original snapshot unavailable"
+        }
+      ]
+    },
+    "further_loopback_environment_u1": {
+      "tests": 318,
+      "failures": 86,
+      "errors": 10,
+      "skipped": 1,
+      "successful": false,
+      "seconds": 74.521,
+      "verified_at_utc": "2026-10-22T06:43:10.555752+00:00",
+      "failed_cases": [
+        "test_bare_404_is_not_found (tests.test_gateway_client.ErrorMappingTests.test_bare_404_is_not_found)",
+        "test_frozen_codes_are_preserved_verbatim (tests.test_gateway_client.ErrorMappingTests.test_frozen_codes_are_preserved_verbatim) (code='STALE_REVISION')",
+        "test_frozen_codes_are_preserved_verbatim (tests.test_gateway_client.ErrorMappingTests.test_frozen_codes_are_preserved_verbatim) (code='RESOURCE_EXHAUSTED')",
+        "test_frozen_codes_are_preserved_verbatim (tests.test_gateway_client.ErrorMappingTests.test_frozen_codes_are_preserved_verbatim) (code='CAPABILITY_UNAVAILABLE')",
+        "test_legacy_codes_are_mapped_and_unknown_codes_fail_closed (tests.test_gateway_client.ErrorMappingTests.test_legacy_codes_are_mapped_and_unknown_codes_fail_closed) (reported='PATH_OUTSIDE_PROJECT')",
+        "test_legacy_codes_are_mapped_and_unknown_codes_fail_closed (tests.test_gateway_client.ErrorMappingTests.test_legacy_codes_are_mapped_and_unknown_codes_fail_closed) (reported='PLUGIN_UNAVAILABLE')",
+        "test_valid_job_ids_are_accepted (tests.test_gateway_client.OpaqueIdentifierTests.test_valid_job_ids_are_accepted) (job_id='JOB_1')",
+        "test_valid_job_ids_are_accepted (tests.test_gateway_client.OpaqueIdentifierTests.test_valid_job_ids_are_accepted) (job_id='xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')",
+        "test_valid_job_ids_are_accepted (tests.test_gateway_client.OpaqueIdentifierTests.test_valid_job_ids_are_accepted)",
+        "test_every_helper_reaches_the_gateway (tests.test_gateway_client.RouteCoverageTests.test_every_helper_reaches_the_gateway) (helper='project(context)')",
+        "test_every_helper_reaches_the_gateway (tests.test_gateway_client.RouteCoverageTests.test_every_helper_reaches_the_gateway) (helper='project(state)')",
+        "test_every_helper_reaches_the_gateway (tests.test_gateway_client.RouteCoverageTests.test_every_helper_reaches_the_gateway) (helper='project(jobs)')",
+        "test_every_helper_reaches_the_gateway (tests.test_gateway_client.RouteCoverageTests.test_every_helper_reaches_the_gateway) (helper='capabilities')",
+        "test_every_helper_reaches_the_gateway (tests.test_gateway_client.RouteCoverageTests.test_every_helper_reaches_the_gateway) (helper='source')",
+        "test_every_helper_reaches_the_gateway (tests.test_gateway_client.RouteCoverageTests.test_every_helper_reaches_the_gateway) (helper='design_node')",
+        "test_every_helper_reaches_the_gateway (tests.test_gateway_client.RouteCoverageTests.test_every_helper_reaches_the_gateway) (helper='wave_query')",
+        "test_every_helper_reaches_the_gateway (tests.test_gateway_client.RouteCoverageTests.test_every_helper_reaches_the_gateway) (helper='wave_signals')",
+        "test_every_helper_reaches_the_gateway (tests.test_gateway_client.RouteCoverageTests.test_every_helper_reaches_the_gateway) (helper='snapshot')",
+        "test_every_helper_reaches_the_gateway (tests.test_gateway_client.RouteCoverageTests.test_every_helper_reaches_the_gateway) (helper='context_query')",
+        "test_every_helper_reaches_the_gateway (tests.test_gateway_client.RouteCoverageTests.test_every_helper_reaches_the_gateway) (helper='job(read)')",
+        "test_every_helper_reaches_the_gateway (tests.test_gateway_client.RouteCoverageTests.test_every_helper_reaches_the_gateway) (helper='job(cancel)')",
+        "test_every_helper_reaches_the_gateway (tests.test_gateway_client.RouteCoverageTests.test_every_helper_reaches_the_gateway) (helper='submit')",
+        "test_every_helper_reaches_the_gateway (tests.test_gateway_client.RouteCoverageTests.test_every_helper_reaches_the_gateway) (helper='grant')",
+        "test_every_helper_reaches_the_gateway (tests.test_gateway_client.RouteCoverageTests.test_every_helper_reaches_the_gateway) (helper='consume_ui_receipt')",
+        "test_every_helper_reaches_the_gateway (tests.test_gateway_client.RouteCoverageTests.test_every_helper_reaches_the_gateway)",
+        "test_token_is_in_the_header_and_never_in_the_url (tests.test_gateway_client.TokenHygieneTests.test_token_is_in_the_header_and_never_in_the_url)",
+        "test_reading_a_grant_and_consuming_a_receipt_are_still_allowed (tests.test_gateway_client.UiOnlyRouteTests.test_reading_a_grant_and_consuming_a_receipt_are_still_allowed)",
+        "test_bad_health_reports_503 (tests.test_http_api.HealthFaultTests.test_bad_health_reports_503)",
+        "test_default_health_stays_healthy (tests.test_http_api.HealthFaultTests.test_default_health_stays_healthy)",
+        "test_non_loopback_origin_is_denied (tests.test_http_api.OriginBoundaryTests.test_non_loopback_origin_is_denied) (origin='http://evil.example')",
+        "test_non_loopback_origin_is_denied (tests.test_http_api.OriginBoundaryTests.test_non_loopback_origin_is_denied) (origin='https://evil.example:443')",
+        "test_non_loopback_origin_is_denied (tests.test_http_api.OriginBoundaryTests.test_non_loopback_origin_is_denied) (origin='null')",
+        "test_shutdown_requires_auth (tests.test_http_api.ShutdownTests.test_shutdown_requires_auth)",
+        "test_capabilities_reports_indexing_mismatch_and_no_execution (tests.test_http_api.SidecarApiTests.test_capabilities_reports_indexing_mismatch_and_no_execution)",
+        "test_capabilities_requires_auth (tests.test_http_api.SidecarApiTests.test_capabilities_requires_auth)",
+        "test_create_session_validates_project_and_revision (tests.test_http_api.SidecarApiTests.test_create_session_validates_project_and_revision)",
+        "test_empty_diagnostics_on_a_legacy_report_refuses_to_conclude (tests.test_http_api.SidecarApiTests.test_empty_diagnostics_on_a_legacy_report_refuses_to_conclude)",
+        "test_empty_diagnostics_on_a_trusted_report_is_explained (tests.test_http_api.SidecarApiTests.test_empty_diagnostics_on_a_trusted_report_is_explained)",
+        "test_events_are_returned_with_cursors (tests.test_http_api.SidecarApiTests.test_events_are_returned_with_cursors)",
+        "test_expired_cursor_is_410 (tests.test_http_api.SidecarApiTests.test_expired_cursor_is_410)",
+        "test_explain_kind_rejects_a_full_corrected_module (tests.test_http_api.SidecarApiTests.test_explain_kind_rejects_a_full_corrected_module)",
+        "test_explain_on_clean_code_still_refuses_to_conclude (tests.test_http_api.SidecarApiTests.test_explain_on_clean_code_still_refuses_to_conclude)",
+        "test_explain_without_model_key_degrades_to_a_rule_card (tests.test_http_api.SidecarApiTests.test_explain_without_model_key_degrades_to_a_rule_card)",
+        "test_health_accepts_an_authorization_header (tests.test_http_api.SidecarApiTests.test_health_accepts_an_authorization_header)",
+        "test_health_requires_no_token_and_reports_protocol (tests.test_http_api.SidecarApiTests.test_health_requires_no_token_and_reports_protocol)",
+        "test_hint_never_contains_the_fix (tests.test_http_api.SidecarApiTests.test_hint_never_contains_the_fix)",
+        "test_invalid_cursor_is_400 (tests.test_http_api.SidecarApiTests.test_invalid_cursor_is_400)",
+        "test_l4_with_more_is_not_authorization (tests.test_http_api.SidecarApiTests.test_l4_with_more_is_not_authorization)",
+        "test_l4_without_more_is_policy_denied_and_leaks_no_answer (tests.test_http_api.SidecarApiTests.test_l4_without_more_is_policy_denied_and_leaks_no_answer)",
+        "test_more_must_be_boolean (tests.test_http_api.SidecarApiTests.test_more_must_be_boolean)",
+        "test_non_json_body_is_400 (tests.test_http_api.SidecarApiTests.test_non_json_body_is_400)",
+        "test_oversized_body_is_413 (tests.test_http_api.SidecarApiTests.test_oversized_body_is_413)",
+        "test_oversized_selection_text_is_400 (tests.test_http_api.SidecarApiTests.test_oversized_selection_text_is_400)",
+        "test_plan_card_shape_and_capabilities (tests.test_http_api.SidecarApiTests.test_plan_card_shape_and_capabilities)",
+        "test_report_review_does_not_invent_a_root_cause (tests.test_http_api.SidecarApiTests.test_report_review_does_not_invent_a_root_cause)",
+        "test_report_review_for_an_unknown_job_is_404 (tests.test_http_api.SidecarApiTests.test_report_review_for_an_unknown_job_is_404)",
+        "test_report_review_maps_a_diagnostic_verbatim (tests.test_http_api.SidecarApiTests.test_report_review_maps_a_diagnostic_verbatim)",
+        "test_report_review_redacts_free_text_paths_instead_of_rejecting (tests.test_http_api.SidecarApiTests.test_report_review_redacts_free_text_paths_instead_of_rejecting)",
+        "test_report_review_requires_job_id (tests.test_http_api.SidecarApiTests.test_report_review_requires_job_id)",
+        "test_report_review_without_a_gateway_fails_without_fake_cards (tests.test_http_api.SidecarApiTests.test_report_review_without_a_gateway_fails_without_fake_cards)",
+        "test_run_is_readable_by_its_id (tests.test_http_api.SidecarApiTests.test_run_is_readable_by_its_id)",
+        "test_session_cap_evicts_the_oldest (tests.test_http_api.SidecarApiTests.test_session_cap_evicts_the_oldest)",
+        "test_unknown_api_v1_path_is_404 (tests.test_http_api.SidecarApiTests.test_unknown_api_v1_path_is_404)",
+        "test_unknown_path_is_404 (tests.test_http_api.SidecarApiTests.test_unknown_path_is_404)",
+        "test_unknown_run_is_404 (tests.test_http_api.SidecarApiTests.test_unknown_run_is_404)",
+        "test_unknown_session_is_404 (tests.test_http_api.SidecarApiTests.test_unknown_session_is_404)",
+        "test_unsupported_kind_is_400 (tests.test_http_api.SidecarApiTests.test_unsupported_kind_is_400)",
+        "test_unsupported_level_is_400 (tests.test_http_api.SidecarApiTests.test_unsupported_level_is_400)",
+        "test_unsupported_method_is_404 (tests.test_http_api.SidecarApiTests.test_unsupported_method_is_404)",
+        "test_wrong_token_is_rejected (tests.test_http_api.SidecarApiTests.test_wrong_token_is_rejected)",
+        "test_invalid_unicode_selection_is_400_not_500 (tests.test_http_surface_boundaries.HttpPathAndLimitTests.test_invalid_unicode_selection_is_400_not_500)",
+        "test_request_body_one_byte_over_one_mib_is_413 (tests.test_http_surface_boundaries.HttpPathAndLimitTests.test_request_body_one_byte_over_one_mib_is_413)",
+        "test_selection_text_accepts_64_kib_and_rejects_one_more_byte (tests.test_http_surface_boundaries.HttpPathAndLimitTests.test_selection_text_accepts_64_kib_and_rejects_one_more_byte)",
+        "test_unknown_or_unversioned_paths_are_404 (tests.test_http_surface_boundaries.HttpPathAndLimitTests.test_unknown_or_unversioned_paths_are_404) (path='/capabilities')",
+        "test_unknown_or_unversioned_paths_are_404 (tests.test_http_surface_boundaries.HttpPathAndLimitTests.test_unknown_or_unversioned_paths_are_404) (path='/api/v2/health')",
+        "test_unknown_or_unversioned_paths_are_404 (tests.test_http_surface_boundaries.HttpPathAndLimitTests.test_unknown_or_unversioned_paths_are_404) (path='/api/v1/not-a-route')",
+        "test_http_refuses_l4_before_kind_specific_validation (tests.test_run_semantics.L4PolicyTests.test_http_refuses_l4_before_kind_specific_validation) (kind='hint')",
+        "test_http_refuses_l4_before_kind_specific_validation (tests.test_run_semantics.L4PolicyTests.test_http_refuses_l4_before_kind_specific_validation) (kind='plan')",
+        "test_http_refuses_l4_before_kind_specific_validation (tests.test_run_semantics.L4PolicyTests.test_http_refuses_l4_before_kind_specific_validation) (kind='report_review')",
+        "test_default_http_level_is_l1 (tests.test_run_semantics.RunValidationTests.test_default_http_level_is_l1)",
+        "test_agent_state_route_does_not_exist (tests.test_session_store.NoLongPollingTests.test_agent_state_route_does_not_exist)",
+        "test_wait_ms_is_not_supported (tests.test_session_store.NoLongPollingTests.test_wait_ms_is_not_supported)",
+        "test_two_projects_can_run_in_parallel (tests.test_stress_matrix.CapacityAndIdentifierTests.test_two_projects_can_run_in_parallel)",
+        "test_unicode_space_and_long_revision_are_round_tripped (tests.test_stress_matrix.CapacityAndIdentifierTests.test_unicode_space_and_long_revision_are_round_tripped)",
+        "test_model_and_gateway_outages_are_survivable_together (tests.test_stress_matrix.ReportAndOutageTests.test_model_and_gateway_outages_are_survivable_together)",
+        "test_ready_failure_and_early_exit_release_bound_socket_and_teaching (tests.test_teaching_service.TeachingServiceTests.test_ready_failure_and_early_exit_release_bound_socket_and_teaching)",
+        "test_non_loopback_host_is_denied (tests.test_http_api.SidecarApiTests.test_non_loopback_host_is_denied)",
+        "setUpClass (tests.test_http_surface_boundaries.HttpRouteMatrixTests)",
+        "test_auth_owner_origin_and_scope_are_checked_before_mutation (tests.test_teaching_http.TeachingHTTPTests.test_auth_owner_origin_and_scope_are_checked_before_mutation)",
+        "test_disabled_extension_is_404_and_does_not_import_a_second_server (tests.test_teaching_http.TeachingHTTPTests.test_disabled_extension_is_404_and_does_not_import_a_second_server)",
+        "test_extension_projection_uses_latest_u1_privacy_failure_envelope (tests.test_teaching_http.TeachingHTTPTests.test_extension_projection_uses_latest_u1_privacy_failure_envelope) (unsafe='~/private.v')",
+        "test_extension_projection_uses_latest_u1_privacy_failure_envelope (tests.test_teaching_http.TeachingHTTPTests.test_extension_projection_uses_latest_u1_privacy_failure_envelope) (unsafe='~\\\\private.v')",
+        "test_extension_projection_uses_latest_u1_privacy_failure_envelope (tests.test_teaching_http.TeachingHTTPTests.test_extension_projection_uses_latest_u1_privacy_failure_envelope) (unsafe='/proc/private.v')",
+        "test_extension_projection_uses_latest_u1_privacy_failure_envelope (tests.test_teaching_http.TeachingHTTPTests.test_extension_projection_uses_latest_u1_privacy_failure_envelope) (unsafe='/etc/private.v')",
+        "test_extension_projection_uses_latest_u1_privacy_failure_envelope (tests.test_teaching_http.TeachingHTTPTests.test_extension_projection_uses_latest_u1_privacy_failure_envelope) (unsafe='u1-ui')",
+        "test_same_port_extension_discovery_pending_actions_events_and_terminal (tests.test_teaching_http.TeachingHTTPTests.test_same_port_extension_discovery_pending_actions_events_and_terminal)"
+      ],
+      "optional_skips": [
+        {
+          "case": "test_sigterm_and_sigint_exit_zero (tests.test_bootstrap_process.StopTests.test_sigterm_and_sigint_exit_zero)",
+          "reason": "Windows has no catchable SIGTERM: os.kill maps to TerminateProcess, so the host stops the sidecar with POST /shutdown instead (see AgentServiceController)"
+        }
+      ]
+    },
+    "after_stash_launcher_recheck": {
+      "tests": 326,
+      "failures": 2,
+      "errors": 0,
+      "skipped": 1,
+      "successful": false,
+      "seconds": 79.642,
+      "verified_at_utc": "2026-10-22T11:52:44.505932+00:00",
+      "failed_cases": [
+        "test_install_verifier_accepts_the_launcher (tests.test_launchers.PosixLauncherTests.test_install_verifier_accepts_the_launcher)",
+        "test_is_utf8_lf_only_shell_script_without_bom (tests.test_launchers.PosixLauncherTests.test_is_utf8_lf_only_shell_script_without_bom)"
+      ],
+      "optional_skips": [
+        {
+          "case": "test_sigterm_and_sigint_exit_zero (tests.test_bootstrap_process.StopTests.test_sigterm_and_sigint_exit_zero)",
+          "reason": "Windows has no catchable SIGTERM: os.kill maps to TerminateProcess, so the host stops the sidecar with POST /shutdown instead (see AgentServiceController)"
+        }
+      ]
+    },
+    "after_stash_launcher_cause": "stash apply materialized the POSIX script with CRLF before restoring the previously untracked eol attribute; normalized exact HEAD bytes again. Final attribute must be included with eventual commit.",
+    "loopback_diagnostic": "Independent stdlib localhost probe reproduced WinError 10048 after 39 successful requests and WinError 10055 on bind; not confined to U1/U2. The later 1000-request baseline probe succeeded before sequential closeout suites. No system settings changed. Specific OS-level cause is unconfirmed; low observed TCP counts do not establish ephemeral port exhaustion.",
+    "probe_approval": "First elevated diagnostic not executed due automatic review deadline; one permitted retry succeeded.",
+    "cause": "core.autocrlf=true with unspecified POSIX launcher eol; fixed by exact-path eol attribute and byte normalization",
+    "optional_test_import": "isolated missing-U2 and simulated-old-Python failure reproduced before guards",
+    "missing_temp_parents": "isolated fresh-checkout reproduction, without deleting historical directories"
+  },
+  "release_scope": {
+    "default": "base edu.api.v1 remains unchanged",
+    "extension": "--u2-teaching /api/v1/u2 u1.u2-teaching.v1 is opt-in and pending team adoption"
+  },
+  "pending": [
+    "team adoption and native UI consumption of teaching extension",
+    "actual UA-10 receiver factory and deletion/revocation joint verification",
+    "reviewed L4 material and authenticated teacher/revocation backend/body UI",
+    "additional S2 detectors and independently reviewed behavior contracts",
+    "team frozen ModelCase, repeated real-model batch, two independent teachers/remediation",
+    "native target-platform and product acceptance"
+  ],
+  "documentation": {
+    "checked_documents": 96,
+    "existing_unmodified_missing_links": [
+      {
+        "document": "sigflowAgent/docs/external-materials-catalog-2026-10-13.md",
+        "target": "../sigflow_edu_agent/rag/resources/courses/external_official_passages.jsonl"
+      },
+      {
+        "document": "sigflowAgent/docs/external-materials-catalog-2026-10-13.md",
+        "target": "../sigflow_edu_agent/rag/resources/courses/external_official_spans.jsonl"
+      },
+      {
+        "document": "sigflowAgent/docs/external-materials-catalog-2026-10-13.md",
+        "target": "../sigflow_edu_agent/rag/resources/courses/external_official_translations.jsonl"
+      }
+    ],
+    "current_source_and_test_hashes_match": true,
+    "review_status": "completed_clean"
+  },
+  "closed_at_utc": "2026-10-22T12:02:40.696606+00:00",
+  "commit_preparation": {
+    "format_only_test_eof_cleanup": [
+      "sigflowAgent/tests/test_teaching_history.py",
+      "sigflowAgent/tests/test_teaching_memory.py"
+    ],
+    "executable_lines_changed": false,
+    "full_test_results_preserved": true
+  }
+}

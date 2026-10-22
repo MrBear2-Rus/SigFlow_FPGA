@@ -19,6 +19,20 @@ class CourseProvider(Protocol):
     def prepare(self, question: str, concept_ids: tuple[str, ...]) -> CourseBundle: ...
 
 
+class TeachingMemoryPort(Protocol):
+    """U2 composition adapter; UA-10's own storage and API stay external.
+
+    Facts contain committed metadata, not question/card/source bodies. An ACK
+    must contain accepted=True and the exact event_id after durable receipt.
+    History returns exactly learner_id/project_id/concept_ids/summary. These
+    signatures describe an internal U2 adapter, not a frozen shared HTTP DTO.
+    """
+    def record_teaching_fact(self, fact: dict) -> dict: ...
+
+    def get_teaching_context(self, *, learner_id: str, project_id: str,
+                             concept_ids: list[str], max_bytes: int) -> dict: ...
+
+
 class VerificationPort(Protocol):
     """Adapter validates real grant/snapshot/params and owns Job waiting/cancel.
 

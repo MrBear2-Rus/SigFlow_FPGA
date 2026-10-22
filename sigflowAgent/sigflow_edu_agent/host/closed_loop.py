@@ -132,11 +132,34 @@ def check_ready(ready, instance, nonce, *, gateway=False):
 class HTTP:
     def __init__(self, port, token, deadline):
         self.port, self.token, self.deadline = port, token, deadline
+        self._connection = None
+
+    def close(self):
+        if self._connection is not None:
+            self._connection.close()
+            self._connection = None
 
     def request(self, method, path, body=None, *, status=200, key=None, auth=True, learner=False):
+        for attempt in range(2):
+            try:
+                return self._request(method, path, body, status=status, key=key, auth=auth, learner=learner)
+            except (OSError, http.client.HTTPException):
+                self.close()
+                if method != 'GET' or attempt or time.monotonic() >= self.deadline:
+                    raise RunFailure('http_unavailable_or_invalid') from None
+                # A server may expire an idle keep-alive connection. Retry a
+                # read once; never replay a mutation with an uncertain result.
+
+    def _request(self, method, path, body=None, *, status=200, key=None, auth=True, learner=False):
         remaining = self.deadline - time.monotonic()
         require(remaining > 0, 'run_timeout')
-        conn = http.client.HTTPConnection('127.0.0.1', self.port, timeout=min(5, remaining))
+        if self._connection is None:
+            self._connection = http.client.HTTPConnection('127.0.0.1', self.port, timeout=min(5, remaining))
+        conn = self._connection
+        conn.timeout = min(5, remaining)
+        if conn.sock is not None:
+            conn.sock.settimeout(conn.timeout)
+        reusable = False
         headers = {'Accept': 'application/json'}
         if auth:
             headers['Authorization'] = 'Bearer ' + self.token
@@ -166,27 +189,44 @@ class HTTP:
             require(reply.status == status, 'http_status_' + str(reply.status))
             if status >= 400:
                 require(type(envelope.get('error')) is dict, 'response_invalid')
+                reusable = not reply.will_close
                 return envelope['error']
             require(type(envelope.get('data')) is dict and 'error' not in envelope, 'response_invalid')
+            reusable = not reply.will_close
             return envelope['data']
-        except (OSError, http.client.HTTPException, ValueError):
+        except ValueError:
             raise RunFailure('http_unavailable_or_invalid') from None
         finally:
-            conn.close()
+            if not reusable:
+                self.close()
 
 
 def exercise(gateway_path, mode, timeout, directory, *, scenario='same-revision',
-             courses=False, course_db=None, waves=False,predictions=False):
+             courses=False, course_db=None, waves=False,predictions=False,dynamic=False):
     deadline = time.monotonic() + timeout
     instance, nonce = 'inst-' + secrets.token_hex(12), secrets.token_hex(32)
     agent_token, gateway_ui, teaching_ui = (secrets.token_urlsafe(32) for _ in range(3))
     project = directory / 'project'
     (project / 'rtl').mkdir(parents=True)
-    (project / 'rtl' / 'top.v').write_text('module top(input wire clk, input wire en, input wire d, output reg q);\nalways @(posedge clk) if(en) q <= d;\nendmodule\n')
+    top = ('module top(input wire clk, input wire rst, input wire en, input wire d, output reg q);\n'
+           'always @(posedge clk) if(rst) q <= 0; else if(en) q <= d;\nendmodule\n') if dynamic else (
+           'module top(input wire clk, input wire en, input wire d, output reg q);\nalways @(posedge clk) if(en) q <= d;\nendmodule\n')
+    (project / 'rtl' / 'top.v').write_text(top)
+    sources = ['rtl/top.v']
+    if dynamic:
+        # Owned, explicit test input; SYNTHESIS excludes the TB from Yosys while
+        # the existing Core build adapter parses its controlled timeline.
+        (project/'rtl'/'tb.v').write_text('`ifndef SYNTHESIS\nmodule tb;\n'
+            'reg clk; reg rst; reg en; reg d; wire q;\n'
+            'top dut(.clk(clk), .rst(rst), .en(en), .d(d), .q(q));\n'
+            'initial begin clk = 0; forever #5 clk = ~clk; end\n'
+            'initial begin\nrst = 1;\nen = 1;\nd = 1;\n#12;\nrst = 0;\n#18;\nd = 0;\n#10;\nd = 0;\nend\n'
+            'endmodule\n`endif\n')
+        sources.append('rtl/tb.v')
     (project / 'sigflow.project').write_text(json.dumps(dict(build=dict(top_module=['top']),
-        paths=dict(source_files=['rtl/top.v']), fpga=dict(target_profile='test-target',yosys_strategy='baseline'))))
+        paths=dict(source_files=sources), fpga=dict(target_profile='test-target',yosys_strategy='baseline'))))
     core = sidecar = None
-    teaching = None
+    teaching = gateway = ui = None
     execution = None
     try:
         core_env = os.environ.copy()
@@ -236,14 +276,16 @@ def exercise(gateway_path, mode, timeout, directory, *, scenario='same-revision'
             record = wait_for(lambda: gateway.request('GET','/api/v1/jobs/'+job),
                 lambda x:x.get('state') in {'Succeeded','Failed','Cancelled','TimedOut','Rejected'},deadline,'job_timeout')
             require(record['state'] == 'Succeeded','yosys_job_failed')
-            report = gateway.request('GET','/api/v1/jobs/'+job+'/report')
+            report = wait_for(lambda: gateway.request('GET','/api/v1/jobs/'+job+'/report'),
+                lambda value: value.get('completeness') == 'complete' and bool(value.get('artifacts'))
+                    and bool(value.get('input_fingerprint')), deadline, 'real_report_incomplete')
             require(all(report.get(k) == v for k,v in dict(**scope,job_id=job,state='Succeeded',origin='core',
                 schema_version='edu.jobreport.v1',completeness='complete',capability='eda.synth',plugin_id='eda-synth-yosys',exit_code=0).items())
                 and bool(report.get('artifacts')) and bool(report.get('input_fingerprint')), 'real_report_incomplete')
             return report
         job_report(baseline)
         course_args = (['--course-db', str(course_db)] if course_db is not None else []) if courses else ['--no-course']
-        sidecar = Child([sys.executable,'-P','-m','sigflow_edu_agent.host','--bootstrap-stdin','--gateway-evidence', *course_args],
+        sidecar = Child([sys.executable,'-P','-m',__package__,'--bootstrap-stdin','--gateway-evidence', *course_args],
             sidecar_environment(directory,mode),cwd=directory)
         sidecar.send(dict(type='sigflow-bootstrap',protocol='edu.api.v1',instance_id=instance,nonce=nonce,
             gateway_url=f'http://127.0.0.1:{ready["port"]}',gateway_token=agent_token,ui_token=teaching_ui,data_directory=str(directory/'data')))
@@ -259,6 +301,7 @@ def exercise(gateway_path, mode, timeout, directory, *, scenario='same-revision'
             from .simulation_acceptance import exercise_simulation
             options=dict(waves=True,instance_id=instance) if waves else {}
             if predictions:options['predictions']=True
+            if dynamic:options['dynamic']=True
             execution = exercise_simulation(gateway, ui, teaching, route, scope, baseline, deadline,**options)
             return execution
         approval_hash='approved-'+secrets.token_hex(16)
@@ -344,6 +387,9 @@ def exercise(gateway_path, mode, timeout, directory, *, scenario='same-revision'
                 teaching.request('POST','/api/v1/shutdown',{},status=202)
             except Exception:
                 pass
+        for client in (teaching, gateway, ui):
+            if client is not None:
+                client.close()
         try:
             close_children(((sidecar, 3), (core, 10)))
         except RunFailure as failure:
@@ -371,6 +417,8 @@ def main(argv=None):
     parser.add_argument('--courses',action='store_true')
     parser.add_argument('--waves',action='store_true')
     parser.add_argument('--predictions',action='store_true')
+    parser.add_argument('--dynamic-stimulus',action='store_true')
+    parser.add_argument('--work-dir',type=Path)
     parser.add_argument('--course-db',type=Path)
     parser.add_argument('--output',required=True,type=Path)
     parser.add_argument('--timeout',type=float,default=120)
@@ -383,16 +431,19 @@ def main(argv=None):
         parser.error('waves_requires_simulation')
     if args.predictions and (not args.waves or args.scenario!='simulation'):
         parser.error('predictions_requires_simulation_and_waves')
+    if args.dynamic_stimulus and (args.scenario!='simulation' or not args.waves or not args.predictions):
+        parser.error('dynamic_stimulus_requires_simulation_waves_predictions')
     report=dict(status='failed',real_core=False,real_yosys=False,model_mode=args.mode,
                 functional_correctness='not_evaluated')
     execution = None
     try:
         require(args.gateway.is_file(),'gateway_missing')
         require(0 < args.timeout <= 600,'invalid_timeout')
-        with tempfile.TemporaryDirectory(prefix='sigflow-u2-closed-loop-') as owned:
+        with tempfile.TemporaryDirectory(prefix='sigflow-u2-closed-loop-', dir=args.work_dir) as owned:
             options = dict(scenario=args.scenario)
             if args.waves:options['waves']=True
             if args.predictions:options['predictions']=True
+            if args.dynamic_stimulus:options['dynamic']=True
             if args.courses:
                 options.update(courses=True, course_db=args.course_db.resolve() if args.course_db else None)
             execution=exercise(args.gateway.resolve(),args.mode,args.timeout,Path(owned),**options)

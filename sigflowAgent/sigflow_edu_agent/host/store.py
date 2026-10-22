@@ -15,6 +15,7 @@ import sqlite3
 from threading import RLock
 
 from ..runtime.gateway_session import SessionBinding
+from .teaching_memory import enqueue_facts, validate_fact, ACTION_KINDS
 
 
 MAX_SESSIONS = 32
@@ -208,6 +209,13 @@ class DurableStore:
                 session_id TEXT NOT NULL REFERENCES sessions(session_id),
                 sequence INTEGER NOT NULL, action_id TEXT, state_version TEXT NOT NULL,
                 status TEXT NOT NULL, PRIMARY KEY(session_id, sequence))''')
+            columns={column['name'] for column in db.execute('PRAGMA table_info(actions)')}
+            if 'kind' not in columns:
+                db.execute("ALTER TABLE actions ADD COLUMN kind TEXT NOT NULL DEFAULT ''")
+            # U2 transport metadata only; UA-10 owns its learning schema.
+            db.execute('''CREATE TABLE IF NOT EXISTS teaching_outbox (
+                event_id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(session_id),
+                payload TEXT NOT NULL, delivered INTEGER NOT NULL DEFAULT 0)''')
             rows = db.execute('SELECT * FROM sessions ORDER BY rowid').fetchall()
             for row in rows:
                 value = self._decode(row)
@@ -285,6 +293,7 @@ class DurableStore:
                 (session_id, binding, request_sha256, mode, intent, state, state_version)
                 VALUES (?, ?, ?, ?, ?, ?, ?)''',
                        (session_id, scope, request_sha256, mode, intent, payload, version))
+            enqueue_facts(db,binding,state,created=True)
             if initial_action is not None:
                 db.execute('''INSERT INTO actions
                     (session_id, action_id, fingerprint, expected_version, status, result)
@@ -312,11 +321,21 @@ class DurableStore:
         except (ValueError, TypeError, RecursionError):
             raise StoreError('state_corrupt') from None
 
-    def claim(self, session_id, action_id, fingerprint, expected_version):
+    def has_pending(self, session_id):
+        """Inspect durable admission without acquiring a teaching session lock."""
+        _text(session_id)
+        with self._transaction() as db:
+            self._decode(self._row(db, session_id))
+            return db.execute("SELECT 1 FROM actions WHERE session_id=? AND status='pending'",
+                              (session_id,)).fetchone() is not None
+
+    def claim(self, session_id, action_id, fingerprint, expected_version, *, kind=''):
         _text(session_id)
         _text(action_id, 128)
         _text(fingerprint, 256)
         _integer(expected_version)
+        if kind not in ('','create','recover','cancel',*ACTION_KINDS):
+            raise StoreError('invalid_input')
         with self._transaction() as db:
             session = self._decode(self._row(db, session_id))
             action = db.execute('SELECT * FROM actions WHERE session_id = ? AND action_id = ?',
@@ -333,43 +352,73 @@ class DurableStore:
             if db.execute('SELECT COUNT(*) FROM actions WHERE session_id = ?',
                           (session_id,)).fetchone()[0] >= MAX_ACTIONS:
                 raise StoreError('action_limit')
-            db.execute("INSERT INTO actions VALUES (?, ?, ?, ?, 'pending', NULL)",
-                       (session_id, action_id, fingerprint, expected_version))
+            db.execute("INSERT INTO actions(session_id,action_id,fingerprint,expected_version,status,result,kind) VALUES (?, ?, ?, ?, 'pending', NULL, ?)",
+                       (session_id, action_id, fingerprint, expected_version,kind))
             return None
 
-    def _event(self, db, session_id, action_id, state):
+    def _event(self, db, session_id, action_id, state,previous_state=None):
         db.execute('UPDATE sessions SET event_seq = event_seq + 1 WHERE session_id = ?', (session_id,))
         sequence = self._row(db, session_id)['event_seq']
         db.execute('INSERT INTO events VALUES (?, ?, ?, ?, ?)',
                    (session_id, sequence, action_id, state['state_version'], state['status']))
         db.execute('DELETE FROM events WHERE session_id = ? AND sequence <= ?',
                    (session_id, sequence - MAX_EVENTS))
+        row=self._row(db,session_id)
+        action=(db.execute('SELECT kind FROM actions WHERE session_id=? AND action_id=?',
+                           (session_id,action_id)).fetchone() if action_id else None)
+        enqueue_facts(db,json.loads(row['binding']),state,action_id=action_id,
+                      action_kind=action['kind'] if action else '',
+                      first_card=len((previous_state or {}).get('cards',[])))
+
+    def pending_teaching_facts(self,limit=32):
+        """Trusted composition port, never exposed to HTTP or model tools."""
+        _integer(limit,1,32)
+        with self._transaction() as db:
+            try:
+                return [validate_fact(json.loads(row['payload']),json.loads(row['binding'])) for row in db.execute(
+                    '''SELECT o.payload,s.binding FROM teaching_outbox o JOIN sessions s
+                       ON o.session_id=s.session_id WHERE o.delivered=0 ORDER BY o.rowid LIMIT ?''',(limit,))]
+            except (ValueError,KeyError,TypeError,RecursionError):
+                raise StoreError('state_corrupt') from None
+
+    def ack_teaching_fact(self,event_id):
+        if type(event_id) is not str or re.fullmatch(r'u2fact-[a-f0-9]{64}',event_id) is None:
+            raise StoreError('invalid_input')
+        with self._transaction() as db:
+            row=db.execute('SELECT 1 FROM teaching_outbox WHERE event_id=?',(event_id,)).fetchone()
+            if row is None:return False
+            db.execute('UPDATE teaching_outbox SET delivered=1 WHERE event_id=?',(event_id,))
+            return True
 
     def commit(self, session_id, action_id, state, checkpoint, result):
+        with self._transaction() as db:
+            self._commit(db, session_id, action_id, state, checkpoint, result)
+
+    def _commit(self, db, session_id, action_id, state, checkpoint, result):
+        """Commit within an existing store transaction, including CAS and event."""
         _text(session_id)
         _text(action_id, 128)
         payload, version = _state(state)
         checkpoint, digest = _checkpoint(checkpoint)
         result_payload = _json(result)
-        with self._transaction() as db:
-            row = self._row(db, session_id)
-            self._decode(row)
-            action = db.execute('SELECT * FROM actions WHERE session_id = ? AND action_id = ?',
-                                (session_id, action_id)).fetchone()
-            if action is None:
-                raise StoreError('action_not_found')
-            if action['status'] != 'pending':
-                raise StoreError('action_conflict')
-            if row['state_version'] != action['expected_version'] or version <= row['state_version']:
-                raise StoreError('state_conflict')
-            if row['cancel_requested'] and state['status'] not in ('Cancelled', 'Failed', 'BudgetExceeded'):
-                raise StoreError('cancel_requested')
-            db.execute('''UPDATE sessions SET state = ?, state_version = ?, checkpoint = ?,
-                checkpoint_sha256 = ? WHERE session_id = ?''',
-                       (payload, version, checkpoint, digest, session_id))
-            db.execute("UPDATE actions SET status = 'committed', result = ? WHERE session_id = ? AND action_id = ?",
-                       (result_payload, session_id, action_id))
-            self._event(db, session_id, action_id, state)
+        row = self._row(db, session_id)
+        self._decode(row)
+        action = db.execute('SELECT * FROM actions WHERE session_id = ? AND action_id = ?',
+                            (session_id, action_id)).fetchone()
+        if action is None:
+            raise StoreError('action_not_found')
+        if action['status'] != 'pending':
+            raise StoreError('action_conflict')
+        if row['state_version'] != action['expected_version'] or version <= row['state_version']:
+            raise StoreError('state_conflict')
+        if row['cancel_requested'] and state['status'] not in ('Cancelled', 'Failed', 'BudgetExceeded'):
+            raise StoreError('cancel_requested')
+        db.execute('''UPDATE sessions SET state = ?, state_version = ?, checkpoint = ?,
+            checkpoint_sha256 = ? WHERE session_id = ?''',
+                   (payload, version, checkpoint, digest, session_id))
+        db.execute("UPDATE actions SET status = 'committed', result = ? WHERE session_id = ? AND action_id = ?",
+                   (result_payload, session_id, action_id))
+        self._event(db, session_id, action_id, state,json.loads(row['state']))
 
     def stage_verification(self, session_id, action_id, state, checkpoint):
         """Commit the restart cursor before external execution, keeping its action pending.
@@ -394,7 +443,7 @@ class DurableStore:
                 WHERE session_id=?''', (payload, version, checkpoint, checkpoint_hash, session_id))
             db.execute('UPDATE actions SET expected_version=? WHERE session_id=? AND action_id=?',
                        (version, session_id, action_id))
-            self._event(db, session_id, action_id, state)
+            self._event(db, session_id, action_id, state,json.loads(row['state']))
 
     def action(self, session_id, action_id):
         _text(session_id)
@@ -452,7 +501,7 @@ class DurableStore:
             db.execute('''UPDATE sessions SET state=?, state_version=?, checkpoint=NULL,
                 checkpoint_sha256=NULL, cancel_requested=1 WHERE session_id=?''', (payload, version, session_id))
             db.execute("UPDATE actions SET status='interrupted' WHERE session_id=? AND status='pending'", (session_id,))
-            self._event(db, session_id, None, state)
+            self._event(db, session_id, None, state,json.loads(row['state']))
             return state
 
     def cancel_requested(self, session_id):

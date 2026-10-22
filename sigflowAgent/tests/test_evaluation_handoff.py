@@ -46,7 +46,9 @@ class EvaluationHandoffTests(unittest.TestCase):
         from sigflow_edu_agent.patterns.support import support_matrix
         rows=support_matrix();self.assertEqual(len(rows),8)
         by={r['concept']:r for r in rows}
-        self.assertTrue(by['latch']['production_detector'])
+        self.assertFalse(by['latch']['production_detector'])
+        self.assertTrue(by['latch']['report_adapter_available'])
+        self.assertEqual(by['latch']['producer_status'], 'external_delivery_required')
         self.assertFalse(by['width_signedness']['production_detector'])
         self.assertEqual(by['simulation_mismatch']['bounded_observation'],'explicit_point_comparison')
         self.assertFalse(by['reset']['production_detector'])

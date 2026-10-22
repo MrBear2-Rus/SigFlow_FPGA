@@ -14,6 +14,12 @@
 - 支持 Python >= 3.9；已在 Windows x64 实测 3.9.13、3.10.11、3.11.9、3.12.9、
   3.13.16、3.14.8。Windows 与 Linux 使用同一份代码，只更换启动器。
 
+本地 U2 联调可显式使用 `--u2-teaching`，组合独立的 `sigflow_u2` 包，要求 Python >=3.11。
+该开关默认关闭；它提供带单独版本标识的 `/api/v1/u2` 教学扩展，不改变下文基础
+`edu.api.v1` 的默认路由和发布范围。[B 阶段登记](../docs/edu-agent/ucagent/b-stage-scope.md)
+中的联合契约、UI 和平台签收仍待完成，不能将本地组合测试当作已发布能力。
+接口、可信启动和可复现验证见[U1/U2 组合接入](../sigflowAgent/docs/u1-u2-composition-guide.md)。
+
 ## 安装与运行
 
 > 发布、升级、回滚、版本/许可证与"未验证项"见 [`RELEASE.md`](RELEASE.md)；
@@ -55,6 +61,7 @@ cd agent/src && python -m sigflow_edu_agent --bootstrap-stdin
 | 参数 | 默认值 | 说明 |
 |---|---|---|
 | `--bootstrap-stdin` | 关闭 | **正常启动必须提供**。从 stdin 读恰好一行 UTF-8 JSON bootstrap。 |
+| `--u2-teaching` | 关闭 | 本地 U2 可选组合；Python >=3.11，独立 `sigflow_u2` 包，扩展未计入基础发布验收。 |
 | `--port N` | `0` | 绑定的 loopback 端口；0 表示由系统分配。 |
 | `--agent-version X` | 包版本 | 覆盖 ready 记录与 `/health` 上报的版本（供版本失配测试使用）。 |
 | `--selftest-fail MODE` | `none` | **仅测试**的故障注入，见下文。 |
@@ -122,14 +129,14 @@ token 处理约定：`gateway_token` / `ui_token` **只存在于内存**，不�
 
 契约真源：
 
-- Agent 侧：[agent.openapi.yaml](../../contracts/edu-agent/v1/agent.openapi.yaml)
-- DTO：[teaching-card](../../contracts/edu-agent/v1/schemas/teaching-card.schema.json)、
-  [plan-card](../../contracts/edu-agent/v1/schemas/plan-card.schema.json)、
-  [agent-session](../../contracts/edu-agent/v1/schemas/agent-session.schema.json)、
-  [agent-run](../../contracts/edu-agent/v1/schemas/agent-run.schema.json)、
-  [agent-event](../../contracts/edu-agent/v1/schemas/agent-event.schema.json)
-- fixtures：[golden.json](../../contracts/edu-agent/v1/fixtures/golden.json)、
-  [agent_cards.json](../../contracts/edu-agent/v1/fixtures/agent_cards.json)
+- Agent 侧：[agent.openapi.yaml](../contracts/edu-agent/v1/agent.openapi.yaml)
+- DTO：[teaching-card](../contracts/edu-agent/v1/schemas/teaching-card.schema.json)、
+  [plan-card](../contracts/edu-agent/v1/schemas/plan-card.schema.json)、
+  [agent-session](../contracts/edu-agent/v1/schemas/agent-session.schema.json)、
+  [agent-run](../contracts/edu-agent/v1/schemas/agent-run.schema.json)、
+  [agent-event](../contracts/edu-agent/v1/schemas/agent-event.schema.json)
+- fixtures：[golden.json](../contracts/edu-agent/v1/fixtures/golden.json)、
+  [agent_cards.json](../contracts/edu-agent/v1/fixtures/agent_cards.json)
 
 ## 教学策略要点
 

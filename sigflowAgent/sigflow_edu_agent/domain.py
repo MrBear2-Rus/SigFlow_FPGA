@@ -148,6 +148,7 @@ class CardContext:
     repair: bool = False
     course_refs: tuple[CourseReference, ...] = ()
     course_status: str = 'disabled'
+    learning_history: str = ''
 
 
 @dataclass(frozen=True)

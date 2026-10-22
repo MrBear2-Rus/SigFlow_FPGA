@@ -73,6 +73,8 @@ def build_parser() -> argparse.ArgumentParser:
         default=0,
         help="loopback port to bind; 0 (default) lets the system assign one",
     )
+    parser.add_argument('--u2-teaching', action='store_true',
+                        help='compose optional sigflow_u2 teaching on this server (Python 3.11+)')
     parser.add_argument(
         "--agent-version",
         default=None,
@@ -231,39 +233,56 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             else None
         ),
     )
+    teaching = None
+    if args.u2_teaching:
+        try:
+            from .teaching_factory import compose
+            teaching = compose(bootstrap)
+            config.teaching = teaching
+            config.secrets = tuple(config.secrets) + tuple(getattr(teaching.runtime.factory, 'model_secrets', ()))
+        except Exception:
+            sys.stderr.write('U2 teaching initialization failed; dependency or trusted configuration unavailable\n')
+            return EXIT_BOOTSTRAP_ERROR
     state = EduAgentState(config)
     try:
         httpd = create_server(state)
     except OSError as exc:
+        if teaching:
+            teaching.close()
         reason = exc.strerror or str(exc)
         sys.stderr.write("unable to bind loopback port: %s\n" % reason)
         return EXIT_BIND_ERROR
 
-    actual_port = int(httpd.server_address[1])
-    _install_signal_handlers(stop_event)
-    LOGGER.info(
-        "sigflow edu agent %s bound to %s:%d", version, config.host, actual_port
-    )
-
-    if args.selftest_ready_delay_ms:
-        time.sleep(args.selftest_ready_delay_ms / 1000.0)
-
-    if args.selftest_fail == "none":
-        emit_ready(sys.stdout, bootstrap.nonce, actual_port, version)
-    else:
-        record = _selftest_ready_record(
-            args.selftest_fail, bootstrap.nonce, actual_port, version
-        )
-        sys.stdout.write(json_dumps(record) + "\n")
-        sys.stdout.flush()
-        if args.selftest_fail == "exit-after-ready":
-            return 9
-
     try:
+        actual_port = int(httpd.server_address[1])
+        _install_signal_handlers(stop_event)
+        LOGGER.info(
+            "sigflow edu agent %s bound to %s:%d", version, config.host, actual_port
+        )
+
+        if args.selftest_ready_delay_ms:
+            time.sleep(args.selftest_ready_delay_ms / 1000.0)
+
+        if args.selftest_fail == "none":
+            emit_ready(sys.stdout, bootstrap.nonce, actual_port, version)
+        else:
+            record = _selftest_ready_record(
+                args.selftest_fail, bootstrap.nonce, actual_port, version
+            )
+            sys.stdout.write(json_dumps(record) + "\n")
+            sys.stdout.flush()
+            if args.selftest_fail == "exit-after-ready":
+                return 9
+
         serve_until_stopped(httpd, stop_event)
     except KeyboardInterrupt:  # pragma: no cover - interactive use only
         stop_event.set()
-        httpd.server_close()
+    finally:
+        try:
+            httpd.server_close()
+        finally:
+            if teaching:
+                teaching.close()
     LOGGER.info("sigflow edu agent stopped")
     return 0
 

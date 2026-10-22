@@ -1,0 +1,299 @@
+{
+  "stage": 24,
+  "verified_at_utc": "2026-10-19T12:30:35.422501+00:00",
+  "head": "ff5fd89cd840cd62e23a67c88efb103c2127f62e",
+  "status": "u2_contract_ready_external_adapter_not_connected",
+  "new_process_tests": 3,
+  "regression": {
+    "targeted": {
+      "tests": 203,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "successful": true,
+      "seconds": 51.487,
+      "verified_at_utc": "2026-10-19T12:27:46.500569+00:00",
+      "failed_cases": [],
+      "optional_skips": []
+    },
+    "full": {
+      "tests": 631,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 35,
+      "successful": true,
+      "seconds": 102.301,
+      "verified_at_utc": "2026-10-19T12:29:43.100030+00:00",
+      "failed_cases": [],
+      "optional_skips": [
+        {
+          "case": "test_old_model_tool_call_cannot_advance_twice (integration.test_ucagent_runtime.UCAgentIntegrationTests.test_old_model_tool_call_cannot_advance_twice)",
+          "reason": "Set SIGFLOW_UCAGENT_SOURCE and install the optional runtime dependencies."
+        },
+        {
+          "case": "test_real_gates_wait_for_host_approval_then_verify_and_finish (integration.test_ucagent_runtime.UCAgentIntegrationTests.test_real_gates_wait_for_host_approval_then_verify_and_finish)",
+          "reason": "Set SIGFLOW_UCAGENT_SOURCE and install the optional runtime dependencies."
+        },
+        {
+          "case": "test_real_stage_tool_and_checker_complete_explanation (integration.test_ucagent_runtime.UCAgentIntegrationTests.test_real_stage_tool_and_checker_complete_explanation)",
+          "reason": "Set SIGFLOW_UCAGENT_SOURCE and install the optional runtime dependencies."
+        },
+        {
+          "case": "test_registry_rejects_unknown_or_duplicate_tools (integration.test_ucagent_runtime.UCAgentIntegrationTests.test_registry_rejects_unknown_or_duplicate_tools)",
+          "reason": "Set SIGFLOW_UCAGENT_SOURCE and install the optional runtime dependencies."
+        },
+        {
+          "case": "test_template_projection_does_not_advance_loop (integration.test_ucagent_runtime.UCAgentIntegrationTests.test_template_projection_does_not_advance_loop)",
+          "reason": "Set SIGFLOW_UCAGENT_SOURCE and install the optional runtime dependencies."
+        },
+        {
+          "case": "test_tool_has_no_host_action_or_grant_parameters (integration.test_ucagent_runtime.UCAgentIntegrationTests.test_tool_has_no_host_action_or_grant_parameters)",
+          "reason": "Set SIGFLOW_UCAGENT_SOURCE and install the optional runtime dependencies."
+        },
+        {
+          "case": "test_context_is_path_free_and_does_not_repeat_authored_notes (rag.test_agent_adapter.AgentAdapterTests.test_context_is_path_free_and_does_not_repeat_authored_notes)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_explicit_database_ignores_manifest_and_prepared_refs_are_frozen (rag.test_agent_adapter.AgentAdapterTests.test_explicit_database_ignores_manifest_and_prepared_refs_are_frozen)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_missing_database_is_not_created (rag.test_agent_adapter.AgentAdapterTests.test_missing_database_is_not_created)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_no_match_is_not_a_database_failure (rag.test_agent_adapter.AgentAdapterTests.test_no_match_is_not_a_database_failure)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_only_admitted_retrieved_ids_can_be_resolved (rag.test_agent_adapter.AgentAdapterTests.test_only_admitted_retrieved_ids_can_be_resolved)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_real_u2_loop_receives_course_and_returns_verified_reference (rag.test_agent_adapter.AgentAdapterTests.test_real_u2_loop_receives_course_and_returns_verified_reference)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_authored_note_keeps_identity_without_displacing_official_context (rag.test_course_kb.CourseKnowledgeBaseTests.test_authored_note_keeps_identity_without_displacing_official_context)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_citation_url_and_cross_source_refs_come_from_sqlite (rag.test_course_kb.CourseKnowledgeBaseTests.test_citation_url_and_cross_source_refs_come_from_sqlite)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_citations_are_limited_to_this_retrieval (rag.test_course_kb.CourseKnowledgeBaseTests.test_citations_are_limited_to_this_retrieval)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_concept_search_has_priority_and_top_k_is_capped (rag.test_course_kb.CourseKnowledgeBaseTests.test_concept_search_has_priority_and_top_k_is_capped)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_content_hash_mismatch_is_rejected (rag.test_course_kb.CourseKnowledgeBaseTests.test_content_hash_mismatch_is_rejected)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_development_evaluation_includes_no_match_case (rag.test_course_kb.CourseKnowledgeBaseTests.test_development_evaluation_includes_no_match_case)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_duplicate_passage_id_is_rejected (rag.test_course_kb.CourseKnowledgeBaseTests.test_duplicate_passage_id_is_rejected)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_fts_text_search_works_without_concept_hint (rag.test_course_kb.CourseKnowledgeBaseTests.test_fts_text_search_works_without_concept_hint)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_hash_is_verified_against_stored_content (rag.test_course_kb.CourseKnowledgeBaseTests.test_hash_is_verified_against_stored_content)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_importer_builds_complete_seed_and_fts_schema (rag.test_course_kb.CourseKnowledgeBaseTests.test_importer_builds_complete_seed_and_fts_schema)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_index_can_be_deleted_and_rebuilt (rag.test_course_kb.CourseKnowledgeBaseTests.test_index_can_be_deleted_and_rebuilt)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_mutated_snapshot_is_rejected (rag.test_course_kb.CourseKnowledgeBaseTests.test_mutated_snapshot_is_rejected)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_partial_evidence_is_not_passed_to_agent (rag.test_course_kb.CourseKnowledgeBaseTests.test_partial_evidence_is_not_passed_to_agent)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_practices_are_separate_and_use_verified_metadata (rag.test_course_kb.CourseKnowledgeBaseTests.test_practices_are_separate_and_use_verified_metadata)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_query_aliases_map_without_explicit_concepts (rag.test_course_kb.CourseKnowledgeBaseTests.test_query_aliases_map_without_explicit_concepts)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_registered_sections_cover_every_body_line_once (rag.test_course_kb.CourseKnowledgeBaseTests.test_registered_sections_cover_every_body_line_once)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_source_text_is_exact_snapshot_slice_through_sqlite_and_context (rag.test_course_kb.CourseKnowledgeBaseTests.test_source_text_is_exact_snapshot_slice_through_sqlite_and_context)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_top_k_greater_than_three_is_rejected (rag.test_course_kb.CourseKnowledgeBaseTests.test_top_k_greater_than_three_is_rejected)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_unknown_concept_is_rejected (rag.test_course_kb.CourseKnowledgeBaseTests.test_unknown_concept_is_rejected)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_unknown_query_returns_no_match_and_no_practices (rag.test_course_kb.CourseKnowledgeBaseTests.test_unknown_query_returns_no_match_and_no_practices)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "test_unknown_source_is_rejected (rag.test_course_kb.CourseKnowledgeBaseTests.test_unknown_source_is_rejected)",
+          "reason": "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression"
+        },
+        {
+          "case": "setUpClass (test_external_materials.ExternalMaterialIntegrationTests)",
+          "reason": "set SIGFLOW_YSYX_SNAPSHOT to the pinned YSYX snapshot for full external-material DB tests"
+        },
+        {
+          "case": "setUpClass (test_rag_evidence_units.EvidenceUnitIntegrationTests)",
+          "reason": "Pinned original snapshot unavailable"
+        }
+      ]
+    }
+  },
+  "demo_regression": {
+    "tests": 31,
+    "failures": 0,
+    "errors": 0,
+    "seconds": 16.876,
+    "command": "python -P -m unittest discover -s sigflowAgent/demo/tests -p test*.py -v"
+  },
+  "boundary": {
+    "actual_host_process": true,
+    "actual_http": true,
+    "actual_host_sqlite": true,
+    "gateway": "synthetic_contract_fixture",
+    "receiver": "synthetic_contract_fixture",
+    "model": "synthetic_candidate_provider",
+    "real_model_calls": 0,
+    "real_ua10_connected": false,
+    "default_cli_gui_adapter_configured": false
+  },
+  "preserved_existing_files": 88,
+  "existing_files_document_updates": [
+    "sigflowAgent/README.md",
+    "sigflowAgent/docs/stage-23-teaching-memory-ports.md",
+    "sigflowAgent/docs/task.md",
+    "sigflowAgent/docs/u2-remaining-development-plan.md",
+    "sigflowAgent/docs/u2-stage24-memory-entry-plan.md"
+  ],
+  "git": {
+    "staged_files": 0,
+    "conflicts": 0,
+    "committed": false,
+    "pushed": false
+  },
+  "red_green": {
+    "observed_initial_failure": "main() got an unexpected keyword argument teaching_memory",
+    "after_minimal_forwarding": "all 3 process tests passed; Windows stderr assertion normalizes line endings"
+  },
+  "source_sha256": {
+    "sigflowAgent/sigflow_edu_agent/__init__.py": "f02dbfcd381aac34d7bad0a041688e97890fe0c33b82aa7ab489ac77d3b9c2aa",
+    "sigflowAgent/sigflow_edu_agent/__main__.py": "ed402b36749e0a4ecaf9d42db23e1c0ac529577f3ed307573c2963b3cd858570",
+    "sigflowAgent/sigflow_edu_agent/checkers/__init__.py": "5a309bf8f58c8df44643e9ab1df5f7cd8870ac5a7e4239f607e98a6b64e0840f",
+    "sigflowAgent/sigflow_edu_agent/checkers/outcome.py": "21141c71502c123cf1116a30513116dd565428ca5f19da51a30b4f426457ae6a",
+    "sigflowAgent/sigflow_edu_agent/checkers/plan.py": "4b2aaa794af7f4839d6994b71d8a0f2e3cdd58075a3fd6b8501ea2d844d2b89f",
+    "sigflowAgent/sigflow_edu_agent/clients/__init__.py": "e678eea2c6ef6d2fb8e23e7d41d36c3a966fc2993dd1eccb1012c885073e4401",
+    "sigflowAgent/sigflow_edu_agent/clients/gateway.py": "bfbaec218478da49a15849bfe030b23b2c5e5ef9161c7f06a6a1b8157124581d",
+    "sigflowAgent/sigflow_edu_agent/clients/probe.py": "3fc72907dae0f41a6c199bd759499d9a4ed073244f6d03908d8c897e9cd03b76",
+    "sigflowAgent/sigflow_edu_agent/clients/receipts.py": "e1ee0ff8b0885fa86bfa5cc5487acb7ad523472aae94fda178a11ba6cf7cb469",
+    "sigflowAgent/sigflow_edu_agent/clients/waveform.py": "795d45ed488179c49c587c970e0278ec0008401e49cd5a7c41430b71b88ed294",
+    "sigflowAgent/sigflow_edu_agent/context/__init__.py": "91b2f8b2ded726549b28a425df4af14e47ac52053dd02aed8d9dbc469c218f17",
+    "sigflowAgent/sigflow_edu_agent/context/builder.py": "731c46c681cbd6ecf63356d353ff92fe358d48cc3adc367c16ec5a784c5a4f9b",
+    "sigflowAgent/sigflow_edu_agent/context/gateway_report.py": "ef7414d9054c43bc031a550858907022d2129d5e6b448e9b8a4c8fdcf129d9fd",
+    "sigflowAgent/sigflow_edu_agent/context/models.py": "5ec372edc8e250d0339ee8d96a4523df2d1aa1a25f09fba61bf89bb0faea315c",
+    "sigflowAgent/sigflow_edu_agent/context/report.py": "0d685e3d3579e4d5932a464b7c7933db8e35348ad39d1f6326b7b87ea26fa85b",
+    "sigflowAgent/sigflow_edu_agent/context/waveform.py": "27cc6db018242ea37f90405122199bcde27e823ab700509543159c9b3b3086fa",
+    "sigflowAgent/sigflow_edu_agent/contracts/__init__.py": "5ff18fd49e519283ad414796bbef992fc18d292c2efcbbf4ccadd9f8f5382db6",
+    "sigflowAgent/sigflow_edu_agent/contracts/plan.py": "ae2d471b7995ef061e0534db44aa079e3fadc9c2034cb12bd1b2a092000e262b",
+    "sigflowAgent/sigflow_edu_agent/courses.py": "165f2df1d78d26c6eec2a709b4e7617d8ec4263dd4122fb38e602b6cf7bb3041",
+    "sigflowAgent/sigflow_edu_agent/credentials.py": "ef608d39d6d0fd7d9a7ded7e6ad53b92ce35d4bf2076bcad4d52ba020aa6c622",
+    "sigflowAgent/sigflow_edu_agent/deepseek.py": "82172984ffda94187c027b468c59706e27ba093d050c9cd45105ebc7ec2f89a3",
+    "sigflowAgent/sigflow_edu_agent/demo.py": "36e73d4c9e982250615176fbad555466c61dbf42df48cd492c1154f90351e98c",
+    "sigflowAgent/sigflow_edu_agent/domain.py": "ca1fb39a90689ec0823cb3484d73ebfecbfb6f1c2047e858369cb7a60d5f9089",
+    "sigflowAgent/sigflow_edu_agent/evaluation/__init__.py": "438f6261c49e0437176249d3067c749cb5e34fb4edb7749666f632d5dc361116",
+    "sigflowAgent/sigflow_edu_agent/evaluation/__main__.py": "868257238960b256b0556109ff523505e05b67a424b7aab93bc82540906d7358",
+    "sigflowAgent/sigflow_edu_agent/evaluation/handoff.py": "3987cfc888d7b1ac96f190205456565c994ed36b0d8a7ad429fcc95bf22ad1b0",
+    "sigflowAgent/sigflow_edu_agent/evaluation/model.py": "52c73d5a2553e3aab4181293b14b5a7961ea4a8ab0b298e11416f8902097cd16",
+    "sigflowAgent/sigflow_edu_agent/evaluation/probes.py": "b5489c8e91c3ffe21a64a88d25a1f61bc21baadfd4e03b5c616fbffcfb82ab5d",
+    "sigflowAgent/sigflow_edu_agent/evaluation/review.py": "5ad4ffa67bbe78c7a8df216b827854877661fe6c17b7ab7575b61d3f0f06d7cd",
+    "sigflowAgent/sigflow_edu_agent/host/__init__.py": "88d0c0571358617b3bd2aa1533051c46a8184f88f80a09c0fa816b0168d794f6",
+    "sigflowAgent/sigflow_edu_agent/host/__main__.py": "5ecc5fcaec88fa9e0ad4a08ab11570d90f006458ec568f93e6d7095f3b064141",
+    "sigflowAgent/sigflow_edu_agent/host/acceptance_support.py": "c08d8ac383c43b015f6cbe70a79c2a76f75a5bea978642163aa0a16972923153",
+    "sigflowAgent/sigflow_edu_agent/host/catalog.py": "a822e0563c551f3b8c2c3934141ffee71b1d40dbebd4e0a2df1a18ee7e42a391",
+    "sigflowAgent/sigflow_edu_agent/host/closed_loop.py": "9ae6141171d89eff1209fbfc6c1ead017f4abccb0a9ff47ab706e47f54784a68",
+    "sigflowAgent/sigflow_edu_agent/host/course_acceptance.py": "5ba36970d4f5c26c588d1b5328e56f3202ee6bd18e98e462fc39937969e2371f",
+    "sigflowAgent/sigflow_edu_agent/host/course_state.py": "3fd6436ced5a5aee8e123782b5c1e662ae8c61ac637289a4c56ad479c2c8fd6e",
+    "sigflowAgent/sigflow_edu_agent/host/durable_reference.py": "e00b81db5d10e34fdcf917a81493a3821f2681516f2c6f7f7f71865d322e8790",
+    "sigflowAgent/sigflow_edu_agent/host/durable_reference_acceptance.py": "0717a9ca73fc3083dfbc76bccbbaa658107fc36dcf19ec04e33191feeccaaa87",
+    "sigflowAgent/sigflow_edu_agent/host/factory.py": "ebcb32449190fd9396bc09b51a3c29d8ef2fc8fdf91b91f6bcfe79d0fa0190d9",
+    "sigflowAgent/sigflow_edu_agent/host/gateway_evidence.py": "b3aefaf5d28ead027d6430a1d98c45179672b2579ea399e90ae3ae5e9bf5c0e4",
+    "sigflowAgent/sigflow_edu_agent/host/http.py": "20db49b3caa51cb68a1c891164a53949a41c68c59662ab7652bb9adcfa1b6f1b",
+    "sigflowAgent/sigflow_edu_agent/host/prediction.py": "c3a4bcab84c79e8afd4d3032283ce13941454378bd9b1b5831fa712d0a761738",
+    "sigflowAgent/sigflow_edu_agent/host/probe.py": "8da4602d5e7906bcb9fbbf6052482dc2c5927cc72802a2e021fbe25055941e37",
+    "sigflowAgent/sigflow_edu_agent/host/receipt_acceptance.py": "7eefebf487eecb1f9d2dc1275b5237e55b3ebd0fbc7867726e2fb1912349a44b",
+    "sigflowAgent/sigflow_edu_agent/host/reference.py": "74c4753fda59dffceb4a23aacf6f42592941e48cfdfcf0d45abcbe957723b362",
+    "sigflowAgent/sigflow_edu_agent/host/reference_actions.py": "2fdbd2e7b8f33079b381ae5d1db97e17f1bfea553a862d63778ed620d320ce15",
+    "sigflowAgent/sigflow_edu_agent/host/reference_host_acceptance.py": "703d5896079e6f4a8383307c74e57bc16e0b7b050c44799e4d8801353fae721f",
+    "sigflowAgent/sigflow_edu_agent/host/reference_journal.py": "40cad0ecac581072d09ed043428e4bf826eb452e5add836953ff296852ee4cad",
+    "sigflowAgent/sigflow_edu_agent/host/revision_acceptance.py": "d271fef5fb1516b11460cd1117db24f2442c28e54cc7715cebe75a7aa0e8f5d9",
+    "sigflowAgent/sigflow_edu_agent/host/runtime.py": "fcb85f03bd96e325c987ea5f6bcba1ac77e28a922898b9975711a37aa493e2a1",
+    "sigflowAgent/sigflow_edu_agent/host/simulation_acceptance.py": "3daf6a1eb9767190d4204a160801e08d89f5143db418bbc9e278b71427f3ce4e",
+    "sigflowAgent/sigflow_edu_agent/host/store.py": "eb79377a833c50e14cd01695f6d5fb602eab37952141e62411aed4a02f39ed61",
+    "sigflowAgent/sigflow_edu_agent/host/teaching_memory.py": "50832d3178ac4eea54af7f8015a84ecf9ab2acd871854aa86de1c5550a15db42",
+    "sigflowAgent/sigflow_edu_agent/host/verification.py": "3a4eccc9bc94b97d357c0238ab7b9d8d462806fc7a37d2d08ed80ed2c372b144",
+    "sigflowAgent/sigflow_edu_agent/learning.py": "1a7f30ba3d25841e86cd183e71a77fb818e356e5ee1a7e190bd00c0aba4ded73",
+    "sigflowAgent/sigflow_edu_agent/loop.py": "50d33f15f8b0c6310fe65148c0fb702dc1a7e77953066e7cb84c9e9157f2f7b1",
+    "sigflowAgent/sigflow_edu_agent/model_config.py": "fb82494bbae450f38f8707fcf8cad0af70cda1312f699f928dd8781dca039b15",
+    "sigflowAgent/sigflow_edu_agent/patterns/__init__.py": "931b10c9784cb47960ea415652ab8d70dca1596d755d53cdb48c80d17afcf536",
+    "sigflowAgent/sigflow_edu_agent/patterns/support.py": "8b2b6d4026a512b5f562912f8904ef3e136247a1227e13d9a1a1e7dd27ecefd7",
+    "sigflowAgent/sigflow_edu_agent/pedagogy.py": "dd7503786278327dc54b519c4500848d48b2134dcf34b713c4436fedef5aa31c",
+    "sigflowAgent/sigflow_edu_agent/ports.py": "31bfe573c44132f3a50729cd99fbd2839781865adff785c78324c4beb3e70824",
+    "sigflowAgent/sigflow_edu_agent/rag/__init__.py": "88b99097a8a092898e9701de2ef05542feb4e84c2c6e0c1eb1ae34ae49c611b0",
+    "sigflowAgent/sigflow_edu_agent/rag/agent_adapter.py": "f6e2c4d79eeb7f840b2ae3b27a4893f7feb4cce5a15abc41b60783861684ada3",
+    "sigflowAgent/sigflow_edu_agent/rag/chunks.py": "5297b90a1448fb88b9ef78d5eee58a969ef8a3837776a68c1c1a940953da44a2",
+    "sigflowAgent/sigflow_edu_agent/rag/citations.py": "bc06687ccac4587b83158a48acd8a975124d2957a782f5a5f3868c1d019bdb3e",
+    "sigflowAgent/sigflow_edu_agent/rag/database.py": "2284e8023e7598762aab9e59d9da1c6cc21ce04fb42da284afc250b7110f6e80",
+    "sigflowAgent/sigflow_edu_agent/rag/evaluation.py": "ebed321c571221967326235c2a841ff5fac9cefddccc5cb7896dc51259193ea7",
+    "sigflowAgent/sigflow_edu_agent/rag/external_materials.py": "22834687de71683a659993ad17f735006fcc0e364c1e47a2bef66458be8c3bc5",
+    "sigflowAgent/sigflow_edu_agent/rag/importer.py": "cc9f6fd994fbde6c6a6e4c0b8ddb8b47839594f570c71d4a28bae8c4b7b27e07",
+    "sigflowAgent/sigflow_edu_agent/rag/query_cli.py": "608e80e943fabd78773ff84c212721222f9ffe480aef935d678df547805c810c",
+    "sigflowAgent/sigflow_edu_agent/rag/register_sections.py": "a28bf9b4f1643e527b9ac6498a8c51ad0bdcd703c79914299900823abcb1558c",
+    "sigflowAgent/sigflow_edu_agent/rag/retriever.py": "60196a6dbbde47eb202ea410213dac08ba7e1cf6d9ba860f50437744429f42c6",
+    "sigflowAgent/sigflow_edu_agent/rag/source_evidence.py": "52f90e54b07afeb52544d992d2c707deab7ef16b84f8aea2b55df25fbcfb6c95",
+    "sigflowAgent/sigflow_edu_agent/runtime/__init__.py": "b9724d5eba94378e54a222da347481c37a54e15ee88b99185eb1484aa872c6be",
+    "sigflowAgent/sigflow_edu_agent/runtime/checkpoint.py": "274f059ea9cddfae4b8b97593a469b4517231796d49a373860abdc9f332e1190",
+    "sigflowAgent/sigflow_edu_agent/runtime/gateway_session.py": "c43b4385ed87ae8b9de2987ab562a4e6c35d2fb6cf642ec1edd0f453cf0971be",
+    "sigflowAgent/sigflow_edu_agent/runtime/session.py": "eff5765e89efb9f804ced572a577caadb47e48e4b313f3572b462664bda4e3b5",
+    "sigflowAgent/sigflow_edu_agent/runtime/smoke.py": "1c300a68c61dfe3762eb1e155f313f8d10628f83ff91e2bd2d6f31c67287bc2e",
+    "sigflowAgent/sigflow_edu_agent/runtime/ucagent_adapter.py": "28df40f95d6fa91a8c9beb1af7d9e4f2c9ba4e60e43cb08895576127591a784a",
+    "sigflowAgent/sigflow_edu_agent/runtime/verification_checkpoint.py": "540bf590b3da1cbf016d18c8dd52b90aa4462af20bd2de8ea9ae02d7f71becd6",
+    "sigflowAgent/tests/test_teaching_memory_process.py": "c6caaf2002ab8822017d041fa5eb1538074eaf3d0ebd76d4566a7852c635a89b",
+    "sigflowAgent/tests/helpers/teaching_memory_host.py": "e1397ff3758b5a9c733adaa079da3470922aeaadffe0c329a9a1cfbfa340e26a"
+  },
+  "pending": [
+    "U3 actual adapter and signed-off interface mapping",
+    "receiver persistence/dedup acknowledgement",
+    "profile deletion and queued old events policy",
+    "thread safety and external-call lifecycle acceptance",
+    "joint restart/exit tests with actual receiver"
+  ]
+}

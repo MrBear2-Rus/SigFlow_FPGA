@@ -1,0 +1,182 @@
+{
+  "schema_version": "edu.reference-host-verification.v1",
+  "date": "2026-10-17",
+  "status": "passed_internal_metadata_actions",
+  "all_U2_dependencies_complete": false,
+  "repository": {
+    "branch": "SigFlow_FPGA_CMake",
+    "head": "a8431c58612fbe3e836c91319c7b57c2d2a2e123",
+    "pushed_baseline": "a8431c58612fbe3e836c91319c7b57c2d2a2e123",
+    "new_stage_committed": false,
+    "new_stage_pushed": false,
+    "staged_files": 0,
+    "preserved_stashes": [
+      "f7df7a6a246c53b9eac4d1b43b791ab9bef95196",
+      "e0b4b8bfd25640492df0d0ad3b9606bc35b7edfe",
+      "824925a13fd8cf79dfb559a392ef918c911fa100"
+    ]
+  },
+  "python_source_sha256": "bd742c9587a494fa154b0cd07417ae9b7d7ce2eb2b2eafa2fae0c608400700fb",
+  "file_sha256": {
+    "sigflowAgent/sigflow_edu_agent/host/store.py": "7bc99ac156f122f7d0a2413b46892745cb60837261dafc5925d21d70548fb6c9",
+    "sigflowAgent/sigflow_edu_agent/host/reference_journal.py": "40cad0ecac581072d09ed043428e4bf826eb452e5add836953ff296852ee4cad",
+    "sigflowAgent/sigflow_edu_agent/host/durable_reference.py": "e00b81db5d10e34fdcf917a81493a3821f2681516f2c6f7f7f71865d322e8790",
+    "sigflowAgent/sigflow_edu_agent/host/reference_actions.py": "2fdbd2e7b8f33079b381ae5d1db97e17f1bfea553a862d63778ed620d320ce15",
+    "sigflowAgent/sigflow_edu_agent/host/runtime.py": "60fec37ee09f3e7646cd2614148c65d6b858e75cdd5761b80e0c9538bfd35ef4",
+    "sigflowAgent/sigflow_edu_agent/host/http.py": "07c8f6e4af0ac4cc77d4f175f8e8736e4317628fb32545505d292fb32ef4aefb",
+    "sigflowAgent/sigflow_edu_agent/host/reference_host_acceptance.py": "703d5896079e6f4a8383307c74e57bc16e0b7b050c44799e4d8801353fae721f",
+    "sigflowAgent/sigflow_edu_agent/host/receipt_acceptance.py": "7eefebf487eecb1f9d2dc1275b5237e55b3ebd0fbc7867726e2fb1912349a44b",
+    "sigflowAgent/tests/test_host_reference.py": "3b2a41ed5d5a35250de1b40b2b05e768c2e0f7de3c4d63c5873f49c36b90c621",
+    "sigflowAgent/tests/test_reference_journal.py": "0ad063bbe7ef1f4055bfffd44ec09fe96e336b4cb84b03aea9d15777e0c68fd2",
+    "sigflowAgent/tests/test_durable_reference.py": "92cb850b347ed1ff3ec00c2ad3f3ebddab265d736168385c7e35380616634e29",
+    "sigflowAgent/tests/test_reference_host_acceptance.py": "de2211e56e38ef6a26682945688cbb80c147084adeeb58a071ce67f87363b90d",
+    "sigflowAgent/docs/receipt-stage21-host.json": "e2169720535c6e64a464a7b1761b0db6b58c1ae9ee1f9c64c73b036e08c38960",
+    "sigflowAgent/docs/evaluation-stage21.json": "eb1de2d9eba380a758260406c0efd3b17c46be3f822acad2ed9aaeab97d1abcb",
+    "sigflowAgent/docs/evaluation-stage21-handoff.json": "1bca07f11c8b40796fbf050c12715d08187670e9f589b15b1481eafebe1191ae",
+    "build-main-msvcrt/sigflowAgent/integration/edu_u2_gateway.exe": "e5330e8d44ba330173f08b6da00cd698c8802fcd0a2b7b5930e157f2101217c7"
+  },
+  "unit_tests": {
+    "collected": 632,
+    "tests_run": 614,
+    "passed": 581,
+    "skipped_entries": 35,
+    "skipped_test_methods": 33,
+    "skipped_classes": 2,
+    "failures": 0,
+    "errors": 0,
+    "seconds": 115.086,
+    "skip_reasons": {
+      "Set SIGFLOW_UCAGENT_SOURCE and install the optional runtime dependencies.": 6,
+      "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression": 27,
+      "set SIGFLOW_YSYX_SNAPSHOT to the pinned YSYX snapshot for full external-material DB tests": 1,
+      "Pinned original snapshot unavailable": 1
+    },
+    "log_sha256": "b6e57f1bbc46017512aac454a8a8655722611be479418363ba7f34d86a5188f6",
+    "methods_not_run_due_to_class_skip": 18,
+    "count_semantics": "tests_run=passed+method_skips; class_skips_cover_additional_collected_methods"
+  },
+  "execution_environment": {
+    "python": "3.13.5",
+    "interpreter": "sigflowAgent/.venv/Scripts/python.exe",
+    "final_suite": "Windows_current_user",
+    "restricted_initial_run": {
+      "tests_run": 613,
+      "passed": 577,
+      "failures": 0,
+      "errors": 3,
+      "reason": "Windows_DPAPI_returned_0x2_in_restricted_process",
+      "unrelated_to_reference_changes": true,
+      "log_sha256": "e45f8dcc6c1d4a361ce755a325e8d6c30030ef8f54b5324633bd51cf34060553"
+    },
+    "current_user_credential_tests": {
+      "tests_run": 17,
+      "failures": 0,
+      "errors": 0,
+      "credentials": "synthetic_in_owned_temporary_directory",
+      "real_API_calls": 0
+    }
+  },
+  "directed_tests": {
+    "host_reference": 16,
+    "reference_journal": 25,
+    "durable_reference_gate": 19,
+    "host_probe": 2,
+    "receipt_CLI": 1,
+    "host_store": 25,
+    "host_runtime": 20,
+    "host_prediction": 7
+  },
+  "development_evaluation": {
+    "total": 40,
+    "passed": 40,
+    "failed": 0,
+    "real_model": "not_run",
+    "teacher_review": "not_run",
+    "frozen_dataset": "missing"
+  },
+  "real_Core_probe": {
+    "report": "receipt-stage21-host.json",
+    "executions_this_stage": 2,
+    "final_source_rerun": true,
+    "scope": "new_internal_host_scenario",
+    "status": "passed",
+    "real_core": true,
+    "teaching_evidence": "fixture",
+    "reviewed_material": "synthetic_fixture",
+    "reviewers": "synthetic_fixture_reviewers",
+    "real_reviewed_reference": "not_available",
+    "GUI_signoff": "not_run",
+    "fault_injection": "discard_successful_consume_response",
+    "receipt_issuances": 1,
+    "consume_attempts": 2,
+    "acknowledged_replays": [
+      false,
+      true
+    ],
+    "challenge_committed_version": "verified",
+    "agent_database_reopened": true,
+    "restart_quarantine": "verified",
+    "cards_hidden_before_revalidation": true,
+    "restart_receipt_calls": 0,
+    "revalidation_receipt_calls": 0,
+    "same_receipt_run_action_version": "verified",
+    "final_reference_status": "confirmed",
+    "released_replay_additional_calls": 0,
+    "body_available": false,
+    "material_body_in_database": false,
+    "receipt_in_public_persistence": false,
+    "level": 3,
+    "card_count": 3,
+    "model_calls": 0,
+    "job_count": 0,
+    "teaching_HTTP_L4": "disabled"
+  },
+  "independent_review": {
+    "status": "approved_after_scoped_rereview",
+    "unresolved_P1_P2": 0,
+    "report_sha256": "519cc6498bafe5111dd42a89f88e1d1d6ab20eeb644c83899dcff20f1b446ba0",
+    "initial_targeted_tests": 111,
+    "final_targeted_tests": 71,
+    "resolved_P2": "global_Runtime_guard_waited_for_session_lock_during_blocking_consume",
+    "independently_reproduced": [
+      "cancel_and_snapshot_responsiveness",
+      "second_confirmation_busy_rejection"
+    ],
+    "reviewed_probe_and_CLI": true,
+    "independently_reran_full_suite": false,
+    "independently_reran_real_Core": false
+  },
+  "red_green": {
+    "journal": "missing_commit_request_then25pass",
+    "gate": "2missing_draft_metadata_failures_then19pass",
+    "host": "9missing_action_failures_then14pass",
+    "quarantine_cancel": "1audit_phase_failure_then15pass",
+    "concurrency": "2Event_responsiveness_failures_then16pass",
+    "probe": "missing_opt_in_flag_and_helper_then2pass"
+  },
+  "course_database_sha256": "4a98cecdc34a16446c3a5860072db18776871f437c329b2c62cda153fe662b01",
+  "course_database_unchanged": true,
+  "production_HTTP_L4": "disabled",
+  "reference_body_in_public_persistence": false,
+  "receipt_identifiers_in_public_persistence": false,
+  "receipt_identifiers_in_report": false,
+  "real_model_calls": 0,
+  "new_reference_jobs": 0,
+  "external_acceptance_pending": [
+    "trusted_teacher_reviewed_material_provider",
+    "authenticated_teacher_approval",
+    "GUI_double_confirmation_and_body_delivery",
+    "team_frozen_ModelCase",
+    "real_model_course_batch",
+    "two_teacher_scores",
+    "dynamic_stimulus_and_reset_contract",
+    "other_hardware_detectors",
+    "native_Linux_Kylin"
+  ],
+  "limitations": [
+    "metadata_only_not_answer_delivery",
+    "synthetic_reviewers_not_authenticated_teachers",
+    "database_reopen_not_OS_process_crash",
+    "real_Core_receipts_with_fixture_teaching_evidence"
+  ]
+}

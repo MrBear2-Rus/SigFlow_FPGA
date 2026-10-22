@@ -2,6 +2,7 @@
 from . import PATTERNS
 
 _MISSING={
+ 'latch':'The EDU_LATCH_INFERRED report adapter exists; a certified producer and independently stated combinational goal still require delivery.',
  'syntax':'Pinned language mode, parser diagnostic and source location are required.',
  'width_signedness':'WIDTH alone does not establish operand types, expected range or unintended conversion.',
  'drivers':'MULTIDRIVEN alone does not distinguish illegal drivers from legal resolved nets.',
@@ -12,7 +13,8 @@ _MISSING={
 }
 
 def support_matrix():
-    return [dict(concept=name,detector=pattern.detector,production_detector=name=='latch',
+    return [dict(concept=name,detector=pattern.detector,production_detector=False,
+        report_adapter_available=name=='latch',producer_status='external_delivery_required',
         required_facts=list(pattern.requirements),exclusions=list(pattern.exclusions),
         bounded_observation='explicit_point_comparison' if name=='simulation_mismatch' else
                             'certified_storage_report' if name=='latch' else 'report_label_only',

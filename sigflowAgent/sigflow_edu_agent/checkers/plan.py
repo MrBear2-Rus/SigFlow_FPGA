@@ -37,7 +37,7 @@ class PlanStep:
         schemas = {
             'eda.synth': ({'yosys'}, {'top'}, {'top'}),
             'eda.sim.build': ({'iverilog', 'verilator'}, {'top', 'testbench'}, {'top', 'testbench'}),
-            'eda.sim.run': ({'iverilog', 'verilator'}, {'build_step_id', 'timeout_ms'}, {'build_step_id'}),
+            'eda.sim.run': ({'iverilog', 'verilator'}, {'build_step_id', 'timeout_ms', 'duration_ticks'}, {'build_step_id'}),
         }
         if self.capability not in schemas:
             raise ValueError('capability_denied')
@@ -50,7 +50,11 @@ class PlanStep:
         if not required <= params.keys() or not params.keys() <= allowed:
             raise ValueError('parameters_denied')
         for key, value in params.items():
-            if key == 'timeout_ms':
+            if key == 'duration_ticks':
+                if (type(value) is not str or re.fullmatch(r'0|[1-9][0-9]{0,19}', value) is None
+                        or int(value) > 2**64-1):
+                    raise ValueError('invalid_duration_ticks')
+            elif key == 'timeout_ms':
                 if type(value) is not int or not 1 <= value <= 60000:
                     raise ValueError('invalid_timeout')
             else:

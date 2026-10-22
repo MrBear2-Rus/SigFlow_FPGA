@@ -76,9 +76,10 @@ def verify_wave_artifact(report, metadata, scope, job_id):
                 exact_samples_verified=False)
 
 
-def exercise_simulation(gateway, ui, teaching, route, scope, baseline, deadline, *, waves=False,instance_id=None,predictions=False):
+def exercise_simulation(gateway, ui, teaching, route, scope, baseline, deadline, *, waves=False,instance_id=None,predictions=False,dynamic=False):
     """Run the existing two-step teaching plan via real Gateway and sidecar HTTP."""
     require(not predictions or (waves and instance_id is not None),'prediction_requires_wave_mode')
+    require(not dynamic or (waves and predictions),'dynamic_requires_prediction')
     caps = gateway.request('GET', '/api/v1/capabilities')['capabilities']
     for capability, plugin in (('eda.sim.build','eda-sim-verilator'),
                                ('eda.sim.run','eda-sim-verilator-run')):
@@ -87,16 +88,18 @@ def exercise_simulation(gateway, ui, teaching, route, scope, baseline, deadline,
                 'simulation_capability_unavailable')
     plan = dict(**scope, goal='Observe the bounded Verilator execution pipeline', max_jobs=2,
         steps=[dict(step_id='build', capability='eda.sim.build', provider='verilator',
-                    params=dict(top='top', testbench='top')),
+                    params=dict(top='top', testbench='tb' if dynamic else 'top')),
                dict(step_id='run', capability='eda.sim.run', provider='verilator',
-                    params=dict(build_step_id='build'), dependencies=['build'])],
+                    params=(dict(build_step_id='build',duration_ticks='40') if dynamic else
+                            dict(build_step_id='build')), dependencies=['build'])],
         expected_observations=['Read the scoped reports and VCD metadata; no dynamic functional verdict'])
     package = build_plan_card(parse_plan(plan), 'plan-1', 0)
     plan_hash = 'simulation-'+secrets.token_hex(16)
     create = dict(**scope, learner_id='integration', job_id=baseline, diagnostic_id='job-report',
                   issue_id='simulation-observation', mode='rule', intent='verify', plan=plan,
                   gateway_plan_hash=plan_hash,
-                  question='Explain the limits of a single-evaluation Verilator build/run and its VCD artifact.')
+                  question=('Compare an explicit expectation under the controlled reset/clock/input timeline.' if dynamic else
+                            'Explain the limits of this Verilator build/run and its VCD artifact.'))
     sid = teaching.request('POST', '/api/v1/teaching/sessions', create, status=202,
                            key='simulation-create', learner=True)['session_id']
     session = '/api/v1/teaching/sessions/'+sid
@@ -199,7 +202,7 @@ def exercise_simulation(gateway, ui, teaching, route, scope, baseline, deadline,
         grant_used_jobs=[1,2], invalid_build_dependency='denied', action_replay='verified',
         stale_version='denied', observation_actions=observed,
         successor_confirmations=successor_confirmations, waveform=wave,
-        harness='single_evaluation', time_advance_verified=False,
+        harness='controlled_timeline' if dynamic else 'unverified_timeline', time_advance_verified=False,
         functional_correctness='not_evaluated',
         limits=['dynamic_stimulus','trusted_exact_waveform','student_prediction','GUI','teaching_correctness'])
     if waves:
@@ -214,6 +217,14 @@ def exercise_simulation(gateway, ui, teaching, route, scope, baseline, deadline,
         window=reader.read(binding,wave['artifact_id'],signal_ids=(signal.signal_id,),
                            start_tick=str(description.start_tick),end_tick=str(description.end_tick))
         result['waveform']['exact_samples_verified']=True
+        result['time_advance_verified']=description.end_tick>description.start_tick
+        if dynamic:
+            require(description.start_tick==0 and description.end_tick>=40
+                    and sum(len(s.transitions) for s in window.signals)>=2,'dynamic_timeline_missing')
+            result['limits'].remove('dynamic_stimulus')
+            result['stimulus']=dict(clock_half_period_ticks='5',reset_release_tick='12',
+                data_change_tick='30',duration_ticks='40',expected_sample_tick='15',expected='1',
+                contract_origin='owned_test_input', teacher_review='not_assessed')
         result['wave_observation']=dict(exact_window_verified=True,origin=window.origin,
             evidence_id=window.anchor.evidence_id,job_id=window.anchor.job_id,
             artifact_id=window.anchor.artifact_id,artifact_hash=window.anchor.artifact_hash,
@@ -223,11 +234,13 @@ def exercise_simulation(gateway, ui, teaching, route, scope, baseline, deadline,
             transitions=sum(len(s.transitions) for s in window.signals))
         result['limits'].remove('trusted_exact_waveform')
         if predictions:
-            # Fixed independent expectation for this runner's constant-zero harness;
-            # no value from the preceding observation chooses the expected answer.
+            # Literal expectations follow the owned RTL and declared input; no
+            # queried observation chooses the student's expected answer.
             require(signal.width==1,'prediction_signal_width_invalid')
+            sample_tick='15' if dynamic else str(description.start_tick)
+            expected='1' if dynamic else '0'
             create=dict(**scope,learner_id='integration',job_id=run['job_id'],diagnostic_id='job-report',
-                issue_id='wave-prediction',question='Compare the explicit zero expectation at tick zero.',
+                issue_id='wave-prediction',question=f'Compare the explicit expectation {expected} at tick {sample_tick}.',
                 mode='rule',intent='diagnose')
             psid=teaching.request('POST','/api/v1/teaching/sessions',create,status=202,key='prediction-create',learner=True)['session_id']
             path='/api/v1/teaching/sessions/'+psid
@@ -240,19 +253,19 @@ def exercise_simulation(gateway, ui, teaching, route, scope, baseline, deadline,
                 updated=wait_for(get,lambda s:int(s['state_version'])>int(previous['state_version']),deadline,'prediction_timeout')
                 return updated,action
             pending,_=act(pstate,'prediction_request','predict',dict(artifact_id=wave['artifact_id'],signal_id=signal.signal_id,
-                start_tick=str(description.start_tick),end_tick=str(description.end_tick),sample_tick=str(description.start_tick)))
+                start_tick=str(description.start_tick),end_tick=str(description.end_tick),sample_tick=sample_tick))
             require(pending['prediction']['status']=='awaiting_prediction' and 'observed' not in pending['prediction'],
                     'prediction_leaked_observation')
-            compared,action=act(pending,'prediction_submit','compare',dict(challenge_id=pending['prediction']['challenge_id'],expected='0'))
+            compared,action=act(pending,'prediction_submit','compare',dict(challenge_id=pending['prediction']['challenge_id'],expected=expected))
             require(compared['prediction']['status']=='observed' and compared['prediction']['outcome']=='matches'
-                    and compared['prediction']['observed']=='0' and compared['level']==pstate['level']
+                    and compared['prediction']['observed']==expected and compared['level']==pstate['level']
                     and compared['model_calls']==0 and compared['status']=='WaitingStudent','prediction_comparison_failed')
             teaching.request('POST',path+'/actions',action,status=202,learner=True)
             require(get()['state_version']==compared['state_version'] and len(gateway.request('GET',route+'/jobs')['jobs'])==3,
                     'prediction_replay_mutated_state')
-            result['prediction']=dict(status='passed',outcome='matches',expected='0',observed='0',
-                sample_tick=str(description.start_tick),level_unchanged=True,model_calls=0,additional_jobs=0,
+            result['prediction']=dict(status='passed',outcome='matches',expected=expected,observed=compared['prediction']['observed'],
+                sample_tick=sample_tick,level_unchanged=True,model_calls=0,additional_jobs=0,
                 challenge_before_observation=True,replay='verified',evidence_id=compared['prediction']['evidence_id'],
-                limitation='single fixed sample; no dynamic stimulus or whole-design verdict')
+                limitation='single fixed sample; no whole-design verdict')
             result['limits'].remove('student_prediction')
     return result

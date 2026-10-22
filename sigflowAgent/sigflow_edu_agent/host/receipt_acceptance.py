@@ -11,7 +11,7 @@ from ..clients.gateway import GatewayConfig
 from ..clients.receipts import GatewayReceiptClient
 from ..runtime.gateway_session import SessionBinding
 
-def exercise(gateway_path,directory):
+def exercise(gateway_path,directory,*,durable=False,host_metadata=False):
     project=directory/'project';(project/'rtl').mkdir(parents=True)
     (project/'rtl/top.v').write_text('module top(output wire q); assign q=0; endmodule\n')
     (project/'sigflow.project').write_text(json.dumps(dict(build=dict(top_module=['top']),paths=dict(source_files=['rtl/top.v']))))
@@ -52,21 +52,34 @@ def exercise(gateway_path,directory):
         require(port.consume(legacy_receipt['receipt_id'],binding.project_id,'legacy-run','legacy-action',0)['consumed'] is True,
                 'receipt_default_version_compatibility_failed')
         require(gateway.request('GET',route+'/jobs')['jobs']==[],'receipt_probe_started_jobs')
-        return dict(status='passed',real_core=True,agent_issuance='denied',issued_version='verified',
+        result = dict(status='passed',real_core=True,agent_issuance='denied',issued_version='verified',
             malformed_versions='denied',wrong_version='denied',wrong_action='denied',empty_project='denied',
             same_run_replay='verified',cross_run_replay='denied',synthetic_reference_fixture=True,
             default_zero_version_compatibility='verified',
             teaching_HTTP_L4='disabled',real_reviewed_reference='not_available',GUI_signoff='not_run',job_count=0,model_calls=0)
+        if durable:
+            from .durable_reference_acceptance import exercise_durable_reference
+            result['durable_reference'] = exercise_durable_reference(directory,binding,item,port,ui,route)
+            require(gateway.request('GET',route+'/jobs')['jobs']==[],'receipt_probe_started_jobs')
+        if host_metadata:
+            from .reference_host_acceptance import exercise_reference_host
+            result['reference_host'] = exercise_reference_host(directory,binding,item,port,ui,route)
+            require(gateway.request('GET',route+'/jobs')['jobs']==[],'receipt_probe_started_jobs')
+        return result
     finally:close_children(((child,10),))
 
 def main(argv=None):
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--gateway',required=True,type=Path);parser.add_argument('--output',required=True,type=Path)
+    parser.add_argument('--durable',action='store_true')
+    parser.add_argument('--host-metadata',action='store_true')
     args=parser.parse_args(argv)
     try:
         require(args.gateway.is_file(),'gateway_missing')
         with tempfile.TemporaryDirectory(prefix='sigflow-u2-receipts-') as owned:
-            report=exercise(args.gateway.resolve(),Path(owned))
+            options = dict(durable=True) if args.durable else {}
+            if args.host_metadata:options['host_metadata'] = True
+            report=exercise(args.gateway.resolve(),Path(owned),**options)
         report['cleanup']='completed'
     except RunFailure as error:report=dict(status='failed',error=str(error))
     except Exception:report=dict(status='failed',error='receipt_probe_failed')

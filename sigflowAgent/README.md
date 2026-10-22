@@ -9,27 +9,35 @@ UCAgent 适配器与旧集成文档保留为历史实验，不属于交付依赖
 
 ## 交付范围
 
-| 部分 | 已实现 | 集成边界 |
-|---|---|---|
-| Part 1 | 有界 E0–E7 主循环、L1–L3、DeepSeek 候选生成与规则降级 | 默认 CLI 使用 fixture；真实模型质量未验收 |
-| Part 2 | 自研串行会话、受信动作与阶段检查；保留旧上游适配实验 | 当前交付依赖自研会话；旧 UCAgent 集成不计入产品验收 |
-| Part 3 | Gateway health/capabilities 客户端、报告证据核对、上下文预算 | 报告路径通过 fixture HTTP；真实 Gateway 联调尚未验收 |
-| 阶段 4 | 详细计划、依赖/参数检查、跨 revision 复测比较与多步反馈 | D4 已接入受控执行适配；本地计划不等于 Gateway grant，真实工具待验收 |
-| 阶段 5 | 八类教学模式注册表、合成正反例、模型调用前的证据门禁 | 仅既有锁存器报告映射可用，其余真实 detector 与精确波形待对接 |
-| 阶段 6 | 40 个离线开发评测、脱敏报告、教师评审表 | 冻结验收集、真实模型重复评测与教师评分未完成 |
-| 阶段 7 | 详细计划→共享 PlanCard、完整审批绑定材料、本地规范化摘要 | 摘要不是 Gateway plan_hash；UI 对扩展字段的展示待确认 |
-| 阶段 8 | 只读 Job 报告 HTTP、artifact 规范化、可信锚点→主循环 | 本地 HTTP 测试通过，真实 Gateway 与证据目录待联调 |
-| 阶段 11 | 精确波形窗口检查、四态采样和显式 fixture 预测对比 | 宿主末信号截断可能误标 exact，tool 路径暂拒绝；待 S2 修复联调 |
-| 阶段 12–13 | 重复模型评测、调用预算、输出波动、双人教师评分汇总 | 模型批次与真实教师审阅待运行；程序测试不计作质量验收 |
-| 阶段 14 | 只读暂停检查点、显式重新取证恢复、动作幂等和等级/预算保持 | 已由 D1–D5 接入事务存储；真实执行与 L4 不恢复 |
-| 阶段 15 | 常驻宿主课程组装、元数据状态、恢复重新检索与旧动作隔离 | 真实 Core/Yosys 加课程背景通过；问题充分性、真实模型课程质量与教师评审未验收 |
-| 阶段 16 | 真实 Verilator build/run、产物摘要、长任务只读观察与后继确认 | 单次 eval/dump 执行链；动态 stimuli、可信精确波形与学生预测仍待接入 |
-| U1 依赖 D1–D5 | SQLite 事务/预算、异步教学宿主、HTTP 扩展、受控 Gateway 验证与联调探针 | 本地 HTTP/进程路径通过；真实 UI、Gateway/EDA、模型与 Linux 尚待联合验收 |
-| U2 耦合 D6–D8 | 动态可信目录、长 Job 只读续查、进展/trace 与事件重同步 | live 会话可续查；动态证据生产方、跨进程验证恢复与真实执行仍待对接 |
+当前范围以 [U2 交付核对表](docs/u2-completion-status.md)为准，历史阶段与实测记录见 [task.md](docs/task.md)。
 
-离线通过不代表周期四 G0/G1 验收完成。事务持久化、预算及最小事件流已在独立宿主中接通；真实 Yosys 与 Verilator 单次求值执行链已本地验收，动态仿真、精确波形、教学 UI、U3 完整学习记录、L4 receipt 和教师评测仍需后续集成。
+2026-10-22 阶段 35 已适配最新目录与 deb6bd9 基线，修复可选组合测试及新检出测试目录初始化，并固定 POSIX 启动器 LF。当前基线 deb6bd9 的完整回归：U1 326 项、1 条平台跳过；U2 719 项、37 条跳过记录；两套失败/错误均为 0。U2 逐项成功 684，单项跳过 35，另有 2 条类级跳过记录。开发评测 40/40；独立离线安装/名称隔离 4/4；真实当前工程闭环 3 Job、0 次模型调用。 详细范围见[当前适配](docs/stage-35-current-adaptation.md)与[机器验证](docs/verification-stage35.json)。教学扩展仍需显式启用，尚待团队接收，不改变默认基础 v1 的发布范围。
+
+| 工作包 | 本地实现 | 完整验收边界 |
+| --- | --- | --- |
+| UA-05 工作流 | E0–E7、证据/上下文/计划、受控执行、跨版本复测、事务/恢复/预算 | 正式共享服务组合与 UI 保存同步另签收 |
+| UA-06 提示策略 | L1–L3、显式升级、连续问题建议、receipt 持久协议、固定审阅材料提供器和可信内部正文读取 | 普通 HTTP L4 关闭；真实材料、教师身份和正文 UI 待签收 |
+| UA-07 模式与波形 | 八类要求/排除条件和不支持路径、精确波形、学生预测、当前工具链适配 | 每类生产 detector 和教师认可预期分别核验，不虚构硬件根因 |
+| UA-08 评测 | 开发/对抗评测、重复模型 runner、冻结输入/预算离线预检、盲评材料、双人评分导入及整改门禁 | 实际冻结集、真实模型批次、教师评分及教学质量不能由程序代签 |
+| UA-09/10 接口消费 | CourseProvider、事实队列、生成前历史、操作级连接适配器及可信启动注入 | 不修改 U3 数据结构，实际 UA-10 接收端仍待组合 |
+
+本地闭环或离线通过不代表团队 Gate 完成。阶段 32–34 已在正式 U1 提供可选同进程教学组合与 `/api/v1/u2` 扩展；独立 U2 宿主的 u2.host.v1 保留。原生 AgentApiClient 尚未消费新教学扩展，不能把服务端联通当作 GUI 已接通。
 
 ## 开发入口
+
+本轮维护 U2 业务及其必要 U1 接线。旧 GUI demo 目录和 main 接线未恢复；全部 stash 保留。当前开发和测试不以 GUI demo 为前提。
+
+阶段 32–34 已补齐正式 U1 的持久外部关联、教学等待/动作/事件、取消、显式恢复及当前工程证据接线。使用 `bin/sigflow-shared-u2.cmd --bootstrap-stdin` 启用同端口组合；身份和目录仍由可信启动方通过现有 bootstrap 提供。详见[组合服务开发接入](docs/u1-u2-composition-guide.md)、[真实联合验证](docs/stage-34-formal-u1-acceptance.md)和[机器记录](docs/verification-stage32-34.json)。不替换原基础路由，不新增运行时第三方依赖。
+
+2026-10-21 阶段 28–31 完成 U2 独立导入/安装名称、共享宿主内部适配、UA-10 操作级连接适配、固定审阅材料与可信内部正文读取及冻结评测预检。正式宿主使用 `sigflow_u2`，安装分发名 `sigflow-u2-teaching`，避免覆盖 U1 包；源码旧入口继续用于开发。该阶段组件交接见[历史交接说明](docs/u2-integration-handoff-2026-10-21.md)与[历史验证](docs/verification-stage28-31.json)。其后阶段 32–34 已注册正式 U1 教学扩展；实际 UA-10、真实材料/权限、冻结集、教师和 UI 签收仍待提供。
+
+[连续问题建议](docs/stage-25-repeat-advice.md)与[冻结模型评测/人工评分入口](docs/stage-26-frozen-evaluation.md)说明新增 U2 能力和复现流程。
+
+[阶段 27 动态闭环](docs/stage-27-current-baseline.md)历史记录已核验真实 Core/Yosys/Verilator 三 Job、精确波形和显式预测。当时完整回归运行 658 项，失败/错误 0，另有 35 条既有可选跳过记录；新增测试 27 项通过，开发评测 40/40。该阶段源码摘要、历史网络异常及验收边界见[阶段 25–27 验证记录](docs/verification-stage25-27.json)。
+
+[U2 完整依赖核查](docs/u2-dependency-audit.md)区分运行链已具备与尚待交付的发布条件；[学习事实与历史端口](docs/stage-23-teaching-memory-ports.md)仅提供 U2 内部适配接口，未实现或替代 U3 数据服务；[U1 剩余交接](docs/u2-u1-handoff-2026-10-19.md)说明统一入口、状态生命周期与平台发布的责任边界。
+
+[阶段 24 可信启动接线](docs/stage-24-memory-entry.md)支持组合层将学习适配器注入正式 bootstrap/ready 入口；普通 CLI 与 GUI 默认仍未配置。进程级契约验证不代表 UA-10 实际服务已完成联合验收。
 
 ### 拉取后直接运行 RAG v0.1
 
@@ -53,7 +61,7 @@ Python >=3.11。核心与 DeepSeek HTTP 客户端仅使用标准库。以下命�
 .\.venv\Scripts\python.exe -m unittest discover -s tests -q
 ```
 
-环境重建与版本记录见 [environment.md](docs/environment.md)。6 项历史上游实验测试跳过，不影响自研核心验收；真实服务与工具验收仍须另行执行。
+环境重建与版本记录见 [environment.md](docs/environment.md)。历史上游实验及原始课程快照测试按可选依赖跳过；自研核心不依赖 UCAgent，真实服务、工具和教师验收仍须另行执行。
 
 独立核心开发不需要 UCAgent。清除可选变量后运行测试：
 
@@ -117,6 +125,7 @@ sigflowAgent/
     contracts/     # PlanCard 审批材料映射，不签发授权
     patterns/      # 版本化教学策略与支持边界
     evaluation/    # 离线开发评测入口
+  sigflow_u2/      # 正式 U2 独立导入桥接；wheel 将实现直接安装到该名称
   tests/
     integration/   # 真实 UCAgent 类集成测试
   integration/     # 可选 headless Core/Gateway 真实闭环宿主
@@ -137,6 +146,8 @@ E0 → E1 取证 → E2 检查 → E3 教学路径 → E4 发布
 ## 开发文档
 
 - [本地任务清单](docs/task.md)：阶段交付、再规划和联合验收缺口。
+- [阶段 21 宿主参考元数据](docs/stage-21-reference-host.md)、[实施计划](docs/u2-stage21-reference-host-plan.md)及[验收汇总](docs/verification-stage21.json)：内部动作原子提交、同 receipt 显式恢复、取消并发修复和真实 Core 宿主探针；公开 HTTP L4 保持关闭。
+- [阶段 20 持久参考协议](docs/stage-20-durable-reference.md)、[实施计划](docs/u2-stage20-durable-reference-plan.md)及[验收汇总](docs/verification-stage20.json)：同 receipt 恢复、日志事务、Core 故障探针及生产 L4 关闭边界。
 - [剩余开发计划](docs/u2-remaining-development-plan.md)、[阶段 17 可信波形](docs/stage-17-trusted-waveform.md)、[阶段 18 显式预测](docs/stage-18-prediction.md)、[阶段 19 协议与评测交接](docs/stage-19-handoff.md)、[联合验收汇总](docs/verification-stage17-19.json)：现有依赖下的静态波形预测闭环、receipt 补强和外部签收边界。
 - [阶段 15 计划](docs/u2-stage15-course-host-plan.md)、[课程宿主手册](docs/stage-15-course-host.md)与[验收汇总](docs/verification-stage15.json)：生产课程配置、状态契约、恢复与真实工具联合测试。
 - [阶段 16 计划](docs/u2-stage16-simulation-plan.md)、[真实仿真执行链](docs/stage-16-simulation.md)与[验收汇总](docs/verification-stage16.json)：可信 build/run、VCD 产物核验及现有单次求值边界。
@@ -161,4 +172,4 @@ E0 → E1 取证 → E2 检查 → E3 教学路径 → E4 发布
 
 ## 接口分工
 
-U1 所需的服务生命周期、可信宿主动作、事务持久化与有界验证已提供独立宿主；S1/S2 提供真实工具、可信报告、证据目录与执行 provenance，U3 对接学习事件及保留策略。执行仍要求显式 UI 审批和 scoped Gateway grant，能力列表不构成授权。新教学 HTTP 为 `u2.host.v1` 扩展，尚未冻结为共享协议；内部 EvidenceAnchor 和 ContextItem 不接受普通 HTTP 注入。
+U2 所需的生命周期、可信动作、事务与验证既可独立运行，也可通过正式 U1 的 `--u2-teaching` 组合；S1/S2 提供真实工具、报告与执行 provenance，U3 对接学习事件及保留策略。执行仍要求显式 UI 审批和 scoped Gateway grant，能力列表不构成授权。U1 教学扩展使用 `u1.u2-teaching.v1`，基础共享协议保持；内部 EvidenceAnchor 和 ContextItem 不接受普通 HTTP 注入。GUI、真实数据与教师签收独立推进。

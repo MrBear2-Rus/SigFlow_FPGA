@@ -101,6 +101,8 @@ class ServerConfig:
     # TEST-ONLY（见 `--selftest-fail`）：让 /health 故意报坏，用来验证宿主
     # "ready 之后必须再通过一次 health 才允许就绪"的门控。生产环境恒为 None。
     health_fault: Optional[str] = None
+    # Trusted in-process U2 composition; never loaded from request input.
+    teaching: Any = None
 
 
 class EduAgentState:
@@ -303,6 +305,10 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
                 self._fail("NOT_FOUND", "status 404", 404)
                 return
             self._check_auth()
+            if self.state.config.teaching is not None:
+                from .teaching_routes import dispatch
+                if dispatch(self, method, path):
+                    return
             if method == "GET" and _ROUTE_CAPABILITIES.match(path):
                 self._handle_capabilities()
                 return
@@ -555,6 +561,10 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
     def _handle_capabilities(self) -> None:
         """``GET /api/v1/capabilities`` — modes, capability readiness and model state."""
         status = self.state.model_status
+        teaching = {}
+        if self.state.config.teaching is not None:
+            from .teaching_routes import capabilities as teaching_capabilities
+            teaching['teaching'] = teaching_capabilities(self.state.config.teaching)
         modes = [
             {
                 "id": level,
@@ -599,6 +609,7 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
                 "protocol": PROTOCOL,
                 "agent_version": self.state.config.agent_version,
                 "modes": modes,
+                **teaching,
                 "capabilities": capabilities,
                 "model": status.to_wire(),
                 "course": {
