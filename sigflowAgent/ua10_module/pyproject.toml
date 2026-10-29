@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sigflow-ua10"
+version = "0.3.0.dev0"
+description = "供 U2 宿主调用的 UA-10 学习事件与派生记忆模块"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["sigflow-ua10-memory==0.1.0"]
+
+[project.optional-dependencies]
+bge = ["torch>=2.5,<3", "transformers>=4.45,<5"]
+lightmem = ["qdrant-client>=1.15,<2"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+ua10 = ["py.typed"]

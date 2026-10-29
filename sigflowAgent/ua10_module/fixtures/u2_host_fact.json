@@ -1,0 +1,6 @@
+{
+  "note": "纯合成 U2 outbox 样例；fixture 仅作为 Mock 记录，不进入可信教学背景。",
+  "binding": {"learner_id":"demo-learner","project_id":"demo-project","instance_id":"demo-board","session_id":"demo-session","revision":"r1","snapshot_id":"snapshot","job_id":"job","diagnostic_id":"diag","issue_id":"issue","policy":"l1-l3-l4-denied"},
+  "start": {"schema":"ua10-host-fact.v1","kind":"start","concept_id":"latch","execution_mode":"mock","state":{"run_id":"demo-run","stage":"E0","status":"Running","version":0,"level":1,"cards":[],"trace":[]},"occurrences":[]},
+  "transition": {"schema":"ua10-host-fact.v1","kind":"transition","concept_id":"latch","state":{"run_id":"demo-run","stage":"E5","status":"WaitingStudent","version":1,"level":1,"cards":[],"trace":[]},"occurrences":[]}
+}

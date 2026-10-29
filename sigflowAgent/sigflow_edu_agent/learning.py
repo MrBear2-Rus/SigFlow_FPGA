@@ -1,5 +1,7 @@
 """Limits for optional learning history; history confers no evidence authority."""
-MAX_HISTORY_BYTES = 1024
+# UTF-8 字节数是离线保守估算单位，不是 DeepSeek tokenizer 的实测 token 数。
+# UA-10 默认 1024，普通教学硬上限 1536；本门禁不对事实做字符截断。
+MAX_HISTORY_BYTES = 1536
 
 
 def bounded_history(value):

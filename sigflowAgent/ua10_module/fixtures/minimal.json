@@ -1,0 +1,22 @@
+{
+  "synthetic": true,
+  "learner": "example-learner",
+  "project": "example-fpga",
+  "instance": "example-board",
+  "diagnostic_type": "LATCH_INFERRED",
+  "concept": "latch",
+  "generator": "examples/basic_usage.py --phase seed",
+  "sessions": ["session-one", "session-two"],
+  "runs": [
+    {"run_id":"run-one","revision":"r1","snapshot_id":"snapshot-one","exercise":"exercise-mux"},
+    {"run_id":"run-two","revision":"r2","snapshot_id":"snapshot-two","exercise":"exercise-mux"},
+    {"run_id":"run-three","revision":"r1","snapshot_id":"snapshot-three","exercise":"exercise-decoder"}
+  ],
+  "events": [
+    {"event_id":"event-one","run_id":"run-one","event_type":"issue_observed","job_outcome":"failed","synthetic":true},
+    {"event_id":"event-modified","run_id":"run-two","event_type":"student_modified","verification":"unknown","synthetic":true},
+    {"event_id":"event-passed","run_id":"run-two","event_type":"retry_passed","validation":"test_expectation","scope_ref":"expected:job-two","mastery":"unknown","synthetic":true},
+    {"event_id":"event-three","run_id":"run-three","event_type":"issue_observed","job_outcome":"failed","same_issue_as_event_one":false,"synthetic":true}
+  ],
+  "note": "合成的受信宿主事件示例，不是真实学生或真实EDA结果；不调用任何模型API"
+}

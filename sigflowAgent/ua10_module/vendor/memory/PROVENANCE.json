@@ -1,0 +1,35 @@
+{
+  "distribution": "sigflow-ua10-memory",
+  "version": "0.1.0",
+  "source": "ucagent/memory",
+  "policy": "固定源码依赖快照；只安装一个 memory 发行包，不独立演化第二份实现。升级须对比原 V1 并运行回归。",
+  "sha256": {
+    "adapters.py": "9108cd3b13554eab5a92d95369ac4c76c409b4d62a7ff76861182f32750dd0dc",
+    "database.py": "666725786031241be07deed934e4dd81f403ad91879a3951fdbe28983d9f6934",
+    "models.py": "0679092783ca2cdb4c5cb089118c18ac5c97bdbf9c473b0ca5fe0a5cca902668",
+    "repository.py": "6622bd05e5bf335cbfd33c615e98c8696add6a1e94606f68afd0ac3e87cce479",
+    "service.py": "59ab8323f2ef8dd0acc9f2afc00861a6c9368b5dc80b789a768aea9c7a432f7f",
+    "summary.py": "e9d56463bfe353819864afe171446ff90b82ca9e3198b34866b39e72e2b640e5",
+    "teaching_context.py": "e8b94b6efd764c8d25e333527d7279708c12e81751246daa626b5a55661a795e",
+    "transfer.py": "fca68fd01efa1683ab415654ee16d12e0d328bc7eeb3c4bcf261f295044bea93",
+    "u2_adapter.py": "828bd90bf30589c3754fd974bcab0ee7227b8d6d9e608025be26c6bd6216228b",
+    "__init__.py": "9f02da5a2bd5c5ebcce8f19e8a03a29f45167096833b679db2b71142c6978a45",
+    "pyproject.toml": "87ae0ad66f4c130e561643fa9e724232c9d971d112f18bee3464de652e23a529",
+    "data/concepts.yaml": "d9a2a484877c8c70936b92b763adfba92f299becb4888eb7fa4c969e644cc31d"
+  },
+  "source_raw_sha256": {
+    "adapters.py": "96af3e36b3baebc355f06fed40945e348ea931c427291dadf25aa4b3088beb23",
+    "database.py": "666725786031241be07deed934e4dd81f403ad91879a3951fdbe28983d9f6934",
+    "models.py": "0679092783ca2cdb4c5cb089118c18ac5c97bdbf9c473b0ca5fe0a5cca902668",
+    "repository.py": "6622bd05e5bf335cbfd33c615e98c8696add6a1e94606f68afd0ac3e87cce479",
+    "service.py": "59ab8323f2ef8dd0acc9f2afc00861a6c9368b5dc80b789a768aea9c7a432f7f",
+    "summary.py": "e9d56463bfe353819864afe171446ff90b82ca9e3198b34866b39e72e2b640e5",
+    "teaching_context.py": "e8b94b6efd764c8d25e333527d7279708c12e81751246daa626b5a55661a795e",
+    "transfer.py": "fca68fd01efa1683ab415654ee16d12e0d328bc7eeb3c4bcf261f295044bea93",
+    "u2_adapter.py": "828bd90bf30589c3754fd974bcab0ee7227b8d6d9e608025be26c6bd6216228b",
+    "__init__.py": "9f02da5a2bd5c5ebcce8f19e8a03a29f45167096833b679db2b71142c6978a45",
+    "pyproject.toml": "87ae0ad66f4c130e561643fa9e724232c9d971d112f18bee3464de652e23a529",
+    "data/concepts.yaml": "bbb6abbae3b4d06241e68986f0ae70bab008b790835b2dee0cb5aba07e8549c4"
+  },
+  "hash_normalization": "sha256 对 UTF-8 文件仅规范化 CRLF 为 LF；source_raw_sha256 保存原始 Windows 字节哈希，兼容 Git 跨平台换行转换。"
+}

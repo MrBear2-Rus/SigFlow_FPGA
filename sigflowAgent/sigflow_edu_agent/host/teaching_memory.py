@@ -157,7 +157,11 @@ class TeachingMemoryBridge:
         concepts=tuple(concepts)
         if self._stop.is_set() or not concepts or any(c not in CONCEPTS for c in concepts):return ''
         scope=dict(learner_id=binding.learner_id,project_id=binding.project_id,
-                   concept_ids=list(concepts),max_bytes=MAX_HISTORY_BYTES)
+                   concept_ids=list(concepts),max_bytes=1024)
+        if getattr(self.port,'scoped_history',False):
+            from datetime import datetime, timezone
+            scope.update(instance_id=binding.instance_id,session_id=binding.session_id,
+                         revision=binding.revision,as_of=datetime.now(timezone.utc).isoformat(),max_bytes=MAX_HISTORY_BYTES)
         with self._history_lock:
             if self._history_pending is not None and not self._history_pending.done():return ''
             future=Future()
@@ -173,6 +177,7 @@ class TeachingMemoryBridge:
         if (type(value) is not dict or set(value)!=keys
                 or any(value.get(k)!=scope[k] for k in ('learner_id','project_id','concept_ids'))):return ''
         text=bounded_history(value['summary'])
+        if len(text.encode('utf-8'))>scope['max_bytes']:return ''
         return '' if any(secret and secret in text for secret in self.secrets) else text
 
     def close(self,timeout=1):
