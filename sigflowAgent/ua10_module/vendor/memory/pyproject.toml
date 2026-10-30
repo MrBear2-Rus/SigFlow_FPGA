@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sigflow-ua10-memory"
+version = "0.1.0"
+description = "Optional local SQLite learner history for the formal SigFlow U2 host"
+requires-python = ">=3.11"
+dependencies = ["PyYAML>=6.0"]
+
+[tool.setuptools]
+packages = ["memory"]
+package-dir = {memory = "."}
+
+[tool.setuptools.package-data]
+memory = ["data/*.yaml"]

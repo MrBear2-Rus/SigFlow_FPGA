@@ -93,6 +93,7 @@ def serialize_request(context: CardContext, *, model: str, max_tokens: int) -> b
 
 
 class DeepSeekProvider:
+    requires_host_reservation = True
     MAX_REQUEST_BYTES = 16384
     MAX_RESPONSE_BYTES = 262144
     PROVIDER = 'deepseek'
@@ -142,6 +143,20 @@ class DeepSeekProvider:
 
     def generate(self, context: CardContext) -> dict:
         body = serialize_request(context, model=self.config.model, max_tokens=self.config.max_tokens)
+        return self._complete_body(body)
+
+    def complete_json(self, messages, *, max_tokens, reserve):
+        if type(max_tokens) is not int or not 1 <= max_tokens <= self.config.max_tokens:
+            raise ProviderError('model_budget_exceeded')
+        body = json.dumps(dict(model=self.config.model, stream=False,
+            response_format={'type':'json_object'}, thinking={'type':'disabled'},
+            max_tokens=max_tokens, messages=messages), ensure_ascii=False).encode('utf-8')
+        if len(body) > self.MAX_REQUEST_BYTES:
+            raise ProviderError('context_too_large')
+        reserve(input_bytes=len(body), max_output_tokens=max_tokens)
+        return self._complete_body(body)
+
+    def _complete_body(self, body):
         if len(body) > self.MAX_REQUEST_BYTES:
             raise ProviderError('context_too_large')
         connection = http.client.HTTPSConnection('api.deepseek.com', timeout=self.config.timeout)

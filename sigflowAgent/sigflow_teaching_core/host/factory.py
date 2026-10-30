@@ -125,6 +125,16 @@ def make_factory(gateway: GatewayConfig, *, anchors=(), evidence_origin='tool', 
         return GatewayTeachingSession(TeachingLoop(request, observed, budgeted, plan=plan,
             verification=session_verification, course_provider=course_provider), observed)
 
+    def pattern_provider(*, reserve, authorized=False, synthetic_only=True):
+        if provider is None:
+            raise ProviderError('model_unconfigured')
+        from .ua10 import BudgetedJSONService
+        from ua10.adapters.llm import HostPatternProvider
+        return HostPatternProvider(BudgetedJSONService(provider,reserve,authorized=authorized),
+            model_id=provider.config.model,synthetic_only=synthetic_only,
+            max_tokens=min(768,provider.config.max_tokens))
+
+    factory.pattern_provider = pattern_provider
     factory.model_available = provider is not None
     factory.model_secrets = (provider.config.api_key,) if provider is not None else ()
     factory.model_provider = provider.PROVIDER if provider is not None else None

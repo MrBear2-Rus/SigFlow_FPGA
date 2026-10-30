@@ -1,0 +1,3 @@
+# 在本仓库根目录执行：python -m pip install -r requirements-source.txt
+./vendor/memory
+.
