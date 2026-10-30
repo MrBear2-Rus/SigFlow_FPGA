@@ -1,0 +1,198 @@
+openapi: 3.0.3
+info:
+  title: SigFlow private teaching host extension u2.host.v1
+  version: "1.0.0"
+  description: |
+    Debug/compatibility host; not currently exposed by the production base sidecar.
+    Requires exact u2.host.v1 capability negotiation. See M0-baseline.md for semantics.
+    Error codes are lowercase; see u2-error-status.json. No L4.
+servers:
+  - url: http://127.0.0.1:{port}/api/v1
+    variables:
+      port: {default: "0"}
+security:
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      summary: "GET /health"
+      security: []
+      responses:
+        "200":
+          description: Success envelope with schema_version, request_id, trace_id and data.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [schema_version, request_id, trace_id, data]
+                properties:
+                  data:
+                    $ref: "schemas/agent-health.schema.json"
+        default:
+          description: Typed lowercase error; HTTP mapping in u2-error-status.json.
+          content:
+            application/json:
+              schema: {$ref: "schemas/u2-error.schema.json"}
+  /capabilities:
+    get:
+      summary: "GET /capabilities"
+      responses:
+        "200":
+          description: Success envelope with schema_version, request_id, trace_id and data.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [schema_version, request_id, trace_id, data]
+                properties:
+                  data:
+                    $ref: "schemas/agent-capabilities.schema.json"
+        default:
+          description: Typed lowercase error; HTTP mapping in u2-error-status.json.
+          content:
+            application/json:
+              schema: {$ref: "schemas/u2-error.schema.json"}
+  /teaching/sessions:
+    post:
+      summary: "POST /teaching/sessions"
+      parameters:
+        - {$ref: "#/components/parameters/Learner"}
+        - {$ref: "#/components/parameters/Idempotency"}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "schemas/u2-session-create.schema.json"
+      responses:
+        "202":
+          description: Success envelope with schema_version, request_id, trace_id and data.
+        default:
+          description: Typed lowercase error; HTTP mapping in u2-error-status.json.
+          content:
+            application/json:
+              schema: {$ref: "schemas/u2-error.schema.json"}
+  /teaching/sessions/{sid}/state:
+    get:
+      summary: "GET /teaching/sessions/{sid}/state"
+      parameters:
+        - {$ref: "#/components/parameters/SessionId"}
+        - {$ref: "#/components/parameters/Learner"}
+      responses:
+        "200":
+          description: Success envelope with schema_version, request_id, trace_id and data.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [schema_version, request_id, trace_id, data]
+                properties:
+                  data:
+                    $ref: "schemas/u2-state.schema.json"
+        default:
+          description: Typed lowercase error; HTTP mapping in u2-error-status.json.
+          content:
+            application/json:
+              schema: {$ref: "schemas/u2-error.schema.json"}
+  /teaching/sessions/{sid}/events:
+    get:
+      summary: "GET /teaching/sessions/{sid}/events"
+      parameters:
+        - {$ref: "#/components/parameters/SessionId"}
+        - {$ref: "#/components/parameters/Learner"}
+        - {name: after, in: query, schema: {type: string, pattern: "^(0|[1-9][0-9]{0,18})$", default: "0"}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 100}}
+      responses:
+        "200":
+          description: Success envelope with schema_version, request_id, trace_id and data.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [schema_version, request_id, trace_id, data]
+                properties:
+                  data:
+                    $ref: "schemas/u2-events.schema.json"
+        default:
+          description: Typed lowercase error; HTTP mapping in u2-error-status.json.
+          content:
+            application/json:
+              schema: {$ref: "schemas/u2-error.schema.json"}
+  /teaching/sessions/{sid}/actions:
+    post:
+      summary: "POST /teaching/sessions/{sid}/actions"
+      parameters:
+        - {$ref: "#/components/parameters/SessionId"}
+        - {$ref: "#/components/parameters/Learner"}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "schemas/u2-action.schema.json"
+      responses:
+        "202":
+          description: Success envelope with schema_version, request_id, trace_id and data.
+        default:
+          description: Typed lowercase error; HTTP mapping in u2-error-status.json.
+          content:
+            application/json:
+              schema: {$ref: "schemas/u2-error.schema.json"}
+  /teaching/sessions/{sid}/cancel:
+    post:
+      summary: "POST /teaching/sessions/{sid}/cancel"
+      parameters:
+        - {$ref: "#/components/parameters/SessionId"}
+        - {$ref: "#/components/parameters/Learner"}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+      responses:
+        "202":
+          description: Success envelope with schema_version, request_id, trace_id and data.
+        default:
+          description: Typed lowercase error; HTTP mapping in u2-error-status.json.
+          content:
+            application/json:
+              schema: {$ref: "schemas/u2-error.schema.json"}
+  /shutdown:
+    post:
+      summary: "POST /shutdown"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+      responses:
+        "202":
+          description: Success envelope with schema_version, request_id, trace_id and data.
+        default:
+          description: Typed lowercase error; HTTP mapping in u2-error-status.json.
+          content:
+            application/json:
+              schema: {$ref: "schemas/u2-error.schema.json"}
+components:
+  securitySchemes:
+    bearerAuth: {type: http, scheme: bearer}
+  parameters:
+    SessionId:
+      name: sid
+      in: path
+      required: true
+      schema: {type: string, pattern: "^[A-Za-z0-9_-]{1,128}$"}
+    Learner:
+      name: X-Learner-ID
+      in: header
+      required: true
+      schema: {type: string, pattern: "^[A-Za-z0-9_-]{1,128}$"}
+    Idempotency:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: {type: string, pattern: "^[A-Za-z0-9_-]{1,128}$"}

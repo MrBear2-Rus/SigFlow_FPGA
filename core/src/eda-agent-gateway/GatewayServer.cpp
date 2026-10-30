@@ -32,6 +32,7 @@
 #include <filesystem>
 #include <fstream>
 #include <limits>
+#include <map>
 #include <set>
 #include <stdexcept>
 #include <thread>
@@ -669,6 +670,22 @@ bool ObserveRevision(const std::filesystem::path& projectRoot, const std::string
     return WriteJsonReplace(revisionPath, next, error);
 }
 
+// SF-09：Job 绑定元数据的两个 schema。
+//   * agent：Gateway 自己的提交路径（带 grant/plan/step，Agent 只能给受限意图参数）；
+//   * host ：宿主手动流程（如 FPGA 综合）在提交前冻结快照，Agent 从不参与。
+// 二者都写进 JobRequest.metadata 并由 CoreJobService 在暴露 job_id 前落盘，
+// 因此进程重启后可以按同一份事实恢复归属，不依赖 UI 缓存。
+constexpr const char* kAgentJobBindingSchema = "sigflow.edu-agent-job-binding.v1";
+constexpr const char* kHostJobBindingSchema = "sigflow.edu-host-job-binding.v1";
+
+// 真实 jobType → 教育能力名（仅白名单内的三项）。未知 jobType 返回空。
+std::string CapabilityForJobType(const std::string& jobType) {
+    for (const CapabilityMap& mapping : EducationCapabilities()) {
+        if (mapping.jobType == jobType) return mapping.capability;
+    }
+    return {};
+}
+
 } // namespace
 
 struct GatewayServer::Impl {
@@ -703,13 +720,217 @@ struct GatewayServer::Impl {
     std::unordered_map<std::string, bool> lastDirtyState;             // project_id -> dirty
     std::chrono::steady_clock::time_point lastRetentionRun{};
     bool retentionRanOnce = false;
+
+    // ---- SF-09：宿主 Job 绑定 ----
+
+    // 一次恢复只对同一个快照做一次完整性校验（Lookup 会重算文件 hash）。
+    struct SnapshotLookup {
+        std::map<std::string, SnapshotRecord> found;
+        std::set<std::string> missing;
+    };
+
+    // 核验一条宿主绑定记录（schema/工程/revision/快照/插件/冻结输入）。
+    // 成功时 binding 为写入 jobBindings 的规范事实，绝不包含本机路径。
+    bool VerifyHostBindingRecord(const JobRecord& record, Json& binding, std::string& error,
+                                 SnapshotLookup* cache);
+    // 登记归属（jobProjects + jobBindings + 事件源）。返回是否为首次登记。
+    bool RememberBinding(const std::string& jobId, const std::string& projectId,
+                         const Json& binding);
+    // 从 Job 服务落盘记录重建该工程的归属索引（Agent 与宿主两种 schema）。
+    void RestoreBindings(const std::string& projectId, IJobService* service);
 };
+
+bool GatewayServer::Impl::RememberBinding(const std::string& jobId, const std::string& projectId,
+                                          const Json& binding) {
+    bool inserted = false;
+    {
+        std::lock_guard<std::mutex> lock(jobMutex);
+        inserted = jobProjects.find(jobId) == jobProjects.end();
+        jobProjects[jobId] = projectId;
+        jobBindings[jobId] = binding;
+    }
+    // 归属与事件源同源：之后 PollJobEvents 才能看到该 Job 的状态变化。
+    jobEvents.Track(jobId, projectId, binding.value("capability", std::string()),
+                    binding.value("snapshot_id", std::string()),
+                    binding.value("revision", std::string()));
+    return inserted;
+}
+
+bool GatewayServer::Impl::VerifyHostBindingRecord(const JobRecord& record, Json& binding,
+                                                  std::string& error,
+                                                  SnapshotLookup* cache) {
+    error.clear();
+    binding = Json::object();
+    const Json& metadata = record.request.metadata;
+    if (!metadata.is_object() ||
+        metadata.value("schema", std::string()) != kHostJobBindingSchema) {
+        error = "job has no host binding metadata";
+        return false;
+    }
+    const std::string projectId = metadata.value("project_id", std::string());
+    const std::string snapshotId = metadata.value("snapshot_id", std::string());
+    const std::string revision = metadata.value("revision", std::string());
+    const std::string capability = metadata.value("capability", std::string());
+    const std::string jobType = metadata.value("job_type", std::string());
+    const std::string pluginId = metadata.value("plugin_id", std::string());
+    const std::string inputFingerprint = metadata.value("input_fingerprint", std::string());
+    if (projectId.empty() || snapshotId.empty() || revision.empty() || capability.empty() ||
+        jobType.empty() || pluginId.empty() || inputFingerprint.empty() || record.id.empty()) {
+        error = "host binding metadata is incomplete";
+        return false;
+    }
+    // 能力/作业类型/插件必须互相对得上：报告的 plugin_id 决定教学层能否认证 provider。
+    if (CapabilityForJobType(jobType) != capability) {
+        error = "host binding capability does not match its job type";
+        return false;
+    }
+    if (record.request.jobType != jobType) {
+        error = "host binding job type does not match the job record";
+        return false;
+    }
+    if (record.request.pluginId != pluginId) {
+        error = "host binding plugin does not match the job record";
+        return false;
+    }
+    std::filesystem::path projectRoot;
+    {
+        std::lock_guard<std::mutex> lock(projectStateMutex);
+        const auto it = projectStates.find(projectId);
+        if (it != projectStates.end()) projectRoot = it->second.request.projectRoot;
+    }
+    if (projectRoot.empty()) {
+        error = "host binding references an unknown project";
+        return false;
+    }
+
+    SnapshotService snapshots(projectRoot / ".sigflow" / "agent" / "snapshots");
+    SnapshotRecord snapshot;
+    bool haveSnapshot = false;
+    if (cache != nullptr) {
+        const auto cached = cache->found.find(snapshotId);
+        if (cached != cache->found.end()) {
+            snapshot = cached->second;
+            haveSnapshot = true;
+        } else if (cache->missing.find(snapshotId) != cache->missing.end()) {
+            error = "host binding snapshot is unavailable";
+            return false;
+        }
+    }
+    if (!haveSnapshot) {
+        std::string snapshotError;
+        haveSnapshot = snapshots.Lookup(snapshotId, snapshot, snapshotError);
+        if (cache != nullptr) {
+            if (haveSnapshot) cache->found.emplace(snapshotId, snapshot);
+            else cache->missing.insert(snapshotId);
+        }
+        if (!haveSnapshot) {
+            error = "host binding snapshot is unavailable: " + snapshotError;
+            return false;
+        }
+    }
+    if (snapshot.projectId != projectId || snapshot.revision != revision ||
+        snapshot.inputFingerprint != inputFingerprint) {
+        error = "host binding snapshot does not match the bound project revision";
+        return false;
+    }
+    // 冻结输入：执行参数里的每个源文件都必须落在该快照副本内，否则这份报告描述的不是
+    // 快照里的输入，不能当当前 revision 的可信证据。
+    const Json& params = record.request.params;
+    if (!params.is_object() || !params.contains("source_files") ||
+        !params["source_files"].is_array() || params["source_files"].empty()) {
+        error = "host binding job has no frozen source inputs";
+        return false;
+    }
+    std::error_code ec;
+    const std::filesystem::path fileRoot =
+        std::filesystem::weakly_canonical(snapshots.SnapshotDirectory(snapshotId) / "files", ec);
+    if (ec || fileRoot.empty()) {
+        error = "host binding snapshot files are unavailable";
+        return false;
+    }
+    for (const Json& entry : params["source_files"]) {
+        if (!entry.is_string()) {
+            error = "host binding source input is invalid";
+            return false;
+        }
+        const std::filesystem::path source = std::filesystem::weakly_canonical(
+            platform::PathFromUtf8(entry.get<std::string>()), ec);
+        if (ec || !IsWithinPath(source, fileRoot) ||
+            !std::filesystem::is_regular_file(source, ec) || ec) {
+            error = "host binding source input is outside the frozen snapshot";
+            return false;
+        }
+    }
+
+    binding = Json{{"project_id", projectId},
+                   {"snapshot_id", snapshotId},
+                   {"revision", revision},
+                   {"capability", capability},
+                   {"job_type", jobType},
+                   {"plugin_id", pluginId},
+                   {"plugin_version", metadata.value("plugin_version", std::string())},
+                   {"input_fingerprint", inputFingerprint},
+                   {"origin", "host"},
+                   {"state", JobStateName(record.state)}};
+    return true;
+}
+
+void GatewayServer::Impl::RestoreBindings(const std::string& projectId, IJobService* service) {
+    if (service == nullptr || projectId.empty()) return;
+    // 宿主的 Job 记录以工程路径作为 request.project_id（provider 需要它），因此不能用
+    // list(projectId) 过滤；归属一律取自落盘元数据里的 opaque project_id。
+    SnapshotLookup snapshotLookup;
+    for (const JobRecord& record : service->list(std::string())) {
+        const Json& metadata = record.request.metadata;
+        if (!metadata.is_object() || record.id.empty()) continue;
+        const std::string schema = metadata.value("schema", std::string());
+        if (metadata.value("project_id", std::string()) != projectId) continue;
+        if (schema == kHostJobBindingSchema) {
+            Json binding;
+            std::string error;
+            if (!VerifyHostBindingRecord(record, binding, error, &snapshotLookup)) continue;
+            RememberBinding(record.id, projectId, binding);
+            continue;
+        }
+        if (schema != kAgentJobBindingSchema) continue;
+        const std::string snapshotId = metadata.value("snapshot_id", std::string());
+        const std::string revision = metadata.value("revision", std::string());
+        const std::string capability = metadata.value("capability", std::string());
+        if (snapshotId.empty() || revision.empty() || capability.empty()) continue;
+        Json binding{{"project_id", projectId},
+                     {"snapshot_id", snapshotId},
+                     {"revision", revision},
+                     {"capability", capability},
+                     {"job_type", record.request.jobType},
+                     {"plan_hash", metadata.value("plan_hash", std::string())},
+                     {"step_id", metadata.value("step_id", std::string())},
+                     {"origin", "agent"},
+                     {"state", JobStateName(record.state)}};
+        if (metadata.contains("build_input_fingerprint")) {
+            binding["build_input_fingerprint"] = metadata["build_input_fingerprint"];
+        }
+        if (metadata.contains("input_fingerprint")) {
+            binding["input_fingerprint"] = metadata["input_fingerprint"];
+        }
+        if (metadata.contains("plugin_id")) {
+            binding["plugin_id"] = metadata["plugin_id"];
+        }
+        RememberBinding(record.id, projectId, binding);
+        const std::string scope = metadata.value("idempotency_scope", std::string());
+        const std::string key = metadata.value("idempotency_key", std::string());
+        const std::string hash = metadata.value("request_hash", std::string());
+        if (!scope.empty() && !key.empty() && !hash.empty()) {
+            idempotency.RestoreCompleted(scope, key, hash, record.id);
+        }
+    }
+}
 
 GatewayServer::GatewayServer(GatewayConfig config, ReadyPluginProvider provider)
     : impl_(std::make_unique<Impl>()) {
     impl_->config = std::move(config);
     impl_->provider = std::move(provider);
 }
+
 
 GatewayServer::~GatewayServer() { Stop(); }
 
@@ -742,6 +963,192 @@ void GatewayServer::RegisterArtifact(const ArtifactRecord& record) {
     if (!record.role.empty()) data["role"] = record.role;
     if (!record.sha256.empty()) data["sha256"] = record.sha256;
     PublishEvent("artifact/produced", record.projectId, MakeTraceId(), data);
+}
+
+HostJobBinding GatewayServer::PrepareHostJobBinding(const HostJobBindingRequest& request) {
+    HostJobBinding result;
+    result.jobType = request.jobType;
+    if (!impl_) {
+        result.error = "GATEWAY_UNAVAILABLE";
+        return result;
+    }
+    const std::string capability = CapabilityForJobType(request.jobType);
+    if (request.projectId.empty() || request.jobType.empty() ||
+        request.expectedRevision.empty() || capability.empty()) {
+        result.error = "INVALID_ARGUMENT";
+        return result;
+    }
+    result.capability = capability;
+    // 执行该 jobType 的就绪插件（与 /capabilities 同一份事实）。没有就绪 provider 就不绑定：
+    // 报告里的 plugin_id 必须能对应到一个真实可执行的 provider，否则报告不可能被认证。
+    const std::vector<ReadyPlugin> ready =
+        impl_->provider ? impl_->provider() : std::vector<ReadyPlugin>{};
+    const ReadyPlugin* provider = nullptr;
+    for (const ReadyPlugin& plugin : ready) {
+        if (std::find(plugin.capabilities.begin(), plugin.capabilities.end(), request.jobType) ==
+            plugin.capabilities.end()) {
+            continue;
+        }
+        provider = &plugin;
+        if (plugin.ready) break;
+    }
+    if (provider == nullptr || !provider->ready) {
+        result.error = "CAPABILITY_UNAVAILABLE";
+        return result;
+    }
+    result.pluginId = provider->id;
+    result.pluginVersion = provider->version;
+
+    ProjectSnapshotState state;
+    {
+        std::lock_guard<std::mutex> lock(impl_->projectStateMutex);
+        const auto it = impl_->projectStates.find(request.projectId);
+        if (it == impl_->projectStates.end()) {
+            result.error = "NOT_FOUND";
+            return result;
+        }
+        state = it->second;
+    }
+    // 只绑定"已保存 + 已同步 + 当前 revision"的工程：未保存缓冲不是执行输入，
+    // 旧 revision 也不能冒充当前证据。
+    if (state.request.dirty) {
+        result.error = "DIRTY_PROJECT";
+        return result;
+    }
+    if (!state.request.synchronized) {
+        result.error = "SYNC_IN_PROGRESS";
+        return result;
+    }
+    if (state.request.currentRevision.empty() ||
+        request.expectedRevision != state.request.currentRevision) {
+        result.error = "STALE_REVISION";
+        return result;
+    }
+    state.request.expectedRevision = request.expectedRevision;
+    SnapshotService snapshots(state.request.projectRoot / ".sigflow" / "agent" / "snapshots");
+    // 与 POST /projects/{p}/snapshots 完全同一条路径：collect 前后都复核 revision/dirty/sync。
+    const SnapshotResult created = snapshots.Create(
+        state.request, [this, projectId = request.projectId]() -> std::string {
+            std::lock_guard<std::mutex> lock(impl_->projectStateMutex);
+            const auto it = impl_->projectStates.find(projectId);
+            if (it == impl_->projectStates.end() || it->second.request.dirty ||
+                !it->second.request.synchronized) {
+                return std::string();
+            }
+            return it->second.request.currentRevision;
+        });
+    if (!created) {
+        result.error = SnapshotErrorCode(created.code);
+        return result;
+    }
+    // 快照 top 必须就是即将执行的 top；否则报告描述的是另一个设计。
+    if (!request.topModule.empty() && created.snapshot.top != request.topModule) {
+        result.error = "TOP_MODULE_MISMATCH";
+        return result;
+    }
+    // 内容寻址：同输入必然复用同一个 snapshot id，重复综合不会制造新的“历史版本”。
+    result.projectId = request.projectId;
+    result.revision = created.snapshot.revision;
+    result.snapshotId = created.snapshot.id;
+    result.inputFingerprint = created.snapshot.inputFingerprint;
+    result.sources = created.snapshot.sources;
+    result.sourceRoot = snapshots.SnapshotDirectory(created.snapshot.id) / "files";
+    result.metadata =
+        Json{{"schema", kHostJobBindingSchema},
+             {"instance_id", impl_->config.instanceId},
+             {"project_id", result.projectId},
+             {"snapshot_id", result.snapshotId},
+             {"revision", result.revision},
+             {"capability", result.capability},
+             {"job_type", result.jobType},
+             {"plugin_id", result.pluginId},
+             {"plugin_version", result.pluginVersion},
+             {"input_fingerprint", result.inputFingerprint}};
+    result.ok = true;
+    return result;
+}
+
+bool GatewayServer::AttachHostJobBinding(const std::string& jobId,
+                                         const HostJobBinding& prepared, std::string& error) {
+    error.clear();
+    if (!impl_ || jobId.empty() || !prepared.ok) {
+        error = "invalid host binding";
+        return false;
+    }
+    IJobService* service = impl_->jobServiceProvider ? impl_->jobServiceProvider() : nullptr;
+    if (service == nullptr) {
+        error = "job service is not available";
+        return false;
+    }
+    const std::optional<JobRecord> record = service->get(jobId);
+    if (!record.has_value()) {
+        error = "unknown job";
+        return false;
+    }
+    const Json& metadata = record->request.metadata;
+    if (!metadata.is_object() ||
+        metadata.value("schema", std::string()) != kHostJobBindingSchema) {
+        error = "job was submitted without the prepared host binding";
+        return false;
+    }
+    // 逐字段核对：只有“提交的就是刚才冻结的那份输入”才能登记，避免把别的记录算成证据。
+    struct ExpectedField {
+        const char* key;
+        const std::string* value;
+    };
+    const ExpectedField expected[] = {{"project_id", &prepared.projectId},
+                                      {"snapshot_id", &prepared.snapshotId},
+                                      {"revision", &prepared.revision},
+                                      {"capability", &prepared.capability},
+                                      {"job_type", &prepared.jobType},
+                                      {"plugin_id", &prepared.pluginId},
+                                      {"input_fingerprint", &prepared.inputFingerprint}};
+    for (const ExpectedField& field : expected) {
+        if (metadata.value(field.key, std::string()) != *field.value) {
+            error = std::string("job binding field does not match the prepared snapshot: ") +
+                    field.key;
+            return false;
+        }
+    }
+    // 复用同一份核验：元数据（落盘）→ 快照（磁盘）→ 冻结输入（参数）三者必须一致。
+    return RegisterHostJobBindingFromService(jobId, error);
+}
+
+bool GatewayServer::RegisterHostJobBindingFromService(const std::string& jobId,
+                                                      std::string& error) {
+    error.clear();
+    if (!impl_ || jobId.empty()) {
+        error = "invalid job id";
+        return false;
+    }
+    IJobService* service = impl_->jobServiceProvider ? impl_->jobServiceProvider() : nullptr;
+    if (service == nullptr) {
+        error = "job service is not available";
+        return false;
+    }
+    const std::optional<JobRecord> record = service->get(jobId);
+    if (!record.has_value()) {
+        error = "unknown job";
+        return false;
+    }
+    Json binding;
+    if (!impl_->VerifyHostBindingRecord(*record, binding, error, nullptr)) return false;
+    const std::string projectId = binding.value("project_id", std::string());
+    const bool inserted = impl_->RememberBinding(jobId, projectId, binding);
+    if (inserted) {
+        // 事件只带 opaque id 与规范事实；事件体里没有参数、没有本机路径。
+        const Json event = impl_->events.Append(
+            "job/created", projectId, MakeTraceId(),
+            Json{{"job_id", jobId},
+                 {"capability", binding.value("capability", std::string())},
+                 {"snapshot_id", binding.value("snapshot_id", std::string())},
+                 {"revision", binding.value("revision", std::string())},
+                 {"binding_origin", "host"}});
+        if (!impl_->config.eventLogPath.empty()) {
+            impl_->events.AppendToFile(impl_->config.eventLogPath, event);
+        }
+    }
+    return true;
 }
 
 void GatewayServer::UpdateSelectionContext(const std::string& projectId,
@@ -2504,12 +2911,14 @@ bool GatewayServer::Start(std::string& error) {
         // Persist only Gateway-derived provenance, never the raw HTTP body or
         // bearer credentials.  CoreJobService writes this before exposing the
         // job id, so Gateway can reconstruct ownership after an IDE restart.
-        jobRequest.metadata = Json{{"schema", "sigflow.edu-agent-job-binding.v1"},
+        jobRequest.metadata = Json{{"schema", kAgentJobBindingSchema},
                                    {"instance_id", config.instanceId},
                                    {"project_id", projectId},
                                    {"snapshot_id", snapshotId},
                                    {"revision", expectedRevision},
                                    {"capability", capability},
+                                   {"plugin_id", available->pluginId},
+                                   {"input_fingerprint", snapshot.inputFingerprint},
                                    {"plan_hash", checkedGrant.planHash},
                                    {"grant_id", checkedGrant.id},
                                    {"step_id", OptionalString(body, "step_id")},
@@ -2568,6 +2977,9 @@ bool GatewayServer::Start(std::string& error) {
                                              {"snapshot_id", snapshotId},
                                              {"revision", expectedRevision},
                                              {"capability", capability},
+                                             {"plugin_id", available->pluginId},
+                                             {"input_fingerprint", snapshot.inputFingerprint},
+                                             {"origin", "agent"},
                                              {"grant_id", checkedGrant.id},
                                              {"plan_hash", checkedGrant.planHash},
                                              {"step_id", OptionalString(body, "step_id")},
@@ -2582,7 +2994,10 @@ bool GatewayServer::Start(std::string& error) {
         impl_->jobEvents.Track(jobId, projectId, capability, snapshotId, expectedRevision);
         const Json event = impl_->events.Append(
             "job/created", projectId, MakeTraceId(),
-            Json{{"job_id", jobId}, {"capability", capability}, {"snapshot_id", snapshotId}});
+            Json{{"job_id", jobId},
+                 {"capability", capability},
+                 {"snapshot_id", snapshotId},
+                 {"binding_origin", "agent"}});
         if (!config.eventLogPath.empty()) impl_->events.AppendToFile(config.eventLogPath, event);
 
         Json data;
@@ -2765,6 +3180,26 @@ bool GatewayServer::Start(std::string& error) {
             SnapshotService snapshots(projectRoot / ".sigflow" / "agent" / "snapshots");
             verifiedSnapshot = snapshots.Lookup(snapshotId, snapshot, snapshotError) &&
                                snapshot.projectId == projectId && snapshot.revision == revision;
+            // 绑定里冻结的输入指纹必须就是这份快照的指纹：两者不一致时不能把快照的
+            // 指纹当成"执行输入"的指纹（宁可报证据不足，也不张冠李戴）。
+            if (verifiedSnapshot && binding.contains("input_fingerprint") &&
+                binding["input_fingerprint"].is_string()) {
+                const std::string bound =
+                    binding["input_fingerprint"].get<std::string>();
+                if (!bound.empty() && bound != snapshot.inputFingerprint) {
+                    verifiedSnapshot = false;
+                    snapshotError = "bound input fingerprint does not match the snapshot";
+                }
+            }
+            // 报告声明的执行插件必须与绑定一致：否则这份报告不是该绑定的产物。
+            if (verifiedSnapshot && binding.contains("plugin_id") &&
+                binding["plugin_id"].is_string()) {
+                const std::string boundPlugin = binding["plugin_id"].get<std::string>();
+                if (!boundPlugin.empty() && boundPlugin != rawReport.pluginId) {
+                    verifiedSnapshot = false;
+                    snapshotError = "report plugin does not match the job binding";
+                }
+            }
         }
 
         std::string pluginVersion;
@@ -2902,15 +3337,18 @@ bool GatewayServer::Start(std::string& error) {
             const auto record = service->get(id);
             if (!record.has_value()) continue;
             std::string bindingCapability;
+            Json bindingCopy = Json::object();
             {
                 std::lock_guard<std::mutex> lock(impl_->jobMutex);
                 const auto it = impl_->jobBindings.find(id);
                 if (it != impl_->jobBindings.end()) {
                     bindingCapability = it->second.value("capability", std::string());
+                    bindingCopy = it->second;
                 }
             }
             Json summary;
             summary["job_id"] = id;
+            summary["project_id"] = projectId;
             summary["job_type"] = record->request.jobType;
             summary["plugin_id"] = record->request.pluginId;
             summary["capability"] = bindingCapability;
@@ -2918,20 +3356,31 @@ bool GatewayServer::Start(std::string& error) {
             summary["exit_code"] = record->exitCode;
             summary["created_at"] = record->createdAt;
             summary["updated_at"] = record->updatedAt;
-            jobs.push_back(summary);
+            // 绑定事实（不含参数）：Agent/宿主两种来源都显式标注，
+            // 报告视图用同一份 binding 回填 project/revision/snapshot/input_fingerprint。
+            if (bindingCopy.is_object() && !bindingCopy.empty()) {
+                summary["snapshot_id"] = bindingCopy.value("snapshot_id", std::string());
+                summary["revision"] = bindingCopy.value("revision", std::string());
+                summary["plan_hash"] = bindingCopy.value("plan_hash", std::string());
+                summary["grant_id"] = bindingCopy.value("grant_id", std::string());
+                summary["step_id"] = bindingCopy.value("step_id", std::string());
+                summary["binding_origin"] = bindingCopy.value("origin", std::string());
+                summary["origin"] = "core";
+                if (bindingCopy.contains("input_fingerprint") &&
+                    bindingCopy["input_fingerprint"].is_string() &&
+                    !bindingCopy["input_fingerprint"].get<std::string>().empty()) {
+                    summary["input_fingerprint"] = bindingCopy["input_fingerprint"];
+                } else {
+                    summary["input_fingerprint"] = nullptr;
+                }
+            }
             // SF-02：把最新状态回填到绑定，供 GET /projects/{p}/state 的 active_jobs 使用。
             {
                 std::lock_guard<std::mutex> lock(impl_->jobMutex);
                 const auto it = impl_->jobBindings.find(id);
-                if (it != impl_->jobBindings.end()) {
-                    it->second["state"] = summary["state"];
-                    summary["snapshot_id"] = it->second.value("snapshot_id", std::string());
-                    summary["revision"] = it->second.value("revision", std::string());
-                    summary["plan_hash"] = it->second.value("plan_hash", std::string());
-                    summary["grant_id"] = it->second.value("grant_id", std::string());
-                    summary["step_id"] = it->second.value("step_id", std::string());
-                }
+                if (it != impl_->jobBindings.end()) it->second["state"] = summary["state"];
             }
+            jobs.push_back(summary);
         }
         Json data;
         data["jobs"] = jobs;
@@ -3146,44 +3595,12 @@ bool GatewayServer::UpdateProjectSnapshotState(const ProjectSnapshotState& state
     // rather than trusting a separate mutable UI cache.  This also restores
     // completed idempotency associations and prevents a retry after restart
     // from silently creating a second Job.
+    //
+    // SF-09：宿主手动 Job（FPGA 综合等）的 request.project_id 是工程路径（provider 需要），
+    // 归属只存在于 metadata 的 opaque project_id 里，所以这里按元数据恢复，而不是按
+    // JobRecord.request.projectId 过滤。
     IJobService* service = impl_->jobServiceProvider ? impl_->jobServiceProvider() : nullptr;
-    if (service != nullptr) {
-        for (const JobRecord& record : service->list(projectId)) {
-            const Json& metadata = record.request.metadata;
-            if (!metadata.is_object() ||
-                metadata.value("schema", std::string()) != "sigflow.edu-agent-job-binding.v1" ||
-                metadata.value("project_id", std::string()) != projectId || record.id.empty()) {
-                continue;
-            }
-            const std::string snapshotId = metadata.value("snapshot_id", std::string());
-            const std::string revision = metadata.value("revision", std::string());
-            const std::string capability = metadata.value("capability", std::string());
-            if (snapshotId.empty() || revision.empty() || capability.empty()) continue;
-            Json binding{{"project_id", projectId},
-                         {"snapshot_id", snapshotId},
-                         {"revision", revision},
-                         {"capability", capability},
-                         {"job_type", record.request.jobType},
-                         {"plan_hash", metadata.value("plan_hash", std::string())},
-                         {"step_id", metadata.value("step_id", std::string())},
-                         {"state", JobStateName(record.state)}};
-            if (metadata.contains("build_input_fingerprint")) {
-                binding["build_input_fingerprint"] = metadata["build_input_fingerprint"];
-            }
-            {
-                std::lock_guard<std::mutex> lock(impl_->jobMutex);
-                impl_->jobProjects[record.id] = projectId;
-                impl_->jobBindings[record.id] = std::move(binding);
-            }
-            impl_->jobEvents.Track(record.id, projectId, capability, snapshotId, revision);
-            const std::string scope = metadata.value("idempotency_scope", std::string());
-            const std::string key = metadata.value("idempotency_key", std::string());
-            const std::string hash = metadata.value("request_hash", std::string());
-            if (!scope.empty() && !key.empty() && !hash.empty()) {
-                impl_->idempotency.RestoreCompleted(scope, key, hash, record.id);
-            }
-        }
-    }
+    impl_->RestoreBindings(projectId, service);
     return true;
 }
 

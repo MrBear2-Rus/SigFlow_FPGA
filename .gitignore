@@ -30,5 +30,7 @@ gittoken.txt
 __pycache__/
 *.pyc
 /agent/.tmp/
+# Local development model credentials; never commit the user's API key.
+/agent/.local/
 # Claude Code 本地AI会话缓存，禁止提交
 .claude/

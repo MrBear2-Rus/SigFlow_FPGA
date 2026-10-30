@@ -127,8 +127,34 @@ def make_factory(gateway: GatewayConfig, *, anchors=(), evidence_origin='tool', 
 
     factory.model_available = provider is not None
     factory.model_secrets = (provider.config.api_key,) if provider is not None else ()
+    factory.model_provider = provider.PROVIDER if provider is not None else None
+    factory.model_name = provider.config.model if provider is not None else None
+    factory.model_limits = provider.limits if provider is not None else dict(
+        request_bytes=16384, response_bytes=262144, timeout_seconds=30.0,
+        max_tokens=8192, max_model_calls=4)
     factory.verification_available = verification is not None
     factory.course_enabled = course_provider is not None
+    if course_provider is None:
+        factory.course_readiness = dict(configured=False, database='disabled',
+                                        retrieval='disabled', coverage='unknown',
+                                        review_status='not_assessed',
+                                        answerability='not_assessed', reason='disabled')
+    else:
+        availability = getattr(course_provider, 'availability', None)
+        if callable(availability):
+            try:
+                factory.course_readiness = dict(availability())
+            except Exception:
+                factory.course_readiness = dict(configured=True, database='unavailable',
+                    retrieval='unavailable', coverage='unknown', review_status='not_assessed',
+                    answerability='not_assessed', reason='course_database_invalid')
+        else:
+            # Test/fixture providers are configured but their coverage and
+            # review status must remain explicit instead of being inferred.
+            factory.course_readiness = dict(configured=True, database='fixture',
+                retrieval='provider_defined', coverage='provider_defined',
+                review_status='not_assessed', answerability='not_assessed',
+                reason='configured')
     factory.waveform_reader = waveform_reader
     factory.prediction_available = waveform_reader is not None
     return factory

@@ -1,0 +1,209 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "edu-agent/v1/schemas/u2-action.schema.json",
+  "title": "u2.host.v1 teaching action",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": [
+        "kind",
+        "action_id",
+        "expected_version"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "hint_next",
+            "finish",
+            "refresh_evidence",
+            "cancel",
+            "observe_verification",
+            "reference_request",
+            "reference_confirm"
+          ]
+        },
+        "action_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "expected_version": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,18})$",
+          "description": "Canonical decimal string; service additionally enforces value < 2^63."
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "kind",
+        "action_id",
+        "expected_version",
+        "question"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "recover"
+          ]
+        },
+        "action_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "expected_version": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,18})$",
+          "description": "Canonical decimal string; service additionally enforces value < 2^63."
+        },
+        "question": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "kind",
+        "action_id",
+        "expected_version",
+        "grant_ref"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "execute_plan"
+          ]
+        },
+        "action_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "expected_version": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,18})$",
+          "description": "Canonical decimal string; service additionally enforces value < 2^63."
+        },
+        "grant_ref": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "kind",
+        "action_id",
+        "expected_version",
+        "prediction"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "prediction_request"
+          ]
+        },
+        "action_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "expected_version": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,18})$",
+          "description": "Canonical decimal string; service additionally enforces value < 2^63."
+        },
+        "prediction": {
+          "type": "object",
+          "required": [
+            "artifact_id",
+            "signal_id",
+            "start_tick",
+            "end_tick",
+            "sample_tick"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "artifact_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "signal_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "start_tick": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "end_tick": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            },
+            "sample_tick": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)$"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "kind",
+        "action_id",
+        "expected_version",
+        "prediction"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "prediction_submit"
+          ]
+        },
+        "action_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "expected_version": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,18})$",
+          "description": "Canonical decimal string; service additionally enforces value < 2^63."
+        },
+        "prediction": {
+          "type": "object",
+          "required": [
+            "challenge_id",
+            "expected"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "challenge_id": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            },
+            "expected": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 8192
+            }
+          }
+        }
+      }
+    }
+  ],
+  "description": "expected_version is the current wire field. reference_* always fails receipt_unavailable; no L4 support. State/ownership, grant bindings, 64-bit range and prediction semantics are checked by the service."
+}

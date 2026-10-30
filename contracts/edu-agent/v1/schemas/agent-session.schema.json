@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "edu-agent/v1/schemas/agent-session.schema.json",
   "title": "AgentSession",
-  "description": "SigFlow Edu Agent 教学会话摘要。会话只在内存中存活（v1 已知限制）：最多 32 个，超出后按 LRU 淘汰最旧会话。",
+  "description": "SigFlow Edu Agent 教学会话摘要。生产 sidecar 在 bootstrap data_directory 下持久化最小学习状态；运行实例和 token 不属于会话身份。最多 32 个，超出后按 LRU 淘汰最旧会话。",
   "type": "object",
   "required": ["session_id", "project_id", "revision", "state_version", "created_at"],
   "additionalProperties": true,
@@ -36,6 +36,13 @@
     },
     "locale": { "type": "string" },
     "run_count": { "type": "integer", "minimum": 0 },
-    "event_count": { "type": "integer", "minimum": 0 }
+    "event_count": { "type": "integer", "minimum": 0 },
+    "workspace_id": { "type": "string", "pattern": "^ws-[A-Za-z0-9_-]+$" },
+    "learner_id": { "type": "string", "pattern": "^learner-[A-Za-z0-9_-]+$" },
+    "status": { "type": "string", "enum": ["active", "historical", "recovery_required"] },
+    "read_only": { "type": "boolean" },
+    "recovery_required": { "type": "boolean" },
+    "high_watermark": { "type": "string", "pattern": "^[0-9]+$" },
+    "oldest_sequence": { "type": "string", "pattern": "^[0-9]+$" }
   }
 }

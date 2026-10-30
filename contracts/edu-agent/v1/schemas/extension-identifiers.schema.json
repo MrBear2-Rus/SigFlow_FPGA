@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "edu-agent/v1/schemas/extension-identifiers.schema.json",
+  "title": "Versioned extension namespaces",
+  "type": "array",
+  "items": {
+    "type": "string",
+    "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z][a-z0-9_-]*)+\\.v[1-9][0-9]*$"
+  },
+  "description": "Exact identifier intersection; absent/empty means base v1. Unknown valid namespaces/major versions are ignored. Never grants execution permission."
+}

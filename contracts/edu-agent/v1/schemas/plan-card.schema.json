@@ -87,6 +87,15 @@
           "type": "integer",
           "const": 1,
           "description": "每个步骤最多提交一次，v1 恒为 1。"
+        },
+        "enabled": {
+          "type": "boolean",
+          "description": "由当前 Gateway capability readiness 和前置步骤决定是否可执行。"
+        },
+        "disabled_reason": {
+          "type": "string",
+          "minLength": 1,
+          "description": "enabled=false 时说明工具或前置依赖不可用的原因。"
         }
       }
     }

@@ -11,6 +11,7 @@ import time
 
 from .http import MAX_BODY, PROTOCOL, strict_json
 from .runtime import identifier
+from ..contracts.protocol import U2_EXTENSION, negotiate_extensions
 
 
 def _request(port, method, path, *, token=None, learner=None, key=None, body=None, timeout=3):
@@ -74,6 +75,9 @@ def main(argv=None):
         if (health.get('protocol') != PROTOCOL or health.get('instance_id') != args.instance_id
                 or health.get('ready') is not True):
             raise ValueError('host_binding_mismatch')
+        capabilities = _request(args.port, 'GET', '/api/v1/capabilities', token=token)
+        if U2_EXTENSION not in negotiate_extensions(capabilities, [U2_EXTENSION]):
+            raise ValueError('extension_unavailable')
         created = _request(args.port, 'POST', '/api/v1/teaching/sessions', token=token,
                            learner=learner, key=args.key, body=body)
         sid = identifier(created.get('session_id'))
@@ -109,7 +113,7 @@ def main(argv=None):
     except ValueError as error:
         allowed = {'invalid_identifier', 'invalid_probe_config', 'ui_token_required', 'request_too_large',
                    'invalid_json', 'readonly_probe_required', 'host_binding_mismatch', 'host_request_failed',
-                   'invalid_host_response'}
+                   'invalid_host_response', 'extension_unavailable', 'invalid_capabilities', 'invalid_extensions'}
         print(str(error) if str(error) in allowed else 'invalid_probe_request', file=sys.stderr)
         return 2
 

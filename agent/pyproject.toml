@@ -7,7 +7,7 @@ name = "sigflow-edu-agent"
 version = "0.1.0"
 description = "SigFlow Edu Agent: self-developed, stdlib-only teaching sidecar for the SigFlow IDE"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 license = { file = "LICENSE" }
 authors = [{ name = "SigFlow Edu Agent contributors" }]
 keywords = ["sigflow", "fpga", "education", "verilog", "sidecar"]
@@ -19,8 +19,6 @@ classifiers = [
   "Operating System :: Microsoft :: Windows",
   "Operating System :: POSIX :: Linux",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.9",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",

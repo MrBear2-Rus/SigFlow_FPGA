@@ -178,6 +178,10 @@ wxString AgentServiceController::DiscoverExecutable(const wxString& environmentO
         root + separator + "sigflow-edu-agent",
         root + separator + "run-agent.cmd",
         root + separator + "run-agent",
+        // Development builds commonly place the IDE in a build directory
+        // directly under the source tree; the sidecar remains beside it.
+        root + separator + ".." + separator + "agent" + separator + "bin" + separator + "sigflow-edu-agent.cmd",
+        root + separator + ".." + separator + "agent" + separator + "bin" + separator + "sigflow-edu-agent",
     };
     for (const wxString& candidate : candidates) {
         if (wxFileExists(candidate)) return candidate;
@@ -481,6 +485,11 @@ std::string AgentServiceController::SerializeBootstrapLine(const BootstrapFields
     payload["gateway_token"] = fields.gatewayToken;
     payload["ui_token"] = fields.uiToken;
     payload["data_directory"] = fields.dataDirectory;
+    if (!fields.modelApiKey.empty()) {
+        payload["model_config"]["api_key"] = fields.modelApiKey;
+        payload["model_config"]["model"] = fields.modelName;
+        payload["model_config"]["base_url"] = fields.modelBaseUrl;
+    }
 
     // AD-01：JsonCpp 的 StreamWriterBuilder 默认 indentation 是制表符，直接 writeString
     // 会输出多行；而 sidecar 只 readline() 一次，它拿到的是被截断的 "{"，于是永远不 ready。
@@ -514,5 +523,8 @@ std::string AgentServiceController::BootstrapPayload() const {
     fields.gatewayToken = config_.gatewayToken;
     fields.uiToken = config_.agentUiToken;
     fields.dataDirectory = Utf8(config_.dataDirectory);
+    fields.modelApiKey = config_.modelApiKey;
+    fields.modelName = config_.modelName;
+    fields.modelBaseUrl = config_.modelBaseUrl;
     return SerializeBootstrapLine(fields);
 }

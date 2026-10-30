@@ -256,6 +256,10 @@ endif()
 set(SIGFLOW_MAIN_SOURCES
     "${SIGFLOW_MAIN_DIR}/agent/AgentApiClient.cpp"
     "${SIGFLOW_MAIN_DIR}/agent/AgentServiceController.cpp"
+    # 选择证据的有界投影（纯 C++；MainFrame 与 AgentApiClient 共用同一份裁剪/校验口径）
+    "${SIGFLOW_MAIN_DIR}/agent/gui/AgentSelectionContext.cpp"
+    # 报告选择的过滤/展示模型（纯 C++；终态 Job 白名单只有一份，MainFrame 只负责渲染）
+    "${SIGFLOW_MAIN_DIR}/agent/gui/AgentReportSelection.cpp"
     "${SIGFLOW_MAIN_DIR}/AsyncAnalysisCenter.cpp"
     "${SIGFLOW_MAIN_DIR}/BuildProgressBar.cpp"
     "${SIGFLOW_MAIN_DIR}/CanvasElement.cpp"
@@ -408,6 +412,36 @@ add_executable(sigflow WIN32
     ${SIGFLOW_MAIN_SOURCES}
     ${SIGFLOW_THIRD_PARTY_SOURCES}
 )
+
+# Explicit local-development opt-in: embeds the ignored local model config in
+# this binary. Do not enable for distributable/public builds.
+option(SIGFLOW_EMBED_LOCAL_MODEL "Embed the local development DeepSeek credential in SigFlow" OFF)
+if(SIGFLOW_EMBED_LOCAL_MODEL)
+    set(_local_model_file "${CMAKE_CURRENT_SOURCE_DIR}/agent/.local/deepseek.json")
+    if(NOT EXISTS "${_local_model_file}")
+        message(FATAL_ERROR "Local model configuration is missing")
+    endif()
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_local_model_file}")
+    file(READ "${_local_model_file}" _local_model_json LIMIT 16384)
+    string(JSON _local_model_key ERROR_VARIABLE _local_model_error GET "${_local_model_json}" api_key)
+    if(_local_model_error OR NOT _local_model_key MATCHES "^[A-Za-z0-9_-]+$")
+        message(FATAL_ERROR "Invalid local model credential")
+    endif()
+    string(JSON _local_model_name ERROR_VARIABLE _local_model_error GET "${_local_model_json}" model)
+    if(_local_model_error OR NOT _local_model_name MATCHES "^[A-Za-z0-9_.-]+$")
+        message(FATAL_ERROR "Invalid local model name")
+    endif()
+    string(JSON _local_model_url ERROR_VARIABLE _local_model_error GET "${_local_model_json}" base_url)
+    if(_local_model_error OR NOT _local_model_url MATCHES "^https://api\\.deepseek\\.com(/v1)?$")
+        message(FATAL_ERROR "Invalid local model endpoint")
+    endif()
+    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/LocalModelConfig.h.in"
+                   "${CMAKE_CURRENT_BINARY_DIR}/generated/LocalModelConfig.h" @ONLY)
+    target_include_directories(sigflow PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
+    target_compile_definitions(sigflow PRIVATE SIGFLOW_EMBED_LOCAL_MODEL=1)
+    unset(_local_model_json)
+    unset(_local_model_key)
+endif()
 
 if(WIN32)
     target_sources(sigflow PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/sigflow.rc")
@@ -694,6 +728,23 @@ target_include_directories(sigflow PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/3rd/http
 if(TARGET eda_agent_gateway)
     target_compile_definitions(sigflow PRIVATE SIGFLOW_BUILD_EDU_AGENT=1)
     target_link_libraries(sigflow PRIVATE eda_agent_gateway)
+    target_sources(sigflow PRIVATE
+        "${SIGFLOW_MAIN_DIR}/agent/gui/AgentWorkspace.cpp"
+        "${SIGFLOW_MAIN_DIR}/agent/gui/AgentWorkspaceHost.cpp"
+        "${SIGFLOW_MAIN_DIR}/agent/gui/AgentNavigation.cpp"
+        "${SIGFLOW_MAIN_DIR}/agent/gui/AgentLearningPath.cpp"
+        "${SIGFLOW_MAIN_DIR}/agent/gui/AgentLayoutPolicy.cpp"
+        "${SIGFLOW_MAIN_DIR}/agent/gui/AgentRichText.cpp"
+        "${SIGFLOW_MAIN_DIR}/agent/gui/AgentConversation.cpp"
+        "${SIGFLOW_MAIN_DIR}/agent/gui/AgentSupport.cpp"
+        "${SIGFLOW_MAIN_DIR}/agent/gui/AgentSubmit.cpp"
+        "${SIGFLOW_MAIN_DIR}/agent/gui/AgentComposer.cpp"
+        "${SIGFLOW_MAIN_DIR}/agent/gui/AgentFormCoordinator.cpp"
+        "${SIGFLOW_MAIN_DIR}/agent/gui/AgentIcons.cpp"
+        "${SIGFLOW_MAIN_DIR}/agent/gui/AgentViewModel.cpp"
+        "${SIGFLOW_MAIN_DIR}/agent/gui/AgentWireProjection.cpp"
+        "${SIGFLOW_MAIN_DIR}/agent/gui/AgentControls.cpp"
+        "${SIGFLOW_MAIN_DIR}/agent/gui/AgentTokens.cpp")
 endif()
 # P1-5：目标 profile / 引脚库 JSON 随可执行文件分发。
 add_custom_command(TARGET sigflow POST_BUILD

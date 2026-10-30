@@ -202,6 +202,7 @@ class Runtime:
     def _wire(self, session, binding):
         state = session.state
         wire = dict(session_id=binding.session_id, instance_id=self.instance_id,
+                    workspace_id=self.store.workspace_id,
                     learner_id=binding.learner_id, project_id=binding.project_id,
                     revision=binding.revision, snapshot_id=binding.snapshot_id,
                     issue_id=binding.issue_id, job_id=binding.job_id,
@@ -262,7 +263,9 @@ class Runtime:
         mode, intent = body.get('mode', 'deepseek'), body.get('intent', 'diagnose')
         if mode not in ('rule', 'deepseek') or intent not in ('diagnose', 'explain', 'verify'):
             raise ValueError('unsupported_request')
-        sid = 'session-' + digest([self.instance_id, idempotency_key])[:24]
+        # Session identity follows the durable workspace, while instance_id
+        # remains a transient ownership binding that is reattached on restart.
+        sid = 'session-' + digest([self.store.workspace_id, idempotency_key])[:24]
         binding = SessionBinding(self.instance_id, sid, *(body[k] for k in
             ('learner_id', 'project_id', 'revision', 'snapshot_id', 'job_id', 'diagnostic_id', 'issue_id')))
         request = RunRequest(binding.project_id, binding.revision, binding.issue_id, body['question'], intent)

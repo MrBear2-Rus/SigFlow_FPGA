@@ -54,6 +54,13 @@ public:
     std::string SubmitJob(const std::string& jobType, const std::string& projectId,
                           const eda::Json& params, bool requireConfirm,
                           std::string& error);
+    // SF-09：宿主发起的 Job 可携带 Gateway 生成的可信绑定元数据与执行插件 id。
+    // `metadata` 原样写进 JobRequest.metadata（CoreJobService 在暴露 job_id 前落盘），
+    // 宿主不解释、不改写其中的绑定事实；空 metadata/pluginId 等价于上面的普通提交。
+    std::string SubmitJob(const std::string& jobType, const std::string& projectId,
+                          const eda::Json& params, bool requireConfirm,
+                          const eda::Json& metadata, const std::string& pluginId,
+                          std::string& error);
 
     // P1-8：默认后端选择的持久化（按能力存插件 id；与应用配置同层）。
     static std::string StoredDefaultProvider(const std::string& capability);

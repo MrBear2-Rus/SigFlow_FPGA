@@ -27,12 +27,14 @@ import threading
 import time
 import secrets
 from dataclasses import dataclass, field
+from dataclasses import replace
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Mapping, Optional
 from urllib.parse import parse_qs, urlsplit
 
 from .dispatch import RunDispatcher, RunRequest
+from .core_bridge import TeachingCoreRuntime
 from .errors import (
     AgentError,
     failure_envelope,
@@ -97,11 +99,15 @@ class ServerConfig:
     gateway: Optional[GatewayClient] = None
     model: Optional[ModelClient] = None
     secrets: tuple[str, ...] = ()
+    data_directory: Optional[str] = None
     stop_event: threading.Event = field(default_factory=threading.Event)
     # TEST-ONLY（见 `--selftest-fail`）：让 /health 故意报坏，用来验证宿主
     # "ready 之后必须再通过一次 health 才允许就绪"的门控。生产环境恒为 None。
     health_fault: Optional[str] = None
-    # Trusted in-process U2 composition; never loaded from request input.
+    teaching_core: Optional[TeachingCoreRuntime] = None
+    # Production bootstrap checks current Gateway context before teaching.
+    require_gateway_context: bool = False
+    # Explicit opt-in extension; configured only by trusted bootstrap.
     teaching: Any = None
 
 
@@ -110,12 +116,13 @@ class EduAgentState:
 
     def __init__(self, config: ServerConfig) -> None:
         self.config = config
-        self.sessions = SessionStore()
+        self.sessions = SessionStore(data_directory=config.data_directory)
         model = config.model or ModelClient(secrets=config.secrets)
         gateway = config.gateway or GatewayClient(
             "http://127.0.0.1", "", secrets=config.secrets
         )
         self.dispatcher = RunDispatcher(gateway=gateway, model=model)
+        self.teaching_core = config.teaching_core
         self._counter_lock = threading.Lock()
         self._request_counter = 0
 
@@ -130,6 +137,18 @@ class EduAgentState:
             self._request_counter += 1
             value = self._request_counter
         return "req-%d" % value, "trace-%d" % value
+
+    def close(self) -> None:
+        """Release the optional production teaching core during shutdown."""
+        try:
+            self.sessions.close()
+        finally:
+            try:
+                if self.teaching_core is not None:
+                    self.teaching_core.close()
+            finally:
+                if self.config.teaching is not None:
+                    self.config.teaching.close()
 
 
 class EduAgentServer(ThreadingHTTPServer):
@@ -602,13 +621,67 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
                 "reason": status.reason,
                 "plugin_version": None if not status.available else self.state.config.agent_version,
             },
+            {
+                "name": "edu.reference.l4",
+                "ready": False,
+                "reason": "native 双确认、审校参考材料、版本绑定 receipt 和正式教学动作尚未同时具备。",
+                "plugin_version": None,
+                "disabled": True,
+            },
         ]
+        coverage = [
+            {"id": "eda.synth", "status": "gateway_dependent", "enabled": True,
+             "requires": ["gateway_plugin", "immutable_snapshot", "grant"]},
+            {"id": "eda.sim.build", "status": "gateway_dependent", "enabled": True,
+             "requires": ["gateway_plugin", "immutable_snapshot", "grant"]},
+            {"id": "eda.sim.run", "status": "gateway_dependent", "enabled": True,
+             "requires": ["successful_build", "immutable_snapshot", "grant"]},
+            {"id": "edu.rules.diagnose", "status": "ready", "enabled": True,
+             "requires": ["engineering_evidence"]},
+            {"id": "edu.report.review", "status": "gateway_dependent", "enabled": True,
+             "requires": ["trusted_report"]},
+            {"id": "edu.course.rag", "status": "unavailable", "enabled": False,
+             "requires": ["course_database", "retrieval_budget"]},
+            {"id": "edu.prediction", "status": "unavailable", "enabled": False,
+             "requires": ["whole_signals_v1", "explicit_expectation"]},
+            {"id": "edu.reference.l4", "status": "disabled", "enabled": False,
+             "requires": ["native_dual_confirmation", "reviewed_reference",
+                          "version_bound_receipt", "formal_teaching_action"]},
+            {"id": "eda.pnr", "status": "unavailable", "enabled": False,
+             "requires": ["native_confirmation", "toolchain", "hardware_acceptance"]},
+            {"id": "eda.pack", "status": "unavailable", "enabled": False,
+             "requires": ["native_confirmation", "toolchain", "hardware_acceptance"]},
+            {"id": "eda.flash", "status": "unavailable", "enabled": False,
+             "requires": ["native_confirmation", "board_target", "hardware_acceptance"]},
+            {"id": "eda.debug", "status": "unavailable", "enabled": False,
+             "requires": ["native_confirmation", "debug_probe", "hardware_acceptance"]},
+            {"id": "eda.patch", "status": "unavailable", "enabled": False,
+             "requires": ["reviewed_patch", "native_confirmation", "rollback"]},
+        ]
+        core = self.state.teaching_core
+        if core and core.available:
+            course = next(item for item in coverage if item["id"] == "edu.course.rag")
+            readiness = core.course_readiness
+            course.update(
+                status=readiness.get("retrieval", "unavailable"),
+                enabled=readiness.get("database") in ("ready", "fixture"),
+                reason=readiness.get("reason", "course_unavailable"),
+                scope="teaching_core",
+            )
+            prediction = next(item for item in coverage if item["id"] == "edu.prediction")
+            prediction_state = next((item for item in core.capability_coverage
+                                     if item.get("id") == "edu.prediction"), None)
+            if isinstance(prediction_state, Mapping):
+                prediction.update({key: prediction_state[key]
+                                   for key in ("status", "enabled", "reason")
+                                   if key in prediction_state}, scope="teaching_core")
         self._respond_data(
             HTTPStatus.OK,
             {
                 "protocol": PROTOCOL,
                 "agent_version": self.state.config.agent_version,
                 "modes": modes,
+                "extensions": [],
                 **teaching,
                 "capabilities": capabilities,
                 "model": status.to_wire(),
@@ -616,6 +689,15 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
                     "available": False,
                     "reason": "edu.api.v1 不提供课程库，course_refs 恒为空数组。",
                 },
+                "teaching_core": {
+                    "available": bool(core and core.available),
+                    "version": core.package_version if core and core.available else None,
+                    "reason": core.reason if core else "optional_core_not_configured",
+                    "model": core.model_readiness if core and core.available else None,
+                    "course": core.course_readiness if core and core.available else None,
+                    "capability_coverage": list(core.capability_coverage) if core and core.available else [],
+                },
+                "capability_coverage": coverage,
                 "execution": {
                     "can_run_eda": False,
                     "note": "v1 runs 不执行 EDA，也不持有工程执行权限。执行需凭 UI 签发的 grant。",
@@ -661,6 +743,11 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
                 "revision": session.revision,
                 "state_version": "1",
                 "created_at": session.created_at,
+                "workspace_id": session.workspace_id,
+                "learner_id": session.learner_id,
+                "status": session.status,
+                "read_only": session.read_only,
+                "recovery_required": session.recovery_required,
             },
         )
 
@@ -686,6 +773,16 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
 
     def _execute_run(self, session: SessionRecord, body: Mapping[str, Any]) -> None:
         request = self._parse_run_request(session, body)
+        # The HTTP caller supplies only a question and a hint about its
+        # selection.  Before dispatch, bind the run to the Gateway's current
+        # project/revision, capabilities and read-only evidence.  The model
+        # (and the caller) never gets to choose project_id/revision/source_id.
+        trusted_selection, gateway_capabilities = self._gateway_selection(session, request.selection)
+        request = replace(
+            request,
+            selection=trusted_selection,
+            gateway_capabilities=gateway_capabilities,
+        )
         # Final state_version assignment belongs to the locked commit.  Card
         # builders need a syntactically valid placeholder, but no caller may
         # predict the committed counter while the run is still in flight.
@@ -730,6 +827,152 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
             },
         )
 
+    def _gateway_selection(
+        self, session: SessionRecord, submitted: Selection
+    ) -> tuple[Selection, tuple[Mapping[str, Any], ...]]:
+        """Resolve the run's evidence from Gateway-owned project state.
+
+        When ``require_gateway_context`` is enabled, any unavailable or stale
+        Gateway evidence fails closed.  The compatibility fixture mode keeps
+        the historical rule-only tests working when its stub only implements
+        the report endpoint; production never uses that fallback.
+        """
+        gateway = self.state.dispatcher.gateway
+        if gateway is None or gateway.blocked:
+            if self.state.config.require_gateway_context:
+                raise AgentError(
+                    "GATEWAY_UNAVAILABLE",
+                    "trusted Gateway context is unavailable",
+                    http_status=503,
+                    retryable=True,
+                )
+            return submitted, None
+
+        state = gateway.project(session.project_id, "state")
+        if not state.ok or not isinstance(state.report, Mapping):
+            return self._gateway_context_failure(state.code, state.message, submitted), None
+        state_data = state.report
+        if state_data.get("project_id") != session.project_id:
+            return self._gateway_context_failure(
+                "STALE_REVISION", "Gateway project binding does not match the session", submitted
+            ), None
+        project_context = state_data.get("context")
+        capabilities = state_data.get("capabilities")
+        if not isinstance(project_context, Mapping) or not isinstance(capabilities, list):
+            return self._gateway_context_failure(
+                "GATEWAY_UNAVAILABLE", "Gateway state omitted project context or capabilities", submitted
+            ), None
+        gateway_revision = project_context.get("revision")
+        if gateway_revision != session.revision:
+            return self._gateway_context_failure(
+                "STALE_REVISION", "session revision is not the current Gateway revision", submitted
+            ), None
+
+        context = gateway.context_query(
+            session.project_id,
+            {
+                "revision": session.revision,
+                "needs": ["selection", "design", "buffer"],
+                "max_bytes": 64 * 1024,
+            },
+        )
+        if not context.ok or not isinstance(context.report, Mapping):
+            return self._gateway_context_failure(context.code, context.message, submitted), None
+        context_data = context.report
+        if (context_data.get("project_id") != session.project_id or
+                context_data.get("revision") != session.revision):
+            return self._gateway_context_failure(
+                "STALE_REVISION", "Gateway evidence is bound to another project revision", submitted
+            ), None
+        selection_data = context_data.get("selection")
+        if not isinstance(selection_data, Mapping):
+            return self._gateway_context_failure(
+                "NOT_FOUND", "Gateway has no current selection context", submitted
+            ), None
+        if selection_data.get("revision") != session.revision:
+            return self._gateway_context_failure(
+                "STALE_REVISION", "selection context revision is stale", submitted
+            ), None
+        selected = selection_data.get("selected_node_ids")
+        selected_node = next(
+            (value for value in selected if isinstance(value, str) and value)
+            if isinstance(selected, list) else (),
+            None,
+        )
+        dirty = selection_data.get("dirty") is True
+
+        # Unsaved text is explicitly explanation-only.  A clean source is
+        # fetched again through the bounded Gateway source route, so its hash
+        # and revision are checked by Core immediately before teaching.
+        buffer_excerpts = context_data.get("buffer_excerpts")
+        if dirty and isinstance(buffer_excerpts, list):
+            excerpt = next(
+                (item for item in buffer_excerpts
+                 if isinstance(item, Mapping) and isinstance(item.get("text"), str)),
+                None,
+            )
+            if excerpt is not None:
+                return Selection(
+                    text=str(excerpt.get("text", "")),
+                    node_id=selected_node,
+                    start_line=_bounded_line(excerpt.get("start_line")),
+                    end_line=_bounded_line(excerpt.get("end_line")),
+                ), tuple(capabilities)
+
+        source_refs = selection_data.get("source_refs")
+        if isinstance(source_refs, list):
+            ref = next(
+                (item for item in source_refs
+                 if isinstance(item, Mapping) and isinstance(item.get("source_id"), str)),
+                None,
+            )
+            if ref is not None:
+                source_id = str(ref["source_id"])
+                start_line = max(1, _bounded_line(ref.get("start_line")) or 1)
+                end_line = max(start_line, _bounded_line(ref.get("end_line")) or start_line)
+                source = gateway.source(session.project_id, source_id, start_line, end_line)
+                if not source.ok or not isinstance(source.report, Mapping):
+                    return self._gateway_context_failure(source.code, source.message, submitted), None
+                source_data = source.report
+                if (source_data.get("project_id") != session.project_id or
+                        source_data.get("revision") != session.revision or
+                        source_data.get("source_id") != source_id or
+                        not isinstance(source_data.get("text"), str)):
+                    return self._gateway_context_failure(
+                        "STALE_REVISION", "Gateway source evidence failed its binding checks", submitted
+                    ), None
+                return Selection(
+                    text=str(source_data["text"]),
+                    node_id=selected_node,
+                    source_id=source_id,
+                    start_line=_bounded_line(source_data.get("start_line")) or start_line,
+                    end_line=_bounded_line(source_data.get("end_line")) or end_line,
+                ), tuple(capabilities)
+
+        # A valid project binding with no text is still a trusted empty
+        # selection.  It prevents the request body from smuggling arbitrary
+        # source text into the rule engine.
+        return Selection(text="", node_id=selected_node), tuple(capabilities)
+
+    def _gateway_context_failure(
+        self, code: Optional[str], message: str, submitted: Selection
+    ) -> Selection:
+        """Fail closed in production, or retain fixture compatibility."""
+        if not self.state.config.require_gateway_context:
+            return submitted
+        normalized = code or "GATEWAY_UNAVAILABLE"
+        if normalized not in {
+            "NOT_FOUND", "STALE_REVISION", "ARTIFACT_EXPIRED",
+            "GATEWAY_UNAVAILABLE", "RESOURCE_EXHAUSTED", "CAPABILITY_UNAVAILABLE",
+        }:
+            normalized = "GATEWAY_UNAVAILABLE"
+        raise AgentError(
+            normalized,
+            message or "trusted Gateway context is unavailable",
+            http_status=_status_for(normalized),
+            retryable=normalized in {"GATEWAY_UNAVAILABLE", "RESOURCE_EXHAUSTED"},
+        )
+
     def _handle_events(self, session_id: str) -> None:
         """``GET /api/v1/sessions/{sid}/events?after=<seq>``."""
         session = self._require_session(session_id)
@@ -754,7 +997,8 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
         if events is None:
             raise AgentError(
                 "CURSOR_EXPIRED",
-                "cursor is older than the retained event window",
+                "cursor is outside the retained window; reload the session snapshot "
+                "and subscribe again from oldest_sequence",
                 http_status=410,
             )
         self._respond_data(
@@ -820,6 +1064,15 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
             raise AgentError("INVALID_ARGUMENT", "job_id must be a string", http_status=400)
 
         selection = self._parse_selection(body.get("selection"))
+        question = body.get("question", "")
+        if not isinstance(question, str):
+            raise AgentError("INVALID_ARGUMENT", "question must be a string", http_status=400)
+        try:
+            question_size = len(question.encode("utf-8"))
+        except UnicodeEncodeError:
+            raise AgentError("INVALID_ARGUMENT", "question must be valid Unicode", http_status=400)
+        if question_size > MAX_CARD_BYTES:
+            raise AgentError("INVALID_ARGUMENT", "question exceeds %d bytes" % MAX_CARD_BYTES, http_status=400)
 
         if kind == "report_review" and not (job_id or "").strip():
             raise AgentError(
@@ -836,6 +1089,7 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
             top=session.top,
             revision=session.revision,
             project_id=session.project_id,
+            question=question,
         )
 
     def _parse_selection(self, raw: Any) -> Selection:
@@ -895,6 +1149,13 @@ def _optional_int(value: Any, field_name: str) -> Optional[int]:
     if value < 0:
         raise AgentError("INVALID_ARGUMENT", "%s must be non-negative" % field_name, http_status=400)
     return value
+
+
+def _bounded_line(value: Any) -> Optional[int]:
+    """Return a safe 1-based line number from Gateway JSON, if present."""
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        return None
+    return min(value, 2**64 - 1)
 
 
 def _status_for(code: str) -> int:

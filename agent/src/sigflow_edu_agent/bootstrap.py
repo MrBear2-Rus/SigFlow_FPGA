@@ -18,6 +18,7 @@ from typing import Any, BinaryIO, Mapping, TextIO, Union
 
 from .gateway_client import parse_loopback_base_url
 from .version import BOOTSTRAP_TYPE, PROTOCOL
+from .local_model_config import valid_model_config
 
 MAX_BOOTSTRAP_LINE_BYTES: int = 64 * 1024
 """Reject an absurd stdin line instead of buffering unbounded input."""
@@ -54,11 +55,12 @@ class Bootstrap:
     gateway_token: str = field(repr=False)
     ui_token: str = field(repr=False)
     data_directory: str = field(repr=False)
+    model_config: dict[str, str] | None = field(default=None, repr=False)
 
     @property
     def secrets(self) -> tuple[str, ...]:
         """Return the secrets that must be redacted from any output."""
-        return (self.gateway_token, self.ui_token)
+        return (self.gateway_token, self.ui_token) + ((self.model_config['api_key'],) if self.model_config else ())
 
 
 def parse_line(raw: str) -> Bootstrap:
@@ -105,6 +107,9 @@ def from_mapping(payload: Mapping[str, Any]) -> Bootstrap:
             "bootstrap gateway_url must be a loopback http URL with an explicit "
             "port and no userinfo or path (http://127.0.0.1:<port>)"
         )
+    model_config = payload.get('model_config')
+    if model_config is not None and not valid_model_config(model_config):
+        raise BootstrapError('bootstrap model configuration is invalid')
     return Bootstrap(
         instance_id=values["instance_id"],
         nonce=values["nonce"],
@@ -112,6 +117,7 @@ def from_mapping(payload: Mapping[str, Any]) -> Bootstrap:
         gateway_token=values["gateway_token"],
         ui_token=values["ui_token"],
         data_directory=values["data_directory"],
+        model_config=model_config,
     )
 
 

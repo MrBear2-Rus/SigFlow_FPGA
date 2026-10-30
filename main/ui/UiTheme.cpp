@@ -254,6 +254,219 @@ const TeachingColours& TeachingDark()
 }
 
 // ===========================================================================
+// Agent 局部扩展（DEC-13 / AGUI-T02）
+//
+// 取值来源：GUI/agent-gui/index.html §1 的 CSS 变量；玻璃白 .70/.84 在此**预合成**
+// 为实色（SAFE-008：wx 侧不做真实模糊）。深色档不新增色相，全部由既有深色基础族
+// 与教学扩展族推导，未做视觉对照（DEC-11 / A01 待验）。
+// 混合口径 CompositeOver 是 UiTheme 的公开函数（定义在本文件命名空间外层）。
+// ===========================================================================
+
+// ===========================================================================
+// 桌宠 artwork 固定色（AGUI-T04 修正轮 / VIS-008）
+//
+// 桌宠是**插画**，不是主题色：原型里双球渐变（#7FB6FF→#2E86F5→#0561C9、
+// #E46A6A→#C73838→#9E2A2A H467-H474）、绿色连线 #26813D（H478）、白高光
+// （H482/H489）与地面椭圆 rgba(29,29,31,.07)（H464）都不随亮/暗档变化。
+// 因此浅色与深色**共用这一个函数**赋值 —— 从构造上保证两档逐字节同值，
+// 不允许任何一档把它绑到 brand/accent 之类的主题 token（曾误绑 brand，
+// 导致深色档绿线变成 #74D38A）。
+//
+// petGround 保留原始 alpha（wxColour(29,29,31,18)）：它是插画像素，不参与
+// THE-021 的"控件底色预合成"。绘制方必须用 wxGraphicsContext（GDI 的 wxDC
+// 会忽略 alpha，画成实心深块）。
+// ===========================================================================
+void ApplyPetArtwork(AgentColours& a)
+{
+    a.petBlueTop    = wxColour(127, 182, 255);   // #7FB6FF H467
+    a.petBlueMid    = wxColour(46, 134, 245);    // #2E86F5 H468
+    a.petBlueBottom = wxColour(5, 97, 201);      // #0561C9 H469
+    a.petRedTop     = wxColour(228, 106, 106);   // #E46A6A H472
+    a.petRedMid     = wxColour(199, 56, 56);     // #C73838 H473
+    a.petRedBottom  = wxColour(158, 42, 42);     // #9E2A2A H474
+    a.petHighlight  = wxColour(255, 255, 255);   // #FFFFFF H482/H489
+    a.petGround     = wxColour(29, 29, 31, 18);  // rgba(29,29,31,.07) H464（.07×255≈18）
+    a.petTie        = wxColour(38, 129, 61);     // #26813D H478
+}
+
+AgentColours MakeAgentLight()
+{
+    AgentColours a;
+    a.pageBg     = wxColour(250, 250, 248);  // #FAFAF8
+    a.pageTint   = wxColour(239, 244, 250);  // #EFF4FA
+    a.pageTint2  = wxColour(243, 246, 249);  // #F3F6F9
+    a.cardBg     = wxColour(255, 255, 255);  // #FFFFFF
+    a.hairline   = wxColour(229, 229, 229);  // #E5E5E5
+    a.text1      = wxColour(29, 29, 31);     // #1D1D1F
+    a.text2      = wxColour(95, 94, 90);     // #5F5E5A
+    a.text3      = wxColour(110, 109, 103);  // #6E6D67
+    a.accent     = wxColour(0, 122, 255);    // #007AFF
+    a.accentText = wxColour(12, 68, 124);    // #0C447C
+    a.accentSoft = wxColour(230, 241, 251);  // #E6F1FB
+    a.brand      = wxColour(38, 129, 61);    // #26813D
+    a.okSoft     = wxColour(234, 243, 222);  // #EAF3DE
+    a.warn       = wxColour(163, 90, 0);     // #A35A00
+    a.warnSoft   = wxColour(250, 238, 218);  // #FAEEDA
+    a.danger     = wxColour(199, 56, 56);    // #C73838
+    a.dangerSoft = wxColour(252, 235, 235);  // #FCEBEB
+    a.userBubbleTop    = wxColour(10, 114, 220);  // #0A72DC
+    a.userBubbleBottom = wxColour(0, 83, 180);    // #0053B4
+    a.textOnAccent     = wxColour(255, 255, 255); // 蓝底白字（对比度见 T02 报告）
+    a.ctaTop     = wxColour(61, 149, 255);   // #3D95FF
+    a.ctaBottom  = wxColour(0, 122, 255);    // #007AFF
+
+    a.cardGlass       = CompositeOver(a.cardBg, 0.70, a.pageBg);
+    a.cardGlassStrong = CompositeOver(a.cardBg, 0.84, a.pageBg);
+    a.shadow          = CompositeOver(wxColour(29, 29, 31), 0.16, a.pageBg);
+
+    // ---- AGUI-T04 追加（浅色精确值；来源行号见 GUI/agent-gui/phase1/token-map.md）----
+    // 透明色一律 CompositeOver 预合成：wx 不做真实模糊，也不叠加父层 alpha（THE-021）。
+    a.sunken           = wxColour(241, 239, 232);  // #F1EFE8 H48
+    a.sunkenSoft       = CompositeOver(a.sunken, 0.60, a.pageBg);  // H205 rgba(241,239,232,.60)
+    a.sunkenSoftStrong = CompositeOver(a.sunken, 0.65, a.pageBg);  // H243 rgba(241,239,232,.65)
+    a.dangerText = wxColour(121, 31, 31);   // #791F1F H57
+    a.okText     = wxColour(39, 80, 10);    // #27500A H60
+    a.warnText   = wxColour(113, 43, 19);   // #712B13 H63
+
+    a.accentBorder     = CompositeOver(a.accent, 0.40, a.pageBg); // H126/H161/H189/H204/H252/H318
+    a.accentBorderSoft = CompositeOver(a.accent, 0.30, a.pageBg); // H141
+    a.dangerBorder     = CompositeOver(a.danger, 0.32, a.pageBg); // H160（H100 为 .28 同族）
+    a.okBorder         = CompositeOver(a.brand, 0.32, a.pageBg);  // H162
+    a.warnBorder       = CompositeOver(a.warn, 0.32, a.pageBg);   // H163（H128 .35 / H186 .30）
+    a.mutedBorder      = CompositeOver(a.text3, 0.35, a.pageBg);  // H229 rgba(110,109,103,.35)
+    a.scrollThumb      = CompositeOver(a.text3, 0.28, a.pageBg);  // H138/H210
+
+    a.glassPaneTop       = CompositeOver(a.cardBg, 0.80, a.pageBg); // H192/H214
+    a.glassPaneBottom    = CompositeOver(a.cardBg, 0.60, a.pageBg); // H192
+    a.glassRespBottom    = CompositeOver(a.cardBg, 0.58, a.pageBg); // H214
+    a.glassRailTop       = CompositeOver(a.cardBg, 0.82, a.pageBg); // H311
+    a.glassRailBottom    = CompositeOver(a.cardBg, 0.62, a.pageBg); // H311
+    a.glassChain         = CompositeOver(a.cardBg, 0.62, a.pageBg); // H229
+    a.glassCard          = CompositeOver(a.cardBg, 0.66, a.pageBg); // H242
+    a.glassInput         = CompositeOver(a.cardBg, 0.78, a.pageBg); // H255
+    a.glassChip          = CompositeOver(a.cardBg, 0.72, a.pageBg); // H227
+    a.glassEdgeHighlight = CompositeOver(a.cardBg, 0.85, a.pageBg); // H214/H242 1px 高光边
+
+    a.toastBg     = CompositeOver(wxColour(29, 29, 31), 0.92, a.pageBg); // H327
+    a.textOnToast = wxColour(255, 255, 255);                             // H327 白字
+    a.bubbleShadow = CompositeOver(wxColour(0, 83, 180), 0.30, a.pageBg); // H212
+    a.respShadow   = CompositeOver(a.text1, 0.05, a.pageBg);             // H214
+    a.petShadow    = CompositeOver(a.text1, 0.14, a.pageBg);             // H283
+
+    // 桌宠插画色（H397/H467–H474/H482/H489）：固定 artwork，不随主题变化。
+    // 桌宠 artwork：与深色档**共用** ApplyPetArtwork()，从构造上保证同值。
+    ApplyPetArtwork(a);
+
+    // ---- 修正轮：语义边线逐档（原型 alpha 不合并）----
+    a.borderAccentMid    = CompositeOver(a.accent, 0.35, a.pageBg);  // H161
+    a.borderAccentStrong = CompositeOver(a.accent, 0.45, a.pageBg);  // H236
+    a.borderDangerWeak   = CompositeOver(a.danger, 0.28, a.pageBg);  // H100
+    a.borderWarnWeak     = CompositeOver(a.warn, 0.30, a.pageBg);    // H186
+    a.borderWarnMid      = CompositeOver(a.warn, 0.35, a.pageBg);    // H128
+    return a;
+}
+
+AgentColours MakeAgentDark()
+{
+    const Colours& base = DarkPalette();
+    const TeachingColours& teach = TeachingDark();
+
+    AgentColours a;
+    a.pageBg     = base.bgWindow;
+    a.pageTint   = base.bgPanel;
+    a.pageTint2  = base.bgDeep;
+    a.cardBg     = base.bgPanel;
+    a.hairline   = base.stroke;
+    a.text1      = base.text1;
+    a.text2      = base.text2;
+    a.text3      = base.text3;
+    a.accent     = base.accent;
+    a.accentText = base.accent;
+    a.accentSoft = CompositeOver(base.accent, 0.18, base.bgPanel);
+    a.brand      = teach.stateOk;
+    a.okSoft     = CompositeOver(teach.stateOk, 0.20, base.bgPanel);
+    a.warn       = teach.stateWarn;
+    a.warnSoft   = CompositeOver(teach.stateWarn, 0.20, base.bgPanel);
+    a.danger     = teach.stateBad;
+    a.dangerSoft = CompositeOver(teach.stateBad, 0.18, base.bgPanel);
+    a.userBubbleTop    = CompositeOver(base.accent, 0.80, base.bgPanel);
+    a.userBubbleBottom = CompositeOver(base.accent, 0.55, base.bgDeep);
+    a.textOnAccent     = wxColour(255, 255, 255);
+    a.ctaTop     = CompositeOver(base.accent, 0.80, base.bgPanel);
+    a.ctaBottom  = base.accent;
+
+    a.cardGlass       = CompositeOver(a.cardBg, 0.70, a.pageBg);
+    a.cardGlassStrong = CompositeOver(a.cardBg, 0.84, a.pageBg);
+    a.shadow          = CompositeOver(wxColour(0, 0, 0), 0.45, a.pageBg);
+
+    // ---- AGUI-T04 追加：深色档**不新增色相**，全部由既有深色基础族 / 教学扩展族
+    //      经 CompositeOver 推导；未做视觉对照（DEC-11 / A01 待验）。----
+    //
+    // 下沉面：既有深色 token 里 sunkenOnPanel(#0c0c0e) 与 pageBg(#0a0b0e) 几乎不可分，
+    // 无法承担"状态条/卡头"的可见分层，故取既有 surfaceOnPanel 作为下沉面。
+    a.sunken           = base.surfaceOnPanel;                      // #18191c
+    a.sunkenSoft       = CompositeOver(a.sunken, 0.60, a.pageBg);
+    a.sunkenSoftStrong = CompositeOver(a.sunken, 0.65, a.pageBg);
+    a.dangerText = teach.errorText;      // #FFC1C1
+    a.okText     = teach.doneText;       // #BFE3AD
+    a.warnText   = teach.hardwareText;   // #FFD0A4
+
+    a.accentBorder     = CompositeOver(a.accent, 0.40, a.pageBg);
+    a.accentBorderSoft = CompositeOver(a.accent, 0.30, a.pageBg);
+    a.dangerBorder     = CompositeOver(a.danger, 0.32, a.pageBg);
+    a.okBorder         = CompositeOver(a.brand, 0.32, a.pageBg);
+    a.warnBorder       = CompositeOver(a.warn, 0.32, a.pageBg);
+    a.mutedBorder      = CompositeOver(base.text3, 0.35, a.pageBg);
+    a.scrollThumb      = CompositeOver(base.text3, 0.28, a.pageBg);
+
+    // 玻璃：沿用设计 alpha，但"玻璃颜料"取既有深色 surfaceStrong 的 RGB，
+    // 否则深色档会得到一层发白的雾面（白色 .80 叠在 #0a0b0e 上）。
+    const wxColour glassPigment = base.surfaceStrong;
+    a.glassPaneTop       = CompositeOver(glassPigment, 0.80, a.pageBg);
+    a.glassPaneBottom    = CompositeOver(glassPigment, 0.60, a.pageBg);
+    a.glassRespBottom    = CompositeOver(glassPigment, 0.58, a.pageBg);
+    a.glassRailTop       = CompositeOver(glassPigment, 0.82, a.pageBg);
+    a.glassRailBottom    = CompositeOver(glassPigment, 0.62, a.pageBg);
+    a.glassChain         = CompositeOver(glassPigment, 0.62, a.pageBg);
+    a.glassCard          = CompositeOver(glassPigment, 0.66, a.pageBg);
+    a.glassInput         = CompositeOver(glassPigment, 0.78, a.pageBg);
+    a.glassChip          = CompositeOver(glassPigment, 0.72, a.pageBg);
+    // 高光边：沿用既有深色 specular 的 alpha（0.16）作为"白高光"的强度，不另造权重。
+    a.glassEdgeHighlight =
+        CompositeOver(wxColour(255, 255, 255), base.specular.Alpha() / 255.0, a.pageBg);
+
+    a.toastBg      = CompositeOver(glassPigment, 0.92, base.bgDeep); // 与 bgDeep 同层但可辨
+    a.textOnToast  = a.textOnAccent;                                  // 白字
+    a.bubbleShadow = CompositeOver(a.userBubbleBottom, 0.30, a.pageBg);
+    a.respShadow   = a.shadow;   // 0.45 黑，与既有浮层阴影同口径
+    a.petShadow    = a.shadow;
+
+    // 桌宠 artwork：与浅色档**共用** ApplyPetArtwork()（插画不随主题改色）。
+    // 曾经把 petTie 绑到 brand，深色档于是变成 #74D38A —— 原型绿线恒为 #26813D。
+    ApplyPetArtwork(a);
+
+    // ---- 修正轮：语义边线逐档（原型 alpha 不合并）----
+    a.borderAccentMid    = CompositeOver(a.accent, 0.35, a.pageBg);  // H161
+    a.borderAccentStrong = CompositeOver(a.accent, 0.45, a.pageBg);  // H236
+    a.borderDangerWeak   = CompositeOver(a.danger, 0.28, a.pageBg);  // H100
+    a.borderWarnWeak     = CompositeOver(a.warn, 0.30, a.pageBg);    // H186
+    a.borderWarnMid      = CompositeOver(a.warn, 0.35, a.pageBg);    // H128
+    return a;
+}
+
+const AgentColours& AgentLight()
+{
+    static const AgentColours a = MakeAgentLight();
+    return a;
+}
+
+const AgentColours& AgentDark()
+{
+    static const AgentColours a = MakeAgentDark();
+    return a;
+}
+
+// ===========================================================================
 // 状态与订阅
 // ===========================================================================
 constexpr const char* kModeKey = "Ui/Theme/Mode";
@@ -521,6 +734,35 @@ void PaintCanvasBackdrop(wxDC& dc, const wxRect& rect, const wxWindow* window)
 const TeachingColours& Teaching()
 {
     return EffectiveMode() == Mode::Dark ? TeachingDark() : TeachingLight();
+}
+
+// ===========================================================================
+// Agent 扩展：公开的预合成口径（DEC-13 / THE-021）
+//
+// 必须定义在 UiTheme 命名空间（外层），不能只留在匿名命名空间：Agent 组件与
+// 后续 T04/T05 都要按同一口径把 alpha 合成成实色，否则会各自发明第二套混合规则。
+// ===========================================================================
+wxColour CompositeOver(const wxColour& fg, double alpha, const wxColour& bg)
+{
+    const double a = alpha < 0.0 ? 0.0 : (alpha > 1.0 ? 1.0 : alpha);
+    auto mix = [a](int f, int b) {
+        const double v = static_cast<double>(f) * a + static_cast<double>(b) * (1.0 - a);
+        long r = static_cast<long>(v + 0.5);
+        if (r < 0) r = 0;
+        if (r > 255) r = 255;
+        return static_cast<unsigned char>(r);
+    };
+    return wxColour(mix(fg.Red(), bg.Red()), mix(fg.Green(), bg.Green()), mix(fg.Blue(), bg.Blue()));
+}
+
+const AgentColours& AgentColoursFor(Mode mode)
+{
+    return mode == Mode::Dark ? AgentDark() : AgentLight();
+}
+
+const AgentColours& AgentPalette()
+{
+    return AgentColoursFor(EffectiveMode());
 }
 
 wxFont UiFont(const wxWindow* window, TextSize size, Weight weight)

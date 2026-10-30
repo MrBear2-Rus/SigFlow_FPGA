@@ -69,6 +69,14 @@ class UiLayoutPicker;
 class UiLayoutChoice;
 class UiToolBarKeyboard;
 class UiToolBarArt;
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+namespace agent::gui {
+class AgentWorkspace;
+class AgentWorkspaceHost;
+class AgentFormCoordinator;
+enum class AgentForm;
+}
+#endif
 enum class FpgaToolPage;
 struct TraceBridgeCaptureRequest;
 struct TraceBridgeDebugBuildRequest;
@@ -78,6 +86,9 @@ wxDECLARE_EVENT(EVT_SFTREE_NODE_ACTIVATED, wxCommandEvent);
 
 class MainFrame : public wxFrame
 {
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+    friend class AgentRealReportAcceptance;
+#endif
 private:
     int snap_version;
     wxString m_projectName;
@@ -125,17 +136,63 @@ private:
     std::shared_ptr<const AgentApiClient> m_agentApiClient;
     std::unique_ptr<TeachingSessionController> m_teachingSession;
     std::uint64_t m_agentClientGeneration = 0;
+    std::uint64_t m_agentPendingSubmission = 0;
+    std::string m_agentPendingProject;
+    std::string m_agentPendingRevision;
+    std::string m_agentPendingQuestion;
+    std::string m_agentEvidenceJob;
+    std::string m_agentEvidenceProject;
+    std::string m_agentEvidenceRevision;
+    bool m_agentWorkspaceReady = false;
+    Json::Value m_agentCapabilities;
+    std::future<AgentApiClient::Response> m_agentCapabilitiesProbe;
+    std::future<eda::agent::CoreGatewayClient::Response> m_agentJobsProbe;
+    std::string m_agentJobsProject;
+    std::string m_agentJobsRevision;
+    std::uint64_t m_agentCapabilitiesGeneration = 0;
+    std::chrono::steady_clock::time_point m_agentCapabilitiesNext{};
     std::string m_agentProjectId;
     bool m_agentContextPending = false;
     std::uint64_t m_agentContextStateVersion = 0;
     std::string m_agentContextFingerprint;
+    // 当前可信选择证据（UI 线程抽取；opaque ID + 有界片段，绝无路径）。
+    // 与 Gateway 选择上下文同源，提交 v1 run 时冻结进请求。
+    agent::gui::selection::Snapshot m_agentSelection;
     wxTimer m_agentEventTimer;
+    agent::gui::AgentWorkspaceHost* m_agentWorkspaceHost = nullptr;
+    agent::gui::AgentWorkspace* m_agentWorkspace = nullptr;
+    std::unique_ptr<agent::gui::AgentFormCoordinator> m_agentForms;
+    wxAuiToolBar* m_agentRail = nullptr;      // non-owning; activity rail tool window
+    wxWindow* m_agentWorkbenchBook = nullptr; // the existing three-entry sidebar book
+    int m_lastWorkbenchRailId = 0;            // rail entry to re-check after leaving
+    bool m_agentPageActive = false;           // full-page Agent mode owns the docks
     void ConfigureAgentProjectStorage();
     void RefreshAgentProjectSnapshotState(bool dirty, bool synchronized);
+    // AGUI-T07: full-page Agent mode hides the three business docks; leaving the
+    // page restores them from the persisted layout state (never from a guess).
+    void SetAgentPagePanesHidden(bool hidden);
+    // AGUI-T08: applies the panes/rail state of the coordinator's current form.
+    void ApplyAgentFormState();
     void MarkAgentContextDirty();
     void RefreshAgentDesignContext();
+    void SyncAgentWorkspace();
+    void PollAgentCapabilities();
+    void PollAgentJobs();
+    void HandleAgentResult(const TeachingSessionController::Result& result);
     void OnAgentEventTimer(wxTimerEvent& event);
     void StartTeachingRequest(const std::string& question, const std::string& kind);
+    /// 教学动作统一入口：hint/finish/cancel/refresh/refresh_evidence/recover。
+    /// recover 只用当前草稿；空白由 controller/client fail-closed（不发请求）。
+    void RunTeachingAction(const std::string& action);
+    // SF-09：手动 FPGA 综合的可信绑定。执行前冻结"已保存 + 已同步 + 当前 revision"的
+    // 不可变快照；只有冻结成功才把执行输入替换成快照副本（冻结输入）。失败时返回
+    // ok=false + 可读原因，调用方退回普通（无绑定）执行，绝不伪造证据。
+    eda::agent::HostJobBinding PrepareHostSynthesisBinding(const wxString& topModule,
+                                                           std::string& reason);
+    // 把宿主的源文件列表按原顺序映射到快照副本；任一文件不在快照内即失败。
+    bool FreezeHostSynthesisInputs(const eda::agent::HostJobBinding& binding,
+                                   const std::vector<wxString>& sourceFiles,
+                                   std::vector<wxString>& frozenFiles);
 #endif
 
     VerilogManager* m_verilogMgr;
@@ -168,6 +225,15 @@ public:
     void StartTeachingQuestion(const std::string& question);
     void ContinueTeachingHint(const std::string& question);
     void CancelTeachingQuestion();
+    bool ShowAgentWorkspace(bool show = true);
+    bool IsAgentWorkspaceShown() const;
+    // AGUI-T08: Center/Dock are the full page; Float/Pet overlay the workbench
+    // with the same workspace instance.
+    bool SetAgentForm(agent::gui::AgentForm form);
+    // AGUI-T07: the fourth activity-rail entry. Exposed so fixtures can drive the
+    // same wxEVT_TOOL path the rail uses instead of hard-coding a numeric id.
+    int AgentRailToolId() const;
+    bool IsAgentPageActive() const { return m_agentPageActive; }
 #endif
     // P1-8：Help 菜单的 "Toolchain Backends" 子菜单构建（动态；MainMenuBar 调用）。
     void BuildToolchainBackendsMenu(wxMenu* menu);

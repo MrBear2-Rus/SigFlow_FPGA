@@ -1,0 +1,7 @@
+#pragma once
+// Generated only for a local development build; contains a credential.
+namespace local_model_config {
+inline constexpr const char* api_key = "@_local_model_key@";
+inline constexpr const char* model = "@_local_model_name@";
+inline constexpr const char* base_url = "@_local_model_url@";
+}

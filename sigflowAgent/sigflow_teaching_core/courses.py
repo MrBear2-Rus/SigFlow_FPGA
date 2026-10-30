@@ -14,6 +14,35 @@ class SQLiteCourseProvider:
         from .rag.database import configured_database
         self.db_path = Path(db_path).resolve() if db_path is not None else configured_database()
 
+    def availability(self):
+        """Return redacted startup facts without claiming teaching sufficiency."""
+        from .rag.database import open_database
+        connection = None
+        try:
+            connection = open_database(self.db_path)
+            metadata = dict(connection.execute('SELECT key, value FROM index_meta'))
+            passages = connection.execute('SELECT COUNT(*) FROM passages').fetchone()[0]
+            concepts = connection.execute('SELECT COUNT(*) FROM concepts').fetchone()[0]
+            return dict(configured=True, database='ready', retrieval='ready',
+                        coverage='catalogued' if passages and concepts else 'empty',
+                        passage_count=int(passages), concept_count=int(concepts),
+                        index_version=metadata.get('index_version'),
+                        review_status='not_assessed', answerability='not_assessed',
+                        reason='configured')
+        except FileNotFoundError:
+            return dict(configured=True, database='unavailable', retrieval='unavailable',
+                        coverage='unknown', review_status='not_assessed',
+                        answerability='not_assessed', reason='course_database_missing')
+        except Exception:
+            # Do not expose a path, SQLite exception, or source text through
+            # capabilities.  Session state will report unavailable as well.
+            return dict(configured=True, database='unavailable', retrieval='unavailable',
+                        coverage='unknown', review_status='not_assessed',
+                        answerability='not_assessed', reason='course_database_invalid')
+        finally:
+            if connection is not None:
+                connection.close()
+
     def prepare(self, question: str, concept_ids: tuple[str, ...]) -> CourseBundle:
         from .rag.agent_adapter import prepare_course_context
         # Internal neutral task observations are not hardware/course concepts.

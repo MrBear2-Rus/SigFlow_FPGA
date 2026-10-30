@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "edu-agent/v1/schemas/u2-error.schema.json",
+  "title": "u2.host.v1 error envelope",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "request_id",
+    "trace_id",
+    "error"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "edu.api.v1"
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "trace_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "error": {
+      "type": "object",
+      "required": [
+        "code",
+        "message",
+        "retryable"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string",
+          "enum": [
+            "action_conflict",
+            "action_denied",
+            "action_limit",
+            "approval_denied",
+            "binding_conflict",
+            "body_denied",
+            "checkpoint_corrupt",
+            "content_type_denied",
+            "cursor_expired",
+            "cursor_stale",
+            "encoding_denied",
+            "expectation_denied",
+            "host_busy",
+            "host_closed",
+            "host_denied",
+            "host_operation_failed",
+            "incomplete_body",
+            "instance_conflict",
+            "invalid_cursor",
+            "invalid_headers",
+            "invalid_http",
+            "invalid_identifier",
+            "invalid_input",
+            "invalid_json",
+            "invalid_learner",
+            "invalid_length",
+            "invalid_prediction",
+            "invalid_request",
+            "invalid_route",
+            "invalid_session_binding",
+            "invalid_state_version",
+            "length_required",
+            "not_found",
+            "operation_pending",
+            "origin_denied",
+            "prediction_budget_exceeded",
+            "prediction_challenge_stale",
+            "prediction_unavailable",
+            "project_busy",
+            "receipt_unavailable",
+            "recovery_not_available",
+            "recovery_required",
+            "request_mismatch",
+            "request_too_large",
+            "scope_denied",
+            "service_unavailable",
+            "session_busy",
+            "session_limit",
+            "session_not_found",
+            "stale_state",
+            "state_conflict",
+            "state_corrupt",
+            "storage_error",
+            "store_closed",
+            "store_unavailable",
+            "unauthenticated",
+            "unknown_fields",
+            "unsupported_request",
+            "verification_unavailable"
+          ]
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "retryable": {
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  "description": "Private extension preserves lowercase codes. retryable is currently true for status 409/503 only; caller must inspect code before retry/recovery. error.details absent. Never reinterpret as base uppercase error taxonomy."
+}

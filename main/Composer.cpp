@@ -270,6 +270,14 @@ bool Composer::UseJobService() {
 std::string Composer::SubmitJob(const std::string& jobType, const std::string& projectId,
                                 const eda::Json& params, bool requireConfirm,
                                 std::string& error) {
+    return SubmitJob(jobType, projectId, params, requireConfirm, eda::Json::object(),
+                     std::string(), error);
+}
+
+std::string Composer::SubmitJob(const std::string& jobType, const std::string& projectId,
+                                const eda::Json& params, bool requireConfirm,
+                                const eda::Json& metadata, const std::string& pluginId,
+                                std::string& error) {
     if (!jobService_) {
         error = "job service is not available";
         return {};
@@ -279,6 +287,10 @@ std::string Composer::SubmitJob(const std::string& jobType, const std::string& p
     request.projectId = projectId;
     request.params = params;
     request.requireConfirm = requireConfirm;
+    // SF-09：只有宿主流程会给出可信绑定；普通调用保持空 metadata / 空 plugin_id，
+    // 这样 CoreJobService 的记录形状对既有调用方完全不变。
+    if (metadata.is_object() && !metadata.empty()) request.metadata = metadata;
+    if (!pluginId.empty()) request.pluginId = pluginId;
     const std::string id = jobService_->submit(request);
     if (id.empty()) {
         error = "job submission failed: " + jobType;

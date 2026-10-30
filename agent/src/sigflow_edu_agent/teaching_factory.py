@@ -11,16 +11,16 @@ from .teaching_store import BindingStore,identifier
 
 def compose(bootstrap,*,teaching_memory=None,reference_provider=None,receipt_port=None):
     # Optional imports keep the original Python 3.9 U1 base independent of U2.
-    from sigflow_u2.clients.gateway import GatewayClient as EvidenceClient,GatewayConfig
-    from sigflow_u2.clients.waveform import GatewayWaveformReader
-    from sigflow_u2.courses import SQLiteCourseProvider
-    from sigflow_u2.host.factory import make_factory,make_report_resolver
-    from sigflow_u2.host.gateway_evidence import GatewayEvidenceCatalog
-    from sigflow_u2.host.runtime import Runtime
-    from sigflow_u2.host.shared_adapter import SharedTeachingAdapter
-    from sigflow_u2.host.store import DurableStore
-    from sigflow_u2.host.verification import GatewayVerification
-    from sigflow_u2.runtime.verification_checkpoint import decode_verification_checkpoint
+    from sigflow_teaching_core.clients.gateway import GatewayClient as EvidenceClient,GatewayConfig
+    from sigflow_teaching_core.clients.waveform import GatewayWaveformReader
+    from sigflow_teaching_core.courses import SQLiteCourseProvider
+    from sigflow_teaching_core.host.factory import make_factory,make_report_resolver
+    from sigflow_teaching_core.host.gateway_evidence import GatewayEvidenceCatalog
+    from sigflow_teaching_core.host.runtime import Runtime
+    from sigflow_teaching_core.host.shared_adapter import SharedTeachingAdapter
+    from sigflow_teaching_core.host.store import DurableStore
+    from sigflow_teaching_core.host.verification import GatewayVerification
+    from sigflow_teaching_core.runtime.verification_checkpoint import decode_verification_checkpoint
     from urllib.parse import urlsplit
 
     identifier(bootstrap.instance_id)

@@ -11,9 +11,9 @@ data/*.sqlite*
 !data/course.sqlite
 data/.*.tmp
 data/external_sources/
-sigflow_edu_agent/rag/resources/courses/external_official_passages.jsonl
-sigflow_edu_agent/rag/resources/courses/external_official_spans.jsonl
-sigflow_edu_agent/rag/resources/courses/external_official_translations.jsonl
+sigflow_teaching_core/rag/resources/courses/external_official_passages.jsonl
+sigflow_teaching_core/rag/resources/courses/external_official_spans.jsonl
+sigflow_teaching_core/rag/resources/courses/external_official_translations.jsonl
 tests/.rag-tmp/
 audits/
 data/baseline-*/

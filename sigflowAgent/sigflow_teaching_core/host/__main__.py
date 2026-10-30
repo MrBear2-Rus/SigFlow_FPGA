@@ -2,7 +2,6 @@
 
 import argparse
 from dataclasses import dataclass, field
-import hashlib
 import json
 import os
 from pathlib import Path
@@ -83,8 +82,10 @@ def main(argv=None, *, teaching_memory=None):
             anchors = GatewayEvidenceCatalog(gateway)
         directory = Path(bootstrap.data_directory) / 'u2-host'
         directory.mkdir(parents=True, exist_ok=True)
-        filename = hashlib.sha256(bootstrap.instance_id.encode()).hexdigest()[:32] + '.sqlite3'
-        store = DurableStore(directory / filename, bootstrap.instance_id)
+        # data_directory is the stable workspace anchor; instance_id changes
+        # on every sidecar launch and is only the current process owner.
+        filename = 'learning.sqlite3'
+        store = DurableStore(directory / filename, bootstrap.instance_id, rebind=True)
         verification = GatewayVerification(gateway, directory / (filename[:-8] + '-verification.sqlite3'),
             make_report_resolver(gateway, anchors, evidence_origin=args.evidence_origin))
         from ..courses import SQLiteCourseProvider

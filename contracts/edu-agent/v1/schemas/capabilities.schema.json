@@ -7,6 +7,7 @@
   "required": ["instance_id", "protocol_version", "edition", "capabilities"],
   "additionalProperties": false,
   "properties": {
+    "extensions": { "$ref": "extension-identifiers.schema.json" },
     "instance_id": { "type": "string", "minLength": 1 },
     "protocol_version": { "type": "string", "minLength": 1 },
     "edition": { "type": "string", "enum": ["edu", "pro", "dev"] },

@@ -95,20 +95,32 @@ def serialize_request(context: CardContext, *, model: str, max_tokens: int) -> b
 class DeepSeekProvider:
     MAX_REQUEST_BYTES = 16384
     MAX_RESPONSE_BYTES = 262144
+    PROVIDER = 'deepseek'
 
     def __init__(self, config: DeepSeekConfig):
         self.config = config
 
     @classmethod
-    def from_env(cls):
+    def from_env(cls, *, unified=False):
+        prefix = 'SIGFLOW_EDU_MODEL_' if unified else 'DEEPSEEK_'
         return cls(DeepSeekConfig(
-            os.environ.get('DEEPSEEK_API_KEY', ''),
-            os.environ.get('DEEPSEEK_MODEL', ''),
-            os.environ.get('DEEPSEEK_BASE_URL', 'https://api.deepseek.com').rstrip('/'),
+            os.environ.get(prefix + 'API_KEY', ''),
+            os.environ.get(prefix + 'NAME' if unified else prefix + 'MODEL', ''),
+            os.environ.get(prefix + 'BASE_URL', 'https://api.deepseek.com').rstrip('/'),
         ))
 
     @classmethod
     def from_settings(cls):
+        selected = os.environ.get('SIGFLOW_EDU_MODEL_PROVIDER', '').strip().lower()
+        unified = any(key in os.environ for key in (
+            'SIGFLOW_EDU_MODEL_API_KEY', 'SIGFLOW_EDU_MODEL_BASE_URL', 'SIGFLOW_EDU_MODEL_NAME'))
+        if selected and selected != cls.PROVIDER:
+            # OpenCode/Codex provider settings are never implicitly treated as
+            # business teaching credentials.  A caller must select DeepSeek
+            # explicitly and provide the dedicated edu variables.
+            raise ProviderError('model_unconfigured')
+        if unified or selected:
+            return cls.from_env(unified=True)
         if any(key in os.environ for key in ('DEEPSEEK_API_KEY','DEEPSEEK_MODEL','DEEPSEEK_BASE_URL')):
             return cls.from_env()
         from .credentials import load_config,CredentialError
@@ -119,6 +131,14 @@ class DeepSeekProvider:
         if config is None:
             raise ProviderError('model_unconfigured')
         return cls(config)
+
+    @property
+    def limits(self):
+        return dict(request_bytes=self.MAX_REQUEST_BYTES,
+                    response_bytes=self.MAX_RESPONSE_BYTES,
+                    timeout_seconds=self.config.timeout,
+                    max_tokens=self.config.max_tokens,
+                    max_model_calls=4)
 
     def generate(self, context: CardContext) -> dict:
         body = serialize_request(context, model=self.config.model, max_tokens=self.config.max_tokens)

@@ -39,16 +39,40 @@ LOGGER = logging.getLogger(__name__)
 API_KEY_ENV: str = "SIGFLOW_EDU_MODEL_API_KEY"
 BASE_URL_ENV: str = "SIGFLOW_EDU_MODEL_BASE_URL"
 MODEL_ENV: str = "SIGFLOW_EDU_MODEL_NAME"
+PROVIDER_ENV: str = "SIGFLOW_EDU_MODEL_PROVIDER"
+SUPPORTED_PROVIDERS: frozenset[str] = frozenset({"openai-compatible", "deepseek"})
 
 DEFAULT_BASE_URL: str = "https://api.openai.com/v1"
 DEFAULT_MODEL: str = "gpt-4o-mini"
 REQUEST_TIMEOUT_SECONDS: float = 30.0
 MAX_COMPLETION_BYTES: int = 256 * 1024
+MODEL_LIMITS: dict[str, int | float] = {
+    "request_bytes": 96 * 1024,
+    "response_bytes": MAX_COMPLETION_BYTES,
+    "timeout_seconds": REQUEST_TIMEOUT_SECONDS,
+    "max_model_calls": 1,
+}
 
 SYSTEM_PROMPT: str = (
-    "你是 SigFlow FPGA 教学助手。只用中文回答，只做引导式讲解，"
-    "L1–L3 绝不给出完整可直接替换的修正代码，也不要编造没有提供的证据。"
+    "你是 SigFlow FPGA 教学助手，面向正在学习 Verilog 与数字电路的学生。\n"
+    "输出规则（每一条都必须遵守）：\n"
+    "1. 只用简体中文，只输出自然语言解释段落；不要输出任何代码。\n"
+    "2. 不要使用 Markdown 代码围栏（三重反引号或波浪号围栏），不要输出代码块、"
+    "缩进代码段，也不要给可以直接复制运行的源码行。\n"
+    "3. 不要给出完整或可直接替换的 RTL/模块，也不要重写学生的代码；"
+    "L1–L3 只做引导式讲解，指出推理过程和学生需要自己确认的点。\n"
+    "4. 需要指代证据时只写信号名、行号或证据 ID（例如 q、第 3 行、"
+    "RTL_LATCH_INCOMPLETE_BRANCH）；不要粘贴学生代码，也不要输出文件路径、"
+    "绝对路径、命令、脚本或任何凭据。\n"
+    "5. 只使用已提供的证据；证据不足时用自然语言说明缺什么，不要编造结论，"
+    "也不要声称已经验证过学生的工程。"
 )
+"""Hard output contract for the optional model, mirrored by dispatch cleanup.
+
+The prompt cannot be trusted on its own: ``dispatch.safe_teaching_answer``
+still removes any fenced code block or obvious code line the model emits, and
+refuses an answer that has no usable natural language left.
+"""
 
 
 @dataclass(frozen=True)
@@ -62,11 +86,15 @@ class ModelStatus:
 
     def to_wire(self) -> dict[str, Any]:
         """Render the ``model`` object used by /health and /capabilities."""
-        return {
+        result = {
             "available": self.available,
             "provider": self.provider,
             "reason": self.reason,
         }
+        if self.model is not None:
+            result["model"] = self.model
+        result["limits"] = dict(MODEL_LIMITS)
+        return result
 
 
 MODEL_DISABLED_REASON: str = (
@@ -89,6 +117,9 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 
 def model_status() -> ModelStatus:
     """Report whether an OpenAI-compatible model endpoint is configured."""
+    selected_provider = os.environ.get(PROVIDER_ENV, "").strip().lower()
+    if selected_provider and selected_provider not in SUPPORTED_PROVIDERS:
+        return ModelStatus(False, None, "model_provider_unavailable：未选择受支持的业务模型提供方，已降级为规则讲解。")
     api_key = os.environ.get(API_KEY_ENV, "").strip()
     if not api_key:
         return ModelStatus(
@@ -100,6 +131,8 @@ def model_status() -> ModelStatus:
     base_url = os.environ.get(BASE_URL_ENV, "").strip() or DEFAULT_BASE_URL
     if not _safe_endpoint(base_url):
         return ModelStatus(False, None, "模型地址必须是无凭据的 HTTPS 地址，已降级为规则讲解。")
+    if selected_provider == "deepseek" and urlsplit(base_url).hostname not in {"api.deepseek.com"}:
+        return ModelStatus(False, None, "model_provider_endpoint_mismatch：DeepSeek provider 必须使用 DeepSeek HTTPS 端点，已降级为规则讲解。")
     model = os.environ.get(MODEL_ENV, "").strip() or DEFAULT_MODEL
     return ModelStatus(
         available=True,
@@ -159,7 +192,7 @@ class ModelClient:
             return ModelAnswer(ok=False, reason="模型地址不符合安全要求，已降级为规则讲解。")
         # Treat the selected source as untrusted data, never as model instructions.
         prompt_material = instruction + evidence
-        if (len(prompt_material.encode("utf-8")) > 96 * 1024
+        if (len(prompt_material.encode("utf-8")) > int(MODEL_LIMITS["request_bytes"])
                 or contains_absolute_path(prompt_material)
                 or contains_credential(prompt_material, self._secrets)):
             return ModelAnswer(ok=False, reason="模型输入超限或含敏感凭据，已降级为规则讲解。")

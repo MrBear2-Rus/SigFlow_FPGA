@@ -68,8 +68,8 @@ class TeachingService:
 
     @public
     def start(self,sid,learner,body,key):
-        from sigflow_u2.host.shared_adapter import SharedRunContext
-        from sigflow_u2.host.runtime import parse_plan
+        from sigflow_teaching_core.host.shared_adapter import SharedRunContext
+        from sigflow_teaching_core.host.runtime import parse_plan
         self._available()
         required={'question','job_id','issue_id'}
         allowed=required|{'snapshot_id','diagnostic_id','intent','mode','plan','gateway_plan_hash'}
@@ -110,7 +110,7 @@ class TeachingService:
         return dict(schema_version=SCHEMA,accepted=True,session_id=sid,run_id=record['run_id'])
 
     def _owned(self,rid,learner,current=True):
-        from sigflow_u2.host.shared_adapter import SharedRunContext,TeachingHandle
+        from sigflow_teaching_core.host.shared_adapter import SharedRunContext,TeachingHandle
         self._available()
         record=self.bindings.run(rid,learner)
         if current:self._current(record['session'])

@@ -7,6 +7,7 @@
   "required": ["protocol", "agent_version", "modes", "capabilities", "model", "course", "execution"],
   "additionalProperties": true,
   "properties": {
+    "extensions": { "$ref": "extension-identifiers.schema.json" },
     "protocol": { "type": "string", "const": "edu.api.v1" },
     "agent_version": { "type": "string", "minLength": 1 },
     "modes": {
@@ -27,6 +28,24 @@
         "available": { "type": "boolean" },
         "reason": { "type": "string" }
       }
+    },
+    "course_readiness": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "configured": { "type": "boolean" },
+        "database": { "type": "string" },
+        "retrieval": { "type": "string" },
+        "coverage": { "type": "string" },
+        "review_status": { "type": "string" },
+        "answerability": { "type": "string" },
+        "reason": { "type": "string" }
+      }
+    },
+    "teaching_core": { "type": ["object", "null"], "additionalProperties": true },
+    "capability_coverage": {
+      "type": "array",
+      "items": { "type": "object", "additionalProperties": true }
     },
     "execution": {
       "type": "object",

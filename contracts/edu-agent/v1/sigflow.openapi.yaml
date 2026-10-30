@@ -667,7 +667,7 @@ paths:
         - 同键不同 hash → 409 IDEMPOTENCY_CONFLICT。
         - 同键同 hash 仍在飞行中 → 409 RECOVERY_REQUIRED（先查询再重试，不自动重投）。
         参数策略：`sim.build`/`synth` 仅允许 `top_module`、`strategy`、`opts`（字符串数组）；
-        `sim.run` 仅允许 `top_module`、`testbench`、`build_job_id`；`duration_ticks` 为保留字段，当前 harness 不支持，显式 422 拒绝；
+        `sim.run` 仅允许 `duration_ticks`、`build_job_id`；`duration_ticks` 会传递到受控 Verilator harness，限制本次运行的结束 tick；构建时的 `testbench` 刺激规范已经绑定到 `build_job_id`，运行不会接受第二份 testbench/top 覆盖；
         危险字段（`executable`、`command`、`args`、`script`、`work_dir`、`cwd`、`output`、`env` 等）
         与未知字段一律 422 UNSUPPORTED_MAPPING，不静默剥离。
         错误码：
@@ -1950,7 +1950,7 @@ components:
       description: |
         字段白名单固定，多出字段 → 400。`capability` 只接受教育白名单三项；
         `params` 按能力限制键集合（sim.build/synth: top_module/strategy/opts；
-        sim.run: top_module/testbench/build_job_id），危险或未知键 → 422；duration_ticks 当前不支持，显式拒绝。
+        sim.run: duration_ticks/build_job_id；危险或未知键 → 422；duration_ticks 必须是 uint64 十进制字符串。
       required: [snapshot_id, expected_revision, capability, grant_id, params]
       additionalProperties: false
       properties:
@@ -1963,7 +1963,7 @@ components:
         plugin_id: { type: string }
         params:
           type: object
-          description: 能力参数白名单；duration_ticks 当前保留但不支持，opts 必须为字符串数组
+          description: 能力参数白名单；sim.run 的 duration_ticks 会限制受控仿真终点，opts 仅用于综合
 
     ContextQueryRequest:
       type: object

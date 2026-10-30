@@ -9,7 +9,8 @@ info:
 
     本服务**没有独立 EDA 执行权限**：它从不运行任何 EDA 工具、不读也不写学生的工程文件、
     不接受客户端提供的路径、脚本、可执行文件名或工作目录。综合/仿真只能由 SigFlow 签发的 grant
-    触发。基础 runs 只生成 PlanCard；协商教学扩展可以按精确授权请求 Gateway Job。
+    触发。基础 runs 只生成 PlanCard。独立教学宿主的扩展另见 u2.host.openapi.yaml；
+    本生产入口当前 extensions=[]，不承诺已经装配该扩展。
 
     协议版本：`edu.api.v1`（与 `sigflow.openapi.yaml` 的 Gateway 契约同主版本）。
     字段与枚举真源：`schemas/*.schema.json`（本文件只描述路由、参数、状态码、错误码与信封）。
@@ -36,10 +37,10 @@ info:
 
     已知限制（Known limitations of v1）：
     - 事件只支持立即返回，**没有长轮询**（没有 `wait_ms`）。
-    - 会话、运行与事件只在内存，退出即失效；扩展仅持久化最小学习元数据/执行检查点，不自动续跑。
-    - 扩展包含 4 篇项目自编基础材料，可查询并引用；没有外部认证，不等于完整审校课程库。
+    - 会话、运行与事件只在内存，退出即失效；独立教学扩展另见 u2.host.openapi.yaml。
+    - 基础 sidecar 不发布教学扩展，也不加载课程库；extensions=[]、course.available=false。
     - 没有波形内联读取：证据只引用 opaque artifact/report 字段，不返回 VCD 内容或绝对路径。
-    - L4 只返回“参考解要点”清单；本服务不代写工程文件，也不生成可直接替换的完整模块。
+    - L4 一律返回 403 POLICY_DENIED，即使 more=true 也不放行；没有生产参考解接口。
     - `--selftest-fail` 与 `--selftest-ready-delay-ms` 是**仅供测试**的故障注入开关，
       不属于本冻结契约，生产启动不得使用。
 
@@ -88,6 +89,8 @@ paths:
       description: |
         `modes` 固定为 L1–L4；`capabilities` 列出本服务的功能就绪状态；
         `execution.can_run_eda=false` 表示本服务不持有 EDA 执行权限。
+        `capability_coverage` 公开 PNR、pack、flash、debug 和受控补丁的 unavailable 边界；
+        `teaching_core` 只报告可选 Core bridge 的版本、课程和模型元数据，不包含凭据或路径。
         错误码：
         - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
         - 403 POLICY_DENIED：Host 边界校验不通过。
@@ -130,8 +133,8 @@ paths:
                     provider: null
                     reason: 未配置模型 Key（SIGFLOW_EDU_MODEL_API_KEY），已降级为确定性规则讲解。
                   course:
-                    available: true
-                    reason: 项目自编版本化基础材料；未经外部课程认证。
+                    available: false
+                    reason: edu.api.v1 基础入口不加载课程库；课程/RAG 状态见可选 teaching_core。
                   execution:
                     can_run_eda: false
                     note: EDA 执行只能由 SigFlow 签发的 grant 触发；本服务不持有执行权限
@@ -142,8 +145,9 @@ paths:
     post:
       summary: 创建一个教学会话（绑定 project + revision）
       description: |
-        会话只存在内存中；最多 32 个，超出后按 LRU 淘汰最旧会话（淘汰不是错误，旧 session_id
-        随后会返回 404）。创建响应中的 `state_version` 固定为 "1"。
+        未提供 `data_directory` 的兼容 fixture 会话最多 32 个并按 LRU 淘汰；生产 sidecar
+        在 `data_directory` 下持久化会话/运行/事件快照，重启后保留稳定 workspace/learner/session
+        身份。创建响应中的 `state_version` 固定为 "1"。
         错误码：
         - 400 INVALID_ARGUMENT：`project_id` 或 `revision` 为空/类型不符，或请求体非 JSON 对象。
         - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
@@ -237,7 +241,7 @@ paths:
         - 命中锁存器/敏感列表/位宽/结构规则时返回 `source: "rule"` 的 TeachingCard，
           第一项证据的 `kind` 必须是 `rule_match`；L1–L3 绝不包含完整修正代码。
         - 未配置模型 Key 时 `model_used=false` 且 `state=degraded`，并把被跳过的模型步骤记入 `omitted`。
-        - `level=L4` 需 `more=true` 的两步策略；未确认时返回 403 POLICY_DENIED。
+        - `level=L4` 一律返回 403 POLICY_DENIED，包括 more=true。
 
         `kind=plan`：返回 PlanCard；只使用 `eda.synth`、`eda.sim.build`、`eda.sim.run`
         三项能力，不含路径/可执行文件/脚本/工作目录，`requires_approval=true`。
@@ -278,6 +282,19 @@ paths:
                     source_id: source-000000000000000000000001
                     start_line: 1
                     end_line: 6
+                    text: "always @(*) begin\n  if (en)\n    q = d;\nend"
+              explainUnsavedSelection:
+                summary: 未保存缓冲的讲解证据（origin=buffer，不带 source_id）
+                value:
+                  kind: explain
+                  level: L1
+                  question: 这段为什么会有锁存器？
+                  selection:
+                    node_id: canvas-42
+                    start_line: 1
+                    end_line: 4
+                    origin: buffer
+                    truncated: false
                     text: "always @(*) begin\n  if (en)\n    q = d;\nend"
               reportReview:
                 summary: 真实报告教学卡（NG-07 验收 b）
@@ -552,6 +569,10 @@ components:
           type: ["string", "null"]
           description: 模型端点（配置值或 null）；不含 API Key。
         reason: { type: string }
+        model: { type: ["string", "null"] }
+        limits:
+          type: object
+          additionalProperties: { type: [integer, number] }
 
     HealthData:
       type: object
@@ -593,6 +614,8 @@ components:
       properties:
         protocol: { type: string, enum: [edu.api.v1] }
         agent_version: { type: string }
+        extensions:
+          $ref: "schemas/extension-identifiers.schema.json"
         modes:
           type: array
           items: { $ref: "#/components/schemas/ModeStatus" }
@@ -606,6 +629,17 @@ components:
           properties:
             available: { type: boolean }
             reason: { type: string }
+        course_readiness:
+          type: object
+          additionalProperties: true
+        teaching_core:
+          type: [object, "null"]
+          additionalProperties: true
+        capability_coverage:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
         execution:
           type: object
           required: [can_run_eda, note]
@@ -660,12 +694,28 @@ components:
       description: |
         学生选中的受限证据：opaque 的 node_id/source_id、行号范围，以及必要的代码片段。
         `text` 上限 64 KiB；不得携带路径。未保存缓冲只可用于解释，绝不进入执行快照。
+
+        `origin`/`truncated` 是 v1.1 兼容新增的**可选**来源标注（缺省即当前行为：
+        已落盘源码、未截断）。宿主只在确有未保存缓冲或确实裁剪时发送；
+        服务端可以忽略未知/可选字段，因此老请求与老服务端都不受影响。
+        未保存缓冲必须 `origin: "buffer"` 且**不带** `source_id`，不得伪装成当前磁盘
+        source_ref；生产模式下服务端仍以 Gateway 选择上下文为准。
       properties:
         node_id: { type: ["string", "null"] }
         source_id: { type: ["string", "null"] }
         start_line: { type: ["integer", "null"], minimum: 0 }
         end_line: { type: ["integer", "null"], minimum: 0 }
         text: { type: ["string", "null"] }
+        origin:
+          type: string
+          enum: [disk, buffer]
+          description: |
+            证据来源。缺省/`disk` = 工程内已落盘源码（`source_id` 为 opaque 映射 ID）；
+            `buffer` = 未保存编辑缓冲片段，仅用于解释，绝不等同当前磁盘 source_ref。
+        truncated:
+          type: boolean
+          default: false
+          description: 客户端是否已因 64 KiB 上限裁剪 `text`（服务端不补全、不重读文件）。
 
     CreateRunRequest:
       type: object
@@ -673,6 +723,9 @@ components:
       properties:
         kind: { type: string, enum: [explain, hint, plan, report_review] }
         level: { type: string, enum: [L1, L2, L3, L4], default: L1 }
+        question:
+          type: string
+          description: 学生问题，最多 64 KiB UTF-8；它不是工程证据，模型可用时结合 Gateway 证据回答。
         selection: { $ref: "#/components/schemas/Selection" }
         job_id:
           type: string
@@ -680,7 +733,7 @@ components:
         more:
           type: boolean
           default: false
-          description: L4 两步放行的第二步开关；不带它时 L4 一律 403 POLICY_DENIED。
+          description: 兼容保留字段，不开放 L4；L4 无论此值为何均 403 POLICY_DENIED。
 
     RunData:
       allOf:

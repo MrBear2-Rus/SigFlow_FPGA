@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "edu-agent/v1/schemas/u2-state.schema.json",
+  "title": "u2.host.v1 committed state",
+  "type": "object",
+  "required": [
+    "session_id",
+    "instance_id",
+    "learner_id",
+    "project_id",
+    "revision",
+    "snapshot_id",
+    "issue_id",
+    "job_id",
+    "run_id",
+    "stage",
+    "status",
+    "level",
+    "state_version",
+    "steps",
+    "model_calls",
+    "cards",
+    "reason",
+    "evidence_origin",
+    "course",
+    "prediction",
+    "trace"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9_-]+([.:][A-Za-z0-9_-]+)*$"
+    },
+    "instance_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9_-]+([.:][A-Za-z0-9_-]+)*$"
+    },
+    "workspace_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9_-]+([.:][A-Za-z0-9_-]+)*$",
+      "description": "Stable workspace identity; instance_id remains transient."
+    },
+    "learner_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9_-]+([.:][A-Za-z0-9_-]+)*$"
+    },
+    "project_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9_-]+([.:][A-Za-z0-9_-]+)*$"
+    },
+    "revision": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9_-]+([.:][A-Za-z0-9_-]+)*$"
+    },
+    "snapshot_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9_-]+([.:][A-Za-z0-9_-]+)*$"
+    },
+    "issue_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9_-]+([.:][A-Za-z0-9_-]+)*$"
+    },
+    "job_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9_-]+([.:][A-Za-z0-9_-]+)*$"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9_-]+([.:][A-Za-z0-9_-]+)*$"
+    },
+    "stage": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "Running",
+        "WaitingStudent",
+        "WaitingEvidence",
+        "WaitingApproval",
+        "RecoveryRequired",
+        "Completed",
+        "Cancelled",
+        "Failed",
+        "BudgetExceeded"
+      ]
+    },
+    "level": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3
+    },
+    "state_version": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,18})$",
+      "description": "Canonical decimal string; service additionally enforces value < 2^63."
+    },
+    "steps": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9223372036854775807
+    },
+    "model_calls": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9223372036854775807
+    },
+    "cards": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "reason": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "evidence_origin": {
+      "type": "string",
+      "enum": [
+        "fixture",
+        "tool"
+      ]
+    },
+    "course": {
+      "type": "object"
+    },
+    "prediction": {
+      "type": "object"
+    },
+    "trace": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "recovery_version": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,18})$",
+      "description": "Canonical decimal string; service additionally enforces value < 2^63."
+    },
+    "plan_fingerprint": {
+      "type": "string",
+      "minLength": 1
+    },
+    "plan_card": {
+      "type": "object"
+    },
+    "verification": {
+      "type": "object"
+    }
+  },
+  "description": "Additive read-only projection. Unknown fields do not authorize actions. Recover must be explicit; old grants are not resumed."
+}

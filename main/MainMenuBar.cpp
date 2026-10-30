@@ -166,6 +166,7 @@ EVT_MENU(wxID_ABOUT, MainMenuBar::OnAbout)
 EVT_MENU(wxID_HIGHEST + 503, MainMenuBar::OnTeachingQuestion)
 EVT_MENU(wxID_HIGHEST + 504, MainMenuBar::OnTeachingHint)
 EVT_MENU(wxID_HIGHEST + 505, MainMenuBar::OnTeachingCancel)
+EVT_MENU(wxID_HIGHEST + 506, MainMenuBar::OnTeachingWorkspace)
 #endif
 EVT_MENU_OPEN(MainMenuBar::OnMenuOpen)
 wxEND_EVENT_TABLE()
@@ -678,6 +679,7 @@ wxMenu* MainMenuBar::CreateHelpMenu()
     m->Append(wxID_HIGHEST + 502, wxT("Library Reference"));
 #if defined(SIGFLOW_BUILD_EDU_AGENT)
     m->AppendSeparator();
+    m->Append(wxID_HIGHEST + 506, wxT("Teaching Agent Workspace"));
     m->Append(wxID_HIGHEST + 503, wxT("Ask Teaching Agent..."));
     m->Append(wxID_HIGHEST + 504, wxT("Ask for a Hint..."));
     m->Append(wxID_HIGHEST + 505, wxT("Cancel Teaching Request"));
@@ -700,6 +702,13 @@ void MainMenuBar::OnTeachingQuestion(wxCommandEvent&)
                              wxT("Teaching Agent"));
     if (dialog.ShowModal() == wxID_OK && !dialog.GetValue().IsEmpty()) {
         m_owner->StartTeachingQuestion(std::string(dialog.GetValue().ToUTF8()));
+    }
+}
+
+void MainMenuBar::OnTeachingWorkspace(wxCommandEvent&)
+{
+    if (m_owner != nullptr) {
+        m_owner->ShowAgentWorkspace();
     }
 }
 

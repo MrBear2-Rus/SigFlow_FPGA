@@ -26,8 +26,10 @@ from typing import Any, Optional, Sequence, TextIO
 
 from .bootstrap import Bootstrap, BootstrapError, read_from_stream
 from .gateway_client import GatewayClient
+from .core_bridge import connect_teaching_core
 from .http_server import EduAgentState, ServerConfig, create_server
 from .model_client import ModelClient
+from .local_model_config import load_local_model_config, load_model_config
 from .util import RedactionFilter, json_dumps
 from .version import AGENT_VERSION, PROTOCOL, READY_TYPE
 
@@ -74,7 +76,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="loopback port to bind; 0 (default) lets the system assign one",
     )
     parser.add_argument('--u2-teaching', action='store_true',
-                        help='compose optional sigflow_u2 teaching on this server (Python 3.11+)')
+                        help='compose optional sigflow_teaching_core teaching on this server (Python 3.11+)')
+    parser.add_argument('--u2-teaching-if-available', action='store_true',
+                        help='enable teaching composition when available; otherwise keep the base service')
     parser.add_argument(
         "--agent-version",
         default=None,
@@ -205,6 +209,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return EXIT_BOOTSTRAP_ERROR
 
     install_redaction(bootstrap)
+    if bootstrap.model_config:
+        load_model_config(bootstrap.model_config)
+    load_local_model_config()
     version = args.agent_version or AGENT_VERSION
 
     early_exit = _selftest_pre_ready(args.selftest_fail)
@@ -225,6 +232,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         ),
         model=ModelClient(secrets=bootstrap.secrets),
         secrets=bootstrap.secrets,
+        data_directory=bootstrap.data_directory,
         stop_event=stop_event,
         # TEST-ONLY：仅当显式选择坏 health 模式时才生效。
         health_fault=(
@@ -232,23 +240,36 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             if args.selftest_fail in ("bad-health", "bad-health-protocol")
             else None
         ),
+        teaching_core=connect_teaching_core(
+            bootstrap.gateway_url,
+            bootstrap.gateway_token,
+            bootstrap.instance_id,
+            bootstrap.data_directory,
+        ),
+        # Production teaching actions must be based on the Gateway's current
+        # project/revision/capability/evidence view; fixture servers can opt
+        # out explicitly when testing the standalone rule surface.
+        require_gateway_context=True,
     )
     teaching = None
-    if args.u2_teaching:
+    if args.u2_teaching or args.u2_teaching_if_available:
         try:
             from .teaching_factory import compose
             teaching = compose(bootstrap)
             config.teaching = teaching
             config.secrets = tuple(config.secrets) + tuple(getattr(teaching.runtime.factory, 'model_secrets', ()))
         except Exception:
-            sys.stderr.write('U2 teaching initialization failed; dependency or trusted configuration unavailable\n')
-            return EXIT_BOOTSTRAP_ERROR
+            if args.u2_teaching:
+                if config.teaching_core is not None:
+                    config.teaching_core.close()
+                sys.stderr.write('U2 teaching initialization failed; dependency or trusted configuration unavailable\n')
+                return EXIT_BOOTSTRAP_ERROR
+            LOGGER.warning('optional U2 teaching service is unavailable; base service remains available')
     state = EduAgentState(config)
     try:
         httpd = create_server(state)
     except OSError as exc:
-        if teaching:
-            teaching.close()
+        state.close()
         reason = exc.strerror or str(exc)
         sys.stderr.write("unable to bind loopback port: %s\n" % reason)
         return EXIT_BIND_ERROR
@@ -281,8 +302,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         try:
             httpd.server_close()
         finally:
-            if teaching:
-                teaching.close()
+            state.close()
     LOGGER.info("sigflow edu agent stopped")
     return 0
 

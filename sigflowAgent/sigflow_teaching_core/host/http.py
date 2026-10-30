@@ -10,6 +10,9 @@ import threading
 from urllib.parse import parse_qs, urlsplit
 import uuid
 
+from ..contracts.protocol import U2_EXTENSION
+from ..capability_matrix import public_matrix
+
 PROTOCOL = 'edu.api.v1'
 MAX_BODY = 64 * 1024
 
@@ -130,8 +133,12 @@ class HostServer(ThreadingMixIn, HTTPServer):
             threading.Thread(target=self.shutdown, daemon=True).start()
 
     def model(self):
-        return dict(available=self.model_available, provider='deepseek' if self.model_available else None,
-                    reason='configured' if self.model_available else 'model_unconfigured_rule_fallback')
+        factory = getattr(self.runtime, 'factory', None)
+        return dict(available=self.model_available,
+                    provider=getattr(factory, 'model_provider', None),
+                    model=getattr(factory, 'model_name', None),
+                    reason='configured' if self.model_available else 'model_unconfigured_rule_fallback',
+                    limits=dict(getattr(factory, 'model_limits', {})))
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -271,8 +278,12 @@ class Handler(BaseHTTPRequestHandler):
                 return
             self._auth()
             if self.command == 'GET' and path == '/api/v1/capabilities' and not parsed.query:
+                course_readiness = dict(getattr(runtime.factory, 'course_readiness', {
+                    'configured': False, 'database': 'disabled', 'retrieval': 'disabled',
+                    'coverage': 'unknown', 'review_status': 'not_assessed',
+                    'answerability': 'not_assessed', 'reason': 'disabled'}))
                 self._reply(200, dict(protocol=PROTOCOL, agent_version=self.server.agent_version,
-                    extensions=['u2.host.v1'], model=self.server.model(),
+                    extensions=[U2_EXTENSION], model=self.server.model(),
                     verification=dict(configured=bool(getattr(runtime.factory, 'verification_available', False)), requires_gateway_grant=True),
                     prediction=dict(configured=bool(getattr(runtime.factory,'prediction_available',False)),
                                     requires_explicit_expectation=True,starts_jobs=False),
@@ -284,6 +295,11 @@ class Handler(BaseHTTPRequestHandler):
                     capabilities=[dict(name='u2.host.v1', ready=True, reason='readonly_teaching', plugin_version=self.server.agent_version)],
                     course=dict(available=bool(getattr(runtime.factory, 'course_enabled', False)),
                                 reason='configured' if getattr(runtime.factory, 'course_enabled', False) else 'disabled'),
+                    course_readiness=course_readiness,
+                    capability_coverage=public_matrix(
+                        course_readiness=course_readiness,
+                        prediction_available=bool(getattr(runtime.factory, 'prediction_available', False))),
+                    l4=dict(available=False, reason='native_dual_confirmation_reviewed_reference_and_version_receipt_required'),
                     execution=dict(can_run_eda=False, note='Verification requires an explicit UI plan and scoped Gateway grant.')))
                 return
             if self.command == 'POST' and path == '/api/v1/shutdown' and not parsed.query:

@@ -45,6 +45,9 @@ public:
         std::string gatewayUrl;
         std::string gatewayToken;
         std::string agentUiToken;
+        std::string modelApiKey;
+        std::string modelName;
+        std::string modelBaseUrl;
         std::string protocol = "edu.api.v1";
         unsigned int maxRestarts = 3;
         std::function<void(const Status&)> onStatus;
@@ -89,6 +92,9 @@ public:
         std::string gatewayToken;
         std::string uiToken;
         std::string dataDirectory;
+        std::string modelApiKey;
+        std::string modelName;
+        std::string modelBaseUrl;
     };
     // 返回含结尾换行的一行 JSON；序列化器显式关闭缩进。
     static std::string SerializeBootstrapLine(const BootstrapFields& fields);

@@ -19,6 +19,18 @@
 #include <wx/simplebook.h>
 #include <wx/splitter.h>
 #include "ui/UiWorkspaceSplitter.h"
+// 选择证据的有界投影是纯 C++ 模块：无论 EDU Agent 是否开启都能编译（裁剪口径只有一份）。
+#include "agent/gui/AgentSelectionContext.h"
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+#include "agent/gui/AgentFormCoordinator.h"
+#include "agent/gui/AgentReportSelection.h"
+#include "agent/gui/AgentWorkspace.h"
+#include "agent/gui/AgentWorkspaceHost.h"
+#include "agent/gui/AgentWireProjection.h"
+#if defined(SIGFLOW_EMBED_LOCAL_MODEL)
+#include "LocalModelConfig.h"
+#endif
+#endif
 #include <wx/utils.h>
 #include <wx/process.h>
 #include <wx/timer.h>
@@ -117,20 +129,11 @@ std::string MakeEphemeralGatewayToken() {
     for (int i = 0; i < 64; ++i) token.push_back(kHex[random() & 0x0f]);
     return token;
 }
-
 std::string ClampUtf8ForAgent(const std::string& value, std::size_t maxBytes,
                               bool& truncated) {
-    if (value.size() <= maxBytes) {
-        truncated = false;
-        return value;
-    }
-    truncated = true;
-    std::size_t cut = maxBytes;
-    while (cut > 0 &&
-           (static_cast<unsigned char>(value[cut]) & 0xC0u) == 0x80u) {
-        --cut;
-    }
-    return value.substr(0, cut);
+    // 单一口径：裁剪逻辑归 AgentSelectionContext（同一条 64 KiB / UTF-8 边界规则），
+    // 这里只保留本地别名，避免宿主和选择证据层各写一份边界处理。
+    return agent::gui::selection::ClampUtf8(value, maxBytes, truncated);
 }
 
 struct FpgaProjectOptions {
@@ -578,6 +581,9 @@ enum {
     ID_TB_START,
     ID_TB_STOP,
     ID_TB_SYNTHESIZE,
+
+    // Appended (never inserted) so every pre-existing id keeps its value.
+    ID_AGENT,
 };
 
 MainFrame::MainFrame()
@@ -892,6 +898,15 @@ MainFrame::MainFrame()
     sideBar->AddTool(ID_PROJ, wxEmptyString, GetIcon("res\\ui_icons\\folder.svg"), "Project Manager", wxITEM_CHECK);
     sideBar->AddTool(ID_FLOW, wxEmptyString, GetIcon("res\\ui_icons\\tree.svg"), "SigFlow Tree", wxITEM_CHECK);
     sideBar->AddTool(ID_TBOX, wxEmptyString, GetIcon("res\\ui_icons\\components.svg"), "Component Library", wxITEM_CHECK);
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+    // AGUI-T07 / user direction: the fourth activity entry opens the whole-page
+    // SigFlow-Edu-Agent workspace; the three business entries bring the workbench
+    // back unchanged.
+    sideBar->AddTool(ID_AGENT, wxEmptyString, GetIcon("res\\ui_icons\\agent.svg"),
+                     "Teaching Agent", wxITEM_CHECK);
+    m_agentRail = sideBar;
+    m_lastWorkbenchRailId = ID_PROJ;  // the entry restored by leaving the page
+#endif
     sideBar->ToggleTool(ID_PROJ, 1);
     // T-230：活动栏改用 token 化 chip 绘制（原 MyCustomToolBarArt 只处理 checked 态）
     // T-620：art 指针保留给键盘焦点环（A11Y-001；所有权仍属 wxAuiToolBar，THE-032）
@@ -982,6 +997,12 @@ MainFrame::MainFrame()
                 wxString::FromUTF8(gatewayConfig.instanceId.c_str())));
 
             AgentServiceController::Config sidecarConfig;
+#if defined(SIGFLOW_EMBED_LOCAL_MODEL)
+            sidecarConfig.modelApiKey = local_model_config::api_key;
+            sidecarConfig.modelName = local_model_config::model;
+            sidecarConfig.modelBaseUrl = local_model_config::base_url;
+#endif
+            sidecarConfig.arguments.push_back("--u2-teaching-if-available");
             const std::string configuredSidecar =
                 eda::platform::EnvUtf8("SIGFLOW_EDU_AGENT_EXECUTABLE");
             sidecarConfig.executable = AgentServiceController::DiscoverExecutable(
@@ -997,6 +1018,7 @@ MainFrame::MainFrame()
             sidecarConfig.workingDirectory = sidecarConfig.dataDirectory;
             m_teachingSession = std::make_unique<TeachingSessionController>(
                 [this](const TeachingSessionController::Result& result) {
+                    HandleAgentResult(result);
                     if (m_terminalCtrl == nullptr) return;
                     if (result.state == TeachingSessionController::Result::State::Cancelled) {
                         m_terminalCtrl->PrintOutput("[edu-agent] teaching request cancelled\n");
@@ -1020,7 +1042,9 @@ MainFrame::MainFrame()
                     m_terminalCtrl->PrintOutput(wxString::Format(
                         "[edu-agent] teaching %s: %llu card(s), evidence=%llu, %s, project=%s revision=%s\n",
                         result.state == TeachingSessionController::Result::State::Degraded
-                            ? "degraded" : "succeeded",
+                            ? "degraded" : result.state == TeachingSessionController::Result::State::Waiting
+                                ? "waiting" : result.state == TeachingSessionController::Result::State::Pending
+                                    ? "pending" : "succeeded",
                         static_cast<unsigned long long>(cards.isArray() ? cards.size() : 0),
                         static_cast<unsigned long long>(firstEvidenceCount),
                         wxString::FromUTF8(firstCardTitle.c_str()),
@@ -1032,7 +1056,22 @@ MainFrame::MainFrame()
                 if (m_teachingSession && status.generation != m_agentClientGeneration) {
                     m_agentClientGeneration = status.generation;
                     m_agentApiClient.reset();
+                    m_agentCapabilities = Json::Value();
+                    m_agentCapabilitiesNext = {};
                     m_teachingSession->InvalidateGeneration(status.generation);
+                    if (m_agentWorkspace) {
+                        m_agentWorkspace->Model().SetGeneration(status.generation);
+                        m_agentWorkspace->SetWorkflowActions(false, false, false, false, {});
+                        m_agentWorkspace->SetExternalBusy(false);
+                        if (m_agentPendingSubmission)
+                            m_agentWorkspace->NotifySubmissionFinished(m_agentPendingSubmission, false,
+                                wxString::FromUTF8("教学服务已重启，请重新提交。"));
+                    }
+                    m_agentPendingSubmission = 0;
+                }
+                if (status.state != AgentServiceController::State::Ready) {
+                    m_agentApiClient.reset();
+                    m_agentCapabilities = Json::Value();
                 }
                 if (status.state == AgentServiceController::State::Ready && m_agentSidecar) {
                     if (!m_agentApiClient || m_agentClientGeneration != status.generation) {
@@ -1104,6 +1143,9 @@ MainFrame::MainFrame()
     auto* leftRegionHost = new UiRegionHost(this);
     wxSimplebook* leftSideNotebook = new wxSimplebook(leftRegionHost, wxID_ANY,
         wxDefaultPosition, wxDefaultSize, wxBORDER_NONE);
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+    m_agentWorkbenchBook = leftSideNotebook;
+#endif
     leftRegionHost->SetContentInset(UiTheme::Spacing::S1);
     leftRegionHost->SetContent(leftSideNotebook);
 
@@ -1114,13 +1156,29 @@ MainFrame::MainFrame()
     leftSideNotebook->AddPage(m_sigFlowTreePanel, "SigFlow Tree");
     leftSideNotebook->AddPage(m_toolbox, "Component Library");
 
-    Bind(wxEVT_TOOL, [=, this](wxCommandEvent& e) {
+    auto onRailTool = [=, this](wxCommandEvent& e) {
         int clickedId = e.GetId();
         wxAuiPaneInfo& pane = m_auiMgr.GetPane("left_sidebar");
         // 1. 实现互斥选中（就像 Notebook 切换标签一样）
         sideBar->ToggleTool(ID_PROJ, clickedId == ID_PROJ);
         sideBar->ToggleTool(ID_FLOW, clickedId == ID_FLOW);
         sideBar->ToggleTool(ID_TBOX, clickedId == ID_TBOX);
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+        sideBar->ToggleTool(ID_AGENT, clickedId == ID_AGENT);
+        if (clickedId == ID_AGENT) {
+            // Whole page becomes the education Agent page: business docks hidden,
+            // canvas/editor and their panes preserved underneath.
+            ShowAgentWorkspace(true);
+            sideBar->Refresh();
+            return;
+        }
+        // A business entry always returns to the workbench first (from any form),
+        // then switches the left book, so leaving is never a separate step.
+        if (m_agentForms && m_agentForms->IsFullPage()) {
+            SetAgentForm(agent::gui::AgentForm::None);
+        }
+        m_lastWorkbenchRailId = clickedId;
+#endif
 
         // 2. 刷新工具栏视觉状态
         sideBar->Refresh();
@@ -1139,7 +1197,11 @@ MainFrame::MainFrame()
             pane.Caption("Component Library");
         }
         m_auiMgr.Update();
-        }, ID_PROJ, ID_TBOX); // 
+        };
+    Bind(wxEVT_TOOL, onRailTool, ID_PROJ, ID_TBOX);
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+    Bind(wxEVT_TOOL, onRailTool, ID_AGENT, ID_AGENT);
+#endif
     sideBar->Realize();
 
     // 顶端工具栏
@@ -1257,11 +1319,28 @@ MainFrame::MainFrame()
     }
 
     auto* centerRegionHost = new UiRegionHost(this);
-    auto* mainSplitter = new UiWorkspaceSplitter(centerRegionHost, wxID_ANY,
+    wxWindow* workbenchParent = centerRegionHost;
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+    m_agentWorkspaceHost = new agent::gui::AgentWorkspaceHost(centerRegionHost);
+    workbenchParent = m_agentWorkspaceHost;
+#endif
+    auto* mainSplitter = new UiWorkspaceSplitter(workbenchParent, wxID_ANY,
         wxDefaultPosition, wxDefaultSize,
         wxSP_LIVE_UPDATE | wxSP_3DSASH | wxBORDER_NONE);
     centerRegionHost->SetContentInset(UiTheme::Spacing::S1);
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+    m_agentWorkspaceHost->SetWorkbench(mainSplitter);
+    centerRegionHost->SetContent(m_agentWorkspaceHost);
+    // AGUI-T08: presentation coordinator for Center/Dock/Float/Pet. It creates
+    // only the overlay card and the standby bubble; panes stay MainFrame's.
+    m_agentForms = std::make_unique<agent::gui::AgentFormCoordinator>(
+        m_agentWorkspaceHost);
+    m_agentForms->SetFormObserver([this](agent::gui::AgentForm) {
+        ApplyAgentFormState();
+    });
+#else
     centerRegionHost->SetContent(mainSplitter);
+#endif
     m_editorChrome->Reparent(mainSplitter);
     m_canvas->Reparent(mainSplitter);
     // LAY-010：画布 / 编辑器默认 62% / 38%，拖拽范围 25%–80%
@@ -2410,6 +2489,11 @@ void MainFrame::ApplyLayoutVisibility()
     SetPaneVisible("bottom_tabs",m_layoutState.bottom);
     ApplyLayoutGeometry();
     SendSizeEvent();
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+    // Full-page Agent mode owns the content area: layout/menu restores must not
+    // resurrect the docks underneath it. The saved state above stays untouched.
+    if (m_agentPageActive) SetAgentPagePanesHidden(true);
+#endif
     SyncPanelMenuChecks();
 }
 
@@ -2448,6 +2532,13 @@ void MainFrame::ApplyResponsiveLayout()
     m_lastClampedLeft = widths.left;
     m_lastClampedRight = widths.right;
     m_lastAutoHidden = autoHidden;
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+    // Full-page Agent mode has no docks to clamp; touching them here would both
+    // re-show the right sidebar and re-dock floating panes behind the page.
+    if (m_agentPageActive) {
+        return;
+    }
+#endif
 
     // <760：辅助侧边栏自动隐藏（LAY-019）
     const bool wantRight =
@@ -2691,7 +2782,25 @@ void MainFrame::SaveLayoutState()
     const wxString scope = LayoutScope();
 
     bool ok = UiTheme::LayoutStore::Save(cfg, scope, m_layoutState);
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+    // Never persist the full-page Agent view as the user's layout: set the
+    // declared dock visibility for the snapshot only, then hide them again.
+    // No m_auiMgr.Update() happens in between, so nothing flashes on screen.
+    const bool agentPage = m_agentPageActive;
+    if (agentPage) {
+        SetPaneVisible("left_sidebar", m_layoutState.left);
+        SetPaneVisible("right_sidebar", m_layoutState.right);
+        SetPaneVisible("bottom_tabs", m_layoutState.bottom);
+    }
+#endif
     ok = UiTheme::LayoutStore::SavePerspective(cfg, scope, m_auiMgr.SavePerspective()) && ok;
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+    if (agentPage) {
+        for (const char* name : {"left_sidebar", "right_sidebar", "bottom_tabs"}) {
+            SetPaneVisible(name, false);
+        }
+    }
+#endif
 
     if (!ok) {
         // 写失败只提示，不阻止关闭（docs/gui/task.md 的布局保存约定）
@@ -2735,6 +2844,124 @@ MainFrame::~MainFrame()
 }
 
 #if defined(SIGFLOW_BUILD_EDU_AGENT)
+void MainFrame::SetAgentPagePanesHidden(bool hidden)
+{
+    if (hidden) {
+        // Whole-page Agent mode: the three business docks step aside, the rail
+        // (mode selector) and the app toolbar/menu/status stay.
+        for (const char* name : {"left_sidebar", "right_sidebar", "bottom_tabs"}) {
+            SetPaneVisible(name, false);
+        }
+    } else {
+        // Restore exactly what the persisted layout state says, never a guess.
+        SetPaneVisible("left_sidebar", m_layoutState.left);
+        SetPaneVisible("right_sidebar", m_layoutState.right);
+        SetPaneVisible("bottom_tabs", m_layoutState.bottom);
+    }
+    m_auiMgr.Update();
+}
+
+bool MainFrame::ShowAgentWorkspace(bool show)
+{
+    return SetAgentForm(show ? agent::gui::AgentForm::Center
+                             : agent::gui::AgentForm::None);
+}
+
+bool MainFrame::SetAgentForm(agent::gui::AgentForm form)
+{
+    if (m_agentWorkspaceHost == nullptr || !m_agentForms) {
+        return false;
+    }
+    if (form != agent::gui::AgentForm::None && m_agentWorkspace == nullptr) {
+        // One instance for this frame: no form switch ever recreates the editor,
+        // canvas, Agent model or draft. Existing teaching commands stay intact.
+        m_agentWorkspace = new agent::gui::AgentWorkspace(
+            m_agentWorkspaceHost, [this] { SetAgentForm(agent::gui::AgentForm::None); });
+        // AGUI-T09: the in-page rail/head form buttons drive this same coordinator;
+        // no second coordinator or second workspace is ever created.
+        m_agentWorkspace->SetFormRequestHandler(
+            [this](agent::gui::AgentForm requested) { return SetAgentForm(requested); });
+        m_agentWorkspace->SetReportSelectionHandler([this] {
+            if (!m_agentWorkspace || !m_agentGateway || !m_agentAuthorization || m_agentProjectId.empty() ||
+                m_agentJobsProbe.valid() ||
+                (m_teachingSession && (m_teachingSession->busy() || m_teachingSession->HasTeachingRun()))) return;
+            eda::agent::ProjectSnapshotState state;
+            if (!m_agentGateway->ProjectState(m_agentProjectId, state) || state.request.currentRevision.empty()) return;
+            m_agentJobsProject = m_agentProjectId;
+            m_agentJobsRevision = state.request.currentRevision;
+            const auto config = m_agentAuthorization->gateway().config();
+            const auto project = m_agentJobsProject;
+            m_agentJobsProbe = std::async(std::launch::async, [config, project] {
+                return eda::agent::CoreGatewayClient(config).ListJobs(project);
+            });
+            m_agentWorkspace->SetWorkflowFeedback(wxString::FromUTF8("正在读取当前工程的报告。"));
+        });
+        m_agentForms->Attach(m_agentWorkspace);
+        SyncAgentWorkspace();
+    }
+    if (!m_agentForms->SetPresentation(form)) {
+        return false;
+    }
+    return true;
+}
+
+// The coordinator reports every accepted form change here; only MainFrame knows
+// the AUI docks, so pane visibility is applied in exactly one place.
+void MainFrame::ApplyAgentFormState()
+{
+    if (!m_agentForms) return;
+    const auto form = m_agentForms->CurrentForm();
+    const bool fullPage = m_agentForms->IsFullPage();
+    m_agentPageActive = fullPage;
+
+    // AGUI-T09: both form-button groups (rail + in-page aw-head) are pressed from
+    // this single coordinator state; they never keep their own copy.
+    if (m_agentWorkspace != nullptr) m_agentWorkspace->SetFormState(form);
+
+    if (form == agent::gui::AgentForm::Float || form == agent::gui::AgentForm::Pet) {
+        // Detached Agent hosts leave the main window on the third (canvas/toolbox)
+        // entry. Do not dispatch wxEVT_TOOL here: that handler is user navigation.
+        m_lastWorkbenchRailId = ID_TBOX;
+        if (auto* book = dynamic_cast<wxSimplebook*>(m_agentWorkbenchBook)) book->ChangeSelection(2);
+        auto& pane = m_auiMgr.GetPane("left_sidebar");
+        if (pane.IsOk()) pane.Caption("Component Library");
+    }
+
+    if (m_agentRail != nullptr) {
+        // Exactly one selected entry, whichever way the form was reached.
+        m_agentRail->ToggleTool(ID_PROJ, !fullPage && m_lastWorkbenchRailId == ID_PROJ);
+        m_agentRail->ToggleTool(ID_FLOW, !fullPage && m_lastWorkbenchRailId == ID_FLOW);
+        m_agentRail->ToggleTool(ID_TBOX, !fullPage && m_lastWorkbenchRailId == ID_TBOX);
+        m_agentRail->ToggleTool(ID_AGENT, fullPage);
+        m_agentRail->Refresh();
+    }
+
+    if (fullPage) {
+        SetAgentPagePanesHidden(true);
+        return;
+    }
+    // Leaving Center/Dock, or entering Float/Pet: the docks come back from the
+    // saved preference (never from a guess), float/pet then overlay the page.
+    m_lastResponsiveWidthDip = -1;  // force the responsive pass to re-run
+    ApplyLayoutVisibility();
+    ApplyResponsiveLayout();
+    // Native children hidden by the Agent page need their final AUI geometry
+    // and an invalidation even when the host itself did not change size.
+    m_auiMgr.Update();
+    Layout();
+    if (m_agentWorkspaceHost) m_agentWorkspaceHost->SendSizeEvent();
+    Refresh(false);
+    Update();
+    (void)form;
+}
+
+bool MainFrame::IsAgentWorkspaceShown() const
+{
+    return m_agentForms && m_agentForms->IsPresented();
+}
+
+int MainFrame::AgentRailToolId() const { return ID_AGENT; }
+
 void MainFrame::ConfigureAgentProjectStorage()
 {
     if (!m_agentGateway || m_currentProjectPath.IsEmpty()) return;
@@ -2783,7 +3010,10 @@ void MainFrame::OnAgentEventTimer(wxTimerEvent& event)
         if (m_agentContextPending) RefreshAgentDesignContext();
     }
     if (m_agentSidecar) m_agentSidecar->Tick();
+    PollAgentCapabilities();
+    PollAgentJobs();
     if (m_teachingSession) m_teachingSession->Tick();
+    SyncAgentWorkspace();
     event.Skip();
 }
 
@@ -2808,6 +3038,15 @@ void MainFrame::RefreshAgentDesignContext()
                       (m_canvas && m_canvas->HasUnsavedChanges());
     std::vector<eda::agent::DesignNodeRecord> nodes;
     std::vector<std::string> selectedNodeIds;
+
+    // 同一份可信事实同时服务两处（一次抽取，两处使用，不各猜一份）：
+    //   * Gateway 选择上下文：现有行为不变（未选中时用光标所在行兜底）；
+    //   * v1 run 请求的 selection：只认**显式**选中（选中区间 / 画布节点），
+    //     未选中就是空证据——不能拿光标行冒充"学生选中的代码"。
+    agent::gui::selection::Snapshot captured;
+    captured.projectId = m_agentProjectId;
+    captured.revision = revision;
+    captured.dirty = selection.dirty;
 
     // 画布选择映射到 SigTree 的稳定 uid。没有可靠 RTL 映射的图形节点标为
     // unsaved_only，允许教学解释但不会成为 snapshot/job 的执行输入。
@@ -2840,6 +3079,8 @@ void MainFrame::RefreshAgentDesignContext()
             }
         }
     }
+    // 画布节点是 opaque ID（canvas-<uid>），可以单独成为请求证据（无代码片段也算选中）。
+    if (!selectedNodeIds.empty()) captured.nodeId = selectedNodeIds.front();
 
     // 编辑器上下文只携带当前文件的有界行区间。未保存时只生成 buffer excerpt，
     // 不登记 source_ref，确保旧磁盘内容不会被误当成当前教学证据。
@@ -2848,9 +3089,11 @@ void MainFrame::RefreshAgentDesignContext()
         const int textLength = m_verilogEditor->GetTextLength();
         int start = std::clamp(m_verilogEditor->GetSelectionStart(), 0, textLength);
         int end = std::clamp(m_verilogEditor->GetSelectionEnd(), start, textLength);
+        // 显式选中的区间边界必须在展开成"当前行"之前记下来。
+        const bool explicitRange = end > start;
         int startLine = m_verilogEditor->LineFromPosition(start);
         int endLine = m_verilogEditor->LineFromPosition(std::max(start, end - 1));
-        if (start == end) {
+        if (!explicitRange) {
             const int lineStart = m_verilogEditor->PositionFromLine(startLine);
             const int lineEnd = m_verilogEditor->GetLineEndPosition(startLine);
             start = std::max(0, lineStart);
@@ -2880,28 +3123,45 @@ void MainFrame::RefreshAgentDesignContext()
             const std::string allText = allUtf8.data() ? std::string(allUtf8.data()) : std::string();
             const std::string bufferHash = eda::platform::Sha256Hex(
                 allText.data(), allText.size());
+            const std::uint64_t startLine1 = static_cast<std::uint64_t>(startLine + 1);
+            const std::uint64_t endLine1 = static_cast<std::uint64_t>(endLine + 1);
+            // opaque source_id 由工程相对路径哈希得到：请求里只有这个 ID，绝无路径。
+            std::string opaqueSourceId;
             selection.bufferHash = selection.dirty ? bufferHash : std::string();
             if (selection.dirty) {
                 eda::agent::BufferExcerpt excerpt;
                 excerpt.path = relative;
                 excerpt.bufferHash = bufferHash;
-                excerpt.startLine = static_cast<std::uint64_t>(startLine + 1);
-                excerpt.endLine = static_cast<std::uint64_t>(endLine + 1);
+                excerpt.startLine = startLine1;
+                excerpt.endLine = endLine1;
                 excerpt.text = text;
                 excerpt.truncated = selectedTruncated;
                 selection.bufferExcerpts.push_back(std::move(excerpt));
             } else if (!diskHash.empty()) {
                 eda::agent::DesignSourceRef ref;
-                ref.sourceId = "source-" +
+                opaqueSourceId = "source-" +
                     eda::platform::Sha256Hex(relative.data(), relative.size()).substr(0, 24);
+                ref.sourceId = opaqueSourceId;
                 ref.path = relative;
                 ref.fileHash = diskHash;
-                ref.startLine = static_cast<std::uint64_t>(startLine + 1);
-                ref.endLine = static_cast<std::uint64_t>(endLine + 1);
+                ref.startLine = startLine1;
+                ref.endLine = endLine1;
                 selection.sourceRefs.push_back(std::move(ref));
+            }
+            // 只有显式选中才进入 run 请求。未保存缓冲只带 text+dirty（origin=buffer），
+            // 且 Resolve/Bound 会再保证它不带 source_id。
+            if (explicitRange) {
+                captured.text = text;
+                captured.truncated = selectedTruncated;
+                captured.startLine = startLine1;
+                captured.endLine = endLine1;
+                if (selection.dirty) captured.bufferHash = bufferHash;
+                else captured.sourceId = opaqueSourceId;
             }
         }
     }
+    // 无论指纹是否变化都要刷新这份投影：它绑定当前 revision，供提交时冻结。
+    m_agentSelection = std::move(captured);
     selection.selectedNodeIds = std::move(selectedNodeIds);
 
     std::string fingerprint = revision + "|" + (selection.dirty ? "1" : "0") + "|" +
@@ -2934,7 +3194,338 @@ void MainFrame::ContinueTeachingHint(const std::string& question)
 
 void MainFrame::CancelTeachingQuestion()
 {
-    if (m_teachingSession) m_teachingSession->Cancel();
+    if (m_teachingSession && m_teachingSession->busy()) m_teachingSession->Cancel();
+}
+
+void MainFrame::SyncAgentWorkspace()
+{
+    if (!m_agentWorkspace) return;
+    eda::agent::ProjectSnapshotState projectState;
+    agent::gui::submit::Context context;
+    if (m_agentGateway && !m_agentProjectId.empty() &&
+        m_agentGateway->ProjectState(m_agentProjectId, projectState)) {
+        context.projectId = m_agentProjectId;
+        context.revision = projectState.request.currentRevision;
+    }
+    if (!m_agentEvidenceJob.empty() && (context.projectId != m_agentEvidenceProject ||
+                                        context.revision != m_agentEvidenceRevision)) {
+        if (m_teachingSession && m_teachingSession->HasTeachingRun()) {
+            m_teachingSession->TeachingAction("cancel");
+            m_teachingSession->InvalidateGeneration(m_agentClientGeneration);
+            m_agentWorkspace->Model().BeginLocalCancel();
+            m_agentWorkspace->SetWorkflowActions(false, false, false, false, {});
+        }
+        m_agentEvidenceJob.clear();
+    }
+    context.jobId = m_agentEvidenceJob;
+    if (m_agentPendingSubmission &&
+        (context.projectId != m_agentPendingProject || context.revision != m_agentPendingRevision)) {
+        if (m_teachingSession && m_teachingSession->busy()) m_teachingSession->Cancel();
+        m_agentPendingSubmission = 0;
+    }
+    m_agentWorkspace->SetTeachingContext(context);
+    if (m_agentCapabilities.isObject()) {
+        const auto capabilities = agent::gui::ProjectCapabilities(m_agentCapabilities);
+        if (!(m_agentWorkspace->Model().Capabilities() == capabilities))
+            m_agentWorkspace->Model().SetCapabilities(capabilities);
+    }
+    const bool ready = m_agentApiClient && m_agentSidecar && m_agentSidecar->ready();
+    if (ready != m_agentWorkspaceReady) {
+        m_agentWorkspaceReady = ready;
+        if (!ready) {
+            m_agentWorkspace->SetSubmitHandler({});
+        } else {
+            m_agentWorkspace->SetSubmitHandler([this](const agent::gui::submit::Intent& intent) {
+                using namespace agent::gui::submit;
+                if (!m_agentApiClient || !m_teachingSession || !m_agentSidecar || !m_agentSidecar->ready())
+                    return Receipt{ReceiptStatus::NotReady, "教学服务尚未就绪。"};
+                if (m_agentWorkspace->Model().DemoMode())
+                    return Receipt{ReceiptStatus::NotReady, "请先退出演示，再使用真实教学服务。"};
+                if (intent.context.level != "L1" && intent.context.level != "L2" &&
+                    intent.context.level != "L3")
+                    return Receipt{ReceiptStatus::NotReady, "请选择 L1、L2 或 L3 教学等级。"};
+                if (!intent.context.jobId.empty() && intent.context.level != "L1")
+                    return Receipt{ReceiptStatus::NotReady, "报告教学从 L1 开始，请用下一步提示逐级继续。"};
+                RefreshAgentDesignContext();
+                TeachingSessionController::Request request;
+                request.projectId = intent.context.projectId;
+                request.revision = intent.context.revision;
+                request.question = intent.text;
+                request.kind = intent.context.kind;
+                request.level = intent.context.level;
+                request.sourceId = intent.context.sourceId;
+                request.nodeId = intent.context.nodeId;
+                request.jobId = intent.context.jobId;
+                // 普通讲解（explain/hint）必须带上当前 GUI 选中的可信证据；
+                // 报告教学由 job_id 决定证据，选择只作定位提示。投影在提交时冻结：
+                // 跨工程/跨 revision/非 opaque ID/路径一律被 Resolve 拒绝。
+                request.selection = agent::gui::selection::Resolve(
+                    m_agentSelection, request.projectId, request.revision);
+                if (!m_teachingSession->Start(m_agentApiClient, m_agentClientGeneration, std::move(request)))
+                    return Receipt{ReceiptStatus::Busy, "上一条请求尚未结束。"};
+                m_agentPendingSubmission = intent.submissionId;
+                m_agentPendingProject = intent.context.projectId;
+                m_agentPendingRevision = intent.context.revision;
+                m_agentPendingQuestion = intent.text;
+                m_agentWorkspace->SetExternalBusy(true);
+                return Receipt{ReceiptStatus::Accepted, intent.context.jobId.empty()
+                    ? "正在根据当前工程和选中内容生成讲解。" : "正在核对所选报告并启动教学。"};
+            });
+            if (!m_agentWorkspace->Model().CurrentLevel().bound())
+                m_agentWorkspace->Model().SetLevel(agent::gui::vm::Level::V1("L1"));
+        }
+    }
+    m_agentWorkspace->SetExternalBusy(m_teachingSession && m_teachingSession->busy());
+    m_agentWorkspace->SetReportJob(m_agentEvidenceJob, ready && !context.projectId.empty() &&
+        !context.revision.empty() && m_teachingSession && !m_teachingSession->busy() &&
+        !m_teachingSession->HasTeachingRun() && !m_agentJobsProbe.valid());
+}
+
+void MainFrame::PollAgentJobs()
+{
+    if (!m_agentJobsProbe.valid() ||
+        m_agentJobsProbe.wait_for(std::chrono::milliseconds(0)) != std::future_status::ready) return;
+    eda::agent::CoreGatewayClient::Response response;
+    try { response = m_agentJobsProbe.get(); }
+    catch (const std::exception&) {
+        if (m_agentWorkspace) m_agentWorkspace->SetWorkflowFeedback(wxString::FromUTF8("读取报告失败，请重试。"));
+        return;
+    }
+    eda::agent::ProjectSnapshotState state;
+    if (!m_agentWorkspace || !m_agentGateway || m_agentProjectId != m_agentJobsProject ||
+        !m_agentGateway->ProjectState(m_agentProjectId, state) ||
+        state.request.currentRevision != m_agentJobsRevision) return;
+    if (!response.ok() || !response.data().contains("jobs") || !response.data()["jobs"].is_array()) {
+        m_agentWorkspace->SetWorkflowFeedback(wxString::FromUTF8("读取报告失败，请重试。"));
+        return;
+    }
+    // 终态报告选择：过滤口径在纯 C++ 模型里（成功/失败/超时/取消/拒绝都可被选择，
+    // 只接受当前 revision + 支持的 EDA 能力 + 合法 job_id）。这里只负责渲染与二次校验；
+    // 报告内容本身仍由教学服务核验，宿主不读取、不改写任何报告正文。
+    const auto entries = agent::gui::reports::SelectTerminalJobs(
+        response.data(), m_agentJobsProject, m_agentJobsRevision);
+    // 列表为空不是“不能用报告”：先给出明确反馈，再保留对话框里的
+    // “选中代码讲解（不使用报告）”和“手动输入 Gateway Job ID…”入口。手动输入仍走
+    // 原有的 1..128 / [A-Za-z0-9_-] 校验，并在关闭对话框后重新校验 project/revision；
+    // 是否存在、是否属于本工程本版本由教学服务核验，宿主不猜、不放宽。
+    const bool noSelectableEntries = entries.empty();
+    if (noSelectableEntries) {
+        m_agentWorkspace->SetWorkflowFeedback(
+            wxString::FromUTF8(agent::gui::reports::NoSelectableFeedback().c_str()));
+    }
+    wxArrayString choices;
+    std::vector<std::string> ids;
+    choices.Add(wxString::FromUTF8("选中代码讲解（不使用报告）"));
+    ids.emplace_back();
+    for (const auto& entry : entries) {
+        ids.push_back(entry.jobId);
+        choices.Add(wxString::FromUTF8(entry.display.c_str()));
+    }
+    choices.Add(wxString::FromUTF8("手动输入 Gateway Job ID…"));
+    const wxString dialogMessage = noSelectableEntries
+        ? wxString::FromUTF8("当前工程当前版本没有可列出的终态 Job 报告（成功、失败、超时、取消或拒绝）。"
+                             "你仍可以手动输入已知属于当前工程、当前版本的 Gateway Job ID；"
+                             "该报告是否存在、是否属于本版本，由教学服务核验。")
+        : wxString::FromUTF8("选择当前工程当前版本的终态 Job 报告（成功、失败、超时、取消或拒绝）。报告内容仍会由教学服务核验。");
+    wxSingleChoiceDialog dialog(this, dialogMessage,
+        wxString::FromUTF8("选择教学证据"), choices);
+    if (dialog.ShowModal() != wxID_OK) return;
+    const int selected = dialog.GetSelection();
+    if (selected < 0) return;
+    std::string job;
+    if (static_cast<std::size_t>(selected) < ids.size()) job = ids[selected];
+    else {
+        wxTextEntryDialog manual(this, wxString::FromUTF8("输入当前工程、当前版本的 Gateway Job ID（报告仍会由教学服务核验）。"),
+                                 wxString::FromUTF8("输入 Job ID"));
+        if (manual.ShowModal() != wxID_OK) return;
+        const wxScopedCharBuffer buffer = manual.GetValue().Trim(true).Trim(false).utf8_str();
+        job = buffer.data() ? std::string(buffer.data(), buffer.length()) : std::string();
+    }
+    if (job.size() > 128 || std::any_of(job.begin(), job.end(), [](unsigned char c) {
+            return !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                     (c >= '0' && c <= '9') || c == '-' || c == '_');
+        })) {
+        m_agentWorkspace->SetWorkflowFeedback(wxString::FromUTF8("Job ID 格式无效。"));
+        return;
+    }
+    if (m_agentProjectId != m_agentJobsProject || !m_agentGateway->ProjectState(m_agentProjectId, state) ||
+        state.request.currentRevision != m_agentJobsRevision ||
+        (m_teachingSession && (m_teachingSession->busy() || m_teachingSession->HasTeachingRun()))) return;
+    m_agentEvidenceJob = job;
+    m_agentEvidenceProject = m_agentJobsProject;
+    m_agentEvidenceRevision = m_agentJobsRevision;
+    // 报告教学一律强制从 L1 开始：失败/超时/取消/拒绝报告也不例外。
+    if (!job.empty()) m_agentWorkspace->Model().SetLevel(agent::gui::vm::Level::V1("L1"));
+    SyncAgentWorkspace();
+    std::string message = "已切换为选中代码讲解。";
+    if (!job.empty()) {
+        std::string stateLabel;
+        for (const auto& entry : entries) {
+            if (entry.jobId == job) { stateLabel = entry.stateLabel; break; }
+        }
+        message = "将使用报告 " + job + (stateLabel.empty() ? std::string() : "（" + stateLabel + "）") +
+                  " 作为教学证据，报告教学从 L1 开始。";
+    }
+    m_agentWorkspace->SetWorkflowFeedback(wxString::FromUTF8(message.c_str()));
+}
+
+void MainFrame::PollAgentCapabilities()
+{
+    if (m_agentCapabilitiesProbe.valid() &&
+        m_agentCapabilitiesProbe.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
+        const auto response = m_agentCapabilitiesProbe.get();
+        if (m_agentCapabilitiesGeneration == m_agentClientGeneration && m_agentSidecar &&
+            m_agentSidecar->ready() && response.ok() &&
+            response.envelope["data"].isObject()) {
+            m_agentCapabilities = response.envelope["data"];
+        }
+        m_agentCapabilitiesNext = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    }
+    if (!m_agentCapabilitiesProbe.valid() && !m_agentCapabilities.isObject() &&
+        m_agentApiClient && m_agentSidecar && m_agentSidecar->ready() &&
+        std::chrono::steady_clock::now() >= m_agentCapabilitiesNext) {
+        const auto client = m_agentApiClient;
+        m_agentCapabilitiesGeneration = m_agentClientGeneration;
+        m_agentCapabilitiesProbe = std::async(std::launch::async, [client] { return client->Capabilities(); });
+    }
+}
+
+void MainFrame::HandleAgentResult(const TeachingSessionController::Result& result)
+{
+    if (!m_agentWorkspace || (!m_agentPendingSubmission && !result.teaching)) return;
+    const auto submission = m_agentPendingSubmission;
+    m_agentPendingSubmission = 0;
+    m_agentWorkspace->SetExternalBusy(false);
+    if (!result.teaching && result.state == TeachingSessionController::Result::State::Cancelled) {
+        m_agentWorkspace->NotifySubmissionFinished(submission, false,
+            wxString::FromUTF8("已停止等待；后端可能仍在处理。"));
+        return;
+    }
+    eda::agent::ProjectSnapshotState current;
+    if (!m_agentGateway || !m_agentGateway->ProjectState(m_agentProjectId, current) ||
+        result.generation != m_agentClientGeneration || result.projectId != m_agentProjectId ||
+        result.revision != current.request.currentRevision) {
+        m_agentWorkspace->NotifySubmissionFinished(submission, false,
+            wxString::FromUTF8("工程或服务已切换，旧结果已丢弃。"));
+        return;
+    }
+    if (result.state == TeachingSessionController::Result::State::Failed) {
+        std::string message = result.errorMessage.empty() ? result.errorCode : result.errorMessage;
+        if (message.empty()) message = "教学服务没有返回可用结果。";
+        if (submission && m_agentWorkspace->Model().Draft().empty() && !result.question.empty())
+            m_agentWorkspace->Model().SetDraft(result.question);
+        if (submission) m_agentWorkspace->NotifySubmissionFinished(submission, false,
+            wxString::FromUTF8(message.c_str()));
+        else m_agentWorkspace->SetWorkflowFeedback(wxString::FromUTF8(message.c_str()));
+        if (result.teaching && !result.runId.empty() && !result.data.isObject()) {
+            // 失败结果没有可信状态：只保留“刷新状态/取消”，不显示恢复入口。
+            m_agentWorkspace->SetRecoveryActions(false, false, wxString());
+            m_agentWorkspace->SetWorkflowActions(true, false, false, true,
+                [this](const std::string& action) { RunTeachingAction(action); });
+        }
+        if (!result.data.isObject()) return;
+        // A real terminal failure may still carry its last committed status.
+        if (!result.teaching) return;
+    }
+    agent::gui::vm::RunSnapshot snapshot;
+    std::string error;
+    if (!(result.teaching ? agent::gui::ProjectTeachingRun(result.data, snapshot, error)
+                          : agent::gui::ProjectV1Run(result.data, snapshot, error))) {
+        if (submission) m_agentWorkspace->NotifySubmissionFinished(submission, false, wxString::FromUTF8(error.c_str()));
+        else m_agentWorkspace->SetWorkflowFeedback(wxString::FromUTF8(error.c_str()));
+        return;
+    }
+    auto& model = m_agentWorkspace->Model();
+    if (result.capabilities.isObject()) model.SetCapabilities(agent::gui::ProjectCapabilities(result.capabilities));
+    const auto level = agent::gui::vm::Level::V1(result.level);
+    const bool first = model.BoundSessionId() != result.sessionId || model.BoundRunId() != result.runId;
+    if (first) {
+        if (model.BoundSessionId() == result.sessionId && model.Inflight()) {
+            const auto previous = *model.Inflight();
+            const auto previousCards = model.Cards();
+            for (const auto& card : previousCards) {
+                agent::gui::vm::MessageView history;
+                history.messageId = "answer-" + previous.runId + "-" + card.cardId;
+                history.role = "assistant";
+                history.text = card.title + "\n\n" + card.body;
+                history.runId = previous.runId;
+                history.limitations = card.limitations;
+                model.ApplyMessage(previous, std::move(history));
+            }
+        }
+        if (!model.BindSession(result.projectId, result.revision, result.generation, result.sessionId) ||
+            !model.BeginRun(result.sessionId, result.runId, level)) {
+            if (submission) m_agentWorkspace->NotifySubmissionFinished(submission, false,
+                wxString::FromUTF8("无法绑定当前教学会话。"));
+            else m_agentWorkspace->SetWorkflowFeedback(wxString::FromUTF8("无法绑定当前教学会话。"));
+            return;
+        }
+        agent::gui::vm::MessageView question;
+        question.messageId = "question-" + result.runId;
+        question.role = "user";
+        question.text = result.question.empty() ? m_agentPendingQuestion : result.question;
+        question.runId = result.runId;
+        model.AppendLocalMessage(std::move(question));
+    }
+    const auto frozen = model.Inflight();
+    const auto applied = frozen ? model.ApplyRunResult(*frozen, snapshot) : agent::gui::vm::ApplyResult::Rejected;
+    if (applied != agent::gui::vm::ApplyResult::Applied && applied != agent::gui::vm::ApplyResult::Duplicated) {
+        if (submission) m_agentWorkspace->NotifySubmissionFinished(submission, false,
+            wxString::FromUTF8("教学结果未通过当前会话校验。"));
+        else m_agentWorkspace->SetWorkflowFeedback(wxString::FromUTF8("教学状态未通过当前会话校验。"));
+        return;
+    }
+    if (result.teaching) {
+        const bool terminal = agent::gui::vm::IsTerminal(snapshot.status);
+        const bool waiting = result.state == TeachingSessionController::Result::State::Waiting &&
+                             snapshot.status == agent::gui::vm::RunStatus::WaitingStudent;
+        // 刷新证据只在活跃教学 run 时可见；恢复只在后端报告 RecoveryRequired 时可见/可用。
+        const auto recovery = agent::gui::vm::ProjectRecoveryActions(
+            snapshot.rawStatus, !terminal,
+            m_teachingSession && m_teachingSession->busy());
+        m_agentWorkspace->SetWorkflowActions(!terminal, waiting, waiting, !terminal,
+            [this](const std::string& action) { RunTeachingAction(action); });
+        m_agentWorkspace->SetRecoveryActions(recovery.refreshEvidenceVisible,
+            recovery.recoverVisible,
+            wxString::FromUTF8(recovery.recoverReason.c_str()));
+        const wxString feedback = terminal ? wxString::FromUTF8("教学流程已结束。") :
+            waiting ? wxString::FromUTF8("请查看提示，可继续下一步或完成学习。") :
+                      wxString::FromUTF8("教学流程仍在进行，可刷新或取消。" );
+        if (submission) m_agentWorkspace->NotifySubmissionFinished(submission, true, feedback);
+        else m_agentWorkspace->SetWorkflowFeedback(feedback);
+    } else if (submission) {
+        m_agentWorkspace->SetRecoveryActions(false, false, wxString());
+        m_agentWorkspace->NotifySubmissionFinished(submission, true,
+            wxString::FromUTF8(result.state == TeachingSessionController::Result::State::Degraded
+                ? "当前为规则讲解；模型未回答你的具体问题。" : "讲解已生成，请查看证据与限制。"));
+    } else {
+        m_agentWorkspace->SetRecoveryActions(false, false, wxString());
+    }
+}
+
+void MainFrame::RunTeachingAction(const std::string& action)
+{
+    if (!m_teachingSession || !m_agentWorkspace) return;
+    bool started = false;
+    if (action == "recover") {
+        // 恢复只用当前草稿；空白/非法内容由 controller/client fail-closed，绝不发空问题。
+        const std::string question = m_agentWorkspace->Model().Draft();
+        started = m_teachingSession->RecoverTeaching(question);
+        if (!started) {
+            m_agentWorkspace->SetWorkflowFeedback(wxString::FromUTF8(
+                "请先写下恢复说明：空白或不合规的草稿不会被发送。"));
+            return;
+        }
+    } else if (action == "refresh_evidence") {
+        // 只读动作：POST refresh_evidence，随后由 controller 再 GET 读状态。
+        started = m_teachingSession->RefreshEvidence();
+    } else {
+        started = m_teachingSession->TeachingAction(action);
+    }
+    if (!started) return;
+    m_agentWorkspace->SetExternalBusy(true);
+    m_agentWorkspace->SetWorkflowActions(true, false, false, false, {});
+    m_agentWorkspace->SetWorkflowFeedback(wxString::FromUTF8("正在同步教学状态。"));
 }
 
 void MainFrame::StartTeachingRequest(const std::string& question, const std::string& kind)
@@ -2962,6 +3553,10 @@ void MainFrame::StartTeachingRequest(const std::string& question, const std::str
     request.revision = revision;
     request.question = question;
     request.kind = kind;
+    // 与工作台提交路径同一份投影：先按当前事实刷新，再冻结为请求证据。
+    RefreshAgentDesignContext();
+    request.selection = agent::gui::selection::Resolve(m_agentSelection, request.projectId,
+                                                       request.revision);
     if (!m_teachingSession->Start(m_agentApiClient, m_agentClientGeneration, std::move(request)) &&
         m_terminalCtrl) {
         m_terminalCtrl->PrintOutput("[edu-agent] another teaching request is still running\n");
@@ -2989,6 +3584,30 @@ void MainFrame::RefreshAgentProjectSnapshotState(bool dirty, bool synchronized)
     }
     const bool projectChanged = m_agentProjectId != projectId;
     m_agentProjectId = std::move(projectId);
+    // Resolve tools on the UI thread with the same discovery chain as the
+    // manual FPGA actions (project config, bundled runtime, environment, PATH).
+    // Composer/Gateway workers must consume this trusted result instead of
+    // checking only PATH and incorrectly declaring a bundled Yosys unavailable.
+    eda::agent::ProjectSnapshotState state;
+    if (m_agentGateway->ProjectState(m_agentProjectId, state)) {
+        const auto configured = [&state](const char* key) {
+            return wxString::FromUTF8(
+                state.trustedToolPaths.value(key, std::string()).c_str());
+        };
+        const wxString yosys = FindFpgaTool(configured("yosys_path"), "SIGFLOW_YOSYS", "yosys");
+        if (!yosys.empty()) state.trustedToolPaths["yosys_path"] = sigflow::platform::Utf8String(yosys);
+        const wxString verilator = FindFpgaTool(configured("verilator_path"),
+                                               "SIGFLOW_VERILATOR", "verilator_bin");
+        const wxString bundledVerilator = verilator.empty()
+            ? sigflow::platform::FindBundledVerilatorBinary() : verilator;
+        if (!bundledVerilator.empty())
+            state.trustedToolPaths["verilator_path"] = sigflow::platform::Utf8String(bundledVerilator);
+        if (m_composer) m_composer->SetAgentToolConfig(state.trustedToolPaths);
+        std::string updateError;
+        if (!m_agentGateway->UpdateProjectSnapshotState(state, updateError) && m_terminalCtrl)
+            m_terminalCtrl->PrintOutput("[edu-agent] Tool context unavailable: " +
+                wxString::FromUTF8(updateError.c_str()) + "\n");
+    }
     // NG-08：事件由 Gateway 依据事实生成，UI 不直接拼事件体。
     if (projectChanged) {
         m_agentGateway->NotifyProjectOpened(m_agentProjectId);
@@ -5418,6 +6037,84 @@ void MainFrame::RunTraceBridgeDebugBuild(const TraceBridgeDebugBuildRequest& req
     SetStatusText(wxT("TraceBridge 调试构建已启动"));
 }
 
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+namespace {
+// 快照源清单与工程源文件的比较键：Windows 大小写不敏感，其它平台保持原样。
+std::string AgentSourcePathKey(const std::string& value) {
+#ifdef __WXMSW__
+    std::string key = value;
+    for (char& c : key) {
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
+    return key;
+#else
+    return value;
+#endif
+}
+} // namespace
+
+eda::agent::HostJobBinding MainFrame::PrepareHostSynthesisBinding(const wxString& topModule,
+                                                                  std::string& reason) {
+    reason.clear();
+    eda::agent::HostJobBinding binding;
+    if (!m_agentGateway || m_agentProjectId.empty()) {
+        reason = "agent gateway or project context is unavailable";
+        return binding;
+    }
+    eda::agent::ProjectSnapshotState state;
+    if (!m_agentGateway->ProjectState(m_agentProjectId, state)) {
+        reason = "project context is unavailable";
+        return binding;
+    }
+    // 未保存编辑缓冲不是执行输入：先让用户保存，再由保存路径刷新 revision。
+    if (state.request.dirty) {
+        reason = "the project has unsaved editor changes";
+        return binding;
+    }
+    eda::agent::HostJobBindingRequest request;
+    request.projectId = m_agentProjectId;
+    request.jobType = "synth";
+    request.expectedRevision = state.request.currentRevision;
+    request.topModule = sigflow::platform::Utf8String(topModule);
+    binding = m_agentGateway->PrepareHostJobBinding(request);
+    if (!binding.ok) {
+        reason = binding.error.empty() ? "host binding was refused" : binding.error;
+    }
+    return binding;
+}
+
+bool MainFrame::FreezeHostSynthesisInputs(const eda::agent::HostJobBinding& binding,
+                                          const std::vector<wxString>& sourceFiles,
+                                          std::vector<wxString>& frozenFiles) {
+    frozenFiles.clear();
+    if (!binding.ok || binding.sourceRoot.empty() || binding.sources.empty()) return false;
+    // 只接受快照里登记过的相对路径：路径不在清单里就不是冻结输入。
+    std::map<std::string, std::filesystem::path> byRelative;
+    for (const eda::agent::SnapshotSource& source : binding.sources) {
+        if (source.relativePath.empty()) return false;
+        byRelative[AgentSourcePathKey(source.relativePath)] =
+            binding.sourceRoot / eda::platform::PathFromUtf8(source.relativePath);
+    }
+    std::error_code ec;
+    const std::filesystem::path projectRoot = std::filesystem::weakly_canonical(
+        sigflow::platform::Utf8Path(m_currentProjectPath), ec);
+    if (ec || projectRoot.empty()) return false;
+    for (const wxString& file : sourceFiles) {
+        const std::filesystem::path absolute =
+            std::filesystem::weakly_canonical(sigflow::platform::Utf8Path(file), ec);
+        if (ec || absolute.empty()) return false;
+        const std::filesystem::path relative = absolute.lexically_relative(projectRoot);
+        if (relative.empty() || relative == ".") return false;
+        const auto found =
+            byRelative.find(AgentSourcePathKey(eda::platform::RelativePathToUtf8(relative)));
+        if (found == byRelative.end()) return false;
+        if (!std::filesystem::is_regular_file(found->second, ec) || ec) return false;
+        frozenFiles.push_back(wxString::FromUTF8(eda::platform::PathToUtf8(found->second).c_str()));
+    }
+    return !frozenFiles.empty();
+}
+#endif
+
 void MainFrame::RunFpgaSynthesis()
 {
     if (m_currentProjectPath.IsEmpty()) {
@@ -5513,6 +6210,56 @@ void MainFrame::RunFpgaSynthesis()
     // M2：教育版手动综合经核心 IJobService 提交，与 Agent 共用 Job/报告来源。
     if (m_composer && sigflow::Composer::UseJobService()) {
         std::string submitError;
+        // SF-09：重试沿用原 Job 落盘的执行参数与绑定元数据，绝不重新冻结输入
+        // （否则报告会声称"执行了当前快照"，而实际跑的是旧 Job 记录的输入）。
+        const bool retrying = !m_pendingYosysRetryOf.IsEmpty() &&
+            m_composer->JobService()
+                .get(sigflow::platform::Utf8String(m_pendingYosysRetryOf))
+                .has_value();
+        std::vector<wxString> executionSources = sourceFiles;
+        // 绑定事实只用与 Agent 无关的普通类型跨编译单元传递：
+        //   * metadata/pluginId 写进 JobRequest（CoreJobService 在暴露 job_id 前落盘）；
+        //   * capability/revision/snapshot 只用于终端提示。
+        eda::Json bindingMetadata = eda::Json::object();
+        std::string bindingPluginId;
+        std::string bindingCapability;
+        std::string bindingRevision;
+        std::string bindingSnapshotId;
+        bool bound = false;
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+        eda::agent::HostJobBinding prepared;
+#endif
+        if (!retrying) {
+            // 执行前冻结：已保存 + 已同步 + 当前 revision 的不可变快照。
+            // 绑定失败不阻断综合（保住原有可用性），但这份报告不会进入 Agent
+            // 报告选择——不把没有指纹的 Job 装扮成可信证据。
+            std::string bindingReason;
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+            prepared = PrepareHostSynthesisBinding(topModule, bindingReason);
+            if (prepared.ok) {
+                std::vector<wxString> frozen;
+                if (FreezeHostSynthesisInputs(prepared, sourceFiles, frozen)) {
+                    executionSources = std::move(frozen);
+                    bindingMetadata = prepared.metadata;
+                    bindingPluginId = prepared.pluginId;
+                    bindingCapability = prepared.capability;
+                    bindingRevision = prepared.revision;
+                    bindingSnapshotId = prepared.snapshotId;
+                    bound = true;
+                } else {
+                    prepared = eda::agent::HostJobBinding{};
+                    bindingReason = "not every source file is part of the frozen snapshot";
+                }
+            }
+#else
+            bindingReason = "the educational agent build is disabled";
+#endif
+            if (!bound && m_terminalCtrl) {
+                m_terminalCtrl->PrintOutput(wxString::Format(
+                    "[edu-agent] this synthesis report cannot be selected for teaching: %s\n",
+                    wxString::FromUTF8(bindingReason.c_str())));
+            }
+        }
         eda::Json synthParams{
             {"top_module", sigflow::platform::Utf8String(topModule)},
             {"strategy", sigflow::platform::Utf8String(strategyInfo.id)},
@@ -5523,19 +6270,18 @@ void MainFrame::RunFpgaSynthesis()
             {"output_json", sigflow::platform::Utf8String(
                 JoinPath(yosysDirectory, topModule + ".json"))}};
         eda::Json sources = eda::Json::array();
-        for (const auto& source : sourceFiles) {
+        for (const auto& source : executionSources) {
             sources.push_back(sigflow::platform::Utf8String(source));
         }
         synthParams["source_files"] = sources;
         std::string jobId;
-        if (!m_pendingYosysRetryOf.IsEmpty() &&
-            m_composer->JobService().get(sigflow::platform::Utf8String(m_pendingYosysRetryOf))) {
+        if (retrying) {
             m_composer->JobService().retry(
                 sigflow::platform::Utf8String(m_pendingYosysRetryOf), jobId);
         } else {
             jobId = m_composer->SubmitJob(
                 "synth", sigflow::platform::Utf8String(m_currentProjectPath), synthParams,
-                false, submitError);
+                false, bindingMetadata, bindingPluginId, submitError);
         }
         m_pendingYosysRetryOf.clear();
         if (jobId.empty()) {
@@ -5544,6 +6290,36 @@ void MainFrame::RunFpgaSynthesis()
                          wxOK | wxICON_ERROR, this);
             return;
         }
+#if defined(SIGFLOW_BUILD_EDU_AGENT)
+        if (m_agentGateway) {
+            // 提交后由 Gateway 重新核验落盘记录（schema/工程/revision/快照/插件/冻结输入），
+            // 通过后才登记归属；之后 /jobs、/jobs/{j}/report 与教学报告选择才看得到它。
+            std::string attachError;
+            const bool attached = retrying
+                ? m_agentGateway->RegisterHostJobBindingFromService(jobId, attachError)
+                : (bound && m_agentGateway->AttachHostJobBinding(jobId, prepared, attachError));
+            if (m_terminalCtrl) {
+                if (attached) {
+                    m_terminalCtrl->PrintOutput(wxString::Format(
+                        "[edu-agent] synthesis job %s bound to %s revision %s snapshot %s\n",
+                        wxString::FromUTF8(jobId.c_str()),
+                        wxString::FromUTF8(bindingCapability.c_str()),
+                        wxString::FromUTF8(bindingRevision.c_str()),
+                        wxString::FromUTF8(bindingSnapshotId.c_str())));
+                } else if (bound) {
+                    m_terminalCtrl->PrintOutput(wxString::Format(
+                        "[edu-agent] synthesis job %s was not bound to the current revision: %s\n",
+                        wxString::FromUTF8(jobId.c_str()),
+                        wxString::FromUTF8(attachError.c_str())));
+                } else if (retrying) {
+                    m_terminalCtrl->PrintOutput(wxString::Format(
+                        "[edu-agent] retried synthesis job %s has no verified report binding: %s\n",
+                        wxString::FromUTF8(jobId.c_str()),
+                        wxString::FromUTF8(attachError.c_str())));
+                }
+            }
+        }
+#endif
         m_activeYosysJobId = wxString::FromUTF8(jobId.c_str());
         if (m_fpgaToolWindow && m_fpgaToolWindow->IsShown()) {
             m_fpgaToolWindow->SetProjectContext(m_currentProjectPath, m_activeYosysJobId);

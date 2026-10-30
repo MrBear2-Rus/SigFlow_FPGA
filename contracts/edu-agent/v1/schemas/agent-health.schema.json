@@ -39,7 +39,9 @@
           "type": ["string", "null"],
           "description": "模型端点（配置值或 null）；绝不含 API Key。"
         },
-        "reason": { "type": "string" }
+        "reason": { "type": "string" },
+        "model": { "type": ["string", "null"] },
+        "limits": { "type": "object", "additionalProperties": { "type": ["integer", "number"] } }
       }
     }
   }

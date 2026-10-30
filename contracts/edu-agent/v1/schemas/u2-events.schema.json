@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "edu-agent/v1/schemas/u2-events.schema.json",
+  "title": "u2.host.v1 event page",
+  "type": "object",
+  "required": [
+    "events",
+    "high_watermark"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "sequence",
+          "action_id",
+          "state_version",
+          "status"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "sequence": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9223372036854775807
+          },
+          "action_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state_version": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,18})$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Running",
+              "WaitingStudent",
+              "WaitingEvidence",
+              "WaitingApproval",
+              "RecoveryRequired",
+              "Completed",
+              "Cancelled",
+              "Failed",
+              "BudgetExceeded"
+            ]
+          }
+        }
+      },
+      "maxItems": 100
+    },
+    "high_watermark": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9223372036854775807
+    }
+  },
+  "description": "Private u2.host.v1: sequence/high_watermark are JSON integers; state_version is a decimal string. Page with last returned sequence, not high_watermark. after/limit query values are canonical decimal strings. Cursor ahead/expired returns 410; changing numeric sequence to string requires a new extension major."
+}

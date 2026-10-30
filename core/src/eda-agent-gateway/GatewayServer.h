@@ -62,6 +62,48 @@ struct ProjectSnapshotState {
     Json trustedToolPaths = Json::object();
 };
 
+// SF-09：宿主（GUI 手动流程）发起的普通 Job 的可信绑定。
+//
+// 为什么需要它：手动 FPGA 综合走 `Composer::SubmitJob("synth", ...)`，Job 记录只有
+// job_id/job_type/state/artifacts/metrics，没有 project/revision/snapshot 归属。
+// 于是 Gateway 的报告路由不认识它，报告选择器也不会出现 `eda.synth`，教学服务只能
+// 回 "current engineering evidence unavailable"。
+//
+// 设计边界（不得放宽）：
+//   * 绑定只由宿主（UI 线程）在**提交前**申请：Gateway 冻结当前已保存、已同步的
+//     revision 的不可变快照，并把快照事实写进 `JobRequest.metadata`；
+//   * 宿主 Job 不是 Agent Job：绑定里没有 grant/plan/step，也绝不由 Agent 提供参数或
+//     路径；`metadata` 只含 opaque project/snapshot/revision/指纹与已就绪插件 id；
+//   * 提交后必须由 Gateway 重新核验落盘记录（schema、project/revision/snapshot、
+//     插件 id、以及 source_files 全部落在该快照副本内）才登记归属；核验不过就**不登记**，
+//     报告仍是“证据不足”，不会冒充当前 revision 的可信证据；
+//   * dirty / 未同步 / 旧 revision / 跨工程一律拒绝（返回 ok=false + machine-readable
+//     reason），调用方据此退回普通（无绑定）执行，不伪造证据。
+struct HostJobBindingRequest {
+    std::string projectId;
+    std::string jobType;          // 教育能力映射到的真实 jobType（当前仅 "synth"）
+    std::string expectedRevision; // 必须是当前 revision
+    std::string topModule;        // 必须与冻结快照的 top 一致
+};
+
+struct HostJobBinding {
+    bool ok = false;
+    std::string error;  // machine-readable：DIRTY_PROJECT / STALE_REVISION / ...
+    std::string projectId;
+    std::string revision;
+    std::string snapshotId;
+    std::string inputFingerprint;
+    std::string jobType;
+    std::string capability;
+    std::string pluginId;
+    std::string pluginVersion;
+    // 宿主专用（绝不进入报告/列表/事件）：快照副本根目录与源清单。
+    std::filesystem::path sourceRoot;
+    std::vector<SnapshotSource> sources;
+    // 写入 JobRequest.metadata 的绑定事实（不含任何本机绝对路径）。
+    Json metadata = Json::object();
+};
+
 // 最小 EDA Gateway：绑定 127.0.0.1，提供 GET /api/v1/health、GET /api/v1/capabilities。
 // HTTP worker 只访问不可变 DTO / 线程安全 provider，不触碰 wx。
 class GatewayServer {
@@ -97,6 +139,20 @@ public:
 
     // SF-06：宿主在 Job 产出 artifact 后登记（只读元数据 / 受限内容）。
     void RegisterArtifact(const ArtifactRecord& record);
+
+    // SF-09：手动流程（如 FPGA 综合）在执行前申请可信绑定。
+    // 成功时返回的 `metadata` 必须原样写进 JobRequest.metadata，且宿主必须用
+    // `sourceRoot`/`sources` 把执行输入替换为该快照副本（冻结输入），再调用
+    // AttachHostJobBinding 登记归属。失败（dirty/未同步/旧 revision/跨工程/无就绪
+    // provider）返回 ok=false，调用方按“无绑定”继续，绝不伪造。
+    HostJobBinding PrepareHostJobBinding(const HostJobBindingRequest& request);
+    // 提交后登记：核对 Job 落盘记录里的绑定元数据与 prepared 一致，并重新核验快照，
+    // 之后才把该 Job 纳入 /jobs、/jobs/{j}/report 与事件源。
+    bool AttachHostJobBinding(const std::string& jobId, const HostJobBinding& prepared,
+                             std::string& error);
+    // 从落盘记录重建宿主绑定（重试 Job、进程重启恢复共用）。不属于该工程的记录、
+    // 元数据不完整或执行输入不在冻结快照内的 Job 一律拒绝登记。
+    bool RegisterHostJobBindingFromService(const std::string& jobId, std::string& error);
 
     // SF-05：清理快照。活跃引用（agent job 绑定 + active grant + 当前 revision 的快照）
     // 固定保留；其余按 keepRecent/maxAgeSeconds 清理。返回删除数量。

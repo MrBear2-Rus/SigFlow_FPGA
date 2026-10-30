@@ -32,6 +32,21 @@ def _cursor(value):
     return int(value)
 
 
+def _action_body(handler):
+    """Translate the public host action contract to the shared-core port.
+
+    The desktop/native host wire uses expected_version. SharedTeachingAdapter
+    deliberately has a separate in-process DTO using expected_state_version.
+    Do not expose that implementation detail or accept both keys on HTTP.
+    """
+    body = dict(handler._read_json_body())
+    if 'expected_version' not in body or 'expected_state_version' in body:
+        raise AgentError('INVALID_ARGUMENT','expected_version is required',http_status=400)
+    _cursor(body['expected_version'])
+    body['expected_state_version'] = body.pop('expected_version')
+    return body
+
+
 def dispatch(handler,method,path):
     service=handler.state.config.teaching
     if not path.startswith(PREFIX+'/') or service is None:return False
@@ -63,7 +78,7 @@ def dispatch(handler,method,path):
             if method=='GET' and not route:
                 handler._respond_data(200,service.project(rid,learner));return True
             if method=='POST' and route=='actions':
-                handler._respond_data(202,service.action(rid,learner,dict(handler._read_json_body())));return True
+                handler._respond_data(202,service.action(rid,learner,_action_body(handler)));return True
             if method=='POST' and route=='cancel':
                 if handler._read_json_body():
                     raise AgentError('INVALID_ARGUMENT','cancel body must be empty',http_status=400)

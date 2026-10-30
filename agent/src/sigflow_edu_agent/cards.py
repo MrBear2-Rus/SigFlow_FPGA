@@ -205,6 +205,7 @@ def build_diagnostic_card(
     state_version: str,
     report_ref: Mapping[str, Any],
     source: str = "rule",
+    waveform_evidence: Optional[Mapping[str, Any]] = None,
 ) -> dict[str, Any]:
     """Build a ``diagnostic_explanation`` card for one tool diagnostic.
 
@@ -259,6 +260,8 @@ def build_diagnostic_card(
             "note": "该诊断所属的归一化 Job 报告",
         },
     ]
+    if waveform_evidence is not None:
+        evidence.append(deepcopy(dict(waveform_evidence)))
     location_text = _format_location(location)
     body_lines = [
         "工具在 %s 阶段报告了一条 %s 级诊断："
@@ -289,6 +292,7 @@ def build_diagnostic_card(
         "limitations": [
             "本卡片只复述工具报告的字段；报告没有给出的根因不作补充推断。",
             "报告的可信度受其 completeness/origin 限制，请对照 /health 与报告字段自行判断。",
+            "波形证据只覆盖标明的信号和时间窗口，不能由静态诊断或窗口外行为证明时序逻辑正确。",
         ],
         "expired": False,
         "state_version": state_version,
@@ -304,6 +308,7 @@ def build_insufficient_evidence_card(
     reasons: Sequence[str],
     state_version: str,
     level: str = "L1",
+    waveform_evidence: Optional[Mapping[str, Any]] = None,
 ) -> dict[str, Any]:
     """Build a ``source: "rule"`` card that refuses to draw a conclusion.
 
@@ -338,6 +343,8 @@ def build_insufficient_evidence_card(
     ]
     if selection.source_id or selection.node_id:
         evidence.append(source_ref_evidence(selection, "报告关联的选中片段"))
+    if waveform_evidence is not None:
+        evidence.append(deepcopy(dict(waveform_evidence)))
     card = {
         "card_id": card_id,
         "kind": "rule",
@@ -350,6 +357,7 @@ def build_insufficient_evidence_card(
         "course_refs": [],
         "limitations": [
             "本卡片拒绝给出结论，因为报告的可信度不足；这不是“无问题”的证明。",
+            "波形证据只覆盖标明的信号和时间窗口，不能修复报告本身的完整性不足。",
         ],
         "expired": False,
         "state_version": state_version,
@@ -425,6 +433,8 @@ class PlanStep:
     description: str
     params: dict[str, Any] = field(default_factory=dict)
     depends_on: tuple[str, ...] = ()
+    enabled: bool = True
+    disabled_reason: str = ""
 
 
 def build_plan_card(
@@ -464,6 +474,9 @@ def build_plan_card(
                 "params": deepcopy(dict(step.params)),
                 "depends_on": list(step.depends_on),
                 "max_jobs": 1,
+                "enabled": bool(step.enabled),
+                **({"disabled_reason": step.disabled_reason.strip()}
+                   if not step.enabled else {}),
             }
             for step in steps
         ],
@@ -517,6 +530,15 @@ def validate_plan_card(card: Mapping[str, Any]) -> None:
             raise ValueError("plan card step capability is not educational: %r" % capability)
         if not isinstance(step.get("description"), str) or not step["description"].strip():
             raise ValueError("plan card step description must be a non-empty string")
+        enabled = step.get("enabled", True)
+        if not isinstance(enabled, bool):
+            raise ValueError("plan card step enabled must be a boolean")
+        if enabled:
+            if "disabled_reason" in step:
+                raise ValueError("an enabled plan step cannot carry disabled_reason")
+        elif (not isinstance(step.get("disabled_reason"), str)
+              or not step["disabled_reason"].strip()):
+            raise ValueError("a disabled plan step must explain why it is unavailable")
         _validate_plan_params(step.get("params"))
         depends_on = step.get("depends_on")
         if (not isinstance(depends_on, list)

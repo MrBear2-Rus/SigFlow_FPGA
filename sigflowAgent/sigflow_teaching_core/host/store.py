@@ -127,8 +127,9 @@ def _checkpoint(payload):
 
 
 class DurableStore:
-    def __init__(self, path, instance_id):
+    def __init__(self, path, instance_id, *, rebind=False):
         self.instance_id = _text(instance_id)
+        self.rebind = bool(rebind)
         self._mutex = RLock()
         self._db = None
         self._lock_file = None
@@ -136,6 +137,10 @@ class DurableStore:
         self._closed = False
         try:
             self.path = Path(path).resolve()
+            # The path is the stable workspace anchor.  instance_id remains a
+            # transient process owner and is deliberately excluded from this
+            # identity so a restarted host can discover the same sessions.
+            self.workspace_id = 'ws-' + hashlib.sha256(str(self.path.parent).encode('utf-8')).hexdigest()[:24]
             self.path.parent.mkdir(parents=True, exist_ok=True)
             self._lock_file = open(str(self.path) + '.lock', 'a+b')
             self._lock_file.seek(0, os.SEEK_END)
@@ -192,7 +197,25 @@ class DurableStore:
             db.execute('CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)')
             row = db.execute("SELECT value FROM metadata WHERE key = 'instance_id'").fetchone()
             if row is not None and row['value'] != self.instance_id:
-                raise StoreError('instance_conflict')
+                if not self.rebind:
+                    raise StoreError('instance_conflict')
+                previous_instance = row['value']
+                # Rebind persisted ownership to this process before loading
+                # rows.  Non-terminal rows are still quarantined below, so a
+                # new instance never resumes an unknown execution.
+                rows = db.execute('SELECT session_id, binding FROM sessions').fetchall()
+                for stored in rows:
+                    try:
+                        binding = json.loads(stored['binding'])
+                    except (TypeError, ValueError, json.JSONDecodeError):
+                        raise StoreError('state_corrupt') from None
+                    if (type(binding) is not dict or
+                            binding.get('instance_id') != previous_instance):
+                        raise StoreError('state_corrupt')
+                    binding['instance_id'] = self.instance_id
+                    db.execute('UPDATE sessions SET binding = ? WHERE session_id = ?',
+                               (json.dumps(binding, sort_keys=True, separators=(',', ':')), stored['session_id']))
+                db.execute("UPDATE metadata SET value = ? WHERE key = 'instance_id'", (self.instance_id,))
             db.execute("INSERT OR IGNORE INTO metadata VALUES ('instance_id', ?)", (self.instance_id,))
             db.execute('''CREATE TABLE IF NOT EXISTS sessions (
                 session_id TEXT PRIMARY KEY, binding TEXT NOT NULL,
