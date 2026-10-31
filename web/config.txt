@@ -1,0 +1,46 @@
+# SigFlow Web 平台运行时默认值
+#
+# 读取方：backend/nodejs 主进程（启动时读一次）。
+# C++ 工具进程不直接读本文件，由 node 以命令行参数下发；单独运行时用内置缺省值。
+# 格式：key = value，一行一条；# 开头为注释；值留空表示"不设置 / 自动发现"。
+# 开发阶段数值均为占位，后续按调研数据调整。
+
+[server]
+listen_host = 127.0.0.1
+listen_port = 8080
+
+[jobs]
+# 全局并发上限 / 单用户并发上限。超出的任务停在 Queued，由 node 排队。
+max_concurrent_global = 4
+max_concurrent_per_user = 2
+# 单任务默认超时，0 = 不超时（由用户手动取消）。
+default_timeout_sec = 0
+# 前端日志尾部保留字节数 / 单任务输出总量上限。
+log_tail_bytes = 262144
+max_output_bytes = 8388608
+
+[wave]
+# 每个用户会话一个波形 worker；空闲多久回收（0 = 不回收，随会话退出）。
+worker_idle_timeout_sec = 1800
+# worker 内最多同时缓存的 VCD 数量。
+max_open_traces = 4
+
+[devices]
+# 设备租约等待秒数；0 = 立即返回 DEVICE_BUSY，由 node 排队重试。
+lease_wait_sec = 0
+
+[tools]
+# 工具路径覆盖；留空则按 配置 → 环境变量 → PATH 查找。
+yosys =
+nextpnr =
+gowin_pack =
+openfpgaloader =
+verilator =
+
+[agent]
+# Python agent 解释器；正文由 node 以固定 bootstrap 记录经 stdin 下发。
+python = python3
+# 崩溃重启退避基数（秒），实际按 1x/2x/4x 递增。
+restart_backoff_sec = 1
+# 健康轮询间隔（秒）。
+health_poll_sec = 5

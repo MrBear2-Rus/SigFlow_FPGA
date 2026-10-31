@@ -1,0 +1,16 @@
+{
+  "name": "sigflow-web-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SigFlow Web 平台主进程：HTTP/会话、Job 调度、设备租约、波形 worker、Python agent 托管",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test test/"
+  },
+  "dependencies": {}
+}

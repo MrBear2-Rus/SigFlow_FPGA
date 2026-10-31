@@ -17,6 +17,18 @@
 #include <thread>
 #include <vector>
 
+#include <cstdlib>   // setenv / _putenv_s
+
+namespace {
+inline int setEnvVar(const char* name, const char* value) {
+#ifdef _WIN32
+    return _putenv_s(name, value);
+#else
+    return ::setenv(name, value, 1);   // 1 = 覆盖已存在的变量
+#endif
+}
+}  // namespace
+
 namespace fs = std::filesystem;
 using namespace std::chrono_literals;
 
@@ -123,8 +135,8 @@ int main() {
         fs::create_directories(fakeShell.parent_path(), cleanupError);
         std::ofstream(fakePython, std::ios::binary) << "fake python";
         std::ofstream(fakeShell, std::ios::binary) << "fake sh";
-        _putenv_s("SIGFLOW_PYTHON3", fakePython.string().c_str());
-        _putenv_s("SIGFLOW_SH", fakeShell.string().c_str());
+        setEnvVar("SIGFLOW_PYTHON3", fakePython.string().c_str());
+        setEnvVar("SIGFLOW_SH", fakeShell.string().c_str());
     }
 
     {

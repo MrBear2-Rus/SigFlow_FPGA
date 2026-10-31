@@ -1,0 +1,379 @@
+# =============================================================================
+# SigFlow Web 平台 —— 唯一构建文件
+#
+# 一个项目只有一个 CMakeLists.txt：本文件声明全部目标。
+# 执行方式永远是：
+#     cmake -S web -B build/web
+#     cmake --build build/web -j
+#
+# 分三段：
+#   A. 工程、路径、选项、编译规则
+#   B. C++ 目标（third_party → api → platform/core → plugins → analysis/debug/trace → cli）
+#   C. JS 便捷目标、测试与安装
+#
+# 约定：
+#   * 只面向 Linux；不联网、不用 FetchContent、不编译 yosys/nextpnr 等外部工具；
+#   * 不出现全局 include_directories() / link_libraries()，依赖一律写在 target 上；
+#   * 每个模块用 sigflow_add_module() 一行声明，源文件按目录 GLOB（迁移期目录为空
+#     时自动退化为 INTERFACE 目标，任何阶段都能 configure + build）。
+# =============================================================================
+cmake_minimum_required(VERSION 3.21)
+
+project(SigFlowWeb LANGUAGES C CXX VERSION 0.1.0)
+
+# -----------------------------------------------------------------------------
+# A-1. 路径
+# -----------------------------------------------------------------------------
+set(SIGFLOW_WEB_DIR       "${CMAKE_CURRENT_SOURCE_DIR}")
+set(SIGFLOW_CPP_DIR       "${SIGFLOW_WEB_DIR}/backend/cpp")
+set(SIGFLOW_JS_DIR        "${SIGFLOW_WEB_DIR}/backend/nodejs")
+set(SIGFLOW_FRONTEND_DIR  "${SIGFLOW_WEB_DIR}/frontend")
+set(SIGFLOW_STATIC_DIR    "${SIGFLOW_WEB_DIR}/backend/static")
+
+# -----------------------------------------------------------------------------
+# A-2. 选项
+# -----------------------------------------------------------------------------
+set(SIGFLOW_DATA_DIR "${SIGFLOW_STATIC_DIR}"
+    CACHE PATH "运行时静态资源（target-profiles / rtl），C++ 侧通过 --data-dir 取得")
+
+set(SIGFLOW_TOOL_RUNTIME_DIR "" CACHE PATH
+    "预置 FPGA 工具链 runtime 根目录（yosys/nextpnr/apicula/verilator/openFPGALoader）")
+
+option(SIGFLOW_BUILD_TESTS     "构建 C++ 冒烟测试"                    ON)
+option(SIGFLOW_ENABLE_FTDI     "启用 libftdi 直连传输（需要 libftdi1）" ON)
+option(SIGFLOW_STRICT_WARNINGS "开启 -Wall -Wextra"                    ON)
+
+if(NOT UNIX OR APPLE)
+    message(FATAL_ERROR "本工程只面向 Linux 部署；Windows/macOS 分支已按设计移除。")
+endif()
+
+# -----------------------------------------------------------------------------
+# A-3. 语言标准与编译选项
+# -----------------------------------------------------------------------------
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_EXTENSIONS OFF)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "构建类型" FORCE)
+endif()
+
+if(SIGFLOW_STRICT_WARNINGS)
+    add_compile_options(
+        -Wall
+        -Wextra
+        -Wno-unused-parameter     # 冻结接口里有占位参数
+        -Werror=return-type
+    )
+endif()
+
+# -----------------------------------------------------------------------------
+# A-4. 模块辅助函数
+#
+#   sigflow_add_module(<name> DIR <相对目录> [DEPS ...] [INCLUDE_DIRS ...] [DEFINES ...])
+#
+# 头文件搜索根（与原工程 include 约定一致，保证源码可原样复制）：
+#   <模块目录>              "#include "Xxx.h""
+#   <模块目录>/include      插件的私有头（原 InnerPlugin/<name>/include）
+#   backend/cpp/include     冻结契约 <eda/api/...>
+#   backend/cpp/src         跨模块 "eda-core/JobService.h"
+# -----------------------------------------------------------------------------
+function(sigflow_module_include_dirs TARGET SCOPE DIR)
+    target_include_directories(${TARGET} ${SCOPE}
+        "${DIR}"
+        "${DIR}/include"
+        "${SIGFLOW_CPP_DIR}/include"
+        "${SIGFLOW_CPP_DIR}/src"
+        ${ARGN}
+    )
+endfunction()
+
+function(sigflow_add_module NAME)
+    cmake_parse_arguments(ARG "" "DIR" "DEPS;INCLUDE_DIRS;DEFINES" ${ARGN})
+    if(NOT ARG_DIR)
+        message(FATAL_ERROR "sigflow_add_module(${NAME}): DIR 必填")
+    endif()
+
+    set(_dir "${SIGFLOW_CPP_DIR}/${ARG_DIR}")
+    file(GLOB_RECURSE _sources CONFIGURE_DEPENDS "${_dir}/*.c" "${_dir}/*.cpp")
+
+    if(_sources)
+        add_library(${NAME} STATIC ${_sources})
+        sigflow_module_include_dirs(${NAME} PUBLIC "${_dir}" ${ARG_INCLUDE_DIRS})
+        target_compile_features(${NAME} PUBLIC cxx_std_20)
+        if(ARG_DEPS)
+            target_link_libraries(${NAME} PUBLIC ${ARG_DEPS})
+        endif()
+        if(ARG_DEFINES)
+            target_compile_definitions(${NAME} PUBLIC ${ARG_DEFINES})
+        endif()
+        list(LENGTH _sources _source_count)
+        message(STATUS "[sigflow] ${NAME}: ${_source_count} 个源文件 (${ARG_DIR})")
+    else()
+        add_library(${NAME} INTERFACE)
+        sigflow_module_include_dirs(${NAME} INTERFACE "${_dir}" ${ARG_INCLUDE_DIRS})
+        target_compile_features(${NAME} INTERFACE cxx_std_20)
+        if(ARG_DEPS)
+            target_link_libraries(${NAME} INTERFACE ${ARG_DEPS})
+        endif()
+        if(ARG_DEFINES)
+            target_compile_definitions(${NAME} INTERFACE ${ARG_DEFINES})
+        endif()
+        message(STATUS "[sigflow] ${NAME}: ${ARG_DIR} 暂无源文件，暂为 INTERFACE（等待迁移）")
+    endif()
+endfunction()
+
+# =============================================================================
+# B. C++ 目标
+# =============================================================================
+
+# ---- B-1. 第三方（源码直编，随 web/ 分发，不联网）--------------------------
+# 布局保证原代码的 #include 不用改：
+#   third_party/json/json.h        -> <json/json.h>
+#   third_party/vcd/vcd.h          -> <vcd/vcd.h>
+#   third_party/nlohmann/...       -> <nlohmann/json.hpp>
+#   third_party/tree-sitter/lib/include/tree_sitter/api.h
+#   third_party/tree-sitter/tree-sitter-verilog/src/parser.c
+set(SIGFLOW_TP_DIR "${SIGFLOW_CPP_DIR}/third_party")
+set(SIGFLOW_TS_LIB "${SIGFLOW_TP_DIR}/tree-sitter/lib")
+set(SIGFLOW_TS_VERILOG "${SIGFLOW_TP_DIR}/tree-sitter/tree-sitter-verilog")
+
+file(GLOB _json_sources CONFIGURE_DEPENDS "${SIGFLOW_TP_DIR}/json/*.cpp")
+if(_json_sources)
+    add_library(sigflow_jsoncpp STATIC ${_json_sources})
+    target_include_directories(sigflow_jsoncpp PUBLIC "${SIGFLOW_TP_DIR}")
+else()
+    add_library(sigflow_jsoncpp INTERFACE)
+    target_include_directories(sigflow_jsoncpp INTERFACE "${SIGFLOW_TP_DIR}")
+    message(STATUS "[sigflow] sigflow_jsoncpp: 尚未迁入 third_party/json/")
+endif()
+
+add_library(sigflow_nlohmann INTERFACE)
+target_include_directories(sigflow_nlohmann INTERFACE "${SIGFLOW_TP_DIR}")
+target_compile_features(sigflow_nlohmann INTERFACE cxx_std_20)
+
+file(GLOB _vcd_sources CONFIGURE_DEPENDS "${SIGFLOW_TP_DIR}/vcd/*.cpp")
+if(_vcd_sources)
+    add_library(sigflow_vcd STATIC ${_vcd_sources})
+    target_include_directories(sigflow_vcd PUBLIC "${SIGFLOW_TP_DIR}")
+else()
+    add_library(sigflow_vcd INTERFACE)
+    target_include_directories(sigflow_vcd INTERFACE "${SIGFLOW_TP_DIR}")
+    message(STATUS "[sigflow] sigflow_vcd: 尚未迁入 third_party/vcd/")
+endif()
+
+file(GLOB _ts_sources CONFIGURE_DEPENDS "${SIGFLOW_TS_LIB}/src/lib.c")
+if(_ts_sources)
+    add_library(sigflow_tree_sitter STATIC ${_ts_sources})
+    target_include_directories(sigflow_tree_sitter PUBLIC
+        "${SIGFLOW_TS_LIB}/include"
+        "${SIGFLOW_TS_LIB}/src"
+    )
+    target_compile_definitions(sigflow_tree_sitter PRIVATE _GNU_SOURCE)
+else()
+    add_library(sigflow_tree_sitter INTERFACE)
+    message(STATUS "[sigflow] sigflow_tree_sitter: 尚未迁入 third_party/tree-sitter/lib/")
+endif()
+
+file(GLOB _tsv_sources CONFIGURE_DEPENDS "${SIGFLOW_TS_VERILOG}/src/parser.c")
+if(_tsv_sources)
+    add_library(sigflow_tree_sitter_verilog STATIC ${_tsv_sources})
+    target_include_directories(sigflow_tree_sitter_verilog PUBLIC "${SIGFLOW_TS_VERILOG}/src")
+    # parser.c 是 47MB 生成代码，-O1 足够，-O2 会把编译时间拉长数倍。
+    target_compile_options(sigflow_tree_sitter_verilog PRIVATE -O1)
+    target_link_libraries(sigflow_tree_sitter_verilog PUBLIC sigflow_tree_sitter)
+else()
+    add_library(sigflow_tree_sitter_verilog INTERFACE)
+    message(STATUS "[sigflow] sigflow_tree_sitter_verilog: 尚未迁入 Verilog 语法")
+endif()
+
+# ---- B-2. 冻结契约（backend/cpp/include/eda/api）---------------------------
+add_library(sigflow_api INTERFACE)
+target_include_directories(sigflow_api INTERFACE "${SIGFLOW_CPP_DIR}/include")
+target_compile_features(sigflow_api INTERFACE cxx_std_20)
+target_link_libraries(sigflow_api INTERFACE sigflow_nlohmann)
+
+# ---- B-3. 平台层与内核 ------------------------------------------------------
+# eda-platform: 进程托管(POSIX)/动态库/sha256/路径
+sigflow_add_module(sigflow_platform
+    DIR src/eda-platform
+    DEPS sigflow_api
+)
+
+# eda-core: 日志/工具发现/单任务执行器/报告落盘
+#   不迁 PluginHost、EventBus、CommandBus、SchemaRegistry、Project（详见 README 3.2）
+sigflow_add_module(sigflow_core
+    DIR src/eda-core
+    DEPS sigflow_platform sigflow_jsoncpp
+)
+
+# ---- B-4. 八个工具模块 ------------------------------------------------------
+sigflow_add_module(sigflow_plugin_synth
+    DIR src/plugins/synth-yosys
+    DEPS sigflow_core
+)
+sigflow_add_module(sigflow_plugin_pnr
+    DIR src/plugins/pnr-nextpnr
+    DEPS sigflow_core
+)
+sigflow_add_module(sigflow_plugin_pack
+    DIR src/plugins/pack-gowin
+    DEPS sigflow_core
+)
+sigflow_add_module(sigflow_plugin_flash
+    DIR src/plugins/program-openfpgaloader
+    DEPS sigflow_core
+)
+sigflow_add_module(sigflow_plugin_sim
+    DIR src/plugins/sim-verilator
+    DEPS sigflow_core
+)
+sigflow_add_module(sigflow_plugin_target
+    DIR src/plugins/target-tangnano9k
+    DEPS sigflow_core
+)
+sigflow_add_module(sigflow_plugin_cst
+    DIR src/plugins/cst-gowin-cst
+    DEPS sigflow_core sigflow_plugin_target
+)
+sigflow_add_module(sigflow_plugin_wave
+    DIR src/plugins/wave-vcd
+    DEPS sigflow_core sigflow_vcd
+)
+
+# ---- B-5. 分析与宿主侧模块 --------------------------------------------------
+# analysis: 结构树 / 语法诊断（tree-sitter），供 cli 的 structure|lint 使用
+sigflow_add_module(sigflow_analysis
+    DIR src/analysis
+    DEPS sigflow_core sigflow_tree_sitter sigflow_tree_sitter_verilog
+)
+
+# trace: 波形查询 / sidecar 索引
+sigflow_add_module(sigflow_trace
+    DIR src/trace
+    DEPS sigflow_core sigflow_vcd
+)
+
+# debug: TraceBridge 采集/传输/分析；libftdi 可选
+set(_debug_deps sigflow_core)
+set(_debug_includes "")
+set(_debug_defines "")
+if(SIGFLOW_ENABLE_FTDI)
+    find_path(SIGFLOW_FTDI_INCLUDE_DIR NAMES libftdi1/ftdi.h)
+    find_library(SIGFLOW_FTDI_LIBRARY NAMES ftdi1)
+    if(SIGFLOW_FTDI_INCLUDE_DIR AND SIGFLOW_FTDI_LIBRARY)
+        list(APPEND _debug_deps "${SIGFLOW_FTDI_LIBRARY}")
+        list(APPEND _debug_includes "${SIGFLOW_FTDI_INCLUDE_DIR}")
+        list(APPEND _debug_defines SIGFLOW_HAVE_LIBFTDI=1)
+        message(STATUS "[sigflow] libftdi 直连传输: 启用 (${SIGFLOW_FTDI_LIBRARY})")
+    else()
+        message(STATUS "[sigflow] libftdi 直连传输: 未找到，回退到串口")
+    endif()
+endif()
+sigflow_add_module(sigflow_debug
+    DIR src/debug
+    DEPS ${_debug_deps}
+    INCLUDE_DIRS ${_debug_includes}
+    DEFINES ${_debug_defines}
+)
+
+# ---- B-6. 可执行：sigflow-tool ---------------------------------------------
+# 唯一 C++ 产物；无状态、一次性；子命令见 README 3.5。
+file(GLOB_RECURSE _cli_sources CONFIGURE_DEPENDS "${SIGFLOW_CPP_DIR}/src/cli/*.cpp")
+if(_cli_sources)
+    add_executable(sigflow-tool ${_cli_sources})
+    target_link_libraries(sigflow-tool PRIVATE
+        sigflow_analysis
+        sigflow_debug
+        sigflow_trace
+        sigflow_plugin_synth
+        sigflow_plugin_pnr
+        sigflow_plugin_pack
+        sigflow_plugin_flash
+        sigflow_plugin_sim
+        sigflow_plugin_target
+        sigflow_plugin_cst
+        sigflow_plugin_wave
+    )
+    target_include_directories(sigflow-tool PRIVATE
+        "${SIGFLOW_CPP_DIR}/include"
+        "${SIGFLOW_CPP_DIR}/src"
+    )
+    target_compile_definitions(sigflow-tool PRIVATE
+        SIGFLOW_TOOL_VERSION="${PROJECT_VERSION}"
+        SIGFLOW_DEFAULT_DATA_DIR="${SIGFLOW_DATA_DIR}"
+        SIGFLOW_TOOL_RUNTIME_DIR="${SIGFLOW_TOOL_RUNTIME_DIR}"
+    )
+    set_target_properties(sigflow-tool PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+    message(STATUS "[sigflow] sigflow-tool: 可执行目标已生成")
+else()
+    message(STATUS "[sigflow] sigflow-tool: src/cli 暂无源文件，跳过可执行目标")
+endif()
+
+# =============================================================================
+# C. JS、测试与安装
+# =============================================================================
+
+# ---- C-1. C++ 冒烟测试 ------------------------------------------------------
+if(SIGFLOW_BUILD_TESTS)
+    enable_testing()
+    file(GLOB _test_sources CONFIGURE_DEPENDS "${SIGFLOW_CPP_DIR}/tests/test_*.cpp")
+    if(_test_sources)
+        foreach(_test_source IN LISTS _test_sources)
+            get_filename_component(_test_name "${_test_source}" NAME_WE)
+            add_executable(${_test_name} "${_test_source}")
+            target_link_libraries(${_test_name} PRIVATE
+                sigflow_analysis sigflow_debug sigflow_trace
+                sigflow_plugin_synth sigflow_plugin_pnr sigflow_plugin_pack
+                sigflow_plugin_flash sigflow_plugin_sim sigflow_plugin_target
+                sigflow_plugin_cst sigflow_plugin_wave)
+            add_test(NAME ${_test_name} COMMAND ${_test_name})
+            set_target_properties(${_test_name} PROPERTIES
+                RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+        endforeach()
+    else()
+        message(STATUS "[sigflow] tests: 暂无测试源文件")
+    endif()
+endif()
+
+# ---- C-2. JS 便捷目标（只做调度，不接管 JS 的依赖与构建）-------------------
+find_program(SIGFLOW_NODE_EXECUTABLE NAMES node)
+if(SIGFLOW_NODE_EXECUTABLE)
+    add_custom_target(web_js_test
+        COMMAND "${SIGFLOW_NODE_EXECUTABLE}" --test "${SIGFLOW_JS_DIR}/test/"
+        WORKING_DIRECTORY "${SIGFLOW_JS_DIR}"
+        COMMENT "运行 Node 侧测试"
+        USES_TERMINAL
+    )
+    add_custom_target(web_run
+        COMMAND "${SIGFLOW_NODE_EXECUTABLE}" src/index.js
+        WORKING_DIRECTORY "${SIGFLOW_JS_DIR}"
+        COMMENT "启动 Node 主进程（读取 web/config.txt）"
+        USES_TERMINAL
+    )
+    message(STATUS "[sigflow] node: ${SIGFLOW_NODE_EXECUTABLE}（web_js_test / web_run 可用）")
+else()
+    message(STATUS "[sigflow] 未找到 node：web_js_test / web_run 不可用")
+endif()
+
+# ---- C-3. 安装布局 ----------------------------------------------------------
+#   <prefix>/bin/sigflow-tool
+#   <prefix>/share/sigflow/{config.txt,frontend,static,nodejs}
+if(TARGET sigflow-tool)
+    install(TARGETS sigflow-tool RUNTIME DESTINATION bin)
+endif()
+install(FILES "${SIGFLOW_WEB_DIR}/config.txt" DESTINATION share/sigflow)
+install(DIRECTORY "${SIGFLOW_FRONTEND_DIR}/" DESTINATION share/sigflow/frontend)
+install(DIRECTORY "${SIGFLOW_STATIC_DIR}/" DESTINATION share/sigflow/static)
+if(EXISTS "${SIGFLOW_JS_DIR}")
+    install(DIRECTORY "${SIGFLOW_JS_DIR}/" DESTINATION share/sigflow/nodejs
+        PATTERN "node_modules" EXCLUDE
+        PATTERN "test" EXCLUDE)
+endif()
