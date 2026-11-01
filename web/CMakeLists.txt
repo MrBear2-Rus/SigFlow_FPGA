@@ -326,6 +326,7 @@ endif()
 # ---- C-1. C++ 冒烟测试 ------------------------------------------------------
 if(SIGFLOW_BUILD_TESTS)
     enable_testing()
+    set(SIGFLOW_TEST_TARGETS "")
     file(GLOB _test_sources CONFIGURE_DEPENDS "${SIGFLOW_CPP_DIR}/tests/test_*.cpp")
     if(_test_sources)
         foreach(_test_source IN LISTS _test_sources)
@@ -343,6 +344,7 @@ if(SIGFLOW_BUILD_TESTS)
             else()
                 add_test(NAME ${_test_name} COMMAND ${_test_name})
             endif()
+            list(APPEND SIGFLOW_TEST_TARGETS ${_test_name})
             set_tests_properties(${_test_name} PROPERTIES TIMEOUT 20)
             set_target_properties(${_test_name} PROPERTIES
                 RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
@@ -389,24 +391,112 @@ if(SIGFLOW_BUILD_TESTS)
     endif()
 endif()
 
-# ---- C-2. JS 便捷目标（只做调度，不接管 JS 的依赖与构建）-------------------
+# ---- C-2. 便捷命令 ----------------------------------------------------------
+# 约定：全部 EXCLUDE_FROM_ALL，只有显式 `cmake --build <dir> --target <name>` 才执行；
+#       不使用 npm（当前没有 JS 依赖，第三方 JS 已 vendor 在 frontend/vendor/）。
+
+# build：构建 C++（含测试目标）。JS 侧不需要构建步骤。
+set(_sigflow_build_deps "")
+if(TARGET sigflow-tool)
+    list(APPEND _sigflow_build_deps sigflow-tool)
+endif()
+if(TARGET sigflow-tool-fixture)
+    list(APPEND _sigflow_build_deps sigflow-tool-fixture)
+endif()
+list(APPEND _sigflow_build_deps ${SIGFLOW_TEST_TARGETS})
+add_custom_target(build
+    DEPENDS ${_sigflow_build_deps}
+    COMMENT "构建 C++（sigflow-tool 与测试）"
+    EXCLUDE_FROM_ALL
+)
+
+# distclean：清理编译产物，并删除 web/ 下其它 build* 目录。
+# 不删除当前构建目录本身：CMake 的 recipe 以它为工作目录，删掉会让 make 失败。
+set(SIGFLOW_DISTCLEAN_SCRIPT "${CMAKE_BINARY_DIR}/sigflow-distclean.sh")
+file(WRITE "${SIGFLOW_DISTCLEAN_SCRIPT}" [=[#!/bin/sh
+set -eu
+web="${SIGFLOW_WEB_DIR:?}"
+current="${SIGFLOW_CURRENT_BUILD:?}"
+cmake_bin="${SIGFLOW_CMAKE:?}"
+current_real=$(cd "$current" && pwd -P)
+for d in "$web"/build "$web"/build-*; do
+    [ -d "$d" ] || continue
+    if [ "$(cd "$d" && pwd -P)" = "$current_real" ]; then
+        continue
+    fi
+    echo "[sigflow] 删除 $d"
+    rm -rf "$d"
+done
+echo "[sigflow] 清理当前构建目录中的编译产物：$current"
+"$cmake_bin" --build "$current" --target clean >/dev/null
+echo "[sigflow] 当前构建目录已清理（保留 CMake 配置）"
+echo "[sigflow] 如需彻底删除：rm -rf '$current'"
+]=])
+add_custom_target(distclean
+    COMMAND ${CMAKE_COMMAND} -E env
+            "SIGFLOW_WEB_DIR=${SIGFLOW_WEB_DIR}"
+            "SIGFLOW_CURRENT_BUILD=${CMAKE_BINARY_DIR}"
+            "SIGFLOW_CMAKE=${CMAKE_COMMAND}"
+            sh "${SIGFLOW_DISTCLEAN_SCRIPT}"
+    COMMENT "清理编译产物（保留用户工程与数据库）"
+    EXCLUDE_FROM_ALL
+    USES_TERMINAL
+)
+
+# proj-empty：清空所有用户工程。破坏性操作，必须显式 export SIGFLOW_WIPE_PROJECTS=yes。
+# 脚本在 configure 期生成，避免把多行内容塞进 Makefile recipe。
+set(SIGFLOW_WIPE_SCRIPT "${CMAKE_BINARY_DIR}/sigflow-wipe-projects.sh")
+file(WRITE "${SIGFLOW_WIPE_SCRIPT}" [=[#!/bin/sh
+set -eu
+if [ "${SIGFLOW_WIPE_PROJECTS:-}" != "yes" ]; then
+    echo "[sigflow] 拒绝执行：这会删除所有用户工程。" >&2
+    echo "[sigflow] 确认后请执行：export SIGFLOW_WIPE_PROJECTS=yes" >&2
+    exit 1
+fi
+root="${SIGFLOW_PROJECTS_ROOT}"
+[ -d "$root" ] || { echo "[sigflow] 目录不存在：$root" >&2; exit 1; }
+count=$(find "$root" -mindepth 1 -maxdepth 1 ! -name .gitkeep | wc -l)
+echo "[sigflow] 将清空 $root 下的 $count 项"
+find "$root" -mindepth 1 -delete
+: > "$root/.gitkeep"
+echo "[sigflow] 已清空用户工程"
+]=])
+add_custom_target(proj-empty
+    COMMAND ${CMAKE_COMMAND} -E env
+            "SIGFLOW_PROJECTS_ROOT=${SIGFLOW_WEB_DIR}/backend/userprojects"
+            sh "${SIGFLOW_WIPE_SCRIPT}"
+    COMMENT "清空所有用户工程（需 SIGFLOW_WIPE_PROJECTS=yes）"
+    EXCLUDE_FROM_ALL
+    USES_TERMINAL
+)
+
+# 运行与测试依赖 node；未安装时只提示，不影响 C++ 构建。
 find_program(SIGFLOW_NODE_EXECUTABLE NAMES node)
+# Node 默认从 web/build/bin 找 sigflow-tool；这里显式指向当前构建产物，
+# 避免 -B 到其它目录（如 build/web）时找不到。
+set(_sigflow_node_env "")
+if(TARGET sigflow-tool)
+    set(_sigflow_node_env ${CMAKE_COMMAND} -E env
+        "SIGFLOW_TOOL_BIN=$<TARGET_FILE:sigflow-tool>")
+endif()
 if(SIGFLOW_NODE_EXECUTABLE)
-    add_custom_target(web_js_test
-        COMMAND "${SIGFLOW_NODE_EXECUTABLE}" --test "${SIGFLOW_JS_DIR}/test/"
-        WORKING_DIRECTORY "${SIGFLOW_JS_DIR}"
-        COMMENT "运行 Node 侧测试"
-        USES_TERMINAL
-    )
-    add_custom_target(web_run
-        COMMAND "${SIGFLOW_NODE_EXECUTABLE}" src/index.js
+    add_custom_target(run
+        COMMAND ${_sigflow_node_env} "${SIGFLOW_NODE_EXECUTABLE}" src/index.js
         WORKING_DIRECTORY "${SIGFLOW_JS_DIR}"
         COMMENT "启动 Node 主进程（读取 web/config.txt）"
+        EXCLUDE_FROM_ALL
         USES_TERMINAL
     )
-    message(STATUS "[sigflow] node: ${SIGFLOW_NODE_EXECUTABLE}（web_js_test / web_run 可用）")
+    add_custom_target(web_js_test
+        COMMAND ${_sigflow_node_env} "${SIGFLOW_NODE_EXECUTABLE}" --test "${SIGFLOW_JS_DIR}/test/"
+        WORKING_DIRECTORY "${SIGFLOW_JS_DIR}"
+        COMMENT "运行 Node 侧测试"
+        EXCLUDE_FROM_ALL
+        USES_TERMINAL
+    )
+    message(STATUS "[sigflow] node: ${SIGFLOW_NODE_EXECUTABLE}（run / web_js_test 可用）")
 else()
-    message(STATUS "[sigflow] 未找到 node：web_js_test / web_run 不可用")
+    message(STATUS "[sigflow] 未找到 node：run / web_js_test 不可用")
 endif()
 
 # ---- C-3. 安装布局 ----------------------------------------------------------

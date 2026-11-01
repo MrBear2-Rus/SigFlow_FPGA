@@ -1,63 +1,70 @@
 // =============================================================================
-// Node 主进程入口（骨架）
+// Node 主进程入口
 //
-// 这是服务器上唯一的常驻进程。当前只做启动前的自检：读 config.txt、确认
-// 数据目录存在。各模块装配顺序见 README「具体架构 / 4. Node 侧」。
-//
-// 依赖顺序（实现时按此装配）：
-//   config -> projects -> jobs/spawn -> devices -> wave -> http -> agent
+// 当前阶段（J2）：HTTP / SSE / 产物下载已接入；前端与 Agent 托管尚未实现。
+// 启动顺序：config -> jobs -> http ->（后续）wave -> agent
 // =============================================================================
 
-import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 
-const HERE = dirname(fileURLToPath(import.meta.url));      // backend/nodejs/src
-const WEB_ROOT = resolve(HERE, "..", "..", "..");          // web/
-const CONFIG_PATH = join(WEB_ROOT, "config.txt");
-
-/**
- * 解析 config.txt：`key = value`，`#` 注释，`[section]` 分组。
- * 返回 { "section.key": "value" } 形式的扁平表。
- */
-export function parseConfig(text) {
-  const result = {};
-  let section = "";
-  for (const rawLine of text.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (line === "" || line.startsWith("#")) continue;
-    const sectionMatch = /^\[([^\]]+)\]$/.exec(line);
-    if (sectionMatch) {
-      section = sectionMatch[1].trim();
-      continue;
-    }
-    const eq = line.indexOf("=");
-    if (eq < 0) continue;
-    const key = line.slice(0, eq).trim();
-    const value = line.slice(eq + 1).trim();
-    result[section ? `${section}.${key}` : key] = value;
-  }
-  return result;
-}
+import { createApp } from "./http/server.js";
+import { getNumber, getString, loadConfig, resolveToolPath } from "./util/config.js";
+import { createLogger } from "./util/log.js";
 
 async function main() {
-  if (!existsSync(CONFIG_PATH)) {
-    console.error(`[sigflow] 缺少配置文件: ${CONFIG_PATH}`);
-    process.exitCode = 2;
-    return;
-  }
-  const config = parseConfig(await readFile(CONFIG_PATH, "utf8"));
-  console.log(`[sigflow] 配置已读取: ${CONFIG_PATH} (${Object.keys(config).length} 项)`);
+    const config = await loadConfig();
+    const toolPath = resolveToolPath(config);
+    if (!existsSync(toolPath)) {
+        console.error(`[sigflow] 找不到 sigflow-tool：${toolPath}`);
+        console.error("[sigflow] 先执行 cmake --build build/web，或设置 SIGFLOW_TOOL_BIN");
+        process.exitCode = 1;
+        return;
+    }
 
-  // 迁移中：业务模块尚未接入。
-  console.error("[sigflow] HTTP / Job 调度 / 波形 worker / Agent 托管尚未实现");
-  process.exitCode = 3;
+    const logger = createLogger({ level: getString(config, "log.level", "info"), scope: "sigflow" });
+
+    // config.txt 的 [tools] 覆盖映射成 C++ 侧识别的环境变量。
+    const toolEnv = {};
+    for (const [key, variable] of Object.entries({
+        yosys: "SIGFLOW_YOSYS",
+        nextpnr: "SIGFLOW_NEXTPNR",
+        gowin_pack: "SIGFLOW_GOWIN_PACK",
+        openfpgaloader: "SIGFLOW_OPENFPGALOADER",
+        verilator: "SIGFLOW_VERILATOR",
+    })) {
+        const value = getString(config, `tools.${key}`);
+        if (value) toolEnv[variable] = value;
+    }
+
+    const app = createApp({
+        config,
+        toolPath,
+        maxGlobal: getNumber(config, "jobs.max_concurrent_global", 4),
+        maxPerUser: getNumber(config, "jobs.max_concurrent_per_user", 2),
+        defaultTimeoutSec: getNumber(config, "jobs.default_timeout_sec", 0),
+        maxOutputBytes: getNumber(config, "jobs.max_output_bytes", 0),
+        cancelGraceMs: getNumber(config, "jobs.cancel_grace_ms", 5000),
+        sessionTtlSec: getNumber(config, "server.session_ttl_sec", 86400),
+        maxFileBytes: getNumber(config, "files.max_bytes", 2 * 1024 * 1024),
+        toolEnv,
+        logger,
+    });
+
+    const host = getString(config, "server.listen_host", "127.0.0.1");
+    const port = getNumber(config, "server.listen_port", 8080);
+    const address = await app.listen({ host, port });
+    console.log(`[sigflow] 监听 http://${host}:${address.port}`);
+    console.log(`[sigflow] 工具: ${toolPath}`);
+
+    const shutdown = () => {
+        console.log("[sigflow] 正在关闭…");
+        app.close().finally(() => process.exit(0));
+    };
+    process.on("SIGINT", shutdown);
+    process.on("SIGTERM", shutdown);
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  main().catch((error) => {
+main().catch((error) => {
     console.error("[sigflow] 启动失败:", error);
     process.exitCode = 1;
-  });
-}
+});

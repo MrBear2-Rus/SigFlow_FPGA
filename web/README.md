@@ -22,6 +22,9 @@
 │   ├── assets   :资源文件，如图片等
 └── README.md  
 ```
+
+> 上图为立项时的粗略规划，实际结构以「具体架构 / 2. 目录结构与职责」为准。
+
 ## 功能划分
 以下按两类划分：JS 独立负责网页应用、工程数据和用户工作流；C++ 提供必须访问本机工具链、操作系统或硬件的能力，由 JS 按需调用。当前桌面程序中的 wxWidgets UI 改为网页实现；这里列出的是目标网页平台的职责划分，不表示这些能力已经全部迁移完成。
 ### JS独立负责的模块
@@ -90,14 +93,15 @@ web/
 ├── config.txt                    运行时默认值（Node 启动时读一次）
 ├── CMakeLists.txt                唯一的构建文件（Linux only，不联网）
 ├── .clang-format                 C++ 统一格式（4 空格 / 100 列）
-├── current_status_docs/          各角色的规划与交接（见「文档规范」）
-│   ├── plan-cpp.md / handoff-cpp.md
-│   └── plan-js.md  / handoff-js.md
+├── current_status_docs/          各角色的规划、交接与实况（见「文档规范」）
+│   ├── {plan,handoff,history}-cpp.md
+│   └── {plan,handoff,history}-js.md
 ├── frontend/                     纯静态前端，由 Node 托管
 │   ├── pages/                    HTML 页面
 │   ├── scripts/                  前端 JS（编辑器、画布、波形绘制、面板）
 │   ├── styles/                   CSS / 主题
-│   └── assets/                   UI 资源：图标（原 main/res）、canvas_elements.json
+│   ├── vendor/                   离线第三方前端库（CodeMirror 5 + LICENSE）
+│   └── assets/                   元件库 canvas_elements.json（原 main/res 图标待迁）
 └── backend/
     ├── static/                   编译前即确定、Node 与 C++ 共读的资源（不放运行时产物）
     │   ├── target-profiles/      tang-nano-9k.json、tang-nano-9k.pins.json
@@ -108,15 +112,17 @@ web/
     │   ├── package.json
     │   ├── src/
     │   │   ├── index.js          入口：读配置、装配模块、启动服务
-    │   │   ├── http/             HTTP/SSE、静态文件、会话
+    │   │   ├── http/             HTTP/SSE、静态文件、路由
+    │   │   ├── users/            用户表（scrypt）与会话 Cookie
     │   │   ├── jobs/             队列、并发、Job 目录、子进程与 JSONL
+    │   │   ├── analysis/         structure/lint 的一次性 CLI 调用
     │   │   ├── devices/          设备租约（flash/capture 互斥）
     │   │   ├── wave/             每用户波形 worker 的生命周期与协议
     │   │   ├── agent/            Python 托管 + Gateway 兼容层
-    │   │   ├── projects/         工程目录、文件树、快照
+    │   │   ├── projects/         工程目录、文件树、读写、画布
     │   │   ├── plugins/          网页插件注册与能力展示
     │   │   └── util/             config 解析、日志、JSONL 工具
-    │   └── test/
+    │   └── test/                 Node 测试（node --test）
     └── cpp/                      C++ 工具进程（详见第 3 节）
         ├── include/eda/api/      冻结契约：Job/Artifact/Error/Toolchain/Waveform
         ├── third_party/          jsoncpp、nlohmann、vcd、tree-sitter
@@ -128,9 +134,8 @@ web/
         │   ├── debug/            TraceBridge 采集/传输/分析（去 wx）
         │   ├── trace/            波形查询与 sidecar 索引
         │   └── cli/              sigflow-tool 入口与子命令
-        ├── contracts/run-v1/     冻结的 run 协议（schema + fixtures）
+        ├── contracts/            run-v1（已冻结）；analysis-v1（草案）
         └── tests/                C++ 测试与 Python 集成脚本
-        └── tests/
 ```
 
 ### 3. C++ 侧
@@ -259,10 +264,13 @@ web/
 | 文档 | 作用 |
 |---|---|
 | `backend/cpp/contracts/run-v1/` | **唯一协议权威**：request / manifest / report / event schema 与 fixtures |
+| `backend/cpp/contracts/analysis-v1/` | structure / lint 的调用与输出契约（草案，待 P6 评审） |
 | `current_status_docs/plan-cpp.md` | cpp工 的规划与验收 |
 | `current_status_docs/handoff-cpp.md` | cpp工 的交接与待确认项（Node 必读） |
+| `current_status_docs/history-cpp.md` | cpp工 的模块实况（当前代码实际行为） |
 | `current_status_docs/plan-js.md` | js工 的规划与验收 |
 | `current_status_docs/handoff-js.md` | js工 的交接与待确认项 |
+| `current_status_docs/history-js.md` | js工 的模块实况（当前代码实际行为） |
 | `backend/cpp/third_party/README.md` | 离线依赖来源与校验和 |
 
 进度、计划与交接只写在 `current_status_docs/` 下，本节不复述；跨角色决策见文末「决策记录」。
@@ -273,14 +281,18 @@ web/
 
 | 目录 | 职责 |
 |---|---|
-| `src/http/` | HTTP 服务、SSE 推送、静态文件（`frontend/`、`backend/static/`）、会话与鉴权 |
+| `src/http/` | HTTP 路由、SSE 推送、静态文件（`frontend/`、`backend/static/`） |
+| `src/users/` | 用户表（scrypt 加盐摘要）、会话 Cookie（HttpOnly，内存态） |
+| `src/analysis/` | `structure` / `lint` 的一次性 CLI 调用与 JSONL 解析 |
 | `src/jobs/` | 队列、并发上限、Job 目录创建、spawn `sigflow-tool`、JSONL 解析、状态合成、取消（杀进程组）、孤儿回收 |
 | `src/devices/` | 设备租约表：`flash`/`capture` 按设备互斥，抢不到则排队；对应原 `DeviceControlLease` 语义 |
 | `src/wave/` | 每用户波形 worker 的启动、JSONL 请求路由、空闲回收、VCD 打开/关闭 |
-| `src/agent/` | 启动并监督 Python（bootstrap 经 stdin、退避重启、健康轮询）；实现 Python 依赖的 Gateway 兼容路由；作为 UI 调 Agent 的 `/api/v1/sessions|runs|events` |
-| `src/projects/` | 工程目录、文件树、读写、快照；`userprojects/<uid>/<project>` 的唯一管理者 |
+| `src/agent/` | 启动并监督 Python（bootstrap 经 stdin、退避重启、健康轮询）；实现 Python 依赖的 Gateway 兼容路由；作为 UI 调 Agent 的 `/api/v1/sessions`、`/api/v1/runs`、`/api/v1/events` |
+| `src/projects/` | `userprojects/<uid>/<project>` 的唯一管理者：工程增删、文件树与读写、画布布局；路径/符号链接/扩展名校验 |
 | `src/plugins/` | 网页插件注册表、能力与状态展示数据 |
 | `src/util/` | `config.txt` 解析、日志、JSONL 编解码 |
+
+其中 `src/devices/`、`src/wave/`、`src/agent/`、`src/plugins/` 是已预留的目录，随 J6 实现。
 
 #### 4.2 关键机制
 
@@ -289,6 +301,8 @@ web/
 - **状态机**：`Queued`（Node）→ `Running`（C++ 写入）→ 终态；Node 合并两侧状态对外呈现。
 - **设备互斥**：Node 侧租约表按 `deviceId` 加锁，`flash`/`capture` 排队而非直接 `DEVICE_BUSY`；原版是进程内单 scope，这里是跨进程表。
 - **崩溃恢复**：Node 记录 `(pid, jobId, startedAt)`；重启时扫描 Job 目录，把残留 `Running` 标记为 `Failed`。
+- **鉴权**：注册走 `scrypt`（N=16384，随机盐），会话为内存 token + HttpOnly Cookie；除 `/api/health`、注册与登录外，所有 `/api/*` 必须登录。
+- **数据落盘**：用户表在 `backend/database/users.json`；工程与画布在 `backend/userprojects/<uid>/<project>/`；两者都在 `.gitignore` 内。
 
 #### 4.3 Python 兼容层（保持 Python 零改动）
 
@@ -306,7 +320,17 @@ Python Agent 是双向的：对 UI 提供 `/api/v1/sessions|runs|events`，同�
 
 #### 4.4 `config.txt`
 
-由 Node 启动时读取，C++ 侧通过命令行参数接收，不直接读文件。键分组：`[server]`（监听地址/端口）、`[jobs]`（并发上限、超时、日志/输出上限）、`[wave]`（worker 空闲回收、同时打开的 VCD 数）、`[devices]`（租约等待）、`[tools]`（工具路径覆盖）、`[agent]`（解释器、重启退避、健康轮询）。
+由 Node 启动时读取，C++ 侧通过命令行参数或环境变量接收，不直接读文件。
+
+| 分组 | 键 |
+|---|---|
+| `[server]` | `listen_host`、`listen_port`、`session_ttl_sec` |
+| `[jobs]` | `max_concurrent_global`、`max_concurrent_per_user`、`cancel_grace_ms`、`default_timeout_sec`、`log_tail_bytes`、`max_output_bytes` |
+| `[wave]` | `worker_idle_timeout_sec`、`max_open_traces` |
+| `[devices]` | `lease_wait_sec` |
+| `[tools]` | `sigflow_tool`，以及 `yosys` / `nextpnr` / `gown_pack` / `openfpgaloader` / `verilator` 的路径覆盖（映射为 C++ 识别的环境变量） |
+| `[files]` | `max_bytes`（工程内单个文本文件上限） |
+| `[agent]` | `python`、`restart_backoff_sec`、`health_poll_sec` |
 
 #### 4.5 与 C++ 的对接要求
 
@@ -323,12 +347,13 @@ Python Agent 是双向的：对 UI 提供 `/api/v1/sessions|runs|events`，同�
 
 | 目录 | 内容 |
 |---|---|
-| `pages/` | 主工作区、编辑器、画布、波形、任务面板等页面 |
-| `scripts/` | 编辑器与语法高亮、画布交互、波形绘制、面板布局、与 Node 的 HTTP/SSE 客户端 |
-| `styles/` | 主题、布局、组件样式 |
-| `assets/` | 图标（原 `main/res` 266 个文件）、`canvas_elements.json` |
+| `pages/` | `index.html`（登录 / 工程 / 文件 / 编辑器 / 任务）、`canvas.html`（画布） |
+| `scripts/` | `console.js`（控制台与编辑器）、`canvas.js`（画布） |
+| `styles/` | `app.css`（暗色主题、布局、CodeMirror 适配） |
+| `vendor/` | CodeMirror 5.65.16（MIT，含 LICENSE），离线可用、无构建步骤 |
+| `assets/` | `canvas_elements.json`（6 种门的元件库）；原 `main/res` 图标待迁 |
 
-前端**不启动任何工具、不解析工具日志、不读 VCD**：结构树/诊断来自 `POST /api/structure`、`POST /api/lint`；波形来自 Node 的波形接口；任务进度来自 SSE。
+前端**不启动任何工具、不解析工具日志、不读 VCD**：结构树/诊断来自 `POST /api/projects/{id}/structure|lint`；波形来自 Node 的波形接口；任务进度来自 SSE。
 
 ### 6. 功能划分 → 代码位置
 
@@ -381,16 +406,17 @@ Python Agent 是双向的：对 UI 提供 `/api/v1/sessions|runs|events`，同�
 
 #### 7.3 浏览器 ↔ Node
 
-| 分组 | 路由（示意） |
+| 分组 | 路由 |
 |---|---|
-| 会话 | `POST /api/session`、`GET /api/session`、`POST /api/session/logout` |
-| 工程 | `GET/POST /api/projects`、`GET /api/project/files`、`GET/PUT /api/project/file` |
-| 任务 | `POST /api/jobs`、`GET /api/jobs`、`GET /api/jobs/{id}`、`POST /api/jobs/{id}/cancel`、`GET /api/jobs/{id}/events`（SSE）、`GET /api/jobs/{id}/artifacts/{name}` |
-| 波形 | `POST /api/wave/open`、`GET /api/wave/signals`、`POST /api/wave/query` |
-| 语言服务 | `POST /api/structure`、`POST /api/lint` |
-| 目标板/校验 | `GET /api/targets`、`GET /api/targets/{id}/pins`、`POST /api/validate/cst` |
-| Agent | `POST /api/agent/session`、`GET /api/agent/events` |
-| 静态 | `/static/*`（`backend/static/`）、前端资源（`frontend/`） |
+| 公开 | `GET /api/health`、`POST /api/users`（注册）、`POST /api/session`（登录） |
+| 会话 | `GET /api/session`、`DELETE /api/session` |
+| 工程 | `GET/POST /api/projects`、`GET/DELETE /api/projects/{id}` |
+| 文件 | `GET /api/projects/{id}/files`、`GET/PUT/DELETE /api/projects/{id}/file?path=` |
+| 画布 | `GET/PUT /api/projects/{id}/canvas` |
+| 语言服务 | `POST /api/projects/{id}/structure`、`POST /api/projects/{id}/lint`（C++ P6 前返回 501） |
+| 任务 | `POST/GET /api/jobs`、`GET /api/jobs/{id}`、`POST /api/jobs/{id}/cancel`、`GET /api/jobs/{id}/report`、`GET /api/jobs/{id}/events`（SSE）、`GET /api/jobs/{id}/artifacts/{name}` |
+| 静态 | `/static/*`（`backend/static/`）与 `frontend/` 下的 `/pages`、`/scripts`、`/styles`、`/assets`、`/vendor` |
+| 规划中 | 波形 `/api/wave/*`、Agent `/api/agent/*`（J6，等 C++ P7 与 bootstrap 落地） |
 
 #### 7.4 共享数据
 
@@ -398,20 +424,35 @@ Python Agent 是双向的：对 UI 提供 `/api/v1/sessions|runs|events`，同�
 
 ### 8. 构建与运行
 
+**在 `web/` 目录下执行**；构建目录统一为 `web/build`（已 gitignore），产物在 `web/build/bin/`。
+
 ```bash
-# 配置与构建（Linux，不联网；全工程只有 web/CMakeLists.txt）
-cmake -S web -B build/web -DCMAKE_BUILD_TYPE=RelWithDebInfo
-cmake --build build/web -j
+cd web
+cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo
+cmake --build build -j            # 等价于构建 all
 
-# 产物
-build/web/bin/sigflow-tool --help
+# 测试
+ctest --test-dir build --output-on-failure
+cmake --build build --target web_js_test   # node --test backend/nodejs/test
+```
 
-# JS 便捷目标（CMake 只做调度，JS 依赖仍由 package.json 管理）
-cmake --build build/web --target web_js_test   # node --test backend/nodejs/test
-cmake --build build/web --target web_run       # node backend/nodejs/src/index.js
+便捷目标（全部 `EXCLUDE_FROM_ALL`，按需显式调用）：
+
+| 目标 | 作用 |
+|---|---|
+| `build` | 构建 C++（含测试与 fixture）；不触发 npm |
+| `run` | 前台启动 Node（自动注入当前构建的 `SIGFLOW_TOOL_BIN`） |
+| `distclean` | 清理编译产物并删除其它 `build*` 目录；保留当前构建目录并提示手动删除 |
+| `proj-empty` | 清空所有用户工程；必须 `export SIGFLOW_WIPE_PROJECTS=yes` 才执行 |
+| `web_js_test` | 运行 Node 侧测试 |
+
+```bash
+cmake --build build --target run
+cmake --build build --target distclean
+SIGFLOW_WIPE_PROJECTS=yes cmake --build build --target proj-empty
 
 # 安装布局
-cmake --install build/web --prefix /opt/sigflow
+cmake --install build --prefix /opt/sigflow
 # /opt/sigflow/bin/sigflow-tool
 # /opt/sigflow/share/sigflow/{config.txt,frontend,static,nodejs}
 ```
@@ -436,6 +477,10 @@ cmake --install build/web --prefix /opt/sigflow
 | D-10 | 代码格式 | 统一 `.clang-format`（LLVM 基线） | 共同 | 2026-11-01 |
 | D-11 | 推进顺序 | 先做 Node ↔ C++ 的 synth 端到端联调 | 共同 | 2026-11-01 |
 | D-12 | 文档规范 | 三层文档模型（README / current_status_docs / contracts） | 共同 | 2026-11-01 |
+| D-13 | 前端第三方库 | CodeMirror 5.65.16 以 vendor 形式入库（MIT），不引入 npm 构建步骤 | 共同 | 2026-11-01 |
+| D-14 | 构建入口 | 统一 `cd web && cmake -S . -B build`；便捷命令 build / distclean / run / proj-empty | 共同 | 2026-11-01 |
+| D-15 | 画布存储 | 布局存 `<project>/.sigflow/canvas.json`，由 Node 校验与落盘 | 共同 | 2026-11-01 |
+| D-16 | 实况文档 | 每人增加 `history-<角色>.md`，实时改写描述各模块现状；计划变更时队友据此判断已完成的前提 | 共同 | 2026-11-01 |
 
 ## 文档规范
 
@@ -444,7 +489,7 @@ cmake --install build/web --prefix /opt/sigflow
 | 层 | 位置 | 写什么 | 不写什么 |
 |---|---|---|---|
 | L1 | `README.md` | 目标、规范、架构、契约摘要、跨角色决策 | 进度、TODO、个人计划 |
-| L2 | `current_status_docs/` | 各角色的规划与交接 | 架构描述、CLI 参数、schema 字段 |
+| L2 | `current_status_docs/` | 各角色的规划、交接与模块实况 | 架构描述、CLI 参数、schema 字段 |
 | L3 | `backend/cpp/contracts/` | 机器可读协议（schema + fixtures） | 进度、计划 |
 
 同一事实只允许一处权威：**架构→README，协议→contracts，进度→status**；其他位置只能链接，
@@ -452,9 +497,9 @@ cmake --install build/web --prefix /opt/sigflow
 
 ### 文件与命名
 
-`current_status_docs/<类型>-<角色>.md`：类型为 `plan` 或 `handoff`，角色为 `cpp` 或 `js`。
+`current_status_docs/<类型>-<角色>.md`：类型为 `plan`、`handoff` 或 `history`，角色为 `cpp` 或 `js`。
 
-- 每个角色**最多两份**（一份规划、一份交接），不得再拆；
+- 每个角色**最多三份**（规划、交接、实况），不得再拆；
 - 禁止新建其他 `.md`；确有必要时先在本节登记并说明理由；
 - 文件名即署名，`plan-cpp.md` 的作者就是 cpp工。
 
@@ -464,7 +509,7 @@ cmake --install build/web --prefix /opt/sigflow
 
 ```markdown
 > 负责人：cpp工 | js工
-> 类型：规划 | 交接
+> 类型：规划 | 交接 | 实况
 > 更新：YYYY-MM-DD
 > 状态：进行中 | 已完成 | 阻塞
 > 阶段：P4 | J1
@@ -476,14 +521,19 @@ cmake --install build/web --prefix /opt/sigflow
 |---|---|---|
 | `plan-*.md` | 当前目标、阶段与验收表、下一步（≤5 条）、阻塞与依赖、相关决策 | 120 行 |
 | `handoff-*.md` | 待对方配合（编号 `H-CPP-###` / `H-JS-###`）、待定接口、已知风险、最近变更（≤10 条） | 80 行 |
+| `history-*.md` | 按模块列出**现状**：入口、模块职责与当前行为、数据落点、明确未实现项、验证方式；**原地改写**，不追加 | 150 行 |
+
+三者的分工：`plan` 向前看（要做什么）、`handoff` 横向看（对方要配合什么）、`history` 纵向看（**现在实际是什么**）。
+计划调整时，队友靠 `history` 判断哪些是已完成的前提、哪些还没发生，不必翻提交历史。
 
 交接条目必须是**可执行的一句话**（谁在什么时候做什么），完成后删除；历史由 git 保存。
 
 ### 更新与保留
 
-1. 每次提交前更新自己两份文档的「更新」日期与相关条目；提交信息引用条目编号（如 `H-CPP-002`）。
-2. `plan-*.md` 只保留当前有效内容；完成的阶段移入 `handoff-*.md` 的「最近变更」。
+1. 每次提交前更新自己三份文档的「更新」日期与相关条目；提交信息引用条目编号（如 `H-CPP-002`）。
+2. `plan-*.md` 只保留当前有效内容；阶段完成后改写 `history-*.md` 中对应模块，并在 `handoff-*.md` 的「最近变更」记一条。
 3. `handoff-*.md` 只保留未完成项与最近 10 条变更，超出即删旧。
-4. 跨角色决策追加到本文件「决策记录」，注明决定人与日期。
-5. agent 只能修改自己所代表角色的 status 文档；`README.md` 与 `AGENTS.md` 的改动需用户确认。
+4. `history-*.md` 是**实况快照**，不是变更日志：代码行为变了就改对应模块的段落，不按日期或计划追加。
+5. 跨角色决策追加到本文件「决策记录」，注明决定人与日期。
+6. agent 只能修改自己所代表角色的 status 文档；`README.md` 与 `AGENTS.md` 的改动需用户确认。
 

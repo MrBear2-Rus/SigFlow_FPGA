@@ -1,0 +1,93 @@
+[
+  {
+    "type": "and",
+    "bounds" : [80, 80],
+    "inputPins": [
+      {"x": 0, "y": 20},
+      {"x": 0, "y": 60}
+    ],
+    "outputPins": [{"x": 80, "y": 40}],
+    "shapes": [
+      {"type": "line", "start": {"x": 0, "y": 0}, "end": {"x": 0, "y": 80}, "color": "#333333"},
+      {"type": "line", "start": {"x": 0, "y": 80}, "end": {"x": 40, "y": 80}, "color": "#333333"},
+      {"type": "line", "start": {"x": 0, "y": 0}, "end": {"x": 40, "y": 0}, "color": "#333333"},
+      {"type": "ArcShape", "center": {"x": 40, "y": 40}, "radius": 40, "startAngle": -90, "endAngle": 90, "color": "#333333"}
+    ]
+  },
+  {
+    "type": "nand",
+    "bounds" : [80, 80],
+    "inputPins": [
+      {"x": 0, "y": 20},
+      {"x": 0, "y": 60}
+    ],
+    "outputPins": [{"x": 80, "y": 40}],
+    "shapes": [
+      {"type": "line", "start": {"x": 0, "y": 0}, "end": {"x": 0, "y": 80}, "color": "#333333"},
+      {"type": "line", "start": {"x": 0, "y": 80}, "end": {"x": 40, "y": 80}, "color": "#333333"},
+      {"type": "line", "start": {"x": 0, "y": 0}, "end": {"x": 40, "y": 0}, "color": "#333333"},
+      {"type": "ArcShape", "center": {"x": 40, "y": 40}, "radius": 40, "startAngle": -90, "endAngle": 90, "color": "#333333"},
+      {"type": "circle", "x": 80, "y": 40, "r": 4, "color": "#333333", "fill": true, "fillColor": "#808080"}
+    ]
+  },
+ {
+  "type": "or",
+  "bounds" : [80, 80],
+    "inputPins": [
+      {"x": 0, "y": 20},
+      {"x": 0, "y": 60}
+    ],
+    "outputPins": [{"x": 80, "y": 40}],
+  "shapes": [
+    {"type":"CubicBezierShape","p0":{"x":0,"y":0},"p1":{"x":26.7,"y":0},"p2":{"x":62.2,"y":20},"p3":{"x":80,"y":40},"color":"#333333"},
+    {"type":"CubicBezierShape","p0":{"x":0,"y":80},"p1":{"x":26.7,"y":80},"p2":{"x":62.2,"y":60},"p3":{"x":80,"y":40},"color":"#333333"},
+    {"type":"CubicBezierShape","p0":{"x":0,"y":0},"p1":{"x":13.3,"y":20},"p2":{"x":13.3,"y":60},"p3":{"x":0,"y":80},"color":"#333333"}
+  ]
+},
+   {
+    "type": "nor",
+    "bounds" : [80, 80],
+    "inputPins": [
+      {"x": 0, "y": 20},
+      {"x": 0, "y": 60}
+    ],
+    "outputPins": [{"x": 80, "y": 40}],
+    "shapes": [
+    {"type":"CubicBezierShape","p0":{"x":0,"y":0},"p1":{"x":26.7,"y":0},"p2":{"x":62.2,"y":20},"p3":{"x":80,"y":40},"color":"#333333"},
+    {"type":"CubicBezierShape","p0":{"x":0,"y":80},"p1":{"x":26.7,"y":80},"p2":{"x":62.2,"y":60},"p3":{"x":80,"y":40},"color":"#333333"},
+    {"type":"CubicBezierShape","p0":{"x":0,"y":0},"p1":{"x":13.3,"y":20},"p2":{"x":13.3,"y":60},"p3":{"x":0,"y":80},"color":"#333333"},
+      {"type": "circle", "x": 80, "y": 40, "r": 4, "color": "#333333", "fill": false, "fillColor": "#808080"}
+    ]
+  },
+  {
+    "type": "xor",
+    "bounds" : [80, 80],
+    "inputPins": [
+      { "x": 0, "y": 20},
+      {"x": 0, "y": 60}
+    ],
+    "outputPins": [{"x": 80, "y": 40}],
+    "shapes": [
+      {"type":"CubicBezierShape","p0":{"x":8.8,"y":0},"p1":{"x":32.5,"y":0},"p2":{"x":64.2,"y":20},"p3":{"x":80,"y":40},"color":"#333333"},
+      {"type":"CubicBezierShape","p0":{"x":8.8,"y":80},"p1":{"x":32.5,"y":80},"p2":{"x":64.2,"y":60},"p3":{"x":80,"y":40},"color":"#333333"},
+      {"type":"CubicBezierShape","p0":{"x":8.8,"y":0},"p1":{"x":20.7,"y":20},"p2":{"x":20.7,"y":60},"p3":{"x":8.8,"y":80},"color":"#333333"},
+      {"type":"CubicBezierShape","p0":{"x":0,"y":0},"p1":{"x":11.9,"y":20},"p2":{"x":11.9,"y":60},"p3":{"x":0,"y":80},"color":"#333333"}
+    ]
+  },
+   {
+    "type": "xnor",
+    "bounds" : [80, 80],
+    "inputPins": [
+      {"x": 0, "y": 20},
+      {"x": 0, "y": 60}
+    ],
+    "outputPins": [{"x": 80, "y": 40}],
+    "shapes": [
+      {"type":"CubicBezierShape","p0":{"x":8.8,"y":0},"p1":{"x":32.5,"y":0},"p2":{"x":64.2,"y":20},"p3":{"x":80,"y":40},"color":"#333333"},
+      {"type":"CubicBezierShape","p0":{"x":8.8,"y":80},"p1":{"x":32.5,"y":80},"p2":{"x":64.2,"y":60},"p3":{"x":80,"y":40},"color":"#333333"},
+      {"type":"CubicBezierShape","p0":{"x":8.8,"y":0},"p1":{"x":20.7,"y":20},"p2":{"x":20.7,"y":60},"p3":{"x":8.8,"y":80},"color":"#333333"},
+      {"type":"CubicBezierShape","p0":{"x":0,"y":0},"p1":{"x":11.9,"y":20},"p2":{"x":11.9,"y":60},"p3":{"x":0,"y":80},"color":"#333333"},
+      {"type": "circle", "x": 80, "y": 40, "r": 4, "color": "#333333", "fill": false, "fillColor": "#808080"}
+    ]
+  }
+]

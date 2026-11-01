@@ -1,2 +1,8 @@
 /build/
 /build-*/
+
+# 运行期数据：用户表与用户工程不应入库
+/backend/database/*
+!/backend/database/.gitkeep
+/backend/userprojects/*
+!/backend/userprojects/.gitkeep

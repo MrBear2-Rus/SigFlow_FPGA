@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SigFlow · 控制台</title>
+    <link rel="stylesheet" href="/vendor/codemirror/lib/codemirror.css">
+    <link rel="stylesheet" href="/styles/app.css">
+</head>
+<body>
+    <header>
+        <h1>SigFlow · 控制台</h1>
+        <span id="health" class="muted">检查中…</span>
+        <a class="link" href="/pages/canvas.html">画布</a>
+        <span id="account" class="muted">未登录</span>
+    </header>
+
+    <main>
+        <aside>
+            <section class="panel" id="authPanel">
+                <h2>账号</h2>
+                <input id="userId" placeholder="userId" autocomplete="username">
+                <input id="password" type="password" placeholder="密码（至少 8 位）" autocomplete="current-password">
+                <div class="row">
+                    <button id="login">登录</button>
+                    <button id="register">注册</button>
+                    <button id="logout" hidden>退出</button>
+                </div>
+                <p id="authStatus" class="muted"></p>
+            </section>
+
+            <section class="panel" id="projectPanel" hidden>
+                <h2>工程</h2>
+                <select id="projectSelect"></select>
+                <div class="row">
+                    <input id="newProject" placeholder="新工程 ID">
+                    <button id="createProject">新建</button>
+                </div>
+                <h3>文件</h3>
+                <ul id="fileList" class="file-list"></ul>
+            </section>
+        </aside>
+
+        <section class="panel editor-panel" id="editorPanel" hidden>
+            <h2>编辑器</h2>
+            <div class="row">
+                <input id="filePath" placeholder="src/top.v">
+                <button id="openFile">打开</button>
+                <button id="saveFile">保存</button>
+            </div>
+            <textarea id="fileContent" spellcheck="false"></textarea>
+
+            <div class="row">
+                <button id="analyzeStructure">结构树</button>
+                <button id="analyzeLint">语法检查</button>
+                <span id="analysisStatus" class="muted"></span>
+            </div>
+
+            <div class="analysis">
+                <div>
+                    <h3>结构树</h3>
+                    <ul id="structureTree" class="tree"></ul>
+                </div>
+                <div>
+                    <h3>诊断</h3>
+                    <ul id="diagnostics" class="diagnostics"></ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel" id="jobPanel" hidden>
+            <h2>任务</h2>
+            <label>类型
+                <select id="jobType">
+                    <option value="synth">synth（综合）</option>
+                </select>
+            </label>
+            <label>参数 JSON
+                <textarea id="params" rows="7" spellcheck="false"></textarea>
+            </label>
+            <div class="row">
+                <button id="submit">提交</button>
+                <button id="cancel" disabled>取消</button>
+            </div>
+            <p id="status" class="muted">就绪</p>
+            <h3>事件流</h3>
+            <pre id="log" aria-live="polite"></pre>
+        </section>
+    </main>
+
+    <script src="/vendor/codemirror/lib/codemirror.js"></script>
+    <script src="/vendor/codemirror/mode/verilog/verilog.js"></script>
+    <script src="/vendor/codemirror/addon/edit/matchbrackets.js"></script>
+    <script type="module" src="/scripts/console.js"></script>
+</body>
+</html>
