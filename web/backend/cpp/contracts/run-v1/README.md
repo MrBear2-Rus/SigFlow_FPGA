@@ -69,7 +69,7 @@ reports/report.json 新路径、相对 artifact 路径及退出码语义。完�
 
 ## P2 实现更新（2026-11-01）
 
-具体调用和错误/取消语义见 ../../P2_HANDOFF.md。CLI 现已使用 --project-id，
+具体调用和错误/取消语义见 `web/current_status_docs/handoff-cpp.md`。CLI 现已使用 --project-id，
 按 Runtime 写入执行事实，静态工厂未迁入时返回 3。request.metadata 中的
 `tool_root_source` 为宿主生成的配置来源，值 argument/environment/default。
 该字段位于既有 metadata 对象内，不改变 envelope。provider 通过 Runtime

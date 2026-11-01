@@ -89,6 +89,10 @@ web/
 ├── README.md
 ├── config.txt                    运行时默认值（Node 启动时读一次）
 ├── CMakeLists.txt                唯一的构建文件（Linux only，不联网）
+├── .clang-format                 C++ 统一格式（4 空格 / 100 列）
+├── current_status_docs/          各角色的规划与交接（见「文档规范」）
+│   ├── plan-cpp.md / handoff-cpp.md
+│   └── plan-js.md  / handoff-js.md
 ├── frontend/                     纯静态前端，由 Node 托管
 │   ├── pages/                    HTML 页面
 │   ├── scripts/                  前端 JS（编辑器、画布、波形绘制、面板）
@@ -195,7 +199,7 @@ web/
 #### 3.5 CLI 契约
 
 **权威来源**：`backend/cpp/contracts/run-v1/`（request / manifest / report / event 四份 JSON Schema 与 fixtures）。
-本节只是摘要，冲突时以 contracts 与 `P2_HANDOFF.md` 为准。
+本节只是摘要，冲突时以 contracts 与 `current_status_docs/handoff-cpp.md` 为准。
 
 | 子命令 | 用途 | 关键参数 |
 |---|---|---|
@@ -250,33 +254,18 @@ web/
 
 **当前实现进度**：`run --job-type synth` 可用；`pnr/pack/flash/sim.build/sim.run` 返回 `3`；`structure/lint/validate/capture/devices/wave` 仍是规划。
 
-#### 3.6 契约与协作文档索引
+#### 3.6 契约与协作文档
 
 | 文档 | 作用 |
 |---|---|
-| `backend/cpp/contracts/run-v1/` | **权威**：request / manifest / report / event schema 与 fixtures |
-| `backend/cpp/task.md` | 协作任务书：P0–P9 阶段划分与验收口径 |
-| `backend/cpp/IMPLEMENTATION.md` | 已完成批次与迁移修正记录 |
-| `backend/cpp/P2_HANDOFF.md` | 单任务 Runtime 与 CLI 的对接细节（Node 必读） |
-| `backend/cpp/P3_HANDOFF.md` | Yosys 综合 provider 的实现与验证边界 |
-| `backend/cpp/RUN_PROTOCOL_DRAFT.md` | 协议草案；与 contracts 冲突时以 contracts 为准 |
+| `backend/cpp/contracts/run-v1/` | **唯一协议权威**：request / manifest / report / event schema 与 fixtures |
+| `current_status_docs/plan-cpp.md` | cpp工 的规划与验收 |
+| `current_status_docs/handoff-cpp.md` | cpp工 的交接与待确认项（Node 必读） |
+| `current_status_docs/plan-js.md` | js工 的规划与验收 |
+| `current_status_docs/handoff-js.md` | js工 的交接与待确认项 |
 | `backend/cpp/third_party/README.md` | 离线依赖来源与校验和 |
 
-**已定接口（2026-11-01）**
-
-| 决策 | 结论 |
-|---|---|
-| `wave serve` 协议 | stdin/stdout JSONL，一行一条；请求带 `id`，响应回同一个 `id` |
-| 其他子命令 payload | 先冻结公共信封（`id`、`ok`/`error{code,message}`），结果体随实现逐个冻结 |
-| flash 确认门 | 沿用旧语义：Node 弹窗确认后下发 `require_confirm=true`，C++ 仍做最后检查 |
-| 代码格式 | 统一使用 `web/.clang-format`（LLVM 基线：4 空格、100 列、花括号同侧） |
-| 推进顺序 | 先做 Node ↔ C++ 的 synth 端到端联调，再扩展 P4 provider |
-
-`wave serve` 的消息类型：`open` / `close` / `signals` / `query`，响应为 `result` 或 `error`；错误统一为
-`{"id":…,"ok":false,"error":{"code":…,"message":…}}`。具体字段在 P7 实现时补进 `contracts/wave-v1/`，
-在此之前不视为已冻结。
-
-**仍需在实现时冻结**：`structure`/`lint`/`validate`/`capture`/`devices` 的结果字段；`wave serve` 的字段清单。
+进度、计划与交接只写在 `current_status_docs/` 下，本节不复述；跨角色决策见文末「决策记录」。
 
 ### 4. Node 侧
 
@@ -321,7 +310,7 @@ Python Agent 是双向的：对 UI 提供 `/api/v1/sessions|runs|events`，同�
 
 #### 4.5 与 C++ 的对接要求
 
-以下是 P2_HANDOFF §5 的硬性要求，Node 实现时逐条落实：
+以下是 cpp 侧交接（`current_status_docs/handoff-cpp.md`）中的硬性要求，Node 实现时逐条落实：
 
 1. `spawn` 使用 `detached + pipes`，参数写完后**关闭 stdin**；
 2. 每次使用**新的空目录**，遵守 `--project-id`、相对产物路径与 `reports/report.json`；
@@ -429,5 +418,72 @@ cmake --install build/web --prefix /opt/sigflow
 
 迁移期约定：`backend/cpp` 下任何模块目录为空时，CMake 会把它退化为 INTERFACE 目标并打印提示，因此**任意迁移阶段都能 configure 和构建**；随着源文件复制进来，同名目标自动变成 STATIC 库，无需改 CMake。
 
+## 决策记录
 
+跨角色决策集中在这里；只记录**结论**，实现细节见 `contracts/` 或代码。
+
+| 编号 | 事项 | 结论 | 决定人 | 日期 |
+|---|---|---|---|---|
+| D-01 | 进程模型 | C++ 无状态、一次性进程；`wave serve` 是每用户会话级例外 | 共同 | 2026-10-31 |
+| D-02 | 并发 | Node 并发 spawn；上限来自 `config.txt`；C++ 不建队列 | 共同 | 2026-10-31 |
+| D-03 | 数据目录 | C++ 直接读 Node 给的路径，写 `<project>/.sigflow/agent/jobs/` | 共同 | 2026-10-31 |
+| D-04 | Gateway | C++ 不实现 HTTP；Node 复刻 Python 依赖的路由 | 共同 | 2026-10-31 |
+| D-05 | Python Agent | 零改动；Node 同时扮演宿主与 Gateway | 共同 | 2026-10-31 |
+| D-06 | 插件 | 8 个留 C++，`eda-lib-basic` 归 JS；`PluginHost` 退化为 jobType 分发表 | 共同 | 2026-10-31 |
+| D-07 | wave serve 协议 | JSONL 一行一条，请求与响应用 `id` 关联 | 共同 | 2026-11-01 |
+| D-08 | 其他子命令 payload | 先冻结公共信封，结果体随实现冻结 | 共同 | 2026-11-01 |
+| D-09 | flash 确认 | 沿用 `require_confirm` + Node 弹窗确认 | 共同 | 2026-11-01 |
+| D-10 | 代码格式 | 统一 `.clang-format`（LLVM 基线） | 共同 | 2026-11-01 |
+| D-11 | 推进顺序 | 先做 Node ↔ C++ 的 synth 端到端联调 | 共同 | 2026-11-01 |
+| D-12 | 文档规范 | 三层文档模型（README / current_status_docs / contracts） | 共同 | 2026-11-01 |
+
+## 文档规范
+
+### 三层与单一事实源
+
+| 层 | 位置 | 写什么 | 不写什么 |
+|---|---|---|---|
+| L1 | `README.md` | 目标、规范、架构、契约摘要、跨角色决策 | 进度、TODO、个人计划 |
+| L2 | `current_status_docs/` | 各角色的规划与交接 | 架构描述、CLI 参数、schema 字段 |
+| L3 | `backend/cpp/contracts/` | 机器可读协议（schema + fixtures） | 进度、计划 |
+
+同一事实只允许一处权威：**架构→README，协议→contracts，进度→status**；其他位置只能链接，
+不得复述。发现同一事实出现两处不同描述时，以权威层为准并删除另一处。
+
+### 文件与命名
+
+`current_status_docs/<类型>-<角色>.md`：类型为 `plan` 或 `handoff`，角色为 `cpp` 或 `js`。
+
+- 每个角色**最多两份**（一份规划、一份交接），不得再拆；
+- 禁止新建其他 `.md`；确有必要时先在本节登记并说明理由；
+- 文件名即署名，`plan-cpp.md` 的作者就是 cpp工。
+
+### 固定头部
+
+每份 status 文档开头必须是元信息块：
+
+```markdown
+> 负责人：cpp工 | js工
+> 类型：规划 | 交接
+> 更新：YYYY-MM-DD
+> 状态：进行中 | 已完成 | 阻塞
+> 阶段：P4 | J1
+```
+
+### 内容边界
+
+| 文件 | 必含 | 上限 |
+|---|---|---|
+| `plan-*.md` | 当前目标、阶段与验收表、下一步（≤5 条）、阻塞与依赖、相关决策 | 120 行 |
+| `handoff-*.md` | 待对方配合（编号 `H-CPP-###` / `H-JS-###`）、待定接口、已知风险、最近变更（≤10 条） | 80 行 |
+
+交接条目必须是**可执行的一句话**（谁在什么时候做什么），完成后删除；历史由 git 保存。
+
+### 更新与保留
+
+1. 每次提交前更新自己两份文档的「更新」日期与相关条目；提交信息引用条目编号（如 `H-CPP-002`）。
+2. `plan-*.md` 只保留当前有效内容；完成的阶段移入 `handoff-*.md` 的「最近变更」。
+3. `handoff-*.md` 只保留未完成项与最近 10 条变更，超出即删旧。
+4. 跨角色决策追加到本文件「决策记录」，注明决定人与日期。
+5. agent 只能修改自己所代表角色的 status 文档；`README.md` 与 `AGENTS.md` 的改动需用户确认。
 

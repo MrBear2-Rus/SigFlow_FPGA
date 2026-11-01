@@ -4,14 +4,13 @@
 - agent不得更改git状态，包括add,commit,push,pull和分支切换等。最多只能查看git状态，如git status,git diff等
 - 不得修改本文件
 - 遇到文档里没有描述清楚的内容时，请主动向我发出询问，等待我亲自回答后再继续
+- 文档只能写在 web/current_status_docs/ 下，并遵守 README.md 的「文档规范」：
+  * agent 只维护 js工 的 plan-js.md 与 handoff-js.md，不得改动 cpp工 的文档；
+  * 不得新建其他 .md（backend/cpp/contracts/ 与 backend/cpp/third_party/ 的说明除外）；
+  * status 文档里不得复述架构与协议，只能链接 README.md 或 contracts/；
+  * 每次提交前更新所负责文档的「更新」日期与相关条目。
 ## 项目目标
-阅读此文件以明确现阶段的目标:[READEME](./README.md)
-具体要做什么请阅读下面'agent本次任务'的内容
-## agent本次任务
-阅读README.md后，完善其'## 具体架构'内容，要解决以下的点:
-- 阅读原来的cpp代码,将README.md#功能划分的每项内容都对应到原来的代码位置
-- 然后编写具体架构，说明在本路径下的frontend,backend下应该如何组织代码文件
-- 重点是cpp侧的工具链，他们应该由本路径下的CMakeLists.txt管理，参考外层CMake,不过要注意这次只用在Linux上运行，不需要兼容其他平台。你需要明确具体哪些由cpp负责而不是js负责
-
+阅读此文件以明确现阶段的目标:[README](./README.md)
+具体要做什么请阅读web/current_status_docs下的内容。你需要明确你是cpp工还是js工。
 
 
