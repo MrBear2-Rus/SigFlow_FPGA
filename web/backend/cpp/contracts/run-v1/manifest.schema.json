@@ -1,0 +1,113 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "eda.job.v1"
+    },
+    "job_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "retry_of": {
+      "type": "string"
+    },
+    "job_type": {
+      "type": "string",
+      "minLength": 1
+    },
+    "plugin_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "project_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "state": {
+      "enum": [
+        "Created",
+        "Validating",
+        "Queued",
+        "Running",
+        "ValidatingArtifact",
+        "Succeeded",
+        "Failed",
+        "Cancelled",
+        "TimedOut"
+      ]
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "updated_at": {
+      "type": "string"
+    },
+    "exit_code": {
+      "type": "integer"
+    },
+    "parameters": {
+      "type": "object"
+    },
+    "metadata": {
+      "type": "object"
+    },
+    "transitions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "enum": [
+              "Created",
+              "Validating",
+              "Queued",
+              "Running",
+              "ValidatingArtifact",
+              "Succeeded",
+              "Failed",
+              "Cancelled",
+              "TimedOut"
+            ]
+          },
+          "timestamp": {
+            "type": "string"
+          },
+          "op": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "exit_code": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "state",
+          "timestamp",
+          "op",
+          "reason",
+          "exit_code"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "job_id",
+    "retry_of",
+    "job_type",
+    "plugin_id",
+    "project_id",
+    "state",
+    "created_at",
+    "updated_at",
+    "exit_code",
+    "parameters",
+    "metadata",
+    "transitions"
+  ],
+  "additionalProperties": false
+}

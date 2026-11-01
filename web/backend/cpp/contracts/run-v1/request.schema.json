@@ -1,0 +1,84 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "sigflow.execution-request.v1"
+    },
+    "job_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "job_type": {
+      "type": "string",
+      "minLength": 1
+    },
+    "plugin_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "project_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "project_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "work_dir": {
+      "type": "string",
+      "minLength": 1
+    },
+    "parameters": {
+      "type": "object"
+    },
+    "metadata": {
+      "type": "object"
+    },
+    "require_confirm": {
+      "type": "boolean"
+    },
+    "timeout_sec": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "max_output_bytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "tool_root": {
+      "type": "string"
+    },
+    "data_dir": {
+      "type": "string"
+    },
+    "input_snapshot_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    }
+  },
+  "required": [
+    "schema_version",
+    "job_id",
+    "job_type",
+    "plugin_id",
+    "project_id",
+    "project_path",
+    "work_dir",
+    "parameters",
+    "metadata",
+    "require_confirm",
+    "timeout_sec",
+    "max_output_bytes",
+    "tool_root",
+    "data_dir",
+    "input_snapshot_id"
+  ],
+  "additionalProperties": false
+}

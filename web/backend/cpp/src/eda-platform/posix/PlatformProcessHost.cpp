@@ -1,0 +1,368 @@
+#include <eda/api/process.hpp>
+
+#include "ProcessCollector.h"
+
+#if defined(_WIN32)
+#error "eda-platform/posix backend compiled on a Windows target"
+#endif
+
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
+#include <cerrno>
+#include <chrono>
+#include <atomic>
+#include <cstdlib>
+#include <cstring>
+#include <fcntl.h>
+#include <map>
+#include <mutex>
+#include <poll.h>
+#include <signal.h>
+#include <spawn.h>
+#include <string>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <sys/prctl.h>
+#include <sys/syscall.h>
+#include <sys/resource.h>
+#include <thread>
+#include <unistd.h>
+#include <vector>
+
+extern char** environ;
+
+namespace eda {
+namespace {
+
+bool SetNonBlocking(int descriptor) {
+    const int flags = fcntl(descriptor, F_GETFL, 0);
+    return flags >= 0 && fcntl(descriptor, F_SETFL, flags | O_NONBLOCK) >= 0;
+}
+
+void PumpDescriptors(int stdoutFd, int stderrFd, platform::ProcessCollector* collector,
+                     const ProcessOutputCallback* onOutput, std::string* carries) {
+    pollfd descriptors[2] = {{stdoutFd, POLLIN, 0}, {stderrFd, POLLIN, 0}};
+    char buffer[4096];
+    int openCount = 2;
+    while (openCount > 0) {
+        const int ready = poll(descriptors, 2, 200);
+        if (ready <= 0) continue;
+        for (int index = 0; index < 2; ++index) {
+            if (descriptors[index].fd < 0) continue;
+            if ((descriptors[index].revents & (POLLIN | POLLHUP | POLLERR)) == 0) continue;
+            for (;;) {
+                const ssize_t read = ::read(descriptors[index].fd, buffer, sizeof(buffer));
+                if (read > 0) {
+                    std::string chunk;
+                    if (collector->Append(buffer, static_cast<std::size_t>(read), index == 1,
+                                          chunk) &&
+                        !chunk.empty() && onOutput != nullptr && *onOutput) {
+                        (*onOutput)(chunk, index == 1);
+                    }
+                    continue;
+                }
+                if (read == 0 || (read < 0 && errno != EAGAIN && errno != EINTR)) {
+                    close(descriptors[index].fd);
+                    descriptors[index].fd = -1;
+                    --openCount;
+                }
+                break;
+            }
+        }
+    }
+}
+
+class PosixProcessHost final : public IProcessHost {
+public:
+    ProcessResult Run(const ProcessSpec& spec, const ProcessOutputCallback& onOutput) override;
+    void Cancel() override;
+
+private:
+    std::mutex handleMutex_;
+    std::atomic<pid_t> pid_{-1};
+    std::atomic<bool> cancelRequested_{false};
+};
+
+ProcessResult PosixProcessHost::Run(const ProcessSpec& spec,
+                                    const ProcessOutputCallback& onOutput) {
+    ProcessResult result;
+    // 不清除 cancelRequested_：宿主可能在首次 Run 前已 Cancel（见 Win32 后端同处注释）。
+
+    if (!spec.quoteArguments) {
+        result.errorMessage = "Raw command line is not supported on POSIX.";
+        return result;
+    }
+
+    // 所有字符串转换都在 fork 之前完成：fork 后的多线程子进程只允许 async-signal-safe 调用。
+    const std::string executable = spec.executable.string();
+    std::vector<std::string> argvStorage;
+    argvStorage.reserve(spec.arguments.size() + 1);
+    argvStorage.push_back(executable);
+    for (const auto& argument : spec.arguments) {
+        argvStorage.push_back(argument);
+    }
+    std::vector<char*> argv;
+    argv.reserve(argvStorage.size() + 1);
+    for (std::string& item : argvStorage) argv.push_back(item.data());
+    argv.push_back(nullptr);
+
+    std::vector<std::string> envStorage;
+    std::vector<char*> envp;
+    if (!spec.environment.empty()) {
+        std::map<std::string, std::string> merged;
+        for (char** entry = environ; entry != nullptr && *entry != nullptr; ++entry) {
+            const std::string line(*entry);
+            const std::size_t equals = line.find('=');
+            if (equals == std::string::npos || equals == 0) continue;
+            merged[line.substr(0, equals)] = line.substr(equals + 1);
+        }
+        for (const auto& pair : spec.environment) {
+            merged[pair.first] = pair.second;
+        }
+        envStorage.reserve(merged.size());
+        for (const auto& pair : merged) envStorage.push_back(pair.first + "=" + pair.second);
+        envp.reserve(envStorage.size() + 1);
+        for (std::string& item : envStorage) envp.push_back(item.data());
+        envp.push_back(nullptr);
+    }
+
+    const std::string workingDirectory = spec.workingDirectory.string();
+
+    int stdoutPipe[2] = {-1, -1};
+    int stderrPipe[2] = {-1, -1};
+    int execPipe[2] = {-1, -1};
+    const auto closePipe = [](int (&fds)[2]) {
+        for (int fd : fds) {
+            if (fd >= 0) close(fd);
+        }
+        fds[0] = fds[1] = -1;
+    };
+    if (pipe(stdoutPipe) != 0) {
+        result.errorMessage = "Unable to create job process pipes.";
+        return result;
+    }
+    if (pipe(stderrPipe) != 0) {
+        closePipe(stdoutPipe);
+        result.errorMessage = "Unable to create job process pipes.";
+        return result;
+    }
+    if (pipe2(execPipe, O_CLOEXEC) != 0) {
+        closePipe(stdoutPipe);
+        closePipe(stderrPipe);
+        result.errorMessage = "Unable to create exec status pipe.";
+        return result;
+    }
+    // FD_CLOEXEC：避免写端跨 exec 泄漏给其它并发子进程，使对方读端永不 EOF。
+    for (int fd : {stdoutPipe[0], stdoutPipe[1], stderrPipe[0], stderrPipe[1]}) {
+        const int flags = fcntl(fd, F_GETFD);
+        if (flags >= 0) fcntl(fd, F_SETFD, flags | FD_CLOEXEC);
+    }
+
+    int lifetime[2], gate[2];
+    if(pipe2(lifetime,O_CLOEXEC)!=0) {
+        closePipe(execPipe); closePipe(stdoutPipe); closePipe(stderrPipe);
+        result.errorMessage="Cannot create guardian lifetime pipe"; return result;
+    }
+    if(pipe2(gate,O_CLOEXEC)!=0) {
+        closePipe(lifetime); closePipe(execPipe); closePipe(stdoutPipe); closePipe(stderrPipe);
+        result.errorMessage="Cannot create tool launch gate"; return result;
+    }
+    const pid_t owner=getpid();
+    const long maxFd=sysconf(_SC_OPEN_MAX);
+    const pid_t child = fork();
+    if (child < 0) {
+        closePipe(lifetime); closePipe(gate);
+        closePipe(execPipe);
+        closePipe(stdoutPipe);
+        closePipe(stderrPipe);
+        result.errorMessage = "Unable to fork a job process.";
+        return result;
+    }
+    if (child == 0) {
+        close(lifetime[0]); close(lifetime[1]); close(gate[1]);
+        // Do not execute/fork descendants until the independent guardian exists.
+        prctl(PR_SET_PDEATHSIG,SIGKILL);
+        if(getppid()!=owner)_exit(127);
+        setpgid(0,0);
+        char ready; ssize_t received;
+        do {received=read(gate[0],&ready,1);}while(received<0&&errno==EINTR);
+        close(gate[0]);
+        if(received!=1)_exit(127);
+        close(execPipe[0]);
+        const auto launchError = [&]() {
+            const int failure = errno;
+            ssize_t written;
+            do { written = ::write(execPipe[1], &failure, sizeof(failure)); }
+            while (written < 0 && errno == EINTR);
+            _exit(127);
+        };
+        setpgid(0, 0);
+        dup2(stdoutPipe[1], STDOUT_FILENO);
+        dup2(stderrPipe[1], STDERR_FILENO);
+        close(stdoutPipe[0]);
+        close(stdoutPipe[1]);
+        close(stderrPipe[0]);
+        close(stderrPipe[1]);
+        if (!workingDirectory.empty()) {
+            if (chdir(workingDirectory.c_str()) != 0) launchError();
+        }
+        if (!envp.empty()) {
+            execvpe(argv[0], argv.data(), envp.data());
+        } else {
+            execvp(argv[0], argv.data());
+        }
+        launchError();
+    }
+
+    close(gate[0]);
+    const pid_t guardian=fork();
+    if(guardian==0) {
+        setpgid(0,0);
+        // Release the launch gate only after leaving the Node/CLI process group.
+        char ready='G'; ssize_t sent;
+        do {sent=write(gate[1],&ready,1);}while(sent<0&&errno==EINTR);
+        // Keep only the owner-lifetime read end. No inherited stdout may delay EOF.
+        close(0); close(1); close(2);
+        if(syscall(SYS_close_range,3,static_cast<unsigned>(lifetime[0]-1),0)!=0) {
+            for(int fd=3;fd<lifetime[0];++fd)close(fd);
+        }
+        if(syscall(SYS_close_range,static_cast<unsigned>(lifetime[0]+1),~0U,0)!=0) {
+            for(long fd=lifetime[0]+1;fd<maxFd;++fd)close(static_cast<int>(fd));
+        }
+        char normal; ssize_t received;
+        do {received=read(lifetime[0],&normal,1);}while(received<0&&errno==EINTR);
+        if(received!=1)killpg(child,SIGKILL);
+        close(lifetime[0]); _exit(0);
+    }
+    close(lifetime[0]);
+    if(guardian<0) {
+        close(gate[1]); close(lifetime[1]);
+        kill(child,SIGKILL); while(waitpid(child,nullptr,0)<0&&errno==EINTR){}
+        closePipe(execPipe); closePipe(stdoutPipe); closePipe(stderrPipe);
+        result.errorMessage="Cannot start tool guardian"; return result;
+    }
+    close(gate[1]);
+    const auto finishGuardian=[&] {
+        char normal='N'; ssize_t written;
+        do {written=write(lifetime[1],&normal,1);}while(written<0&&errno==EINTR);
+        close(lifetime[1]);
+        while(waitpid(guardian,nullptr,0)<0&&errno==EINTR){}
+    };
+    close(execPipe[1]);
+    int launchErrno = 0;
+    ssize_t execStatus;
+    do { execStatus = read(execPipe[0], &launchErrno, sizeof(launchErrno)); }
+    while (execStatus < 0 && errno == EINTR);
+    close(execPipe[0]);
+    if (execStatus != 0) {
+        finishGuardian();
+        closePipe(stdoutPipe);
+        closePipe(stderrPipe);
+        while (waitpid(child, nullptr, 0) < 0 && errno == EINTR) {}
+        result.errorMessage = std::string("Unable to launch tool: ") +
+                              std::strerror(execStatus > 0 ? launchErrno : errno);
+        return result;
+    }
+
+    // 父进程也 setpgid，消除"子进程尚未建立进程组即 killpg"的竞态。
+    setpgid(child, child);
+    {
+        std::lock_guard<std::mutex> lock(handleMutex_);
+        pid_.store(child);
+    }
+
+    result.started = true;
+    close(stdoutPipe[1]);
+    close(stderrPipe[1]);
+    SetNonBlocking(stdoutPipe[0]);
+    SetNonBlocking(stderrPipe[0]);
+
+    platform::ProcessCollector collector(spec.maxOutputBytes);
+    std::string carries[2];
+    std::thread pump(PumpDescriptors, stdoutPipe[0], stderrPipe[0], &collector, &onOutput,
+                     carries);
+
+    const auto startedAt = std::chrono::steady_clock::now();
+    int status = 0;
+    bool finished = false;
+    bool cancelled = false;
+    while (true) {
+        const pid_t waited = waitpid(child, &status, WNOHANG);
+        if (waited == child) {
+            finished = true;
+            break;
+        }
+        if (cancelRequested_.load()) {
+            cancelled = true;
+            break;
+        }
+        if (spec.timeoutSeconds > 0 &&
+            std::chrono::steady_clock::now() - startedAt >=
+                std::chrono::seconds(spec.timeoutSeconds)) break;
+        usleep(100000);
+    }
+    // 与 Win32 后端保持一致：等待循环结束后再读一次取消标志。
+    //
+    // Cancel() 直接 SIGKILL 子进程，于是下一轮 waitpid 会【先】返回 child，
+    // 循环从 `finished = true; break;` 退出，抢在 `cancelRequested_` 检查之前，
+    // 局部 cancelled 仍为 false —— outcome 被误判为 NonZeroExit，
+    // 契约测试 "ProcessHost cancel outcome" 因此在 Linux 上失败（Windows 不受影响，
+    // 因为它是在循环【之后】才 load() 标志）。
+    cancelled = cancelled || cancelRequested_.load();
+    const bool timedOut = !finished && !cancelled;
+    if (!finished) {
+        // killpg 可能因进程组不存在(ESRCH)失败，退回 kill(pid)。
+        if (killpg(child, SIGTERM) != 0) kill(child, SIGTERM);
+        usleep(200000);
+        if (killpg(child, SIGKILL) != 0) kill(child, SIGKILL);
+        waitpid(child, &status, 0);
+    }
+    // A tool may exit leaving descendants holding its output pipes open.
+    // They belong to this invocation, so do not let them outlive it.
+    killpg(child, SIGKILL);
+    pump.join();
+    finishGuardian();
+    {
+        std::lock_guard<std::mutex> lock(handleMutex_);
+        pid_.store(-1);
+    }
+
+    if (WIFEXITED(status)) {
+        result.exitCode = WEXITSTATUS(status);
+    } else if (WIFSIGNALED(status)) {
+        result.exitCode = 128 + WTERMSIG(status);
+    }
+    result.output = collector.Combined();
+    result.errorOutput = collector.Errors();
+    result.outputTruncated = collector.Truncated();
+
+    if (cancelled) {
+        result.outcome = ProcessOutcome::Cancelled;
+    } else if (timedOut) {
+        result.outcome = ProcessOutcome::TimedOut;
+    } else if (result.exitCode == 0) {
+        result.outcome = ProcessOutcome::Success;
+    } else {
+        result.outcome = ProcessOutcome::NonZeroExit;
+    }
+    return result;
+}
+
+void PosixProcessHost::Cancel() {
+    cancelRequested_.store(true);
+    std::lock_guard<std::mutex> lock(handleMutex_);
+    const pid_t pid = pid_.load();
+    if (pid > 0) {
+        if (killpg(pid, SIGKILL) != 0) kill(pid, SIGKILL);
+    }
+}
+
+} // namespace
+
+std::unique_ptr<IProcessHost> CreatePlatformProcessHost() {
+    return std::make_unique<PosixProcessHost>();
+}
+
+} // namespace eda

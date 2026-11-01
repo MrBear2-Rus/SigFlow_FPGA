@@ -1,0 +1,28 @@
+{
+  "schema_version": "eda.jobreport.v1",
+  "job_id": "job-001",
+  "job_type": "synth",
+  "plugin_id": "eda-synth-yosys",
+  "state": "Succeeded",
+  "exit_code": 0,
+  "artifacts": [
+    {
+      "id": "netlist",
+      "path": "artifacts/top.json",
+      "schema": "eda.netlist.yosys-json.v1",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "role": "primary"
+    }
+  ],
+  "metrics": [
+    {
+      "exit_code": 0
+    },
+    {
+      "ports": 2,
+      "cells": 1,
+      "netnames": 3
+    }
+  ],
+  "diagnostics": null
+}

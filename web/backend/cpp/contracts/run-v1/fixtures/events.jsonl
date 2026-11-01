@@ -1,0 +1,5 @@
+{"type": "log", "level": "info", "line": "quoted \"RTL\"\n中文"}
+{"type": "progress", "percent": 20, "status": "Running"}
+{"type": "diagnostic", "severity": "error", "code": "TOOL_NOT_FOUND", "message": "yosys not found", "file": "", "line": 0}
+{"type": "artifact", "id": "netlist", "path": "artifacts/top.json", "role": "primary", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+{"type": "result", "state": "Succeeded", "exitCode": 0, "jobId": "job-001"}

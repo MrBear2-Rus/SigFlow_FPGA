@@ -1,0 +1,85 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "eda.jobreport.v1"
+    },
+    "job_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "job_type": {
+      "type": "string",
+      "minLength": 1
+    },
+    "plugin_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "state": {
+      "enum": [
+        "Created",
+        "Validating",
+        "Queued",
+        "Running",
+        "ValidatingArtifact",
+        "Succeeded",
+        "Failed",
+        "Cancelled",
+        "TimedOut"
+      ]
+    },
+    "exit_code": {
+      "type": "integer"
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+"
+          },
+          "schema": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "schema",
+          "sha256",
+          "role"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "metrics": {},
+    "diagnostics": {}
+  },
+  "required": [
+    "schema_version",
+    "job_id",
+    "job_type",
+    "plugin_id",
+    "state",
+    "exit_code",
+    "artifacts",
+    "metrics",
+    "diagnostics"
+  ],
+  "additionalProperties": false
+}

@@ -200,10 +200,12 @@ target_compile_features(sigflow_api INTERFACE cxx_std_20)
 target_link_libraries(sigflow_api INTERFACE sigflow_nlohmann)
 
 # ---- B-3. 平台层与内核 ------------------------------------------------------
+find_package(Threads REQUIRED)
+
 # eda-platform: 进程托管(POSIX)/动态库/sha256/路径
 sigflow_add_module(sigflow_platform
     DIR src/eda-platform
-    DEPS sigflow_api
+    DEPS sigflow_api Threads::Threads ${CMAKE_DL_LIBS}
 )
 
 # eda-core: 日志/工具发现/单任务执行器/报告落盘
@@ -334,12 +336,56 @@ if(SIGFLOW_BUILD_TESTS)
                 sigflow_plugin_synth sigflow_plugin_pnr sigflow_plugin_pack
                 sigflow_plugin_flash sigflow_plugin_sim sigflow_plugin_target
                 sigflow_plugin_cst sigflow_plugin_wave)
-            add_test(NAME ${_test_name} COMMAND ${_test_name})
+            if(_test_name STREQUAL "test_job_protocol")
+                add_test(NAME ${_test_name} COMMAND ${_test_name}
+                    "${SIGFLOW_CPP_DIR}/contracts/run-v1/fixtures"
+                    "${CMAKE_BINARY_DIR}/contract-output")
+            else()
+                add_test(NAME ${_test_name} COMMAND ${_test_name})
+            endif()
+            set_tests_properties(${_test_name} PROPERTIES TIMEOUT 20)
             set_target_properties(${_test_name} PROPERTIES
                 RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
         endforeach()
     else()
         message(STATUS "[sigflow] tests: 暂无测试源文件")
+    endif()
+endif()
+
+# Fixture provider is compiled only into this test executable, never production/install.
+if(SIGFLOW_BUILD_TESTS)
+    add_executable(sigflow-tool-fixture ${_cli_sources})
+    target_link_libraries(sigflow-tool-fixture PRIVATE sigflow_core)
+    target_include_directories(sigflow-tool-fixture PRIVATE "${SIGFLOW_CPP_DIR}/tests")
+    target_compile_definitions(sigflow-tool-fixture PRIVATE SIGFLOW_TEST_PROVIDER=1
+        SIGFLOW_DEFAULT_DATA_DIR="${SIGFLOW_DATA_DIR}" SIGFLOW_TOOL_RUNTIME_DIR="${SIGFLOW_TOOL_RUNTIME_DIR}")
+    set_target_properties(sigflow-tool-fixture PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+endif()
+
+# Optional offline schema checks; never install Python packages during configure.
+if(SIGFLOW_BUILD_TESTS)
+    find_package(Python3 QUIET COMPONENTS Interpreter)
+    if(Python3_Interpreter_FOUND)
+        add_test(NAME test_synth_integration COMMAND "${Python3_EXECUTABLE}"
+            "${SIGFLOW_CPP_DIR}/tests/synth_integration.py"
+            "$<TARGET_FILE:sigflow-tool>" "${CMAKE_BINARY_DIR}")
+        set_tests_properties(test_synth_integration PROPERTIES TIMEOUT 60)
+        add_test(NAME test_job_runtime COMMAND "${Python3_EXECUTABLE}"
+            "${SIGFLOW_CPP_DIR}/tests/runtime_integration.py"
+            "$<TARGET_FILE:sigflow-tool-fixture>" "$<TARGET_FILE:sigflow-tool>"
+            "${CMAKE_BINARY_DIR}" "${SIGFLOW_CPP_DIR}/contracts/run-v1")
+        set_tests_properties(test_job_runtime PROPERTIES TIMEOUT 90)
+
+        execute_process(COMMAND "${Python3_EXECUTABLE}" -c "import jsonschema"
+            RESULT_VARIABLE _schema_available OUTPUT_QUIET ERROR_QUIET)
+        if(_schema_available EQUAL 0)
+            add_test(NAME test_run_schemas COMMAND "${Python3_EXECUTABLE}"
+                "${SIGFLOW_CPP_DIR}/tests/validate_run_contracts.py"
+                "${SIGFLOW_CPP_DIR}/contracts/run-v1" "${CMAKE_BINARY_DIR}/contract-output")
+            set_tests_properties(test_run_schemas PROPERTIES DEPENDS test_job_protocol TIMEOUT 20)
+        else()
+            message(STATUS "[sigflow] JSON Schema checks unavailable: Python jsonschema missing")
+        endif()
     endif()
 endif()
 

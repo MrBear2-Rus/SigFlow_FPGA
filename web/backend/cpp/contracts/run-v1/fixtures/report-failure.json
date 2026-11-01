@@ -1,0 +1,16 @@
+{
+  "schema_version": "eda.jobreport.v1",
+  "job_id": "job-001",
+  "job_type": "synth",
+  "plugin_id": "eda-synth-yosys",
+  "state": "Failed",
+  "exit_code": -1,
+  "artifacts": [],
+  "metrics": null,
+  "diagnostics": [
+    {
+      "code": "TOOL_NOT_FOUND",
+      "message": "yosys not found"
+    }
+  ]
+}

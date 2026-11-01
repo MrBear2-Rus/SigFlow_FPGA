@@ -1,0 +1,35 @@
+{
+  "schema_version": "eda.job.v1",
+  "job_id": "job-001",
+  "retry_of": "",
+  "job_type": "synth",
+  "plugin_id": "eda-synth-yosys",
+  "project_id": "project-001",
+  "state": "Succeeded",
+  "created_at": "2026-10-31T12:00:00Z",
+  "updated_at": "2026-10-31T12:00:01Z",
+  "exit_code": 0,
+  "parameters": {
+    "top_module": "top",
+    "source_files": [
+      "/snapshots/source/top.sv"
+    ]
+  },
+  "metadata": {},
+  "transitions": [
+    {
+      "state": "Running",
+      "timestamp": "2026-10-31T12:00:00Z",
+      "op": "execute",
+      "reason": "",
+      "exit_code": 0
+    },
+    {
+      "state": "Succeeded",
+      "timestamp": "2026-10-31T12:00:01Z",
+      "op": "finish",
+      "reason": "",
+      "exit_code": 0
+    }
+  ]
+}

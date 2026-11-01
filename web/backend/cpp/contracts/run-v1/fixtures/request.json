@@ -1,0 +1,22 @@
+{
+  "schema_version": "sigflow.execution-request.v1",
+  "job_id": "job-001",
+  "job_type": "synth",
+  "plugin_id": "eda-synth-yosys",
+  "project_id": "project-001",
+  "project_path": "/projects/project-001",
+  "work_dir": "/projects/project-001/.sigflow/agent/jobs/synth/job-001",
+  "parameters": {
+    "top_module": "top",
+    "source_files": [
+      "/snapshots/source/top.sv"
+    ]
+  },
+  "metadata": {},
+  "require_confirm": false,
+  "timeout_sec": null,
+  "max_output_bytes": 0,
+  "tool_root": "",
+  "data_dir": "",
+  "input_snapshot_id": null
+}
