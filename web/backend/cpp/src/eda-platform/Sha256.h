@@ -11,5 +11,5 @@ namespace platform {
 std::string Sha256Hex(const void* data, std::size_t size);
 std::string Sha256FileHex(const std::filesystem::path& path);
 
-} // namespace platform
-} // namespace eda
+}  // namespace platform
+}  // namespace eda

@@ -7,7 +7,7 @@ namespace platform {
 
 // 平台动态库加载：Windows=LoadLibraryW/GetProcAddress/FreeLibrary，POSIX=dlopen/dlsym/dlclose。
 class DynamicLibrary {
-public:
+  public:
     DynamicLibrary() = default;
     ~DynamicLibrary();
     DynamicLibrary(const DynamicLibrary&) = delete;
@@ -20,10 +20,10 @@ public:
     bool IsLoaded() const { return handle_ != nullptr; }
     const std::string& LastError() const { return error_; }
 
-private:
+  private:
     void* handle_ = nullptr;
     std::string error_;
 };
 
-} // namespace platform
-} // namespace eda
+}  // namespace platform
+}  // namespace eda

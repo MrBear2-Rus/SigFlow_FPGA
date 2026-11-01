@@ -16,7 +16,7 @@
 
 extern "C" {
 
-struct eda_host_api_v1; // opaque；P0-3/P0-4 定义实现
+struct eda_host_api_v1;  // opaque；P0-3/P0-4 定义实现
 
 typedef struct eda_plugin_descriptor_v1 {
     std::uint32_t struct_size;
@@ -31,4 +31,4 @@ typedef struct eda_plugin_descriptor_v1 {
 
 EDA_PLUGIN_EXPORT const eda_plugin_descriptor_v1* eda_plugin_query_v1(std::uint32_t host_abi);
 
-} // extern "C"
+}  // extern "C"

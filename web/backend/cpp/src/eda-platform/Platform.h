@@ -15,4 +15,4 @@ const char* ExecutableSuffix();
 char PathListSeparator();
 bool IsSharedLibraryExtension(const std::string& extension);
 std::string CompilerInfo();
-}
+}  // namespace eda::platform

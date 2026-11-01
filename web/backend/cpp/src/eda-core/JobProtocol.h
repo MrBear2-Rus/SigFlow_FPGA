@@ -21,4 +21,4 @@ Json RequestToJson(const ExecutionRequest& request);
 Json ResultEvent(const JobReport& report);
 // No real tool exit status is available; details are carried in diagnostics.
 inline constexpr int kNoToolExitCode = -1;
-}
+}  // namespace eda::web

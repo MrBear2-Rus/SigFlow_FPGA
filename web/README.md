@@ -124,6 +124,8 @@ web/
         │   ├── debug/            TraceBridge 采集/传输/分析（去 wx）
         │   ├── trace/            波形查询与 sidecar 索引
         │   └── cli/              sigflow-tool 入口与子命令
+        ├── contracts/run-v1/     冻结的 run 协议（schema + fixtures）
+        └── tests/                C++ 测试与 Python 集成脚本
         └── tests/
 ```
 
@@ -192,11 +194,12 @@ web/
 
 #### 3.5 CLI 契约
 
-`sigflow-tool` 是唯一可执行文件，子命令与参数：
+**权威来源**：`backend/cpp/contracts/run-v1/`（request / manifest / report / event 四份 JSON Schema 与 fixtures）。
+本节只是摘要，冲突时以 contracts 与 `P2_HANDOFF.md` 为准。
 
 | 子命令 | 用途 | 关键参数 |
 |---|---|---|
-| `run` | 执行一个 Job | `--job-type <synth\|pnr\|pack\|flash\|sim.build\|sim.run>`、`--work-dir <dir>`、`--job-id <id>`、`--project <dir>`、`--params <json-file\|->`、`--timeout-sec`、`--max-output-bytes` |
+| `run` | 执行一个 Job | `--job-type <synth\|pnr\|pack\|flash\|sim.build\|sim.run>`、`--project <dir>`、`--project-id <id>`、`--job-id <id>`、`--work-dir <dir>`、`--params <json-file\|->`、`--timeout-sec`、`--max-output-bytes`、`--data-dir`、`--tool-root` |
 | `structure` | 结构树（tree-sitter，一次性） | `--file <path>` |
 | `lint` | 语法诊断（一次性） | `--file <path>` |
 | `validate cst` | 约束文件校验 | `--cst <file>`、`--pins <json>` |
@@ -207,32 +210,73 @@ web/
 | `capture run` | TraceBridge 采集 | `--work-dir`、`--contract <json>` |
 | `devices list` | 本机设备枚举 | — |
 
-通用参数：`--data-dir`（默认编译期写入的 `backend/static`，可被 `SIGFLOW_DATA_DIR` 覆盖）、`--tool-root`（预置工具链目录，可被 `SIGFLOW_TOOL_RUNTIME_DIR` 覆盖）。
+**run 的调用规则**
 
-**Job 目录布局**（Node 创建，C++ 只写）：
+| 规则 | 说明 |
+|---|---|
+| Job 目录 | Node **预先创建为空目录**，路径必须为 `<project>/.sigflow/agent/jobs/<jobType>/<jobId>`；Runtime 用 `.runtime-claim` 原子认领，目录不可复用，重试必须分配新 `jobId` |
+| 参数 | `--params -` 从 stdin 读**一个完整 JSON 对象**后关闭 stdin（不是 JSONL 多请求）；文件同理；上限 2 MiB |
+| ID | 1–128 位 `[A-Za-z0-9._-]`，不允许单独的 `.` 或 `..` |
+| 路径 | 拒绝 `..` 段与符号链接；工作目录必须落在工程内 |
+| 输入文件 | provider 只接受工程内文件，或显式 `--data-dir` 下的绝对文件 |
+| 产物 | `Artifact.path` 一律相对 Job 目录且位于 `artifacts/` 下；SHA-256 登记时计算、终态前复核 |
+| 确认门 | `require_confirm` 首版默认 false；flash 的确认传递方式尚未确定（见 3.6） |
+
+**Job 目录布局**（Node 建空目录，Runtime 写）：
 
 ```
 <project>/.sigflow/agent/jobs/<jobType>/<jobId>/
-├── manifest.json      # jobId / jobType / projectId / state / createdAt / 输入摘要
-├── request.json       # 参数快照，可复现
-├── artifacts/         # 工具产物：top.json、*.pnr.json、*.fs、*.vcd
-├── logs/              # 合并后的原始日志
-└── reports/report.json# JobReport：state、artifacts[]、metrics、diagnostics
+├── request.json        执行请求快照（sigflow.execution-request.v1）
+├── manifest.json       状态机记录（eda.job.v1），随状态原子更新
+├── .runtime-claim/     认领标记，保留不删；重复调用被拒绝
+├── artifacts/          工具产物
+├── logs/tool.log       原始工具输出（受 --max-output-bytes 截断）
+└── reports/report.json 报告（eda.jobreport.v1：state/artifacts/metrics/diagnostics）
 ```
 
-**stdout JSONL 事件**（每行一个对象，`type` 区分）：
+**stdout JSONL 事件**：字段以 `contracts/run-v1/event.schema.json` 为准。`log.line` 是有限片段、可能含换行，不能按“一条工具物理行”处理；`artifact` 事件是**候选**，只有终态 `result` 且报告校验通过才算产物成立。
 
-| type | 字段 |
+**退出码与状态**
+
+| 层 | 取值 |
 |---|---|
-| `log` | `level`、`line` |
-| `progress` | `percent`、`status` |
-| `diagnostic` | `severity`、`code`、`message`、`file`、`line` |
-| `artifact` | `id`、`path`、`role`、`sha256` |
-| `result` | `state`、`exitCode`、`jobId` |
+| CLI | `0` 成功、`2` 用法/参数错误、`3` 子命令或 provider 未实现、`4` 执行失败；被信号取消时以原信号退出 |
+| `report.exit_code` | 真实工具退出码；没有真实工具退出状态时为 `-1`（不冒充工具返回值） |
+| `result.state` | `Succeeded` / `Failed` / `Cancelled` / `TimedOut`；只有终态才发 `result` |
 
-**退出码**：`0` 成功；`2` 用法错误；`3` 子命令未实现（迁移期）；`4` 执行失败；被 Node 杀进程时以信号退出。
+**取消**：Node 必须 `detached` spawn，取消时 `kill(-pid, SIGTERM)`，留出清理与落盘时间后再 `SIGKILL`；Runtime 内有 guardian 负责回收工具进程组。Node 重启时扫描残留 `Running` 目录做恢复。
 
-**工具发现顺序**（复用原 `DefaultToolchain`）：`--tool-root` → 环境变量（`SIGFLOW_YOSYS` / `SIGFLOW_NEXTPNR` / `SIGFLOW_GOWIN_PACK` / `SIGFLOW_OPENFPGALOADER` / `SIGFLOW_VERILATOR`）→ `SIGFLOW_TOOL_RUNTIME_DIR` → `PATH`。CMake **不**下载或编译这些工具。
+**工具发现顺序**：参数内 `yosys_path` 等 → `--tool-root` → 每工具环境变量（`SIGFLOW_YOSYS` 等）→ 默认 runtime（`SIGFLOW_TOOL_RUNTIME_DIR`）→ `PATH`；结果必须是可执行的普通文件。CMake 不下载、不编译这些工具。
+
+**当前实现进度**：`run --job-type synth` 可用；`pnr/pack/flash/sim.build/sim.run` 返回 `3`；`structure/lint/validate/capture/devices/wave` 仍是规划。
+
+#### 3.6 契约与协作文档索引
+
+| 文档 | 作用 |
+|---|---|
+| `backend/cpp/contracts/run-v1/` | **权威**：request / manifest / report / event schema 与 fixtures |
+| `backend/cpp/task.md` | 协作任务书：P0–P9 阶段划分与验收口径 |
+| `backend/cpp/IMPLEMENTATION.md` | 已完成批次与迁移修正记录 |
+| `backend/cpp/P2_HANDOFF.md` | 单任务 Runtime 与 CLI 的对接细节（Node 必读） |
+| `backend/cpp/P3_HANDOFF.md` | Yosys 综合 provider 的实现与验证边界 |
+| `backend/cpp/RUN_PROTOCOL_DRAFT.md` | 协议草案；与 contracts 冲突时以 contracts 为准 |
+| `backend/cpp/third_party/README.md` | 离线依赖来源与校验和 |
+
+**已定接口（2026-11-01）**
+
+| 决策 | 结论 |
+|---|---|
+| `wave serve` 协议 | stdin/stdout JSONL，一行一条；请求带 `id`，响应回同一个 `id` |
+| 其他子命令 payload | 先冻结公共信封（`id`、`ok`/`error{code,message}`），结果体随实现逐个冻结 |
+| flash 确认门 | 沿用旧语义：Node 弹窗确认后下发 `require_confirm=true`，C++ 仍做最后检查 |
+| 代码格式 | 统一使用 `web/.clang-format`（LLVM 基线：4 空格、100 列、花括号同侧） |
+| 推进顺序 | 先做 Node ↔ C++ 的 synth 端到端联调，再扩展 P4 provider |
+
+`wave serve` 的消息类型：`open` / `close` / `signals` / `query`，响应为 `result` 或 `error`；错误统一为
+`{"id":…,"ok":false,"error":{"code":…,"message":…}}`。具体字段在 P7 实现时补进 `contracts/wave-v1/`，
+在此之前不视为已冻结。
+
+**仍需在实现时冻结**：`structure`/`lint`/`validate`/`capture`/`devices` 的结果字段；`wave serve` 的字段清单。
 
 ### 4. Node 侧
 
@@ -274,6 +318,17 @@ Python Agent 是双向的：对 UI 提供 `/api/v1/sessions|runs|events`，同�
 #### 4.4 `config.txt`
 
 由 Node 启动时读取，C++ 侧通过命令行参数接收，不直接读文件。键分组：`[server]`（监听地址/端口）、`[jobs]`（并发上限、超时、日志/输出上限）、`[wave]`（worker 空闲回收、同时打开的 VCD 数）、`[devices]`（租约等待）、`[tools]`（工具路径覆盖）、`[agent]`（解释器、重启退避、健康轮询）。
+
+#### 4.5 与 C++ 的对接要求
+
+以下是 P2_HANDOFF §5 的硬性要求，Node 实现时逐条落实：
+
+1. `spawn` 使用 `detached + pipes`，参数写完后**关闭 stdin**；
+2. 每次使用**新的空目录**，遵守 `--project-id`、相对产物路径与 `reports/report.json`；
+3. 只解析有界 JSONL，不解析自由文本；要处理候选 artifact、缺失 `result` 和不完整尾行；
+4. 取消先 `SIGTERM` 等待落盘，超时再 `SIGKILL`；退出信号与报告一起判断；
+5. 重启后扫描残留目录，自行负责恢复、队列、重试与设备租约；
+6. 区分 `3`（未实现）与一次真实的执行失败。
 
 ### 5. 前端
 

@@ -29,7 +29,7 @@ inline std::uint32_t RotateRight(std::uint32_t value, unsigned bits) {
 }
 
 class Sha256 {
-public:
+  public:
     Sha256()
         : state_{0x6a09e667u, 0xbb67ae85u, 0x3c6ef372u, 0xa54ff53au,
                  0x510e527fu, 0x9b05688cu, 0x1f83d9abu, 0x5be0cd19u} {}
@@ -54,7 +54,8 @@ public:
         const unsigned char padding = 0x80;
         Update(&padding, 1);
         const unsigned char zero = 0x00;
-        while (buffered_ != 56) Update(&zero, 1);
+        while (buffered_ != 56)
+            Update(&zero, 1);
         unsigned char length[8];
         for (int index = 0; index < 8; ++index) {
             length[index] = static_cast<unsigned char>(bitLength >> (56 - 8 * index));
@@ -70,7 +71,7 @@ public:
         return digest;
     }
 
-private:
+  private:
     void Transform(const unsigned char block[64]) {
         std::uint32_t schedule[64];
         for (int index = 0; index < 16; ++index) {
@@ -139,7 +140,7 @@ std::string ToHex(const std::array<unsigned char, 32>& digest) {
     return result;
 }
 
-} // namespace
+}  // namespace
 
 std::string Sha256Hex(const void* data, std::size_t size) {
     Sha256 hash;
@@ -151,19 +152,22 @@ std::string Sha256Hex(const void* data, std::size_t size) {
 
 std::string Sha256FileHex(const std::filesystem::path& path) {
     std::ifstream file(path, std::ios::binary);
-    if (!file) return {};
+    if (!file)
+        return {};
     Sha256 hash;
     std::vector<unsigned char> buffer(64 * 1024);
     while (file) {
         file.read(reinterpret_cast<char*>(buffer.data()),
                   static_cast<std::streamsize>(buffer.size()));
         const std::streamsize count = file.gcount();
-        if (count <= 0) break;
+        if (count <= 0)
+            break;
         hash.Update(buffer.data(), static_cast<std::size_t>(count));
     }
-    if (!file.eof()) return {}; // an incomplete read must never become a valid file identity
+    if (!file.eof())
+        return {};  // an incomplete read must never become a valid file identity
     return ToHex(hash.Finish());
 }
 
-} // namespace platform
-} // namespace eda
+}  // namespace platform
+}  // namespace eda

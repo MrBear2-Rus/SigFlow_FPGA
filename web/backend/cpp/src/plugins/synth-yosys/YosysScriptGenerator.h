@@ -39,9 +39,9 @@ bool ParseStrategy(const std::string& value, YosysStrategy& strategy);
 
 // 受控 Yosys 脚本生成（wx-free）：从 P1-1 移入自 main/FpgaYosysScriptGenerator。
 class YosysScriptGenerator {
-public:
+  public:
     YosysScriptResult Generate(const YosysScriptRequest& request) const;
 };
 
-} // namespace synth
-} // namespace eda
+}  // namespace synth
+}  // namespace eda

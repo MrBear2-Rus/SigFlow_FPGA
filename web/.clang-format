@@ -1,0 +1,33 @@
+# SigFlow Web C++ 统一格式
+# 用法：clang-format -i <files>；CI 可用 clang-format --dry-run --Werror 校验。
+BasedOnStyle: LLVM
+
+Language: Cpp
+Standard: c++20
+
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 100
+
+# 花括号与语句同侧（与迁入代码一致，避免 Allman 风格大范围重排）
+BreakBeforeBraces: Attach
+
+# 保留 include 原有分组与顺序，减少无意义 diff
+SortIncludes: Never
+IncludeBlocks: Preserve
+
+# 语义敏感的取舍
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: false
+AlwaysBreakTemplateDeclarations: Yes
+PointerAlignment: Left
+SpaceBeforeParens: ControlStatements
+SpacesBeforeTrailingComments: 2
+DerivePointerAlignment: false
+
+# 空行与换行：默认值足够，这里只固定对 diff 影响大的两项
+MaxEmptyLinesToKeep: 1
+KeepEmptyLinesAtTheStartOfBlocks: false

@@ -20,7 +20,8 @@ bool FileExists(const std::filesystem::path& path) {
 }
 
 std::string WithSuffix(const std::string& name, const std::string& suffix) {
-    if (suffix.empty()) return name;
+    if (suffix.empty())
+        return name;
     if (name.size() >= suffix.size() &&
         name.compare(name.size() - suffix.size(), suffix.size(), suffix) == 0) {
         return name;
@@ -28,7 +29,7 @@ std::string WithSuffix(const std::string& name, const std::string& suffix) {
     return name + suffix;
 }
 
-} // namespace
+}  // namespace
 
 DefaultToolchain::DefaultToolchain(std::vector<std::filesystem::path> bundledRoots,
                                    EnvironmentLookup environmentLookup)
@@ -38,16 +39,22 @@ DefaultToolchain::DefaultToolchain(std::vector<std::filesystem::path> bundledRoo
     }
 }
 
-std::string DefaultToolchain::ExecutableSuffix() const { return platform::ExecutableSuffix(); }
+std::string DefaultToolchain::ExecutableSuffix() const {
+    return platform::ExecutableSuffix();
+}
 
-char DefaultToolchain::PathListSeparator() const { return platform::PathListSeparator(); }
+char DefaultToolchain::PathListSeparator() const {
+    return platform::PathListSeparator();
+}
 
 ToolResolution DefaultToolchain::Resolve(const ToolQuery& query) const {
     ToolResolution result;
     std::vector<std::string> names;
-    if (!query.name.empty()) names.push_back(query.name);
+    if (!query.name.empty())
+        names.push_back(query.name);
     for (const auto& name : query.alternativeNames) {
-        if (!name.empty()) names.push_back(name);
+        if (!name.empty())
+            names.push_back(name);
     }
     if (names.empty()) {
         result.reason = "tool query has an empty name";
@@ -76,31 +83,33 @@ ToolResolution DefaultToolchain::Resolve(const ToolQuery& query) const {
                 std::vector<std::filesystem::path> candidates = {
                     root / exeName,
                     root / "bin" / exeName,
-            };
-            for (const auto& subdirectory : query.bundledSubdirectories) {
-                candidates.push_back(root / subdirectory / exeName);
-            }
-            candidates.push_back(root / name / exeName);
-            candidates.push_back(root / name / "bin" / exeName);
-            for (const auto& candidate : candidates) {
-                if (FileExists(candidate)) {
-                    result.found = true;
-                    result.path = std::filesystem::absolute(candidate).lexically_normal();
-                    result.source = "bundled";
-                    return true;
+                };
+                for (const auto& subdirectory : query.bundledSubdirectories) {
+                    candidates.push_back(root / subdirectory / exeName);
+                }
+                candidates.push_back(root / name / exeName);
+                candidates.push_back(root / name / "bin" / exeName);
+                for (const auto& candidate : candidates) {
+                    if (FileExists(candidate)) {
+                        result.found = true;
+                        result.path = std::filesystem::absolute(candidate).lexically_normal();
+                        result.source = "bundled";
+                        return true;
+                    }
                 }
             }
         }
-    }
-    return false;
+        return false;
     };
     // Explicit --tool-root is passed as query.bundledRoots.
-    if (resolveRoots(query.bundledRoots)) return result;
+    if (resolveRoots(query.bundledRoots))
+        return result;
 
     // Per-tool environment overrides.兼容"环境变量给的是裸工具名（无路径分隔符）"的旧行为。
     for (const auto& variable : query.environmentVariables) {
         const std::string value = environmentLookup_(variable);
-        if (value.empty()) continue;
+        if (value.empty())
+            continue;
         if (FileExists(value)) {
             result.found = true;
             result.path = std::filesystem::absolute(value).lexically_normal();
@@ -122,8 +131,10 @@ ToolResolution DefaultToolchain::Resolve(const ToolQuery& query) const {
     // Default runtime roots follow per-tool environment overrides.
     auto defaults = bundledRoots_;
     const auto runtime = environmentLookup_("SIGFLOW_TOOL_RUNTIME_DIR");
-    if (!runtime.empty()) defaults.emplace_back(runtime);
-    if (resolveRoots(defaults)) return result;
+    if (!runtime.empty())
+        defaults.emplace_back(runtime);
+    if (resolveRoots(defaults))
+        return result;
 
     // 4) PATH。去除条目首尾空白与成对引号（与旧实现一致）。
     if (query.searchPath) {
@@ -153,7 +164,8 @@ ToolResolution DefaultToolchain::Resolve(const ToolQuery& query) const {
                     }
                 }
             }
-            if (position == std::string::npos) break;
+            if (position == std::string::npos)
+                break;
             start = position + 1;
         }
         result.reason += "not found on PATH; ";
@@ -163,4 +175,4 @@ ToolResolution DefaultToolchain::Resolve(const ToolQuery& query) const {
     return result;
 }
 
-} // namespace eda
+}  // namespace eda

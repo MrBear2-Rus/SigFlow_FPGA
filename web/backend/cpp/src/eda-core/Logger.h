@@ -13,4 +13,4 @@ using LogSink = std::function<void(LogLevel, const std::string&)>;
 void SetLogSink(LogSink sink);
 void Log(LogLevel level, const std::string& message);
 
-} // namespace eda
+}  // namespace eda

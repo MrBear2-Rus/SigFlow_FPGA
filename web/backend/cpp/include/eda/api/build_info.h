@@ -10,6 +10,6 @@ namespace eda {
 // descriptor.build_info 的构建指纹比对使用。
 std::string BuildInfo();
 
-} // namespace eda
+}  // namespace eda
 
 #define EDA_BUILD_INFO_ABI EDA_PLUGIN_ABI_VERSION

@@ -12,7 +12,7 @@ namespace platform {
 
 // 进程输出收集器：按到达时间/序号保序，供 eda-platform 两个后端复用。
 class ProcessCollector {
-public:
+  public:
     explicit ProcessCollector(std::uint64_t maxBytes = 0) : maxBytes_(maxBytes) {}
 
     // 追加一块原始字节；成功时 out 为该块文本，返回 true。
@@ -29,8 +29,8 @@ public:
                 out.clear();
                 return false;
             }
-            accepted = static_cast<std::size_t>(
-                std::min<std::uint64_t>(maxBytes_ - acceptedBytes_, size));
+            accepted =
+                static_cast<std::size_t>(std::min<std::uint64_t>(maxBytes_ - acceptedBytes_, size));
             if (accepted < size) {
                 truncated_ = true;
             }
@@ -41,8 +41,8 @@ public:
         }
         out.assign(data, accepted);
         acceptedBytes_ += accepted;
-        events_.push_back(OutputEvent{
-            std::chrono::steady_clock::now(), nextSequence_++, isError, out});
+        events_.push_back(
+            OutputEvent{std::chrono::steady_clock::now(), nextSequence_++, isError, out});
         return true;
     }
 
@@ -54,7 +54,7 @@ public:
         return truncated_;
     }
 
-private:
+  private:
     struct OutputEvent {
         std::chrono::steady_clock::time_point timestamp;
         std::uint64_t sequence = 0;
@@ -68,11 +68,11 @@ private:
             std::lock_guard<std::mutex> lock(mutex_);
             copy = events_;
         }
-        std::stable_sort(copy.begin(), copy.end(),
-                         [](const OutputEvent& a, const OutputEvent& b) {
-                             if (a.timestamp != b.timestamp) return a.timestamp < b.timestamp;
-                             return a.sequence < b.sequence;
-                         });
+        std::stable_sort(copy.begin(), copy.end(), [](const OutputEvent& a, const OutputEvent& b) {
+            if (a.timestamp != b.timestamp)
+                return a.timestamp < b.timestamp;
+            return a.sequence < b.sequence;
+        });
         std::string out;
         for (const auto& event : copy) {
             if (!onlyErrors || event.isError) {
@@ -90,5 +90,5 @@ private:
     std::vector<OutputEvent> events_;
 };
 
-} // namespace platform
-} // namespace eda
+}  // namespace platform
+}  // namespace eda

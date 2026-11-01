@@ -11,4 +11,4 @@ using EventSink = std::function<void(const Json&)>;
 // Throws before/when persistence fails. No success result is emitted in that case.
 int ExecuteJob(ExecutionRequest input, IJobProvider& provider, const EventSink& sink,
                const std::function<bool()>& cancelled = {});
-}
+}  // namespace eda::web

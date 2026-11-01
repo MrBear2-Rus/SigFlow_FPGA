@@ -8,9 +8,11 @@ LogSink& Sink() {
     static LogSink sink;
     return sink;
 }
-} // namespace
+}  // namespace
 
-void SetLogSink(LogSink sink) { Sink() = std::move(sink); }
+void SetLogSink(LogSink sink) {
+    Sink() = std::move(sink);
+}
 
 void Log(LogLevel level, const std::string& message) {
     if (Sink()) {
@@ -18,4 +20,4 @@ void Log(LogLevel level, const std::string& message) {
     }
 }
 
-} // namespace eda
+}  // namespace eda

@@ -25,14 +25,22 @@ enum class ErrorCode {
 
 inline const char* ToString(ErrorCode code) noexcept {
     switch (code) {
-        case ErrorCode::None:            return "None";
-        case ErrorCode::NotFound:        return "NotFound";
-        case ErrorCode::InvalidArgument: return "InvalidArgument";
-        case ErrorCode::TimedOut:        return "TimedOut";
-        case ErrorCode::Cancelled:       return "Cancelled";
-        case ErrorCode::Crashed:         return "Crashed";
-        case ErrorCode::Internal:        return "Internal";
-        case ErrorCode::Unsupported:     return "Unsupported";
+    case ErrorCode::None:
+        return "None";
+    case ErrorCode::NotFound:
+        return "NotFound";
+    case ErrorCode::InvalidArgument:
+        return "InvalidArgument";
+    case ErrorCode::TimedOut:
+        return "TimedOut";
+    case ErrorCode::Cancelled:
+        return "Cancelled";
+    case ErrorCode::Crashed:
+        return "Crashed";
+    case ErrorCode::Internal:
+        return "Internal";
+    case ErrorCode::Unsupported:
+        return "Unsupported";
     }
     return "Unknown";
 }
@@ -71,8 +79,8 @@ struct PluginInfo {
     std::string version;
     std::string displayName;
     std::string vendor;
-    std::string location;   // "inner" | "external"
-    std::string runtime;    // "inprocess" | "process"
+    std::string location;  // "inner" | "external"
+    std::string runtime;   // "inprocess" | "process"
     std::vector<std::string> capabilities;
     std::vector<std::string> methods;
     std::vector<std::string> topics;
@@ -81,9 +89,11 @@ struct PluginInfo {
     std::string buildInfo;
 };
 
-inline Json toJson(const Json& value) { return value; }
+inline Json toJson(const Json& value) {
+    return value;
+}
 
 template <typename T>
 T fromJson(const Json& value);
 
-} // namespace eda
+}  // namespace eda

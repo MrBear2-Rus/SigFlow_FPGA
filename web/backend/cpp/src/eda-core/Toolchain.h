@@ -9,7 +9,7 @@
 namespace eda {
 
 class DefaultToolchain final : public IToolchain {
-public:
+  public:
     using EnvironmentLookup = std::function<std::string(const std::string&)>;
 
     explicit DefaultToolchain(std::vector<std::filesystem::path> bundledRoots = {},
@@ -19,9 +19,9 @@ public:
     std::string ExecutableSuffix() const override;
     char PathListSeparator() const override;
 
-private:
+  private:
     std::vector<std::filesystem::path> bundledRoots_;
     EnvironmentLookup environmentLookup_;
 };
 
-} // namespace eda
+}  // namespace eda

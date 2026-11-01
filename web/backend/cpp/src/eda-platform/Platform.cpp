@@ -7,7 +7,6 @@
 #include <ctime>
 #include <system_error>
 
-
 namespace eda {
 namespace platform {
 namespace {
@@ -21,7 +20,7 @@ std::string FormatUtc(const char* format) {
     return buffer;
 }
 
-} // namespace
+}  // namespace
 
 std::string PathToUtf8(const std::filesystem::path& path) {
 #if defined(__cpp_char8_t)
@@ -42,11 +41,16 @@ std::filesystem::path PathFromUtf8(const std::string& utf8) {
 }
 
 std::string RelativePathToUtf8(const std::filesystem::path& path) {
-    return PathToUtf8(path); // Linux already uses POSIX separators; backslash is a valid filename byte.
+    return PathToUtf8(
+        path);  // Linux already uses POSIX separators; backslash is a valid filename byte.
 }
 
-std::string UtcTimestamp() { return FormatUtc("%Y-%m-%dT%H:%M:%SZ"); }
-std::string UtcCompactTimestamp() { return FormatUtc("%Y%m%dT%H%M%S"); }
+std::string UtcTimestamp() {
+    return FormatUtc("%Y-%m-%dT%H:%M:%SZ");
+}
+std::string UtcCompactTimestamp() {
+    return FormatUtc("%Y%m%dT%H%M%S");
+}
 
 const char* ExecutableSuffix() {
     return "";
@@ -84,11 +88,12 @@ std::filesystem::path AppDataRoot() {
 std::string StablePathKey(const std::filesystem::path& canonicalPath) {
     std::error_code ec;
     std::filesystem::path canonical = std::filesystem::weakly_canonical(canonicalPath, ec);
-    if (ec || canonical.empty()) canonical = canonicalPath;
+    if (ec || canonical.empty())
+        canonical = canonicalPath;
     const std::string material = PathToUtf8(canonical.lexically_normal());
     const std::string hex = Sha256Hex(material.data(), material.size());
     return hex.substr(0, 24);
 }
 
-} // namespace platform
-} // namespace eda
+}  // namespace platform
+}  // namespace eda

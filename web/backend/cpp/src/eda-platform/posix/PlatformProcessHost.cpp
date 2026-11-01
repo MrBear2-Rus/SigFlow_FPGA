@@ -48,10 +48,13 @@ void PumpDescriptors(int stdoutFd, int stderrFd, platform::ProcessCollector* col
     int openCount = 2;
     while (openCount > 0) {
         const int ready = poll(descriptors, 2, 200);
-        if (ready <= 0) continue;
+        if (ready <= 0)
+            continue;
         for (int index = 0; index < 2; ++index) {
-            if (descriptors[index].fd < 0) continue;
-            if ((descriptors[index].revents & (POLLIN | POLLHUP | POLLERR)) == 0) continue;
+            if (descriptors[index].fd < 0)
+                continue;
+            if ((descriptors[index].revents & (POLLIN | POLLHUP | POLLERR)) == 0)
+                continue;
             for (;;) {
                 const ssize_t read = ::read(descriptors[index].fd, buffer, sizeof(buffer));
                 if (read > 0) {
@@ -75,11 +78,11 @@ void PumpDescriptors(int stdoutFd, int stderrFd, platform::ProcessCollector* col
 }
 
 class PosixProcessHost final : public IProcessHost {
-public:
+  public:
     ProcessResult Run(const ProcessSpec& spec, const ProcessOutputCallback& onOutput) override;
     void Cancel() override;
 
-private:
+  private:
     std::mutex handleMutex_;
     std::atomic<pid_t> pid_{-1};
     std::atomic<bool> cancelRequested_{false};
@@ -105,7 +108,8 @@ ProcessResult PosixProcessHost::Run(const ProcessSpec& spec,
     }
     std::vector<char*> argv;
     argv.reserve(argvStorage.size() + 1);
-    for (std::string& item : argvStorage) argv.push_back(item.data());
+    for (std::string& item : argvStorage)
+        argv.push_back(item.data());
     argv.push_back(nullptr);
 
     std::vector<std::string> envStorage;
@@ -115,16 +119,19 @@ ProcessResult PosixProcessHost::Run(const ProcessSpec& spec,
         for (char** entry = environ; entry != nullptr && *entry != nullptr; ++entry) {
             const std::string line(*entry);
             const std::size_t equals = line.find('=');
-            if (equals == std::string::npos || equals == 0) continue;
+            if (equals == std::string::npos || equals == 0)
+                continue;
             merged[line.substr(0, equals)] = line.substr(equals + 1);
         }
         for (const auto& pair : spec.environment) {
             merged[pair.first] = pair.second;
         }
         envStorage.reserve(merged.size());
-        for (const auto& pair : merged) envStorage.push_back(pair.first + "=" + pair.second);
+        for (const auto& pair : merged)
+            envStorage.push_back(pair.first + "=" + pair.second);
         envp.reserve(envStorage.size() + 1);
-        for (std::string& item : envStorage) envp.push_back(item.data());
+        for (std::string& item : envStorage)
+            envp.push_back(item.data());
         envp.push_back(nullptr);
     }
 
@@ -135,7 +142,8 @@ ProcessResult PosixProcessHost::Run(const ProcessSpec& spec,
     int execPipe[2] = {-1, -1};
     const auto closePipe = [](int (&fds)[2]) {
         for (int fd : fds) {
-            if (fd >= 0) close(fd);
+            if (fd >= 0)
+                close(fd);
         }
         fds[0] = fds[1] = -1;
     };
@@ -157,23 +165,32 @@ ProcessResult PosixProcessHost::Run(const ProcessSpec& spec,
     // FD_CLOEXEC：避免写端跨 exec 泄漏给其它并发子进程，使对方读端永不 EOF。
     for (int fd : {stdoutPipe[0], stdoutPipe[1], stderrPipe[0], stderrPipe[1]}) {
         const int flags = fcntl(fd, F_GETFD);
-        if (flags >= 0) fcntl(fd, F_SETFD, flags | FD_CLOEXEC);
+        if (flags >= 0)
+            fcntl(fd, F_SETFD, flags | FD_CLOEXEC);
     }
 
     int lifetime[2], gate[2];
-    if(pipe2(lifetime,O_CLOEXEC)!=0) {
-        closePipe(execPipe); closePipe(stdoutPipe); closePipe(stderrPipe);
-        result.errorMessage="Cannot create guardian lifetime pipe"; return result;
+    if (pipe2(lifetime, O_CLOEXEC) != 0) {
+        closePipe(execPipe);
+        closePipe(stdoutPipe);
+        closePipe(stderrPipe);
+        result.errorMessage = "Cannot create guardian lifetime pipe";
+        return result;
     }
-    if(pipe2(gate,O_CLOEXEC)!=0) {
-        closePipe(lifetime); closePipe(execPipe); closePipe(stdoutPipe); closePipe(stderrPipe);
-        result.errorMessage="Cannot create tool launch gate"; return result;
+    if (pipe2(gate, O_CLOEXEC) != 0) {
+        closePipe(lifetime);
+        closePipe(execPipe);
+        closePipe(stdoutPipe);
+        closePipe(stderrPipe);
+        result.errorMessage = "Cannot create tool launch gate";
+        return result;
     }
-    const pid_t owner=getpid();
-    const long maxFd=sysconf(_SC_OPEN_MAX);
+    const pid_t owner = getpid();
+    const long maxFd = sysconf(_SC_OPEN_MAX);
     const pid_t child = fork();
     if (child < 0) {
-        closePipe(lifetime); closePipe(gate);
+        closePipe(lifetime);
+        closePipe(gate);
         closePipe(execPipe);
         closePipe(stdoutPipe);
         closePipe(stderrPipe);
@@ -181,21 +198,29 @@ ProcessResult PosixProcessHost::Run(const ProcessSpec& spec,
         return result;
     }
     if (child == 0) {
-        close(lifetime[0]); close(lifetime[1]); close(gate[1]);
+        close(lifetime[0]);
+        close(lifetime[1]);
+        close(gate[1]);
         // Do not execute/fork descendants until the independent guardian exists.
-        prctl(PR_SET_PDEATHSIG,SIGKILL);
-        if(getppid()!=owner)_exit(127);
-        setpgid(0,0);
-        char ready; ssize_t received;
-        do {received=read(gate[0],&ready,1);}while(received<0&&errno==EINTR);
+        prctl(PR_SET_PDEATHSIG, SIGKILL);
+        if (getppid() != owner)
+            _exit(127);
+        setpgid(0, 0);
+        char ready;
+        ssize_t received;
+        do {
+            received = read(gate[0], &ready, 1);
+        } while (received < 0 && errno == EINTR);
         close(gate[0]);
-        if(received!=1)_exit(127);
+        if (received != 1)
+            _exit(127);
         close(execPipe[0]);
         const auto launchError = [&]() {
             const int failure = errno;
             ssize_t written;
-            do { written = ::write(execPipe[1], &failure, sizeof(failure)); }
-            while (written < 0 && errno == EINTR);
+            do {
+                written = ::write(execPipe[1], &failure, sizeof(failure));
+            } while (written < 0 && errno == EINTR);
             _exit(127);
         };
         setpgid(0, 0);
@@ -206,7 +231,8 @@ ProcessResult PosixProcessHost::Run(const ProcessSpec& spec,
         close(stderrPipe[0]);
         close(stderrPipe[1]);
         if (!workingDirectory.empty()) {
-            if (chdir(workingDirectory.c_str()) != 0) launchError();
+            if (chdir(workingDirectory.c_str()) != 0)
+                launchError();
         }
         if (!envp.empty()) {
             execvpe(argv[0], argv.data(), envp.data());
@@ -217,50 +243,74 @@ ProcessResult PosixProcessHost::Run(const ProcessSpec& spec,
     }
 
     close(gate[0]);
-    const pid_t guardian=fork();
-    if(guardian==0) {
-        setpgid(0,0);
+    const pid_t guardian = fork();
+    if (guardian == 0) {
+        setpgid(0, 0);
         // Release the launch gate only after leaving the Node/CLI process group.
-        char ready='G'; ssize_t sent;
-        do {sent=write(gate[1],&ready,1);}while(sent<0&&errno==EINTR);
+        char ready = 'G';
+        ssize_t sent;
+        do {
+            sent = write(gate[1], &ready, 1);
+        } while (sent < 0 && errno == EINTR);
         // Keep only the owner-lifetime read end. No inherited stdout may delay EOF.
-        close(0); close(1); close(2);
-        if(syscall(SYS_close_range,3,static_cast<unsigned>(lifetime[0]-1),0)!=0) {
-            for(int fd=3;fd<lifetime[0];++fd)close(fd);
+        close(0);
+        close(1);
+        close(2);
+        if (syscall(SYS_close_range, 3, static_cast<unsigned>(lifetime[0] - 1), 0) != 0) {
+            for (int fd = 3; fd < lifetime[0]; ++fd)
+                close(fd);
         }
-        if(syscall(SYS_close_range,static_cast<unsigned>(lifetime[0]+1),~0U,0)!=0) {
-            for(long fd=lifetime[0]+1;fd<maxFd;++fd)close(static_cast<int>(fd));
+        if (syscall(SYS_close_range, static_cast<unsigned>(lifetime[0] + 1), ~0U, 0) != 0) {
+            for (long fd = lifetime[0] + 1; fd < maxFd; ++fd)
+                close(static_cast<int>(fd));
         }
-        char normal; ssize_t received;
-        do {received=read(lifetime[0],&normal,1);}while(received<0&&errno==EINTR);
-        if(received!=1)killpg(child,SIGKILL);
-        close(lifetime[0]); _exit(0);
+        char normal;
+        ssize_t received;
+        do {
+            received = read(lifetime[0], &normal, 1);
+        } while (received < 0 && errno == EINTR);
+        if (received != 1)
+            killpg(child, SIGKILL);
+        close(lifetime[0]);
+        _exit(0);
     }
     close(lifetime[0]);
-    if(guardian<0) {
-        close(gate[1]); close(lifetime[1]);
-        kill(child,SIGKILL); while(waitpid(child,nullptr,0)<0&&errno==EINTR){}
-        closePipe(execPipe); closePipe(stdoutPipe); closePipe(stderrPipe);
-        result.errorMessage="Cannot start tool guardian"; return result;
+    if (guardian < 0) {
+        close(gate[1]);
+        close(lifetime[1]);
+        kill(child, SIGKILL);
+        while (waitpid(child, nullptr, 0) < 0 && errno == EINTR) {
+        }
+        closePipe(execPipe);
+        closePipe(stdoutPipe);
+        closePipe(stderrPipe);
+        result.errorMessage = "Cannot start tool guardian";
+        return result;
     }
     close(gate[1]);
-    const auto finishGuardian=[&] {
-        char normal='N'; ssize_t written;
-        do {written=write(lifetime[1],&normal,1);}while(written<0&&errno==EINTR);
+    const auto finishGuardian = [&] {
+        char normal = 'N';
+        ssize_t written;
+        do {
+            written = write(lifetime[1], &normal, 1);
+        } while (written < 0 && errno == EINTR);
         close(lifetime[1]);
-        while(waitpid(guardian,nullptr,0)<0&&errno==EINTR){}
+        while (waitpid(guardian, nullptr, 0) < 0 && errno == EINTR) {
+        }
     };
     close(execPipe[1]);
     int launchErrno = 0;
     ssize_t execStatus;
-    do { execStatus = read(execPipe[0], &launchErrno, sizeof(launchErrno)); }
-    while (execStatus < 0 && errno == EINTR);
+    do {
+        execStatus = read(execPipe[0], &launchErrno, sizeof(launchErrno));
+    } while (execStatus < 0 && errno == EINTR);
     close(execPipe[0]);
     if (execStatus != 0) {
         finishGuardian();
         closePipe(stdoutPipe);
         closePipe(stderrPipe);
-        while (waitpid(child, nullptr, 0) < 0 && errno == EINTR) {}
+        while (waitpid(child, nullptr, 0) < 0 && errno == EINTR) {
+        }
         result.errorMessage = std::string("Unable to launch tool: ") +
                               std::strerror(execStatus > 0 ? launchErrno : errno);
         return result;
@@ -281,8 +331,7 @@ ProcessResult PosixProcessHost::Run(const ProcessSpec& spec,
 
     platform::ProcessCollector collector(spec.maxOutputBytes);
     std::string carries[2];
-    std::thread pump(PumpDescriptors, stdoutPipe[0], stderrPipe[0], &collector, &onOutput,
-                     carries);
+    std::thread pump(PumpDescriptors, stdoutPipe[0], stderrPipe[0], &collector, &onOutput, carries);
 
     const auto startedAt = std::chrono::steady_clock::now();
     int status = 0;
@@ -298,9 +347,9 @@ ProcessResult PosixProcessHost::Run(const ProcessSpec& spec,
             cancelled = true;
             break;
         }
-        if (spec.timeoutSeconds > 0 &&
-            std::chrono::steady_clock::now() - startedAt >=
-                std::chrono::seconds(spec.timeoutSeconds)) break;
+        if (spec.timeoutSeconds > 0 && std::chrono::steady_clock::now() - startedAt >=
+                                           std::chrono::seconds(spec.timeoutSeconds))
+            break;
         usleep(100000);
     }
     // 与 Win32 后端保持一致：等待循环结束后再读一次取消标志。
@@ -314,9 +363,11 @@ ProcessResult PosixProcessHost::Run(const ProcessSpec& spec,
     const bool timedOut = !finished && !cancelled;
     if (!finished) {
         // killpg 可能因进程组不存在(ESRCH)失败，退回 kill(pid)。
-        if (killpg(child, SIGTERM) != 0) kill(child, SIGTERM);
+        if (killpg(child, SIGTERM) != 0)
+            kill(child, SIGTERM);
         usleep(200000);
-        if (killpg(child, SIGKILL) != 0) kill(child, SIGKILL);
+        if (killpg(child, SIGKILL) != 0)
+            kill(child, SIGKILL);
         waitpid(child, &status, 0);
     }
     // A tool may exit leaving descendants holding its output pipes open.
@@ -355,14 +406,15 @@ void PosixProcessHost::Cancel() {
     std::lock_guard<std::mutex> lock(handleMutex_);
     const pid_t pid = pid_.load();
     if (pid > 0) {
-        if (killpg(pid, SIGKILL) != 0) kill(pid, SIGKILL);
+        if (killpg(pid, SIGKILL) != 0)
+            kill(pid, SIGKILL);
     }
 }
 
-} // namespace
+}  // namespace
 
 std::unique_ptr<IProcessHost> CreatePlatformProcessHost() {
     return std::make_unique<PosixProcessHost>();
 }
 
-} // namespace eda
+}  // namespace eda

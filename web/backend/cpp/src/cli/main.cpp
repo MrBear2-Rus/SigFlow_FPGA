@@ -34,27 +34,35 @@
 #endif
 
 namespace {
-volatile std::sig_atomic_t interrupted=0;
+volatile std::sig_atomic_t interrupted = 0;
 std::atomic<bool> outputFailed{false};
-void OnSignal(int signal) { interrupted=signal; }
+void OnSignal(int signal) {
+    interrupted = signal;
+}
 void Emit(const eda::Json& event) {
-    if(outputFailed)throw std::runtime_error("JSONL output already failed");
-    const auto data=event.dump(-1, ' ', false, eda::Json::error_handler_t::replace)+"\n";
-    size_t offset=0;
-    auto started=std::chrono::steady_clock::now();
-    while(offset<data.size()) {
-        auto n=::write(STDOUT_FILENO,data.data()+offset,data.size()-offset);
-        if(n>0){offset+=n;continue;}
-        if(n<0&&errno==EINTR)continue;
-        if(n<0&&(errno==EAGAIN||errno==EWOULDBLOCK) &&
-           std::chrono::steady_clock::now()-started<std::chrono::seconds(2)) {
-            pollfd descriptor{STDOUT_FILENO,POLLOUT,0}; poll(&descriptor,1,50); continue;
+    if (outputFailed)
+        throw std::runtime_error("JSONL output already failed");
+    const auto data = event.dump(-1, ' ', false, eda::Json::error_handler_t::replace) + "\n";
+    size_t offset = 0;
+    auto started = std::chrono::steady_clock::now();
+    while (offset < data.size()) {
+        auto n = ::write(STDOUT_FILENO, data.data() + offset, data.size() - offset);
+        if (n > 0) {
+            offset += n;
+            continue;
         }
-        outputFailed=true;
+        if (n < 0 && errno == EINTR)
+            continue;
+        if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK) &&
+            std::chrono::steady_clock::now() - started < std::chrono::seconds(2)) {
+            pollfd descriptor{STDOUT_FILENO, POLLOUT, 0};
+            poll(&descriptor, 1, 50);
+            continue;
+        }
+        outputFailed = true;
         throw std::runtime_error("JSONL output channel closed or blocked");
     }
 }
-
 
 struct CommandHelp {
     const char* name;
@@ -62,8 +70,9 @@ struct CommandHelp {
 };
 
 const CommandHelp kCommands[] = {
-    {"run", "run --job-type <synth|pnr|pack|flash|sim.build|sim.run> "
-            "--work-dir <dir> --job-id <id> --project <dir> --project-id <id> --params <json-file|->"},
+    {"run",
+     "run --job-type <synth|pnr|pack|flash|sim.build|sim.run> "
+     "--work-dir <dir> --job-id <id> --project <dir> --project-id <id> --params <json-file|->"},
     {"wave", "wave signals --vcd <file>\n"
              "       wave query   --vcd <file> --signals <a,b,...> --begin <t> --end <t>\n"
              "       wave serve   (stdin/stdout JSONL；每用户一个常驻子进程)"},
@@ -76,8 +85,7 @@ const CommandHelp kCommands[] = {
     {"devices", "devices list"},
 };
 
-void PrintUsage(std::FILE* stream)
-{
+void PrintUsage(std::FILE* stream) {
     std::fprintf(stream,
                  "sigflow-tool %s —— SigFlow C++ 工具进程\n"
                  "\n"
@@ -88,18 +96,16 @@ void PrintUsage(std::FILE* stream)
     for (const CommandHelp& command : kCommands) {
         std::fprintf(stream, "  %s\n", command.usage);
     }
-    std::fprintf(stream,
-                 "\n"
-                 "全局选项:\n"
-                 "  -h, --help     显示本帮助\n"
-                 "  --version      显示版本\n"
-                 "\n"
-                 "输出约定: stdout 每行一个 JSON 对象（type 字段区分事件），"
-                 "退出码 0=成功 2=用法错误 3=命令尚未迁移 4=执行失败。\n");
+    std::fprintf(stream, "\n"
+                         "全局选项:\n"
+                         "  -h, --help     显示本帮助\n"
+                         "  --version      显示版本\n"
+                         "\n"
+                         "输出约定: stdout 每行一个 JSON 对象（type 字段区分事件），"
+                         "退出码 0=成功 2=用法错误 3=命令尚未迁移 4=执行失败。\n");
 }
 
-const CommandHelp* FindCommand(const char* name)
-{
+const CommandHelp* FindCommand(const char* name) {
     for (const CommandHelp& command : kCommands) {
         if (std::strcmp(command.name, name) == 0) {
             return &command;
@@ -108,10 +114,9 @@ const CommandHelp* FindCommand(const char* name)
     return nullptr;
 }
 
-} // namespace
+}  // namespace
 
-int main(int argc, char** argv)
-{
+int main(int argc, char** argv) {
     if (argc < 2) {
         PrintUsage(stderr);
         return 2;
@@ -134,48 +139,94 @@ int main(int argc, char** argv)
         return 2;
     }
 
-    std::signal(SIGPIPE,SIG_IGN);
+    std::signal(SIGPIPE, SIG_IGN);
     struct sigaction action{};
-    action.sa_handler=OnSignal;
+    action.sa_handler = OnSignal;
     sigemptyset(&action.sa_mask);
     // Interrupt a blocked --params stdin read as well as running providers.
-    sigaction(SIGTERM,&action,nullptr); sigaction(SIGINT,&action,nullptr);
-    int flags=fcntl(STDOUT_FILENO,F_GETFL); if(flags>=0)fcntl(STDOUT_FILENO,F_SETFL,flags|O_NONBLOCK);
-    if(first=="run" && argc==3 && (std::string(argv[2])=="--help" || std::string(argv[2])=="-h")) {
+    sigaction(SIGTERM, &action, nullptr);
+    sigaction(SIGINT, &action, nullptr);
+    int flags = fcntl(STDOUT_FILENO, F_GETFL);
+    if (flags >= 0)
+        fcntl(STDOUT_FILENO, F_SETFL, flags | O_NONBLOCK);
+    if (first == "run" && argc == 3 &&
+        (std::string(argv[2]) == "--help" || std::string(argv[2]) == "-h")) {
         PrintUsage(stdout);
-        std::fprintf(stdout,"\nrun options: --timeout-sec <nonnegative int> --max-output-bytes <uint64>\n"
-                            "             --data-dir <path> --tool-root <path>\n"
-                            "Node must create an empty Job directory before submission. params limit: 2 MiB.\n");
+        std::fprintf(
+            stdout,
+            "\nrun options: --timeout-sec <nonnegative int> --max-output-bytes <uint64>\n"
+            "             --data-dir <path> --tool-root <path>\n"
+            "Node must create an empty Job directory before submission. params limit: 2 MiB.\n");
         return 0;
     }
-    if(first=="run") {
+    if (first == "run") {
         try {
-            auto factory=[](const std::string& type)->std::unique_ptr<eda::IJobProvider> {
+            auto factory = [](const std::string& type) -> std::unique_ptr<eda::IJobProvider> {
 #ifdef SIGFLOW_TEST_PROVIDER
-                if(type=="synth")return std::make_unique<RuntimeFixtureProvider>();
+                if (type == "synth")
+                    return std::make_unique<RuntimeFixtureProvider>();
 #else
-                if(type=="synth")return std::make_unique<eda::synth::YosysProvider>();
+                if (type == "synth")
+                    return std::make_unique<eda::synth::YosysProvider>();
 #endif
                 return {};
             };
-            const int result=eda::web::RunCommand(argc,argv,factory,Emit,[]{
-                    pollfd channel{STDOUT_FILENO,POLLOUT,0};
-                    poll(&channel,1,0);
-                    return interrupted!=0||(channel.revents&(POLLERR|POLLHUP|POLLNVAL));
+            const int result = eda::web::RunCommand(
+                argc, argv, factory, Emit,
+                [] {
+                    pollfd channel{STDOUT_FILENO, POLLOUT, 0};
+                    poll(&channel, 1, 0);
+                    return interrupted != 0 || (channel.revents & (POLLERR | POLLHUP | POLLNVAL));
                 },
-                SIGFLOW_DEFAULT_DATA_DIR,SIGFLOW_TOOL_RUNTIME_DIR);
-            if(interrupted) { auto signal=interrupted; std::signal(signal,SIG_DFL); std::raise(signal); }
+                SIGFLOW_DEFAULT_DATA_DIR, SIGFLOW_TOOL_RUNTIME_DIR);
+            if (interrupted) {
+                auto signal = interrupted;
+                std::signal(signal, SIG_DFL);
+                std::raise(signal);
+            }
             return result;
-        } catch(const std::invalid_argument& e) {
-            if(interrupted) { auto signal=interrupted; std::signal(signal,SIG_DFL); std::raise(signal); }
-            try { Emit(eda::Json{{"type","diagnostic"},{"severity","error"},{"code","INVALID_ARGUMENT"},{"message",e.what()},{"file",""},{"line",0}}); }catch(...){}
+        } catch (const std::invalid_argument& e) {
+            if (interrupted) {
+                auto signal = interrupted;
+                std::signal(signal, SIG_DFL);
+                std::raise(signal);
+            }
+            try {
+                Emit(eda::Json{{"type", "diagnostic"},
+                               {"severity", "error"},
+                               {"code", "INVALID_ARGUMENT"},
+                               {"message", e.what()},
+                               {"file", ""},
+                               {"line", 0}});
+            } catch (...) {
+            }
             return 2;
-        } catch(const std::exception& e) {
-            if(interrupted) { auto signal=interrupted; std::signal(signal,SIG_DFL); std::raise(signal); }
-            try { Emit(eda::Json{{"type","diagnostic"},{"severity","error"},{"code","EXECUTION_FAILED"},{"message",e.what()},{"file",""},{"line",0}}); }catch(...){}
+        } catch (const std::exception& e) {
+            if (interrupted) {
+                auto signal = interrupted;
+                std::signal(signal, SIG_DFL);
+                std::raise(signal);
+            }
+            try {
+                Emit(eda::Json{{"type", "diagnostic"},
+                               {"severity", "error"},
+                               {"code", "EXECUTION_FAILED"},
+                               {"message", e.what()},
+                               {"file", ""},
+                               {"line", 0}});
+            } catch (...) {
+            }
             return 4;
         }
     }
-    try { Emit(eda::Json{{"type","diagnostic"},{"severity","error"},{"code","NOT_IMPLEMENTED"},{"message","command not migrated: "+first},{"file",""},{"line",0}}); }catch(...){}
+    try {
+        Emit(eda::Json{{"type", "diagnostic"},
+                       {"severity", "error"},
+                       {"code", "NOT_IMPLEMENTED"},
+                       {"message", "command not migrated: " + first},
+                       {"file", ""},
+                       {"line", 0}});
+    } catch (...) {
+    }
     return 3;
 }

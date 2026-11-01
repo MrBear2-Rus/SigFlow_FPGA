@@ -2,15 +2,24 @@
 namespace eda::web {
 const char* StateName(JobState state) {
     switch (state) {
-        case JobState::Created:            return "Created";
-        case JobState::Validating:         return "Validating";
-        case JobState::Queued:             return "Queued";
-        case JobState::Running:            return "Running";
-        case JobState::ValidatingArtifact: return "ValidatingArtifact";
-        case JobState::Succeeded:          return "Succeeded";
-        case JobState::Failed:             return "Failed";
-        case JobState::Cancelled:          return "Cancelled";
-        case JobState::TimedOut:           return "TimedOut";
+    case JobState::Created:
+        return "Created";
+    case JobState::Validating:
+        return "Validating";
+    case JobState::Queued:
+        return "Queued";
+    case JobState::Running:
+        return "Running";
+    case JobState::ValidatingArtifact:
+        return "ValidatingArtifact";
+    case JobState::Succeeded:
+        return "Succeeded";
+    case JobState::Failed:
+        return "Failed";
+    case JobState::Cancelled:
+        return "Cancelled";
+    case JobState::TimedOut:
+        return "TimedOut";
     }
     return "Unknown";
 }
@@ -71,19 +80,26 @@ Json ReportToJson(const JobReport& report) {
 Json RequestToJson(const ExecutionRequest& input) {
     const auto& r = input.request;
     return Json{{"schema_version", "sigflow.execution-request.v1"},
-                {"job_id", input.jobId}, {"job_type", r.jobType},
-                {"plugin_id", r.pluginId}, {"project_id", r.projectId},
+                {"job_id", input.jobId},
+                {"job_type", r.jobType},
+                {"plugin_id", r.pluginId},
+                {"project_id", r.projectId},
                 {"project_path", input.projectPath.string()},
                 {"work_dir", input.workDir.string()},
-                {"parameters", r.params}, {"metadata", r.metadata},
+                {"parameters", r.params},
+                {"metadata", r.metadata},
                 {"require_confirm", r.requireConfirm},
                 {"timeout_sec", r.timeoutSec ? Json(*r.timeoutSec) : Json(nullptr)},
                 {"max_output_bytes", input.maxOutputBytes},
-                {"tool_root", input.toolRoot.string()}, {"data_dir", input.dataDir.string()},
-                {"input_snapshot_id", input.inputSnapshotId ? Json(*input.inputSnapshotId) : Json(nullptr)}};
+                {"tool_root", input.toolRoot.string()},
+                {"data_dir", input.dataDir.string()},
+                {"input_snapshot_id",
+                 input.inputSnapshotId ? Json(*input.inputSnapshotId) : Json(nullptr)}};
 }
 Json ResultEvent(const JobReport& report) {
-    return Json{{"type", "result"}, {"state", StateName(report.state)},
-                {"exitCode", report.exitCode}, {"jobId", report.jobId}};
+    return Json{{"type", "result"},
+                {"state", StateName(report.state)},
+                {"exitCode", report.exitCode},
+                {"jobId", report.jobId}};
 }
-} // namespace eda::web
+}  // namespace eda::web

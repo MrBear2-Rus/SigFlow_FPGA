@@ -13,4 +13,4 @@ std::string BuildInfo() {
     return os.str();
 }
 
-} // namespace eda
+}  // namespace eda

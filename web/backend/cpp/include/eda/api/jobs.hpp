@@ -10,7 +10,7 @@
 
 namespace eda {
 
-class IProcessHost; // P0-4 定义；此处仅前向声明
+class IProcessHost;  // P0-4 定义；此处仅前向声明
 
 enum class JobState {
     Created,
@@ -72,7 +72,7 @@ struct JobReport {
 };
 
 class JobContext {
-public:
+  public:
     virtual ~JobContext() = default;
     virtual void log(const std::string& line, bool isError) = 0;
     virtual void progress(int percent, const std::string& status) = 0;
@@ -84,7 +84,7 @@ public:
 };
 
 class IJobProvider {
-public:
+  public:
     virtual ~IJobProvider() = default;
     virtual std::string jobType() const = 0;
     virtual Json paramsSchema() const = 0;
@@ -95,4 +95,4 @@ public:
     virtual Error startJob(const JobRequest& request, JobContext& ctx) = 0;
 };
 
-} // namespace eda
+}  // namespace eda

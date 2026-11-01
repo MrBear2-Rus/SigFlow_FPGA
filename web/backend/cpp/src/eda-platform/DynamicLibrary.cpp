@@ -5,7 +5,9 @@
 namespace eda {
 namespace platform {
 
-DynamicLibrary::~DynamicLibrary() { Unload(); }
+DynamicLibrary::~DynamicLibrary() {
+    Unload();
+}
 
 bool DynamicLibrary::Load(const std::string& path) {
     Unload();
@@ -21,15 +23,17 @@ bool DynamicLibrary::Load(const std::string& path) {
 }
 
 void* DynamicLibrary::Symbol(const char* name) const {
-    if (handle_ == nullptr || name == nullptr) return nullptr;
+    if (handle_ == nullptr || name == nullptr)
+        return nullptr;
     return ::dlsym(handle_, name);
 }
 
 void DynamicLibrary::Unload() {
-    if (handle_ == nullptr) return;
+    if (handle_ == nullptr)
+        return;
     ::dlclose(handle_);
     handle_ = nullptr;
 }
 
-} // namespace platform
-} // namespace eda
+}  // namespace platform
+}  // namespace eda
