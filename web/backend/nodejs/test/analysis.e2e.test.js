@@ -1,8 +1,8 @@
 // =============================================================================
-// J4 测试：结构树 / 诊断接口
+// 结构树 / 诊断接口
 //
-// C++ 侧 P6 尚未实现，接口当前返回 501；已实现后应返回 200。
-// 两种结果都接受，保证 C++ 落地后测试不用改。
+// C++ 已实现 structure / lint（contracts/analysis-v1）；lint 需要工程根，
+// 由 Node 自动传入，测试验证真实结果与路径校验。
 // =============================================================================
 
 import assert from "node:assert/strict";
@@ -17,7 +17,7 @@ import { authedFetch, makeEnvironment, registerAndLogin } from "./helpers.js";
 const TOOL = resolveToolPath({});
 const skip = existsSync(TOOL) ? false : `sigflow-tool 未构建：${TOOL}`;
 
-test("分析与诊断接口：未实现返回 501，路径校验生效", { skip }, async () => {
+test("分析与诊断接口：真实结果、相对路径与校验", { skip }, async () => {
     const env = await makeEnvironment();
     const app = createApp({
         toolPath: TOOL,
@@ -52,20 +52,32 @@ test("分析与诊断接口：未实现返回 501，路径校验生效", { skip 
             401,
         );
 
-        for (const endpoint of ["structure", "lint"]) {
-            const response = await authed(`/api/projects/demo/${endpoint}`, {
-                method: "POST",
-                headers: { "content-type": "application/json" },
-                body: JSON.stringify({ path: "src/top.v" }),
-            });
-            assert.ok(
-                response.status === 200 || response.status === 501,
-                `${endpoint} 返回 ${response.status}`,
-            );
-            if (response.status === 501) {
-                assert.equal((await response.json()).error.code, "NOT_IMPLEMENTED");
-            }
+        // structure：真实节点树
+        let response = await authed("/api/projects/demo/structure", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ path: "src/top.v" }),
+        });
+        assert.equal(response.status, 200);
+        const tree = await response.json();
+        assert.equal(tree.schema, "sigflow.structure.v1");
+        assert.ok(Array.isArray(tree.nodes) && tree.nodes.length > 0);
+        const module = tree.nodes.find((node) => node.kind === "module");
+        assert.deepEqual(module?.name, "top");
+        assert.ok(module.range.start.line >= 1 && module.range.start.col >= 1);
 
+        // lint：需要工程根（Node 自动传），空诊断
+        response = await authed("/api/projects/demo/lint", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ path: "src/top.v" }),
+        });
+        assert.equal(response.status, 200);
+        const lint = await response.json();
+        assert.equal(lint.schema, "sigflow.lint.v1");
+        assert.ok(Array.isArray(lint.diagnostics));
+
+        for (const endpoint of ["structure", "lint"]) {
             // 文件不存在
             assert.equal(
                 (

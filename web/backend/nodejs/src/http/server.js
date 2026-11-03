@@ -16,10 +16,13 @@ import { stat } from "node:fs/promises";
 import { createServer as createHttpServer } from "node:http";
 import { extname, join, resolve, sep } from "node:path";
 
+import { createAgentGateway } from "../agent/gateway.js";
+import { runToolCommand } from "../analysis/tool-command.js";
 import { runAnalysis } from "../analysis/analysis-runner.js";
 import { JobManager } from "../jobs/job-manager.js";
 import { artifactPath } from "../jobs/job-dir.js";
 import { ProjectStore } from "../projects/project-store.js";
+import { TargetStore } from "../projects/target-store.js";
 import {
     SESSION_COOKIE,
     SessionStore,
@@ -73,11 +76,17 @@ export function createApp({
     toolEnv = {},
     sessionTtlSec = 86400,
     maxFileBytes = 2 * 1024 * 1024,
+    agentManager = null,
     logger = createLogger({ scope: "http" }),
 } = {}) {
+    let agentManagerRef = agentManager;
     const users = new UserStore({ file: join(databaseDir, "users.json") });
-    const sessions = new SessionStore({ ttlSec: sessionTtlSec });
+    const sessions = new SessionStore({
+        ttlSec: sessionTtlSec,
+        file: join(databaseDir, "sessions.json"),
+    });
     const projects = new ProjectStore({ root: userprojectsRoot, maxFileBytes });
+    const targetStore = new TargetStore({ root: join(staticRoot, "target-profiles") });
     const manager = new JobManager({
         toolPath,
         maxGlobal,
@@ -135,6 +144,22 @@ export function createApp({
             return sendJson(res, 200, { userId: body.userId });
         }
 
+        // ---- Python Agent 的 Gateway 路由（gateway_token 鉴权） -------------
+        if (path.startsWith("/api/v1/") && agentManagerRef) {
+            return createAgentGateway({ agentManager: agentManagerRef, projects, jobs: manager })(
+                req,
+                res,
+                url,
+            );
+        }
+
+        // ---- 浏览器访问 Agent 的代理（需要登录） ----------------------------
+        if (path === "/api/agent" || path.startsWith("/api/agent/")) {
+            const session = authenticatedUser(req);
+            if (!session) throw new HttpError(401, "未登录", "UNAUTHENTICATED");
+            return proxyAgent(req, res, url, session.userId);
+        }
+
         // ---- 以下都需要登录 -------------------------------------------------
         if (path.startsWith("/api/")) {
             const session = authenticatedUser(req);
@@ -148,7 +173,7 @@ export function createApp({
                 return serveFile(res, staticRoot, path.slice("/static/".length));
             }
             const relative = path === "/" ? "pages/index.html" : path.slice(1);
-            return serveFile(res, frontendRoot, relative, { optional: true });
+            return serveFile(res, frontendRoot, relative);
         }
 
         throw new HttpError(404, "未找到", "NOT_FOUND");
@@ -156,6 +181,14 @@ export function createApp({
 
     async function handleApi(req, res, url, path, method, session) {
         const { userId, token } = session;
+
+        if (path === "/api/targets" && method === "GET") {
+            return sendJson(res, 200, { targets: await targetStore.list() });
+        }
+        const targetMatch = /^\/api\/targets\/([^/]+)$/.exec(path);
+        if (targetMatch && method === "GET") {
+            return sendJson(res, 200, await targetStore.get(decodeURIComponent(targetMatch[1])));
+        }
 
         if (path === "/api/session") {
             if (method === "GET") return sendJson(res, 200, { userId });
@@ -174,7 +207,10 @@ export function createApp({
             if (method === "GET") return sendJson(res, 200, { projects: await projects.list(userId) });
             if (method === "POST") {
                 const body = await readJson(req);
-                const project = await projects.create(userId, body.projectId, { name: body.name });
+                const project = await projects.create(userId, body.projectId, {
+                    name: body.name,
+                    template: body.template,
+                });
                 return sendJson(res, 201, project);
             }
             throw new HttpError(405, "方法不被允许", "METHOD_NOT_ALLOWED");
@@ -226,12 +262,73 @@ export function createApp({
             }
             throw new HttpError(405, "方法不被允许", "METHOD_NOT_ALLOWED");
         }
+        if (rest === "constraints") {
+            const target = url.searchParams.get("target") ?? "";
+            if (!target) throw new HttpError(400, "缺少 target", "MISSING_TARGET");
+            const rel = `constraints/${target}.cst`;
+            await targetStore.get(target);
+            if (method === "GET") {
+                try {
+                    const content = await projects.readFile(userId, projectId, rel);
+                    return sendJson(res, 200, { target, path: rel, content });
+                } catch (error) {
+                    if (error.code === "FILE_NOT_FOUND") {
+                        return sendJson(res, 200, { target, path: rel, content: "" });
+                    }
+                    throw error;
+                }
+            }
+            if (method === "PUT") {
+                const body = await readJson(req);
+                if (typeof body.content !== "string") {
+                    throw new HttpError(400, "content 必须是字符串", "INVALID_CONTENT");
+                }
+                await projects.writeFile(userId, projectId, rel, body.content);
+                return sendJson(res, 200, { target, path: rel });
+            }
+            throw new HttpError(405, "方法不被允许", "METHOD_NOT_ALLOWED");
+        }
+        if (rest === "validate-cst") {
+            if (method !== "POST") throw new HttpError(405, "方法不被允许", "METHOD_NOT_ALLOWED");
+            const body = await readJson(req);
+            const target = body.target;
+            if (typeof target !== "string" || target === "") {
+                throw new HttpError(400, "缺少 target", "MISSING_TARGET");
+            }
+            const cstPath = await projects.absoluteFile(userId, projectId, `constraints/${target}.cst`);
+            const pinsPath = targetStore.pinsPath(target);
+            const result = await runToolCommand({
+                toolPath,
+                args: ["validate", "cst", "--cst", cstPath, "--pins", pinsPath],
+            });
+            if (result.exitCode === 3) {
+                throw new HttpError(501, "C++ 侧尚未实现 validate", "NOT_IMPLEMENTED");
+            }
+            const failure = result.events.find(
+                (event) => event.type === "diagnostic" && event.severity === "error",
+            );
+            const resultEvent = result.events.find((event) => event.type === "result" && event.data);
+            if (result.exitCode !== 0 || !resultEvent) {
+                throw new HttpError(
+                    502,
+                    failure?.message ?? result.error ?? "约束校验失败",
+                    "VALIDATION_FAILED",
+                );
+            }
+            return sendJson(res, 200, resultEvent.data);
+        }
         if (rest === "structure" || rest === "lint") {
             if (method !== "POST") throw new HttpError(405, "方法不被允许", "METHOD_NOT_ALLOWED");
             return analyze(req, res, userId, projectId, rest);
         }
         if (rest === "files" && method === "GET") {
             return sendJson(res, 200, await projects.listFiles(userId, projectId));
+        }
+        if (rest === "file/move") {
+            if (method !== "POST") throw new HttpError(405, "方法不被允许", "METHOD_NOT_ALLOWED");
+            const body = await readJson(req);
+            const result = await projects.moveFile(userId, projectId, body.from, body.to);
+            return sendJson(res, 200, result);
         }
         if (rest === "file") {
             const filePath = url.searchParams.get("path") ?? "";
@@ -253,10 +350,50 @@ export function createApp({
         throw new HttpError(404, "未找到", "NOT_FOUND");
     }
 
+    async function proxyAgent(req, res, url, userId) {
+        if (!agentManagerRef) throw new HttpError(503, "Agent 未启用", "AGENT_DISABLED");
+        let entry;
+        try {
+            entry = await agentManagerRef.forUser(userId);
+        } catch (error) {
+            throw new HttpError(502, `Agent 启动失败：${error.message}`, "AGENT_UNAVAILABLE");
+        }
+
+        const suffix = url.pathname.slice("/api/agent".length) || "/";
+        const target = `${entry.supervisor.baseUrl}/api/v1${suffix}${url.search}`;
+        const headers = { authorization: `Bearer ${entry.uiToken}` };
+        let body;
+        if (req.method !== "GET" && req.method !== "HEAD") {
+            body = await readRawBody(req);
+            if (body) headers["content-type"] = "application/json";
+        }
+
+        let upstream;
+        try {
+            upstream = await fetch(target, {
+                method: req.method,
+                headers,
+                body,
+                signal: AbortSignal.timeout(30_000),
+            });
+        } catch (error) {
+            throw new HttpError(502, `Agent 请求失败：${error.message}`, "AGENT_UNAVAILABLE");
+        }
+        const text = await upstream.text();
+        res.writeHead(upstream.status, { "content-type": "application/json; charset=utf-8" });
+        res.end(text);
+    }
+
     async function analyze(req, res, userId, projectId, command) {
         const body = await readJson(req);
         const filePath = await projects.absoluteFile(userId, projectId, body.path);
-        const result = await runAnalysis({ toolPath, command, filePath, dataDir });
+        const result = await runAnalysis({
+            toolPath,
+            command,
+            filePath,
+            projectRoot: projects.projectDir(userId, projectId),
+            dataDir,
+        });
 
         if (result.timedOut) throw new HttpError(504, "分析超时", "ANALYSIS_TIMEOUT");
         if (result.exitCode === 3) {
@@ -288,6 +425,17 @@ export function createApp({
         }
         if (!(await projects.exists(userId, projectId))) {
             throw new HttpError(404, `工程不存在：${projectId}`, "PROJECT_NOT_FOUND");
+        }
+        if (body.jobType === "sim.run") {
+            const exe = body.params.sim_exe;
+            if (typeof exe !== "string" ||
+                !/^\.sigflow\/agent\/jobs\/sim\.build\/[A-Za-z0-9-]+\/artifacts\/.+$/.test(exe)) {
+                throw new HttpError(
+                    400,
+                    "sim_exe 必须来自本工程的 sim.build 产物",
+                    "INVALID_SIM_EXE",
+                );
+            }
         }
 
         const job = manager.submit({
@@ -378,7 +526,7 @@ export function createApp({
         res.on("close", stop);
     }
 
-    async function serveFile(res, root, relative, { optional = false } = {}) {
+    async function serveFile(res, root, relative) {
         const base = resolve(root);
         const target = resolve(base, relative);
         if (target !== base && !target.startsWith(base + sep)) {
@@ -389,7 +537,6 @@ export function createApp({
             if (!info.isFile()) throw new HttpError(404, "未找到", "NOT_FOUND");
         } catch (error) {
             if (error instanceof HttpError) throw error;
-            if (optional) return sendJson(res, 200, { service: "sigflow-web", hint: "前端尚未实现" });
             throw new HttpError(404, "未找到", "NOT_FOUND");
         }
         return serveAbsolute(res, target);
@@ -427,6 +574,9 @@ export function createApp({
     }
 
     return {
+        setAgentManager(next) {
+            agentManagerRef = next;
+        },
         server,
         manager,
         users,
@@ -465,6 +615,12 @@ function summarize(job) {
         pid: job.pid,
         eventCount: job.events.length,
     };
+}
+
+async function readRawBody(req) {
+    const chunks = [];
+    for await (const chunk of req) chunks.push(chunk);
+    return Buffer.concat(chunks).toString("utf8");
 }
 
 function readJson(req) {

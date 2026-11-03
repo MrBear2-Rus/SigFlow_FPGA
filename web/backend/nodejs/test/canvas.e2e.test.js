@@ -94,8 +94,8 @@ test("画布：默认空布局、保存、读回、校验与隔离", { skip }, a
         assert.equal((await bob("/api/projects/demo/canvas")).status, 404);
 
         // 静态资源
-        assert.equal((await fetch(`${base}/pages/canvas.html`)).status, 200);
-        assert.equal((await fetch(`${base}/scripts/canvas.js`)).status, 200);
+        assert.equal((await fetch(`${base}/pages/workspace.html`)).status, 200);
+        assert.equal((await fetch(`${base}/scripts/workspace/canvas-editor.js`)).status, 200);
         assert.equal((await fetch(`${base}/assets/canvas_elements.json`)).status, 200);
     } finally {
         await app.close();

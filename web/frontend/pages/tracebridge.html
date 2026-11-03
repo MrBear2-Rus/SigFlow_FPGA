@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SigFlow · TraceBridge</title>
+    <link rel="stylesheet" href="/styles/theme.css">
+    <link rel="stylesheet" href="/styles/components.css">
+    <link rel="stylesheet" href="/styles/window.css">
+</head>
+<body class="win">
+    <header class="win-head">
+        <img class="brand-mark" src="/assets/icons/ui/tree.svg" alt="">
+        <h1>SigFlow TraceBridge</h1>
+        <span class="project" id="projectName"></span>
+        <span class="spacer"></span>
+        <div class="actions">
+            <a class="btn btn-ghost btn-sm" id="workspaceLink" href="/pages/projects.html">工作区</a>
+            <button class="btn btn-ghost btn-sm" id="closeWindow">关闭窗口</button>
+        </div>
+    </header>
+
+    <div class="win-body">
+        <div class="split-2">
+            <section class="card card-block">
+                <div data-tabs data-active="contract">
+                    <div class="tab-list">
+                        <button class="tab" data-tab="contract" aria-selected="true">1 契约</button>
+                        <button class="tab" data-tab="runtime">2 运行时</button>
+                    </div>
+                    <div class="tab-panels">
+                        <div class="tab-panel" data-panel="contract" data-active="true">
+                            <div class="field-row">
+                                <label for="tb-top">顶层模块</label>
+                                <input id="tb-top" class="input" value="top" disabled>
+                            </div>
+                            <div class="field-row">
+                                <label for="tb-depth">采样深度</label>
+                                <input id="tb-depth" class="input" value="1024" disabled>
+                            </div>
+                            <div class="field-row">
+                                <label for="tb-trigger">触发模式</label>
+                                <select id="tb-trigger" class="input" disabled>
+                                    <option>none</option>
+                                    <option>mask_equal</option>
+                                    <option>edge_rising</option>
+                                </select>
+                            </div>
+                            <p class="hint">
+                                契约字段与 C++ 的 capture 命令对应；当前 C++ P8 未实现，
+                                页面先保留结构，等协议冻结后接入。
+                            </p>
+                        </div>
+                        <div class="tab-panel" data-panel="runtime">
+                            <div class="skeleton">
+                                <img src="/assets/icons/ui/start.svg" alt="" width="24" height="24">
+                                <strong>尚未连接设备</strong>
+                                <span class="small">需要 C++ capture 命令与 Node 设备租约</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="card card-block">
+                <div data-tabs data-active="wave">
+                    <div class="tab-list">
+                        <button class="tab" data-tab="wave" aria-selected="true">双轨波形</button>
+                        <button class="tab" data-tab="diff">比对结果</button>
+                    </div>
+                    <div class="tab-panels">
+                        <div class="tab-panel" data-panel="wave" data-active="true">
+                            <div class="skeleton">
+                                <img src="/assets/icons/ui/file_v.svg" alt="" width="24" height="24">
+                                <strong>波形等待采集中</strong>
+                                <span class="small">C++ P7 wave serve 之后在此绘制硬件与仿真的双轨波形</span>
+                            </div>
+                        </div>
+                        <div class="tab-panel" data-panel="diff">
+                            <div class="skeleton">
+                                <img src="/assets/icons/ui/file.svg" alt="" width="24" height="24">
+                                <strong>暂无比对结果</strong>
+                                <span class="small">采集完成后显示两侧差异</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script type="module" src="/scripts/tracebridge.js"></script>
+</body>
+</html>

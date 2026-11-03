@@ -1,0 +1,135 @@
+/* 工程管理页 */
+
+.projects-page {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.app-nav {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 52px;
+    padding: 0 24px;
+    background: rgba(251, 251, 253, 0.82);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--stroke);
+}
+
+.app-nav-title {
+    color: var(--text-2);
+    font-size: var(--fs-12);
+    padding-left: 12px;
+    border-left: 1px solid var(--stroke);
+}
+
+.app-nav-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.projects-main {
+    width: 100%;
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 32px 24px 64px;
+    display: grid;
+    gap: 20px;
+    align-content: start;
+}
+
+.projects-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.projects-head h1 {
+    font-size: 22px;
+    letter-spacing: -0.01em;
+}
+
+.projects-head p {
+    margin-top: 4px;
+}
+
+.project-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+}
+
+.project-card {
+    display: grid;
+    gap: 10px;
+    padding: 16px;
+    background: var(--surface-strong);
+    border: 1px solid var(--stroke);
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow-1);
+    transition: box-shadow 0.14s ease, border-color 0.14s ease, transform 0.14s ease;
+}
+
+.project-card:hover {
+    border-color: var(--stroke-strong);
+    box-shadow: var(--shadow-2);
+    transform: translateY(-1px);
+}
+
+.project-card-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.project-card-head h3 {
+    font-size: var(--fs-14);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.project-meta {
+    display: grid;
+    gap: 3px;
+    color: var(--text-3);
+    font-size: var(--fs-11);
+}
+
+.project-meta code {
+    color: var(--text-2);
+}
+
+.project-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 2px;
+}
+
+.project-actions .btn {
+    height: 26px;
+}
+
+.project-actions .grow {
+    flex: 1;
+}
+
+.empty {
+    padding: 56px 24px;
+}
+
+@media (max-width: 640px) {
+    .projects-head {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}

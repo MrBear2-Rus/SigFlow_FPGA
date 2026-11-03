@@ -1,10 +1,10 @@
 // =============================================================================
 // 一次性分析调用：sigflow-tool structure|lint
 //
-// 契约（待 C++ P6 实现，见 handoff-js H-JS-004）：
+// 契约见 backend/cpp/contracts/analysis-v1/（C++ 已实现）：
 //   * 成功：stdout 输出一行 {"type":"result","ok":true,"data":{...}}，退出码 0；
 //   * 失败：stdout 输出 diagnostic 事件，退出码 4；
-//   * 未实现：退出码 3（Node 侧映射为 501）。
+//   * 未实现：退出码 3（Node 侧映射为 501，兼容旧构建）。
 // =============================================================================
 
 import { spawn } from "node:child_process";
@@ -19,12 +19,21 @@ const KILL_GRACE_MS = 2000;
  *   toolPath: string,
  *   command: "structure" | "lint",
  *   filePath: string,
+ *   projectRoot?: string,
  *   dataDir?: string,
  *   timeoutMs?: number,
  * }} options
  */
-export function runAnalysis({ toolPath, command, filePath, dataDir = "", timeoutMs = 10_000 }) {
+export function runAnalysis({
+    toolPath,
+    command,
+    filePath,
+    projectRoot = "",
+    dataDir = "",
+    timeoutMs = 10_000,
+}) {
     const args = [command, "--file", filePath];
+    if (projectRoot) args.push("--project-root", projectRoot);
     if (dataDir) args.push("--data-dir", dataDir);
 
     return new Promise((resolve) => {

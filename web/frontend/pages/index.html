@@ -3,94 +3,129 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>SigFlow · 控制台</title>
-    <link rel="stylesheet" href="/vendor/codemirror/lib/codemirror.css">
-    <link rel="stylesheet" href="/styles/app.css">
+    <title>SigFlow · 数字电路与 FPGA 教学平台</title>
+    <link rel="stylesheet" href="/styles/theme.css">
+    <link rel="stylesheet" href="/styles/components.css">
+    <link rel="stylesheet" href="/styles/landing.css">
 </head>
-<body>
-    <header>
-        <h1>SigFlow · 控制台</h1>
-        <span id="health" class="muted">检查中…</span>
-        <a class="link" href="/pages/canvas.html">画布</a>
-        <span id="account" class="muted">未登录</span>
+<body class="landing">
+    <header class="landing-nav">
+        <a class="brand" href="/">
+            <img class="brand-mark" src="/assets/icons/ui/components.svg" alt="">
+            <span>SigFlow</span>
+        </a>
+        <nav class="landing-nav-actions" id="navActions">
+            <button class="btn btn-ghost" data-auth="login">登录</button>
+            <button class="btn btn-primary" data-auth="register">注册</button>
+        </nav>
     </header>
 
-    <main>
-        <aside>
-            <section class="panel" id="authPanel">
-                <h2>账号</h2>
-                <input id="userId" placeholder="userId" autocomplete="username">
-                <input id="password" type="password" placeholder="密码（至少 8 位）" autocomplete="current-password">
-                <div class="row">
-                    <button id="login">登录</button>
-                    <button id="register">注册</button>
-                    <button id="logout" hidden>退出</button>
+    <main class="landing-main">
+        <section class="hero">
+            <div class="hero-copy">
+                <span class="chip">数字电路 · Verilog · FPGA</span>
+                <h1>从门电路到 FPGA 位流，<br>在浏览器里完成。</h1>
+                <p class="hero-sub">
+                    可视化搭建电路、编写 Verilog、运行综合与布局布线、查看波形——
+                    所有产物都留在同一个工程空间里。
+                </p>
+                <div class="hero-actions">
+                    <button class="btn btn-primary btn-lg" data-auth="register">开始使用</button>
+                    <a class="btn btn-lg" href="#features">了解功能</a>
                 </div>
-                <p id="authStatus" class="muted"></p>
-            </section>
-
-            <section class="panel" id="projectPanel" hidden>
-                <h2>工程</h2>
-                <select id="projectSelect"></select>
-                <div class="row">
-                    <input id="newProject" placeholder="新工程 ID">
-                    <button id="createProject">新建</button>
-                </div>
-                <h3>文件</h3>
-                <ul id="fileList" class="file-list"></ul>
-            </section>
-        </aside>
-
-        <section class="panel editor-panel" id="editorPanel" hidden>
-            <h2>编辑器</h2>
-            <div class="row">
-                <input id="filePath" placeholder="src/top.v">
-                <button id="openFile">打开</button>
-                <button id="saveFile">保存</button>
-            </div>
-            <textarea id="fileContent" spellcheck="false"></textarea>
-
-            <div class="row">
-                <button id="analyzeStructure">结构树</button>
-                <button id="analyzeLint">语法检查</button>
-                <span id="analysisStatus" class="muted"></span>
+                <ul class="hero-points">
+                    <li><img src="/assets/icons/ui/save.svg" alt="">工程与文件保存在服务端，换设备也能继续</li>
+                    <li><img src="/assets/icons/ui/start.svg" alt="">综合、布线、打包、下载在同一个任务面板里</li>
+                    <li><img src="/assets/icons/signal/module.svg" alt="">结构树、诊断与波形共享同一份源码</li>
+                </ul>
             </div>
 
-            <div class="analysis">
-                <div>
-                    <h3>结构树</h3>
-                    <ul id="structureTree" class="tree"></ul>
+            <aside class="auth-card card" id="auth">
+                <div class="auth-signed-in hidden" id="signedIn">
+                    <h2>欢迎回来</h2>
+                    <p class="muted" id="signedUser"></p>
+                    <div class="row">
+                        <a class="btn btn-primary" href="/pages/projects.html">进入工程</a>
+                        <button class="btn" id="logout">退出登录</button>
+                    </div>
                 </div>
-                <div>
-                    <h3>诊断</h3>
-                    <ul id="diagnostics" class="diagnostics"></ul>
+
+                <div id="authForms">
+                    <div data-tabs data-active="login">
+                        <div class="tab-list">
+                            <button class="tab" data-tab="login" aria-selected="true">登录</button>
+                            <button class="tab" data-tab="register">注册</button>
+                        </div>
+                        <div class="tab-panels">
+                            <div class="tab-panel" data-panel="login" data-active="true">
+                                <form id="loginForm" class="auth-form" novalidate>
+                                    <div class="field">
+                                        <label for="login-user">用户名</label>
+                                        <input id="login-user" class="input" autocomplete="username"
+                                               placeholder="例如 student01" required>
+                                    </div>
+                                    <div class="field">
+                                        <label for="login-pass">密码</label>
+                                        <input id="login-pass" class="input" type="password"
+                                               autocomplete="current-password" required>
+                                    </div>
+                                    <p class="form-error" id="login-error" role="alert"></p>
+                                    <button class="btn btn-primary btn-block" type="submit">登录</button>
+                                </form>
+                            </div>
+
+                            <div class="tab-panel" data-panel="register">
+                                <form id="registerForm" class="auth-form" novalidate>
+                                    <div class="field">
+                                        <label for="register-user">用户名</label>
+                                        <input id="register-user" class="input" autocomplete="username"
+                                               placeholder="字母、数字、点、下划线" required>
+                                    </div>
+                                    <div class="field">
+                                        <label for="register-pass">密码</label>
+                                        <input id="register-pass" class="input" type="password"
+                                               autocomplete="new-password" required>
+                                        <span class="form-hint">至少 8 位</span>
+                                    </div>
+                                    <div class="field">
+                                        <label for="register-confirm">确认密码</label>
+                                        <input id="register-confirm" class="input" type="password"
+                                               autocomplete="new-password" required>
+                                    </div>
+                                    <p class="form-error" id="register-error" role="alert"></p>
+                                    <button class="btn btn-primary btn-block" type="submit">注册并登录</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            </aside>
         </section>
 
-        <section class="panel" id="jobPanel" hidden>
-            <h2>任务</h2>
-            <label>类型
-                <select id="jobType">
-                    <option value="synth">synth（综合）</option>
-                </select>
-            </label>
-            <label>参数 JSON
-                <textarea id="params" rows="7" spellcheck="false"></textarea>
-            </label>
-            <div class="row">
-                <button id="submit">提交</button>
-                <button id="cancel" disabled>取消</button>
+        <section class="features" id="features">
+            <h2>一个工程，三种视角</h2>
+            <div class="feature-grid">
+                <article class="feature">
+                    <img src="/assets/icons/ui/components.svg" alt="">
+                    <h3>可视化画布</h3>
+                    <p>拖拽门电路与元件、连线、保存布局；画布与源码、任务共用同一个工程目录。</p>
+                </article>
+                <article class="feature">
+                    <img src="/assets/icons/signal/module.svg" alt="">
+                    <h3>RTL 编辑与结构树</h3>
+                    <p>在线编辑 Verilog，语法高亮与括号匹配；结构树和诊断定位到具体行列。</p>
+                </article>
+                <article class="feature">
+                    <img src="/assets/icons/ui/start.svg" alt="">
+                    <h3>FPGA 全流程与波形</h3>
+                    <p>综合、布局布线、打包、下载串成一条任务流；仿真与波形在浏览器里查看。</p>
+                </article>
             </div>
-            <p id="status" class="muted">就绪</p>
-            <h3>事件流</h3>
-            <pre id="log" aria-live="polite"></pre>
         </section>
     </main>
 
-    <script src="/vendor/codemirror/lib/codemirror.js"></script>
-    <script src="/vendor/codemirror/mode/verilog/verilog.js"></script>
-    <script src="/vendor/codemirror/addon/edit/matchbrackets.js"></script>
-    <script type="module" src="/scripts/console.js"></script>
+    <footer class="landing-foot">SigFlow · 教学版</footer>
+
+    <script type="module" src="/scripts/landing.js"></script>
 </body>
 </html>

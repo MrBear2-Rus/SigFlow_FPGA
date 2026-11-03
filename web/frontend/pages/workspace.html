@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SigFlow · 工作区</title>
+    <link rel="stylesheet" href="/styles/theme.css">
+    <link rel="stylesheet" href="/styles/components.css">
+    <link rel="stylesheet" href="/vendor/codemirror/lib/codemirror.css">
+    <link rel="stylesheet" href="/styles/workspace.css">
+</head>
+<body class="ws">
+    <header class="ws-topbar">
+        <a class="brand" href="/pages/projects.html">
+            <img class="brand-mark" src="/assets/icons/ui/components.svg" alt="">
+            <span>SigFlow</span>
+        </a>
+        <nav class="ws-menus" id="menus"></nav>
+        <span class="ws-title" id="projectTitle">未打开工程</span>
+        <div class="ws-spacer"></div>
+        <div class="ws-tools" id="tools"></div>
+        <button class="btn btn-ghost btn-sm" id="resetLayout" title="恢复默认布局">重置布局</button>
+    </header>
+
+    <main class="ws-main">
+        <nav class="ws-rail" id="rail"></nav>
+        <div class="ws-body split" data-split data-key="ws-left" data-default="0.2" style="--a: 240px">
+        <aside class="ws-region pane pane-a" data-region="left">
+            <div class="ws-region-head"></div>
+            <div class="ws-region-body"></div>
+        </aside>
+        <div class="splitter"></div>
+        <div class="pane pane-b">
+            <div class="split" data-split data-key="ws-right" data-default="0.22" data-reverse="x" style="--a: 260px">
+                <aside class="ws-region pane pane-a" data-region="right">
+                    <div class="ws-region-head"></div>
+                    <div class="ws-region-body"></div>
+                </aside>
+                <div class="splitter"></div>
+                <div class="pane pane-b">
+                    <div class="split" data-split data-key="ws-bottom" data-default="0.24" data-axis="y"
+                         data-reverse="y" style="--a: 180px">
+                        <section class="ws-region pane pane-a" data-region="bottom">
+                            <div class="ws-region-head"></div>
+                            <div class="ws-region-body"></div>
+                        </section>
+                        <div class="splitter"></div>
+                        <div class="pane pane-b">
+                            <div class="split ws-center" data-split data-key="ws-editor" data-default="0.55"
+                                 data-axis="y" style="--a: 420px">
+                                <section class="ws-canvas pane pane-a" id="canvasArea">
+                                    <div class="ws-canvas-toolbar" id="canvasToolbar"></div>
+                                    <div class="ws-canvas-board" id="canvasBoard"></div>
+                                </section>
+                                <div class="splitter"></div>
+                                <section class="ws-editor pane pane-b" id="editorArea">
+                                    <div class="ws-editor-head" id="editorHead"></div>
+                                    <div class="ws-editor-host" id="editorHost"></div>
+                                </section>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div>
+    </main>
+
+    <footer class="ws-status">
+        <span id="statusText">就绪</span>
+        <span class="spacer"></span>
+        <span id="statusRight"></span>
+    </footer>
+
+    <script src="/vendor/codemirror/lib/codemirror.js"></script>
+    <script src="/vendor/codemirror/mode/verilog/verilog.js"></script>
+    <script src="/vendor/codemirror/addon/edit/matchbrackets.js"></script>
+    <script type="module" src="/scripts/workspace.js"></script>
+</body>
+</html>

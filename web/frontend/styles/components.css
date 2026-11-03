@@ -1,0 +1,503 @@
+/* =============================================================================
+ * SigFlow 组件（浅色）
+ * 依赖 theme.css 的变量；不依赖任何框架。
+ * ============================================================================= */
+
+/* ---- 按钮 ---------------------------------------------------------------- */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s1);
+    height: 28px;
+    padding: 0 var(--s3);
+    border: 1px solid var(--stroke);
+    border-radius: var(--r-xs);
+    background: var(--surface-strong);
+    color: var(--text-1);
+    font: inherit;
+    font-size: var(--fs-12);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.btn:hover {
+    background: #ffffff;
+    border-color: var(--stroke-strong);
+}
+
+.btn:active {
+    background: var(--surface-sunken);
+}
+
+.btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #ffffff;
+}
+
+.btn-primary:hover {
+    background: #0a7dee;
+    border-color: #0a7dee;
+}
+
+.btn-danger {
+    color: var(--danger);
+    border-color: rgba(193, 18, 31, 0.3);
+}
+
+.btn-danger:hover {
+    background: rgba(193, 18, 31, 0.06);
+}
+
+.btn-ghost {
+    background: transparent;
+    border-color: transparent;
+}
+
+.btn-ghost:hover {
+    background: var(--hover);
+}
+
+.btn-sm {
+    height: 22px;
+    padding: 0 var(--s2);
+    font-size: var(--fs-11);
+}
+
+.btn-icon {
+    width: 28px;
+    padding: 0;
+}
+
+.btn-icon img {
+    width: 16px;
+    height: 16px;
+    display: block;
+}
+
+/* ---- 输入 ---------------------------------------------------------------- */
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.field > label {
+    font-size: var(--fs-11);
+    color: var(--text-2);
+}
+
+.input,
+select.input,
+textarea.input {
+    height: 30px;
+    padding: 0 var(--s2);
+    border: 1px solid var(--stroke);
+    border-radius: var(--r-sm);
+    background: #ffffff;
+    color: var(--text-1);
+    font: inherit;
+    font-size: var(--fs-12);
+    outline: none;
+    transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+textarea.input {
+    height: auto;
+    padding: var(--s2);
+    resize: vertical;
+    font-family: var(--font-mono);
+}
+
+.input:focus,
+select.input:focus,
+textarea.input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--sel);
+}
+
+.input::placeholder {
+    color: var(--text-3);
+}
+
+/* ---- 卡片 / 表面 --------------------------------------------------------- */
+.card {
+    background: var(--surface-strong);
+    border: 1px solid var(--stroke);
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow-1);
+    backdrop-filter: blur(12px);
+}
+
+.card-pad {
+    padding: var(--s4);
+}
+
+.panel {
+    background: var(--bg-panel);
+    border: 1px solid var(--stroke);
+    border-radius: var(--r-lg);
+}
+
+/* ---- 页签 ---------------------------------------------------------------- */
+.tabs {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.tab-list {
+    display: flex;
+    align-items: center;
+    gap: var(--s1);
+    padding: 4px;
+    background: var(--surface-sunken);
+    border-radius: var(--r-sm);
+    min-height: 32px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.tab-list::-webkit-scrollbar {
+    display: none;
+}
+
+.tab {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 24px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: var(--r-xs);
+    background: transparent;
+    color: var(--text-2);
+    font: inherit;
+    font-size: var(--fs-11);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.tab:hover {
+    background: var(--hover);
+    color: var(--text-1);
+}
+
+.tab[aria-selected="true"] {
+    background: #ffffff;
+    color: var(--text-1);
+    box-shadow: var(--shadow-1);
+}
+
+.tab[aria-selected="true"]::after {
+    content: "";
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: 2px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--accent);
+}
+
+.tab-panels {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.tab-panel {
+    flex: 1;
+    min-height: 0;
+    display: none;
+}
+
+.tab-panel[data-active="true"] {
+    display: flex;
+    flex-direction: column;
+}
+
+/* ---- 分栏 ---------------------------------------------------------------- */
+.split {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex: 1;
+}
+
+.split > .pane {
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 嵌套分栏：子 split 填满父 pane */
+.split > .pane > .split {
+    flex: 1 1 0;
+    min-height: 0;
+    min-width: 0;
+}
+
+.split[data-axis="y"] {
+    flex-direction: column;
+}
+
+.split > .pane-a {
+    flex: 0 0 var(--a, 220px);
+}
+
+.split > .pane-b {
+    flex: 1 1 0;
+}
+
+.splitter {
+    flex: 0 0 5px;
+    cursor: col-resize;
+    background: transparent;
+    position: relative;
+    z-index: 1;
+}
+
+.splitter::after {
+    content: "";
+    position: absolute;
+    inset: 0 2px;
+    border-radius: 2px;
+    background: transparent;
+    transition: background 0.12s ease;
+}
+
+.splitter:hover::after,
+.splitter[data-dragging="true"]::after {
+    background: var(--accent);
+    opacity: 0.4;
+}
+
+.split[data-axis="y"] > .splitter {
+    cursor: row-resize;
+    flex-basis: 5px;
+}
+
+/* ---- 空状态 -------------------------------------------------------------- */
+.empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s2);
+    padding: var(--s6) var(--s4);
+    color: var(--text-3);
+    text-align: center;
+}
+
+.empty img {
+    width: 28px;
+    height: 28px;
+    opacity: 0.5;
+}
+
+.empty strong {
+    color: var(--text-2);
+    font-weight: 600;
+    font-size: var(--fs-12);
+}
+
+/* ---- 弹窗 ---------------------------------------------------------------- */
+dialog.dlg {
+    border: 1px solid var(--stroke);
+    border-radius: var(--r-md);
+    padding: 0;
+    background: #ffffff;
+    color: var(--text-1);
+    box-shadow: var(--shadow-3);
+    width: min(440px, calc(100vw - 32px));
+}
+
+dialog.dlg::backdrop {
+    background: rgba(18, 24, 40, 0.28);
+    backdrop-filter: blur(2px);
+}
+
+.dlg-head {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    padding: var(--s3) var(--s4);
+    border-bottom: 1px solid var(--stroke);
+    font-size: var(--fs-13);
+    font-weight: 600;
+}
+
+.dlg-body {
+    padding: var(--s4);
+    color: var(--text-2);
+    font-size: var(--fs-12);
+    max-height: 60vh;
+    overflow: auto;
+}
+
+.dlg-foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--s2);
+    padding: var(--s3) var(--s4);
+    border-top: 1px solid var(--stroke);
+    background: var(--bg-panel);
+}
+
+/* ---- Toast --------------------------------------------------------------- */
+.toast-host {
+    position: fixed;
+    right: var(--s4);
+    bottom: var(--s4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s2);
+    z-index: 1000;
+    pointer-events: none;
+}
+
+.toast {
+    pointer-events: auto;
+    min-width: 200px;
+    max-width: 360px;
+    padding: 10px var(--s3);
+    border-radius: var(--r-sm);
+    border: 1px solid var(--stroke);
+    background: #ffffff;
+    box-shadow: var(--shadow-2);
+    color: var(--text-1);
+    font-size: var(--fs-12);
+    animation: toast-in 0.16s ease-out;
+}
+
+.toast[data-type="error"] {
+    border-color: rgba(193, 18, 31, 0.35);
+}
+
+.toast[data-type="success"] {
+    border-color: rgba(31, 138, 76, 0.35);
+}
+
+@keyframes toast-in {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ---- 列表 / 工具条 ------------------------------------------------------- */
+.list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.list > li {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    padding: 6px var(--s2);
+    border-radius: var(--r-xs);
+    cursor: default;
+}
+
+.list > li:hover {
+    background: var(--hover);
+}
+
+.list > li[aria-selected="true"] {
+    background: var(--sel);
+}
+
+.toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 20px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: var(--surface-sunken);
+    color: var(--text-2);
+    font-size: var(--fs-10);
+}
+
+/* ---- 图标 ---------------------------------------------------------------- */
+.icon {
+    width: 16px;
+    height: 16px;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.icon-lg {
+    width: 20px;
+    height: 20px;
+}
+
+/* ---- 表格 ---------------------------------------------------------------- */
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--fs-12);
+}
+
+.table th {
+    text-align: left;
+    font-weight: 600;
+    font-size: var(--fs-11);
+    color: var(--text-3);
+    padding: 6px var(--s2);
+    border-bottom: 1px solid var(--stroke);
+}
+
+.table td {
+    padding: 8px var(--s2);
+    border-bottom: 1px solid var(--stroke);
+}
+
+.table tr:hover td {
+    background: var(--hover);
+}
+
+/* ---- 表单提示 ------------------------------------------------------------ */
+.form-error {
+    min-height: 16px;
+    color: var(--danger);
+    font-size: var(--fs-11);
+}
+
+.form-hint {
+    color: var(--text-3);
+    font-size: var(--fs-11);
+}
+
+/* 反向分栏：pane-a 仍是被调整尺寸的一侧，但显示在右/下 */
+.split[data-reverse="x"] {
+    flex-direction: row-reverse;
+}
+
+.split[data-reverse="y"] {
+    flex-direction: column-reverse;
+}

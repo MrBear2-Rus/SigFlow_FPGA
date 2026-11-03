@@ -1,0 +1,265 @@
+/* 独立窗口页（FPGA 工具 / TraceBridge / 契约配置）共用样式 */
+
+.win {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg-window);
+}
+
+.win-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 46px;
+    padding: 0 14px;
+    flex: 0 0 auto;
+    background: var(--surface-strong);
+    border-bottom: 1px solid var(--stroke);
+    backdrop-filter: blur(14px);
+}
+
+.win-head h1 {
+    font-size: var(--fs-14);
+    font-weight: 600;
+}
+
+.win-head .brand-mark {
+    width: 20px;
+    height: 20px;
+}
+
+.win-head .project {
+    color: var(--text-3);
+    font-size: var(--fs-11);
+    padding-left: 10px;
+    border-left: 1px solid var(--stroke);
+    max-width: 240px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.win-head .spacer {
+    flex: 1;
+}
+
+.win-head .actions {
+    display: flex;
+    gap: 6px;
+}
+
+.win-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 8px;
+}
+
+.win-body > [data-tabs] {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.win-grid {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(300px, 0.9fr) minmax(0, 1.1fr);
+    gap: 10px;
+    padding-top: 10px;
+}
+
+.win-col {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow: auto;
+}
+
+.card-block {
+    padding: 14px;
+    display: grid;
+    gap: 10px;
+    align-content: start;
+}
+
+.card-block h2 {
+    font-size: var(--fs-13);
+}
+
+.card-block .row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.field-row {
+    display: grid;
+    grid-template-columns: 110px minmax(0, 1fr);
+    gap: 8px;
+    align-items: center;
+}
+
+.field-row > label {
+    color: var(--text-2);
+    font-size: var(--fs-11);
+}
+
+.hint {
+    color: var(--text-3);
+    font-size: var(--fs-11);
+    line-height: 1.5;
+}
+
+/* ---- 任务控制台 ---------------------------------------------------------- */
+.job-console {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+.job-console-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--stroke);
+    background: var(--bg-panel);
+    font-size: var(--fs-11);
+    color: var(--text-2);
+}
+
+.job-list {
+    max-height: 170px;
+    overflow: auto;
+    border-bottom: 1px solid var(--stroke);
+}
+
+.job-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--stroke);
+    font-size: var(--fs-11);
+    cursor: pointer;
+}
+
+.job-row:hover {
+    background: var(--hover);
+}
+
+.job-row[aria-selected="true"] {
+    background: var(--sel);
+}
+
+.job-row .id {
+    font-family: var(--font-mono);
+    color: var(--text-2);
+}
+
+.job-row .state {
+    margin-left: auto;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: var(--surface-sunken);
+    font-size: 10px;
+}
+
+.job-row .state[data-state="Running"] {
+    background: rgba(0, 113, 227, 0.12);
+    color: var(--accent);
+}
+
+.job-row .state[data-state="Succeeded"] {
+    background: rgba(31, 138, 76, 0.12);
+    color: var(--brand);
+}
+
+.job-row .state[data-state="Failed"],
+.job-row .state[data-state="Cancelled"] {
+    background: rgba(193, 18, 31, 0.1);
+    color: var(--danger);
+}
+
+.job-log {
+    flex: 1;
+    min-height: 120px;
+    overflow: auto;
+    padding: 8px 10px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-2);
+    white-space: pre-wrap;
+    word-break: break-all;
+    background: #ffffff;
+}
+
+.job-log .line {
+    display: block;
+}
+
+.job-log .err {
+    color: var(--danger);
+}
+
+.job-log .warn {
+    color: var(--warn);
+}
+
+.job-artifacts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 10px;
+    border-top: 1px solid var(--stroke);
+    font-size: var(--fs-11);
+}
+
+.job-artifacts a {
+    padding: 2px 8px;
+    border: 1px solid var(--stroke);
+    border-radius: 999px;
+    text-decoration: none;
+}
+
+/* ---- 骨架页（TraceBridge / 契约） ---------------------------------------- */
+.skeleton {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 240px;
+    color: var(--text-3);
+    text-align: center;
+}
+
+.skeleton strong {
+    color: var(--text-2);
+}
+
+.split-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding-top: 10px;
+    min-height: 0;
+    flex: 1;
+}
+
+@media (max-width: 900px) {
+    .win-grid,
+    .split-2 {
+        grid-template-columns: 1fr;
+    }
+}

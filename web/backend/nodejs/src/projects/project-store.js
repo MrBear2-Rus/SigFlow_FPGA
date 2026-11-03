@@ -8,7 +8,7 @@
 // =============================================================================
 
 import { lstat, mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
-import { extname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import { isValidId } from "../jobs/job-id.js";
 
@@ -19,6 +19,21 @@ const TEXT_EXTENSIONS = new Set([
 const MAX_TREE_ENTRIES = 2000;
 const MAX_DEPTH = 8;
 const SKIP_DIRS = new Set([".sigflow", ".git", "node_modules"]);
+export const TEMPLATES = ["blank", "sample"];
+const SAMPLE_TOP = `// 示例：1 Hz 闪烁灯（27 MHz 时钟，Tang Nano 9K）
+module top(input clk, output reg led);
+    reg [24:0] count = 0;
+
+    always @(posedge clk) begin
+        if (count == 25'd27_000_000 - 1) begin
+            count <= 0;
+            led <= ~led;
+        end else begin
+            count <= count + 1;
+        end
+    end
+endmodule
+`;
 
 export function projectError(status, code, message) {
     const error = new Error(message);
@@ -55,13 +70,25 @@ export class ProjectStore {
             if (!entry.isDirectory()) continue;
             projects.push(await this.metadata(userId, entry.name));
         }
-        return projects.sort((a, b) => a.projectId.localeCompare(b.projectId));
+        return projects.sort((a, b) =>
+            String(b.updatedAt ?? b.createdAt ?? "").localeCompare(
+                String(a.updatedAt ?? a.createdAt ?? ""),
+            ),
+        );
     }
 
     async metadata(userId, projectId) {
         const dir = this.projectDir(userId, projectId);
+        const file = join(dir, PROJECT_FILE);
         try {
-            const parsed = JSON.parse(await readFile(join(dir, PROJECT_FILE), "utf8"));
+            const parsed = JSON.parse(await readFile(file, "utf8"));
+            if (!parsed.updatedAt) {
+                try {
+                    parsed.updatedAt = (await stat(file)).mtime.toISOString();
+                } catch {
+                    /* 忽略 */
+                }
+            }
             return { ...parsed, projectId };
         } catch (error) {
             if (error.code !== "ENOENT") throw error;
@@ -69,7 +96,10 @@ export class ProjectStore {
         }
     }
 
-    async create(userId, projectId, { name } = {}) {
+    async create(userId, projectId, { name, template = "blank" } = {}) {
+        if (!TEMPLATES.includes(template)) {
+            throw projectError(400, "INVALID_TEMPLATE", `未知模板：${template}`);
+        }
         const dir = this.projectDir(userId, projectId);
         await mkdir(join(dir), { recursive: true });
         try {
@@ -79,14 +109,20 @@ export class ProjectStore {
             if (error.status) throw error;
             if (error.code !== "ENOENT") throw error;
         }
+        const now = new Date().toISOString();
         const metadata = {
             schema: "sigflow.project.v1",
             projectId,
             name: typeof name === "string" && name.trim() !== "" ? name.trim() : projectId,
-            createdAt: new Date().toISOString(),
+            template,
+            createdAt: now,
+            updatedAt: now,
         };
         await writeFile(join(dir, PROJECT_FILE), `${JSON.stringify(metadata, null, 2)}\n`);
         await mkdir(join(dir, "src"), { recursive: true });
+        if (template === "sample") {
+            await writeFile(join(dir, "src", "top.v"), SAMPLE_TOP);
+        }
         return { ...metadata };
     }
 
@@ -129,7 +165,8 @@ export class ProjectStore {
                     truncated = true;
                     return;
                 }
-                if (SKIP_DIRS.has(entry.name) || entry.name.endsWith(".tmp")) continue;
+                if (SKIP_DIRS.has(entry.name) || entry.name === PROJECT_FILE) continue;
+                if (entry.name.endsWith(".tmp")) continue;
                 const absolute = join(current, entry.name);
                 const rel = relative(dir, absolute).split(sep).join("/");
                 if (entry.isDirectory()) {
@@ -195,6 +232,7 @@ export class ProjectStore {
         const temporary = `${target}.tmp`;
         await writeFile(temporary, text);
         await rename(temporary, target);
+        await this.#touch(userId, projectId);
         return { elements: layout.elements.length, wires: layout.wires.length };
     }
 
@@ -219,7 +257,40 @@ export class ProjectStore {
         const temporary = `${target}.tmp`;
         await writeFile(temporary, content);
         await rename(temporary, target);
+        await this.#touch(userId, projectId);
         return { path: relPath, size: Buffer.byteLength(content) };
+    }
+
+    /** 更新工程的 updatedAt（文件或画布变更后调用）。 */
+    async #touch(userId, projectId) {
+        try {
+            const file = join(this.projectDir(userId, projectId), PROJECT_FILE);
+            const metadata = JSON.parse(await readFile(file, "utf8"));
+            metadata.updatedAt = new Date().toISOString();
+            await writeFile(file, `${JSON.stringify(metadata, null, 2)}\n`);
+        } catch {
+            /* 元数据缺失时忽略 */
+        }
+    }
+
+    async moveFile(userId, projectId, from, to) {
+        if (from === to) return { from, to };
+        const source = await this.#textFile(userId, projectId, from, { mustExist: true });
+        const target = await this.#textFile(userId, projectId, to, { mustExist: false });
+        const info = await lstat(source);
+        if (info.isDirectory()) {
+            throw projectError(400, "IS_DIRECTORY", "暂不支持移动目录");
+        }
+        try {
+            await lstat(target);
+            throw projectError(409, "FILE_EXISTS", `目标已存在：${to}`);
+        } catch (error) {
+            if (error.code !== "ENOENT") throw error;
+        }
+        await mkdir(dirname(target), { recursive: true });
+        await rename(source, target);
+        await this.#touch(userId, projectId);
+        return { from, to };
     }
 
     async removeFile(userId, projectId, relPath) {
@@ -229,6 +300,7 @@ export class ProjectStore {
             throw projectError(400, "IS_DIRECTORY", "暂不支持删除目录");
         }
         await rm(target);
+        await this.#touch(userId, projectId);
     }
 
     async #textFile(userId, projectId, relPath, { mustExist }) {

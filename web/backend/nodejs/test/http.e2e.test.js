@@ -4,8 +4,10 @@
 
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
-import { rm } from "node:fs/promises";
+import { readFile, readdir, rm } from "node:fs/promises";
+import { join } from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { createApp } from "../src/http/server.js";
 import { resolveToolPath } from "../src/util/config.js";
@@ -103,20 +105,64 @@ test("任务链路：提交、SSE、报告、产物、静态文件", { skip }, a
         const index = await fetch(`${base}/`);
         assert.equal(index.status, 200);
         assert.match(index.headers.get("content-type") ?? "", /text\/html/);
-        const script = await fetch(`${base}/scripts/console.js`);
-        assert.equal(script.status, 200);
-        assert.match(script.headers.get("content-type") ?? "", /javascript/);
+        const home = await fetch(`${base}/`);
+        assert.equal(home.status, 200);
+        const homeHtml = await home.text();
+        assert.match(homeHtml, /SigFlow/);
+        assert.match(homeHtml, /登录/);
 
-        const style = await fetch(`${base}/styles/app.css`);
-        assert.equal(style.status, 200);
-        assert.match(style.headers.get("content-type") ?? "", /text\/css/);
-
-        for (const vendor of [
+        for (const asset of [
+            "/pages/projects.html",
+            "/styles/projects.css",
+            "/scripts/projects.js",
+            "/pages/workspace.html",
+            "/styles/workspace.css",
+            "/scripts/workspace.js",
+            "/scripts/workspace/canvas-editor.js",
+            "/scripts/workspace/editor.js",
+            "/scripts/workspace/file-tree.js",
+            "/scripts/workspace/analysis.js",
+            "/assets/component-icons.json",
+            "/pages/fpga-tool.html",
+            "/pages/tracebridge.html",
+            "/pages/debug-contract.html",
+            "/styles/window.css",
+            "/scripts/fpga-tool.js",
+            "/scripts/window-common.js",
+            "/scripts/tracebridge.js",
+            "/scripts/debug-contract.js",
+            "/styles/landing.css",
+            "/scripts/landing.js",
             "/vendor/codemirror/lib/codemirror.js",
             "/vendor/codemirror/mode/verilog/verilog.js",
             "/vendor/codemirror/lib/codemirror.css",
+            "/styles/theme.css",
+            "/styles/components.css",
+            "/scripts/lib/tabs.js",
+            "/scripts/lib/splitter.js",
+            "/scripts/lib/dialog.js",
+            "/scripts/lib/toast.js",
+            "/scripts/lib/api.js",
+            "/scripts/lib/icons.js",
+            "/pages/components.html",
+            "/assets/icons/ui/folder.svg",
+            "/assets/icons/manifest.json",
         ]) {
-            assert.equal((await fetch(`${base}${vendor}`)).status, 200, vendor);
+            assert.equal((await fetch(`${base}${asset}`)).status, 200, asset);
+        }
+
+        // 所有页面里的静态引用都必须可访问（防止删文件后留下断链）
+        const pagesDir = fileURLToPath(new URL("../../../frontend/pages/", import.meta.url));
+        for (const file of await readdir(pagesDir)) {
+            if (!file.endsWith(".html")) continue;
+            const html = await readFile(join(pagesDir, file), "utf8");
+            const refs = new Set(
+                [...html.matchAll(/(?:src|href)="(\/[^"]*)"/g)].map((match) => match[1]),
+            );
+            for (const ref of refs) {
+                const response = await fetch(`${base}${ref}`);
+                assert.equal(response.status, 200, `${file} -> ${ref}`);
+            }
         }
     } finally {
         await app.close();

@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SigFlow · FPGA 工具</title>
+    <link rel="stylesheet" href="/styles/theme.css">
+    <link rel="stylesheet" href="/styles/components.css">
+    <link rel="stylesheet" href="/styles/window.css">
+</head>
+<body class="win">
+    <header class="win-head">
+        <img class="brand-mark" src="/assets/icons/ui/components.svg" alt="">
+        <h1>SigFlow FPGA Tools</h1>
+        <span class="project" id="projectName"></span>
+        <span class="spacer"></span>
+        <div class="actions">
+            <a class="btn btn-ghost btn-sm" id="workspaceLink" href="/pages/projects.html">工作区</a>
+            <button class="btn btn-ghost btn-sm" id="closeWindow">关闭窗口</button>
+        </div>
+    </header>
+
+    <div class="win-body">
+        <div data-tabs data-active="yosys">
+            <div class="tab-list">
+                <button class="tab" data-tab="yosys" aria-selected="true">Yosys</button>
+                <button class="tab" data-tab="pnr">nextpnr</button>
+                <button class="tab" data-tab="prog">openFPGALoader</button>
+                <button class="tab" data-tab="sim">仿真</button>
+            </div>
+
+            <div class="tab-panels">
+                <div class="tab-panel" data-panel="yosys" data-active="true">
+                    <div class="win-grid">
+                        <div class="win-col">
+                            <section class="card card-block">
+                                <h2>综合（synth_gowin）</h2>
+                                <div class="field-row">
+                                    <label for="synth-top">顶层模块</label>
+                                    <input id="synth-top" class="input" value="top">
+                                </div>
+                                <div class="field">
+                                    <label for="synth-sources">源文件（每行一个）</label>
+                                    <textarea id="synth-sources" class="input" rows="5">src/top.v</textarea>
+                                </div>
+                                <div class="field-row">
+                                    <label for="synth-strategy">策略</label>
+                                    <select id="synth-strategy" class="input">
+                                        <option value="baseline">baseline</option>
+                                        <option value="debug">debug</option>
+                                    </select>
+                                </div>
+                                <div class="field-row">
+                                    <label for="synth-family">器件族</label>
+                                    <input id="synth-family" class="input" value="gw1n">
+                                </div>
+                                <div class="row">
+                                    <button class="btn btn-primary" id="synth-submit">开始综合</button>
+                                    <button class="btn" id="synth-refresh">刷新任务</button>
+                                </div>
+                            </section>
+                            <section class="card card-block">
+                                <h2>说明</h2>
+                                <p class="hint">
+                                    调用本机 <code>yosys</code>；产物写入任务目录的 <code>artifacts/</code>。
+                                    未安装 Yosys 时任务会以失败结束，日志中给出工具错误。
+                                </p>
+                            </section>
+                        </div>
+                        <div class="card job-console" id="console-synth"></div>
+                    </div>
+                </div>
+
+                <div class="tab-panel" data-panel="pnr">
+                    <div class="win-grid">
+                        <div class="win-col">
+                            <section class="card card-block">
+                                <h2>布局布线（nextpnr）</h2>
+                                <div class="field-row">
+                                    <label for="pnr-top">顶层模块</label>
+                                    <input id="pnr-top" class="input" value="top">
+                                </div>
+                                <div class="field">
+                                    <label for="pnr-netlist">网表路径（工程内相对路径）</label>
+                                    <input id="pnr-netlist" class="input" placeholder=".sigflow/agent/jobs/synth/&lt;id&gt;/artifacts/top.json">
+                                </div>
+                                <div class="field-row">
+                                    <label for="pnr-device">器件</label>
+                                    <input id="pnr-device" class="input" value="GW1NR-LV9QN88PC6/I5">
+                                </div>
+                                <div class="field-row">
+                                    <label for="pnr-family">器件族</label>
+                                    <input id="pnr-family" class="input" value="GW1N-9C">
+                                </div>
+                                <div class="field-row">
+                                    <label for="pnr-cst">约束文件（可选）</label>
+                                    <input id="pnr-cst" class="input" placeholder="constraints/tang-nano-9k.cst">
+                                </div>
+                                <div class="row">
+                                    <button class="btn btn-primary" id="pnr-submit">开始布线</button>
+                                    <button class="btn" id="pnr-refresh">刷新任务</button>
+                                </div>
+                                <p class="hint">
+                                    可在左侧综合任务的产物上点“用作 nextpnr 网表”自动填入路径。
+                                </p>
+                            </section>
+
+                            <section class="card card-block">
+                                <h2>打包（gowin_pack）</h2>
+                                <div class="field">
+                                    <label for="pack-pnr">pnr.json 路径</label>
+                                    <input id="pack-pnr" class="input" placeholder=".sigflow/agent/jobs/pnr/&lt;id&gt;/artifacts/design.json">
+                                </div>
+                                <div class="field-row">
+                                    <label for="pack-device">器件</label>
+                                    <input id="pack-device" class="input" value="GW1NR-LV9QN88PC6/I5">
+                                </div>
+                                <div class="field-row">
+                                    <label for="pack-output">输出文件（可选）</label>
+                                    <input id="pack-output" class="input" placeholder="design.fs">
+                                </div>
+                                <div class="row">
+                                    <button class="btn btn-primary" id="pack-submit">开始打包</button>
+                                </div>
+                            </section>
+                        </div>
+
+                        <div class="win-col">
+                            <div class="card job-console" id="console-pnr"></div>
+                            <div class="card job-console" id="console-pack"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-panel" data-panel="sim">
+                    <div class="win-grid">
+                        <div class="win-col">
+                            <section class="card card-block">
+                                <h2>仿真构建（Verilator）</h2>
+                                <div class="field-row">
+                                    <label for="sim-top">顶层模块</label>
+                                    <input id="sim-top" class="input" value="top">
+                                </div>
+                                <div class="field">
+                                    <label for="sim-sources">源文件（每行一个）</label>
+                                    <textarea id="sim-sources" class="input" rows="5">src/top.v</textarea>
+                                </div>
+                                <div class="field-row">
+                                    <label for="sim-testbench">testbench（可选）</label>
+                                    <input id="sim-testbench" class="input" placeholder="tb_top">
+                                    <p class="hint">简化解析器只提取时钟与部分激励，不支持完整 testbench 语义。</p>
+                                </div>
+                                <div class="row">
+                                    <button class="btn btn-primary" id="sim-build-submit">构建</button>
+                                    <button class="btn" id="sim-build-refresh">刷新任务</button>
+                                </div>
+                            </section>
+                            <section class="card card-block">
+                                <h2>运行</h2>
+                                <div class="field">
+                                    <label for="sim-exe">仿真程序路径</label>
+                                    <input id="sim-exe" class="input" placeholder=".sigflow/agent/jobs/sim.build/&lt;id&gt;/artifacts/sim_main">
+                                </div>
+                                <div class="field-row">
+                                    <label for="sim-duration">步数上限（可选）</label>
+                                    <input id="sim-duration" class="input" placeholder="1000000">
+                                </div>
+                                <div class="row">
+                                    <button class="btn btn-primary" id="sim-run-submit">运行</button>
+                                    <button class="btn" id="sim-run-refresh">刷新任务</button>
+                                </div>
+                                <p class="hint">
+                                    构建成功后，在右侧任务产物上点“用作仿真程序”自动填入。
+                                    波形写入产物目录；波形查看等 C++ P7。
+                                </p>
+                            </section>
+                        </div>
+                        <div class="win-col">
+                            <div class="card job-console" id="console-sim-build"></div>
+                            <div class="card job-console" id="console-sim-run"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-panel" data-panel="prog">
+                    <div class="win-grid">
+                        <div class="win-col">
+                            <section class="card card-block">
+                                <h2>openFPGALoader</h2>
+                                <p class="hint">
+                                    烧录（flash）尚未在 C++ 侧实现（P4 剩余项），本页先保留结构。
+                                    需要 Node 的设备租约与用户确认流程，等 C++ flash provider 落地后接入。
+                                </p>
+                            </section>
+                        </div>
+                        <div class="card job-console" id="console-flash"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="/scripts/fpga-tool.js"></script>
+</body>
+</html>

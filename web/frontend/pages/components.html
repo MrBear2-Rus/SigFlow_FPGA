@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SigFlow · 设计系统</title>
+    <link rel="stylesheet" href="/styles/theme.css">
+    <link rel="stylesheet" href="/styles/components.css">
+    <style>
+        .demo-header {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+            padding: 14px 24px;
+            background: var(--surface-strong);
+            border-bottom: 1px solid var(--stroke);
+            backdrop-filter: blur(14px);
+        }
+
+        .demo {
+            max-width: 1080px;
+            margin: 0 auto;
+            padding: 24px;
+            display: grid;
+            gap: 28px;
+        }
+
+        .demo-block {
+            display: grid;
+            gap: 10px;
+        }
+
+        .swatches {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 8px;
+        }
+
+        .swatch {
+            border: 1px solid var(--stroke);
+            border-radius: var(--r-sm);
+            overflow: hidden;
+            background: #ffffff;
+        }
+
+        .swatch .fill {
+            height: 34px;
+            border-bottom: 1px solid var(--stroke);
+        }
+
+        .swatch .meta {
+            padding: 6px 8px;
+            font-size: 10px;
+            color: var(--text-3);
+            display: flex;
+            justify-content: space-between;
+            gap: 6px;
+        }
+
+        .icon-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
+            gap: 8px;
+        }
+
+        .icon-cell {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 4px;
+            background: #ffffff;
+            border: 1px solid var(--stroke);
+            border-radius: var(--r-sm);
+            font-size: 10px;
+            color: var(--text-3);
+            text-align: center;
+            word-break: break-all;
+        }
+
+        .row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .split-demo .pane {
+            padding: 12px;
+        }
+    </style>
+</head>
+<body>
+    <header class="demo-header">
+        <h1>SigFlow 设计系统</h1>
+        <span class="muted small">浅色主题 · 组件演示（U1）</span>
+    </header>
+
+    <main class="demo">
+        <section class="demo-block">
+            <h4>色板</h4>
+            <div id="swatches" class="swatches"></div>
+        </section>
+
+        <section class="demo-block">
+            <h4>排版</h4>
+            <div class="card card-pad">
+                <h1>标题 19 / 600</h1>
+                <h2>标题 14 / 600</h2>
+                <h3>标题 12 / 600</h3>
+                <p>正文 12 / text-1：模块 <code>top</code> 已综合，等待布局。</p>
+                <p class="muted">次要文字 text-3：正在读取工程元数据…</p>
+            </div>
+        </section>
+
+        <section class="demo-block">
+            <h4>按钮</h4>
+            <div class="card card-pad row">
+                <button class="btn btn-primary">主操作</button>
+                <button class="btn">次操作</button>
+                <button class="btn btn-ghost">幽灵</button>
+                <button class="btn btn-danger">危险操作</button>
+                <button class="btn" disabled>禁用</button>
+                <button class="btn btn-sm">小号</button>
+                <button class="btn btn-icon" aria-label="打开"><img src="/assets/icons/ui/open.svg" alt=""></button>
+            </div>
+        </section>
+
+        <section class="demo-block">
+            <h4>输入</h4>
+            <div class="card card-pad" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <div class="field">
+                    <label for="demo-name">工程名</label>
+                    <input id="demo-name" class="input" placeholder="例如 tang-nano-demo">
+                </div>
+                <div class="field">
+                    <label for="demo-kind">模板</label>
+                    <select id="demo-kind" class="input">
+                        <option>空白工程</option>
+                        <option>示例：闪烁灯</option>
+                    </select>
+                </div>
+            </div>
+        </section>
+
+        <section class="demo-block">
+            <h4>页签</h4>
+            <div class="card card-pad">
+                <div data-tabs data-active="overview">
+                    <div class="tab-list">
+                        <button class="tab" data-tab="overview" aria-selected="true">概览</button>
+                        <button class="tab" data-tab="files">文件</button>
+                        <button class="tab" data-tab="log">日志</button>
+                    </div>
+                    <div class="tab-panels">
+                        <div class="tab-panel" data-panel="overview" data-active="true">
+                            <p>概览面板：工程信息与最近任务。</p>
+                        </div>
+                        <div class="tab-panel" data-panel="files">
+                            <p>文件面板：<code>src/top.v</code>、<code>constraints/tang-nano-9k.cst</code></p>
+                        </div>
+                        <div class="tab-panel" data-panel="log">
+                            <p class="muted">暂无日志。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="demo-block">
+            <h4>分栏（拖动中缝，双击恢复）</h4>
+            <div class="card split-demo" style="height:200px;overflow:hidden">
+                <div class="split" data-split data-key="demo" style="--a:220px;height:100%">
+                    <div class="pane pane-a"><p class="muted">左栏</p></div>
+                    <div class="splitter"></div>
+                    <div class="pane pane-b"><p>右栏：拖动左侧分隔条调整宽度，刷新后保持。</p></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="demo-block">
+            <h4>弹窗与提示</h4>
+            <div class="card card-pad row">
+                <button class="btn" id="btn-confirm">确认弹窗</button>
+                <button class="btn" id="btn-danger">危险确认</button>
+                <button class="btn" id="btn-toast">Toast</button>
+            </div>
+        </section>
+
+        <section class="demo-block">
+            <h4>空状态</h4>
+            <div class="card">
+                <div class="empty">
+                    <img src="/assets/icons/signal/module.svg" alt="">
+                    <strong>还没有工程</strong>
+                    <span class="small">新建一个工程开始使用</span>
+                    <button class="btn btn-primary btn-sm">新建工程</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="demo-block">
+            <h4>图标</h4>
+            <div id="icons"></div>
+        </section>
+    </main>
+
+    <script type="module" src="/scripts/components-demo.js"></script>
+</body>
+</html>

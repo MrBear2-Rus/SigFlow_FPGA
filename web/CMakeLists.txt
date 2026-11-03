@@ -507,14 +507,23 @@ if(SIGFLOW_NODE_EXECUTABLE)
         EXCLUDE_FROM_ALL
         USES_TERMINAL
     )
+    file(GLOB _sigflow_js_tests CONFIGURE_DEPENDS "${SIGFLOW_JS_DIR}/test/*.test.js")
     add_custom_target(web_js_test
-        COMMAND ${_sigflow_node_env} "${SIGFLOW_NODE_EXECUTABLE}" --test "${SIGFLOW_JS_DIR}/test/"
+        COMMAND ${_sigflow_node_env} "${SIGFLOW_NODE_EXECUTABLE}" --test ${_sigflow_js_tests}
         WORKING_DIRECTORY "${SIGFLOW_JS_DIR}"
         COMMENT "运行 Node 侧测试"
         EXCLUDE_FROM_ALL
         USES_TERMINAL
     )
-    message(STATUS "[sigflow] node: ${SIGFLOW_NODE_EXECUTABLE}（run / web_js_test 可用）")
+    add_custom_target(web_smoke
+        COMMAND ${_sigflow_node_env} "${SIGFLOW_NODE_EXECUTABLE}"
+                "${SIGFLOW_JS_DIR}/scripts/smoke-ui.mjs" "http://127.0.0.1:8080"
+        WORKING_DIRECTORY "${SIGFLOW_JS_DIR}"
+        COMMENT "浏览器冒烟（需先启动 web 服务，且本机有 chromium）"
+        EXCLUDE_FROM_ALL
+        USES_TERMINAL
+    )
+    message(STATUS "[sigflow] node: ${SIGFLOW_NODE_EXECUTABLE}（run / web_js_test / web_smoke 可用）")
 else()
     message(STATUS "[sigflow] 未找到 node：run / web_js_test 不可用")
 endif()

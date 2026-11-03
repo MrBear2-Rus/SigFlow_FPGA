@@ -82,12 +82,36 @@ test("工程与文件：创建、列表、读写、越界、隔离、删除", { 
             body: JSON.stringify({ projectId: "demo", name: "演示工程" }),
         });
         assert.equal(response.status, 201);
-        assert.equal((await response.json()).name, "演示工程");
+        const created = await response.json();
+        assert.equal(created.name, "演示工程");
+        assert.equal(created.template, "blank");
+        assert.ok(created.updatedAt, "新建工程应带 updatedAt");
 
         response = await alice("/api/projects");
         assert.equal((await response.json()).projects.length, 1);
         assert.equal((await bob("/api/projects")).status, 200);
         assert.equal((await (await bob("/api/projects")).json()).projects.length, 0);
+
+        // 模板创建
+        response = await alice("/api/projects", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ projectId: "sample", template: "sample" }),
+        });
+        assert.equal(response.status, 201);
+        const sample = await (await alice("/api/projects/sample/file?path=src/top.v")).text();
+        assert.match(sample, /module top/);
+
+        assert.equal(
+            (
+                await alice("/api/projects", {
+                    method: "POST",
+                    headers: { "content-type": "application/json" },
+                    body: JSON.stringify({ projectId: "bad", template: "nope" }),
+                })
+            ).status,
+            400,
+        );
 
         // 写入与读取
         const source = "module top(input a, output b);\n  assign b = a;\nendmodule\n";
@@ -100,6 +124,15 @@ test("工程与文件：创建、列表、读写、越界、隔离、删除", { 
 
         response = await alice("/api/projects/demo/file?path=src/top.v");
         assert.equal((await response.json()).content, source);
+
+        // 写入后 updatedAt 应前进，列表按更新时间倒序
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        response = await alice("/api/projects");
+        const afterWrite = (await response.json()).projects;
+        assert.ok(
+            String(afterWrite.find((p) => p.projectId === "demo").updatedAt) >=
+                String(created.updatedAt),
+        );
 
         response = await alice("/api/projects/demo/files");
         const tree = await response.json();
@@ -135,7 +168,7 @@ test("工程与文件：创建、列表、读写、越界、隔离、删除", { 
 
         response = await alice("/api/projects/demo", { method: "DELETE" });
         assert.equal(response.status, 204);
-        assert.equal((await (await alice("/api/projects")).json()).projects.length, 0);
+        assert.equal((await (await alice("/api/projects")).json()).projects.length, 1);
     } finally {
         await app.close();
         await rm(env.root, { recursive: true, force: true });

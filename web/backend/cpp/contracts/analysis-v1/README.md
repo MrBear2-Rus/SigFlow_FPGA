@@ -1,14 +1,14 @@
 # analysis-v1（structure / lint）草案
 
-状态：**草案**。2026-11-01 由 js 侧提出，待 C++ P6 实现时双方评审后冻结。
+状态：**已实现，待双方评审**。2026-11-01 由 js 侧提出；2026-11-02 C++ 实现，
+实现选择见 [cpp-implementation-draft.md](cpp-implementation-draft.md)。
 产出方：`sigflow-tool structure|lint`；消费方：Node `src/analysis/analysis-runner.js`。
-当前 C++ 未实现，CLI 返回退出码 3，Node 映射为 HTTP 501。
 
 ## 调用
 
 ```text
-sigflow-tool structure --file <绝对路径> [--data-dir <dir>]
-sigflow-tool lint      --file <绝对路径> [--data-dir <dir>]
+sigflow-tool structure --file <绝对路径> [--project-root <dir>] [--data-dir <dir>]
+sigflow-tool lint      --file <绝对路径> --project-root <dir> [--data-dir <dir>]
 ```
 
 ## stdout（JSONL）
@@ -20,6 +20,7 @@ sigflow-tool lint      --file <绝对路径> [--data-dir <dir>]
 ```
 
 Node 只接受一行 `result` 作为成功结果；出现 `severity=error` 的 diagnostic 或非 0 退出码即失败。
+`lint` 必须传工程根（未传返回退出码 4）；Node 侧自动传入。两个参数都必须是绝对路径。
 
 ## `structure.data`
 

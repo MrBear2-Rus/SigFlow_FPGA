@@ -1,8 +1,8 @@
 > 负责人：js工
 > 类型：实况
-> 更新：2026-11-01
+> 更新：2026-11-03
 > 状态：进行中
-> 阶段：J5
+> 阶段：V3
 
 # js工 · 实况
 
@@ -11,52 +11,76 @@
 
 ## ① 进程与入口
 
-- `backend/nodejs/src/index.js`：唯一常驻进程。读 `config.txt` → 装配 `createApp` → 监听 `server.listen_host:listen_port`；收到 `SIGINT`/`SIGTERM` 先取消在跑的任务再退出。
-- 每次 Job 或分析调用 spawn 一次 `sigflow-tool`。可执行文件按 `SIGFLOW_TOOL_BIN`（CMake 的 `run` / `web_js_test` 会注入）→ `config.tools.sigflow_tool` → `web/build/bin` 的顺序解析。
+- `backend/nodejs/src/index.js`：唯一常驻进程。读 `config.txt` → 装配 `createApp` → 监听 → 按需启动 Python sidecar；收到 `SIGINT`/`SIGTERM` 先取消在跑的任务、停止 Agent 再退出。
+- 每次 Job 或分析调用 spawn 一次 `sigflow-tool`。路径按 `SIGFLOW_TOOL_BIN` → `config.tools.sigflow_tool` → `web/build/bin` 解析。
+- Agent 由 `[agent] enabled` 或 `SIGFLOW_AGENT_ENABLED=1` 开启，每用户一个 sidecar（D-17）。
 
 ## ② Node 模块
 
 | 路径 | 职责 | 当前行为 |
 |---|---|---|
-| `src/http/server.js` | 路由、SSE、静态文件、鉴权 | 公开：health / 注册 / 登录；其余 `/api/*` 未登录一律 401；其余见 README 7.3 |
-| `src/users/` | 用户与会话 | `database/users.json`（scrypt 加盐、原子写）；内存 token + HttpOnly Cookie，默认 24h |
-| `src/projects/project-store.js` | 工程与文件 | `<uid>/<pid>` 增删；文件树 ≤2000 项/8 层；文本扩展名、单文件 ≤2 MiB；画布存 `.sigflow/canvas.json` |
-| `src/jobs/job-manager.js` | 队列与并发 | 上限取自配置；`Queued → Running → 终态`；取消通过 `AbortSignal` |
-| `src/jobs/tool-runner.js` | 单次 run 调用 | `detached` spawn、stdin 写 JSON 后关闭、有界 JSONL、SIGTERM→宽限→SIGKILL、退出后读 `reports/report.json` |
-| `src/jobs/job-dir.js` | Job 目录 | 预建空目录并拒绝复用；报告与产物路径解析 |
+| `src/http/server.js` | 路由、SSE、静态文件、鉴权 | 公开：health / 注册 / 登录；`/api/*` 未登录 401；`/api/v1/*` 走 Agent 网关；`/api/agent/*` 走代理 |
+| `src/users/` | 用户与会话 | `database/users.json`（scrypt + 原子写）；会话 token 哈希存 `database/sessions.json`，HttpOnly Cookie，默认 24h |
+| `src/projects/project-store.js` | 工程与文件 | `<uid>/<pid>` 增删；`updatedAt` 随写入刷新；模板 `blank` / `sample`；文件树 ≤2000 项/8 层；文本扩展名、≤2 MiB；画布 `.sigflow/canvas.json` |
+| `src/jobs/job-manager.js` | 队列与并发 | 上限取自配置；`Queued → Running → 终态`；取消用 `AbortSignal` |
+| `src/jobs/tool-runner.js` | 单次 run 调用 | detached spawn、stdin 写 JSON 后关闭、有界 JSONL、SIGTERM→宽限→SIGKILL、读 `reports/report.json` |
+| `src/jobs/job-dir.js` | Job 目录 | 预建空目录并拒绝复用；报告/产物路径解析 |
 | `src/jobs/job-id.js` | ID | UUID；字符集与 C++ 侧一致 |
-| `src/analysis/analysis-runner.js` | structure / lint | 一次性 CLI；退出码 3 → HTTP 501；成功时返回 `result.data` |
+| `src/projects/target-store.js` | 目标板数据 | `static/target-profiles/*.json` 列表与 profile+pins；id 白名单 |
+| `src/analysis/tool-command.js` | 通用 CLI | 参数由调用方给，JSONL、超时、输出上限 |
+| `src/analysis/analysis-runner.js` | structure / lint | 一次性 CLI，自动带 `--file` 与 `--project-root`；退出码 3 → 501（仅旧构建） |
+| `src/agent/manager.js` | 每用户 sidecar | 惰性创建、空闲回收、上限淘汰、gateway_token → user |
+| `src/agent/supervisor.js` | sidecar 托管 | bootstrap 一行、ready 握手、健康轮询、退避重启、优雅停止 |
+| `src/agent/gateway.js` | Gateway 兼容路由 | `/api/v1/health`、`projects/{id}/context`、`jobs/{id}/report`；Bearer + edu.api.v1 信封 + 2 MiB |
 | `src/util/` | 基础设施 | `config.txt` 解析、JSONL 有界解析、日志 |
 
 ## ③ 前端页面
 
 | 文件 | 当前内容 |
 |---|---|
-| `pages/index.html` + `scripts/console.js` | 登录/注册、工程选择与新建、文件树、CodeMirror 编辑器、结构树/诊断面板、任务提交与 SSE 日志 |
-| `pages/canvas.html` + `scripts/canvas.js` | 元件库（6 种门）、拖拽、引脚连线、删除、按工程保存 |
-| `styles/app.css` | 暗色主题、三栏布局、CodeMirror 暗色适配 |
-| `vendor/codemirror/` | CodeMirror 5.65.16（MIT，含 LICENSE），离线可用 |
+| `pages/index.html` + `scripts/landing.js` | 落地页：产品介绍、登录/注册、已登录态 |
+| `pages/projects.html` + `scripts/projects.js` | 工程管理：列表（创建/更新时间）、新建（空白/示例）、打开、删除 |
+| `pages/workspace.html` + `scripts/workspace.js` | 工作区：活动栏、六区、伪停靠；文件树、元件库、画布、CodeMirror、结构树/诊断、属性、引脚绑定、终端、助手面板 |
+| `pages/fpga-tool.html` + `scripts/fpga-tool.js` | FPGA 工具：Yosys / nextpnr / 打包 / 仿真 任务控制台（提交、SSE、取消、产物、网表与仿真程序联动） |
+| `pages/tracebridge.html` + `scripts/tracebridge.js` | TraceBridge 骨架：契约/运行时 + 双轨波形/比对 |
+| `pages/debug-contract.html` + `scripts/debug-contract.js` | 调试契约骨架：表单预览，保存待 P8 |
+| `pages/components.html` + `scripts/components-demo.js` | 组件演示页（验收用） |
+| `scripts/lib/` | `api` / `tabs` / `splitter` / `dialog` / `toast` / `icons` |
+| `scripts/workspace/` | `canvas-editor` / `editor` / `file-tree` / `analysis` |
+| `scripts/window-common.js` | 独立窗口的登录校验、工程标题、关闭按钮 |
+| `backend/nodejs/scripts/smoke-ui.mjs` | 浏览器冒烟：登录→工程→工作区→独立窗口，收集 JS 异常 |
+| `backend/cpp/contracts/` | C++ 侧契约（analysis / run / target / simulation），JS 已评审并记录意见 |
+| `styles/` | `theme` / `components` / `landing` / `projects` / `workspace` / `window` |
+| `vendor/codemirror/` | CodeMirror 5.65.16（MIT），离线可用 |
+| `assets/` | `canvas_elements.json`、`component-icons.json`、`icons/`（ui 13 + signal 10 + components 111 + manifest） |
 
 ## ④ 数据落点
 
 | 数据 | 位置 | 说明 |
 |---|---|---|
 | 用户表 | `backend/database/users.json` | gitignore；仅存 salt/hash |
+| 会话 | `backend/database/sessions.json` | gitignore；SHA-256(token) → userId/expiresAt |
+| Agent 数据 | `backend/database/agent/<uid>/` | 每用户 sidecar 的 `data_directory` |
 | 工程 | `backend/userprojects/<uid>/<pid>/` | gitignore；元数据 `sigflow.project` |
-| 画布 | `<project>/.sigflow/canvas.json` | 由 Node 校验后原子写 |
-| 任务 | `<project>/.sigflow/agent/jobs/<type>/<id>/` | `request.json` / `manifest.json` / `artifacts/` / `logs/` / `reports/` 由 C++ 写 |
+| 画布 | `<project>/.sigflow/canvas.json` | Node 校验后原子写 |
+| 约束 | `<project>/constraints/<target>.cst` | 引脚绑定页写入 |
+| 任务 | `<project>/.sigflow/agent/jobs/<type>/<id>/` | C++ 写 request/manifest/artifacts/logs/reports；仿真产物 `sim_main` / `waveform/wave.vcd` |
 
 ## ⑤ 明确未实现
 
-- 波形（`src/wave/`）、Agent 托管（`src/agent/`）、设备租约（`src/devices/`）、插件（`src/plugins/`）：只有目录。
-- 画布：无缩放/平移、多选/框选、撤销、属性编辑。
-- 编辑器：无搜索替换、折叠、诊断内联（结构树/诊断数据还依赖 C++ P6）。
-- 没有浏览器级自动化测试；验证只到 HTTP 层。
+- 波形：`src/wave/` 未创建，等 C++ P7；TraceBridge 运行时等 P8。
+- FPGA 串联（synth→pnr→pack 自动传参）暂缓（缺工具链）；约束只做 CST，未接 `validate pins`。
+- 画布：无电气规则校验、连线拖动、对齐吸附；撤销只在当前页面会话内，刷新即清空。
+- 编辑器：无代码折叠、无自动补全；诊断只做行标记，未做逐字符下划线。
+- Agent：会话/事件不持久化；无模型 Key 时规则降级；助手面板只做"解释当前文件"。
+- 安全：无 HTTPS、CSRF、登录限流；注册开放。
+- 没有浏览器级自动化测试；验证到 HTTP 层 + 人工截图。
 
 ## ⑥ 验证方式
 
 | 范围 | 命令 | 当前结果 |
 |---|---|---|
-| C++ | `ctest --test-dir build` | 4/4 |
-| Node | `cmake --build build --target web_js_test` | 11/11 |
-| 手动 | `cmake --build build --target run` → `http://127.0.0.1:8080` | 可用（synth 需假 yosys 或真实工具） |
+| C++ | `ctest --test-dir build` | 全绿（数量随用例增加） |
+| Node | `cmake --build build --target web_js_test` | 全绿（含文档一致性、HTML/JS 引用检查、Agent 网关与托管） |
+| 冒烟 | `cmake --build build --target web_smoke` | 12/12，需 chromium 与服务已启动 |
+| 手动 | `cmake --build build --target run` → `http://127.0.0.1:8080` | 可用；synth 需假 yosys 或真实工具 |

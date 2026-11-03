@@ -1,0 +1,350 @@
+{
+  "canvasTypes": [
+    "and",
+    "nand",
+    "or",
+    "nor",
+    "xor",
+    "xnor"
+  ],
+  "gateIcons": {
+    "and": "andGate.svg",
+    "nand": "nandGate.svg",
+    "or": "orGate.svg",
+    "nor": "norGate.svg",
+    "xor": "xorGate.svg",
+    "xnor": "xnorGate.svg"
+  },
+  "components": [
+    {
+      "label": "Wire",
+      "icon": "wiring.svg",
+      "type": null
+    },
+    {
+      "label": "Splitter",
+      "icon": "splitter.svg",
+      "type": null
+    },
+    {
+      "label": "Pin (Input)",
+      "icon": "pinInput.svg",
+      "type": null
+    },
+    {
+      "label": "Pin (Output)",
+      "icon": "pinOutput.svg",
+      "type": null
+    },
+    {
+      "label": "Probe",
+      "icon": "probe.svg",
+      "type": null
+    },
+    {
+      "label": "Tunnel",
+      "icon": "tunnel.svg",
+      "type": null
+    },
+    {
+      "label": "Pull Resistor",
+      "icon": "pullrect.svg",
+      "type": null
+    },
+    {
+      "label": "Clock",
+      "icon": "clock.svg",
+      "type": null
+    },
+    {
+      "label": "Constant",
+      "icon": "constant.svg",
+      "type": null
+    },
+    {
+      "label": "Power",
+      "icon": "power.svg",
+      "type": null
+    },
+    {
+      "label": "Ground",
+      "icon": "ground.svg",
+      "type": null
+    },
+    {
+      "label": "Transmission Gate",
+      "icon": "transmis.svg",
+      "type": null
+    },
+    {
+      "label": "Bit Extender",
+      "icon": "extender.svg",
+      "type": null
+    },
+    {
+      "label": "AND Gate",
+      "icon": "andGate.svg",
+      "type": "and"
+    },
+    {
+      "label": "NAND Gate",
+      "icon": "nandGate.svg",
+      "type": "nand"
+    },
+    {
+      "label": "OR Gate",
+      "icon": "orGate.svg",
+      "type": "or"
+    },
+    {
+      "label": "NOR Gate",
+      "icon": "norGate.svg",
+      "type": "nor"
+    },
+    {
+      "label": "XOR Gate",
+      "icon": "xorGate.svg",
+      "type": "xor"
+    },
+    {
+      "label": "XNOR Gate",
+      "icon": "xnorGate.svg",
+      "type": "xnor"
+    },
+    {
+      "label": "Buffer Gate",
+      "icon": "bufferGate.svg",
+      "type": null
+    },
+    {
+      "label": "Odd Parity Gate",
+      "icon": "parityOddGate.svg",
+      "type": null
+    },
+    {
+      "label": "Even Parity Gate",
+      "icon": "parityEvenGate.svg",
+      "type": null
+    },
+    {
+      "label": "Controlled Buffer",
+      "icon": "controlledBuffer.svg",
+      "type": null
+    },
+    {
+      "label": "Controlled Inverter",
+      "icon": "controlledInverter.svg",
+      "type": null
+    },
+    {
+      "label": "Multiplexer",
+      "icon": "multiplexer.svg",
+      "type": null
+    },
+    {
+      "label": "Demultiplexer",
+      "icon": "demultiplexer.svg",
+      "type": null
+    },
+    {
+      "label": "Decoder",
+      "icon": "decoder.svg",
+      "type": null
+    },
+    {
+      "label": "Priority Encoder",
+      "icon": "priencod.svg",
+      "type": null
+    },
+    {
+      "label": "Bit Selector",
+      "icon": "bitSelector.svg",
+      "type": null
+    },
+    {
+      "label": "Adder",
+      "icon": "adder.svg",
+      "type": null
+    },
+    {
+      "label": "Subtractor",
+      "icon": "subtractor.svg",
+      "type": null
+    },
+    {
+      "label": "Multiplier",
+      "icon": "multiplier.svg",
+      "type": null
+    },
+    {
+      "label": "Divider",
+      "icon": "divider.svg",
+      "type": null
+    },
+    {
+      "label": "Negator",
+      "icon": "negator.svg",
+      "type": null
+    },
+    {
+      "label": "Comparator",
+      "icon": "comparator.svg",
+      "type": null
+    },
+    {
+      "label": "Shifter",
+      "icon": "shifter.svg",
+      "type": null
+    },
+    {
+      "label": "Bit Adder",
+      "icon": "bitadder.svg",
+      "type": null
+    },
+    {
+      "label": "Bit Finder",
+      "icon": "bitfindr.svg",
+      "type": null
+    },
+    {
+      "label": "D Flip-Flop",
+      "icon": "dFlipFlop.svg",
+      "type": null
+    },
+    {
+      "label": "T Flip-Flop",
+      "icon": "tFlipFlop.svg",
+      "type": null
+    },
+    {
+      "label": "JK Flip-Flop",
+      "icon": "jkFlipFlop.svg",
+      "type": null
+    },
+    {
+      "label": "SR Flip-Flop",
+      "icon": "srFlipFlop.svg",
+      "type": null
+    },
+    {
+      "label": "Register",
+      "icon": "register.svg",
+      "type": null
+    },
+    {
+      "label": "Counter",
+      "icon": "counter.svg",
+      "type": null
+    },
+    {
+      "label": "Shift Register",
+      "icon": "shiftreg.svg",
+      "type": null
+    },
+    {
+      "label": "Random Generator",
+      "icon": "random.svg",
+      "type": null
+    },
+    {
+      "label": "RAM",
+      "icon": "ram.svg",
+      "type": null
+    },
+    {
+      "label": "ROM",
+      "icon": "rom.svg",
+      "type": null
+    },
+    {
+      "label": "Button",
+      "icon": "button.svg",
+      "type": null
+    },
+    {
+      "label": "Joystick",
+      "icon": "joystick.svg",
+      "type": null
+    },
+    {
+      "label": "Keyboard",
+      "icon": "keyboard.svg",
+      "type": null
+    },
+    {
+      "label": "LED",
+      "icon": "led.svg",
+      "type": null
+    },
+    {
+      "label": "7-Segment Display",
+      "icon": "7seg.svg",
+      "type": null
+    },
+    {
+      "label": "Hex Digit Display",
+      "icon": "hexdig.svg",
+      "type": null
+    },
+    {
+      "label": "LED Matrix",
+      "icon": "dotmat.svg",
+      "type": null
+    },
+    {
+      "label": "TTY",
+      "icon": "tty.svg",
+      "type": null
+    },
+    {
+      "label": "Poke Tool",
+      "icon": "poke.svg",
+      "type": null
+    },
+    {
+      "label": "Edit Tool",
+      "icon": "select.svg",
+      "type": null
+    },
+    {
+      "label": "Select Tool",
+      "icon": "select.svg",
+      "type": null
+    },
+    {
+      "label": "Wiring Tool",
+      "icon": "wiring.svg",
+      "type": null
+    },
+    {
+      "label": "Text Tool",
+      "icon": "text.svg",
+      "type": null
+    },
+    {
+      "label": "Menu Tool",
+      "icon": "menu.svg",
+      "type": null
+    },
+    {
+      "label": "Label Tool",
+      "icon": "text.svg",
+      "type": null
+    },
+    {
+      "label": "BlackBoxDefinition",
+      "icon": "blockbox.svg",
+      "type": null
+    },
+    {
+      "label": "Continuous Assign",
+      "icon": "continuous_assign.svg",
+      "type": null
+    },
+    {
+      "label": "Always Block",
+      "icon": "always_block.svg",
+      "type": null
+    }
+  ]
+}

@@ -1,0 +1,906 @@
+/* 工作区外壳（U4）：六区 + 伪停靠 */
+
+html:has(body.ws),
+body.ws {
+    height: 100vh;
+    overflow: hidden;
+}
+
+.ws {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-window);
+}
+
+/* ---- 顶栏 ---------------------------------------------------------------- */
+.ws-topbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 44px;
+    padding: 0 12px;
+    background: var(--surface-strong);
+    border-bottom: 1px solid var(--stroke);
+    backdrop-filter: blur(14px);
+    flex: 0 0 auto;
+    z-index: 30;
+}
+
+.ws-menus {
+    display: flex;
+    gap: 2px;
+}
+
+.ws-menu {
+    position: relative;
+}
+
+.ws-menu > button {
+    height: 26px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: var(--r-xs);
+    background: transparent;
+    color: var(--text-2);
+    font: inherit;
+    font-size: var(--fs-11);
+    cursor: pointer;
+}
+
+.ws-menu > button:hover,
+.ws-menu[data-open="true"] > button {
+    background: var(--hover);
+    color: var(--text-1);
+}
+
+.ws-menu-list {
+    position: absolute;
+    top: 30px;
+    left: 0;
+    min-width: 190px;
+    padding: 4px;
+    background: #ffffff;
+    border: 1px solid var(--stroke);
+    border-radius: var(--r-sm);
+    box-shadow: var(--shadow-2);
+    display: none;
+    z-index: 40;
+}
+
+.ws-menu[data-open="true"] .ws-menu-list {
+    display: block;
+}
+
+.ws-menu-list a,
+.ws-menu-list button {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    height: 26px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: var(--r-xs);
+    background: transparent;
+    color: var(--text-1);
+    font: inherit;
+    font-size: var(--fs-11);
+    text-decoration: none;
+    cursor: pointer;
+    text-align: left;
+}
+
+.ws-menu-list a:hover,
+.ws-menu-list button:hover:not(:disabled) {
+    background: var(--hover);
+    text-decoration: none;
+}
+
+.ws-menu-list :disabled {
+    color: var(--text-3);
+    cursor: default;
+}
+
+.ws-menu-list kbd {
+    color: var(--text-3);
+    font-family: var(--font-mono);
+    font-size: 10px;
+}
+
+.ws-title {
+    padding-left: 10px;
+    border-left: 1px solid var(--stroke);
+    color: var(--text-2);
+    font-size: var(--fs-11);
+    max-width: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ws-spacer {
+    flex: 1;
+}
+
+.ws-tools {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.ws-tools .btn {
+    height: 26px;
+    padding: 0 8px;
+}
+
+.ws-tools .btn img {
+    width: 15px;
+    height: 15px;
+}
+
+.ws-tools .sep {
+    width: 1px;
+    height: 16px;
+    background: var(--stroke);
+    margin: 0 4px;
+}
+
+/* ---- 六区 ---------------------------------------------------------------- */
+.ws-main {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    min-width: 0;
+}
+
+.ws-rail {
+    width: 48px;
+    flex: 0 0 48px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 5px;
+    background: var(--surface-strong);
+    border-right: 1px solid var(--stroke);
+}
+
+.ws-rail button {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    cursor: pointer;
+}
+
+.ws-rail button:hover {
+    background: var(--hover);
+}
+
+.ws-rail button[aria-pressed="true"] {
+    background: var(--sel);
+    box-shadow: inset 0 0 0 1px rgba(0, 113, 227, 0.18);
+}
+
+.ws-rail img {
+    width: 18px;
+    height: 18px;
+}
+
+.ws-body {
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+}
+
+.ws-region {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    margin: 6px;
+    background: var(--surface-strong);
+    border: 1px solid var(--stroke);
+    border-radius: var(--r-md);
+    overflow: hidden;
+}
+
+.ws-region-head {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 32px;
+    padding: 3px 4px;
+    border-bottom: 1px solid var(--stroke);
+    flex: 0 0 auto;
+}
+
+.ws-region-tabs {
+    display: flex;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.ws-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 24px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: var(--r-xs);
+    background: transparent;
+    color: var(--text-2);
+    font: inherit;
+    font-size: var(--fs-11);
+    cursor: grab;
+    white-space: nowrap;
+}
+
+.ws-tab img {
+    width: 13px;
+    height: 13px;
+}
+
+.ws-tab:hover {
+    background: var(--hover);
+    color: var(--text-1);
+}
+
+.ws-tab[aria-selected="true"] {
+    background: #ffffff;
+    color: var(--text-1);
+    box-shadow: var(--shadow-1);
+}
+
+.ws-tab[data-dragging="true"] {
+    opacity: 0.5;
+}
+
+.ws-collapse {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--r-xs);
+    background: transparent;
+    color: var(--text-3);
+    cursor: pointer;
+    flex: 0 0 auto;
+}
+
+.ws-collapse:hover {
+    background: var(--hover);
+    color: var(--text-1);
+}
+
+.ws-region-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 8px;
+}
+
+.ws-region[data-drop="true"] {
+    outline: 2px dashed var(--accent);
+    outline-offset: -4px;
+}
+
+.ws-region[data-collapsed="true"] {
+    width: 34px;
+    margin-right: 0;
+}
+
+.ws-region[data-collapsed="true"] .ws-region-body,
+.ws-region[data-collapsed="true"] .ws-region-tabs {
+    display: none;
+}
+
+.ws-region[data-collapsed="true"] .ws-region-head {
+    border-bottom: 0;
+    padding: 4px 2px;
+    justify-content: center;
+}
+
+.ws-region[data-collapsed="true"]::after {
+    content: attr(data-label);
+    writing-mode: vertical-rl;
+    margin: 8px auto;
+    color: var(--text-3);
+    font-size: var(--fs-10);
+    letter-spacing: 0.08em;
+}
+
+/* ---- 中央：画布 + 编辑器 ------------------------------------------------- */
+.ws-center {
+    padding: 6px;
+    gap: 6px;
+}
+
+.ws-canvas,
+.ws-editor {
+    background: var(--canvas);
+    border: 1px solid var(--stroke);
+    border-radius: var(--r-md);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.ws-canvas-toolbar,
+.ws-editor-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 30px;
+    padding: 0 8px;
+    flex: 0 0 auto;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--stroke);
+    font-size: var(--fs-11);
+    color: var(--text-2);
+}
+
+.ws-canvas-board {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    background-color: var(--canvas);
+    background-image:
+        linear-gradient(var(--grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+
+.ws-board {
+    display: block;
+}
+
+.ws-node-label {
+    fill: var(--text-3);
+    font-family: var(--font-mono);
+    font-size: 11px;
+}
+
+.ws-pin {
+    fill: #4c9aff;
+    cursor: crosshair;
+}
+
+.ws-pin-in {
+    fill: #1f8a4c;
+}
+
+.ws-wire {
+    stroke: #8b95a5;
+    stroke-width: 2;
+    fill: none;
+}
+
+.ws-wire.selected {
+    stroke: var(--accent);
+    stroke-width: 3;
+}
+
+g.selected > line,
+g.selected > path,
+g.selected > circle {
+    stroke: var(--accent);
+}
+
+.ws-editor-host {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.ws-editor-host .CodeMirror {
+    height: 100%;
+    font-size: 12px;
+}
+
+.ws-editor-head .path {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+}
+
+.ws-editor-head .dirty {
+    color: var(--warn);
+}
+
+/* ---- 文件树 -------------------------------------------------------------- */
+.file-tree {
+    list-style: none;
+    margin: 0;
+    padding-left: 10px;
+    font-size: var(--fs-11);
+}
+
+.file-tree:first-child {
+    padding-left: 0;
+}
+
+.file-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    height: 22px;
+    padding: 0 4px;
+    border: 0;
+    border-radius: var(--r-xs);
+    background: transparent;
+    color: var(--text-2);
+    font: inherit;
+    text-align: left;
+    width: 100%;
+}
+
+.file-dir > .file-row {
+    color: var(--text-3);
+    font-weight: 600;
+}
+
+.file-item {
+    cursor: pointer;
+}
+
+.file-item:hover {
+    background: var(--hover);
+    color: var(--text-1);
+}
+
+.file-row img {
+    width: 13px;
+    height: 13px;
+}
+
+/* ---- 元件库 -------------------------------------------------------------- */
+.component-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+    gap: 6px;
+}
+
+.component-item {
+    display: grid;
+    justify-items: center;
+    gap: 3px;
+    padding: 6px 2px;
+    border: 1px solid var(--stroke);
+    border-radius: var(--r-sm);
+    background: #ffffff;
+    cursor: pointer;
+    font-size: var(--fs-10);
+    color: var(--text-2);
+}
+
+.component-item:hover {
+    border-color: var(--accent);
+    color: var(--text-1);
+}
+
+.component-item img {
+    width: 22px;
+    height: 22px;
+}
+
+/* ---- 结构树 / 诊断 ------------------------------------------------------- */
+.analysis-head {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+}
+
+.structure-tree,
+.diag-list {
+    list-style: none;
+    margin: 0;
+    padding-left: 10px;
+    font-size: var(--fs-11);
+}
+
+.structure-tree:first-child,
+.diag-list:first-child {
+    padding-left: 0;
+}
+
+.structure-row,
+.diag-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    width: 100%;
+    padding: 2px 4px;
+    border: 0;
+    border-radius: var(--r-xs);
+    background: transparent;
+    color: var(--text-2);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.structure-row:hover,
+.diag-row:hover {
+    background: var(--hover);
+    color: var(--text-1);
+}
+
+.structure-kind {
+    color: var(--text-3);
+    font-family: var(--font-mono);
+    font-size: 10px;
+}
+
+.structure-pos {
+    margin-left: auto;
+    color: var(--text-3);
+    font-family: var(--font-mono);
+    font-size: 10px;
+}
+
+.diag-error .structure-pos,
+.diag-error .diag-row {
+    color: var(--danger);
+}
+
+.diag-warning .diag-row {
+    color: var(--warn);
+}
+
+/* ---- 终端 ---------------------------------------------------------------- */
+.terminal-log {
+    display: grid;
+    gap: 2px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-2);
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.terminal-log .time {
+    color: var(--text-3);
+    margin-right: 6px;
+}
+
+/* ---- 面板内容 ------------------------------------------------------------ */
+.ws-project-card {
+    display: grid;
+    gap: 6px;
+}
+
+.ws-project-card h3 {
+    font-size: var(--fs-13);
+}
+
+.ws-project-card dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 4px 10px;
+    margin: 0;
+    font-size: var(--fs-11);
+    color: var(--text-3);
+}
+
+.ws-project-card dt {
+    color: var(--text-3);
+}
+
+.ws-project-card dd {
+    margin: 0;
+    color: var(--text-2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ws-file-list {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 1px;
+    font-family: var(--font-mono);
+    font-size: var(--fs-11);
+}
+
+.ws-file-list li {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 6px;
+    border-radius: var(--r-xs);
+    color: var(--text-2);
+    cursor: pointer;
+}
+
+.ws-file-list li:hover {
+    background: var(--hover);
+    color: var(--text-1);
+}
+
+.ws-file-list img {
+    width: 13px;
+    height: 13px;
+}
+
+.ws-fatal {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: var(--bg-window);
+    z-index: 100;
+}
+
+.ws-fatal .card {
+    padding: 24px 28px;
+    display: grid;
+    gap: 10px;
+    justify-items: center;
+    text-align: center;
+}
+
+/* 面板内空状态收紧间距，避免出现滚动条 */
+.ws-region .empty {
+    padding: 18px 8px;
+    gap: 4px;
+}
+
+/* ---- 状态栏 -------------------------------------------------------------- */
+.ws-status {
+    flex: 0 0 22px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 12px;
+    border-top: 1px solid var(--stroke);
+    background: var(--surface-strong);
+    color: var(--text-3);
+    font-size: var(--fs-10);
+    font-family: var(--font-mono);
+}
+
+.ws-status .spacer {
+    flex: 1;
+}
+
+/* ---- 助手面板 ------------------------------------------------------------ */
+.agent-panel {
+    gap: 8px;
+}
+
+.agent-messages {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 320px;
+    overflow: auto;
+    padding: 4px 2px;
+}
+
+.agent-msg {
+    padding: 6px 8px;
+    border-radius: var(--r-sm);
+    font-size: var(--fs-11);
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.agent-user {
+    align-self: flex-end;
+    background: var(--sel);
+    color: var(--text-1);
+    max-width: 90%;
+}
+
+.agent-agent {
+    align-self: flex-start;
+    background: var(--surface-sunken);
+    color: var(--text-2);
+    max-width: 95%;
+}
+
+.agent-error {
+    color: var(--danger);
+    background: rgba(193, 18, 31, 0.06);
+}
+
+.agent-form {
+    display: grid;
+    gap: 6px;
+}
+
+.agent-form .btn {
+    justify-self: end;
+}
+
+/* ---- 引脚绑定 ------------------------------------------------------------ */
+.pin-panel {
+    gap: 8px;
+}
+
+.pin-scroll {
+    max-height: 380px;
+    overflow: auto;
+    border: 1px solid var(--stroke);
+    border-radius: var(--r-sm);
+    background: #ffffff;
+}
+
+.pin-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--fs-11);
+}
+
+.pin-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    text-align: left;
+    padding: 5px 6px;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--stroke);
+    color: var(--text-3);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.pin-table td {
+    padding: 2px 6px;
+    border-bottom: 1px solid var(--stroke);
+    color: var(--text-2);
+    white-space: nowrap;
+}
+
+.pin-table tr:last-child td {
+    border-bottom: 0;
+}
+
+.pin-reserved td {
+    background: var(--surface-sunken);
+    color: var(--text-3);
+}
+
+.pin-table th:nth-child(1),
+.pin-table td:nth-child(1) {
+    width: 34px;
+}
+
+.pin-table th:nth-child(2),
+.pin-table td:nth-child(2) {
+    width: 74px;
+}
+
+.pin-input {
+    height: 24px;
+    width: 100%;
+    min-width: 0;
+    padding: 0 6px;
+    font-size: var(--fs-11);
+}
+
+/* ---- 编辑器页签与查找 ---------------------------------------------------- */
+.editor-tabs {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    overflow-x: auto;
+    max-width: 60%;
+    scrollbar-width: thin;
+}
+
+.editor-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 6px 3px 9px;
+    border: 1px solid var(--stroke);
+    border-bottom: 0;
+    border-radius: var(--r-sm) var(--r-sm) 0 0;
+    background: var(--surface-sunken);
+    color: var(--text-3);
+    font-size: var(--fs-11);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.editor-tab.active {
+    background: #ffffff;
+    color: var(--text-1);
+    border-color: var(--stroke-strong);
+}
+
+.tab-dirty {
+    color: var(--warning);
+    font-size: 10px;
+}
+
+.tab-close {
+    border: 0;
+    background: none;
+    color: var(--text-3);
+    font-size: 12px;
+    line-height: 1;
+    padding: 0 2px;
+    cursor: pointer;
+}
+
+.tab-close:hover {
+    color: var(--danger);
+}
+
+.editor-search {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--stroke);
+    background: var(--surface-sunken);
+}
+
+.editor-search .input {
+    height: 26px;
+    width: 160px;
+    font-size: var(--fs-11);
+}
+
+/* ---- 诊断行标记 ---------------------------------------------------------- */
+.cm-diag-error {
+    background: rgba(193, 18, 31, 0.07);
+}
+
+.cm-diag-warning {
+    background: rgba(183, 121, 31, 0.09);
+}
+
+.cm-diag-marker {
+    font-size: 8px;
+    line-height: 1;
+    text-align: center;
+}
+
+.cm-diag-marker.error {
+    color: var(--danger);
+}
+
+.cm-diag-marker.warning {
+    color: var(--warning);
+}
+
+/* ---- 画布多选与缩放 ------------------------------------------------------ */
+.ws-canvas-board {
+    overflow: hidden;
+}
+
+.ws-board {
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+}
+
+.ws-marquee {
+    fill: rgba(76, 154, 255, 0.12);
+    stroke: #4c9aff;
+    stroke-dasharray: 4 3;
+    pointer-events: none;
+}
+
+.editor-search[hidden] {
+    display: none;
+}

@@ -48,9 +48,16 @@ openfpgaloader =
 verilator =
 
 [agent]
+# 是否随主进程启动 Python sidecar（每用户一个，D-17）。需要 Python 包可导入，默认关闭。
+enabled = false
+# Python 模块名（需已安装，例如在 agent/ 下 pip install -e .）。
+module = sigflow_edu_agent
 # Python agent 解释器；正文由 node 以固定 bootstrap 记录经 stdin 下发。
 python = python3
 # 崩溃重启退避基数（秒），实际按 1x/2x/4x 递增。
 restart_backoff_sec = 1
 # 健康轮询间隔（秒）。
 health_poll_sec = 5
+# 空闲回收（秒）与单机实例上限。
+idle_timeout_sec = 600
+max_instances = 4

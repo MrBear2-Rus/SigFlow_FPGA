@@ -257,14 +257,18 @@ web/
 
 **工具发现顺序**：参数内 `yosys_path` 等 → `--tool-root` → 每工具环境变量（`SIGFLOW_YOSYS` 等）→ 默认 runtime（`SIGFLOW_TOOL_RUNTIME_DIR`）→ `PATH`；结果必须是可执行的普通文件。CMake 不下载、不编译这些工具。
 
-**当前实现进度**：`run --job-type synth` 可用；`pnr/pack/flash/sim.build/sim.run` 返回 `3`；`structure/lint/validate/capture/devices/wave` 仍是规划。
+**当前实现进度**：`run` 支持 `synth / pnr / pack / sim.build / sim.run`（`flash` 仍返回 `3`）；`structure / lint / validate / target` 已实现；`capture / devices / wave` 仍是规划。
 
 #### 3.6 契约与协作文档
 
 | 文档 | 作用 |
 |---|---|
 | `backend/cpp/contracts/run-v1/` | **唯一协议权威**：request / manifest / report / event schema 与 fixtures |
-| `backend/cpp/contracts/analysis-v1/` | structure / lint 的调用与输出契约（草案，待 P6 评审） |
+| `backend/cpp/contracts/analysis-v1/` | structure / lint 的调用与输出契约（已实现，待双方评审） |
+| `backend/cpp/contracts/run-v1/nextpnr-metrics.schema.json` | pnr 指标草案（待评审） |
+| `backend/cpp/contracts/run-v1/gowin-pack-params.schema.json` | pack 参数草案（待评审） |
+| `backend/cpp/contracts/run-v1/simulation-draft.md` | 仿真接口草案 |
+| `backend/cpp/contracts/target-validation-draft.md` | target / validate 接口草案 |
 | `current_status_docs/plan-cpp.md` | cpp工 的规划与验收 |
 | `current_status_docs/handoff-cpp.md` | cpp工 的交接与待确认项（Node 必读） |
 | `current_status_docs/history-cpp.md` | cpp工 的模块实况（当前代码实际行为） |
@@ -282,13 +286,13 @@ web/
 | 目录 | 职责 |
 |---|---|
 | `src/http/` | HTTP 路由、SSE 推送、静态文件（`frontend/`、`backend/static/`） |
-| `src/users/` | 用户表（scrypt 加盐摘要）、会话 Cookie（HttpOnly，内存态） |
-| `src/analysis/` | `structure` / `lint` 的一次性 CLI 调用与 JSONL 解析 |
+| `src/users/` | 用户表（scrypt 加盐摘要）、会话 Cookie（HttpOnly，持久化到 `sessions.json`，token 只存 SHA-256） |
+| `src/analysis/` | `structure` / `lint` / `validate` 的一次性 CLI 调用与 JSONL 解析 |
 | `src/jobs/` | 队列、并发上限、Job 目录创建、spawn `sigflow-tool`、JSONL 解析、状态合成、取消（杀进程组）、孤儿回收 |
 | `src/devices/` | 设备租约表：`flash`/`capture` 按设备互斥，抢不到则排队；对应原 `DeviceControlLease` 语义 |
 | `src/wave/` | 每用户波形 worker 的启动、JSONL 请求路由、空闲回收、VCD 打开/关闭 |
-| `src/agent/` | 启动并监督 Python（bootstrap 经 stdin、退避重启、健康轮询）；实现 Python 依赖的 Gateway 兼容路由；作为 UI 调 Agent 的 `/api/v1/sessions`、`/api/v1/runs`、`/api/v1/events` |
-| `src/projects/` | `userprojects/<uid>/<project>` 的唯一管理者：工程增删、文件树与读写、画布布局；路径/符号链接/扩展名校验 |
+| `src/agent/` | 每用户 Python sidecar（按需启动、空闲回收）；Gateway 兼容路由（health / project context / job report）；浏览器 `/api/agent/*` 代理 |
+| `src/projects/` | `userprojects/<uid>/<project>` 的唯一管理者：工程增删、文件树与读写、画布布局、约束文件；`target-store` 读目标板数据；路径/扩展名校验 |
 | `src/plugins/` | 网页插件注册表、能力与状态展示数据 |
 | `src/util/` | `config.txt` 解析、日志、JSONL 编解码 |
 
@@ -318,6 +322,9 @@ Python Agent 是双向的：对 UI 提供 `/api/v1/sessions|runs|events`，同�
 
 `grants` / `ui-receipts`（授权签发）当前流程未使用，暂不实现；如后续启用，按 `contracts/edu-agent/v1/` 的契约补。
 
+**J6 进度（已完成）**：`src/agent/` 提供按用户 manager（D-17）、supervisor（bootstrap / ready / 健康 / 退避重启）、Gateway 兼容路由（health / project context / job report）与 `/api/agent/*` 代理；工作区右栏「助手」面板可建会话并解释当前文件。
+默认关闭（`[agent] enabled = false`），可用 `SIGFLOW_AGENT_ENABLED=1` 临时开启；需要 Python 包 `sigflow_edu_agent` 可导入（安装或 `PYTHONPATH`）。未配置模型 Key 时 Agent 降级为确定性规则讲解。
+
 #### 4.4 `config.txt`
 
 由 Node 启动时读取，C++ 侧通过命令行参数或环境变量接收，不直接读文件。
@@ -330,7 +337,7 @@ Python Agent 是双向的：对 UI 提供 `/api/v1/sessions|runs|events`，同�
 | `[devices]` | `lease_wait_sec` |
 | `[tools]` | `sigflow_tool`，以及 `yosys` / `nextpnr` / `gown_pack` / `openfpgaloader` / `verilator` 的路径覆盖（映射为 C++ 识别的环境变量） |
 | `[files]` | `max_bytes`（工程内单个文本文件上限） |
-| `[agent]` | `python`、`restart_backoff_sec`、`health_poll_sec` |
+| `[agent]` | `enabled`、`module`、`python`、`restart_backoff_sec`、`health_poll_sec`、`idle_timeout_sec`、`max_instances` |
 
 #### 4.5 与 C++ 的对接要求
 
@@ -347,11 +354,11 @@ Python Agent 是双向的：对 UI 提供 `/api/v1/sessions|runs|events`，同�
 
 | 目录 | 内容 |
 |---|---|
-| `pages/` | `index.html`（登录 / 工程 / 文件 / 编辑器 / 任务）、`canvas.html`（画布） |
-| `scripts/` | `console.js`（控制台与编辑器）、`canvas.js`（画布） |
-| `styles/` | `app.css`（暗色主题、布局、CodeMirror 适配） |
+| `pages/` | `index.html`（落地页）、`projects.html`（工程管理）、`workspace.html`（工作区）、`fpga-tool.html`、`tracebridge.html`、`debug-contract.html`、`components.html`（组件演示） |
+| `scripts/` | `landing.js`、`projects.js`、`workspace.js`、`fpga-tool.js`、`tracebridge.js`、`debug-contract.js`、`window-common.js`；`lib/` 共享组件；`workspace/` 画布、编辑器、文件树、结构树模块 |
+| `styles/` | `theme.css`、`components.css`、`landing.css`、`projects.css`、`workspace.css`、`window.css` |
 | `vendor/` | CodeMirror 5.65.16（MIT，含 LICENSE），离线可用、无构建步骤 |
-| `assets/` | `canvas_elements.json`（6 种门的元件库）；原 `main/res` 图标待迁 |
+| `assets/` | `canvas_elements.json`、`component-icons.json`；`icons/`：ui 13 + signal 10 + components 111，附 `manifest.json` |
 
 前端**不启动任何工具、不解析工具日志、不读 VCD**：结构树/诊断来自 `POST /api/projects/{id}/structure|lint`；波形来自 Node 的波形接口；任务进度来自 SSE。
 
@@ -411,12 +418,14 @@ Python Agent 是双向的：对 UI 提供 `/api/v1/sessions|runs|events`，同�
 | 公开 | `GET /api/health`、`POST /api/users`（注册）、`POST /api/session`（登录） |
 | 会话 | `GET /api/session`、`DELETE /api/session` |
 | 工程 | `GET/POST /api/projects`、`GET/DELETE /api/projects/{id}` |
-| 文件 | `GET /api/projects/{id}/files`、`GET/PUT/DELETE /api/projects/{id}/file?path=` |
+| 文件 | `GET /api/projects/{id}/files`、`GET/PUT/DELETE /api/projects/{id}/file?path=`、`POST /api/projects/{id}/file/move` |
 | 画布 | `GET/PUT /api/projects/{id}/canvas` |
-| 语言服务 | `POST /api/projects/{id}/structure`、`POST /api/projects/{id}/lint`（C++ P6 前返回 501） |
+| 语言服务 | `POST /api/projects/{id}/structure`、`POST /api/projects/{id}/lint` |
+| 目标板 | `GET /api/targets`、`GET /api/targets/{id}` |
+| 约束 | `GET/PUT /api/projects/{id}/constraints?target=`、`POST /api/projects/{id}/validate-cst` |
 | 任务 | `POST/GET /api/jobs`、`GET /api/jobs/{id}`、`POST /api/jobs/{id}/cancel`、`GET /api/jobs/{id}/report`、`GET /api/jobs/{id}/events`（SSE）、`GET /api/jobs/{id}/artifacts/{name}` |
 | 静态 | `/static/*`（`backend/static/`）与 `frontend/` 下的 `/pages`、`/scripts`、`/styles`、`/assets`、`/vendor` |
-| 规划中 | 波形 `/api/wave/*`、Agent `/api/agent/*`（J6，等 C++ P7 与 bootstrap 落地） |
+| 规划中 | 波形 `/api/wave/*`（等 C++ P7） |
 
 #### 7.4 共享数据
 
@@ -431,9 +440,12 @@ cd web
 cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo
 cmake --build build -j            # 等价于构建 all
 
-# 测试
+# 测试（含文档一致性与前端引用检查）
 ctest --test-dir build --output-on-failure
 cmake --build build --target web_js_test   # node --test backend/nodejs/test
+
+# 浏览器冒烟（先启动服务；需要 chromium，可用 CHROME_BIN 覆盖）
+cmake --build build --target web_smoke
 ```
 
 便捷目标（全部 `EXCLUDE_FROM_ALL`，按需显式调用）：
@@ -481,6 +493,8 @@ cmake --install build --prefix /opt/sigflow
 | D-14 | 构建入口 | 统一 `cd web && cmake -S . -B build`；便捷命令 build / distclean / run / proj-empty | 共同 | 2026-11-01 |
 | D-15 | 画布存储 | 布局存 `<project>/.sigflow/canvas.json`，由 Node 校验与落盘 | 共同 | 2026-11-01 |
 | D-16 | 实况文档 | 每人增加 `history-<角色>.md`，实时改写描述各模块现状；计划变更时队友据此判断已完成的前提 | 共同 | 2026-11-01 |
+| D-17 | Agent 部署模型 | 每用户一个 Python sidecar（方案 A）：登录/打开 Agent 时启动，登出或空闲回收；token 绑定用户 | 共同 | 2026-11-03 |
+| D-18 | 波形协议 | 不先行发明协议，等 Bear2 的 `wave serve` 草案出来再评审冻结 | 共同 | 2026-11-03 |
 
 ## 文档规范
 

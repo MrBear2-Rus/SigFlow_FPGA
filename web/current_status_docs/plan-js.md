@@ -1,96 +1,74 @@
 > 负责人：js工
 > 类型：规划
-> 更新：2026-11-01
+> 更新：2026-11-03
 > 状态：进行中
-> 阶段：U1
+> 阶段：V3
 
 # js工 · 规划
 
 ## ① 当前目标
 
-网页端从“单页控制台”改为与 wxWidgets 版一一对应的六页面应用：
-产品落地页（介绍 + 登录注册）→ 工程管理（新建/打开）→ 工作区（六区 + 伪停靠）
-→ 三个独立工具窗口。J0–J5 已完成的能力见 [history-js.md](history-js.md)，
-架构与协议见 [README](../README.md) 与 [contracts](../backend/cpp/contracts/)。
+UI 框架（U1–U7）与 Agent 托管（J6b）已完成。下一阶段补齐**不依赖 C++** 的功能面：
+约束/引脚、仿真、FPGA 串联、编辑器与画布增强、工程与安全。
+已完成能力见 [history-js.md](history-js.md)，架构见 [README](../README.md)。
 
-## ② 页面清单（复刻基准）
+## ② 已完成
 
-| 页面 | 对应 wx 原版 | 打开方式 |
-|---|---|---|
-| `pages/landing.html` | 新增（原版无） | `/` |
-| `pages/projects.html` | `ProjectStartWindow` | 登录后 |
-| `pages/workspace.html` | `MainFrame` | 打开工程，`?project=<id>` |
-| `pages/fpga-tool.html` | `FpgaToolWindow` | 新标签页，`?project=` |
-| `pages/tracebridge.html` | `TraceBridgeWindow` | 新标签页，`?project=` |
-| `pages/debug-contract.html` | `DebugContractConfigWindow` | 新标签页，`?project=` |
+| 系列 | 内容 |
+|---|---|
+| J0–J5 | 任务链路、HTTP/SSE、用户/工程/文件、编辑器、画布 |
+| U1–U7 | 六页面 UI 框架、浅色主题、伪停靠、三个独立窗口、断链与文档检查 |
+| J6b | Agent 方案 A：每用户 sidecar、Gateway 兼容路由、`/api/agent/*` 代理、助手面板 |
+| 仍阻塞 | 波形（C++ P7）、TraceBridge 运行时（P8）、flash（P4 剩余） |
 
-工作区六区：topBar（菜单 + 工具栏）、sideNav（3 个活动按钮）、left_sidebar（工程 /
-SigFlow 树 / 元件库）、center（画布 + 编辑器）、right_sidebar（属性 / 引脚绑定）、
-bottom_tabs（终端 / 波形）。
-伪停靠：左 / 右 / 底三个投放区，中心固定；支持折叠、跨区拖动、同区换序、比例记忆。
-
-## ③ 阶段与验收
+## ③ 新阶段与验收
 
 | 阶段 | 内容 | 验收 |
 |---|---|---|
-| U1 | 浅色设计令牌、组件库（tabs / splitter / dialog / toast / empty）、图标迁移（ui_icons 13 + svg_icons 10 + svg 113） | 演示页视觉与原版一致，组件可交互 |
-| U2 | P1 落地页 + 登录注册 | 注册→自动登录→进 P2；已登录访问 `/` 显示“进入工程”；失败有内联错误 |
-| U3 | P2 工程管理页 | 列表含创建/修改时间；新建可选“空白/模板”；打开进 P3；删除二次确认；退出登录回 P1 |
-| U4 | P3 工作区外壳 + 伪停靠 | 六区可拖拽/折叠；刷新后布局保持；未登录重定向 P1 |
-| U5 | P3 面板填充 | 文件树、元件库、画布、编辑器、终端可用；属性与波形为明确空态 |
-| U6 | P4–P6 独立窗口 | 新标签页打开并带 project；P4 任务可提交/取消；P5/P6 骨架完整 |
-| U7 | 视觉校准 + 资源检查 | 对照原版截图逐块修正；静态资源 404 检查进 Node 测试 |
-| 顺延 | J6 波形 / Agent | U7 之后按 C++ P7/P8 进度启动 |
+| V1 | 约束 / 引脚绑定 UI | ✅ 引脚表、筛选、信号绑定、`.cst` 读写、`validate cst` |
+| V2 | 仿真工作流 UI | ✅ `sim.build` / `sim.run` 表单与任务页，产物（sim_main / wave.vcd）可见 |
+| V3 | FPGA 串联与报告 | ⏸ 暂缓：本机无 yosys/nextpnr/gowin_pack，等工具环境 |
+| V4 | 编辑器增强 | ✅ 多文件页签、查找替换、诊断行标记与跳转 |
+| V5 | 画布增强 | ✅ 缩放/平移、框选多选、撤销/重做、标签与坐标编辑 |
+| V6 | 工程与安全 | ✅ 文件重命名/移动/删除；会话持久化（token 哈希落盘） |
+| V7 | 打磨与自动化 | ✅ 浏览器冒烟 12 项、401 统一跳转、网络错误提示、`web_smoke` 目标 |
 
-## ④ 页面验收要点
+## ④ 阶段要点
 
-**P1 落地页**
+**V1 约束 / 引脚**
 
-1. 顶栏 logo + 产品名，未登录显示 登录 / 注册；
-2. Hero：标题 + 一句话定位 + 主 CTA；
-3. 特性区三张卡片：可视化画布 / RTL 编辑与结构树 / FPGA 流程与波形；
-4. 注册：userId + 密码（≥8）+ 确认密码，成功后自动登录并跳 P2；
-5. 已登录访问 `/`：不显示表单，显示“进入工程”；
-6. 窄屏单列可用；文案先占位。
+1. 数据源只用 `backend/static/target-profiles/*.json` 与 `*.pins.json`，不在前端硬编码引脚；
+2. 右侧栏「引脚绑定」页签显示引脚表，支持按名称/功能过滤；
+3. 绑定结果导出为 `.cst` 文本，写回工程文件；导入时解析并回填；
+4. 调 `POST /api/projects/{id}/...` 的校验接口（需新增 Node 端点转 `validate cst`）。
 
-**P2 工程管理**
+**V2 仿真**
 
-1. 只显示当前用户工程，字段：名称、工程 ID、创建时间、最后修改时间；
-2. 新建对话框：工程 ID（`[A-Za-z0-9._-]{1,64}`）、显示名（可选）、模板（空白 / 示例）；
-3. 打开 → `workspace.html?project=<id>`；
-4. 删除需二次确认，删除后列表刷新；
-5. 空状态提示 + 新建 CTA；
-6. 未登录访问 → 重定向 P1。
+1. 参数以 `contracts/run-v1/simulation-draft.md` 为准（评审后冻结）；
+2. 任务页复用 FPGA 工具的任务控制台组件；
+3. 波形查看仍等 P7，本阶段只做任务与产物列表。
 
-**P3 工作区**
+**V3 串联**
 
-1. 六区齐全，比例可拖拽，面板可折叠、可换区；
-2. 菜单：File / Edit / Project / Simulate / FPGA / Help，未实现项置灰；
-3. 工具栏：New / Open / Save / Reclaim / Start / Stop / Synthesize；
-4. 未登录或工程不存在 → 回 P2。
-
-**P4–P6 独立窗口**
-
-1. `window.open(..., "_blank", "noopener")`，被拦截时回退同页；
-2. 缺 `project` 参数或工程不存在时提示，并给回 P2 的链接；
-3. P4 三页签：Yosys（任务列表 + 进度 + 报告）/ nextpnr / openFPGALoader。
+1. synth 产物路径 `.sigflow/agent/jobs/synth/<id>/artifacts/<file>` 作为 pnr 输入；
+2. pnr 产物同理传给 pack；
+3. 指标展示按 `nextpnr-metrics.schema.json` 草案实现，字段变化需同步。
 
 ## ⑤ 下一步
 
-1. U1：`theme.css`（浅色调色板 + 间距 / 圆角 / 字号令牌）+ 组件库 + 136 个图标 + 演示页。
-2. U2：P1 落地页（介绍文案先占位）。
-3. U3：P2 工程管理，含后端补 `updatedAt` 与模板创建参数。
-4. U4：工作区外壳与伪停靠。
-5. U5：面板填充，元件库图标映射抽成 `assets/component-icons.json`。
+1. V3 待本机工具链就绪后恢复（synth→pnr→pack 串联与指标展示）。
+2. 收敛评审意见（H-CPP-009 / 012 / 018 / 019 / 021，结论见 handoff ⑤）。
+3. 引脚 `validate pins` 与波形查看按 C++ 进度接入。
+4. 登录限流、CSRF、工程导入导出留待后续迭代。
+5. 视觉逐像素校准需要原版截图。
 
 ## ⑥ 阻塞与依赖
 
-- 结构树 / 诊断数据依赖 C++ P6（当前 501），P3 面板先做空态；
-- 波形依赖 C++ P7，TraceBridge 依赖 P8；
-- P2 需要后端补 `updatedAt` 与模板参数（空模板 / 示例模板）；
-- 登录仍无 HTTPS / CSRF / 限流，上线前必须处理。
+- 波形 / TraceBridge / flash 依赖 C++ P7、P8 与 P4 剩余项；
+- V3 的 synth→pnr→pack 串联依赖真实 yosys / nextpnr / gowin_pack，本机未安装，暂缓；
+- 约束、仿真、指标接口仍是草案，V1–V3 的字段以评审结果为准。
 
 ## ⑦ 相关决策
 
-D-13（vendor 化）、D-14（构建入口）、D-15（画布存储）、D-16（history 文档），
-见 [README](../README.md) 的「决策记录」。
+D-17（每用户 Agent sidecar）、D-18（波形协议等 Bear2），其余见
+[README](../README.md) 的「决策记录」。

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SigFlow · 工程</title>
+    <link rel="stylesheet" href="/styles/theme.css">
+    <link rel="stylesheet" href="/styles/components.css">
+    <link rel="stylesheet" href="/styles/projects.css">
+</head>
+<body class="projects-page">
+    <header class="app-nav">
+        <a class="brand" href="/">
+            <img class="brand-mark" src="/assets/icons/ui/components.svg" alt="">
+            <span>SigFlow</span>
+        </a>
+        <span class="app-nav-title">工程</span>
+        <div class="app-nav-right">
+            <span id="userName" class="muted small"></span>
+            <button class="btn btn-ghost" id="logout">退出登录</button>
+        </div>
+    </header>
+
+    <main class="projects-main">
+        <div class="projects-head">
+            <div>
+                <h1>我的工程</h1>
+                <p class="muted small">每个工程独立保存源码、画布布局与任务记录</p>
+            </div>
+            <div class="toolbar">
+                <button class="btn" id="refresh">刷新</button>
+                <button class="btn btn-primary" id="newProject">新建工程</button>
+            </div>
+        </div>
+
+        <div id="list" class="project-grid"></div>
+
+        <div id="empty" class="card hidden">
+            <div class="empty">
+                <img src="/assets/icons/signal/module.svg" alt="">
+                <strong>还没有工程</strong>
+                <span class="small">新建一个空工程，或从示例模板开始</span>
+                <button class="btn btn-primary btn-sm" id="emptyNew">新建工程</button>
+            </div>
+        </div>
+    </main>
+
+    <script type="module" src="/scripts/projects.js"></script>
+</body>
+</html>
