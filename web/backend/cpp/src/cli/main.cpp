@@ -16,6 +16,11 @@
 #include "eda-core/RunCommand.h"
 #ifndef SIGFLOW_TEST_PROVIDER
 #include "plugins/synth-yosys/YosysProvider.h"
+#include "plugins/pnr-nextpnr/NextpnrProvider.h"
+#include "plugins/pack-gowin/GowinPackProvider.h"
+#include "plugins/sim-verilator/VerilatorProviders.h"
+#include "plugins/cst-gowin-cst/BoardCommands.h"
+#include "analysis/AnalysisCommand.h"
 #endif
 #include <csignal>
 #include <atomic>
@@ -77,9 +82,9 @@ const CommandHelp kCommands[] = {
              "       wave query   --vcd <file> --signals <a,b,...> --begin <t> --end <t>\n"
              "       wave serve   (stdin/stdout JSONL；每用户一个常驻子进程)"},
     {"structure", "structure --file <path>"},
-    {"lint", "lint --file <path>"},
+    {"lint", "lint --file <path> --project-root <dir>"},
     {"validate", "validate cst  --cst <file> --pins <json>\n"
-                 "       validate pins --design <json> --pins <json>"},
+                 "       validate pins --design <json> --pins <json> --netlist <json>"},
     {"target", "target show --id <profile-id>"},
     {"capture", "capture run --work-dir <dir> --contract <json>"},
     {"devices", "devices list"},
@@ -140,7 +145,7 @@ int main(int argc, char** argv) {
     }
 
     std::signal(SIGPIPE, SIG_IGN);
-    struct sigaction action{};
+    struct sigaction action {};
     action.sa_handler = OnSignal;
     sigemptyset(&action.sa_mask);
     // Interrupt a blocked --params stdin read as well as running providers.
@@ -168,6 +173,14 @@ int main(int argc, char** argv) {
 #else
                 if (type == "synth")
                     return std::make_unique<eda::synth::YosysProvider>();
+                if (type == "pnr")
+                    return std::make_unique<eda::pnr::NextpnrProvider>();
+                if (type == "pack")
+                    return std::make_unique<eda::pack::GowinPackProvider>();
+                if (type == "sim.build")
+                    return std::make_unique<eda::sim::BuildProvider>();
+                if (type == "sim.run")
+                    return std::make_unique<eda::sim::RunProvider>();
 #endif
                 return {};
             };
@@ -219,6 +232,12 @@ int main(int argc, char** argv) {
             return 4;
         }
     }
+#ifndef SIGFLOW_TEST_PROVIDER
+    if (first == "structure" || first == "lint")
+        return eda::analysis::AnalysisCommand(argc, argv, Emit);
+    if (first == "target" || first == "validate")
+        return eda::web::BoardCommand(argc, argv, Emit, SIGFLOW_DEFAULT_DATA_DIR);
+#endif
     try {
         Emit(eda::Json{{"type", "diagnostic"},
                        {"severity", "error"},

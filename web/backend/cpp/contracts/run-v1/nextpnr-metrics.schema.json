@@ -1,0 +1,170 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$comment": "Provisional nextpnr metrics proposal; review with JS before treating as frozen. stages_observed are log observations, not proof of completion.",
+  "type": "object",
+  "required": [
+    "tool",
+    "device",
+    "family",
+    "exit_code",
+    "parsed",
+    "log_truncated"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "tool": {
+      "const": "nextpnr"
+    },
+    "device": {
+      "type": "string"
+    },
+    "family": {
+      "type": "string"
+    },
+    "exit_code": {
+      "type": "integer"
+    },
+    "parsed": {
+      "type": "boolean"
+    },
+    "log_truncated": {
+      "type": "boolean"
+    },
+    "version": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "analysis_error": {
+      "type": "string"
+    },
+    "warnings": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "errors": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "stages_observed": {
+      "type": "object",
+      "properties": {
+        "pack": {
+          "type": "boolean"
+        },
+        "place": {
+          "type": "boolean"
+        },
+        "route": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "pack",
+        "place",
+        "route"
+      ],
+      "additionalProperties": false
+    },
+    "timing": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "clock": {
+              "type": "string"
+            },
+            "max_freq_mhz": {
+              "type": "number"
+            },
+            "passed": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "clock",
+            "max_freq_mhz",
+            "passed"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "used": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          },
+          "percent": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "used",
+          "total",
+          "percent"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "classified_errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "line": {
+            "type": "integer"
+          },
+          "message": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "suggestion": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "line",
+          "message",
+          "detail",
+          "suggestion"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "parsed": {
+            "const": true
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "version",
+          "stages_observed",
+          "timing",
+          "resources",
+          "warnings",
+          "errors",
+          "classified_errors"
+        ]
+      }
+    }
+  ]
+}

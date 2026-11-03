@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Gowin pack parameters (draft)",
+  "$comment": "Draft derived from legacy GowinPacker; Node integration review is pending. Path containment and file validation are enforced by the runtime.",
+  "type": "object",
+  "required": [
+    "pnr_json",
+    "device"
+  ],
+  "properties": {
+    "pnr_json": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\u0000]+$"
+    },
+    "device": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^-\\u0000][^\\u0000]*$"
+    },
+    "output": {
+      "type": "string",
+      "pattern": "^[^\\u0000]*$",
+      "description": "Optional output path under the Job artifacts directory; defaults to design.fs."
+    },
+    "gowin_pack_path": {
+      "type": "string",
+      "pattern": "^[^\\u0000]*$",
+      "description": "Optional executable override, subject to runtime tool resolution."
+    }
+  }
+}

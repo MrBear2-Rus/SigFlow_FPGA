@@ -368,6 +368,26 @@ endif()
 if(SIGFLOW_BUILD_TESTS)
     find_package(Python3 QUIET COMPONENTS Interpreter)
     if(Python3_Interpreter_FOUND)
+        add_test(NAME test_analysis_integration COMMAND "${Python3_EXECUTABLE}"
+            "${SIGFLOW_CPP_DIR}/tests/analysis_integration.py"
+            "$<TARGET_FILE:sigflow-tool>" "${CMAKE_BINARY_DIR}")
+        set_tests_properties(test_analysis_integration PROPERTIES TIMEOUT 60)
+        add_test(NAME test_board_integration COMMAND "${Python3_EXECUTABLE}"
+            "${SIGFLOW_CPP_DIR}/tests/board_integration.py"
+            "$<TARGET_FILE:sigflow-tool>" "${CMAKE_BINARY_DIR}" "${SIGFLOW_STATIC_DIR}")
+        set_tests_properties(test_board_integration PROPERTIES TIMEOUT 60)
+        add_test(NAME test_sim_integration COMMAND "${Python3_EXECUTABLE}"
+            "${SIGFLOW_CPP_DIR}/tests/sim_integration.py"
+            "$<TARGET_FILE:sigflow-tool>" "${CMAKE_BINARY_DIR}")
+        set_tests_properties(test_sim_integration PROPERTIES TIMEOUT 60)
+        add_test(NAME test_pack_integration COMMAND "${Python3_EXECUTABLE}"
+            "${SIGFLOW_CPP_DIR}/tests/pack_integration.py"
+            "$<TARGET_FILE:sigflow-tool>" "${CMAKE_BINARY_DIR}")
+        set_tests_properties(test_pack_integration PROPERTIES TIMEOUT 60)
+        add_test(NAME test_pnr_integration COMMAND "${Python3_EXECUTABLE}"
+            "${SIGFLOW_CPP_DIR}/tests/pnr_integration.py"
+            "$<TARGET_FILE:sigflow-tool>" "${CMAKE_BINARY_DIR}")
+        set_tests_properties(test_pnr_integration PROPERTIES TIMEOUT 60)
         add_test(NAME test_synth_integration COMMAND "${Python3_EXECUTABLE}"
             "${SIGFLOW_CPP_DIR}/tests/synth_integration.py"
             "$<TARGET_FILE:sigflow-tool>" "${CMAKE_BINARY_DIR}")

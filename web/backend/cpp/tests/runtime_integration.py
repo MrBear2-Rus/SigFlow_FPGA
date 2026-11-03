@@ -112,8 +112,8 @@ with tempfile.TemporaryDirectory(prefix="runtime-",dir=build) as directory:
     work,args,data=setup(); bad=args.copy(); bad[bad.index("--job-type")+1]="test.exec"
     result=subprocess.run([production,*bad],input=data,text=True,capture_output=True,timeout=5)
     assert result.returncode==2; checks+=1
-    work,args,data=setup(); args[args.index("--job-type")+1]="pnr"
-    work=project/".sigflow/agent/jobs/pnr"/args[args.index("--job-id")+1];work.mkdir(parents=True)
+    work,args,data=setup(); args[args.index("--job-type")+1]="flash"
+    work=project/".sigflow/agent/jobs/flash"/args[args.index("--job-id")+1];work.mkdir(parents=True)
     args[args.index("--work-dir")+1]=str(work)
     result=subprocess.run([production,*args],input=data,text=True,capture_output=True,timeout=5)
     assert result.returncode==3 and not list(work.iterdir()); events(result.stdout); checks+=1

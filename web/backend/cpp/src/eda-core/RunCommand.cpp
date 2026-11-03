@@ -8,6 +8,10 @@
 #include <iostream>
 #include <climits>
 #include <stdexcept>
+#include <sstream>
+#include <cerrno>
+#include <poll.h>
+#include <unistd.h>
 namespace eda::web {
 namespace {
 bool identifier(const std::string& s) {
@@ -47,6 +51,37 @@ Json parameters(std::istream& stream) {
     } catch (const Json::exception&) {
         throw std::invalid_argument("invalid params JSON");
     }
+}
+// poll rather than blocking std::istream::read so cancellation is observed even
+// when the producer keeps stdin open after sending only part of the JSON.
+Json parametersFromStdin(const std::function<bool()>& cancelled) {
+    constexpr std::size_t limit = 2 * 1024 * 1024;
+    std::string data;
+    char buffer[4096];
+    for (;;) {
+        if (cancelled && cancelled())
+            throw std::invalid_argument("cancelled while reading params");
+        pollfd descriptor{STDIN_FILENO, POLLIN, 0};
+        const int ready = poll(&descriptor, 1, 100);
+        if (ready < 0 && errno == EINTR)
+            continue;
+        if (ready < 0 || (descriptor.revents & (POLLERR | POLLNVAL)))
+            throw std::invalid_argument("cannot read params");
+        if (ready == 0)
+            continue;
+        const auto count = read(STDIN_FILENO, buffer, sizeof(buffer));
+        if (count < 0 && errno == EINTR)
+            continue;
+        if (count < 0)
+            throw std::invalid_argument("cannot read params");
+        if (count == 0)
+            break;
+        if (data.size() + static_cast<std::size_t>(count) > limit)
+            throw std::invalid_argument("params exceed 2 MiB");
+        data.append(buffer, static_cast<std::size_t>(count));
+    }
+    std::istringstream stream(data);
+    return parameters(stream);
 }
 }  // namespace
 int RunCommand(int argc, char** argv, const ProviderFactory& factory, const EventSink& sink,
@@ -113,7 +148,7 @@ int RunCommand(int argc, char** argv, const ProviderFactory& factory, const Even
         options.count("--tool-root") ? "argument"
                                      : (!toolEnvironment.empty() ? "environment" : "default");
     if (options.at("--params") == "-")
-        input.request.params = parameters(std::cin);
+        input.request.params = parametersFromStdin(cancelled);
     else {
         std::ifstream stream(options.at("--params"), std::ios::binary);
         if (!stream)
