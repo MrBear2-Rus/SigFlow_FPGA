@@ -32,3 +32,4 @@ __pycache__/
 /agent/.tmp/
 # Claude Code 本地AI会话缓存，禁止提交
 .claude/
+web.zip
