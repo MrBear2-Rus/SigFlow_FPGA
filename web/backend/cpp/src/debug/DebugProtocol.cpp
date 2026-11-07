@@ -1,0 +1,711 @@
+#include "DebugProtocol.h"
+#include "eda-core/JobPaths.h"
+
+#include <algorithm>
+#include <array>
+#include <atomic>
+#include <cerrno>
+#include <chrono>
+#include <cstring>
+#include <filesystem>
+#include <stdexcept>
+
+#include <fcntl.h>
+#include <unistd.h>
+
+namespace eda {
+namespace debug {
+
+namespace {
+
+using proto::FrameDecodeDetailed;
+using proto::FrameEncode;
+using proto::kT_Ack;
+using proto::kT_Info;
+using proto::kT_Read;
+using proto::kT_Samples;
+using proto::kT_Status;
+
+constexpr std::uint32_t kMaxRawDepth = 1u << 20;
+std::atomic<std::uint64_t> g_rawTempSequence{0};
+
+// 从传输读出一条完整 wire 帧（0x00 ... 0x00）；超时/断连返回 false。
+bool ReceiveWireFrame(ITransport& transport, std::vector<std::uint8_t>& frame, int timeoutMs,
+                      std::string& error) {
+    std::vector<std::uint8_t> acc;
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeoutMs);
+    std::uint8_t buf[512];
+    while (true) {
+        const auto now = std::chrono::steady_clock::now();
+        if (now >= deadline) {
+            error = "response timeout";
+            return false;
+        }
+        int remain = static_cast<int>(
+            std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now).count());
+        if (remain < 1)
+            remain = 1;
+        const std::size_t n = transport.Read(buf, sizeof(buf), remain);
+        if (n == 0) {
+            if (!transport.IsOpen()) {
+                error = "link lost";
+                return false;
+            }
+            continue;
+        }
+        acc.insert(acc.end(), buf, buf + n);
+
+        // 丢弃首个 0x00 前的噪声
+        std::size_t first = acc.size();
+        for (std::size_t i = 0; i < acc.size(); ++i) {
+            if (acc[i] == 0x00) {
+                first = i;
+                break;
+            }
+        }
+        if (first > 0)
+            acc.erase(acc.begin(), acc.begin() + first);
+        if (acc.size() >= 2 && acc[0] == 0x00) {
+            for (std::size_t j = 1; j < acc.size(); ++j) {
+                if (acc[j] == 0x00) {
+                    frame.assign(acc.begin(), acc.begin() + j + 1);
+                    return true;
+                }
+            }
+        }
+    }
+}
+
+void AppendU16LE(std::vector<std::uint8_t>& out, std::uint16_t v) {
+    out.push_back(static_cast<std::uint8_t>(v & 0xFF));
+    out.push_back(static_cast<std::uint8_t>((v >> 8) & 0xFF));
+}
+
+bool ReadExact(ITransport& transport, std::uint8_t* data, std::size_t size, int timeoutMs,
+               std::string& error) {
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeoutMs);
+    std::size_t received = 0;
+    while (received < size) {
+        const auto now = std::chrono::steady_clock::now();
+        if (now >= deadline) {
+            error = "response timeout";
+            return false;
+        }
+        int remain = static_cast<int>(
+            std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now).count());
+        if (remain < 1)
+            remain = 1;
+        const std::size_t n = transport.Read(data + received, size - received, remain);
+        if (n == 0) {
+            if (!transport.IsOpen()) {
+                error = "link lost";
+                return false;
+            }
+            continue;
+        }
+        received += n;
+    }
+    return true;
+}
+
+bool WriteCaptureRawAtomic(const std::filesystem::path& requestedPath,
+                           const std::vector<std::uint8_t>& data, std::string& error) {
+    namespace fs = std::filesystem;
+    error.clear();
+    fs::path temporary;
+    try {
+        if (requestedPath.empty())
+            throw std::invalid_argument("capture.raw path is empty");
+        const auto targetInput = fs::absolute(requestedPath).lexically_normal();
+        const auto parent = targetInput.parent_path();
+        if (targetInput.filename().empty() || parent.empty())
+            throw std::invalid_argument("capture.raw path must name a file");
+        fs::create_directories(parent);
+        const auto target = web::CheckedPath(parent, targetInput.filename(), false);
+
+        int fd = -1;
+        for (int attempt = 0; attempt < 16; ++attempt) {
+            const auto suffix = std::to_string(static_cast<unsigned long long>(getpid())) + "." +
+                                std::to_string(g_rawTempSequence.fetch_add(1));
+            temporary = web::CheckedPath(
+                parent, "." + target.filename().string() + ".tmp." + suffix, false);
+            fd =
+                open(temporary.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC | O_NOFOLLOW, 0600);
+            if (fd >= 0 || errno != EEXIST)
+                break;
+        }
+        if (fd < 0)
+            throw std::runtime_error("cannot create capture.raw temporary file: " +
+                                     std::string(std::strerror(errno)));
+
+        std::size_t offset = 0;
+        while (offset < data.size()) {
+            const auto written = write(fd, data.data() + offset, data.size() - offset);
+            if (written < 0 && errno == EINTR)
+                continue;
+            if (written <= 0) {
+                const int savedErrno = errno;
+                close(fd);
+                std::error_code ignored;
+                fs::remove(temporary, ignored);
+                error = "capture.raw write failed: " + std::string(std::strerror(savedErrno));
+                return false;
+            }
+            offset += static_cast<std::size_t>(written);
+        }
+        if (fsync(fd) != 0) {
+            const int savedErrno = errno;
+            close(fd);
+            std::error_code ignored;
+            fs::remove(temporary, ignored);
+            error = "capture.raw fsync failed: " + std::string(std::strerror(savedErrno));
+            return false;
+        }
+        if (close(fd) != 0) {
+            const int savedErrno = errno;
+            std::error_code ignored;
+            fs::remove(temporary, ignored);
+            error = "capture.raw close failed: " + std::string(std::strerror(savedErrno));
+            return false;
+        }
+
+        std::error_code ec;
+        fs::rename(temporary, target, ec);
+        if (ec) {
+            std::error_code ignored;
+            fs::remove(temporary, ignored);
+            error = "capture.raw commit failed: " + ec.message();
+            return false;
+        }
+        const int directory = open(parent.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+        if (directory < 0) {
+            error = "cannot open capture.raw directory for sync";
+            return false;
+        }
+        const int syncStatus = fsync(directory);
+        const int savedErrno = errno;
+        close(directory);
+        if (syncStatus != 0) {
+            error = "capture.raw directory fsync failed: " + std::string(std::strerror(savedErrno));
+            return false;
+        }
+        return true;
+    } catch (const std::exception& exception) {
+        if (!temporary.empty()) {
+            std::error_code ignored;
+            fs::remove(temporary, ignored);
+        }
+        error = exception.what();
+        return false;
+    }
+}
+
+}  // namespace
+
+DebugProtocol::DebugProtocol(ITransport& transport) : transport_(transport) {}
+
+bool DebugProtocol::RoundTrip(std::uint8_t type, const std::vector<std::uint8_t>& data,
+                              std::uint8_t& respType, std::vector<std::uint8_t>& respData,
+                              std::string& error, int timeoutMs, int attempts) {
+    if (autoReconnect_ && !transport_.IsOpen()) {
+        if (!Reconnect(error))
+            return false;
+    }
+    return RoundTripInternal(type, data, respType, respData, error, timeoutMs, attempts);
+}
+
+bool DebugProtocol::RoundTripInternal(std::uint8_t type, const std::vector<std::uint8_t>& data,
+                                      std::uint8_t& respType, std::vector<std::uint8_t>& respData,
+                                      std::string& error, int timeoutMs, int attempts) {
+    ++stats_.commandCalls;
+    for (int attempt = 0; attempt < attempts; ++attempt) {
+        ++stats_.attempts;
+        if (attempt > 0)
+            ++stats_.retries;
+        const std::uint8_t seq = ++seq_;
+        const auto wire = proto::FrameEncode(type, seq, data);
+        if (!transport_.Write(wire.data(), wire.size(), timeoutMs)) {
+            ++stats_.writeFailures;
+            error = transport_.IsOpen() ? "write failed" : "link lost";
+            return false;
+        }
+
+        std::vector<std::uint8_t> frame;
+        if (!ReceiveWireFrame(transport_, frame, timeoutMs, error)) {
+            if (transport_.IsOpen())
+                ++stats_.responseTimeouts;
+            if (!transport_.IsOpen())
+                return false;  // 断连不再重试
+            continue;          // 超时：重发同 seq
+        }
+
+        std::uint8_t rseq = 0;
+        const auto decodeError = FrameDecodeDetailed(frame, respType, rseq, respData);
+        if (decodeError != proto::FrameDecodeError::None) {
+            // 收到坏帧（CRC/结构错误）：视为噪声，继续等待本命令的响应。
+            if (decodeError == proto::FrameDecodeError::Crc)
+                ++stats_.crcErrors;
+            else
+                ++stats_.malformedFrames;
+            continue;
+        }
+        if (rseq != seq) {
+            // 序号不匹配：继续等待（响应可能粘包/乱序）。
+            ++stats_.sequenceMismatches;
+            continue;
+        }
+        return true;
+    }
+    if (error.empty())
+        error = "no valid response after retries";
+    return false;
+}
+
+bool DebugProtocol::SyncCalibrate(std::string& error, int timeoutMs, int attempts) {
+    transport_.DiscardInput();
+    const std::vector<std::uint8_t> preamble = {0x55, 0xAA, 0x55, 0xAA};
+    if (!transport_.Write(preamble.data(), preamble.size(), timeoutMs)) {
+        error = transport_.IsOpen() ? "sync preamble write failed" : "link lost";
+        return false;
+    }
+    std::uint8_t version = 0;
+    if (Ping(version, error, timeoutMs, attempts))
+        return true;
+
+    transport_.DiscardInput();
+    const std::string preambleError = error;
+    error.clear();
+    if (Ping(version, error, timeoutMs, attempts))
+        return true;
+    if (error.empty())
+        error = preambleError;
+    return false;
+}
+
+bool DebugProtocol::Reconnect(std::string& error) {
+    transport_.Close();
+    if (!transport_.Open()) {
+        error = "reconnect open failed";
+        return false;
+    }
+    return SyncCalibrate(error);
+}
+
+bool DebugProtocol::Ping(std::uint8_t& version, std::string& error, int timeoutMs, int attempts) {
+    std::uint8_t respType = 0;
+    std::vector<std::uint8_t> data;
+    if (!RoundTrip(proto::kT_Ping, {0x07}, respType, data, error, timeoutMs, attempts))
+        return false;
+    if (respType != proto::kT_Pong || data.size() != 1) {
+        error = "unexpected PING response";
+        return false;
+    }
+    version = data[0];
+    return true;
+}
+
+bool DebugProtocol::GetInfo(DebugInfo& info, std::string& error, int timeoutMs, int attempts) {
+    std::uint8_t respType = 0;
+    std::vector<std::uint8_t> data;
+    if (!RoundTrip(proto::kT_GetInfo, {}, respType, data, error, timeoutMs, attempts))
+        return false;
+    if (respType != kT_Info || data.size() != 13) {
+        error = "unexpected GET_INFO response";
+        return false;
+    }
+    info.ipVersion = data[0];
+    info.fingerprint64 = 0;
+    for (int n = 0; n < 8; ++n)
+        info.fingerprint64 |= static_cast<std::uint64_t>(data[1 + n]) << (n * 8);
+    info.depth = static_cast<std::uint16_t>(data[9] | (data[10] << 8));
+    info.width = data[11];
+    info.flags = data[12];
+    return true;
+}
+
+bool DebugProtocol::Configure(std::uint32_t mask, std::uint32_t value, std::uint8_t decimation,
+                              std::uint8_t triggerMode, std::uint16_t triggerCount,
+                              std::string& error, int timeoutMs, int attempts) {
+    std::vector<std::uint8_t> data;
+    for (int b = 0; b < 4; ++b) {
+        data.push_back(static_cast<std::uint8_t>((mask >> (b * 8)) & 0xFF));
+    }
+    for (int b = 0; b < 4; ++b) {
+        data.push_back(static_cast<std::uint8_t>((value >> (b * 8)) & 0xFF));
+    }
+    data.push_back(decimation);
+    data.push_back(triggerMode & 0x07);
+    AppendU16LE(data, triggerCount);
+
+    std::uint8_t respType = 0;
+    std::vector<std::uint8_t> respData;
+    if (!RoundTrip(proto::kT_Config, data, respType, respData, error, timeoutMs, attempts))
+        return false;
+    if (respType != kT_Ack) {
+        error = "unexpected CONFIG response";
+        return false;
+    }
+    return true;
+}
+
+bool DebugProtocol::Arm(std::string& error, int timeoutMs, int attempts) {
+    std::uint8_t respType = 0;
+    std::vector<std::uint8_t> respData;
+    if (!RoundTrip(proto::kT_Arm, {}, respType, respData, error, timeoutMs, attempts))
+        return false;
+    if (respType != kT_Ack) {
+        error = "unexpected ARM response";
+        return false;
+    }
+    return true;
+}
+
+bool DebugProtocol::Status(DebugStatusInfo& status, std::string& error, int timeoutMs,
+                           int attempts) {
+    std::uint8_t respType = 0;
+    std::vector<std::uint8_t> data;
+    if (!RoundTrip(proto::kT_Status, {}, respType, data, error, timeoutMs, attempts))
+        return false;
+    if (respType != kT_Status || data.size() < 3) {
+        error = "unexpected STATUS response";
+        return false;
+    }
+    status.flags = data[0];
+    status.triggerIndex = static_cast<std::uint16_t>(data[1] | (data[2] << 8));
+    return true;
+}
+
+bool DebugProtocol::ReadSamples(std::uint16_t start, std::uint16_t count,
+                                std::vector<std::uint32_t>& samples, std::string& error,
+                                int timeoutMs, int attempts) {
+    if (count != proto::kMaxSamples) {
+        error = "READ supports exactly " + std::to_string(proto::kMaxSamples) +
+                " sample; use ReadCapture for a range";
+        return false;
+    }
+    std::vector<std::uint8_t> data;
+    AppendU16LE(data, start);
+    AppendU16LE(data, count);
+
+    std::uint8_t respType = 0;
+    std::vector<std::uint8_t> respData;
+    if (!RoundTrip(kT_Read, data, respType, respData, error, timeoutMs, attempts))
+        return false;
+    if (respType != kT_Samples || respData.size() < 4) {
+        error = "unexpected READ response";
+        return false;
+    }
+    const std::uint16_t gotStart = static_cast<std::uint16_t>(respData[0] | (respData[1] << 8));
+    const std::uint16_t gotCount = static_cast<std::uint16_t>(respData[2] | (respData[3] << 8));
+    const std::size_t expectedSize = 4 + static_cast<std::size_t>(gotCount) * 4;
+    if (gotStart != start || gotCount != count || respData.size() != expectedSize) {
+        error = "READ response range mismatch";
+        return false;
+    }
+    samples.clear();
+    samples.reserve(gotCount);
+    for (int i = 0; i < gotCount; ++i) {
+        std::uint32_t s = 0;
+        for (int b = 0; b < 4; ++b)
+            s |= static_cast<std::uint32_t>(respData[4 + i * 4 + b]) << (b * 8);
+        samples.push_back(s);
+    }
+    return true;
+}
+
+bool DebugProtocol::ReadCapture(std::uint16_t start, std::uint16_t count,
+                                std::vector<std::uint32_t>& samples, std::string& error,
+                                int timeoutMs, int attempts) {
+    return ReadCapture(start, count, samples, error, timeoutMs, attempts, nullptr);
+}
+
+bool DebugProtocol::ReadCapture(std::uint16_t start, std::uint16_t count,
+                                std::vector<std::uint32_t>& samples, std::string& error,
+                                int timeoutMs, int attempts, const ReadProgressCb& progressCb) {
+    return ReadCaptureCancellable(start, count, samples, error, timeoutMs, attempts, progressCb,
+                                  {});
+}
+
+bool DebugProtocol::ReadCaptureCancellable(std::uint16_t start, std::uint16_t count,
+                                           std::vector<std::uint32_t>& samples, std::string& error,
+                                           int timeoutMs, int attempts,
+                                           const ReadProgressCb& progressCb,
+                                           const ReadContinueCb& shouldContinue) {
+    samples.clear();
+    samples.reserve(count);
+    const std::uint32_t total = count;
+    // 用 32 位游标推进。旧实现 pos 是 std::uint16_t：
+    //   * 上界 start + count 会按 int 提升，可能 > 65535；
+    //   * pos + chunk 再转回 uint16 会在 65535 处回绕成 0，永远到不了上界
+    //     → 无限循环、每条样本一次 USB 往返，直到内存耗尽。
+    const std::uint32_t end = static_cast<std::uint32_t>(start) + count;
+    std::uint32_t pos = start;
+
+    // ---- 进度回调节流 ----
+    // 本函数按 kMaxSamples(=1) 分块，即**每个样本一次串口往返**；若每个样本都
+    // 回调一次进度，上层（TraceBridge）会为每条进度做一次重量级 UI 更新
+    // （跨线程投递 + 列表插入/逐行上色/头部裁剪/EnsureVisible 滚动重绘），
+    // 一次 1024 深度的采集就是 1024 条、65535 深度就是 65535 条 ——
+    // 界面会被彻底拖死（表现为回读样本阶段假死）。
+    //
+    // 策略：首帧与末帧必报；其余取"样本步长"与"时间间隔"二者先到者，
+    // 保证慢链路下最多约 10 次/秒、快链路下最多约 total/kProgressSampleStride 次。
+    constexpr std::uint32_t kProgressSampleStride = 256;
+    constexpr auto kProgressMinInterval = std::chrono::milliseconds(100);
+
+    std::uint32_t lastReported = 0;
+    auto lastReportTime = std::chrono::steady_clock::now();
+    if (progressCb) {
+        try {
+            progressCb(0, total);
+        } catch (...) {
+        }
+    }
+
+    while (pos < end) {
+        if (shouldContinue && !shouldContinue()) {
+            error = "capture read interrupted";
+            return false;
+        }
+        const std::uint16_t chunk =
+            static_cast<std::uint16_t>(std::min<std::size_t>(proto::kMaxSamples, end - pos));
+        std::vector<std::uint32_t> part;
+        if (!ReadSamples(static_cast<std::uint16_t>(pos), chunk, part, error, timeoutMs,
+                         attempts)) {
+            error = "read chunk [" + std::to_string(pos) + "," + std::to_string(pos + chunk) +
+                    ") failed: " + error;
+            return false;
+        }
+        samples.insert(samples.end(), part.begin(), part.end());
+        pos += chunk;
+
+        if (progressCb) {
+            const std::uint32_t got = static_cast<std::uint32_t>(samples.size());
+            const bool finished = (pos >= end);
+            const bool strideDue = (got - lastReported) >= kProgressSampleStride;
+            const bool timeDue =
+                (std::chrono::steady_clock::now() - lastReportTime) >= kProgressMinInterval;
+            if (finished || strideDue || timeDue) {
+                lastReported = got;
+                lastReportTime = std::chrono::steady_clock::now();
+                try {
+                    progressCb(got, total);
+                } catch (...) {
+                }
+            }
+        }
+    }
+    return true;
+}
+
+bool DebugProtocol::Reset(std::string& error, int timeoutMs, int attempts) {
+    std::uint8_t respType = 0;
+    std::vector<std::uint8_t> respData;
+    if (!RoundTrip(proto::kT_Reset, {}, respType, respData, error, timeoutMs, attempts))
+        return false;
+    if (respType != kT_Ack) {
+        error = "unexpected RESET response";
+        return false;
+    }
+    return true;
+}
+
+MinimalDebugProtocol::MinimalDebugProtocol(ITransport& transport) : transport_(transport) {}
+
+bool MinimalDebugProtocol::Reconnect(std::string& error) {
+    transport_.Close();
+    if (!transport_.Open()) {
+        error = "reconnect open failed";
+        return false;
+    }
+    return true;
+}
+
+bool MinimalDebugProtocol::Command(std::uint8_t command, const std::vector<std::uint8_t>& data,
+                                   std::uint8_t expectedResponse, std::size_t expectedSize,
+                                   std::vector<std::uint8_t>& response, std::string& error,
+                                   int timeoutMs, int attempts) {
+    if (autoReconnect_ && !transport_.IsOpen() && !Reconnect(error))
+        return false;
+    ++stats_.commandCalls;
+    std::vector<std::uint8_t> request = {0xA5, command};
+    request.insert(request.end(), data.begin(), data.end());
+    for (int attempt = 0; attempt < attempts; ++attempt) {
+        ++stats_.attempts;
+        if (attempt > 0)
+            ++stats_.retries;
+        if (!transport_.Write(request.data(), request.size(), timeoutMs)) {
+            ++stats_.writeFailures;
+            error = transport_.IsOpen() ? "write failed" : "link lost";
+            return false;
+        }
+
+        // Resynchronize on the two-byte response header.  A fixed command is
+        // issued only after the previous reply was completely consumed.
+        std::uint8_t byte = 0;
+        bool header = false;
+        const auto deadline =
+            std::chrono::steady_clock::now() + std::chrono::milliseconds(timeoutMs);
+        while (std::chrono::steady_clock::now() < deadline) {
+            const auto now = std::chrono::steady_clock::now();
+            int remain = static_cast<int>(
+                std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now).count());
+            if (remain < 1)
+                remain = 1;
+            if (!ReadExact(transport_, &byte, 1, remain, error)) {
+                if (transport_.IsOpen())
+                    ++stats_.responseTimeouts;
+                break;
+            }
+            if (!header) {
+                header = byte == 0x5A;
+            } else if (byte == expectedResponse) {
+                response.assign(expectedSize, 0);
+                if (expectedSize == 0 ||
+                    ReadExact(transport_, response.data(), expectedSize, remain, error)) {
+                    return true;
+                }
+                if (transport_.IsOpen())
+                    ++stats_.responseTimeouts;
+                break;
+            } else {
+                ++stats_.invalidResponses;
+                header = byte == 0x5A;
+            }
+        }
+        if (!transport_.IsOpen())
+            return false;
+    }
+    if (error.empty())
+        error = "no valid response after retries";
+    return false;
+}
+
+bool MinimalDebugProtocol::Configure(std::uint32_t mask, std::uint32_t value, std::string& error,
+                                     int timeoutMs, int attempts) {
+    std::vector<std::uint8_t> data;
+    for (int b = 0; b < 4; ++b)
+        data.push_back(static_cast<std::uint8_t>(mask >> (b * 8)));
+    for (int b = 0; b < 4; ++b)
+        data.push_back(static_cast<std::uint8_t>(value >> (b * 8)));
+    std::vector<std::uint8_t> response;
+    return Command(0x10, data, 0x90, 0, response, error, timeoutMs, attempts);
+}
+
+bool MinimalDebugProtocol::Arm(std::string& error, int timeoutMs, int attempts) {
+    std::vector<std::uint8_t> response;
+    return Command(0x11, {}, 0x90, 0, response, error, timeoutMs, attempts);
+}
+
+bool MinimalDebugProtocol::Status(DebugStatusInfo& status, std::string& error, int timeoutMs,
+                                  int attempts) {
+    std::vector<std::uint8_t> response;
+    if (!Command(0x12, {}, 0x92, 3, response, error, timeoutMs, attempts))
+        return false;
+    status.flags = response[0];
+    status.triggerIndex = static_cast<std::uint16_t>(response[1] | (response[2] << 8));
+    return true;
+}
+
+bool MinimalDebugProtocol::ReadCapture(std::uint16_t start, std::uint16_t count,
+                                       std::vector<std::uint32_t>& samples, std::string& error,
+                                       int timeoutMs, int attempts) {
+    return ReadCapture(start, count, samples, error, timeoutMs, attempts, nullptr);
+}
+
+bool MinimalDebugProtocol::ReadCapture(std::uint16_t start, std::uint16_t count,
+                                       std::vector<std::uint32_t>& samples, std::string& error,
+                                       int timeoutMs, int attempts,
+                                       const ReadProgressCb& progressCb) {
+    return ReadCaptureCancellable(start, count, samples, error, timeoutMs, attempts, progressCb,
+                                  {});
+}
+
+bool MinimalDebugProtocol::ReadCaptureCancellable(std::uint16_t start, std::uint16_t count,
+                                                  std::vector<std::uint32_t>& samples,
+                                                  std::string& error, int timeoutMs, int attempts,
+                                                  const ReadProgressCb& progressCb,
+                                                  const ReadContinueCb& shouldContinue) {
+    samples.clear();
+    samples.reserve(count);
+    const std::uint32_t total = count;
+    if (progressCb) {
+        try {
+            progressCb(0, total);
+        } catch (...) {
+        }
+    }
+    for (std::uint32_t address = start; address < static_cast<std::uint32_t>(start) + count;
+         ++address) {
+        if (shouldContinue && !shouldContinue()) {
+            error = "capture read interrupted";
+            return false;
+        }
+        std::vector<std::uint8_t> request;
+        AppendU16LE(request, static_cast<std::uint16_t>(address));
+        std::vector<std::uint8_t> response;
+        if (!Command(0x13, request, 0x93, 4, response, error, timeoutMs, attempts)) {
+            error = "read sample " + std::to_string(address) + " failed: " + error;
+            return false;
+        }
+        std::uint32_t sample = 0;
+        for (int b = 0; b < 4; ++b)
+            sample |= static_cast<std::uint32_t>(response[b]) << (b * 8);
+        samples.push_back(sample);
+        // minimal 协议是单样本读，每 16 样本 or 完成时回调，回调率限制 <= 128 次
+        const std::uint32_t got = static_cast<std::uint32_t>(samples.size());
+        if (progressCb && ((got == total) || ((got & 0xFu) == 0u))) {
+            try {
+                progressCb(got, total);
+            } catch (...) {
+            }
+        }
+    }
+    return true;
+}
+
+bool MinimalDebugProtocol::Reset(std::string& error, int timeoutMs, int attempts) {
+    std::vector<std::uint8_t> response;
+    return Command(0x14, {}, 0x90, 0, response, error, timeoutMs, attempts);
+}
+
+bool SaveCaptureRaw(const std::string& path, std::uint32_t depth, std::uint32_t width,
+                    std::uint16_t start, const std::vector<std::uint32_t>& samples,
+                    std::string& error) {
+    error.clear();
+    if (depth == 0 || depth > kMaxRawDepth || width == 0 || width > 32 || samples.empty() ||
+        samples.size() > kMaxRawDepth ||
+        static_cast<std::uint64_t>(start) + samples.size() > depth) {
+        error = "invalid capture.raw depth, width, start, or sample count";
+        return false;
+    }
+    const std::uint32_t mask = width == 32 ? 0xFFFFFFFFu : (1u << width) - 1u;
+    if (std::any_of(samples.begin(), samples.end(),
+                    [mask](std::uint32_t sample) { return (sample & ~mask) != 0; })) {
+        error = "capture.raw sample exceeds declared width";
+        return false;
+    }
+
+    std::vector<std::uint8_t> data;
+    data.reserve(32 + samples.size() * sizeof(std::uint32_t));
+    const auto appendU32 = [&data](std::uint32_t value) {
+        data.push_back(static_cast<std::uint8_t>(value & 0xFF));
+        data.push_back(static_cast<std::uint8_t>((value >> 8) & 0xFF));
+        data.push_back(static_cast<std::uint8_t>((value >> 16) & 0xFF));
+        data.push_back(static_cast<std::uint8_t>((value >> 24) & 0xFF));
+    };
+    constexpr std::array<std::uint8_t, 8> magic{'S', 'F', 'D', 'B', 'G', 'R', 'A', 'W'};
+    data.insert(data.end(), magic.begin(), magic.end());
+    appendU32(1);
+    appendU32(depth);
+    appendU32(width);
+    appendU32(start);
+    appendU32(static_cast<std::uint32_t>(samples.size()));
+    appendU32(0);
+    for (std::uint32_t s : samples)
+        appendU32(s);
+    return WriteCaptureRawAtomic(path, data, error);
+}
+
+}  // namespace debug
+}  // namespace eda

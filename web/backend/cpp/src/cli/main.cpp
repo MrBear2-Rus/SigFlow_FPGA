@@ -21,6 +21,8 @@
 #include "plugins/sim-verilator/VerilatorProviders.h"
 #include "plugins/cst-gowin-cst/BoardCommands.h"
 #include "analysis/AnalysisCommand.h"
+#include "debug/DeviceCommands.h"
+#include "plugins/wave-vcd/WaveCommand.h"
 #endif
 #include <csignal>
 #include <atomic>
@@ -79,8 +81,8 @@ const CommandHelp kCommands[] = {
      "run --job-type <synth|pnr|pack|flash|sim.build|sim.run> "
      "--work-dir <dir> --job-id <id> --project <dir> --project-id <id> --params <json-file|->"},
     {"wave", "wave signals --vcd <file>\n"
-             "       wave query   --vcd <file> --signals <a,b,...> --begin <t> --end <t>\n"
-             "       wave serve   (stdin/stdout JSONL；每用户一个常驻子进程)"},
+             "       wave query   --vcd <file> --signals <id> --begin <t> --end <t>\n"
+             "       wave serve   (stdin/stdout JSONL；每用户一个常驻子进程，协议草案待联调)"},
     {"structure", "structure --file <path>"},
     {"lint", "lint --file <path> --project-root <dir>"},
     {"validate", "validate cst  --cst <file> --pins <json>\n"
@@ -145,7 +147,7 @@ int main(int argc, char** argv) {
     }
 
     std::signal(SIGPIPE, SIG_IGN);
-    struct sigaction action {};
+    struct sigaction action{};
     action.sa_handler = OnSignal;
     sigemptyset(&action.sa_mask);
     // Interrupt a blocked --params stdin read as well as running providers.
@@ -233,10 +235,14 @@ int main(int argc, char** argv) {
         }
     }
 #ifndef SIGFLOW_TEST_PROVIDER
+    if (first == "wave")
+        return eda::wave::WaveCommand(argc, argv, Emit);
     if (first == "structure" || first == "lint")
         return eda::analysis::AnalysisCommand(argc, argv, Emit);
     if (first == "target" || first == "validate")
         return eda::web::BoardCommand(argc, argv, Emit, SIGFLOW_DEFAULT_DATA_DIR);
+    if (first == "devices")
+        return eda::debug::DeviceCommand(argc, argv, Emit);
 #endif
     try {
         Emit(eda::Json{{"type", "diagnostic"},

@@ -368,6 +368,10 @@ endif()
 if(SIGFLOW_BUILD_TESTS)
     find_package(Python3 QUIET COMPONENTS Interpreter)
     if(Python3_Interpreter_FOUND)
+        add_test(NAME test_wave_integration COMMAND "${Python3_EXECUTABLE}"
+            "${SIGFLOW_CPP_DIR}/tests/wave_integration.py"
+            "$<TARGET_FILE:sigflow-tool>" "${CMAKE_BINARY_DIR}")
+        set_tests_properties(test_wave_integration PROPERTIES TIMEOUT 60)
         add_test(NAME test_analysis_integration COMMAND "${Python3_EXECUTABLE}"
             "${SIGFLOW_CPP_DIR}/tests/analysis_integration.py"
             "$<TARGET_FILE:sigflow-tool>" "${CMAKE_BINARY_DIR}")
