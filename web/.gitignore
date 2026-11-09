@@ -1,5 +1,6 @@
 /build/
 /build-*/
+/.nvm/
 
 # 运行期数据：用户表与用户工程不应入库
 /backend/database/*

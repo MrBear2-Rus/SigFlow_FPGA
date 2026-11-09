@@ -3,7 +3,7 @@
 # 部署 web/ 到 maomio.top 服务器（SigFlow）
 #
 #   ./deploy.sh                    # 默认部署到 root@maomio.top:/root/web
-#   DEPLOY_PASSWORD=xxx ./deploy.sh   # 非交互（密码认证）
+#   dpwd=xxx ./deploy.sh   # 非交互（密码认证）
 #   DRY_RUN=1 ./deploy.sh             # 只演练，不改远端
 #   BUILD=0 ./deploy.sh               # 不重新编译 C++，只更新 web 层
 #
@@ -28,12 +28,19 @@
 #   JOBS=<nproc>                    cmake 并行度
 #   KEEP_ZIP=0                      1=保留本地 zip
 #   DRY_RUN=0                       1=只打印会变动的文件，不做任何修改
-#   DEPLOY_PASSWORD                 ssh 密码（不设则走交互/密钥）
+#   dpwd                 ssh 密码；必须 export 或写在命令前：
+#                                     export dpwd='...'
+#                                     dpwd='...' ./deploy.sh
 #   DEPLOY_SSH_CONFIG=/dev/null     本机 /etc/ssh/ssh_config.d 权限异常，默认不吃系统配置
 # =============================================================================
 
+# 被 zsh/sh 直接执行时，切回 bash（脚本用到了数组与 BASH_SOURCE）。
+if [ -z "${BASH_VERSION:-}" ]; then
+    exec /usr/bin/env bash "$0" "$@"
+fi
+
 set -euo pipefail
-cd "$(dirname "${BASH_SOURCE[0]}")"
+cd "$(dirname "${BASH_SOURCE[0]:-$0}")"
 
 DEPLOY_REMOTE="${DEPLOY_REMOTE:-root@maomio.top}"
 DEPLOY_PATH="${DEPLOY_PATH:-/root/web}"
@@ -77,11 +84,18 @@ SCP_OPTS=(
     -P "$DEPLOY_PORT"
 )
 
+if [ -z "${dpwd:-}" ] && [ -t 0 ]; then
+    printf 'SSH 密码（回车跳过，改用密钥）：'
+    IFS= read -rs dpwd
+    printf '\n'
+    export dpwd
+fi
+
 # 密码认证：用一次性 askpass 脚本，避免依赖 sshpass
 ASKPASS_FILE=""
-if [ -n "${DEPLOY_PASSWORD:-}" ]; then
+if [ -n "${dpwd:-}" ]; then
     ASKPASS_FILE="$(mktemp)"
-    PW_B64="$(printf '%s' "$DEPLOY_PASSWORD" | base64 | tr -d '\n')"
+    PW_B64="$(printf '%s' "$dpwd" | base64 | tr -d '\n')"
     {
         echo '#!/bin/sh'
         echo "echo '${PW_B64}' | base64 -d"
@@ -114,20 +128,22 @@ trap cleanup_local EXIT
 
 # ---- 1. 打包 ---------------------------------------------------------------
 echo "==> [1/5] 打包 web/（排除 build、运行期数据与缓存）"
+# zip 用 `zip -r .` 时条目带 "./" 前缀，排除模式必须同样带前缀。
 EXCLUDES=(
-    "build/*"
-    "build-*/*"
-    ".git/*"
-    ".shots/*"
-    ".pytest_cache/*"
-    "node_modules/*"
+    "./build/*"
+    "./build-*/*"
+    "./.git/*"
+    "./.nvm/*"
+    "./.shots/*"
+    "./.pytest_cache/*"
+    "./node_modules/*"
     "*/__pycache__/*"
-    "*.zip"
-    "*.pyc"
-    ".DS_Store"
-    "deploy.sh"
-    "backend/database/*"
-    "backend/userprojects/*"
+    "./*.zip"
+    "./*.pyc"
+    "./.DS_Store"
+    "./deploy.sh"
+    "./backend/database/*"
+    "./backend/userprojects/*"
 )
 if [ "$PRESERVE_CONFIG" = "1" ]; then
     EXCLUDES+=("config.txt")

@@ -23,6 +23,7 @@ import { JobManager } from "../jobs/job-manager.js";
 import { artifactPath } from "../jobs/job-dir.js";
 import { ProjectStore } from "../projects/project-store.js";
 import { TargetStore } from "../projects/target-store.js";
+import { WaveManager } from "../wave/manager.js";
 import {
     SESSION_COOKIE,
     SessionStore,
@@ -80,6 +81,7 @@ export function createApp({
     logger = createLogger({ scope: "http" }),
 } = {}) {
     let agentManagerRef = agentManager;
+    const loginAttempts = new Map();
     const users = new UserStore({ file: join(databaseDir, "users.json") });
     const sessions = new SessionStore({
         ttlSec: sessionTtlSec,
@@ -87,6 +89,7 @@ export function createApp({
     });
     const projects = new ProjectStore({ root: userprojectsRoot, maxFileBytes });
     const targetStore = new TargetStore({ root: join(staticRoot, "target-profiles") });
+    const waveManager = new WaveManager({ toolPath, logger });
     const manager = new JobManager({
         toolPath,
         maxGlobal,
@@ -120,6 +123,22 @@ export function createApp({
         const path = decodeURIComponent(url.pathname);
         const method = req.method ?? "GET";
 
+        // 同源检查：浏览器跨站表单/脚本带 Origin，直接拒绝状态变更请求。
+        if (method !== "GET" && method !== "HEAD") {
+            const origin = req.headers.origin;
+            if (origin) {
+                let host = "";
+                try {
+                    host = new URL(origin).host;
+                } catch {
+                    host = "";
+                }
+                if (host !== req.headers.host) {
+                    throw new HttpError(403, "跨站请求被拒绝", "CSRF_BLOCKED");
+                }
+            }
+        }
+
         // ---- 公开路由 ------------------------------------------------------
         if (path === "/api/health" && method === "GET") {
             return sendJson(res, 200, {
@@ -136,9 +155,22 @@ export function createApp({
         }
         if (path === "/api/session" && method === "POST") {
             const body = await readJson(req);
+            const attemptKey = `${req.socket.remoteAddress ?? "?"}:${body.userId ?? ""}`;
+            const now = Date.now();
+            const attempt = loginAttempts.get(attemptKey);
+            if (attempt && attempt.blockedUntil > now) {
+                res.setHeader("Retry-After", String(Math.ceil((attempt.blockedUntil - now) / 1000)));
+                throw new HttpError(429, "尝试次数过多，请稍后再试", "RATE_LIMITED");
+            }
             if (!(await users.verify(body.userId, body.password))) {
+                const failures = (attempt?.failures ?? 0) + 1;
+                loginAttempts.set(attemptKey, {
+                    failures,
+                    blockedUntil: failures >= 5 ? now + 5 * 60 * 1000 : 0,
+                });
                 throw new HttpError(401, "用户名或密码错误", "UNAUTHENTICATED");
             }
+            loginAttempts.delete(attemptKey);
             const token = sessions.create(body.userId);
             res.setHeader("Set-Cookie", sessionCookie(token, { maxAgeSec: sessionTtlSec }));
             return sendJson(res, 200, { userId: body.userId });
@@ -182,6 +214,17 @@ export function createApp({
     async function handleApi(req, res, url, path, method, session) {
         const { userId, token } = session;
 
+        if (path === "/api/devices" && method === "GET") {
+            const result = await runToolCommand({ toolPath, args: ["devices", "list"] });
+            if (result.exitCode === 3) {
+                throw new HttpError(501, "C++ 侧尚未实现 devices", "NOT_IMPLEMENTED");
+            }
+            const event = result.events.find((item) => item.type === "result" && item.data);
+            if (result.exitCode !== 0 || !event) {
+                throw new HttpError(502, result.error ?? "设备枚举失败", "DEVICES_FAILED");
+            }
+            return sendJson(res, 200, event.data);
+        }
         if (path === "/api/targets" && method === "GET") {
             return sendJson(res, 200, { targets: await targetStore.list() });
         }
@@ -216,6 +259,10 @@ export function createApp({
             throw new HttpError(405, "方法不被允许", "METHOD_NOT_ALLOWED");
         }
 
+        if (path === "/api/projects/import" && method === "POST") {
+            return importProject(req, res, userId);
+        }
+
         const projectMatch = /^\/api\/projects\/([^/]+)(?:\/(.*))?$/.exec(path);
         if (projectMatch) {
             const [, projectId, rest = ""] = projectMatch;
@@ -245,6 +292,96 @@ export function createApp({
         throw new HttpError(404, "未找到", "NOT_FOUND");
     }
 
+    async function exportProject(res, userId, projectId) {
+        const metadata = await projects.metadata(userId, projectId);
+        const tree = await projects.listFiles(userId, projectId);
+        const files = [];
+        let total = 0;
+        let skipped = 0;
+        for (const entry of (tree.files ?? []).filter((item) => item.type === "file")) {
+            try {
+                const content = await projects.readFile(userId, projectId, entry.path);
+                if (total + Buffer.byteLength(content) > 4 * 1024 * 1024) {
+                    skipped += 1;
+                    continue;
+                }
+                total += Buffer.byteLength(content);
+                files.push({ path: entry.path, content });
+            } catch {
+                skipped += 1;
+            }
+        }
+        const canvas = await projects.readCanvas(userId, projectId);
+        const bundle = {
+            schema: "sigflow.export.v1",
+            exportedAt: new Date().toISOString(),
+            project: {
+                projectId: metadata.projectId,
+                name: metadata.name ?? metadata.projectId,
+                template: metadata.template ?? "blank",
+            },
+            files,
+            canvas,
+            skipped,
+        };
+        const body = JSON.stringify(bundle);
+        res.writeHead(200, {
+            "content-type": "application/json; charset=utf-8",
+            "content-disposition": `attachment; filename="${projectId}.sigflow.json"`,
+            "content-length": Buffer.byteLength(body),
+        });
+        res.end(body);
+    }
+
+    async function importProject(req, res, userId) {
+        const raw = await readRawBody(req, 8 * 1024 * 1024);
+        let bundle;
+        try {
+            bundle = JSON.parse(raw);
+        } catch {
+            throw new HttpError(400, "导入文件不是合法 JSON", "INVALID_BUNDLE");
+        }
+        if (bundle?.schema !== "sigflow.export.v1") {
+            throw new HttpError(400, "不是 SigFlow 导出文件", "INVALID_BUNDLE");
+        }
+        const project = bundle.project ?? {};
+        const projectId = typeof project.projectId === "string" ? project.projectId : "";
+        if (!/^[A-Za-z0-9._-]{1,64}$/.test(projectId)) {
+            throw new HttpError(400, "工程 ID 不合法", "INVALID_PROJECT_ID");
+        }
+        if (await projects.exists(userId, projectId)) {
+            throw new HttpError(409, `工程已存在：${projectId}`, "PROJECT_EXISTS");
+        }
+        const files = Array.isArray(bundle.files) ? bundle.files : [];
+        if (files.length > 200) throw new HttpError(400, "文件过多", "TOO_MANY_FILES");
+        let total = 0;
+        for (const file of files) {
+            if (typeof file?.path !== "string" || typeof file?.content !== "string") {
+                throw new HttpError(400, "导入文件缺少 path 或 content", "INVALID_BUNDLE");
+            }
+            total += Buffer.byteLength(file.content);
+        }
+        if (total > 8 * 1024 * 1024) throw new HttpError(413, "导入内容过大", "PAYLOAD_TOO_LARGE");
+
+        await projects.create(userId, projectId, {
+            name: typeof project.name === "string" && project.name ? project.name : projectId,
+            template: "blank",
+        });
+        let written = 0;
+        for (const file of files) {
+            try {
+                await projects.writeFile(userId, projectId, file.path, file.content);
+                written += 1;
+            } catch {
+                /* 跳过不支持的扩展名/路径 */
+            }
+        }
+        if (bundle.canvas && typeof bundle.canvas === "object") {
+            await projects.writeCanvas(userId, projectId, bundle.canvas);
+        }
+        return sendJson(res, 201, { projectId, files: written });
+    }
+
     async function handleProject(req, res, url, method, userId, projectId, rest) {
         if (rest === "") {
             if (method === "GET") return sendJson(res, 200, await projects.metadata(userId, projectId));
@@ -261,6 +398,72 @@ export function createApp({
                 return sendJson(res, 200, await projects.writeCanvas(userId, projectId, body));
             }
             throw new HttpError(405, "方法不被允许", "METHOD_NOT_ALLOWED");
+        }
+        if (rest === "wave/artifacts" && method === "GET") {
+            return sendJson(res, 200, { artifacts: await projects.listWaveArtifacts(userId, projectId) });
+        }
+        if (rest === "export" && method === "GET") {
+            return exportProject(res, userId, projectId);
+        }
+        if (rest === "wave/open") {
+            if (method !== "POST") throw new HttpError(405, "方法不被允许", "METHOD_NOT_ALLOWED");
+            const body = await readJson(req);
+            const vcd = body.vcd;
+            if (typeof vcd !== "string" ||
+                !/^\.sigflow\/agent\/jobs\/sim\.run\/[^/]+\/artifacts\/.+\.vcd$/.test(vcd)) {
+                throw new HttpError(400, "只接受本工程 sim.run 产物中的 .vcd", "INVALID_VCD");
+            }
+            const absolute = await projects.artifactFile(userId, projectId, vcd);
+            const worker = await waveManager.forUser(userId);
+            try {
+                return sendJson(res, 200, await worker.request("open", { vcd: absolute }));
+            } catch (error) {
+                throw waveError(error);
+            }
+        }
+        if (rest === "wave/signals") {
+            if (method !== "GET") throw new HttpError(405, "方法不被允许", "METHOD_NOT_ALLOWED");
+            const offset = numberParam(url.searchParams.get("offset"), 0);
+            const limit = numberParam(url.searchParams.get("limit"), 100);
+            const worker = await waveManager.forUser(userId);
+            try {
+                return sendJson(res, 200, await worker.request("signals", { offset, limit }));
+            } catch (error) {
+                throw waveError(error);
+            }
+        }
+        if (rest === "wave/query") {
+            if (method !== "POST") throw new HttpError(405, "方法不被允许", "METHOD_NOT_ALLOWED");
+            const body = await readJson(req);
+            if (!Number.isInteger(body.signal_id) || body.signal_id < 0) {
+                throw new HttpError(400, "signal_id 必须是非负整数", "INVALID_ARGUMENT");
+            }
+            for (const field of ["begin", "end"]) {
+                if (typeof body[field] !== "string" || !/^[0-9]{1,20}$/.test(body[field])) {
+                    throw new HttpError(400, `${field} 必须是十进制字符串`, "INVALID_ARGUMENT");
+                }
+            }
+            const worker = await waveManager.forUser(userId);
+            try {
+                return sendJson(res, 200, await worker.request("query", {
+                    signal_id: body.signal_id,
+                    begin: body.begin,
+                    end: body.end,
+                    offset: numberParam(body.offset, 0),
+                    limit: numberParam(body.limit, 100),
+                }));
+            } catch (error) {
+                throw waveError(error);
+            }
+        }
+        if (rest === "wave/close") {
+            if (method !== "POST") throw new HttpError(405, "方法不被允许", "METHOD_NOT_ALLOWED");
+            const worker = await waveManager.forUser(userId);
+            try {
+                return sendJson(res, 200, await worker.request("close"));
+            } catch (error) {
+                throw waveError(error);
+            }
         }
         if (rest === "constraints") {
             const target = url.searchParams.get("target") ?? "";
@@ -592,6 +795,7 @@ export function createApp({
             });
         },
         async close() {
+            await waveManager.stopAll();
             await manager.shutdown();
             await new Promise((resolvePromise) => {
                 server.close(() => resolvePromise());
@@ -617,10 +821,30 @@ function summarize(job) {
     };
 }
 
-async function readRawBody(req) {
+async function readRawBody(req, limit = 32 * 1024 * 1024) {
     const chunks = [];
-    for await (const chunk of req) chunks.push(chunk);
+    let size = 0;
+    for await (const chunk of req) {
+        size += chunk.length;
+        if (size > limit) throw new HttpError(413, "请求体过大", "PAYLOAD_TOO_LARGE");
+        chunks.push(chunk);
+    }
     return Buffer.concat(chunks).toString("utf8");
+}
+
+function numberParam(value, fallback) {
+    if (value === undefined || value === null || value === "") return fallback;
+    const number = Number(value);
+    return Number.isInteger(number) && number >= 0 ? number : fallback;
+}
+
+function waveError(error) {
+    const code = error.code ?? "WAVE_ERROR";
+    if (code === "INVALID_REQUEST" || code === "UNKNOWN_OPERATION" || code === "INVALID_ARGUMENT") {
+        return new HttpError(400, error.message, code);
+    }
+    if (code === "WAVE_UNAVAILABLE") return new HttpError(503, error.message, code);
+    return new HttpError(502, error.message, code);
 }
 
 function readJson(req) {

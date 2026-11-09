@@ -257,7 +257,7 @@ web/
 
 **工具发现顺序**：参数内 `yosys_path` 等 → `--tool-root` → 每工具环境变量（`SIGFLOW_YOSYS` 等）→ 默认 runtime（`SIGFLOW_TOOL_RUNTIME_DIR`）→ `PATH`；结果必须是可执行的普通文件。CMake 不下载、不编译这些工具。
 
-**当前实现进度**：`run` 支持 `synth / pnr / pack / sim.build / sim.run`（`flash` 仍返回 `3`）；`structure / lint / validate / target` 已实现；`capture / devices / wave` 仍是规划。
+**当前实现进度**：`run` 支持 `synth / pnr / pack / sim.build / sim.run`（`flash` 仍返回 `3`）；`structure / lint / validate / target / devices` 与 `wave signals/query/serve` 已实现；`capture` 的 CLI/JSONL 尚未接线。
 
 #### 3.6 契约与协作文档
 
@@ -417,15 +417,17 @@ Python Agent 是双向的：对 UI 提供 `/api/v1/sessions|runs|events`，同�
 |---|---|
 | 公开 | `GET /api/health`、`POST /api/users`（注册）、`POST /api/session`（登录） |
 | 会话 | `GET /api/session`、`DELETE /api/session` |
-| 工程 | `GET/POST /api/projects`、`GET/DELETE /api/projects/{id}` |
+| 工程 | `GET/POST /api/projects`、`GET/DELETE /api/projects/{id}`、`GET /api/projects/{id}/export`、`POST /api/projects/import` |
 | 文件 | `GET /api/projects/{id}/files`、`GET/PUT/DELETE /api/projects/{id}/file?path=`、`POST /api/projects/{id}/file/move` |
 | 画布 | `GET/PUT /api/projects/{id}/canvas` |
 | 语言服务 | `POST /api/projects/{id}/structure`、`POST /api/projects/{id}/lint` |
 | 目标板 | `GET /api/targets`、`GET /api/targets/{id}` |
+| 波形 | `GET /api/projects/{id}/wave/artifacts`、`POST .../wave/open`、`GET .../wave/signals`、`POST .../wave/query`、`POST .../wave/close` |
+| 设备 | `GET /api/devices` |
 | 约束 | `GET/PUT /api/projects/{id}/constraints?target=`、`POST /api/projects/{id}/validate-cst` |
 | 任务 | `POST/GET /api/jobs`、`GET /api/jobs/{id}`、`POST /api/jobs/{id}/cancel`、`GET /api/jobs/{id}/report`、`GET /api/jobs/{id}/events`（SSE）、`GET /api/jobs/{id}/artifacts/{name}` |
 | 静态 | `/static/*`（`backend/static/`）与 `frontend/` 下的 `/pages`、`/scripts`、`/styles`、`/assets`、`/vendor` |
-| 规划中 | 波形 `/api/wave/*`（等 C++ P7） |
+| 规划中 | capture `/api/capture/*`（等 C++ CLI/JSONL 与设备租约） |
 
 #### 7.4 共享数据
 
@@ -494,7 +496,7 @@ cmake --install build --prefix /opt/sigflow
 | D-15 | 画布存储 | 布局存 `<project>/.sigflow/canvas.json`，由 Node 校验与落盘 | 共同 | 2026-11-01 |
 | D-16 | 实况文档 | 每人增加 `history-<角色>.md`，实时改写描述各模块现状；计划变更时队友据此判断已完成的前提 | 共同 | 2026-11-01 |
 | D-17 | Agent 部署模型 | 每用户一个 Python sidecar（方案 A）：登录/打开 Agent 时启动，登出或空闲回收；token 绑定用户 | 共同 | 2026-11-03 |
-| D-18 | 波形协议 | 不先行发明协议，等 Bear2 的 `wave serve` 草案出来再评审冻结 | 共同 | 2026-11-03 |
+| D-18 | 波形协议 | 草案已出并评审（有条件通过），待 Bear2 回复 3 个细节后冻结 | 共同 | 2026-11-08 |
 
 ## 文档规范
 

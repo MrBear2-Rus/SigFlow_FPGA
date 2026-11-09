@@ -62,11 +62,16 @@ function render() {
         open.className = "btn btn-primary grow";
         open.textContent = "打开";
         open.addEventListener("click", () => openProject(project.projectId));
+        const exportLink = document.createElement("a");
+        exportLink.className = "btn";
+        exportLink.textContent = "导出";
+        exportLink.href = `/api/projects/${encodeURIComponent(project.projectId)}/export`;
+        exportLink.setAttribute("download", "");
         const remove = document.createElement("button");
         remove.className = "btn btn-danger";
         remove.textContent = "删除";
         remove.addEventListener("click", () => removeProject(project));
-        actions.append(open, remove);
+        actions.append(open, exportLink, remove);
 
         card.append(head, meta, actions);
         list.append(card);
@@ -208,6 +213,21 @@ async function boot() {
     }
     await load();
 }
+
+$("importProject").addEventListener("click", () => $("importFile").click());
+$("importFile").addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    try {
+        const bundle = JSON.parse(await file.text());
+        await api.post("/api/projects/import", bundle);
+        toast("工程已导入", { type: "success" });
+        await load();
+    } catch (error) {
+        toast(`导入失败：${error.message}`, { type: "error" });
+    }
+});
 
 $("newProject").addEventListener("click", createProject);
 $("emptyNew").addEventListener("click", createProject);

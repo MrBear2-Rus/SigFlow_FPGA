@@ -1,16 +1,19 @@
 > 负责人：js工
 > 类型：规划
-> 更新：2026-11-03
+> 更新：2026-11-08
 > 状态：进行中
-> 阶段：V3
+> 阶段：V11
 
 # js工 · 规划
 
 ## ① 当前目标
 
-UI 框架（U1–U7）与 Agent 托管（J6b）已完成。下一阶段补齐**不依赖 C++** 的功能面：
-约束/引脚、仿真、FPGA 串联、编辑器与画布增强、工程与安全。
-已完成能力见 [history-js.md](history-js.md)，架构见 [README](../README.md)。
+C++ 已交付 `wave serve`（P7）与 TraceBridge 地基（P8，capture 无 CLI）。下一阶段：
+**接入波形**（每用户 worker + `/api/wave/*` + 波形面板），评审 devices/capture 草案；
+V3（FPGA 串联）仍因本机缺 yosys/nextpnr/gowin_pack 暂缓。
+
+已完成能力见 [history-js.md](history-js.md)，架构见 [README](../README.md)，
+C++ 侧情况见 [history-cpp.md](history-cpp.md)。
 
 ## ② 已完成
 
@@ -18,57 +21,60 @@ UI 框架（U1–U7）与 Agent 托管（J6b）已完成。下一阶段补齐**�
 |---|---|
 | J0–J5 | 任务链路、HTTP/SSE、用户/工程/文件、编辑器、画布 |
 | U1–U7 | 六页面 UI 框架、浅色主题、伪停靠、三个独立窗口、断链与文档检查 |
-| J6b | Agent 方案 A：每用户 sidecar、Gateway 兼容路由、`/api/agent/*` 代理、助手面板 |
-| 仍阻塞 | 波形（C++ P7）、TraceBridge 运行时（P8）、flash（P4 剩余） |
+| J6b | Agent 方案 A：每用户 sidecar、Gateway、代理、助手面板 |
+| V1–V7 | 约束/引脚、仿真、编辑器、画布、文件与会话、浏览器冒烟 |
+| 评审 | analysis / target / nextpnr / pack / simulation 五份草案已回意见 |
 
 ## ③ 新阶段与验收
 
 | 阶段 | 内容 | 验收 |
 |---|---|---|
-| V1 | 约束 / 引脚绑定 UI | ✅ 引脚表、筛选、信号绑定、`.cst` 读写、`validate cst` |
-| V2 | 仿真工作流 UI | ✅ `sim.build` / `sim.run` 表单与任务页，产物（sim_main / wave.vcd）可见 |
-| V3 | FPGA 串联与报告 | ⏸ 暂缓：本机无 yosys/nextpnr/gowin_pack，等工具环境 |
-| V4 | 编辑器增强 | ✅ 多文件页签、查找替换、诊断行标记与跳转 |
-| V5 | 画布增强 | ✅ 缩放/平移、框选多选、撤销/重做、标签与坐标编辑 |
-| V6 | 工程与安全 | ✅ 文件重命名/移动/删除；会话持久化（token 哈希落盘） |
-| V7 | 打磨与自动化 | ✅ 浏览器冒烟 12 项、401 统一跳转、网络错误提示、`web_smoke` 目标 |
+| V8 | 波形接入 | ✅ 每用户 worker、产物扫描、`/api/wave/*`；波形页签可列信号、查询并绘制（游标/缩放留 V10） |
+| V9 | 设备与 TraceBridge | ✅ `/api/devices` + TraceBridge 设备列表；capture 评审已回（待 CLI/租约） |
+| V10 | 收尾（一） | ✅ 波形游标/缩放、CSRF 同源检查、登录限流 |
+| V11 | 收尾（二） | ✅ 工程导入导出（JSON bundle）；Node 22 ✅（28/28）；契约字段收敛待 cpp |
+| V3 | FPGA 串联与指标 | ⏸ 等本机 yosys / nextpnr / gowin_pack |
 
 ## ④ 阶段要点
 
-**V1 约束 / 引脚**
+**V8 波形**
 
-1. 数据源只用 `backend/static/target-profiles/*.json` 与 `*.pins.json`，不在前端硬编码引脚；
-2. 右侧栏「引脚绑定」页签显示引脚表，支持按名称/功能过滤；
-3. 绑定结果导出为 `.cst` 文本，写回工程文件；导入时解析并回填；
-4. 调 `POST /api/projects/{id}/...` 的校验接口（需新增 Node 端点转 `validate cst`）。
+1. `src/wave/worker.js`：每用户一个 `sigflow-tool wave serve`，JSONL 按 `id` 关联；
+   请求 ≤64 KiB、响应 ≤900 KiB，超限报错而不是截断；崩溃按退避重启，空闲回收。
+2. 项目切换：先 `close` 再 `open` 新 VCD；`open` 失败保留旧 trace（与草案一致）。
+3. 时间戳与 `begin/end` 全按字符串传输；`query` 一次只查一个 `signal_id`，
+   前端多信号就发多次请求，避免自行发明批量协议。
+4. HTTP：`GET /api/wave/signals`、`POST /api/wave/query`；VCD 只允许来自本工程
+   `sim.run` 产物，路径经 ProjectStore 校验。
+5. 前端：底部「波形」页签替换空态；信号树、时间窗、游标、翻页；渲染用 SVG。
 
-**V2 仿真**
+**V9 设备**
 
-1. 参数以 `contracts/run-v1/simulation-draft.md` 为准（评审后冻结）；
-2. 任务页复用 FPGA 工具的任务控制台组件；
-3. 波形查看仍等 P7，本阶段只做任务与产物列表。
+1. `GET /api/devices` 转 `sigflow-tool devices list`；TraceBridge 页展示端口与 FTDI 能力。
+2. capture 只做契约与租约设计：`device_id` + Node 设备表串行化，等 C++ 接 CLI 再落地。
+3. 不把 `ftdi_probe.device_present=null` 当成“没有设备”，要与 `false` 区分显示。
 
-**V3 串联**
+**V10 收尾**
 
-1. synth 产物路径 `.sigflow/agent/jobs/synth/<id>/artifacts/<file>` 作为 pnr 输入；
-2. pnr 产物同理传给 pack；
-3. 指标展示按 `nextpnr-metrics.schema.json` 草案实现，字段变化需同步。
+波形游标/缩放、CSRF 与登录限流、工程导入导出、Node 22 复验均已完成；契约收敛待 cpp 回复。
 
 ## ⑤ 下一步
 
-1. V3 待本机工具链就绪后恢复（synth→pnr→pack 串联与指标展示）。
-2. 收敛评审意见（H-CPP-009 / 012 / 018 / 019 / 021，结论见 handoff ⑤）。
-3. 引脚 `validate pins` 与波形查看按 C++ 进度接入。
-4. 登录限流、CSRF、工程导入导出留待后续迭代。
-5. 视觉逐像素校准需要原版截图。
+1. Node 22 复验已完成（nvm + v22.23.4，28/28）。
+2. capture 等 C++ 接 CLI/JSONL 与租约评审；当前只保留 devices 只读。
+3. V3 等工具链；H-CPP-007/011/015 随对应功能补测试与字段。
+4. 收敛 wave 3 个细节与 capture 请求字段。
+5. 上线前补 HTTPS 与注册策略。
 
 ## ⑥ 阻塞与依赖
 
-- 波形 / TraceBridge / flash 依赖 C++ P7、P8 与 P4 剩余项；
-- V3 的 synth→pnr→pack 串联依赖真实 yosys / nextpnr / gowin_pack，本机未安装，暂缓；
-- 约束、仿真、指标接口仍是草案，V1–V3 的字段以评审结果为准。
+- V3 需要 yosys / nextpnr-gowin / gowin_pack；
+- capture 需要 C++ 接 CLI/JSONL 并完成 D11 与设备租约；
+- 波形真实数据依赖 `sim.run` 产物与真实 Verilator（已有）；
+- Node 22 环境本机暂无，需临时下载或由集成方执行；
+- 逐像素视觉校准仍缺原版截图。
 
 ## ⑦ 相关决策
 
-D-17（每用户 Agent sidecar）、D-18（波形协议等 Bear2），其余见
-[README](../README.md) 的「决策记录」。
+D-17（每用户 Agent sidecar）、D-18（波形协议等 Bear2 草案——草案已到，进入评审），
+其余见 [README](../README.md) 的「决策记录」。

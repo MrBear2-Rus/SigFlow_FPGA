@@ -193,6 +193,55 @@ export class ProjectStore {
         return this.#textFile(userId, projectId, relPath, { mustExist: true });
     }
 
+    /** 列出 sim.run 产物中的 VCD（相对工程根，POSIX 分隔）。 */
+    async listWaveArtifacts(userId, projectId) {
+        if (!(await this.exists(userId, projectId))) {
+            throw projectError(404, "PROJECT_NOT_FOUND", `工程不存在：${projectId}`);
+        }
+        const projectDir = this.projectDir(userId, projectId);
+        const base = join(projectDir, ".sigflow", "agent", "jobs", "sim.run");
+        const found = [];
+        const walk = async (dir, depth) => {
+            if (depth > 4) return;
+            let entries;
+            try {
+                entries = await readdir(dir, { withFileTypes: true });
+            } catch {
+                return;
+            }
+            for (const entry of entries) {
+                const full = join(dir, entry.name);
+                if (entry.isDirectory()) await walk(full, depth + 1);
+                else if (entry.isFile() && entry.name.endsWith(".vcd")) {
+                    found.push(relative(projectDir, full).split(sep).join("/"));
+                }
+            }
+        };
+        await walk(base, 0);
+        return found.sort();
+    }
+
+    /** 返回工程内任意已存在产物（如 .vcd）的绝对路径；不做扩展名限制。 */
+    async artifactFile(userId, projectId, relPath) {
+        if (typeof relPath !== "string" || relPath === "" || isAbsolute(relPath)) {
+            throw projectError(400, "INVALID_PATH", "路径必须是非空相对路径");
+        }
+        if (!(await this.exists(userId, projectId))) {
+            throw projectError(404, "PROJECT_NOT_FOUND", `工程不存在：${projectId}`);
+        }
+        const dir = this.projectDir(userId, projectId);
+        const target = this.#inside(dir, relPath);
+        await this.#assertNoSymlink(dir, target);
+        let info;
+        try {
+            info = await lstat(target);
+        } catch {
+            throw projectError(404, "FILE_NOT_FOUND", `文件不存在：${relPath}`);
+        }
+        if (!info.isFile()) throw projectError(400, "NOT_A_FILE", `不是普通文件：${relPath}`);
+        return target;
+    }
+
     /** 画布布局：<project>/.sigflow/canvas.json */
     async readCanvas(userId, projectId) {
         const dir = this.projectDir(userId, projectId);

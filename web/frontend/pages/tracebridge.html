@@ -23,6 +23,14 @@
     <div class="win-body">
         <div class="split-2">
             <section class="card card-block">
+                <div class="analysis-head">
+                    <strong>设备</strong>
+                    <button class="btn btn-sm" id="devicesRefresh">刷新</button>
+                </div>
+                <div id="deviceList" class="device-list">
+                    <p class="muted small">尚未枚举</p>
+                </div>
+
                 <div data-tabs data-active="contract">
                     <div class="tab-list">
                         <button class="tab" data-tab="contract" aria-selected="true">1 契约</button>
@@ -47,8 +55,8 @@
                                 </select>
                             </div>
                             <p class="hint">
-                                契约字段与 C++ 的 capture 命令对应；当前 C++ P8 未实现，
-                                页面先保留结构，等协议冻结后接入。
+                                契约字段与 C++ 的 capture 命令对应；capture CLI 尚未接线，
+                                设备枚举已可用，采集等租约与 D11 评审后接入。
                             </p>
                         </div>
                         <div class="tab-panel" data-panel="runtime">

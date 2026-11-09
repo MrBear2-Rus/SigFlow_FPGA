@@ -904,3 +904,109 @@ g.selected > circle {
 .editor-search[hidden] {
     display: none;
 }
+
+/* ---- 波形面板 ------------------------------------------------------------ */
+.wave-panel {
+    gap: 8px;
+}
+
+.wave-range {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--fs-11);
+    color: var(--text-3);
+}
+
+.wave-range .input {
+    width: 110px;
+    height: 26px;
+    font-size: var(--fs-11);
+}
+
+.wave-signals {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 2px 12px;
+    max-height: 118px;
+    overflow: auto;
+}
+
+.wave-signal {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--fs-11);
+    color: var(--text-2);
+    min-width: 0;
+}
+
+.wave-signal span:first-of-type {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.wave-canvas {
+    min-height: 130px;
+    overflow: auto;
+    border: 1px solid var(--stroke);
+    border-radius: var(--r-sm);
+    background: #ffffff;
+    padding: 4px;
+    font-size: var(--fs-11);
+    color: var(--text-3);
+}
+
+.wave-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.wave-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    fill: var(--text-2);
+}
+
+.wave-line {
+    fill: none;
+    stroke: #2f6fdd;
+    stroke-width: 1.5;
+}
+
+.wave-tick {
+    stroke: #9aa3b2;
+    stroke-width: 1;
+}
+
+.wave-value {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    fill: var(--text-3);
+}
+
+.wave-grid {
+    stroke: #e6e9ef;
+    stroke-width: 1;
+}
+
+.wave-axis {
+    font-size: 10px;
+    fill: var(--text-3);
+    text-anchor: middle;
+}
+
+.wave-cursor {
+    stroke: #c1121f;
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
+    pointer-events: none;
+}
+
+.wave-cursor-text {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    fill: #c1121f;
+}

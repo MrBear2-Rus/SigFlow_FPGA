@@ -38,6 +38,18 @@ const ctx = {
     agent: { sessionId: null, messages: [], busy: false },
     tabs: [],
     search: { open: false, query: "", replacement: "" },
+    wave: {
+        opened: false,
+        meta: null,
+        signals: [],
+        selected: new Set(),
+        begin: "0",
+        end: "0",
+        data: new Map(),
+        artifacts: [],
+        error: "",
+        loading: false,
+    },
     board: {
         loaded: false,
         targets: [],
@@ -63,7 +75,7 @@ const PANELS = {
     property: { label: "属性", icon: ["ui", "file"], render: renderPropertyPanel },
     pins: { label: "引脚绑定", icon: ["signal", "module"], render: renderPinsPanel },
     terminal: { label: "终端", icon: ["ui", "start"], render: renderTerminalPanel },
-    wave: { label: "波形", icon: ["ui", "file_v"], render: () => placeholder("ui", "file_v", "波形", "C++ P7 wave serve 之后接入") },
+    wave: { label: "波形", icon: ["ui", "file_v"], render: renderWavePanel },
     assistant: { label: "助手", icon: ["signal", "icon"], render: renderAssistantPanel },
 };
 
@@ -1213,6 +1225,416 @@ function renderLibraryPanel() {
 
     wrap.append(grid, hint);
     return wrap;
+}
+
+function renderWavePanel() {
+    const wrap = document.createElement("div");
+    wrap.className = "ws-project-card wave-panel";
+
+    if (!ctx.wave.opened) {
+        wrap.append(placeholder("ui", "file_v", "波形", "打开一次 sim.run 产出的 wave.vcd"));
+        const actions = document.createElement("div");
+        actions.className = "analysis-head";
+        const load = document.createElement("button");
+        load.type = "button";
+        load.className = "btn btn-primary btn-sm";
+        load.textContent = "选择仿真产物";
+        load.disabled = ctx.wave.loading;
+        load.addEventListener("click", () => openWavePicker(load));
+        actions.append(load);
+        wrap.append(actions);
+        if (ctx.wave.error) {
+            const error = document.createElement("p");
+            error.className = "form-error";
+            error.textContent = ctx.wave.error;
+            wrap.append(error);
+        }
+        return wrap;
+    }
+
+    const head = document.createElement("div");
+    head.className = "analysis-head";
+    const meta = document.createElement("span");
+    meta.className = "muted small";
+    meta.textContent = `${ctx.wave.meta?.timescale ?? ""} · ${ctx.wave.signals.length} 个信号`;
+    const query = document.createElement("button");
+    query.type = "button";
+    query.className = "btn btn-primary btn-sm";
+    query.textContent = "查询";
+    query.disabled = ctx.wave.selected.size === 0 || ctx.wave.loading;
+    query.addEventListener("click", () => queryWave());
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "btn btn-sm";
+    close.textContent = "关闭 VCD";
+    close.addEventListener("click", () => closeWave());
+    head.append(meta, query, close);
+
+    const range = document.createElement("div");
+    range.className = "wave-range";
+    const begin = document.createElement("input");
+    begin.className = "input";
+    begin.value = ctx.wave.begin;
+    begin.addEventListener("change", () => {
+        ctx.wave.begin = begin.value.trim();
+    });
+    const end = document.createElement("input");
+    end.className = "input";
+    end.value = ctx.wave.end;
+    end.addEventListener("change", () => {
+        ctx.wave.end = end.value.trim();
+    });
+    const bLabel = document.createElement("label");
+    bLabel.textContent = "起始";
+    const eLabel = document.createElement("label");
+    eLabel.textContent = "结束";
+    range.append(bLabel, begin, eLabel, end);
+
+    const list = document.createElement("div");
+    list.className = "wave-signals";
+    for (const signal of ctx.wave.signals) {
+        const item = document.createElement("label");
+        item.className = "wave-signal";
+        const box = document.createElement("input");
+        box.type = "checkbox";
+        box.checked = ctx.wave.selected.has(signal.id);
+        box.addEventListener("change", () => {
+            if (box.checked) ctx.wave.selected.add(signal.id);
+            else ctx.wave.selected.delete(signal.id);
+        });
+        const name = document.createElement("span");
+        name.textContent = signal.full_name;
+        name.title = `${signal.full_name} [${signal.width}]`;
+        const width = document.createElement("span");
+        width.className = "muted small";
+        width.textContent = String(signal.width);
+        item.append(box, name, width);
+        list.append(item);
+    }
+
+    const canvas = document.createElement("div");
+    canvas.className = "wave-canvas";
+    if (ctx.wave.loading) {
+        canvas.textContent = "加载中…";
+    } else if (ctx.wave.data.size === 0) {
+        canvas.textContent = "勾选信号后点“查询”";
+    } else {
+        renderWaveSvg(canvas);
+    }
+
+    wrap.append(head, range, list, canvas);
+    return wrap;
+}
+
+async function openWavePicker(button) {
+    button.disabled = true;
+    ctx.wave.error = "";
+    try {
+        const data = await api.get(
+            `/api/projects/${encodeURIComponent(ctx.projectId)}/wave/artifacts`,
+        );
+        const options = (data.artifacts ?? []).map((path) => ({
+            jobId: path.split("/")[3] ?? "",
+            path,
+        }));
+        if (options.length === 0) throw new Error("没有可用的 sim.run 波形产物");
+        ctx.wave.artifacts = options;
+        const field = document.createElement("div");
+        field.className = "field";
+        const label = document.createElement("label");
+        label.textContent = "波形文件";
+        const select = document.createElement("select");
+        select.className = "input";
+        for (const option of options) {
+            const item = document.createElement("option");
+            item.value = option.path;
+            item.textContent = `${option.jobId.slice(0, 8)} · ${option.path.split("/").pop()}`;
+            select.append(item);
+        }
+        field.append(label, select);
+        const picked = await showDialog({
+            title: "打开波形",
+            content: field,
+            actions: [
+                { label: "取消", value: null },
+                { label: "打开", value: "open", primary: true },
+            ],
+        });
+        if (picked !== "open") return;
+        await openWave(select.value);
+    } catch (error) {
+        ctx.wave.error = error.message;
+        toast(`打开波形失败：${error.message}`, { type: "error" });
+        renderRegion("bottom");
+    } finally {
+        button.disabled = false;
+    }
+}
+
+async function openWave(relativePath) {
+    ctx.wave.loading = true;
+    renderRegion("bottom");
+    try {
+        const meta = await api.post(
+            `/api/projects/${encodeURIComponent(ctx.projectId)}/wave/open`,
+            { vcd: relativePath },
+        );
+        const signals = [];
+        let offset = 0;
+        for (let page = 0; page < 20; page += 1) {
+            const data = await api.get(
+                `/api/projects/${encodeURIComponent(ctx.projectId)}/wave/signals?offset=${offset}&limit=1000`,
+            );
+            signals.push(...(data.signals ?? []));
+            if (data.next_offset === null || data.next_offset === undefined) break;
+            offset = data.next_offset;
+        }
+        ctx.wave.opened = true;
+        ctx.wave.meta = meta;
+        ctx.wave.signals = signals;
+        ctx.wave.selected = new Set(signals.slice(0, 2).map((signal) => signal.id));
+        ctx.wave.begin = meta.time_range?.begin ?? "0";
+        ctx.wave.end = meta.time_range?.end ?? "0";
+        ctx.wave.data = new Map();
+        ctx.wave.error = "";
+        toast(`已打开波形：${signals.length} 个信号`, { type: "success" });
+    } catch (error) {
+        ctx.wave.error = error.message;
+        toast(`打开波形失败：${error.message}`, { type: "error" });
+    } finally {
+        ctx.wave.loading = false;
+        renderRegion("bottom");
+    }
+}
+
+async function closeWave() {
+    try {
+        await api.post(`/api/projects/${encodeURIComponent(ctx.projectId)}/wave/close`, {});
+    } catch {
+        /* 关闭失败也重置本地状态 */
+    }
+    ctx.wave = {
+        opened: false,
+        meta: null,
+        signals: [],
+        selected: new Set(),
+        begin: "0",
+        end: "0",
+        data: new Map(),
+        artifacts: [],
+        error: "",
+        loading: false,
+    };
+    renderRegion("bottom");
+}
+
+async function queryWave() {
+    ctx.wave.loading = true;
+    renderRegion("bottom");
+    try {
+        const data = new Map();
+        for (const signalId of ctx.wave.selected) {
+            const transitions = [];
+            let offset = 0;
+            let initial = null;
+            for (let page = 0; page < 20; page += 1) {
+                const result = await api.post(
+                    `/api/projects/${encodeURIComponent(ctx.projectId)}/wave/query`,
+                    {
+                        signal_id: signalId,
+                        begin: ctx.wave.begin,
+                        end: ctx.wave.end,
+                        offset,
+                        limit: 1000,
+                    },
+                );
+                initial = result.initial_value;
+                transitions.push(...(result.transitions ?? []));
+                if (result.next_offset === null || result.next_offset === undefined) break;
+                offset = result.next_offset;
+            }
+            data.set(signalId, { initial, transitions });
+        }
+        ctx.wave.data = data;
+    } catch (error) {
+        toast(`查询失败：${error.message}`, { type: "error" });
+    } finally {
+        ctx.wave.loading = false;
+        renderRegion("bottom");
+    }
+}
+
+function renderWaveSvg(host) {
+    const width = Math.max(480, host.clientWidth || 900);
+    const rowHeight = 44;
+    const left = 130;
+    const top = 24;
+    const axisHeight = 22;
+    const rows = [...ctx.wave.data.entries()];
+    const height = top + rows.length * rowHeight + axisHeight;
+    const begin = Number(ctx.wave.begin);
+    const end = Number(ctx.wave.end);
+    const span = Math.max(1, end - begin);
+    const plotWidth = width - left - 12;
+    const x = (time) => left + ((Number(time) - begin) / span) * plotWidth;
+
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    svg.setAttribute("class", "wave-svg");
+
+    rows.forEach(([signalId, view], index) => {
+        const signal = ctx.wave.signals.find((item) => item.id === signalId);
+        const yTop = top + index * rowHeight;
+        const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        label.setAttribute("x", 8);
+        label.setAttribute("y", yTop + rowHeight / 2 + 4);
+        label.setAttribute("class", "wave-label");
+        label.textContent = signal?.full_name ?? String(signalId);
+        svg.append(label);
+
+        const transitions = [...view.transitions];
+        let initial = view.initial;
+        if (transitions.length > 0 && transitions[0].time === ctx.wave.begin) {
+            initial = transitions[0].value;
+            transitions.shift();
+        }
+        const points = [{ time: ctx.wave.begin, value: initial }, ...transitions];
+
+        if ((signal?.width ?? 1) === 1) {
+            let path = "";
+            let previous = points[0]?.value === "1" ? 1 : 0;
+            path = `M ${x(begin)} ${yTop + (previous ? 8 : rowHeight - 8)}`;
+            for (let i = 1; i < points.length; i += 1) {
+                const value = points[i].value === "1" ? 1 : 0;
+                const px = x(points[i].time);
+                path += ` L ${px} ${yTop + (previous ? 8 : rowHeight - 8)}`;
+                path += ` L ${px} ${yTop + (value ? 8 : rowHeight - 8)}`;
+                previous = value;
+            }
+            path += ` L ${x(end)} ${yTop + (previous ? 8 : rowHeight - 8)}`;
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            line.setAttribute("d", path);
+            line.setAttribute("class", "wave-line");
+            svg.append(line);
+        } else {
+            const y = yTop + rowHeight / 2;
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", String(x(begin)));
+            line.setAttribute("x2", String(x(end)));
+            line.setAttribute("y1", String(y));
+            line.setAttribute("y2", String(y));
+            line.setAttribute("class", "wave-line");
+            svg.append(line);
+            for (const point of points) {
+                const px = x(point.time);
+                const tick = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                tick.setAttribute("x1", String(px));
+                tick.setAttribute("x2", String(px));
+                tick.setAttribute("y1", String(y - 5));
+                tick.setAttribute("y2", String(y + 5));
+                tick.setAttribute("class", "wave-tick");
+                svg.append(tick);
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.setAttribute("x", String(px + 3));
+                text.setAttribute("y", String(y - 7));
+                text.setAttribute("class", "wave-value");
+                text.textContent = point.value ?? "?";
+                svg.append(text);
+            }
+        }
+    });
+
+    for (let tick = 0; tick <= 4; tick += 1) {
+        const time = begin + (span * tick) / 4;
+        const px = x(time);
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", String(px));
+        line.setAttribute("x2", String(px));
+        line.setAttribute("y1", String(top));
+        line.setAttribute("y2", String(top + rows.length * rowHeight));
+        line.setAttribute("class", "wave-grid");
+        svg.append(line);
+        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        text.setAttribute("x", String(px));
+        text.setAttribute("y", String(top + rows.length * rowHeight + 16));
+        text.setAttribute("class", "wave-axis");
+        text.textContent = String(Math.round(time));
+        svg.append(text);
+    }
+    const cursorLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    cursorLine.setAttribute("class", "wave-cursor");
+    cursorLine.setAttribute("y1", String(top));
+    cursorLine.setAttribute("y2", String(top + rows.length * rowHeight));
+    cursorLine.setAttribute("visibility", "hidden");
+    const cursorText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    cursorText.setAttribute("class", "wave-cursor-text");
+    cursorText.setAttribute("visibility", "hidden");
+    svg.append(cursorLine, cursorText);
+
+    svg.addEventListener("mousemove", (event) => {
+        const rect = svg.getBoundingClientRect();
+        const px = ((event.clientX - rect.left) / rect.width) * width;
+        if (px < left || px > left + plotWidth) {
+            cursorLine.setAttribute("visibility", "hidden");
+            cursorText.setAttribute("visibility", "hidden");
+            return;
+        }
+        const time = begin + ((px - left) / plotWidth) * span;
+        cursorLine.setAttribute("x1", String(px));
+        cursorLine.setAttribute("x2", String(px));
+        cursorLine.setAttribute("visibility", "visible");
+        cursorText.setAttribute("x", String(px + 4));
+        cursorText.setAttribute("y", String(top - 8));
+        cursorText.textContent = `${Math.round(time)}`;
+        cursorText.setAttribute("visibility", "visible");
+    });
+    svg.addEventListener("mouseleave", () => {
+        cursorLine.setAttribute("visibility", "hidden");
+        cursorText.setAttribute("visibility", "hidden");
+    });
+    svg.addEventListener("wheel", (event) => {
+        event.preventDefault();
+        const rect = svg.getBoundingClientRect();
+        const px = ((event.clientX - rect.left) / rect.width) * width;
+        if (px < left || px > left + plotWidth) return;
+        const anchor = begin + ((px - left) / plotWidth) * span;
+        const factor = event.deltaY > 0 ? 1.25 : 0.8;
+        let nextSpan = Math.max(1, span * factor);
+        const range = ctx.wave.meta?.time_range;
+        const minTime = Number(range?.begin ?? 0);
+        const maxTime = Number(range?.end ?? end);
+        nextSpan = Math.min(nextSpan, Math.max(1, maxTime - minTime));
+        const ratio = (anchor - begin) / span;
+        let nextBegin = anchor - ratio * nextSpan;
+        let nextEnd = nextBegin + nextSpan;
+        if (nextBegin < minTime) {
+            nextBegin = minTime;
+            nextEnd = minTime + nextSpan;
+        }
+        if (nextEnd > maxTime) {
+            nextEnd = maxTime;
+            nextBegin = Math.max(minTime, maxTime - nextSpan);
+        }
+        ctx.wave.begin = String(Math.round(nextBegin));
+        ctx.wave.end = String(Math.round(nextEnd));
+        const beginInput = document.querySelector(".wave-range input");
+        const endInput = document.querySelectorAll(".wave-range input")[1];
+        if (beginInput) beginInput.value = ctx.wave.begin;
+        if (endInput) endInput.value = ctx.wave.end;
+        scheduleWaveQuery();
+    }, { passive: false });
+
+    host.textContent = "";
+    host.append(svg);
+}
+
+let waveQueryTimer = null;
+
+function scheduleWaveQuery() {
+    clearTimeout(waveQueryTimer);
+    waveQueryTimer = setTimeout(() => {
+        queryWave().catch(() => {});
+    }, 250);
 }
 
 function renderPinsPanel() {
