@@ -16,7 +16,13 @@ with tempfile.TemporaryDirectory(dir=build,prefix='wave-') as d:
     assert second['signals'][0]['name']=='alias' and second['next_offset'] is None
     params=['query','--vcd',vcd,'--signals','0','--begin','0','--end','9007199254740994','--limit','2']
     one=call(*params)['data'];assert [x['time'] for x in one['transitions']]==['0','9007199254740993']
-    assert one['initial_value']=='0' and one['next_offset']==2
+    assert one['initial_value'] is None and one['next_offset']==2
+    boundary = call(
+        'query', '--vcd', vcd, '--signals', '0', '--begin', '9007199254740993',
+        '--end', '9007199254740994', '--limit', '2'
+    )['data']
+    assert boundary['initial_value']=='0'
+    assert boundary['transitions'][0]=={'time':'9007199254740993','value':'1'}
     two=call(*params,'--offset',2)['data'];assert two['transitions'][0]['time']=='9007199254740994' and two['next_offset'] is None
     for p in [('query','--vcd',vcd,'--signals','8','--begin','0','--end','1'),
               ('query','--vcd',vcd,'--signals','0','--begin','3','--end','2'),

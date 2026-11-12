@@ -12,6 +12,8 @@
 #include <memory>
 #include <set>
 #include <stdexcept>
+#include <system_error>
+#include <utility>
 
 namespace fs = std::filesystem;
 namespace eda::wave {
@@ -21,6 +23,17 @@ constexpr std::size_t kMaxVcdBytes = 64 * 1024 * 1024;
 constexpr std::size_t kMaxRequestBytes = 64 * 1024;
 constexpr std::size_t kMaxResponseBytes = 900 * 1024;
 constexpr std::uint64_t kMaxPageSize = 1000;
+
+class WaveProtocolError final : public std::runtime_error {
+  public:
+    WaveProtocolError(std::string code, const std::string& message)
+        : std::runtime_error(message), code_(std::move(code)) {}
+
+    const std::string& Code() const { return code_; }
+
+  private:
+    std::string code_;
+};
 
 std::uint64_t Number(const std::string& text) {
     std::uint64_t number = 0;
@@ -94,7 +107,7 @@ Json QueryData(const VcdWaveformBackend& backend, std::uint64_t signalId, std::u
         throw std::invalid_argument(error);
 
     std::string value;
-    if (!backend.ValueAt(static_cast<int>(signalId), begin, value, error))
+    if (!backend.ValueBefore(static_cast<int>(signalId), begin, value, error))
         throw std::invalid_argument(error);
     Json transitions = Json::array();
     for (const auto& item : page)
@@ -113,6 +126,13 @@ std::unique_ptr<VcdWaveformBackend> OpenBackend(const std::string& pathText) {
     fs::path path(pathText);
     if (!path.is_absolute())
         throw std::invalid_argument("VCD path must be absolute");
+    std::error_code statusError;
+    const auto status = fs::symlink_status(path, statusError);
+    if (statusError == std::errc::no_such_file_or_directory ||
+        status.type() == fs::file_type::not_found)
+        throw WaveProtocolError("FILE_NOT_FOUND", "VCD file does not exist");
+    if (statusError)
+        throw std::invalid_argument("unable to inspect VCD path: " + statusError.message());
     path = web::CheckedPath(path.parent_path(), path, true);
     if (!fs::is_regular_file(path) || fs::file_size(path) > kMaxVcdBytes)
         throw std::invalid_argument("VCD must be a regular file no larger than 64 MiB");
@@ -189,7 +209,7 @@ Json HandleRequest(const Json& request, std::unique_ptr<VcdWaveformBackend>& bac
             return {{"id", id}, {"ok", true}, {"data", {{"schema", "sigflow.wave.close.v1"}}}};
         }
         if (!backend)
-            throw std::invalid_argument("no VCD is open; send an open request first");
+            throw WaveProtocolError("NOT_OPEN", "no VCD is open; send an open request first");
         if (operation == "signals") {
             const auto offset = OptionalUnsigned(request, "offset", 0);
             const auto limit = OptionalUnsigned(request, "limit", 100);
@@ -213,6 +233,8 @@ Json HandleRequest(const Json& request, std::unique_ptr<VcdWaveformBackend>& bac
                     {"data", QueryData(*backend, signalId, begin, end, offset, limit)}};
         }
         return ErrorResponse(id, "UNKNOWN_OPERATION", "unsupported wave operation: " + operation);
+    } catch (const WaveProtocolError& error) {
+        return ErrorResponse(id, error.Code().c_str(), error.what());
     } catch (const std::invalid_argument& error) {
         return ErrorResponse(id, "INVALID_REQUEST", error.what());
     } catch (const std::exception& error) {
@@ -241,7 +263,7 @@ int Serve(const std::function<void(const Json&)>& emit) {
             }
         }
         if (response.dump().size() + 1 > kMaxResponseBytes)
-            response = ErrorResponse(response.value("id", Json(nullptr)), "OUTPUT_TOO_LARGE",
+            response = ErrorResponse(response.value("id", Json(nullptr)), "RESPONSE_TOO_LARGE",
                                      "wave output exceeds 900 KiB; reduce page size");
         emit(response);
     }

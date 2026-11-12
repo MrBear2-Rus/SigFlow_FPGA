@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Gowin pack parameters (draft)",
-  "$comment": "Draft derived from legacy GowinPacker; Node integration review is pending. Path containment and file validation are enforced by the runtime.",
+  "$comment": "Draft derived from legacy GowinPacker; JS conditionally approved the output path and artifact schema details. Path containment and file validation are enforced by the runtime.",
   "type": "object",
   "required": [
     "pnr_json",
@@ -20,8 +20,8 @@
     },
     "output": {
       "type": "string",
-      "pattern": "^[^\\u0000]*$",
-      "description": "Optional output path under the Job artifacts directory; defaults to design.fs."
+      "pattern": "^(?!/)(?![A-Za-z]:[\\\\/])[^\\u0000]*$",
+      "description": "Optional path relative to artifacts/; absolute paths are rejected. Defaults to artifacts/design.fs. The registered artifact schema is eda.bitstream.apicula.v1."
     },
     "gowin_pack_path": {
       "type": "string",

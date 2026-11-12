@@ -16,6 +16,10 @@ constexpr std::size_t kMaxInput = 2 * 1024 * 1024;
 constexpr std::size_t kMaxOutput = 900 * 1024;
 constexpr std::size_t kMaxNodes = 5000;
 constexpr std::size_t kMaxVisited = 250000;
+class AnalysisLimitError final : public std::runtime_error {
+  public:
+    using std::runtime_error::runtime_error;
+};
 struct Position {
     uint32_t line, column;
 };
@@ -106,14 +110,14 @@ Json Build(TSNode root, const std::string& source, const std::string& file, bool
     std::size_t visited = 0;
     while (!stack.empty()) {
         if (++visited > kMaxVisited)
-            throw std::runtime_error("analysis syntax tree exceeds node limit");
+            throw AnalysisLimitError("analysis syntax tree exceeds node limit");
         auto [node, parent] = stack.back();
         stack.pop_back();
         int nextParent = parent;
         if (lint) {
             if (ts_node_is_error(node) || ts_node_is_missing(node)) {
                 if (values.size() >= kMaxNodes)
-                    throw std::runtime_error("too many syntax diagnostics");
+                    throw AnalysisLimitError("too many syntax diagnostics");
                 auto pos = positions.at(ts_node_start_byte(node));
                 std::string message = ts_node_is_missing(node)
                                           ? std::string("missing ") + ts_node_type(node)
@@ -129,7 +133,7 @@ Json Build(TSNode root, const std::string& source, const std::string& file, bool
             auto kind = Kind(ts_node_type(node));
             if (!kind.empty()) {
                 if (values.size() >= kMaxNodes)
-                    throw std::runtime_error("too many structure nodes");
+                    throw AnalysisLimitError("too many structure nodes");
                 auto start = ts_node_start_byte(node), end = ts_node_end_byte(node);
                 auto id = "n" + std::to_string(values.size() + 1);
                 values.push_back({{"id", id},
@@ -180,26 +184,31 @@ int AnalysisCommand(int argc, char** argv, const std::function<void(const Json&)
         if (!fs::is_directory(base))
             throw std::invalid_argument("project root is not a directory");
         file = web::CheckedPath(base, file, true);
-        if (!fs::is_regular_file(file) || fs::file_size(file) > kMaxInput)
-            throw std::invalid_argument("source is not a regular file or exceeds 2 MiB");
+        if (!fs::is_regular_file(file))
+            throw std::invalid_argument("source is not a regular file");
+        if (fs::file_size(file) > kMaxInput)
+            throw AnalysisLimitError("source exceeds 2 MiB");
         std::ifstream input(file, std::ios::binary);
         if (!input)
             throw std::runtime_error("cannot read source");
         std::string source((std::istreambuf_iterator<char>(input)), {});
-        if (input.bad() || source.size() > kMaxInput)
-            throw std::runtime_error("cannot read source within size limit");
+        if (input.bad())
+            throw std::runtime_error("cannot read source");
+        if (source.size() > kMaxInput)
+            throw AnalysisLimitError("source exceeds 2 MiB");
         VerilogTree tree(std::move(source));
         auto relative = lint ? file.lexically_relative(base).generic_string() : std::string();
         auto data = Build(tree.root(), tree.source(), relative, lint);
         Json event = {{"type", "result"}, {"ok", true}, {"data", data}};
         if (event.dump().size() + 1 > kMaxOutput)
-            throw std::runtime_error("analysis output exceeds limit");
+            throw AnalysisLimitError("analysis output exceeds limit");
         emit(event);
         return 0;
     } catch (const std::exception& error) {
+        const bool limitExceeded = dynamic_cast<const AnalysisLimitError*>(&error) != nullptr;
         emit(Json{{"type", "diagnostic"},
                   {"severity", "error"},
-                  {"code", "ANALYSIS_FAILED"},
+                  {"code", limitExceeded ? "ANALYSIS_LIMIT_EXCEEDED" : "ANALYSIS_FAILED"},
                   {"message", error.what()}});
         return 4;
     }

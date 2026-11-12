@@ -26,17 +26,17 @@ with tempfile.TemporaryDirectory(prefix='board-',dir=build) as temp:
         event=call('validate','cst','--cst',cst,'--pins',pins)
         assert event['data']['valid'] is valid, (text,event)
         return event['data']
-    check('IO_LOC "clk" 1;\nIO_PORT "clk" IO_TYPE=LVCMOS33;\n',True)
+    check('IO_LOC "clk" 25;\nIO_PORT "clk" IO_TYPE=LVCMOS33;\n',True)
     check('IO_LOC "clk" 7;\n',False)
-    check('IO_LOC "clk" 1;\nIO_LOC "out" 1;\n',False)
-    check('IO_LOC "clk" 1;\nIO_LOC "clk" 2;\n',False)
+    check('IO_LOC "clk" 25;\nIO_LOC "out" 25;\n',False)
+    check('IO_LOC "clk" 25;\nIO_LOC "clk" 26;\n',False)
     check('IO_LOC "clk" 999;\n',False)
     check('IO_PORT "clk" DRIVE=8;\n',False)
     check('garbage\n',False)
     check('',False)
     design=root/'bindings.json';netlist=root/'netlist.json'
     netlist.write_text(json.dumps({'modules':{'top':{'ports':{'clk':{'direction':'input','bits':[1]},'led':{'direction':'output','bits':[2,3]}}}}}))
-    base={'top_module':'top','device':'GW1NR-LV9QN88PC6/I5','bindings':[{'port':'clk','bit':0,'package_pin':1},{'port':'led','bit':0,'package_pin':2},{'port':'led','bit':1,'package_pin':3}]}
+    base={'top_module':'top','device':'GW1NR-LV9QN88PC6/I5','bindings':[{'port':'clk','bit':0,'package_pin':25},{'port':'led','bit':0,'package_pin':26},{'port':'led','bit':1,'package_pin':27}]}
     def check_sheet(sheet,valid):
         design.write_text(json.dumps(sheet))
         event=call('validate','pins','--design',design,'--pins',pins,'--netlist',netlist)
@@ -46,7 +46,7 @@ with tempfile.TemporaryDirectory(prefix='board-',dir=build) as temp:
     for change in ('reserved','duplicate-pin','duplicate-bit','missing-port','out-of-range','partial'):
         sheet=json.loads(json.dumps(base))
         if change=='reserved':sheet['bindings'][0]['package_pin']=7
-        elif change=='duplicate-pin':sheet['bindings'][0]['package_pin']=2
+        elif change=='duplicate-pin':sheet['bindings'][0]['package_pin']=26
         elif change=='duplicate-bit':sheet['bindings'][2]['bit']=0
         elif change=='missing-port':sheet['bindings'][0]['port']='no_such_port'
         elif change=='out-of-range':sheet['bindings'][2]['bit']=2

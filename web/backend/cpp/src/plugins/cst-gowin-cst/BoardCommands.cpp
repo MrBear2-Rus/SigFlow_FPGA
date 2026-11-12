@@ -115,12 +115,12 @@ int BoardCommand(int argc, char** argv, const std::function<void(const Json&)>& 
             for (const auto& item : result.lineErrors)
                 diagnostics.push_back({{"severity", "error"},
                                        {"message", item.reason},
-                                       {"line", item.line},
+                                       {"line", item.line - 1},
                                        {"content", item.content}});
             if (!result.valid && diagnostics.empty())
                 diagnostics.push_back({{"severity", "error"},
                                        {"message", result.errorSummary},
-                                       {"line", 0},
+                                       {"line", -1},
                                        {"content", ""}});
             if (result.valid) {
                 std::vector<cst::CstBinding> bindings;
@@ -139,7 +139,7 @@ int BoardCommand(int argc, char** argv, const std::function<void(const Json&)>& 
                         !locPorts.insert(match[1].str()).second)
                         diagnostics.push_back({{"severity", "error"},
                                                {"message", "port assigned more than once"},
-                                               {"line", lineNumber},
+                                               {"line", lineNumber - 1},
                                                {"content", match[1].str()}});
                 }
                 for (const auto& binding : bindings) {
@@ -151,12 +151,12 @@ int BoardCommand(int argc, char** argv, const std::function<void(const Json&)>& 
                     for (const auto& error : cst::ConstraintValidator(pins).ValidateBinding(check))
                         diagnostics.push_back({{"severity", "error"},
                                                {"message", error.message},
-                                               {"line", 0},
+                                               {"line", -1},
                                                {"content", binding.portName}});
                     if (!used.emplace(binding.packagePin, binding.portName).second)
                         diagnostics.push_back({{"severity", "error"},
                                                {"message", "package pin assigned more than once"},
-                                               {"line", 0},
+                                               {"line", -1},
                                                {"content", binding.portName}});
                 }
             }

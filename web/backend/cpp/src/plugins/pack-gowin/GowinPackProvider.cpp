@@ -36,6 +36,8 @@ Error GowinPackProvider::startJob(const JobRequest& request, JobContext& context
         auto inputParam = stringParam("pnr_json");
         auto device = stringParam("device");
         auto outputParam = stringParam("output");
+        if (!outputParam.empty() && fs::path(outputParam).is_absolute())
+            throw std::invalid_argument("output must be relative to artifacts");
         if (inputParam.empty() || device.empty() || device[0] == '-')
             throw std::invalid_argument("pack requires pnr_json and a valid device");
         const auto input = web::CheckedInput(context, inputParam);

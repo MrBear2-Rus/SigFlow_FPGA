@@ -4,8 +4,9 @@
 #include <charconv>
 #include <cstdint>
 #include <fstream>
-#include <limits>
 #include <iomanip>
+#include <iterator>
+#include <limits>
 
 namespace eda {
 namespace wave {
@@ -289,6 +290,23 @@ bool VcdWaveformBackend::ValueAt(int signalId, std::uint64_t t, std::string& val
     auto it = std::upper_bound(
         changes.begin(), changes.end(), t,
         [](std::uint64_t time, const WaveTransition& item) { return time < item.time; });
+    if (it != changes.begin())
+        value = std::prev(it)->value;
+    error.clear();
+    return true;
+}
+
+bool VcdWaveformBackend::ValueBefore(int signalId, std::uint64_t t, std::string& value,
+                                     std::string& error) const {
+    value.clear();
+    if (signalId < 0 || signalId >= static_cast<int>(changes_.size())) {
+        error = "unknown signal id";
+        return false;
+    }
+    const auto& changes = changes_[signalId];
+    const auto it = std::lower_bound(
+        changes.begin(), changes.end(), t,
+        [](const WaveTransition& item, std::uint64_t time) { return item.time < time; });
     if (it != changes.begin())
         value = std::prev(it)->value;
     error.clear();

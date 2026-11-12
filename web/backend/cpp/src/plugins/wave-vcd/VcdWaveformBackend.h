@@ -21,6 +21,8 @@ class VcdWaveformBackend final : public IWaveformBackend {
                std::string& error) override;
     bool ValueAt(int signalId, std::uint64_t t, std::string& value,
                  std::string& error) const override;
+    bool ValueBefore(int signalId, std::uint64_t t, std::string& value,
+                     std::string& error) const;
 
     bool QueryPage(int signalId, std::uint64_t t0, std::uint64_t t1, std::size_t offset,
                    std::size_t limit, std::vector<WaveTransition>& out, bool& more,

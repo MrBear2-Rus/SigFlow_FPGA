@@ -185,7 +185,7 @@ std::vector<ConstraintError> ConstraintValidator::Validate(const ConstraintSheet
             continue;
         if (binding.packagePin < 1 || binding.packagePin > 88) {
             errors.push_back(MakeError(
-                "Pin " + std::to_string(binding.packagePin) + " is out of range (1-88) for QFN88.",
+                "Pin " + std::to_string(binding.packagePin) + " is out of range (1-88) for QN88P.",
                 "bindings[" + std::to_string(i) + "].package_pin", static_cast<int>(i)));
             continue;
         }
@@ -246,7 +246,7 @@ std::vector<ConstraintError> ConstraintValidator::ValidateBinding(const PinBindi
     if (binding.packagePin > 0) {
         if (binding.packagePin < 1 || binding.packagePin > 88) {
             errors.push_back(MakeError("Pin " + std::to_string(binding.packagePin) +
-                                           " out of QFN88 range (1-88).",
+                                           " out of QN88P range (1-88).",
                                        "package_pin", -1));
         } else if (!IsPinAvailable(pinDb_, binding.packagePin)) {
             errors.push_back(MakeError(
