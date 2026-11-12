@@ -2,7 +2,7 @@
 > 类型：实况
 > 更新：2026-11-08
 > 状态：进行中
-> 阶段：V11
+> 阶段：V12
 
 # js工 · 实况
 
@@ -70,8 +70,8 @@
 
 ## ⑤ 明确未实现
 
-- 波形：worker 与面板已接，支持游标与滚轮缩放；多 VCD 对比未做。
-- TraceBridge：只有 devices list；capture 无 CLI/JSONL，租约未实现。
+- 波形：worker 与面板已接，支持游标与滚轮缩放；错误码按新契约映射（`NOT_OPEN`→409 等）；多 VCD 对比未做。
+- TraceBridge：只有 devices list；capture/硬件按 D-20 暂缓，转虚拟板卡方向。
 - 工程导入只接受 `sigflow.export.v1` JSON，不支持 zip/二进制产物。
 - FPGA 串联（synth→pnr→pack 自动传参）暂缓（缺工具链）；约束只做 CST，未接 `validate pins`。
 - 画布：无电气规则校验、连线拖动、对齐吸附；撤销只在当前页面会话内，刷新即清空。

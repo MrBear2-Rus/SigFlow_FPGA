@@ -82,6 +82,16 @@ test("波形：open、signals、query、close", { skip }, async () => {
         assert.deepEqual(query.transitions.map((item) => item.time), ["0", "10", "20"]);
         assert.deepEqual(query.transitions.map((item) => item.value), ["0000", "0001", "0010"]);
 
+        // initial_value 严格早于 begin：begin=10 时取 0 时刻的值
+        response = await alice("/api/projects/demo/wave/query", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ signal_id: 1, begin: "10", end: "20" }),
+        });
+        const page = await response.json();
+        assert.equal(page.initial_value, "0000");
+        assert.equal(page.transitions[0].time, "10");
+
         response = await alice("/api/projects/demo/wave/open", {
             method: "POST",
             headers: { "content-type": "application/json" },
@@ -93,7 +103,8 @@ test("波形：open、signals、query、close", { skip }, async () => {
         assert.equal(response.status, 200);
 
         response = await alice("/api/projects/demo/wave/signals");
-        assert.equal(response.status, 400);
+        assert.equal(response.status, 409);
+        assert.equal((await response.json()).error.code, "NOT_OPEN");
     } finally {
         await app.close();
         await rm(env.root, { recursive: true, force: true });

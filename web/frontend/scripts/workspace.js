@@ -1718,7 +1718,11 @@ function renderPinsPanel() {
         const pinCell = document.createElement("td");
         pinCell.textContent = String(pin.pin);
         const ioCell = document.createElement("td");
-        ioCell.textContent = pin.available ? pin.io : (pin.reserved ?? pin.io);
+        const ioText = pin.available ? pin.io : (pin.reserved ?? pin.io);
+        ioCell.textContent = ioText;
+        const resource = (ctx.board.pins.board_resources ?? []).find((item) => item.pin === pin.pin);
+        if (resource) ioCell.title = `${resource.alias}：${resource.description ?? ioText}`;
+        else ioCell.title = ioText;
 
         const signalCell = document.createElement("td");
         const signal = document.createElement("input");

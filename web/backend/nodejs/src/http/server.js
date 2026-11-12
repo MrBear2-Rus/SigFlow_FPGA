@@ -840,11 +840,16 @@ function numberParam(value, fallback) {
 
 function waveError(error) {
     const code = error.code ?? "WAVE_ERROR";
-    if (code === "INVALID_REQUEST" || code === "UNKNOWN_OPERATION" || code === "INVALID_ARGUMENT") {
-        return new HttpError(400, error.message, code);
-    }
-    if (code === "WAVE_UNAVAILABLE") return new HttpError(503, error.message, code);
-    return new HttpError(502, error.message, code);
+    const statuses = {
+        INVALID_REQUEST: 400,
+        UNKNOWN_OPERATION: 400,
+        INVALID_ARGUMENT: 400,
+        NOT_OPEN: 409,
+        FILE_NOT_FOUND: 404,
+        RESPONSE_TOO_LARGE: 413,
+        WAVE_UNAVAILABLE: 503,
+    };
+    return new HttpError(statuses[code] ?? 502, error.message, code);
 }
 
 function readJson(req) {

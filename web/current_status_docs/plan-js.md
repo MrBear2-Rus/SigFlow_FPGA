@@ -2,7 +2,7 @@
 > 类型：规划
 > 更新：2026-11-08
 > 状态：进行中
-> 阶段：V11
+> 阶段：V12
 
 # js工 · 规划
 
@@ -32,7 +32,8 @@ C++ 侧情况见 [history-cpp.md](history-cpp.md)。
 | V8 | 波形接入 | ✅ 每用户 worker、产物扫描、`/api/wave/*`；波形页签可列信号、查询并绘制（游标/缩放留 V10） |
 | V9 | 设备与 TraceBridge | ✅ `/api/devices` + TraceBridge 设备列表；capture 评审已回（待 CLI/租约） |
 | V10 | 收尾（一） | ✅ 波形游标/缩放、CSRF 同源检查、登录限流 |
-| V11 | 收尾（二） | ✅ 工程导入导出（JSON bundle）；Node 22 ✅（28/28）；契约字段收敛待 cpp |
+| V11 | 收尾（二） | ✅ 工程导入导出（JSON bundle）；Node 22 ✅（28/28） |
+| V12 | 契约回执 | ✅ 五份契约确认；wave 新错误码映射与 E2E；D-18 冻结 |
 | V3 | FPGA 串联与指标 | ⏸ 等本机 yosys / nextpnr / gowin_pack |
 
 ## ④ 阶段要点
@@ -60,11 +61,11 @@ C++ 侧情况见 [history-cpp.md](history-cpp.md)。
 
 ## ⑤ 下一步
 
-1. Node 22 复验已完成（nvm + v22.23.4，28/28）。
-2. capture 等 C++ 接 CLI/JSONL 与租约评审；当前只保留 devices 只读。
+1. P8 按 D-20 做虚拟板卡规划（H-CPP-028），JS 参与接口与验收设计。
+2. capture/硬件采集按 D-19/D-20 暂缓；devices 保留只读。
 3. V3 等工具链；H-CPP-007/011/015 随对应功能补测试与字段。
-4. 收敛 wave 3 个细节与 capture 请求字段。
-5. 上线前补 HTTPS 与注册策略。
+4. 上线前补 HTTPS 与注册策略。
+5. 引脚页已按新数据复验（88 脚、长 IO 描述省略、CST 校验通过）。
 
 ## ⑥ 阻塞与依赖
 

@@ -1010,3 +1010,14 @@ g.selected > circle {
     font-size: 10px;
     fill: #c1121f;
 }
+
+/* 新引脚表含较长 io 描述，固定列宽并省略，避免把信号输入挤出面板 */
+.pin-table {
+    table-layout: fixed;
+}
+
+.pin-table td:nth-child(2) {
+    max-width: 86px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
