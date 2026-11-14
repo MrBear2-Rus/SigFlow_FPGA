@@ -1,0 +1,196 @@
+{
+  "stage": "K0",
+  "status": "passed",
+  "commands": [
+    {
+      "name": "verilator-version",
+      "argv": [
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\tools\\verilator\\verilator-install\\bin\\verilator_bin_dbg.exe",
+        "--version"
+      ],
+      "exit_code": 0,
+      "seconds": 0.017
+    },
+    {
+      "name": "gcc-version",
+      "argv": [
+        "E:\\sigflow_fpga\\toolchain\\mingw64\\bin\\g++.exe",
+        "--version"
+      ],
+      "exit_code": 0,
+      "seconds": 0.014
+    },
+    {
+      "name": "generator-configure",
+      "argv": [
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\cmake-python\\cmake\\data\\bin\\cmake.exe",
+        "-S",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\tests\\virtual\\k0",
+        "-B",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\build-k0-generator",
+        "-G",
+        "MinGW Makefiles",
+        "-DCMAKE_CXX_COMPILER=E:/sigflow_fpga/toolchain/mingw64/bin/g++.exe",
+        "-DCMAKE_MAKE_PROGRAM=E:/sigflow_fpga/toolchain/mingw64/bin/mingw32-make.exe"
+      ],
+      "exit_code": 0,
+      "seconds": 0.326
+    },
+    {
+      "name": "generator-build",
+      "argv": [
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\cmake-python\\cmake\\data\\bin\\cmake.exe",
+        "--build",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\build-k0-generator",
+        "--target",
+        "k0_generate_batch",
+        "--parallel",
+        "3"
+      ],
+      "exit_code": 0,
+      "seconds": 0.431
+    },
+    {
+      "name": "batch-generate",
+      "argv": [
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\build-k0-generator\\k0_generate_batch.exe",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k0\\generated_batch.cpp"
+      ],
+      "exit_code": 0,
+      "seconds": 0.016
+    },
+    {
+      "name": "batch-verilate",
+      "argv": [
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\tools\\verilator\\verilator-install\\bin\\verilator_bin_dbg.exe",
+        "--cc",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\tests\\virtual\\k0\\counter.sv",
+        "--exe",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k0\\generated_batch.cpp",
+        "--trace",
+        "-Wno-fatal",
+        "--top-module",
+        "k0_counter",
+        "--Mdir",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k0\\obj-batch",
+        "-CFLAGS",
+        "-std=c++20 -IE:/sigflow/SigFlow_VirtroFPGA/3rd",
+        "-o",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k0\\batch-counter.exe"
+      ],
+      "exit_code": 0,
+      "seconds": 0.025
+    },
+    {
+      "name": "batch-compile",
+      "argv": [
+        "E:\\sigflow_fpga\\toolchain\\mingw64\\bin\\mingw32-make.exe",
+        "-C",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k0\\obj-batch",
+        "-f",
+        "Vk0_counter.mk",
+        "-j4",
+        "CXX=E:/sigflow_fpga/toolchain/mingw64/bin/g++.exe",
+        "LINK=E:/sigflow_fpga/toolchain/mingw64/bin/g++.exe",
+        "AR=E:/sigflow_fpga/toolchain/mingw64/bin/ar.exe",
+        "SHELL=E:/sigflow_fpga/toolchain/posix/sh.exe",
+        "PYTHON3=C:/Users/Admin/AppData/Local/Programs/Python/Python314/python.exe"
+      ],
+      "exit_code": 0,
+      "seconds": 2.005
+    },
+    {
+      "name": "batch-run",
+      "argv": [
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k0\\batch-counter.exe",
+        "--sigflow-duration-ticks",
+        "120"
+      ],
+      "exit_code": 0,
+      "seconds": 3.047
+    },
+    {
+      "name": "interactive-verilate",
+      "argv": [
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\tools\\verilator\\verilator-install\\bin\\verilator_bin_dbg.exe",
+        "--cc",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\tests\\virtual\\k0\\counter.sv",
+        "--exe",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\tests\\virtual\\k0\\interactive_main.cpp",
+        "--trace",
+        "-Wno-fatal",
+        "--top-module",
+        "k0_counter",
+        "--Mdir",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k0\\obj-interactive",
+        "-CFLAGS",
+        "-std=c++20 -IE:/sigflow/SigFlow_VirtroFPGA/3rd",
+        "-o",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k0\\persistent-counter.exe"
+      ],
+      "exit_code": 0,
+      "seconds": 0.02
+    },
+    {
+      "name": "interactive-compile",
+      "argv": [
+        "E:\\sigflow_fpga\\toolchain\\mingw64\\bin\\mingw32-make.exe",
+        "-C",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k0\\obj-interactive",
+        "-f",
+        "Vk0_counter.mk",
+        "-j4",
+        "CXX=E:/sigflow_fpga/toolchain/mingw64/bin/g++.exe",
+        "LINK=E:/sigflow_fpga/toolchain/mingw64/bin/g++.exe",
+        "AR=E:/sigflow_fpga/toolchain/mingw64/bin/ar.exe",
+        "SHELL=E:/sigflow_fpga/toolchain/posix/sh.exe",
+        "PYTHON3=C:/Users/Admin/AppData/Local/Programs/Python/Python314/python.exe"
+      ],
+      "exit_code": 0,
+      "seconds": 0.309
+    }
+  ],
+  "checks": [
+    {
+      "name": "baseline-generated-batch",
+      "expected": 10,
+      "actual": 10,
+      "vcd_sha256": "1755485bfd33fb355735211c11efb9d3f20bb5a7741197648800348a135a5439"
+    },
+    {
+      "name": "persistent-model-count",
+      "count_after_steps": 4
+    },
+    {
+      "name": "paused-input-no-writes-or-eval",
+      "passed": true
+    },
+    {
+      "name": "same-target-pending-merge",
+      "passed": true
+    },
+    {
+      "name": "rational-27mhz-edge",
+      "edge": "7",
+      "tick": "129630"
+    },
+    {
+      "name": "play-pause-freeze",
+      "paused_tick": "3233759259",
+      "passed": true
+    },
+    {
+      "name": "final-once",
+      "actual": 1
+    }
+  ],
+  "toolchain": {
+    "cmake": "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\cmake-python\\cmake\\data\\bin\\cmake.exe",
+    "mingw": "E:\\sigflow_fpga\\toolchain\\mingw64",
+    "verilator": "E:\\sigflow\\SigFlow_VirtroFPGA\\tools\\verilator\\verilator-install\\bin\\verilator_bin_dbg.exe",
+    "verilator_sha256": "d87f0d7a17c94bd78d4feb0a0f20a0ec5d278ad9d8653049bbce7ad3c07200aa",
+    "verilator_version_output": "rev vUNKNOWN-built20260609-c233a39",
+    "gcc_version_output": "g++.exe (MinGW-W64 x86_64-ucrt-posix-seh, built by Brecht Sanders, r3) 14.2.0\nCopyright (C) 2024 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+  },
+  "scope": "real batch generator + persistent Verilated spike; no CST, electrical, LiveTrace or GUI acceptance"
+}

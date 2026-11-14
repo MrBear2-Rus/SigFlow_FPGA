@@ -1,0 +1,64 @@
+{
+  "archives": [
+    {
+      "file": "3rd.zip",
+      "sha256": "e49e024344d7c9bf6264b8597f307cd52a4fbaa34dcf60835e7b9f49fe7d590b",
+      "added": 1621,
+      "existing_preserved": 2
+    },
+    {
+      "file": "external.zip",
+      "sha256": "77e91d4e8f84002837d352cba36b75915407d7fe8e0d922b5c17b94f1c18ea78",
+      "added": 3286,
+      "existing_preserved": 171
+    },
+    {
+      "file": "tools.zip",
+      "sha256": "b527054482e6cd6c49be736bfb375d41088512343223348e7695927b7c3c6cf4",
+      "added": 107,
+      "existing_preserved": 9
+    }
+  ],
+  "wx": {
+    "source_headers": "E:\\sigflow_fpga\\source\\3rd\\wxWidgets-src",
+    "source_libraries": "E:\\sigflow_fpga\\source\\build-gcc\\wxWidgets\\lib",
+    "aliases": [
+      {
+        "source": "libwx_baseu-3.2-Windows.dll.a",
+        "alias": "libwx_baseu-3.2.dll.a",
+        "sha256": "d15047dcda8dbe290e9eb1630ee3951192b7a8c4408cf2fa698c58cdf009877b"
+      },
+      {
+        "source": "libwx_baseu_net-3.2-Windows.dll.a",
+        "alias": "libwx_baseu_net-3.2.dll.a",
+        "sha256": "758e592084c87cbb65d2c6f48b2be4a6289c1a5801bc9311f96351eeadb7d8e6"
+      },
+      {
+        "source": "libwx_baseu_xml-3.2-Windows.dll.a",
+        "alias": "libwx_baseu_xml-3.2.dll.a",
+        "sha256": "1e730f481712455aa4c0b4f1e00f49ba812298d89a93a2adfe6769bcee7201a3"
+      },
+      {
+        "source": "libwx_mswu_aui-3.2-Windows.dll.a",
+        "alias": "libwx_mswu_aui-3.2.dll.a",
+        "sha256": "a4de01c7931695be1e07892c0d36ed79e573e62f2212a4442b60ede66a1d41f4"
+      },
+      {
+        "source": "libwx_mswu_core-3.2-Windows.dll.a",
+        "alias": "libwx_mswu_core-3.2.dll.a",
+        "sha256": "9d058f98643e47a4285eede4efc35585c11a65909e46a150703ba2212b364039"
+      },
+      {
+        "source": "libwx_mswu_gl-3.2-Windows.dll.a",
+        "alias": "libwx_mswu_gl-3.2.dll.a",
+        "sha256": "f6b7ebaa0bde53109397318d60da2cc69ee0dbc6b294bad64b78f03c7d4cdfe1"
+      },
+      {
+        "source": "libwx_mswu_stc-3.2-Windows.dll.a",
+        "alias": "libwx_mswu_stc-3.2.dll.a",
+        "sha256": "2ce9d75ee1f0bd736e36bb7a764c8e29dc8b2f8d484355743be0066d77550bd2"
+      }
+    ],
+    "note": "Reused local wxWidgets 3.2.9 MinGW GCC 14.2 build; original deployment is read-only."
+  }
+}

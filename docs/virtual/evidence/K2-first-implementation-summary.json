@@ -1,0 +1,90 @@
+{
+  "stage": "K2-first-implementation",
+  "status": "passed",
+  "K2_closed": false,
+  "commands": [
+    {
+      "argv": [
+        "C:\\Users\\Admin\\AppData\\Local\\Programs\\Python\\Python314\\python.exe",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\tools\\virtual\\export_ports.py",
+        "--top",
+        "k2_counter",
+        "--output",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k2\\declarations\\ports.json",
+        "--builder",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\build-m0\\sigflow_port_manifest.exe",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\tests\\virtual\\k2\\counter.sv"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\tools\\verilator\\verilator-install\\bin\\verilator_bin_dbg.exe",
+        "--cc",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\tests\\virtual\\k2\\counter.sv",
+        "--exe",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\tests\\virtual\\k2\\verilated_runner.cpp",
+        "--top-module",
+        "k2_counter",
+        "--Mdir",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k2\\obj",
+        "-Wno-fatal",
+        "-CFLAGS",
+        "-std=c++20 -IE:/sigflow/SigFlow_VirtroFPGA/include -IE:/sigflow/SigFlow_VirtroFPGA/3rd -IE:/sigflow/SigFlow_VirtroFPGA/core/src -IE:/sigflow/SigFlow_VirtroFPGA/InnerPlugin/eda-cst-gowin-cst/include -IE:/sigflow/SigFlow_VirtroFPGA/InnerPlugin/eda-target-tangnano9k/include",
+        "-LDFLAGS",
+        "E:/sigflow/SigFlow_VirtroFPGA/build-m0/InnerPlugin/eda-cst-gowin-cst/libeda-cst-gowin-cst.a E:/sigflow/SigFlow_VirtroFPGA/build-m0/core/libeda_virtual_board.a E:/sigflow/SigFlow_VirtroFPGA/build-m0/core/libeda_platform.a",
+        "-o",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k2\\k2-reference-runner.exe"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "E:\\sigflow_fpga\\toolchain\\mingw64\\bin\\mingw32-make.exe",
+        "-C",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k2\\obj",
+        "-f",
+        "Vk2_counter.mk",
+        "-j4",
+        "CXX=E:/sigflow_fpga/toolchain/mingw64/bin/g++.exe",
+        "LINK=E:/sigflow_fpga/toolchain/mingw64/bin/g++.exe",
+        "AR=E:/sigflow_fpga/toolchain/mingw64/bin/ar.exe",
+        "SHELL=E:/sigflow_fpga/toolchain/posix/sh.exe",
+        "PYTHON3=C:/Users/Admin/AppData/Local/Programs/Python/Python314/python.exe"
+      ],
+      "exit_code": 0
+    }
+  ],
+  "checks": [
+    "guarded initialization evaluated actual RTL",
+    "Paused reset release does not write or eval",
+    "Step reaches 27MHz first rising edge",
+    "press-release-before-step coalesced in production journal",
+    "actual RTL counter incremented through CST pad 3 and real LED bindings",
+    "CON asynchronous reset blocked before any DUT write",
+    "UnknownInput preserves last committed position",
+    "actual Verilated model replay matches every committed output",
+    "replay rejects mismatched source fingerprint",
+    "replay rejects altered output evidence",
+    "Play actually advances simulation time",
+    "Play/Pause freezes actual model after ACK",
+    "one persistent Verilated model during live session",
+    "Finalize exactly once",
+    "Stop request idempotent",
+    "persistent runner exits cleanly"
+  ],
+  "runner_sha256": "f35ed9aca4e4537a33b894f5f1cff8a17ed168a7fc424f97c64647f60664996c",
+  "verilator_sha256": "d87f0d7a17c94bd78d4feb0a0f20a0ec5d278ad9d8653049bbce7ad3c07200aa",
+  "adapter": "explicit reference-fixture adapter; general generated adapter pending",
+  "remaining": [
+    "durable journal/commit marker recovery",
+    "general adapter generator and job lifecycle integration",
+    "LiveTrace append/read-view and GUI board integration",
+    "full resolver table and general event scheduler"
+  ],
+  "journal": {
+    "record_count": 2301,
+    "sha256": "6f9e6eb161421eb11edd052c70ca0a823d6cf47befdebc6421b2aaebbfc7cc4d",
+    "durability": "memory"
+  }
+}

@@ -437,7 +437,9 @@ bool LoadConstraintSheet(const std::filesystem::path& filePath, ConstraintSheet&
             binding.bitIndex = element.value("bit", 0);
             binding.direction = PortDirectionFromString(element.value("direction", "input"));
             binding.packagePin = element.value("package_pin", -1);
-            binding.ioType = element.value("io_type", std::string("LVCMOS33"));
+            // Legacy reads preserve missing IO_TYPE as unknown. Production uses
+            // LoadConstraintSheet(path, manifest, ConstraintSheetV2, diagnostics).
+            binding.ioType = element.value("io_type", std::string());
             binding.drive = element.value("drive", std::string());
             binding.pullUp = element.value("pull_up", false);
             binding.pullDown = element.value("pull_down", false);

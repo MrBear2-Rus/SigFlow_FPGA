@@ -1,0 +1,477 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="(empty)"
+	tests="26"
+	failures="0"
+	disabled="0"
+	skipped="0"
+	hostname=""
+	time="4"
+	timestamp="2026-11-13T11:35:09"
+	>
+	<testcase name="job_tests" classname="job_tests" time="1.83682" status="run">
+		<properties/>
+		<system-out>[PASS] legacy state serialization matches the migration name
+[PASS] legacy-&gt;contract state maps to itself
+[PASS] contract-&gt;legacy state maps back to the same serialized name
+[PASS] legacy state serialization matches the migration name
+[PASS] legacy-&gt;contract state maps to itself
+[PASS] contract-&gt;legacy state maps back to the same serialized name
+[PASS] legacy state serialization matches the migration name
+[PASS] legacy-&gt;contract state maps to itself
+[PASS] contract-&gt;legacy state maps back to the same serialized name
+[PASS] legacy state serialization matches the migration name
+[PASS] legacy-&gt;contract state maps to itself
+[PASS] contract-&gt;legacy state maps back to the same serialized name
+[PASS] legacy state serialization matches the migration name
+[PASS] legacy-&gt;contract state maps to itself
+[PASS] contract-&gt;legacy state maps back to the same serialized name
+[PASS] legacy state serialization matches the migration name
+[PASS] legacy-&gt;contract state maps to itself
+[PASS] contract-&gt;legacy state maps back to the s...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="eda_api_contract_smoke" classname="eda_api_contract_smoke" time="1.3908" status="run">
+		<properties/>
+		<system-out>  ok: default Error is false
+  ok: Error::Ok code None
+  ok: non-None Error is true
+  ok: ToString(TimedOut)
+  ok: MethodCall carries Json params
+  ok: PluginInfo fields
+  ok: ISynthesizer::synthesizerId
+  ok: EDA_TYPED_METHOD dispatch + fromJson
+  ok: JobRequest fields
+  ok: JobState enum
+  ok: IJobProvider stub compiles
+  ok: ABI version macro
+  ok: BuildInfo() non-empty
+BuildInfo: compiler=gcc-14.2.0;cxx=202002;abi=1
+  ok: ServiceRegistry::Add returns owned ref
+  ok: ServiceRegistry::Size
+  ok: ServiceRegistry::Find hit
+  ok: ServiceRegistry::Get
+  ok: ServiceRegistry::Find miss
+  ok: ServiceRegistry::Remove
+  ok: ServiceRegistry::Size after remove
+  ok: EventBus subscriber count
+  ok: EventBus subscribe/publish
+  ok: EventBus unsubscribe stops delivery
+  ok: EventBus empty after unsubscribe
+  ok: SchemaRegistry::RegisterSchema
+  ok: SchemaRegistry::HasSchema
+  ok: SchemaRegistry::Validate ok
+  ok: SchemaRegistry::Validate missing required fails
+  ok: SchemaRegistry::Validate unknown schema fails
+  ok: Pro...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="eda_job_service_smoke" classname="eda_job_service_smoke" time="1.55596" status="run">
+		<properties/>
+		<system-out>  ok: job succeeded and recorded artifact
+  ok: report state Succeeded
+  ok: report artifact id
+  ok: report metric recorded
+  ok: job log is persisted for history UI
+  ok: provider exception becomes Failed
+  ok: missing provider becomes Failed
+  ok: process job reaches Running
+  ok: cancel accepted
+  ok: process job cancelled
+  ok: process job timed out
+  ok: core schema eda.job.v1 registered
+  ok: valid job record passes schema
+  ok: invalid job record rejected by schema
+  ok: restart: job completes before shutdown
+  ok: restart: completed job recovered from disk
+  ok: restart: report recovered from disk
+  ok: restart: job appears in project listing
+  ok: restart: id sequence does not collide
+  ok: restart: new job still runs after recovery
+  ok: restart: orphaned Running job becomes Failed, not fake-running
+  ok: controlled root: project directory preferred without warning
+  ok: controlled root: project-scoped path layout
+  ok: controlled root: directory created
+  ok: controlled root: distinct projects are...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="eda_toolchain_project_smoke" classname="eda_toolchain_project_smoke" time="0.0296351" status="run">
+		<properties/>
+		<system-out>  ok: toolchain resolves bundled tool
+  ok: configured path takes precedence
+  ok: toolchain resolves environment variable
+  ok: toolchain resolves PATH entry
+  ok: missing tool is not found
+  ok: missing tool carries explicit reason (R19)
+  ok: toolchain resolves bundled subdirectory
+  ok: project loads
+  ok: project top module
+  ok: project source files
+  ok: add source file
+  ok: add source file is idempotent
+  ok: source count after add
+  ok: project save is atomic
+  ok: no temporary file left behind
+  ok: project reloads
+  ok: reloaded source files
+  ok: unknown fpga section preserved
+  ok: remove source file
+  ok: source count after remove
+  ok: RegisterBuiltins picks up EDA_REGISTER_PLUGIN entries
+  ok: registered builtin is retrievable
+  ok: registered builtin exposes capability
+ALL PASS
+</system-out>
+	</testcase>
+	<testcase name="eda_plugin_host_smoke" classname="eda_plugin_host_smoke" time="0.0111571" status="run">
+		<properties/>
+		<system-out>  ok: register static plugin aaa
+  ok: register static plugin bbb
+  ok: duplicate static id rejected
+  ok: ProvidersOf filters by capability
+  ok: ProvidersOf matches exact capability id
+  ok: ProvidersOf unknown capability is empty
+  ok: Select returns matching instance
+  ok: Select prefers a capable plugin over an incapable preferred id
+  ok: Get unknown id returns null
+  ok: provider list for capability
+  ok: Select falls back to first capable provider
+  ok: Discover finds the test plugin libraries
+  ok: exactly one dynamic plugin loads successfully
+  ok: test.ok is Ready
+  ok: test.ok capabilities parsed
+  ok: bad build fingerprint is rejected
+  ok: bad build error mentions fingerprint
+  ok: diagnostics report missing search directory (R1)
+  ok: diagnostics report ABI handshake rejection (R1/R13)
+ALL PASS
+</system-out>
+	</testcase>
+	<testcase name="eda_synth_yosys_smoke" classname="eda_synth_yosys_smoke" time="0.0794135" status="run">
+		<properties/>
+		<system-out>  ok: EDA_REGISTER_PLUGIN registers eda-synth-yosys
+  ok: eda-synth-yosys exposes synth/yosys
+  ok: synth job reaches Succeeded with artifact
+  ok: exactly one artifact registered
+  ok: artifact id is netlist
+  ok: artifact schema is yosys-json
+  ok: artifact carries sha256
+  ok: job report records exit_code metric
+  ok: job report records cell count metric
+  ok: invalid netlist makes the job Failed
+ALL PASS
+</system-out>
+	</testcase>
+	<testcase name="eda_pnr_nextpnr_smoke" classname="eda_pnr_nextpnr_smoke" time="0.0580283" status="run">
+		<properties/>
+		<system-out>  ok: EDA_REGISTER_PLUGIN registers the plugin
+  ok: eda-pnr-nextpnr exposes pnr/nextpnr
+  ok: pnr job reaches Succeeded with artifact
+  ok: artifact id is pnr-json
+  ok: job report records exit_code metric
+  ok: log parser detects all PnR stages
+  ok: log parser extracts timing
+  ok: log parser extracts resource usage
+  ok: log parser extracts tool version
+  ok: report summary generated
+  ok: report json generated
+ALL PASS
+</system-out>
+	</testcase>
+	<testcase name="eda_pack_flash_smoke" classname="eda_pack_flash_smoke" time="0.16115" status="run">
+		<properties/>
+		<system-out>  ok: EDA_REGISTER_PLUGIN registers pack/flash plugins
+  ok: pack/gowin capability exposed
+  ok: program/openfpgaloader capability exposed
+  ok: pack job reaches Succeeded with bitstream artifact
+  ok: pack artifact id is bitstream
+  ok: flash without requireConfirm is rejected
+  ok: flash with requireConfirm succeeds
+  ok: flash rejects Gowin CRC error even when process exits 0
+ALL PASS
+</system-out>
+	</testcase>
+	<testcase name="eda_sim_verilator_smoke" classname="eda_sim_verilator_smoke" time="0.416755" status="run">
+		<properties/>
+		<system-out>  ok: EDA_REGISTER_PLUGIN registers eda-sim-verilator
+  ok: sim/verilator capability exposed
+  ok: sim.build job reaches Succeeded with executable artifact
+  ok: artifact id is sim-executable
+  ok: job report records exit_code metric
+  ok: Verilator build command is invoked after preflight
+  ok: Verilator child explicitly receives the verified POSIX SHELL
+  ok: Verilator child PATH starts with the job-private python3 shim
+  ok: sim.run job reaches Succeeded with waveform artifact
+  ok: artifact id is waveform
+ALL PASS
+</system-out>
+	</testcase>
+	<testcase name="eda_sim_frontend_smoke" classname="eda_sim_frontend_smoke" time="0.0148398" status="run">
+		<properties/>
+		<system-out>  ok: parses testbench code
+  ok: testbench module name
+  ok: DUT instance
+  ok: three port mappings
+  ok: initial blocks found
+  ok: clock definition detected (halfPeriod=5)
+  ok: timeline clock mapped
+  ok: timeline has events
+  ok: timeline max sim time
+  ok: generates sim_main.cpp
+  ok: includes Vtop header
+  ok: opens VCD trace
+  ok: drives clock signal
+ALL PASS
+</system-out>
+	</testcase>
+	<testcase name="eda_target_profile_smoke" classname="eda_target_profile_smoke" time="0.009925" status="run">
+		<properties/>
+		<system-out>  ok: loads tang-nano-9k target profile file
+  ok: profile id
+  ok: profile device
+  ok: profile family
+  ok: profile yosys family
+  ok: profile programmer board
+  ok: profile debug uart pins
+  ok: profile default baud
+  ok: loads profile by id from directory
+  ok: profile-by-id id
+  ok: parses minimal inline profile
+  ok: inline profile fields
+  ok: missing optional fields
+  ok: invalid json rejected
+  ok: profile without id rejected
+  ok: missing profile file rejected
+  ok: loads pin database JSON
+  ok: pin database has 88 pins
+  ok: pin database has 11 source-reviewed M0 resources
+  ok: pin database has 21 IO types
+  ok: pin 10 available
+  ok: LED pad 10 is Bank 3 at reviewed LVCMOS18
+  ok: LED3 maps to pad 13
+  ok: BTN1 maps to pad 3
+  ok: UART TX maps to pad 17
+  ok: pin 6 reserved as JTAG TCK (UG803 QN88P)
+ALL PASS
+</system-out>
+	</testcase>
+	<testcase name="eda_gowin_cst_smoke" classname="eda_gowin_cst_smoke" time="0.0104908" status="run">
+		<properties/>
+		<system-out>  ok: generate emits IO_LOC
+  ok: generate emits IO_PORT attributes
+  ok: generate emits pull mode
+  ok: round-trip parses
+  ok: round-trip binding count
+  ok: round-trip led fields
+  ok: round-trip clk fields
+  ok: parse hand-written CST
+  ok: IO_LOC and IO_PORT merged by port name
+  ok: unquoted IO_LOC is an error
+  ok: error recorded
+  ok: unknown statement is only a warning
+  ok: warning recorded
+ALL PASS
+</system-out>
+	</testcase>
+	<testcase name="eda_constraint_sheet_smoke" classname="eda_constraint_sheet_smoke" time="0.0264897" status="run">
+		<properties/>
+		<system-out>  ok: load pin database
+  ok: parses three ports from Yosys JSON
+  ok: led width is 3
+  ok: clk direction is input
+  ok: detects incomplete vector binding
+  ok: detects reserved pin
+  ok: unknown IO_TYPE is a warning
+  ok: detects duplicate pin assignment
+  ok: generates CST
+  ok: generated IO_LOC line
+  ok: generated DRIVE attribute
+  ok: generated bindings hash
+  ok: import round-trip
+  ok: validates a good CST file
+  ok: CST statement counts
+  ok: rejects invalid CST line
+  ok: detects unbound port coverage
+ALL PASS
+</system-out>
+	</testcase>
+	<testcase name="eda_declarative_tool_smoke" classname="eda_declarative_tool_smoke" time="0.0854073" status="run">
+		<properties/>
+		<system-out>  ok: parse declarative tool spec
+  ok: spec fields
+  ok: spec missing job_type/executable rejected
+  ok: declarative job reaches Succeeded with declared artifact
+  ok: declared artifact id registered
+  ok: declarative job fails when required param missing
+ALL PASS
+</system-out>
+	</testcase>
+	<testcase name="eda_wave_vcd_smoke" classname="eda_wave_vcd_smoke" time="0.0121705" status="run">
+		<properties/>
+		<system-out>  ok: opens VCD
+  ok: timescale parsed
+  ok: signal count
+  ok: clk signal width
+  ok: state signal metadata
+  ok: full name
+  ok: time range
+  ok: query transitions
+  ok: clk transition count
+  ok: value-at between transitions
+  ok: value-at exact
+  ok: vector value-at
+  ok: unknown signal rejected
+  ok: missing VCD rejected
+ALL PASS
+</system-out>
+	</testcase>
+	<testcase name="eda_wave_trace_adapter_smoke" classname="eda_wave_trace_adapter_smoke" time="0.0227687" status="run">
+		<properties/>
+		<system-out>  ok: adapter opens VCD via IWaveformBackend
+  ok: adapter exposes signals
+  ok: adapter timescale
+  ok: adapter time range
+  ok: adapter signal metadata
+  ok: adapter query transitions
+  ok: adapter value-at
+ALL PASS
+</system-out>
+	</testcase>
+	<testcase name="eda_declarative_switch_smoke" classname="eda_declarative_switch_smoke" time="0.129026" status="run">
+		<properties/>
+		<system-out>  ok: parse declarative icarus spec
+  ok: register declarative icarus into PluginHost
+  ok: register verilator plugin into PluginHost
+  ok: sim/verilator capability available
+  ok: sim/icarus capability available
+  ok: capability selector returns the declarative icarus backend
+  ok: capability selector returns verilator backend
+  ok: two backends are distinct (switch without recompile)
+  ok: declarative icarus job reaches Succeeded with Job record + artifact
+  ok: declared artifact recorded
+ALL PASS
+</system-out>
+	</testcase>
+	<testcase name="eda_component_library_smoke" classname="eda_component_library_smoke" time="0.0175982" status="run">
+		<properties/>
+		<system-out>  ok: loads canvas_elements.json
+  ok: library has multiple components
+  ok: finds 'and' gate
+  ok: and gate has 2 input pins
+  ok: and gate has 1 output pin
+  ok: and gate bounds
+  ok: and gate has an arc shape
+  ok: finds 'nand' gate
+  ok: nand gate has a circle shape
+  ok: missing component returns null
+ALL PASS
+</system-out>
+	</testcase>
+	<testcase name="eda_command_bus_smoke" classname="eda_command_bus_smoke" time="0.0100345" status="run">
+		<properties/>
+		<system-out>  ok: bus starts empty
+  ok: execute add5
+  ok: counter after execute
+  ok: undo depth 1
+  ok: execute add3
+  ok: counter after second execute
+  ok: undo
+  ok: counter after undo
+  ok: redo available
+  ok: redo
+  ok: counter after redo
+  ok: redo consumed
+  ok: undo again
+  ok: redo available before new execute
+  ok: execute add1
+  ok: new execute clears redo stack
+  ok: counter after undo+new execute
+  ok: failing command returns false
+  ok: failing command not pushed
+  ok: null command rejected
+  ok: clear empties stacks
+  ok: undo/redo on empty returns false
+ALL PASS
+</system-out>
+	</testcase>
+	<testcase name="sig_tree_sync_smoke" classname="sig_tree_sync_smoke" time="0.164797" status="run">
+		<properties/>
+		<system-out>  ok: ProjectNode created
+  ok: root is Project
+  ok: outMap populated
+  ok: FileNode created
+  ok: TopNode created
+  ok: top module name is 'Module top'
+  ok: exactly one TopNode
+  ok: FileNode has uid
+  ok: TopNode has uid
+  ok: outMap keyed by FileNode uid
+  ok: outMap keyed by TopNode uid
+  ok: uids are unique
+  ok: NodeByUid resolves FileNode
+  ok: NodeByUid resolves TopNode
+  ok: ToVerilog contains 'module top'
+  ok: ToVerilog contains 'endmodule'
+  ok: FileNode uid stable on re-parse
+  ok: TopNode pointer stable on re-parse
+  ok: ClearTree resets root
+  ok: edit: top found
+  ok: edit: AddSignal returns node
+  ok: edit: signal list grew after add
+  ok: edit: added signal name
+  ok: edit: signal list shrinks after remove
+  ok: edit: removed signal no longer in list
+ALL PASS
+</system-out>
+	</testcase>
+	<testcase name="k1_port_index_roundtrip" classname="k1_port_index_roundtrip" time="0.0813463" status="run">
+		<properties/>
+		<system-out>PASS "scalar"
+PASS "vector-zero"
+PASS "descending"
+PASS "offset-descending"
+PASS "ascending"
+PASS "negative-index"
+PASS 287 checks
+</system-out>
+	</testcase>
+	<testcase name="k1_electrical_acceptance" classname="k1_electrical_acceptance" time="0.0209667" status="run">
+		<properties/>
+		<system-out>PASS synthetic "ok18"
+PASS synthetic "ok33"
+PASS synthetic "wrong-supply"
+PASS synthetic "missing-bank"
+PASS synthetic "missing-supply"
+PASS synthetic "missing-standard"
+PASS synthetic "unsupported-direction"
+PASS synthetic "no-global-default"
+PASS 33 checks
+</system-out>
+	</testcase>
+	<testcase name="k1_real_tool_export" classname="k1_real_tool_export" time="0.376345" status="run">
+		<properties/>
+		<system-out>6 cross-checked ports
+E:\sigflow\SigFlow_VirtroFPGA\build-m0\tests\virtual\k1\actual\ports.json.ports.v2.json
+</system-out>
+	</testcase>
+	<testcase name="k1_real_tool_gui_cst" classname="k1_real_tool_gui_cst" time="0.121743" status="run">
+		<properties/>
+		<system-out>PASS 82 checks
+</system-out>
+	</testcase>
+	<testcase name="k2_session_pause_guard_replay" classname="k2_session_pause_guard_replay" time="0.0801982" status="run">
+		<properties/>
+		<system-out>PASS "press-release-before-step"
+PASS "press-step-release-step"
+PASS "stop-cancels-pending"
+PASS 41 K2 core checks
+</system-out>
+	</testcase>
+	<testcase name="k2_real_verilated_session" classname="k2_real_verilated_session" time="2.35563" status="run">
+		<properties/>
+		<system-out>PASS: 16 actual Verilated Core session checks; K2 remains in progress.
+</system-out>
+	</testcase>
+</testsuite>

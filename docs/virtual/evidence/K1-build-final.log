@@ -1,0 +1,49 @@
+-- wxWidgets: using prebuilt/system wx (SIGFLOW_WX_ROOT=E:/sigflow/SigFlow_VirtroFPGA/3rd/wx-mingw)
+-- [debug] libftdi 直连传输层: 未找到 libftdi，调试 UART 回退到串口
+-- [edition] dev（DeepSeek 插件未装配：已手动关闭（-DSIGFLOW_BUILD_DEEPSEEK_PLUGIN=OFF））
+-- Configuring done (0.5s)
+-- Generating done (1.9s)
+-- Build files have been written to: E:/sigflow/SigFlow_VirtroFPGA/build-m0
+[  1%] Built target sigflow_tree_sitter
+[  2%] Built target eda_platform
+[  2%] Built target sigflow_virtual_registry
+[  4%] Built target eda_virtual_board
+[  9%] Built target eda_core
+[ 10%] Built target sigflow_port_manifest
+[ 11%] Built target eda-lib-basic
+[ 13%] Built target eda-synth-yosys
+[ 18%] Built target eda_agent_gateway
+[ 19%] Built target eda-pnr-nextpnr
+[ 20%] Built target eda-pack-gowin
+[ 21%] Built target eda-target-tangnano9k
+[ 23%] Built target eda-sim-verilator
+[ 23%] Built target eda-wave-vcd
+[ 23%] Built target eda-program-openfpgaloader
+[ 24%] Built target eda-cst-gowin-cst
+[ 25%] Built target eda_api_contract_smoke
+[ 28%] Built target job_tests
+[ 33%] Built target fpga_flow_probe
+[ 34%] Built target eda_job_service_smoke
+[ 34%] Built target eda_test_plugin_ok
+[ 34%] Built target eda_toolchain_project_smoke
+[ 35%] Built target eda_test_plugin_bad_build
+[ 36%] Built target eda_test_plugin_reject_abi
+[ 36%] Built target eda_synth_yosys_smoke
+[ 87%] Built target sigflow
+[ 87%] Built target eda_pnr_nextpnr_smoke
+[ 88%] Built target eda_pack_flash_smoke
+[ 89%] Built target eda_sim_verilator_smoke
+[ 90%] Built target eda_sim_frontend_smoke
+[ 90%] Built target eda_gowin_cst_smoke
+[ 91%] Built target eda_target_profile_smoke
+[ 92%] Built target eda_constraint_sheet_smoke
+[ 93%] Built target eda_declarative_tool_smoke
+[ 94%] Built target eda_wave_vcd_smoke
+[ 95%] Built target eda_wave_trace_adapter_smoke
+[ 95%] Built target eda_declarative_switch_smoke
+[ 95%] Built target eda_component_library_smoke
+[ 96%] Built target eda_command_bus_smoke
+[ 97%] Built target k1_production_tests
+[ 98%] Built target sig_tree_sync_smoke
+[ 99%] Built target k2_session_tests
+[100%] Built target eda_plugin_host_smoke

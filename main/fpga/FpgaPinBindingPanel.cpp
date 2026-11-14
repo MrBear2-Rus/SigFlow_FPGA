@@ -193,7 +193,9 @@ void PackageView::OnPaint(wxPaintEvent&) {
             switch (pin->bank) {
             case 0: fillColor = FpgaTheme::kBlue(); break;
             case 1: fillColor = FpgaTheme::kPurple(); break;   // 保留语义色（无对应 token）
-            default: fillColor = FpgaTheme::kAmber(); break;
+            case 2: fillColor = FpgaTheme::kOrange(); break;
+            case 3: fillColor = FpgaTheme::kAmber(); break;
+            default: fillColor = FpgaTheme::kTextMuted(); break;
             }
         }
 
@@ -260,19 +262,14 @@ void PortListCtrl::PopulatePorts(
     Freeze();
     DeleteAllItems();
 
-    // 转换为可排序的 vector
-    std::vector<std::pair<wxString, std::pair<FpgaPortDirection, int>>> sortedPorts(
-        ports.begin(), ports.end());
-    std::sort(sortedPorts.begin(), sortedPorts.end());
-
-    for (const auto& [name, info] : sortedPorts) {
-        const auto& [dir, width] = info;
+    for (const auto& row : MakeGuiBindingRows(ports)) {
+        const auto& name = row.portName;
         long idx = InsertItem(GetItemCount(), name);
-        SetItem(idx, 1, FpgaPortDirectionToString(dir));
-        SetItem(idx, 2, wxString::Format("%d", width));
+        SetItem(idx, 1, FpgaPortDirectionToString(row.direction));
+        SetItem(idx, 2, "1");
 
         // 检查是否已绑定
-        const auto* binding = sheet.FindBinding(name, 0);
+        const auto* binding = sheet.FindBinding(name);
         if (binding && binding->packagePin > 0) {
             SetItem(idx, 3, wxString::Format("%d", binding->packagePin));
             SetItemTextColour(idx, FpgaTheme::kGreen());
@@ -283,11 +280,6 @@ void PortListCtrl::PopulatePorts(
     }
 
     Thaw();
-}
-
-int PortListCtrl::GetSelectedPortBitIndex() const {
-    long idx = GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
-    return idx >= 0 ? 0 : -1;  // 简化: 标量端口默认 bit=0
 }
 
 void PortListCtrl::OnItemSelected(wxListEvent& evt) {
@@ -387,6 +379,8 @@ void FpgaPinBindingPanel::BuildUI() {
     };
     addLegend(&FpgaTheme::kBlue, "Bank 0");
     addLegend(&FpgaTheme::kPurple, "Bank 1");
+    addLegend(&FpgaTheme::kOrange, "Bank 2");
+    addLegend(&FpgaTheme::kAmber, "Bank 3 (1.8V)");
     addLegend(&FpgaTheme::kGreen, "Bound");
     addLegend(&FpgaTheme::kTextMuted, "Reserved");
     pkgCol->Add(legend, 0, wxTOP, 4);
@@ -453,7 +447,7 @@ void FpgaPinBindingPanel::BuildUI() {
 
     // IO_TYPE
     mkLabel("IO_TYPE:");
-    m_ioTypeCombo = new wxComboBox(this, wxID_ANY, "LVCMOS33",
+    m_ioTypeCombo = new wxComboBox(this, wxID_ANY, "",
         wxDefaultPosition, wxSize(FromDIP(90), FromDIP(UiTheme::RegionMetrics::FieldHeight)),
         0, nullptr, wxBORDER_NONE);
     for (const auto& t : GetKnownIOTypes()) m_ioTypeCombo->Append(t);
@@ -555,57 +549,32 @@ void FpgaPinBindingPanel::LoadProject(const wxString& projectPath, const wxStrin
     m_sheet.topModule = topModule;
     m_sheet.device = m_pinDb.device;
 
-    // 尝试加载已存在的 pin-bindings.json
-    wxString constraintsPath = GetConstraintsPath();
-    if (wxFileExists(constraintsPath)) {
-        wxString error;
-        if (!LoadConstraintSheet(constraintsPath, m_sheet, error)) {
-            wxLogWarning("Failed to load existing pin-bindings.json: %s", error);
-        }
-    }
-
-    // 从 Yosys JSON 提取端口
+    m_loadError.clear();
+    // Load the cross-checked declarations before migrating any stored bindings.
     wxString jsonPath = FindYosysJsonPath(projectPath, topModule);
     if (!jsonPath.IsEmpty()) {
         ConstraintValidator validator(m_pinDb);
         wxString portErr;
         m_ports = validator.ExtractPortsFromYosysJson(jsonPath, topModule, portErr);
         if (m_ports.empty() && !portErr.IsEmpty()) {
+            m_loadError = portErr;
             wxLogWarning("Port extraction warning: %s", portErr);
         }
+    } else {
+        m_loadError = "E_MANIFEST_REQUIRED: Export declarations to .sigflow/virtual/declarations/<top>.json with tools/virtual/export_ports.py.";
     }
 
-    // 确保每个端口在 sheet 中都有条目
-    if (!m_ports.empty()) {
-        m_sheet.bindings.erase(
-            std::remove_if(m_sheet.bindings.begin(), m_sheet.bindings.end(),
-                [this](const PinBinding& binding) {
-                    const auto portIt = m_ports.find(binding.portName);
-                    return portIt == m_ports.end() || binding.bitIndex < 0 ||
-                        binding.bitIndex >= portIt->second.second;
-                }),
-            m_sheet.bindings.end());
-    }
-
-    std::set<wxString, WxStringLess> existingBindingKeys;
-    for (const auto& b : m_sheet.bindings) {
-        existingBindingKeys.insert(b.portName + "_" + wxString::Format("%d", b.bitIndex));
-    }
-    for (const auto& [name, info] : m_ports) {
-        const auto& [dir, width] = info;
-        for (int bit = 0; bit < width; ++bit) {
-            wxString key = name + "_" + wxString::Format("%d", bit);
-            if (!existingBindingKeys.count(key)) {
-                PinBinding b;
-                b.portName = name;
-                b.bitIndex = bit;
-                b.direction = dir;
-                b.packagePin = -1;
-                b.source = "gui";
-                m_sheet.bindings.push_back(b);
-            }
+    m_sheet.manifest = m_ports;
+    const wxString constraintsPath = GetConstraintsPath();
+    if (wxFileExists(constraintsPath) && !m_ports.empty()) {
+        if (!LoadConstraintSheet(constraintsPath, m_sheet, m_loadError)) {
+            // Keep the file untouched and block save/generation until the
+            // ambiguous/stale mapping has been explicitly resolved externally.
+            wxLogWarning("Binding migration blocked: %s", m_loadError);
         }
     }
+    for (const auto& row : MakeGuiBindingRows(m_ports))
+        if (!m_sheet.FindBinding(row.portName)) m_sheet.bindings.push_back(row);
 
     Fresh();
 }
@@ -654,7 +623,7 @@ void FpgaPinBindingPanel::RefreshPinTable(const wxString& filter) {
 
         long idx = m_pinTable->InsertItem(m_pinTable->GetItemCount(),
             wxString::Format("%d", pin.pinNumber));
-        m_pinTable->SetItem(idx, 1, wxString::Format("%d", pin.bank));
+        m_pinTable->SetItem(idx, 1, pin.bank < 0 ? "?" : wxString::Format("%d", pin.bank));
         m_pinTable->SetItem(idx, 2, pin.ioLocation);
 
         if (!pin.available) {
@@ -671,7 +640,7 @@ void FpgaPinBindingPanel::RefreshPinTable(const wxString& filter) {
                 m_pinTable->SetItem(idx, 3, wxString("Bound: ") + resName);
                 m_pinTable->SetItemTextColour(idx, FpgaTheme::kGreen());
             } else {
-                m_pinTable->SetItem(idx, 3, "Available");
+                m_pinTable->SetItem(idx, 3, pin.bank < 0 ? "Electrical data unreviewed" : "Available");
                 m_pinTable->SetItemTextColour(idx, FpgaTheme::kText());
             }
         }
@@ -686,6 +655,11 @@ void FpgaPinBindingPanel::RefreshPinTable(const wxString& filter) {
 }
 
 void FpgaPinBindingPanel::RefreshStatus() {
+    if (!m_loadError.empty()) {
+        m_statusLabel->SetLabel(m_loadError);
+        m_statusLabel->SetForegroundColour(FpgaTheme::kRed());
+        return;
+    }
     int bound = 0, total = static_cast<int>(m_sheet.bindings.size());
     int unbound = 0, conflicts = 0;
     for (const auto& b : m_sheet.bindings) {
@@ -710,6 +684,14 @@ void FpgaPinBindingPanel::RefreshStatus() {
     m_statusLabel->SetForegroundColour(statusColor);
     m_statusLabel->SetLabel(wxString::Format("%d bound / %d total | %d unbound%s",
         bound, total, unbound, conflictText));
+    auto diagnostics=m_validator.Validate(m_sheet,m_ports);
+    if(!diagnostics.empty()){
+        wxString details;
+        for(const auto& e:diagnostics)details+=e.message+"\n";
+        m_statusLabel->SetToolTip(details);
+        m_statusLabel->SetLabel(diagnostics.front().message.BeforeFirst(';'));
+        m_statusLabel->SetForegroundColour(FpgaTheme::kRed());
+    }else m_statusLabel->UnsetToolTip();
 }
 
 void FpgaPinBindingPanel::UpdateBindingView() {
@@ -725,7 +707,15 @@ void FpgaPinBindingPanel::OnPortSelected(wxListEvent& evt) {
     if (idx < 0) return;
     wxString portName = m_portList->GetItemText(idx, 0);
 
-    const auto* binding = m_sheet.FindBinding(portName, 0);
+    const auto* binding = m_sheet.FindBinding(portName);
+    if (binding) {
+        m_pinNumberText->SetValue(binding->packagePin > 0 ? wxString::Format("%d", binding->packagePin) : wxString());
+        m_ioTypeCombo->SetValue(binding->ioType);
+        m_driveCombo->SetValue(binding->drive);
+        m_pullUpCheck->SetValue(binding->pullUp);
+        m_pullDownCheck->SetValue(binding->pullDown);
+        m_commentText->SetValue(binding->comment);
+    }
     if (binding && binding->packagePin > 0) {
         m_packageView->SetSelectedPin(binding->packagePin);
 
@@ -765,22 +755,9 @@ void FpgaPinBindingPanel::OnPinTableSelected(wxListEvent& evt) {
 
 void FpgaPinBindingPanel::OnPinClicked(int pinNumber) {
     m_pinNumberText->SetValue(wxString::Format("%d", pinNumber));
-
-    // 尝试自动绑定: 找到端口列表中当前选中的端口
-    long selIdx = m_portList->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
-    if (selIdx >= 0) {
-        wxString portName = m_portList->GetItemText(selIdx, 0);
-        auto* binding = m_sheet.FindBinding(portName, 0);
-        if (binding) {
-            binding->packagePin = pinNumber;
-            binding->source = "gui";
-            binding->ioType = m_ioTypeCombo->GetValue();
-            binding->drive = m_driveCombo->GetValue();
-            binding->pullUp = m_pullUpCheck->GetValue();
-            binding->pullDown = m_pullDownCheck->GetValue();
-            binding->comment = m_commentText->GetValue();
-            UpdateBindingView();
-        }
+    if (m_portList->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED) >= 0) {
+        wxCommandEvent event;
+        OnBindPin(event);
     }
 }
 
@@ -800,7 +777,7 @@ void FpgaPinBindingPanel::OnBindPin(wxCommandEvent& evt) {
     }
 
     wxString portName = m_portList->GetItemText(selIdx, 0);
-    auto* binding = m_sheet.FindBinding(portName, 0);
+    auto* binding = m_sheet.FindBinding(portName);
     if (!binding) {
         wxMessageBox("Internal error: port binding not found.", "Pin Binding",
             wxOK | wxICON_ERROR, this);
@@ -810,7 +787,15 @@ void FpgaPinBindingPanel::OnBindPin(wxCommandEvent& evt) {
     // 快速校验
     PinBinding candidate = *binding;
     candidate.packagePin = static_cast<int>(pinNum);
-    auto errors = m_validator.ValidateBinding(candidate);
+    candidate.ioType = m_ioTypeCombo->GetValue();
+    if (candidate.ioType.empty()) {
+        const auto* pad = m_pinDb.FindPin(static_cast<int>(pinNum));
+        if (pad) candidate.ioType = pad->defaultIOType; // reviewed per-pad default only
+    }
+    candidate.drive = m_driveCombo->GetValue();
+    candidate.pullUp = m_pullUpCheck->GetValue();
+    candidate.pullDown = m_pullDownCheck->GetValue();
+    auto errors = m_validator.ValidateBinding(candidate, m_ports);
     bool hasBlockingError = false;
     for (const auto& e : errors) {
         if (e.IsError()) { hasBlockingError = true; break; }
@@ -825,7 +810,8 @@ void FpgaPinBindingPanel::OnBindPin(wxCommandEvent& evt) {
     }
 
     binding->packagePin = static_cast<int>(pinNum);
-    binding->ioType = m_ioTypeCombo->GetValue();
+    binding->ioType = candidate.ioType;
+    m_ioTypeCombo->SetValue(candidate.ioType);
     binding->drive = m_driveCombo->GetValue();
     binding->pullUp = m_pullUpCheck->GetValue();
     binding->pullDown = m_pullDownCheck->GetValue();
@@ -840,7 +826,7 @@ void FpgaPinBindingPanel::OnClearBinding(wxCommandEvent& evt) {
     if (selIdx < 0) return;
 
     wxString portName = m_portList->GetItemText(selIdx, 0);
-    auto* binding = m_sheet.FindBinding(portName, 0);
+    auto* binding = m_sheet.FindBinding(portName);
     if (binding) {
         binding->packagePin = -1;
         UpdateBindingView();
@@ -852,7 +838,7 @@ void FpgaPinBindingPanel::OnPropertyChanged(wxCommandEvent& evt) {
     if (selIdx < 0) return;
 
     wxString portName = m_portList->GetItemText(selIdx, 0);
-    auto* binding = m_sheet.FindBinding(portName, 0);
+    auto* binding = m_sheet.FindBinding(portName);
     if (!binding) return;
 
     // 按控件更新对应属性
@@ -871,9 +857,14 @@ void FpgaPinBindingPanel::OnPropertyChanged(wxCommandEvent& evt) {
     } else if (evt.GetEventObject() == m_commentText) {
         binding->comment = m_commentText->GetValue();
     }
+    RefreshStatus();
 }
 
 void FpgaPinBindingPanel::OnGenerateCst(wxCommandEvent& evt) {
+    if (!m_loadError.empty()) {
+        wxMessageBox(m_loadError, "Binding migration required", wxOK | wxICON_ERROR, this);
+        return;
+    }
     if (m_topModule.IsEmpty()) {
         wxMessageBox("No project loaded. Please open a project first.", "CST Generation",
             wxOK | wxICON_WARNING, this);
@@ -954,6 +945,10 @@ void FpgaPinBindingPanel::OnGenerateCst(wxCommandEvent& evt) {
 }
 
 void FpgaPinBindingPanel::OnImportCst(wxCommandEvent& evt) {
+    if (!m_loadError.empty()) {
+        wxMessageBox(m_loadError, "Binding migration required", wxOK | wxICON_ERROR, this);
+        return;
+    }
     wxFileDialog dlg(this, "Import CST File", m_projectPath, "",
         "CST files (*.cst)|*.cst|All files (*.*)|*.*",
         wxFD_OPEN | wxFD_FILE_MUST_EXIST);
@@ -973,7 +968,7 @@ void FpgaPinBindingPanel::OnImportCst(wxCommandEvent& evt) {
     std::vector<wxString> unmanagedLines;
     wxString importErr;
     CstGenerator gen;
-    auto imported = gen.ImportCst(content, unmanagedLines, importErr);
+    auto imported = gen.ImportCst(content, m_ports, unmanagedLines, importErr);
 
     if (!importErr.IsEmpty()) {
         wxMessageBox(wxString("CST import failed: ") + importErr, "Import CST",
@@ -1022,7 +1017,7 @@ void FpgaPinBindingPanel::OnImportCst(wxCommandEvent& evt) {
 
     // 合并到现有绑定
     for (auto& imp : imported) {
-        auto* existing = m_sheet.FindBinding(imp.portName, imp.bitIndex);
+        auto* existing = m_sheet.FindBinding(imp.portName);
         if (existing) {
             *existing = imp;  // 完全覆盖
         } else {
@@ -1035,7 +1030,7 @@ void FpgaPinBindingPanel::OnImportCst(wxCommandEvent& evt) {
 
 void FpgaPinBindingPanel::OnValidate(wxCommandEvent& evt) {
     if (m_ports.empty()) {
-        wxMessageBox("No Yosys netlist ports found. Run FPGA Synthesis first.",
+        wxMessageBox("No cross-checked port manifest found. Export declarations with tools/virtual/export_ports.py first.",
             "Validation", wxOK | wxICON_INFORMATION, this);
         return;
     }
@@ -1064,6 +1059,10 @@ void FpgaPinBindingPanel::OnValidate(wxCommandEvent& evt) {
 }
 
 void FpgaPinBindingPanel::OnSave(wxCommandEvent& evt) {
+    if (!m_loadError.empty()) {
+        wxMessageBox(m_loadError, "Binding migration required", wxOK | wxICON_ERROR, this);
+        return;
+    }
     if (m_projectPath.IsEmpty()) return;
 
     m_sheet.generatedAt = wxDateTime::Now().FormatISOCombined();
@@ -1095,7 +1094,7 @@ void FpgaPinBindingPanel::OnBoardQuickSelect(wxCommandEvent& evt) {
 
         long idx = m_pinTable->InsertItem(m_pinTable->GetItemCount(),
             wxString::Format("%d", res->packagePin));
-        m_pinTable->SetItem(idx, 1, wxString::Format("%d", pin->bank));
+        m_pinTable->SetItem(idx, 1, pin->bank < 0 ? "?" : wxString::Format("%d", pin->bank));
         m_pinTable->SetItem(idx, 2, pin->ioLocation);
         m_pinTable->SetItem(idx, 3, "Available");
         m_pinTable->SetItem(idx, 4, res->alias + ": " + res->description);

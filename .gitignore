@@ -34,3 +34,4 @@ __pycache__/
 /agent/.local/
 # Claude Code 本地AI会话缓存，禁止提交
 .claude/
+/.work/

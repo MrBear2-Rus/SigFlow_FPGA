@@ -1,0 +1,301 @@
+[
+  {
+    "request": {
+      "op": "get"
+    },
+    "response": {
+      "count": 0,
+      "edges": "0",
+      "eval_calls": "1",
+      "final_calls": 0,
+      "input_writes": "0",
+      "model_instances": 1,
+      "pending_count": 0,
+      "state": "paused",
+      "status": "applied",
+      "tick": "0",
+      "tick_ps": "1"
+    }
+  },
+  {
+    "request": {
+      "op": "step"
+    },
+    "response": {
+      "count": 0,
+      "edges": "1",
+      "eval_calls": "2",
+      "final_calls": 0,
+      "input_writes": "0",
+      "model_instances": 1,
+      "pending_count": 0,
+      "state": "paused",
+      "status": "applied",
+      "tick": "18519",
+      "tick_ps": "1"
+    }
+  },
+  {
+    "request": {
+      "op": "get"
+    },
+    "response": {
+      "count": 0,
+      "edges": "1",
+      "eval_calls": "2",
+      "final_calls": 0,
+      "input_writes": "0",
+      "model_instances": 1,
+      "pending_count": 0,
+      "state": "paused",
+      "status": "applied",
+      "tick": "18519",
+      "tick_ps": "1"
+    }
+  },
+  {
+    "request": {
+      "op": "set",
+      "port": "reset_n",
+      "value": true
+    },
+    "response": {
+      "count": 0,
+      "edges": "1",
+      "eval_calls": "2",
+      "final_calls": 0,
+      "input_writes": "0",
+      "model_instances": 1,
+      "pending_count": 1,
+      "state": "paused",
+      "status": "pending",
+      "tick": "18519",
+      "tick_ps": "1"
+    }
+  },
+  {
+    "request": {
+      "op": "set",
+      "port": "gate_in",
+      "value": true
+    },
+    "response": {
+      "count": 0,
+      "edges": "1",
+      "eval_calls": "2",
+      "final_calls": 0,
+      "input_writes": "0",
+      "model_instances": 1,
+      "pending_count": 2,
+      "state": "paused",
+      "status": "pending",
+      "tick": "18519",
+      "tick_ps": "1"
+    }
+  },
+  {
+    "request": {
+      "op": "get"
+    },
+    "response": {
+      "count": 0,
+      "edges": "1",
+      "eval_calls": "2",
+      "final_calls": 0,
+      "input_writes": "0",
+      "model_instances": 1,
+      "pending_count": 2,
+      "state": "paused",
+      "status": "applied",
+      "tick": "18519",
+      "tick_ps": "1"
+    }
+  },
+  {
+    "request": {
+      "op": "step",
+      "cycles": 3
+    },
+    "response": {
+      "count": 3,
+      "edges": "7",
+      "eval_calls": "9",
+      "final_calls": 0,
+      "input_writes": "2",
+      "model_instances": 1,
+      "pending_count": 0,
+      "state": "paused",
+      "status": "applied",
+      "tick": "129630",
+      "tick_ps": "1"
+    }
+  },
+  {
+    "request": {
+      "op": "set",
+      "port": "gate_in",
+      "value": true
+    },
+    "response": {
+      "count": 3,
+      "edges": "7",
+      "eval_calls": "9",
+      "final_calls": 0,
+      "input_writes": "2",
+      "model_instances": 1,
+      "pending_count": 1,
+      "state": "paused",
+      "status": "pending",
+      "tick": "129630",
+      "tick_ps": "1"
+    }
+  },
+  {
+    "request": {
+      "op": "set",
+      "port": "gate_in",
+      "value": false
+    },
+    "response": {
+      "count": 3,
+      "edges": "7",
+      "eval_calls": "9",
+      "final_calls": 0,
+      "input_writes": "2",
+      "model_instances": 1,
+      "pending_count": 1,
+      "state": "paused",
+      "status": "pending",
+      "tick": "129630",
+      "tick_ps": "1"
+    }
+  },
+  {
+    "request": {
+      "op": "step"
+    },
+    "response": {
+      "count": 3,
+      "edges": "9",
+      "eval_calls": "12",
+      "final_calls": 0,
+      "input_writes": "3",
+      "model_instances": 1,
+      "pending_count": 0,
+      "state": "paused",
+      "status": "applied",
+      "tick": "166667",
+      "tick_ps": "1"
+    }
+  },
+  {
+    "request": {
+      "op": "set",
+      "port": "gate_in",
+      "value": true
+    },
+    "response": {
+      "count": 3,
+      "edges": "9",
+      "eval_calls": "12",
+      "final_calls": 0,
+      "input_writes": "3",
+      "model_instances": 1,
+      "pending_count": 1,
+      "state": "paused",
+      "status": "pending",
+      "tick": "166667",
+      "tick_ps": "1"
+    }
+  },
+  {
+    "request": {
+      "op": "step"
+    },
+    "response": {
+      "count": 4,
+      "edges": "11",
+      "eval_calls": "15",
+      "final_calls": 0,
+      "input_writes": "4",
+      "model_instances": 1,
+      "pending_count": 0,
+      "state": "paused",
+      "status": "applied",
+      "tick": "203704",
+      "tick_ps": "1"
+    }
+  },
+  {
+    "request": {
+      "op": "play"
+    },
+    "response": {
+      "count": 4,
+      "edges": "11",
+      "eval_calls": "15",
+      "final_calls": 0,
+      "input_writes": "4",
+      "model_instances": 1,
+      "pending_count": 0,
+      "state": "running",
+      "status": "applied",
+      "tick": "203704",
+      "tick_ps": "1"
+    }
+  },
+  {
+    "request": {
+      "op": "pause"
+    },
+    "response": {
+      "count": 14,
+      "edges": "174623",
+      "eval_calls": "174627",
+      "final_calls": 0,
+      "input_writes": "4",
+      "model_instances": 1,
+      "pending_count": 0,
+      "state": "paused",
+      "status": "applied",
+      "tick": "3233759259",
+      "tick_ps": "1"
+    }
+  },
+  {
+    "request": {
+      "op": "get"
+    },
+    "response": {
+      "count": 14,
+      "edges": "174623",
+      "eval_calls": "174627",
+      "final_calls": 0,
+      "input_writes": "4",
+      "model_instances": 1,
+      "pending_count": 0,
+      "state": "paused",
+      "status": "applied",
+      "tick": "3233759259",
+      "tick_ps": "1"
+    }
+  },
+  {
+    "request": {
+      "op": "stop"
+    },
+    "response": {
+      "count": 14,
+      "edges": "174623",
+      "eval_calls": "174627",
+      "final_calls": 1,
+      "input_writes": "4",
+      "model_instances": 1,
+      "pending_count": 0,
+      "state": "stopped",
+      "status": "applied",
+      "tick": "3233759259",
+      "tick_ps": "1"
+    }
+  }
+]

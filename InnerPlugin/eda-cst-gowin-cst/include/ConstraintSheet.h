@@ -1,6 +1,8 @@
 #pragma once
 
 #include "PinDatabaseStore.h"
+#include <eda/api/port_manifest.hpp>
+#include <eda/api/electrical_profile.hpp>
 
 #include <filesystem>
 #include <map>
@@ -9,6 +11,21 @@
 
 namespace eda {
 namespace cst {
+
+// Production V2. The legacy types below are retained only for old plugin ABI/tests
+// and explicit migration. GUI and virtual sessions use this manifest-bound model.
+struct ConstraintSheetV2 {
+    virtual_board::PortManifest manifest;
+    std::string targetProfileId, targetProfileVersion, topModule, device;
+    std::string package = "QFN88", boardRevision = "6202", generatedAt;
+    std::vector<virtual_board::PinBindingV2> bindings;
+};
+struct CstImportV2 {
+    std::vector<virtual_board::PinBindingV2> bindings;
+    std::vector<virtual_board::Diagnostic> diagnostics;
+    std::vector<std::string> unmanagedLines;
+    bool ok() const { return diagnostics.empty(); }
+};
 
 enum class PortDirection { Input, Output, InOut };
 
@@ -39,7 +56,7 @@ struct PinBinding {
     int bitIndex = 0;
     PortDirection direction = PortDirection::Input;
     int packagePin = -1;
-    std::string ioType = "LVCMOS33";
+    std::string ioType;
     std::string drive;
     bool pullUp = false;
     bool pullDown = false;
@@ -90,6 +107,8 @@ public:
 
     std::vector<ConstraintError> Validate(const ConstraintSheet& sheet, const PortMap& ports) const;
     std::vector<ConstraintError> ValidateBinding(const PinBinding& binding) const;
+    static std::vector<virtual_board::Diagnostic> Validate(const ConstraintSheetV2& sheet,
+                const virtual_board::ElectricalProfile* electrical = nullptr);
 
 private:
     const target::PinDatabase& pinDb_;
@@ -97,6 +116,8 @@ private:
 
 class CstGenerator {
 public:
+    CstGenerationResult Generate(const ConstraintSheetV2& sheet) const;
+    CstImportV2 ImportCst(const std::string& content, const virtual_board::PortManifest&) const;
     CstGenerationResult Generate(const ConstraintSheet& sheet) const;
     std::vector<PinBinding> ImportCst(const std::string& cstContent,
                                       std::vector<std::string>& unmanagedLines,
@@ -107,6 +128,10 @@ bool LoadConstraintSheet(const std::filesystem::path& filePath, ConstraintSheet&
                          std::string& errorMessage);
 bool SaveConstraintSheet(const std::filesystem::path& filePath, const ConstraintSheet& sheet,
                          std::string& errorMessage);
+bool LoadConstraintSheet(const std::filesystem::path&, const virtual_board::PortManifest& current,
+                         ConstraintSheetV2&, std::vector<virtual_board::Diagnostic>&);
+bool SaveConstraintSheet(const std::filesystem::path&, const ConstraintSheetV2&,
+                         std::vector<virtual_board::Diagnostic>&);
 std::filesystem::path FindYosysJsonPath(const std::filesystem::path& projectRoot,
                                         const std::string& topModule);
 

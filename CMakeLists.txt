@@ -751,6 +751,14 @@ add_custom_command(TARGET sigflow POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_CURRENT_SOURCE_DIR}/main/fpga/target-profiles"
         "$<TARGET_FILE_DIR:sigflow>/target-profiles")
+add_custom_target(sigflow_virtual_registry
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_CURRENT_SOURCE_DIR}/registry"
+        "${CMAKE_BINARY_DIR}/registry"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_CURRENT_SOURCE_DIR}/main/fpga/target-profiles"
+        "${CMAKE_BINARY_DIR}/target-profiles")
+add_dependencies(sigflow sigflow_virtual_registry)
 
 option(SIGFLOW_BUILD_TESTS "Build the jobs-layer smoke tests" ON)
 option(SIGFLOW_STRICT_WARNINGS

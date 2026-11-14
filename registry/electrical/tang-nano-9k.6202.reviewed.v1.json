@@ -1,0 +1,1031 @@
+{
+  "schema": "sigflow.electrical.v1",
+  "synthetic": false,
+  "device": "GW1NR-LV9QN88PC6/I5",
+  "package": "QFN88",
+  "vendor_package": "QN88P",
+  "board_revision": "6202",
+  "pads": [
+    {
+      "pin": 1,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 2,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 3,
+      "vendor_bank_id": "3",
+      "reviewed": true,
+      "available": true,
+      "allowed_io_types": [
+        "LVCMOS18"
+      ],
+      "provenance_refs": [
+        "board-6202",
+        "pinout",
+        "electrical"
+      ]
+    },
+    {
+      "pin": 4,
+      "vendor_bank_id": "3",
+      "reviewed": true,
+      "available": true,
+      "allowed_io_types": [
+        "LVCMOS18"
+      ],
+      "provenance_refs": [
+        "board-6202",
+        "pinout",
+        "electrical"
+      ]
+    },
+    {
+      "pin": 5,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": false,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 6,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": false,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 7,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": false,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 8,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": false,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 9,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 10,
+      "vendor_bank_id": "3",
+      "reviewed": true,
+      "available": true,
+      "allowed_io_types": [
+        "LVCMOS18"
+      ],
+      "provenance_refs": [
+        "board-6202",
+        "pinout",
+        "electrical"
+      ]
+    },
+    {
+      "pin": 11,
+      "vendor_bank_id": "3",
+      "reviewed": true,
+      "available": true,
+      "allowed_io_types": [
+        "LVCMOS18"
+      ],
+      "provenance_refs": [
+        "board-6202",
+        "pinout",
+        "electrical"
+      ]
+    },
+    {
+      "pin": 12,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 13,
+      "vendor_bank_id": "3",
+      "reviewed": true,
+      "available": true,
+      "allowed_io_types": [
+        "LVCMOS18"
+      ],
+      "provenance_refs": [
+        "board-6202",
+        "pinout",
+        "electrical"
+      ]
+    },
+    {
+      "pin": 14,
+      "vendor_bank_id": "3",
+      "reviewed": true,
+      "available": true,
+      "allowed_io_types": [
+        "LVCMOS18"
+      ],
+      "provenance_refs": [
+        "board-6202",
+        "pinout",
+        "electrical"
+      ]
+    },
+    {
+      "pin": 15,
+      "vendor_bank_id": "3",
+      "reviewed": true,
+      "available": true,
+      "allowed_io_types": [
+        "LVCMOS18"
+      ],
+      "provenance_refs": [
+        "board-6202",
+        "pinout",
+        "electrical"
+      ]
+    },
+    {
+      "pin": 16,
+      "vendor_bank_id": "3",
+      "reviewed": true,
+      "available": true,
+      "allowed_io_types": [
+        "LVCMOS18"
+      ],
+      "provenance_refs": [
+        "board-6202",
+        "pinout",
+        "electrical"
+      ]
+    },
+    {
+      "pin": 17,
+      "vendor_bank_id": "2",
+      "reviewed": true,
+      "available": true,
+      "allowed_io_types": [
+        "LVCMOS33"
+      ],
+      "provenance_refs": [
+        "board-6202",
+        "pinout",
+        "electrical"
+      ]
+    },
+    {
+      "pin": 18,
+      "vendor_bank_id": "2",
+      "reviewed": true,
+      "available": true,
+      "allowed_io_types": [
+        "LVCMOS33"
+      ],
+      "provenance_refs": [
+        "board-6202",
+        "pinout",
+        "electrical"
+      ]
+    },
+    {
+      "pin": 19,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 20,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 21,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 22,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 23,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 24,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 25,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 26,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 27,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 28,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 29,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 30,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 31,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 32,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 33,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 34,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 35,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 36,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 37,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 38,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 39,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 40,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 41,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 42,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 43,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 44,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 45,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 46,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 47,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 48,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 49,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 50,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 51,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 52,
+      "vendor_bank_id": "1",
+      "reviewed": true,
+      "available": true,
+      "allowed_io_types": [
+        "LVCMOS33"
+      ],
+      "provenance_refs": [
+        "board-6202",
+        "pinout",
+        "electrical"
+      ]
+    },
+    {
+      "pin": 53,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 54,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 55,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 56,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 57,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 58,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 59,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 60,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 61,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 62,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 63,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 64,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 65,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 66,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 67,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 68,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 69,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 70,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 71,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 72,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 73,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 74,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 75,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 76,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 77,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 78,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 79,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 80,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 81,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 82,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 83,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 84,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 85,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 86,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 87,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    },
+    {
+      "pin": 88,
+      "vendor_bank_id": null,
+      "reviewed": false,
+      "available": true,
+      "allowed_io_types": [],
+      "provenance_refs": []
+    }
+  ],
+  "banks": {
+    "0": {
+      "vccio_mv": 3300
+    },
+    "1": {
+      "vccio_mv": 3300
+    },
+    "2": {
+      "vccio_mv": 3300
+    },
+    "3": {
+      "vccio_mv": 1800
+    }
+  },
+  "io_standards": {
+    "LVCMOS18": {
+      "directions": [
+        "input",
+        "output"
+      ],
+      "vccio_allowed_mv": [
+        1800
+      ],
+      "drive_allowed_ma": [
+        4,
+        8,
+        12
+      ],
+      "pull_modes": [
+        "none"
+      ],
+      "provenance_refs": [
+        "electrical"
+      ]
+    },
+    "LVCMOS33": {
+      "directions": [
+        "input",
+        "output"
+      ],
+      "vccio_allowed_mv": [
+        3300
+      ],
+      "drive_allowed_ma": [
+        4,
+        8,
+        12
+      ],
+      "pull_modes": [
+        "none"
+      ],
+      "provenance_refs": [
+        "electrical"
+      ]
+    }
+  },
+  "endpoints": [
+    {
+      "pin": 3,
+      "role": "source",
+      "voltage_mv": 1800,
+      "pull_modes": [
+        "none"
+      ],
+      "alias": "BTN1",
+      "active_low": true,
+      "external_pull_up_ohm": 10000,
+      "provenance_refs": [
+        "board-6202"
+      ]
+    },
+    {
+      "pin": 4,
+      "role": "source",
+      "voltage_mv": 1800,
+      "pull_modes": [
+        "none"
+      ],
+      "alias": "BTN2",
+      "active_low": true,
+      "external_pull_up_ohm": 10000,
+      "provenance_refs": [
+        "board-6202"
+      ]
+    },
+    {
+      "pin": 10,
+      "role": "sink",
+      "voltage_mv": 1800,
+      "pull_modes": [
+        "none"
+      ],
+      "alias": "LED1",
+      "active_low": true,
+      "external_pull_up_ohm": null,
+      "provenance_refs": [
+        "board-6202"
+      ]
+    },
+    {
+      "pin": 11,
+      "role": "sink",
+      "voltage_mv": 1800,
+      "pull_modes": [
+        "none"
+      ],
+      "alias": "LED2",
+      "active_low": true,
+      "external_pull_up_ohm": null,
+      "provenance_refs": [
+        "board-6202"
+      ]
+    },
+    {
+      "pin": 13,
+      "role": "sink",
+      "voltage_mv": 1800,
+      "pull_modes": [
+        "none"
+      ],
+      "alias": "LED3",
+      "active_low": true,
+      "external_pull_up_ohm": null,
+      "provenance_refs": [
+        "board-6202"
+      ]
+    },
+    {
+      "pin": 14,
+      "role": "sink",
+      "voltage_mv": 1800,
+      "pull_modes": [
+        "none"
+      ],
+      "alias": "LED4",
+      "active_low": true,
+      "external_pull_up_ohm": null,
+      "provenance_refs": [
+        "board-6202"
+      ]
+    },
+    {
+      "pin": 15,
+      "role": "sink",
+      "voltage_mv": 1800,
+      "pull_modes": [
+        "none"
+      ],
+      "alias": "LED5",
+      "active_low": true,
+      "external_pull_up_ohm": null,
+      "provenance_refs": [
+        "board-6202"
+      ]
+    },
+    {
+      "pin": 16,
+      "role": "sink",
+      "voltage_mv": 1800,
+      "pull_modes": [
+        "none"
+      ],
+      "alias": "LED6",
+      "active_low": true,
+      "external_pull_up_ohm": null,
+      "provenance_refs": [
+        "board-6202"
+      ]
+    },
+    {
+      "pin": 17,
+      "role": "sink",
+      "voltage_mv": 3300,
+      "pull_modes": [
+        "none"
+      ],
+      "alias": "UART_TX",
+      "active_low": false,
+      "external_pull_up_ohm": null,
+      "provenance_refs": [
+        "board-6202"
+      ]
+    },
+    {
+      "pin": 18,
+      "role": "source",
+      "voltage_mv": 3300,
+      "pull_modes": [
+        "none"
+      ],
+      "alias": "UART_RX",
+      "active_low": false,
+      "external_pull_up_ohm": null,
+      "provenance_refs": [
+        "board-6202"
+      ]
+    },
+    {
+      "pin": 52,
+      "role": "source",
+      "voltage_mv": 3300,
+      "pull_modes": [
+        "none"
+      ],
+      "alias": "CLK",
+      "active_low": false,
+      "external_pull_up_ohm": null,
+      "provenance_refs": [
+        "board-6202"
+      ]
+    }
+  ],
+  "provenance": [
+    {
+      "id": "board-6202",
+      "document_version": "Tang_Nano_9k_3672 / revision history 6202 (2022-10-23), schematic sheet 3/5",
+      "url": "https://dl.sipeed.com/fileList/TANG/Nano%209K/2_Schematic/Tang_Nano_9k_3672_Schematic.pdf",
+      "sha256": "71ccf1b7731589c8bc5b4c1dcf0c8906f52831785c703732d43a70f01ec574ec",
+      "physical_pages": [
+        1,
+        2
+      ],
+      "archived_file": "registry/provenance/tangnano9k-6202.pdf"
+    },
+    {
+      "id": "pinout",
+      "document_version": "UG803-1.6.5E, QN88P (PSRAM) column",
+      "url": "https://cdn.gowinsemi.com.cn/UG803E.pdf",
+      "sha256": "ebe1350849abb5903c2c934a33d19c27635b50c1b09eee27968fc894f5fef836",
+      "physical_pages": [
+        7,
+        9,
+        10,
+        12
+      ],
+      "archived_file": "registry/provenance/gw1nr9-pinout.pdf"
+    },
+    {
+      "id": "electrical",
+      "document_version": "DS117-3.2.5E, tables 3-11 / 3-12, printed pages 49 / 51",
+      "url": "https://cdn.gowinsemi.com.cn/DS117E.pdf",
+      "sha256": "09cc21999adf5053cafb13206df9835feba26f95d14a95bcee08aeabb7d9de6e",
+      "physical_pages": [
+        60,
+        62
+      ],
+      "archived_file": "registry/provenance/gw1nr-datasheet.pdf"
+    }
+  ],
+  "policy": "Conservative validated M0 subset. Matching nominal VCCIO required for input and output; not a claim of all silicon input tolerances. Internal pulls are outside this reviewed subset. Unreviewed pads are blocked.",
+  "audit": "Source cross-check only; no hardware measurement or human sign-off claimed."
+}

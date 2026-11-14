@@ -37,6 +37,21 @@ add_library(eda_core STATIC
 )
 
 target_link_libraries(eda_core PUBLIC eda_api eda_platform)
+
+add_library(eda_virtual_board STATIC
+    src/eda-virtual-board/PortManifestBuilder.cpp
+    src/eda-virtual-board/ElectricalValidator.cpp
+    src/eda-virtual-board/Resolver.cpp
+    src/eda-virtual-board/VirtualSession.cpp)
+target_link_libraries(eda_virtual_board PUBLIC eda_api eda_platform)
+if(TARGET Threads::Threads)
+    target_link_libraries(eda_virtual_board PUBLIC Threads::Threads)
+endif()
+target_include_directories(eda_virtual_board PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
+set_target_properties(eda_virtual_board PROPERTIES POSITION_INDEPENDENT_CODE ON)
+add_executable(sigflow_port_manifest src/eda-virtual-board/PortManifestCli.cpp)
+target_link_libraries(sigflow_port_manifest PRIVATE eda_virtual_board)
+set_target_properties(sigflow_port_manifest PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 target_include_directories(eda_core PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-platform")
 

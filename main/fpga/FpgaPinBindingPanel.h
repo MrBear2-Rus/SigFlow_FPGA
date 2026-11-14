@@ -64,8 +64,6 @@ public:
     void PopulatePorts(const FpgaPortMap& ports,
         const ConstraintSheet& sheet);
 
-    int GetSelectedPortBitIndex() const;
-
 private:
     void OnItemSelected(wxListEvent& evt);
     wxDECLARE_EVENT_TABLE();
@@ -89,7 +87,8 @@ private:
     wxString m_topModule;
     const FpgaPinDatabase& m_pinDb;
     ConstraintSheet m_sheet;
-    FpgaPortMap m_ports; // name -> (dir, width)
+    FpgaPortMap m_ports; // full manifest; no direction/width compression
+    wxString m_loadError;
     ConstraintValidator m_validator;
 
     // UI 组件

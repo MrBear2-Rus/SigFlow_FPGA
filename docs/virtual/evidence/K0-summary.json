@@ -1,0 +1,70 @@
+{
+  "stage": "K0",
+  "date": "2026-11-13",
+  "timezone": "Asia/Shanghai",
+  "base_commit": "cba9ee1dde50ee0ae90f08ca29fb9e759595d3f7",
+  "desktop": {
+    "build": "passed",
+    "binary": "build-m0/sigflow.exe",
+    "bytes": 35199143,
+    "sha256": "ddf014c06f76738e0798ae893cd47e937b8e4a045ee612fa79194690dac09349",
+    "gui_launched": false
+  },
+  "regressions": {
+    "selected": 6,
+    "passed": 6,
+    "names": [
+      "eda_sim_verilator_smoke",
+      "eda_sim_frontend_smoke",
+      "eda_target_profile_smoke",
+      "eda_gowin_cst_smoke",
+      "eda_constraint_sheet_smoke",
+      "eda_wave_vcd_smoke"
+    ]
+  },
+  "real_simulation": {
+    "passed": true,
+    "checks": [
+      {
+        "name": "baseline-generated-batch",
+        "expected": 10,
+        "actual": 10,
+        "vcd_sha256": "1755485bfd33fb355735211c11efb9d3f20bb5a7741197648800348a135a5439"
+      },
+      {
+        "name": "persistent-model-count",
+        "count_after_steps": 4
+      },
+      {
+        "name": "paused-input-no-writes-or-eval",
+        "passed": true
+      },
+      {
+        "name": "same-target-pending-merge",
+        "passed": true
+      },
+      {
+        "name": "rational-27mhz-edge",
+        "edge": "7",
+        "tick": "129630"
+      },
+      {
+        "name": "play-pause-freeze",
+        "paused_tick": "3233759259",
+        "passed": true
+      },
+      {
+        "name": "final-once",
+        "actual": 1
+      }
+    ]
+  },
+  "scope": "K0 build + real batch generation + persistent Verilated spike only",
+  "limitations": [
+    "No full IJobService-to-Verilator integration test",
+    "No GUI interaction acceptance",
+    "G1/G2/G3 remain open",
+    "Verilator upstream version is unknown; binary hash and observed capability are pinned",
+    "GCC 14.2 and POSIX sh are read-only dependencies from E:/sigflow_fpga/toolchain"
+  ]
+}
