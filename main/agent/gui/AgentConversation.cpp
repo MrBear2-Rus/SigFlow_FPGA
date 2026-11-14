@@ -178,6 +178,7 @@ AgentConversation::AgentConversation(wxWindow* parent)
                        wxBORDER_NONE | wxVSCROLL | wxTAB_TRAVERSAL), m_stageTimer(this)
 {
     SetName("agent-conversation");
+    SetBackgroundStyle(wxBG_STYLE_PAINT);
     SetScrollRate(0, std::max(1, LineHeight()));
     SetBackgroundColour(tokens::SurfaceColour(tokens::Component::Card));
     wxFont hintFont = BodyFont();

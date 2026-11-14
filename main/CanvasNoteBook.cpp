@@ -12,6 +12,9 @@ CanvasNoteBook::CanvasNoteBook(MainFrame* pa, SigFlowTree* sftree, wxWindowID id
     : wxAuiNotebook(pa, id, wxDefaultPosition, wxDefaultSize, wxAUI_NB_DEFAULT_STYLE | wxBORDER_NONE),
     mf(pa), sftree(sftree), size_x(size_x), size_y(size_y)
 {
+    // OnPaintEmpty paints the full background with wxAutoBufferedPaintDC.
+    // Its window must opt into paint-owned background handling before repaint.
+    SetBackgroundStyle(wxBG_STYLE_PAINT);
     //AddCanvasPage(new CanvasPanel(this, sftree, size_x, size_y), "untitled", true);
     //AddCustomButton();
     Bind(wxEVT_AUINOTEBOOK_PAGE_CLOSE, &CanvasNoteBook::OnPageClose, this);
