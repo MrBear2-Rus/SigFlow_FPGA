@@ -10,12 +10,15 @@ PREFIX='/api/v1/u2'
 
 
 def capabilities(service):
+    course = getattr(service.runtime.factory, 'course_readiness', {})
     return dict(schema_version=SCHEMA,available=True,base_path=PREFIX,waiting_is_terminal=False,
         starts_jobs_without_approval=False,http_l4_available=False,
         owner_identity='UI-asserted X-Learner-ID; not independent learner authentication',
         teaching_memory_configured=service.runtime.teaching_memory_configured,
         model_available=bool(getattr(service.runtime.factory,'model_available',False)),
         course_configured=bool(getattr(service.runtime.factory,'course_enabled',False)),
+        course_available=course.get('database') == 'ready' and course.get('retrieval') == 'ready',
+        course_reason=course.get('reason', 'course_readiness_not_reported'),
         prediction_configured=bool(getattr(service.runtime.factory,'prediction_available',False)))
 
 
@@ -63,18 +66,22 @@ def dispatch(handler,method,path):
         if method=='POST' and route:
             handler._respond_data(202,service.start(sid,learner,dict(handler._read_json_body()),_one(handler,'Idempotency-Key')))
             return True
-    match=re.fullmatch(PREFIX+r'/runs/(run-[1-9][0-9]{0,18})(?:/(actions|cancel|events))?',path)
+    match=re.fullmatch(PREFIX+r'/runs/(run-[1-9][0-9]{0,18})(?:/(actions|cancel|events|timeline|records))?',path)
     if match:
         rid,route=match.groups()
-        if method=='GET' and route=='events':
+        if method=='GET' and route in ('events','timeline'):
             try:query=parse_qs(parsed.query,keep_blank_values=True,strict_parsing=True)
             except ValueError:raise AgentError('INVALID_ARGUMENT','invalid teaching cursor',http_status=400) from None
             if set(query)-{'after','limit'} or any(len(v)!=1 for v in query.values()):
                 raise AgentError('INVALID_ARGUMENT','invalid teaching cursor',http_status=400)
-            after,limit=(_cursor(query.get(k,[default])[0]) for k,default in (('after','0'),('limit','100')))
+            after = _cursor(query['after'][0]) if 'after' in query else (None if route=='timeline' else 0)
+            limit = _cursor(query.get('limit', ['12' if route=='timeline' else '100'])[0])
             if not 1<=limit<=100:raise AgentError('INVALID_ARGUMENT','invalid teaching limit',http_status=400)
-            handler._respond_data(200,service.events(rid,learner,after,limit));return True
+            read = service.timeline if route=='timeline' else service.events
+            handler._respond_data(200,read(rid,learner,after,limit));return True
         if not parsed.query:
+            if method=='GET' and route=='records':
+                handler._respond_data(200,service.learning_records(rid,learner));return True
             if method=='GET' and not route:
                 handler._respond_data(200,service.project(rid,learner));return True
             if method=='POST' and route=='actions':

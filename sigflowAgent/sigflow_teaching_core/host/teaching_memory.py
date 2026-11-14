@@ -9,6 +9,7 @@ import hashlib
 import json
 import re
 from threading import Event, Lock, Thread
+from time import monotonic
 
 from ..learning import MAX_HISTORY_BYTES, bounded_history
 from ..patterns import PATTERNS
@@ -137,20 +138,33 @@ class TeachingMemoryBridge:
         self._stop=Event()
         self._history_lock=Lock()
         self._history_pending=None
+        self._records_pending=None
+        self._records_scope=None
         self._thread=Thread(target=self._deliver,daemon=True,name='u2-fact-delivery')
         self._thread.start()
 
     def _deliver(self):
+        retry_at = {}
         while not self._stop.is_set():
+            now = monotonic()
+            retry_at = {sid: due for sid, due in retry_at.items() if due > now}
             try:
-                for fact in self.store.pending_teaching_facts(32):
+                for fact in self.store.pending_teaching_facts(32, exclude_sessions=retry_at):
                     if self._stop.is_set():break
-                    ack=self.port.record_teaching_fact(deepcopy(fact))
-                    if (type(ack) is not dict or ack.get('accepted') is not True
-                            or ack.get('event_id')!=fact['event_id']):break
-                    self.store.ack_teaching_fact(fact['event_id'])
+                    sid = fact['session_id']
+                    if sid in retry_at:continue
+                    try:
+                        ack = self.port.record_teaching_fact(deepcopy(fact))
+                        if (type(ack) is dict and ack.get('accepted') is True
+                                and ack.get('event_id') == fact['event_id']
+                                and self.store.ack_teaching_fact(fact['event_id'])):
+                            continue
+                    except Exception:
+                        pass  # An unknown acknowledgement leaves the same event pending.
+                    # Preserve order within a session, but let other sessions drain.
+                    retry_at[sid] = monotonic() + 1.0
             except Exception:
-                pass  # Unknown acknowledgement stays pending under the same ID.
+                pass  # Store failures are retried on the next delivery pass.
             self._stop.wait(.25)
 
     def history(self,binding,concepts):
@@ -171,7 +185,8 @@ class TeachingMemoryBridge:
                 try:future.set_result(port.get_teaching_context(**deepcopy(scope)))
                 except Exception:future.set_result(None)
             Thread(target=read,daemon=True,name='u2-history-read').start()
-        try:value=future.result(timeout=.25)
+        timeout = min(1.0, max(.01, getattr(self.port, 'history_timeout_seconds', .25)))
+        try:value=future.result(timeout=timeout)
         except TimeoutError:return ''
         keys={'learner_id','project_id','concept_ids','summary'}
         if (type(value) is not dict or set(value)!=keys
@@ -183,3 +198,49 @@ class TeachingMemoryBridge:
     def close(self,timeout=1):
         self._stop.set()
         self._thread.join(max(0,timeout))
+
+    def records(self, binding, *, state_version=None):
+        read = getattr(self.port, 'get_learning_records', None)
+        if not callable(read):
+            return dict(status='unavailable', records=[], truncated=False)
+        current = getattr(self.port, 'learning_records_current', None)
+        scope = (binding, state_version)
+        resumed = False
+        with self._history_lock:
+            if self._stop.is_set():
+                return dict(status='unavailable', records=[], truncated=False)
+            if self._records_pending is not None and not self._records_pending.done():
+                return dict(status='pending', records=[], truncated=False)
+            if self._records_pending is not None and self._records_scope == scope and callable(current):
+                future = self._records_pending
+                self._records_pending = self._records_scope = None
+                resumed = True
+            else:
+                future = Future()
+                self._records_pending = future
+                self._records_scope = None
+                def query():
+                    try:
+                        future.set_result(read(binding))
+                    except Exception:
+                        future.set_result(dict(status='unavailable', records=[], truncated=False))
+                Thread(target=query, daemon=True, name='u2-records-read').start()
+        try:
+            result = future.result(timeout=1.0)
+            with self._history_lock:
+                if self._records_pending is future:
+                    self._records_pending = self._records_scope = None
+        except TimeoutError:
+            with self._history_lock:
+                if self._records_pending is future:
+                    self._records_scope = scope
+            return dict(status='pending', records=[], truncated=False)
+        if type(result) is not dict or type(result.get('records')) is not list:
+            return dict(status='unavailable', records=[], truncated=False)
+        if resumed and result.get('status') == 'ready':
+            try:
+                if not current(binding, result):
+                    return dict(status='unavailable', records=[], truncated=False)
+            except Exception:
+                return dict(status='unavailable', records=[], truncated=False)
+        return result

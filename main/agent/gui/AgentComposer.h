@@ -72,7 +72,7 @@ public:
 
     void SetFeedback(const wxString& text);     ///< 本地明确说明（空 = 隐藏）
     void SetWorkflowActions(bool visible, bool hint, bool finish, bool cancel,
-                            std::function<void(const std::string&)> handler);
+                            std::function<void(const std::string&)> handler, bool recordsOnly = false);
     /// 恢复/刷新证据入口：只由工作台按后端状态注入。
     ///   * refreshEvidenceVisible：有活跃教学 run 时显示“刷新证据”；
     ///   * recoverVisible：仅 teaching_status == RecoveryRequired 时显示“恢复教学”；
@@ -135,6 +135,7 @@ private:
     controls::AgentButton* m_refreshEvidence = nullptr;
     controls::AgentButton* m_recover = nullptr;
     bool m_workflowVisible = false;
+    bool m_recordsOnly = false;
     bool m_refreshEvidenceRequested = false;
     bool m_recoverRequested = false;
     wxString m_recoverReason;

@@ -16,6 +16,10 @@ if [ -f "$here/../../sigflowAgent/sigflow_teaching_core/__init__.py" ]; then
     PYTHONPATH="$here/../../sigflowAgent:$PYTHONPATH"
 fi
 export PYTHONPATH
+if [ -f "$here/../../sigflowAgent/ua10_module/src/ua10/__init__.py" ]; then
+    PYTHONPATH="$here/../../sigflowAgent/ua10_module/src:$here/../../sigflowAgent/ua10_module/vendor:$PYTHONPATH"
+    export PYTHONPATH
+fi
 if [ -z "${SIGFLOW_EDU_LOCAL_MODEL_DISABLE:-}" ] && [ -z "${SIGFLOW_EDU_LOCAL_MODEL_CONFIG:-}" ] && [ -f "$here/../.local/deepseek.json" ]; then
     SIGFLOW_EDU_LOCAL_MODEL_CONFIG="$here/../.local/deepseek.json"
     export SIGFLOW_EDU_LOCAL_MODEL_CONFIG

@@ -31,6 +31,7 @@ struct Timeline {
     uint64_t maxSimTime = 0;                    // 总仿真时间
     std::vector<std::string> inputSignals;      // 所有输入信号名
     std::map<std::string, std::string> signalInitValues; // 信号初始值
+    std::string timeUnit;                       // 每个仿真 tick 的物理时间单位
 };
 
 class TimelineGenerator

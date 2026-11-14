@@ -1019,7 +1019,7 @@ MainFrame::MainFrame()
             m_teachingSession = std::make_unique<TeachingSessionController>(
                 [this](const TeachingSessionController::Result& result) {
                     HandleAgentResult(result);
-                    if (m_terminalCtrl == nullptr) return;
+                    if (m_terminalCtrl == nullptr || result.recordsOnly) return;
                     if (result.state == TeachingSessionController::Result::State::Cancelled) {
                         m_terminalCtrl->PrintOutput("[edu-agent] teaching request cancelled\n");
                         return;
@@ -3213,8 +3213,9 @@ void MainFrame::SyncAgentWorkspace()
             m_teachingSession->TeachingAction("cancel");
             m_teachingSession->InvalidateGeneration(m_agentClientGeneration);
             m_agentWorkspace->Model().BeginLocalCancel();
-            m_agentWorkspace->SetWorkflowActions(false, false, false, false, {});
         }
+        if (m_teachingSession) m_teachingSession->DiscardFinalRecords();
+        m_agentWorkspace->SetWorkflowActions(false, false, false, false, {});
         m_agentEvidenceJob.clear();
     }
     context.jobId = m_agentEvidenceJob;
@@ -3263,6 +3264,7 @@ void MainFrame::SyncAgentWorkspace()
                     m_agentSelection, request.projectId, request.revision);
                 if (!m_teachingSession->Start(m_agentApiClient, m_agentClientGeneration, std::move(request)))
                     return Receipt{ReceiptStatus::Busy, "上一条请求尚未结束。"};
+                m_agentWorkspace->SetWorkflowActions(false, false, false, false, {});
                 m_agentPendingSubmission = intent.submissionId;
                 m_agentPendingProject = intent.context.projectId;
                 m_agentPendingRevision = intent.context.revision;
@@ -3393,6 +3395,28 @@ void MainFrame::PollAgentCapabilities()
 void MainFrame::HandleAgentResult(const TeachingSessionController::Result& result)
 {
     if (!m_agentWorkspace || (!m_agentPendingSubmission && !result.teaching)) return;
+    if (result.recordsOnly) {
+        eda::agent::ProjectSnapshotState current;
+        if (!m_agentGateway || !m_agentGateway->ProjectState(m_agentProjectId, current) ||
+            result.generation != m_agentClientGeneration || result.projectId != m_agentProjectId ||
+            result.revision != current.request.currentRevision) return;
+        auto& model = m_agentWorkspace->Model();
+        const auto frozen = model.Inflight();
+        if (!frozen || frozen->sessionId != result.sessionId || frozen->runId != result.runId ||
+            frozen->projectId != result.projectId || frozen->revision != result.revision ||
+            frozen->generation != result.generation) return;
+        agent::gui::vm::RunSnapshot snapshot;
+        std::string error;
+        if (!agent::gui::ProjectTeachingRun(result.data, snapshot, error) ||
+            !model.Status().hydrated || snapshot.version != model.Status().version) return;
+        const auto applied = model.ApplyRunResult(*frozen, snapshot);
+        if (applied != agent::gui::vm::ApplyResult::Applied &&
+            applied != agent::gui::vm::ApplyResult::Duplicated) return;
+        const bool canRetry = snapshot.record.rawState == "unavailable";
+        m_agentWorkspace->SetWorkflowActions(canRetry, false, false, false,
+            [this](const std::string&) { RunTeachingAction("refresh_records"); }, true);
+        return;
+    }
     const auto submission = m_agentPendingSubmission;
     m_agentPendingSubmission = 0;
     m_agentWorkspace->SetExternalBusy(false);
@@ -3506,6 +3530,13 @@ void MainFrame::HandleAgentResult(const TeachingSessionController::Result& resul
 void MainFrame::RunTeachingAction(const std::string& action)
 {
     if (!m_teachingSession || !m_agentWorkspace) return;
+    if (action == "refresh_records") {
+        eda::agent::ProjectSnapshotState current;
+        if (m_agentGateway && m_agentGateway->ProjectState(m_agentProjectId, current))
+            m_teachingSession->RefreshFinalRecords(m_agentClientGeneration, m_agentProjectId,
+                                                   current.request.currentRevision);
+        return;
+    }
     bool started = false;
     if (action == "recover") {
         // 恢复只用当前草稿；空白/非法内容由 controller/client fail-closed，绝不发空问题。
@@ -3557,8 +3588,9 @@ void MainFrame::StartTeachingRequest(const std::string& question, const std::str
     RefreshAgentDesignContext();
     request.selection = agent::gui::selection::Resolve(m_agentSelection, request.projectId,
                                                        request.revision);
-    if (!m_teachingSession->Start(m_agentApiClient, m_agentClientGeneration, std::move(request)) &&
-        m_terminalCtrl) {
+    if (m_teachingSession->Start(m_agentApiClient, m_agentClientGeneration, std::move(request))) {
+        if (m_agentWorkspace) m_agentWorkspace->SetWorkflowActions(false, false, false, false, {});
+    } else if (m_terminalCtrl) {
         m_terminalCtrl->PrintOutput("[edu-agent] another teaching request is still running\n");
     }
 }

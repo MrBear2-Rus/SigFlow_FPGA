@@ -356,6 +356,7 @@ struct EvidenceView
     int endLine = 0;
     bool hasLineRange = false;  ///< true 仅当范围来自合法整数且 1 <= start <= end
     WaveformRefView waveform;   ///< 追加：kind=waveform 时的只读引用（默认无元数据）
+    std::string evidenceId, snapshotId;
 
     bool IsHypothesis() const;
     bool IsObservation() const;
@@ -468,6 +469,8 @@ struct CourseRefView
 /// 课程分区。capability 决定能不能用；demo 的 refs 带 Origin::Demo，不改 capability。
 struct CourseView
 {
+    std::string contextStatus, retrievalStatus;
+    std::vector<CourseRefView> backgroundRefs;
     Capability capability;
     std::vector<CourseRefView> refs;
     std::string rawState;
@@ -713,6 +716,26 @@ struct Event
     Origin origin = Origin::Unknown;
 };
 
+struct TimelineEntry
+{
+    std::string sequence, revision, snapshotId, baselineJobId;
+    std::string actionKind, actionPhase, verificationJobId, verificationJobState;
+    std::vector<std::string> evidenceIds;
+    RunStatus status = RunStatus::Unknown;
+    int hintLevel = 0;
+    bool details = false;
+    bool fixture = false;
+    bool operator==(const TimelineEntry&) const = default;
+};
+
+struct TimelineView
+{
+    bool present = false;
+    bool olderRecordsOmitted = false;
+    std::vector<TimelineEntry> entries;
+    bool operator==(const TimelineView&) const = default;
+};
+
 /// 一次运行的权威完整结果（v1 create-run 的 data / U2 state 投影）。
 struct RunSnapshot
 {
@@ -735,6 +758,9 @@ struct RunSnapshot
     /// U2 teaching response 的只读 prediction 摘要（追加字段）。present=false = 没有该字段；
     /// v1 run 永不填充它（ProjectTeachingRun 是唯一写入路径）。
     PredictionView prediction;
+    TimelineView timeline;
+    RecordView record;
+    std::vector<CheckerView> checkers;
 
     bool ModelUsed() const { return modelUsed == "true"; }
 };
@@ -985,6 +1011,7 @@ public:
     const PlanView& Plan() const { return m_plan; }
     const CourseView& Course() const { return m_course; }
     const VerificationView& Verification() const { return m_verification; }
+    const TimelineView& Timeline() const { return m_timeline; }
     const PredictionView& Prediction() const { return m_prediction; }
     const RecordView& Record() const { return m_record; }
     const std::vector<CheckerView>& Checkers() const { return m_checkers; }
@@ -1064,6 +1091,7 @@ private:
     PlanView m_plan;
     CourseView m_course;
     VerificationView m_verification;
+    TimelineView m_timeline;
     PredictionView m_prediction;
     RecordView m_record;
     std::vector<CheckerView> m_checkers;

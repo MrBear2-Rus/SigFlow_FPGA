@@ -2,6 +2,7 @@
 import hashlib
 from pathlib import Path
 import threading
+import os
 
 from .errors import AgentError
 from .gateway_client import GatewayClient
@@ -9,7 +10,10 @@ from .teaching import TeachingService
 from .teaching_store import BindingStore,identifier
 
 
-def compose(bootstrap,*,teaching_memory=None,reference_provider=None,receipt_port=None):
+_AUTO_MEMORY = object()
+
+
+def compose(bootstrap,*,teaching_memory=_AUTO_MEMORY,reference_provider=None,receipt_port=None):
     # Optional imports keep the original Python 3.9 U1 base independent of U2.
     from sigflow_teaching_core.clients.gateway import GatewayClient as EvidenceClient,GatewayConfig
     from sigflow_teaching_core.clients.waveform import GatewayWaveformReader
@@ -37,6 +41,20 @@ def compose(bootstrap,*,teaching_memory=None,reference_provider=None,receipt_por
     client=EvidenceClient(config)
     catalog=GatewayEvidenceCatalog(config)
     store=bindings=runtime=verification=None
+    owned_memory = None
+    if teaching_memory is _AUTO_MEMORY:
+        teaching_memory = None
+        if os.environ.get('SIGFLOW_U2_MEMORY_DISABLE') != '1':
+            try:
+                from ua10 import MemoryConfig
+                from sigflow_teaching_core.host.ua10 import U2TeachingMemoryPort
+                from sigflow_teaching_core.host.teaching_memory import CONCEPTS
+                owned_memory = U2TeachingMemoryPort(
+                    MemoryConfig(directory/'teaching-memory'), instance_id=bootstrap.instance_id,
+                    concepts=tuple(sorted(CONCEPTS)), evidence_origin='tool')
+                teaching_memory = owned_memory
+            except (ImportError, ValueError):
+                teaching_memory = None
 
     def unwrap(outcome):
         if not outcome.ok:
@@ -101,11 +119,14 @@ def compose(bootstrap,*,teaching_memory=None,reference_provider=None,receipt_por
             course_provider=SQLiteCourseProvider(),waveform_reader=GatewayWaveformReader(config))
         runtime=Runtime(store,bootstrap.instance_id,factory,teaching_memory=teaching_memory,
             reference_provider=reference_provider,receipt_port=receipt_port)
-        return TeachingService(runtime,bindings,prepare,adapter,current,
-            resource_closers=(store.close,close_verification))
+        closers = (store.close, close_verification)
+        if owned_memory is not None:
+            closers += (owned_memory.close,)
+        return TeachingService(runtime,bindings,prepare,adapter,current,resource_closers=closers)
     except Exception:
         if runtime:runtime.close()
         if bindings:bindings.close()
         if store:store.close()
         if verification:close_verification()
+        if owned_memory is not None:owned_memory.close()
         raise

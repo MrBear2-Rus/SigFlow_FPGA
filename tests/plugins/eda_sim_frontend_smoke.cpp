@@ -24,6 +24,7 @@ void Check(bool ok, const char* msg) {
 }
 
 const char* kTestbench =
+    "// `timescale 1fs/1fs\n"
     "module tb;\n"
     "  reg clk;\n"
     "  reg rst;\n"
@@ -35,8 +36,10 @@ const char* kTestbench =
     "  end\n"
     "  initial begin\n"
     "    rst = 1;\n"
-    "    #10 rst = 0;\n"
-    "    #20 $finish;\n"
+    "    #10;\n"
+    "    rst = 0;\n"
+    "    #20;\n"
+    "    $finish;\n"
     "  end\n"
     "endmodule\n";
 
@@ -81,6 +84,22 @@ int main() {
         Check(content.find("#include \"Vtop.h\"") != std::string::npos, "includes Vtop header");
         Check(content.find("tfp->open") != std::string::npos, "opens VCD trace");
         Check(content.find("top->clk") != std::string::npos, "drives clock signal");
+        Check(content.find("set_time_resolution") == std::string::npos,
+              "without an explicit timescale the trace uses the Verilated model's resolution");
+    }
+    {
+        eda::sim::TestbenchInfo explicitTimescale;
+        const std::string code = std::string("`timescale 1 ns / 1 ps\n") + kTestbench;
+        Check(parser.ParseCode(code, explicitTimescale), "parses explicit testbench timescale");
+        const auto scaledTimeline = timelineGenerator.Generate(explicitTimescale, "top");
+        Check(mainGenerator.Generate(scaledTimeline, mainPath.string()), "generates trace for explicit timescale");
+        std::ifstream input(mainPath);
+        const std::string content((std::istreambuf_iterator<char>(input)),
+                                  std::istreambuf_iterator<char>());
+        Check(content.find("set_time_resolution(\"1ns\")") != std::string::npos,
+              "VCD tick uses the testbench delay unit");
+        Check(content.find("// [10] rst = 0") != std::string::npos,
+              "explicit timescale preserves numeric stimulus ticks");
     }
     fs::remove_all(dir, cleanupError);
 

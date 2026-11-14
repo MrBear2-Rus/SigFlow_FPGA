@@ -3,6 +3,7 @@ from dataclasses import replace
 from pathlib import Path
 import json
 import tempfile
+from threading import Event
 import time
 import unittest
 
@@ -95,6 +96,20 @@ class ReintegrationTests(unittest.TestCase):
         self.port=U2TeachingMemoryPort(self.config, instance_id='inst', concepts=('latch',), evidence_origin='tool')
         self.assertTrue(self.query())
 
+    def test_local_projection_latency_does_not_silently_drop_history(self):
+        sid, state = self.create('one')
+        self.runtime.action(sid, 'learner', 'finish', 'finish', int(state['state_version']))
+        self.wait(sid, 'finish')
+        self.drain()
+        def local_projection(**scope):
+            time.sleep(.3)
+            return dict(learner_id=scope['learner_id'], project_id=scope['project_id'],
+                        concept_ids=scope['concept_ids'], summary='u2_card_generated: prior bounded teaching fact')
+        self.port.get_teaching_context = local_projection
+        self.contexts.clear()
+        self.create('two')
+        self.assertIn('u2_card_generated', self.contexts[0].learning_history)
+
     def test_lost_ack_retries_same_id_and_does_not_duplicate(self):
         original=self.port.record_teaching_fact
         calls=[]
@@ -109,6 +124,125 @@ class ReintegrationTests(unittest.TestCase):
         with TeachingMemory(self.config,trusted_binding=binding,concepts=('latch',),execution_mode='real') as m:
             rows=m._host.authority.v1.repo.events('learner',session_id=sid)
             self.assertEqual(len(rows),2)
+
+    def test_rejected_delivery_does_not_block_other_sessions(self):
+        original = self.port.record_teaching_fact
+        rejected = Event()
+        def reject_one(fact):
+            if fact['learner_id'] == 'rejected':
+                rejected.set()
+                raise ValueError('synthetic receiver rejection')
+            return original(fact)
+        self.port.record_teaching_fact = reject_one
+        blocked = self.runtime.create(dict(self.body, learner_id='rejected'), 'blocked')['session_id']
+        self.assertTrue(rejected.wait(4))
+        self.runtime.cancel(blocked, 'rejected')
+        sid, _ = self.create('healthy')
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            rows = self.store.pending_teaching_facts(32)
+            if rows and all(f['learner_id'] == 'rejected' for f in rows):
+                break
+            time.sleep(.03)
+        self.assertTrue(rows)
+        self.assertTrue(all(f['learner_id'] == 'rejected' for f in rows))
+        result = self.runtime.learning_records(sid, 'learner')
+        self.assertEqual(result['status'], 'ready')
+        self.assertIn('u2_card_generated', [row['event_type'] for row in result['records']])
+
+    def test_u2_learner_id_with_leading_hyphen_can_read_own_records(self):
+        sid = self.runtime.create(dict(self.body, learner_id='-learner'), 'one')['session_id']
+        deadline = time.monotonic() + 5
+        while self.store.action(sid, 'create')['status'] != 'committed' and time.monotonic() < deadline:
+            time.sleep(.02)
+        self.drain()
+        result = self.runtime.learning_records(sid, '-learner')
+        self.assertEqual(result['status'], 'ready')
+        self.assertIn('u2_card_generated', [row['event_type'] for row in result['records']])
+        self.runtime.cancel(sid, '-learner')
+        other, _ = self.create('other')
+        self.drain()
+        other_result = self.runtime.learning_records(other, 'learner')
+        self.assertTrue(other_result['records'])
+        self.assertTrue({r['event_id'] for r in result['records']}.isdisjoint(
+            r['event_id'] for r in other_result['records']))
+
+    def test_slow_records_are_delivered_once_with_current_authority(self):
+        sid, _ = self.create('one')
+        self.drain()
+        original = self.port.get_learning_records
+        entered, release = Event(), Event()
+        reads = []
+        def delayed(binding):
+            data = original(binding)
+            reads.append(data)
+            entered.set()
+            release.wait(4)
+            return data
+        self.port.get_learning_records = delayed
+        try:
+            self.assertEqual(self.runtime.learning_records(sid, 'learner')['status'], 'pending')
+            self.assertTrue(entered.wait(2))
+            release.set()
+            self.runtime._teaching_memory._records_pending.result(timeout=2)
+            self.assertEqual(self.runtime.learning_records(sid, 'learner'), reads[0])
+            self.assertEqual(len(reads), 1)
+        finally:
+            release.set()
+
+    def test_completed_records_fail_authority_check_after_event_revocation(self):
+        from sigflow_teaching_core.runtime.gateway_session import SessionBinding
+        from ua10 import MemoryHost
+        from memory import Scope
+        sid, _ = self.create('one')
+        self.drain()
+        binding = SessionBinding(**self.store.get(sid)['binding'])
+        records = self.port.get_learning_records(binding)
+        self.assertTrue(records['records'])
+        self.assertTrue(self.port.learning_records_current(binding, records))
+        scope = Scope(binding.learner_id, binding.project_id, binding.instance_id, sid)
+        with MemoryHost(self.config) as host:
+            host.bind(scope, source_kind='real').revoke_learning_event(records['records'][0]['event_id'])
+        self.assertFalse(self.port.learning_records_current(binding, records))
+
+    def test_final_records_wait_for_outbox_delivery(self):
+        sid, state = self.create('one')
+        self.drain()
+        original = self.port.record_teaching_fact
+        release = Event()
+        def delayed(fact):
+            release.wait(4)
+            return original(fact)
+        self.port.record_teaching_fact = delayed
+        try:
+            self.runtime.action(sid, 'learner', 'finish', 'finish', int(state['state_version']))
+            self.wait(sid, 'finish')
+            self.assertEqual(self.runtime.learning_records(sid, 'learner')['status'], 'pending')
+        finally:
+            release.set()
+        self.drain()
+        records = self.runtime.learning_records(sid, 'learner')
+        self.assertIn('u2_run_ended', [row['event_type'] for row in records['records']])
+
+    def test_record_limit_keeps_the_current_end_event(self):
+        for index in range(4):
+            sid, state = self.create(f'run-{index}')
+            self.runtime.action(sid, 'learner', 'finish', 'finish', int(state['state_version']))
+            self.wait(sid, 'finish')
+            self.drain()
+        with self.store._transaction() as db:
+            last_fact = json.loads(db.execute('SELECT payload FROM teaching_outbox WHERE session_id=? '
+                                              'ORDER BY rowid DESC LIMIT 1', (sid,)).fetchone()[0])
+        self.assertEqual(last_fact['event_type'], 'run_finished')
+        records = self.runtime.learning_records(sid, 'learner')
+        deadline = time.monotonic() + 8
+        while records['status'] == 'pending' and time.monotonic() < deadline:
+            records = self.runtime.learning_records(sid, 'learner')
+            time.sleep(.05)
+        self.assertEqual(records['status'], 'ready')
+        self.assertLessEqual(len(records['records']), 12)
+        self.assertTrue(records['truncated'])
+        self.assertIn(last_fact['event_id'], [row['event_id'] for row in records['records']])
 
     def test_host_json_service_denies_before_call_and_never_retries(self):
         class Provider:

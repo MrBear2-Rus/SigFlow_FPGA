@@ -28,7 +28,69 @@ std::string Limits(const std::vector<std::string>& limits)
 }
 }
 
-Projection Project(const vm::AgentViewModel& model, const std::string& currentRevision)
+static const char* TimelineLabel(const vm::TimelineEntry& entry)
+{
+    if (!entry.verificationJobId.empty()) return entry.fixture ? "示例复测证据就绪" : "复测证据就绪";
+    if (entry.status == vm::RunStatus::Cancelled) return "教学已取消";
+    if (entry.status == vm::RunStatus::Failed || entry.status == vm::RunStatus::BudgetExceeded) return "教学未完成";
+    if (entry.hintLevel > 0) {
+        if (entry.actionKind == "create") return "运行开始 · 生成教学提示";
+        if (entry.actionKind == "refresh_evidence") return "证据刷新 · 生成教学提示";
+        return "生成教学提示";
+    }
+    if (entry.actionPhase == "staged" && entry.actionKind == "execute_plan") return "复测授权已核验";
+    if (entry.actionPhase == "committed") {
+        if (entry.actionKind == "create") return "运行开始";
+        if (entry.actionKind == "refresh_evidence") return "已处理证据刷新";
+        if (entry.actionKind == "hint_next") return "下一提示请求已处理";
+        if (entry.actionKind == "recover") return "已处理教学恢复";
+    }
+    switch (entry.status) {
+    case vm::RunStatus::Running: return "教学运行中";
+    case vm::RunStatus::WaitingStudent: return "等待学生";
+    case vm::RunStatus::WaitingEvidence: return "等待证据";
+    case vm::RunStatus::WaitingApproval: return "等待批准";
+    case vm::RunStatus::RecoveryRequired: return "需要恢复";
+    case vm::RunStatus::Completed: return "教学已结束";
+    default: return "教学状态已记录";
+    }
+}
+
+static void AppendTimeline(Projection& out, const vm::TimelineView& timeline)
+{
+    if (!timeline.present) return;
+    out.evidence.push_back({"教学时间线", timeline.entries.empty() ? "当前运行暂无已提交记录。" :
+        timeline.olderRecordsOmitted ? "显示最近的记录，较早记录未显示。" : "当前运行的已提交记录。"});
+    for (const auto& entry : timeline.entries) {
+        std::string title = "#" + entry.sequence + " · " + TimelineLabel(entry);
+        if (entry.hintLevel > 0) title += " L" + std::to_string(entry.hintLevel);
+        std::string text = entry.details ? "修订：" + entry.revision + "\n快照：" + entry.snapshotId +
+            "\n基线 Job：" + entry.baselineJobId : "详情未记录";
+        if (entry.fixture) text += "\n来源：离线示例";
+        if (!entry.verificationJobId.empty()) {
+            text += "\n复测 Job：" + entry.verificationJobId;
+            if (entry.verificationJobState == "Succeeded") text += " · 工具执行成功";
+            else if (entry.verificationJobState == "Failed") text += " · 工具执行失败";
+        }
+        for (const auto& id : entry.evidenceIds) text += "\n证据：" + id;
+        int location = -1;
+        for (size_t i = 0; i < out.locations.size(); ++i) {
+            const auto& target = out.locations[i];
+            if (entry.fixture || !target.eligible || target.revision != entry.revision ||
+                target.snapshotId != entry.snapshotId) continue;
+            for (const auto& id : entry.evidenceIds)
+                if (id == target.evidenceId) location = static_cast<int>(i);
+            if (!entry.verificationJobId.empty() && entry.verificationJobId == target.jobId)
+                location = static_cast<int>(i);
+            if (location >= 0) break;
+        }
+        if (location < 0 && (!entry.evidenceIds.empty() || !entry.verificationJobId.empty()))
+            text += "\n当前没有可定位的对应证据";
+        out.evidence.push_back({std::move(title), std::move(text), location});
+    }
+}
+
+Projection Project(const vm::AgentViewModel& model, const std::string& currentRevision, bool includeTimeline)
 {
     Projection out;
     const std::string revision = model.DemoMode() ? model.Status().revision :
@@ -79,7 +141,8 @@ Projection Project(const vm::AgentViewModel& model, const std::string& currentRe
                 !model.DemoMode() && !card.expired && !card.receiptRevision.empty() &&
                 card.receiptRevision == revision && !ev.ref.empty() && !model.BoundProjectId().empty();
             const int location = static_cast<int>(out.locations.size());
-            out.locations.push_back({ev.ref, card.cardId, model.BoundProjectId(), card.receiptRevision, ev.origin, eligible});
+            out.locations.push_back({ev.ref, card.cardId, model.BoundProjectId(), card.receiptRevision,
+                                     ev.origin, eligible, ev.evidenceId, ev.snapshotId, ev.jobId});
             // N4：来源/位置只显示受限引用（source_id/job_id 与已核验的行号范围），
             // 不解析文件、不拼路径；没有结构化元数据时退回原始 ref（旧行为）。
             std::string text = "内容：" + Known(ev.note) + "\n来源 / 位置：" + Known(ev.ReferenceText());
@@ -90,6 +153,8 @@ Projection Project(const vm::AgentViewModel& model, const std::string& currentRe
         }
         if (!inGroup) out.evidence.push_back({"暂无" + label, "未提供此类证据。"});
     }
+    if (includeTimeline && !model.DemoMode() && revision == model.BoundRevision())
+        AppendTimeline(out, model.Timeline());
     return out;
 }
 

@@ -139,11 +139,13 @@ class API:
             chosen=[pattern_item(p) for p in pats]+chosen
         return self._finish('search_memories',raw,post,chosen,as_of=as_of,token_budget=token_budget,
           reason='unsupported mastery/independence claim or no trusted responsive evidence')
-    def get_learning_timeline(self,*,as_of,concept=None,run_id=None,token_budget=768,limit=20,offset=0):
+    def get_learning_timeline(self,*,as_of,concept=None,run_id=None,token_budget=768,limit=20,offset=0,
+                              newest_first=False):
         if type(limit) is not int or not 1<=limit<=100: raise ValueError('limit 1..100')
         if type(offset) is not int or not 0<=offset<=10000: raise ValueError('offset 0..10000')
+        if type(newest_first) is not bool: raise ValueError('newest_first must be boolean')
         events=[e for e in self._events(as_of) if (not concept or concept in e['concept_ids']) and (not run_id or run_id==e['run_id'])]
-        rows=[event_item(e) for e in sorted(events,key=lambda e:(e['created_at'],e['event_id']))]
+        rows=[event_item(e) for e in sorted(events,key=lambda e:(e['created_at'],e['event_id']),reverse=newest_first)]
         result=self._finish('get_learning_timeline',rows,rows,rows[offset:offset+limit],as_of=as_of,token_budget=token_budget)
         result['has_more']=offset+len(result['memories'])<len(rows)
         result['next_offset']=offset+len(result['memories']) if result['has_more'] and result['memories'] else None

@@ -31,8 +31,17 @@ bool StimulusParser::ParseCode(const std::string& code, TestbenchInfo& result) {
 
     std::regex moduleRe(R"(module\s+(\w+))");
     std::smatch moduleMatch;
+    result.timeUnit.clear();
     if (std::regex_search(cleaned, moduleMatch, moduleRe)) {
         result.moduleName = moduleMatch[1].str();
+        // An unqualified #delay counts in the effective directive's time unit.
+        static const std::regex timeDirective(
+            R"((?:^|\n)[ \t]*`(?:timescale\s+(1(?:00?)?)\s*(s|ms|us|ns|ps|fs)\s*/\s*1(?:00?)?\s*(?:s|ms|us|ns|ps|fs)\b|resetall\b))");
+        const std::string preamble = moduleMatch.prefix().str();
+        for (auto it = std::sregex_iterator(preamble.begin(), preamble.end(), timeDirective);
+             it != std::sregex_iterator(); ++it) {
+            result.timeUnit = (*it)[1].str() + (*it)[2].str();
+        }
     }
 
     ParseSignalDeclarations(cleaned, result);

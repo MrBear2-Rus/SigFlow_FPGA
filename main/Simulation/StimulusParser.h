@@ -58,6 +58,7 @@ struct TestbenchInfo {
     std::vector<std::string> wireSignals;       // wire 信号列表
     std::vector<InitialBlock> initialBlocks;    // 所有 initial 块
     uint64_t maxSimTime = 0;                    // 估算的最大仿真时间
+    std::string timeUnit;                       // Testbench 延迟的物理时间单位
 };
 
 class StimulusParser

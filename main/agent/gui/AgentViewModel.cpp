@@ -315,6 +315,11 @@ std::string FingerprintSnapshot(const RunSnapshot& snapshot)
     }
     out += '|';
     // 课程引用同样属于这份权威结果：同版本但不同的 course_refs 不能被当成重复投递。
+    out += snapshot.course.contextStatus + "|" + snapshot.course.retrievalStatus + "|";
+    for (const auto& ref : snapshot.course.backgroundRefs)
+        out += ref.courseId + ":" + ref.chapter + ":" + ref.title + ":" + ref.url + "|";
+    for (const auto& check : snapshot.checkers)
+        out += check.checkerId + ":" + check.rawState + "|";
     out += snapshot.course.origin == Origin::Demo ? "course-demo" : "course-live";
     for (const CourseRefView& courseRef : snapshot.course.refs)
     {
@@ -399,6 +404,10 @@ std::string FingerprintSnapshot(const RunSnapshot& snapshot)
             out += evidence.kind;
             out += ':';
             out += evidence.ref;
+            out += ':';
+            out += evidence.evidenceId;
+            out += ':';
+            out += evidence.snapshotId;
             out += ':';
             out += evidence.note;
             out += ':';
@@ -1461,6 +1470,33 @@ CourseSectionView ProjectCourseSection(const CourseView& course, const Capabilit
     const bool demo = course.origin == Origin::Demo;
     const bool stale = !demo && !currentRevision.empty() && !course.revision.empty() &&
                        course.revision != currentRevision;
+    if (!course.contextStatus.empty() && !demo && !stale) {
+        out.available = capability.IsReady();
+        out.summary = std::to_string(course.refs.size()) + " 条卡片引用 · " +
+                      std::to_string(course.backgroundRefs.size()) + " 条背景材料";
+        const auto stateText = [](const std::string& status) {
+            if (status == "ok") return "已就绪";
+            if (status == "partial") return "部分材料进入上下文";
+            if (status == "no_match") return "未检索到匹配材料";
+            if (status == "omitted") return "材料超出本轮上下文预算";
+            if (status == "disabled") return "未启用";
+            if (status == "unavailable") return "暂不可用";
+            if (status == "revalidation_required") return "等待重新核验";
+            if (status == "cancelled") return "教学已取消";
+            return "尚未确认";
+        };
+        out.body = capabilityText + "\n课程上下文：" + stateText(course.contextStatus) +
+            "\n检索状态：" + stateText(course.retrievalStatus);
+        out.body += "\n\n卡片实际引用";
+        if (course.refs.empty()) out.body += "\n本轮卡片没有声明课程引用。";
+        for (const auto& ref : course.refs)
+            out.body += "\n" + ref.title + " · " + ref.chapter + "\n" + ref.url;
+        out.body += "\n\n已提供的检索背景";
+        if (course.backgroundRefs.empty()) out.body += "\n本轮没有可展示的背景材料。";
+        for (const auto& ref : course.backgroundRefs)
+            out.body += "\n" + ref.title + " · " + ref.chapter + "\n" + ref.url;
+        return out;
+    }
     if (course.refs.empty())
     {
         out.summary = "尚未生成";
@@ -2064,6 +2100,7 @@ void AgentViewModel::ResetSessionViews()
     m_course = CourseView{};
     m_verification = VerificationView{};
     m_prediction = PredictionView{};
+    m_timeline = {};
     m_record = RecordView{};
     m_checkers.clear();
 
@@ -2108,8 +2145,11 @@ void AgentViewModel::InvalidateRunFacts()
     m_course = CourseView{};
     m_verification = VerificationView{};
     m_prediction = PredictionView{};
+    m_timeline = {};
 
     StatusView fresh;
+    m_record = {};
+    m_checkers.clear();
     fresh.projectId = m_projectId;
     fresh.revision = m_revision;
     fresh.generation = m_generation;
@@ -2228,7 +2268,10 @@ bool AgentViewModel::BeginRun(std::string sessionId, std::string runId, Level le
     m_course = CourseView{};
     m_verification = VerificationView{};
     m_prediction = PredictionView{};
+    m_timeline = {};
     m_hydratedVersion = Version::Unknown();
+    m_record = {};
+    m_checkers.clear();
     m_hydratedStatus = RunStatus::Unknown;
     m_hydrationKey.clear();
 
@@ -2504,6 +2547,17 @@ ApplyResult AgentViewModel::ApplyRunResult(const RequestContext& ctx, const RunS
     {
         if (m_hydrationKey == fingerprint)
         {
+            // Timeline is a separate read and may succeed after a state retry.
+            if (snapshot.timeline.present && m_timeline != snapshot.timeline)
+            {
+                m_timeline = snapshot.timeline;
+                Notify();
+            }
+            if (snapshot.record.present && m_record != snapshot.record)
+            {
+                m_record = snapshot.record;
+                Notify();
+            }
             RecordReject(ApplyResult::Duplicated,
                          "同一份完整结果重复投递，幂等忽略：" + snapshot.version.ToText());
             return ApplyResult::Duplicated;
@@ -2523,6 +2577,8 @@ ApplyResult AgentViewModel::ApplyRunResult(const RequestContext& ctx, const RunS
     m_plan.origin = Origin::Live;
     // 课程引用只做只读投影：没有课程正文、没有进度、没有跳转授权；能力状态如实记录。
     m_course = snapshot.course;
+    m_checkers = snapshot.checkers;
+    if (snapshot.record.present) m_record = snapshot.record;
     m_course.origin = Origin::Live;
     m_course.capability = m_capabilities.course;
     m_course.revision = ctx.revision;
@@ -2530,6 +2586,7 @@ ApplyResult AgentViewModel::ApplyRunResult(const RequestContext& ctx, const RunS
     m_verification = snapshot.verification;
     // prediction 也只由 U2 teaching response 填充；v1 run 保持 absent。
     m_prediction = snapshot.prediction;
+    if (snapshot.timeline.present) m_timeline = snapshot.timeline;
     if (m_course.rawState.empty())
     {
         m_course.rawState = snapshot.rawStatus.empty() ? RunStatusToken(snapshot.status)

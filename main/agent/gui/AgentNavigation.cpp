@@ -1116,6 +1116,14 @@ SectionProjection ProjectSection(const vm::AgentViewModel& model, Section sectio
         return projection;
     }
     if (section == Section::Record) {
+        if (model.Record().present) {
+            const auto& status = model.Record().rawState;
+            projection.available = status == "ready";
+            projection.summary = wxString::FromUTF8(status == "ready" ? "已连接" :
+                status == "pending" ? "同步中" : status == "disabled" ? "未启用" : "暂不可用");
+            projection.body = wxString::FromUTF8(model.Record().summary.c_str());
+            return projection;
+        }
         // 仍无可信 record 合同：只显示诚实边界 + 能力原因，不显示任何记录数据。
         const vm::UnavailableSectionView record =
             vm::ProjectRecordSection(model.Capabilities().Get(vm::CapabilityKey::Record));
@@ -1126,6 +1134,16 @@ SectionProjection ProjectSection(const vm::AgentViewModel& model, Section sectio
         return projection;
     }
     if (section == Section::Checker) {
+        if (!model.Checkers().empty()) {
+            projection.available = true;
+            projection.summary = wxString::FromUTF8("当前运行");
+            wxString body;
+            for (const auto& item : model.Checkers()) {
+                body += wxString::FromUTF8((item.label + " · " + item.reason + "\n").c_str());
+            }
+            projection.body = body;
+            return projection;
+        }
         // 仍无可信 checker wire 字段：不把 rule_match/诊断当通过，也不造假全绿。
         const vm::UnavailableSectionView checker =
             vm::ProjectCheckerSection(model.Capabilities().Get(vm::CapabilityKey::Checkers));

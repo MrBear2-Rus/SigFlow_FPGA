@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Authenticated U2 learning record page",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "session_id", "run_id", "project_id", "revision", "status", "records", "truncated"],
+  "properties": {
+    "schema_version": {"const": "u2.learning-records.v1"},
+    "session_id": {"type": "string", "pattern": "^sess-[1-9][0-9]*$"},
+    "run_id": {"type": "string", "pattern": "^run-[1-9][0-9]*$"},
+    "project_id": {"type": "string", "minLength": 1, "maxLength": 256},
+    "revision": {"type": "string", "minLength": 1, "maxLength": 256},
+    "status": {"enum": ["ready", "pending", "unavailable", "disabled"]},
+    "truncated": {"type": "boolean"},
+    "records": {
+      "type": "array", "maxItems": 12,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["event_id", "revision", "event_type", "source_kind", "occurred_at", "status", "summary"],
+        "properties": {
+          "event_id": {"type": "string", "minLength": 1, "maxLength": 256},
+          "revision": {"type": "string", "minLength": 1, "maxLength": 256},
+          "event_type": {"type": "string", "minLength": 1, "maxLength": 128},
+          "source_kind": {"enum": ["real", "mock", "imported_unverified"]},
+          "occurred_at": {"type": "string", "minLength": 1, "maxLength": 64},
+          "status": {"type": "string", "maxLength": 128},
+          "summary": {"type": "string", "maxLength": 512}
+        }
+      }
+    }
+  }
+}

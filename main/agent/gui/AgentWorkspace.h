@@ -93,7 +93,7 @@ public:
     void SetReportSelectionHandler(std::function<void()> handler);
     void SetReportJob(const std::string& jobId, bool enabled);
     void SetWorkflowActions(bool visible, bool hint, bool finish, bool cancel,
-                            std::function<void(const std::string&)> handler);
+                            std::function<void(const std::string&)> handler, bool recordsOnly = false);
     /// 恢复/刷新证据入口：只由宿主按后端 teaching_status 注入；
     /// recoverVisible 只有 teaching_status == RecoveryRequired 时为真。
     void SetRecoveryActions(bool refreshEvidenceVisible, bool recoverVisible,
@@ -209,6 +209,7 @@ private:
     wxString m_lastStatusLine;
     wxString m_lastPlanSummary;   // 验证计划折叠标题摘要（变化时才重排）
     wxString m_lastCourseSummary; // 课程引用折叠标题摘要（变化时才重排）
+    wxString m_lastAuxiliaryBody;
     path::Projection m_lastPath;
     wxPoint m_guideScrollPos;   // 学习/工作切换与形态切换时保留路径滚动
     bool m_guideScrollSaved = false;

@@ -156,6 +156,32 @@ class TeachingService:
         return dict(schema_version=SCHEMA,session_id=record['session']['session_id'],run_id=rid,
             events=events,high_watermark=str(raw['high_watermark']))
 
+    @public
+    def timeline(self, rid, learner, after=None, limit=12):
+        # Historical facts remain readable after a source edit. This route
+        # resolves no live evidence and cannot authorize teaching actions.
+        record, handle, adapter = self._owned(rid, learner, current=False)
+        if handle is None:
+            raise ValueError('operation_pending')
+        raw = adapter.events(handle, after, limit, timeline=True)
+        events = [dict(sequence=str(row['sequence']), state_version=row['state_version'],
+                       teaching_status=row['status'], fact=row['fact']) for row in raw['events']]
+        self._available()
+        return dict(schema_version='u2.teaching-timeline.v1', session_id=record['session']['session_id'],
+                    run_id=rid, events=events, high_watermark=str(raw['high_watermark']),
+                    older_records_omitted=raw['older_records_omitted'])
+
+    @public
+    def learning_records(self, rid, learner):
+        record, handle, adapter = self._owned(rid, learner)
+        if handle is None:
+            raise ValueError('operation_pending')
+        data = self.runtime.learning_records(handle.teaching_session_id, learner)
+        self._current(record['session'])
+        return dict(data, schema_version='u2.learning-records.v1',
+                    run_id=rid, session_id=record['session']['session_id'],
+                    project_id=handle.context.project_id, revision=handle.context.revision)
+
     def close(self):
         if self._closed.is_set():return
         self._closed.set()

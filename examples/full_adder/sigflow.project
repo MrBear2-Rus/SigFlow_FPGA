@@ -1,0 +1,8 @@
+{
+  "build": {"top_module": ["top"]},
+  "paths": {
+    "source_files": ["src/full_adder.v", "src/top.v", "src/tb_full_adder.v"],
+    "library_files": []
+  },
+  "fpga": {"target_profile": "tang-nano-9k", "yosys_path": "", "yosys_strategy": "baseline"}
+}
