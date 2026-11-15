@@ -35,6 +35,9 @@ public:
     const SignalInfo* SignalById(int id) const override;
     TraceTimeRange TimeRange() const override;
     std::string Timescale() const override;
+    TraceTimeDomain TimeDomain() const override;
+    std::string CacheIdentity() const override;
+    std::shared_ptr<TraceSource> PinReadSource() override;
     TraceCoverageInfo Coverage() const override;
     const std::string& Path() const override;
     bool HasSidecar() const override;

@@ -44,6 +44,13 @@ std::string CachingTraceSource::Timescale() const
 {
     return m_inner->Timescale();
 }
+TraceTimeDomain CachingTraceSource::TimeDomain() const { return m_inner->TimeDomain(); }
+std::string CachingTraceSource::CacheIdentity() const {
+    std::lock_guard<std::mutex> lock(m_ioMutex);return m_inner->CacheIdentity();
+}
+std::shared_ptr<TraceSource> CachingTraceSource::PinReadSource() {
+    std::lock_guard<std::mutex> lock(m_ioMutex);return m_inner->PinReadSource();
+}
 
 TraceCoverageInfo CachingTraceSource::Coverage() const
 {
@@ -82,7 +89,9 @@ std::size_t CachingTraceSource::EstimateQueryBytes(const std::vector<Transition>
 bool CachingTraceSource::Query(const SignalInfo& signal, TimeValue t0, TimeValue t1,
                                std::vector<Transition>& out, std::string& error)
 {
-    const std::string key = QueryKey(signal.id, t0, t1);
+    std::lock_guard<std::mutex> ioLock(m_ioMutex);
+    auto pinned=m_inner->PinReadSource();auto* source=pinned?pinned.get():m_inner.get();
+    const std::string key = source->CacheIdentity()+"|query|"+QueryKey(signal.id, t0, t1);
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         const auto hit = m_cache.find(key);
@@ -98,8 +107,7 @@ bool CachingTraceSource::Query(const SignalInfo& signal, TimeValue t0, TimeValue
     std::vector<Transition> fetched;
     const auto fetchStart = std::chrono::steady_clock::now();
     {
-        std::lock_guard<std::mutex> ioLock(m_ioMutex);
-        if (!m_inner->Query(signal, t0, t1, fetched, error)) return false;
+        if (!source->Query(signal, t0, t1, fetched, error)) return false;
     }
     const auto fetchUs = static_cast<std::uint64_t>(std::chrono::duration_cast<
         std::chrono::microseconds>(std::chrono::steady_clock::now() - fetchStart).count());
@@ -114,7 +122,7 @@ bool CachingTraceSource::Query(const SignalInfo& signal, TimeValue t0, TimeValue
             const std::vector<std::string> evicted =
                 m_budget.Insert(key, EstimateQueryBytes(fetched));
             for (const std::string& victim : evicted) m_cache.erase(victim);
-            m_cache[key] = std::move(entry);
+            if (m_budget.Contains(key)) m_cache[key] = std::move(entry);
         }
         m_stats.queryFetchTimeUs += fetchUs;
         m_stats.fetchedTransitions += fetched.size();
@@ -126,7 +134,9 @@ bool CachingTraceSource::Query(const SignalInfo& signal, TimeValue t0, TimeValue
 bool CachingTraceSource::ValueAt(const SignalInfo& signal, TimeValue t,
                                  std::string& value, std::string& error)
 {
-    const std::string key = ValueKey(signal.id, t);
+    std::lock_guard<std::mutex> ioLock(m_ioMutex);
+    auto pinned=m_inner->PinReadSource();auto* source=pinned?pinned.get():m_inner.get();
+    const std::string key = source->CacheIdentity()+"|value-at-tick|"+ValueKey(signal.id, t);
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         const auto hit = m_cache.find(key);
@@ -142,8 +152,7 @@ bool CachingTraceSource::ValueAt(const SignalInfo& signal, TimeValue t,
     std::string fetched;
     const auto fetchStart = std::chrono::steady_clock::now();
     {
-        std::lock_guard<std::mutex> ioLock(m_ioMutex);
-        if (!m_inner->ValueAt(signal, t, fetched, error)) return false;
+        if (!source->ValueAt(signal, t, fetched, error)) return false;
     }
     const auto fetchUs = static_cast<std::uint64_t>(std::chrono::duration_cast<
         std::chrono::microseconds>(std::chrono::steady_clock::now() - fetchStart).count());
@@ -156,7 +165,7 @@ bool CachingTraceSource::ValueAt(const SignalInfo& signal, TimeValue t,
             entry.value = fetched;
             const std::vector<std::string> evicted = m_budget.Insert(key, fetched.size() + 32);
             for (const std::string& victim : evicted) m_cache.erase(victim);
-            m_cache[key] = std::move(entry);
+            if (m_budget.Contains(key)) m_cache[key] = std::move(entry);
         }
         m_stats.valueFetchTimeUs += fetchUs;
     }

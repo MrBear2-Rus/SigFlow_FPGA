@@ -34,6 +34,10 @@ public:
                          std::string& value, std::string& error) = 0;
 
     virtual bool HasSidecar() const = 0;
+    // Offline sources keep the empty identity. Live projections pin a read view
+    // so the cache key and fetched values always refer to the same revision.
+    virtual std::string CacheIdentity() const { return {}; }
+    virtual std::shared_ptr<TraceSource> PinReadSource() { return {}; }
 };
 
 } // namespace trace
