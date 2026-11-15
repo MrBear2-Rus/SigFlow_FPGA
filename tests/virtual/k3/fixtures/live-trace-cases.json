@@ -1,0 +1,18 @@
+{
+  "schema": "sigflow.review.live-trace-cases.v1",
+  "purpose": "描述预期read-view行为；不代表已实现并发存储",
+  "run_id": "review-trace-001",
+  "generation": "1",
+  "records": [
+    { "tick": "100", "delta": 0, "event_seq": "10", "signal": "led_pad", "value": "0" },
+    { "tick": "100", "delta": 1, "event_seq": "11", "signal": "led_pad", "value": "1" },
+    { "tick": "100", "delta": 2, "event_seq": "12", "signal": "led_pad", "value": "0" },
+    { "tick": "100", "delta": 2, "event_seq": "13", "signal": "led_pad", "value": "1" }
+  ],
+  "views": [
+    { "revision": "1", "tail_event_seq": "10", "expected_seqs": ["10"], "value_at_tick_100": "0" },
+    { "revision": "2", "tail_event_seq": "12", "expected_seqs": ["10","11","12"], "value_at_tick_100": "0" },
+    { "revision": "3", "tail_event_seq": "13", "expected_seqs": ["10","11","12","13"], "value_at_tick_100": "1" }
+  ],
+  "cache_requires": ["run_id","generation","trace_revision","signal","range","query_mode"]
+}

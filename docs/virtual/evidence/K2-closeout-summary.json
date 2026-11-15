@@ -1,0 +1,571 @@
+{
+  "date": "2026-11-14",
+  "timezone": "Asia/Shanghai",
+  "base_commit": "f334b63473a9153ccb3ebb7d29b3a9e9a7a28fd9",
+  "commands": [
+    {
+      "argv": [
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\cmake-python\\cmake\\data\\bin\\cmake.exe",
+        "--build",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\build-m0",
+        "--parallel",
+        "4"
+      ],
+      "exit_code": 0,
+      "seconds": 23.037
+    },
+    {
+      "argv": [
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\cmake-python\\cmake\\data\\bin\\ctest.exe",
+        "--test-dir",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\build-m0",
+        "--output-on-failure",
+        "-j",
+        "3",
+        "--output-junit",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k23\\ctest-final.xml"
+      ],
+      "exit_code": 0,
+      "seconds": 68.194
+    }
+  ],
+  "test_total": 28,
+  "test_passed": 28,
+  "tests": [
+    {
+      "name": "job_tests",
+      "passed": true,
+      "seconds": 4.85427,
+      "output": "[PASS] legacy state serialization matches the migration name\n[PASS] legacy->contract state maps to itself\n[PASS] contract->legacy state maps back to the same serialized name\n[PASS] legacy state serialization matches the migration name\n[PASS] legacy->contract state maps to itself\n[PASS] contract->legacy state maps back to the same serialized name\n[PASS] legacy state serialization matches the migration name\n[PASS] legacy->contract state maps to itself\n[PASS] contract->legacy state maps back to the same serialized name\n[PASS] legacy state serialization matches the migration name\n[PASS] legacy->contract state maps to itself\n[PASS] contract->legacy state maps back to the same serialized name\n[PASS] legacy state serialization matches the migration name\n[PASS] legacy->contract state maps to itself\n[PASS] contract->legacy state maps back to the same serialized name\n[PASS] legacy state serialization matches the migration name\n[PASS] legacy->contract state maps to itself\n[PASS] contract->legacy state maps back to the s...\n[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]\n"
+    },
+    {
+      "name": "eda_api_contract_smoke",
+      "passed": true,
+      "seconds": 3.02615,
+      "output": "  ok: default Error is false\n  ok: Error::Ok code None\n  ok: non-None Error is true\n  ok: ToString(TimedOut)\n  ok: MethodCall carries Json params\n  ok: PluginInfo fields\n  ok: ISynthesizer::synthesizerId\n  ok: EDA_TYPED_METHOD dispatch + fromJson\n  ok: JobRequest fields\n  ok: JobState enum\n  ok: IJobProvider stub compiles\n  ok: ABI version macro\n  ok: BuildInfo() non-empty\nBuildInfo: compiler=gcc-14.2.0;cxx=202002;abi=1\n  ok: ServiceRegistry::Add returns owned ref\n  ok: ServiceRegistry::Size\n  ok: ServiceRegistry::Find hit\n  ok: ServiceRegistry::Get\n  ok: ServiceRegistry::Find miss\n  ok: ServiceRegistry::Remove\n  ok: ServiceRegistry::Size after remove\n  ok: EventBus subscriber count\n  ok: EventBus subscribe/publish\n  ok: EventBus unsubscribe stops delivery\n  ok: EventBus empty after unsubscribe\n  ok: SchemaRegistry::RegisterSchema\n  ok: SchemaRegistry::HasSchema\n  ok: SchemaRegistry::Validate ok\n  ok: SchemaRegistry::Validate missing required fails\n  ok: SchemaRegistry::Validate unknown schema fails\n  ok: Pro...\n[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]\n"
+    },
+    {
+      "name": "eda_job_service_smoke",
+      "passed": true,
+      "seconds": 3.36209,
+      "output": "  ok: job succeeded and recorded artifact\n  ok: report state Succeeded\n  ok: report artifact id\n  ok: report metric recorded\n  ok: job log is persisted for history UI\n  ok: provider exception becomes Failed\n  ok: missing provider becomes Failed\n  ok: process job reaches Running\n  ok: cancel accepted\n  ok: process job cancelled\n  ok: process job timed out\n  ok: core schema eda.job.v1 registered\n  ok: valid job record passes schema\n  ok: invalid job record rejected by schema\n  ok: restart: job completes before shutdown\n  ok: restart: completed job recovered from disk\n  ok: restart: report recovered from disk\n  ok: restart: job appears in project listing\n  ok: restart: id sequence does not collide\n  ok: restart: new job still runs after recovery\n  ok: restart: orphaned Running job becomes Failed, not fake-running\n  ok: controlled root: project directory preferred without warning\n  ok: controlled root: project-scoped path layout\n  ok: controlled root: directory created\n  ok: controlled root: distinct projects are...\n[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]\n"
+    },
+    {
+      "name": "eda_toolchain_project_smoke",
+      "passed": true,
+      "seconds": 2.57783,
+      "output": "  ok: toolchain resolves bundled tool\n  ok: configured path takes precedence\n  ok: toolchain resolves environment variable\n  ok: toolchain resolves PATH entry\n  ok: missing tool is not found\n  ok: missing tool carries explicit reason (R19)\n  ok: toolchain resolves bundled subdirectory\n  ok: project loads\n  ok: project top module\n  ok: project source files\n  ok: add source file\n  ok: add source file is idempotent\n  ok: source count after add\n  ok: project save is atomic\n  ok: no temporary file left behind\n  ok: project reloads\n  ok: reloaded source files\n  ok: unknown fpga section preserved\n  ok: remove source file\n  ok: source count after remove\n  ok: RegisterBuiltins picks up EDA_REGISTER_PLUGIN entries\n  ok: registered builtin is retrievable\n  ok: registered builtin exposes capability\nALL PASS\n"
+    },
+    {
+      "name": "eda_plugin_host_smoke",
+      "passed": true,
+      "seconds": 2.41451,
+      "output": "  ok: register static plugin aaa\n  ok: register static plugin bbb\n  ok: duplicate static id rejected\n  ok: ProvidersOf filters by capability\n  ok: ProvidersOf matches exact capability id\n  ok: ProvidersOf unknown capability is empty\n  ok: Select returns matching instance\n  ok: Select prefers a capable plugin over an incapable preferred id\n  ok: Get unknown id returns null\n  ok: provider list for capability\n  ok: Select falls back to first capable provider\n  ok: Discover finds the test plugin libraries\n  ok: exactly one dynamic plugin loads successfully\n  ok: test.ok is Ready\n  ok: test.ok capabilities parsed\n  ok: bad build fingerprint is rejected\n  ok: bad build error mentions fingerprint\n  ok: diagnostics report missing search directory (R1)\n  ok: diagnostics report ABI handshake rejection (R1/R13)\nALL PASS\n"
+    },
+    {
+      "name": "eda_synth_yosys_smoke",
+      "passed": true,
+      "seconds": 2.46642,
+      "output": "  ok: EDA_REGISTER_PLUGIN registers eda-synth-yosys\n  ok: eda-synth-yosys exposes synth/yosys\n  ok: synth job reaches Succeeded with artifact\n  ok: exactly one artifact registered\n  ok: artifact id is netlist\n  ok: artifact schema is yosys-json\n  ok: artifact carries sha256\n  ok: job report records exit_code metric\n  ok: job report records cell count metric\n  ok: invalid netlist makes the job Failed\nALL PASS\n"
+    },
+    {
+      "name": "eda_pnr_nextpnr_smoke",
+      "passed": true,
+      "seconds": 1.53569,
+      "output": "  ok: EDA_REGISTER_PLUGIN registers the plugin\n  ok: eda-pnr-nextpnr exposes pnr/nextpnr\n  ok: pnr job reaches Succeeded with artifact\n  ok: artifact id is pnr-json\n  ok: job report records exit_code metric\n  ok: log parser detects all PnR stages\n  ok: log parser extracts timing\n  ok: log parser extracts resource usage\n  ok: log parser extracts tool version\n  ok: report summary generated\n  ok: report json generated\nALL PASS\n"
+    },
+    {
+      "name": "eda_pack_flash_smoke",
+      "passed": true,
+      "seconds": 2.30696,
+      "output": "  ok: EDA_REGISTER_PLUGIN registers pack/flash plugins\n  ok: pack/gowin capability exposed\n  ok: program/openfpgaloader capability exposed\n  ok: pack job reaches Succeeded with bitstream artifact\n  ok: pack artifact id is bitstream\n  ok: flash without requireConfirm is rejected\n  ok: flash with requireConfirm succeeds\n  ok: flash rejects Gowin CRC error even when process exits 0\nALL PASS\n"
+    },
+    {
+      "name": "eda_sim_verilator_smoke",
+      "passed": true,
+      "seconds": 1.98193,
+      "output": "  ok: EDA_REGISTER_PLUGIN registers eda-sim-verilator\n  ok: sim/verilator capability exposed\n  ok: sim.build job reaches Succeeded with executable artifact\n  ok: artifact id is sim-executable\n  ok: job report records exit_code metric\n  ok: Verilator build command is invoked after preflight\n  ok: Verilator child explicitly receives the verified POSIX SHELL\n  ok: Verilator child PATH starts with the job-private python3 shim\n  ok: sim.run job reaches Succeeded with waveform artifact\n  ok: artifact id is waveform\nALL PASS\n"
+    },
+    {
+      "name": "eda_sim_frontend_smoke",
+      "passed": true,
+      "seconds": 2.54062,
+      "output": "  ok: parses testbench code\n  ok: testbench module name\n  ok: DUT instance\n  ok: three port mappings\n  ok: initial blocks found\n  ok: clock definition detected (halfPeriod=5)\n  ok: timeline clock mapped\n  ok: timeline has events\n  ok: timeline max sim time\n  ok: generates sim_main.cpp\n  ok: includes Vtop header\n  ok: opens VCD trace\n  ok: drives clock signal\nALL PASS\n"
+    },
+    {
+      "name": "eda_target_profile_smoke",
+      "passed": true,
+      "seconds": 2.43012,
+      "output": "  ok: loads tang-nano-9k target profile file\n  ok: profile id\n  ok: profile device\n  ok: profile family\n  ok: profile yosys family\n  ok: profile programmer board\n  ok: profile debug uart pins\n  ok: profile default baud\n  ok: loads profile by id from directory\n  ok: profile-by-id id\n  ok: parses minimal inline profile\n  ok: inline profile fields\n  ok: missing optional fields\n  ok: invalid json rejected\n  ok: profile without id rejected\n  ok: missing profile file rejected\n  ok: loads pin database JSON\n  ok: pin database has 88 pins\n  ok: pin database has 11 source-reviewed M0 resources\n  ok: pin database has 21 IO types\n  ok: pin 10 available\n  ok: LED pad 10 is Bank 3 at reviewed LVCMOS18\n  ok: LED3 maps to pad 13\n  ok: BTN1 maps to pad 3\n  ok: UART TX maps to pad 17\n  ok: pin 6 reserved as JTAG TCK (UG803 QN88P)\nALL PASS\n"
+    },
+    {
+      "name": "eda_gowin_cst_smoke",
+      "passed": true,
+      "seconds": 2.89941,
+      "output": "  ok: generate emits IO_LOC\n  ok: generate emits IO_PORT attributes\n  ok: generate emits pull mode\n  ok: round-trip parses\n  ok: round-trip binding count\n  ok: round-trip led fields\n  ok: round-trip clk fields\n  ok: parse hand-written CST\n  ok: IO_LOC and IO_PORT merged by port name\n  ok: unquoted IO_LOC is an error\n  ok: error recorded\n  ok: unknown statement is only a warning\n  ok: warning recorded\nALL PASS\n"
+    },
+    {
+      "name": "eda_constraint_sheet_smoke",
+      "passed": true,
+      "seconds": 2.60774,
+      "output": "  ok: load pin database\n  ok: parses three ports from Yosys JSON\n  ok: led width is 3\n  ok: clk direction is input\n  ok: detects incomplete vector binding\n  ok: detects reserved pin\n  ok: unknown IO_TYPE is a warning\n  ok: detects duplicate pin assignment\n  ok: generates CST\n  ok: generated IO_LOC line\n  ok: generated DRIVE attribute\n  ok: generated bindings hash\n  ok: import round-trip\n  ok: validates a good CST file\n  ok: CST statement counts\n  ok: rejects invalid CST line\n  ok: detects unbound port coverage\nALL PASS\n"
+    },
+    {
+      "name": "eda_declarative_tool_smoke",
+      "passed": true,
+      "seconds": 2.44072,
+      "output": "  ok: parse declarative tool spec\n  ok: spec fields\n  ok: spec missing job_type/executable rejected\n  ok: declarative job reaches Succeeded with declared artifact\n  ok: declared artifact id registered\n  ok: declarative job fails when required param missing\nALL PASS\n"
+    },
+    {
+      "name": "eda_wave_vcd_smoke",
+      "passed": true,
+      "seconds": 2.21058,
+      "output": "  ok: opens VCD\n  ok: timescale parsed\n  ok: signal count\n  ok: clk signal width\n  ok: state signal metadata\n  ok: full name\n  ok: time range\n  ok: query transitions\n  ok: clk transition count\n  ok: value-at between transitions\n  ok: value-at exact\n  ok: vector value-at\n  ok: unknown signal rejected\n  ok: missing VCD rejected\nALL PASS\n"
+    },
+    {
+      "name": "eda_wave_trace_adapter_smoke",
+      "passed": true,
+      "seconds": 2.35895,
+      "output": "  ok: adapter opens VCD via IWaveformBackend\n  ok: adapter exposes signals\n  ok: adapter timescale\n  ok: adapter time range\n  ok: adapter signal metadata\n  ok: adapter query transitions\n  ok: adapter value-at\nALL PASS\n"
+    },
+    {
+      "name": "eda_declarative_switch_smoke",
+      "passed": true,
+      "seconds": 2.34664,
+      "output": "  ok: parse declarative icarus spec\n  ok: register declarative icarus into PluginHost\n  ok: register verilator plugin into PluginHost\n  ok: sim/verilator capability available\n  ok: sim/icarus capability available\n  ok: capability selector returns the declarative icarus backend\n  ok: capability selector returns verilator backend\n  ok: two backends are distinct (switch without recompile)\n  ok: declarative icarus job reaches Succeeded with Job record + artifact\n  ok: declared artifact recorded\nALL PASS\n"
+    },
+    {
+      "name": "eda_component_library_smoke",
+      "passed": true,
+      "seconds": 2.08844,
+      "output": "  ok: loads canvas_elements.json\n  ok: library has multiple components\n  ok: finds 'and' gate\n  ok: and gate has 2 input pins\n  ok: and gate has 1 output pin\n  ok: and gate bounds\n  ok: and gate has an arc shape\n  ok: finds 'nand' gate\n  ok: nand gate has a circle shape\n  ok: missing component returns null\nALL PASS\n"
+    },
+    {
+      "name": "eda_command_bus_smoke",
+      "passed": true,
+      "seconds": 2.3044,
+      "output": "  ok: bus starts empty\n  ok: execute add5\n  ok: counter after execute\n  ok: undo depth 1\n  ok: execute add3\n  ok: counter after second execute\n  ok: undo\n  ok: counter after undo\n  ok: redo available\n  ok: redo\n  ok: counter after redo\n  ok: redo consumed\n  ok: undo again\n  ok: redo available before new execute\n  ok: execute add1\n  ok: new execute clears redo stack\n  ok: counter after undo+new execute\n  ok: failing command returns false\n  ok: failing command not pushed\n  ok: null command rejected\n  ok: clear empties stacks\n  ok: undo/redo on empty returns false\nALL PASS\n"
+    },
+    {
+      "name": "sig_tree_sync_smoke",
+      "passed": true,
+      "seconds": 3.49304,
+      "output": "  ok: ProjectNode created\n  ok: root is Project\n  ok: outMap populated\n  ok: FileNode created\n  ok: TopNode created\n  ok: top module name is 'Module top'\n  ok: exactly one TopNode\n  ok: FileNode has uid\n  ok: TopNode has uid\n  ok: outMap keyed by FileNode uid\n  ok: outMap keyed by TopNode uid\n  ok: uids are unique\n  ok: NodeByUid resolves FileNode\n  ok: NodeByUid resolves TopNode\n  ok: ToVerilog contains 'module top'\n  ok: ToVerilog contains 'endmodule'\n  ok: FileNode uid stable on re-parse\n  ok: TopNode pointer stable on re-parse\n  ok: ClearTree resets root\n  ok: edit: top found\n  ok: edit: AddSignal returns node\n  ok: edit: signal list grew after add\n  ok: edit: added signal name\n  ok: edit: signal list shrinks after remove\n  ok: edit: removed signal no longer in list\nALL PASS\n"
+    },
+    {
+      "name": "k1_port_index_roundtrip",
+      "passed": true,
+      "seconds": 2.6414,
+      "output": "PASS \"scalar\"\nPASS \"vector-zero\"\nPASS \"descending\"\nPASS \"offset-descending\"\nPASS \"ascending\"\nPASS \"negative-index\"\nPASS 287 checks\n"
+    },
+    {
+      "name": "k1_electrical_acceptance",
+      "passed": true,
+      "seconds": 0.0275922,
+      "output": "PASS synthetic \"ok18\"\nPASS synthetic \"ok33\"\nPASS synthetic \"wrong-supply\"\nPASS synthetic \"missing-bank\"\nPASS synthetic \"missing-supply\"\nPASS synthetic \"missing-standard\"\nPASS synthetic \"unsupported-direction\"\nPASS synthetic \"no-global-default\"\nPASS 33 checks\n"
+    },
+    {
+      "name": "k1_real_tool_export",
+      "passed": true,
+      "seconds": 1.99833,
+      "output": "6 cross-checked ports\nE:\\sigflow\\SigFlow_VirtroFPGA\\build-m0\\tests\\virtual\\k1\\actual\\ports.json.ports.v2.json\n"
+    },
+    {
+      "name": "k1_real_tool_gui_cst",
+      "passed": true,
+      "seconds": 0.152874,
+      "output": "PASS 82 checks\n"
+    },
+    {
+      "name": "k2_session_pause_guard_replay",
+      "passed": true,
+      "seconds": 1.70093,
+      "output": "PASS \"press-release-before-step\"\nPASS \"press-step-release-step\"\nPASS \"stop-cancels-pending\"\nPASS pulses/conflicts, bounded clock/delta, durable markers, 5 tail truncations, trace recovery and dual digests\nPASS 82 K2 core checks\n"
+    },
+    {
+      "name": "k2_real_verilated_session",
+      "passed": true,
+      "seconds": 16.7547,
+      "output": "PASS: 27 generated real-Verilated runner checks, 2 generic adapters plus real nonconvergence and crash recovery.\n"
+    },
+    {
+      "name": "k3_live_trace_concurrency_and_cases",
+      "passed": true,
+      "seconds": 0.836043,
+      "output": "PASS fixture revisions 1/2/3, immutable views, exact positions, cursor expiry, quotas, cache and atomic rejection\nPASS concurrency: 1 writer, 4 readers, 1000 atomic batches, 3000 transitions; reader passes=462\nPASS existing offline VCD query/value cache semantics\nPASS 429733 LiveTrace checks\n"
+    },
+    {
+      "name": "k3_live_trace_thread_sanitizer",
+      "passed": true,
+      "seconds": 30.9858,
+      "output": "PASS fixture revisions 1/2/3, immutable views, exact positions, cursor expiry, quotas, cache and atomic rejection\nPASS concurrency: 1 writer, 4 readers, 1000 atomic batches, 3000 transitions; reader passes=211\nPASS existing offline VCD query/value cache semantics\nPASS 115719 LiveTrace checks\nPASS ThreadSanitizer: no data-race report in instrumented LiveTrace/cache/VCD stress test\n"
+    }
+  ],
+  "source_unchanged_during_validation": true,
+  "source_sha256": {
+    "CMakeLists.txt": "932da7c81f8371b747b1242c951bd7e8a683c7d2fb14c4d66440598635924310",
+    "core/CMakeLists.txt": "7cd8b2639ddec1d74f5f1e9593677fe568abcdf342e71d879d0ab9be07efab65",
+    "core/src/eda-platform/DurableFile.cpp": "5401f887a37ac2d85e3d5de54705481d4a5e270d4fe4f4c1af9ac952c8e3b8b4",
+    "core/src/eda-platform/DurableFile.h": "1eb2591f0a11145961342f111b92be5a03c0bd68dc7131c0caf86ad167a8e29b",
+    "core/src/eda-virtual-board/AdapterCodeGenCli.cpp": "3e82d2cc2c453615b89792ab077f349f883c3a88f6ed5e9fad10b8fe416b7342",
+    "core/src/eda-virtual-board/DurableJournal.cpp": "ef57305413cff21c42861c21f0b290795fdb133ee8461edb8a1f54ea528895a4",
+    "core/src/eda-virtual-board/DurableJournal.h": "94f874420dda4c7c4cd7af1b255e8de56d82a0353ffb1130e8428254cda54260",
+    "core/src/eda-virtual-board/ElectricalValidator.cpp": "be0b401f38ff1651957ff1915a3bef95f150eac3d9dc0b61ee18612fb3d017e2",
+    "core/src/eda-virtual-board/ElectricalValidator.h": "22f6eb05946e4dd922b849ab4f506dee6791f2b13ce958d1abe50015d4cba472",
+    "core/src/eda-virtual-board/LiveTraceStore.cpp": "e7c7501276085ee9e72a7f60f43bff74f925fc384a0959f3426052cb50f60f91",
+    "core/src/eda-virtual-board/LiveTraceStore.h": "fe5816f578886819c30fa43f66b43758d87b81678815446489b263f283beacf7",
+    "core/src/eda-virtual-board/PortManifestBuilder.cpp": "da3982431c99e9ee313bf34a871ef2bad332854382f4adc8dd19b19336a7f0f0",
+    "core/src/eda-virtual-board/PortManifestBuilder.h": "166e30fb3c695ccaf55557906d42fe2e2c0c2389d3f7751c2f34aae3202a0362",
+    "core/src/eda-virtual-board/PortManifestCli.cpp": "a2508d8547b2ae9605cef5c041a222cf8ff9be449d040ec136aaea737ad0c0a4",
+    "core/src/eda-virtual-board/Resolver.cpp": "6e3615a28d34677386a52d9e360906482d90e35aca512899bc294da0e0875c70",
+    "core/src/eda-virtual-board/RunnerSupport.cpp": "23fc1864412adea033c042d76990edc77533e385ad1cf34c9420c0b359939c1e",
+    "core/src/eda-virtual-board/RunnerSupport.h": "8c43de9d502f76a26dcf463d59fd78b3ce194f0a5c8d98c9002a9f87357410a0",
+    "core/src/eda-virtual-board/VerilatedAdapterCodeGen.cpp": "e9ed038bc063ad345c6cefd9e2f50a1c4786fc0abd7eaf0604f00c567bf8c7d8",
+    "core/src/eda-virtual-board/VerilatedAdapterCodeGen.h": "5c38e257cc5c54bd28278343f952ba564cf15fb18cc9460ff90749ceff975162",
+    "core/src/eda-virtual-board/VirtualSession.cpp": "2f137711896588c72e6efc0112530e1758f1ac2131684411f4b78097623d8f91",
+    "core/src/eda-virtual-board/VirtualSession.h": "5d33aa3dfa25cb86055ff0ed2f24febeaa202f5668d4d4a1c14852a2c5dc8dbe",
+    "include/eda/api/electrical_profile.hpp": "9e61018c1e5909462945a91fed68c87146660c7281480bee399b854e4c3a931b",
+    "include/eda/api/live_trace.hpp": "ec14709e13f8e7986eceeb51cf4850c1e394af12d594daff4b503cfe3feed7ca",
+    "include/eda/api/logic_state.hpp": "35a5ac4aac97b8d1e5a75232f2db01af36d2795c3318b211a3037cd22b1487ec",
+    "include/eda/api/port_manifest.hpp": "b173e41c0977102abced0774be2a6856d2791b361de256b37a0e382fbad0b984",
+    "main/trace/LiveTraceSource.cpp": "b0582c0823c282e9615c5495ed5abcb31d0b099553d228637f7d2e1635fd5ebd",
+    "main/trace/LiveTraceSource.h": "9754add93d1d801059d80750f33236b28609de4f2733d410bf970ca261d754e9",
+    "main/trace/TraceCache.cpp": "6cbd634be630d7c6f4f459cde8bda7190962793f5f3a798235ec21834991eba3",
+    "main/trace/TraceCache.h": "c3fd2c10cdcfae0c5e611b79bbd6ed113a9e263f7ffd68a803bbf08146cf0476",
+    "main/trace/TraceMemoryBudget.cpp": "6bf56c3b5d536c52d71345b4e0119fb0e668fcbcb20d3632db818c3753e72ec3",
+    "main/trace/TraceMemoryBudget.h": "8cf76841ec46692820ad5564240d6bc8673bab6401fc21c28ff853e9099b9cdc",
+    "main/trace/TraceQueryService.cpp": "0ce717968eb072893a73f6928bc9f522aedddcf612fdfb8fc810f8a9e1952412",
+    "main/trace/TraceQueryService.h": "806e3a2f91e0267257d4303b9e76ede59a85262894d150afa35fe301e88ce08e",
+    "main/trace/TraceSidecarIndex.cpp": "9916b13421a825cddb14fe48056e2d594d733676a5ed50375a3eff736757275f",
+    "main/trace/TraceSidecarIndex.h": "eca36d5b4dd305dfa77452463c12aea7ec997d65457a5e6feff2e1dc6afea3ce",
+    "main/trace/TraceSource.h": "a0dc346563f17e818203eb8e5d8a9cfe4a886224f8374827252b6444e191e918",
+    "main/trace/TraceTimebase.h": "13acd609ebdbb50aa92d25eebc8989c2d27d219b55bc31ac5ae2ec0754767ceb",
+    "main/trace/TraceTypes.cpp": "bbbd79bcbfbe87944b8c86e7b0ec206479544813ef8d1d670aa80a0b046cf01d",
+    "main/trace/TraceTypes.h": "083e9db8f10947d3afc2d5c6e8d42f83b985efbcf1dfbd0c2f7d8c8d9a64511b",
+    "main/trace/VcdLazyTraceSource.cpp": "cdba7a30ed73b87ea863d6ca427bbf137e7b571116e415b7a32aed5b7efbc39f",
+    "main/trace/VcdLazyTraceSource.h": "f0778f03d53e025d59a43cc0ddc956a6cbad76a747c9b377bd77d33514b58d53",
+    "main/trace/WaveformBackendTraceSource.cpp": "42b6ccbbe3aed5ae79282ab97b15a84009bf49b19b25a8f31ed2727bbafe062f",
+    "main/trace/WaveformBackendTraceSource.h": "169c1725c4f45ec238636d436b272a671c7bbb80935a3e125668396d7a906cba",
+    "registry/electrical/tang-nano-9k.6202.reviewed.v1.json": "714c0ae73fa696ab002553906c62cca6739a4655a5f8a669565530849ed7ea12",
+    "registry/pins/tang-nano-9k.6202.reviewed.v1.json": "86800a4150073ae07b8317786d0026f42ba2b88e51faaed1561065d842301f5c",
+    "registry/provenance/gw1nr-datasheet.pdf": "09cc21999adf5053cafb13206df9835feba26f95d14a95bcee08aeabb7d9de6e",
+    "registry/provenance/gw1nr9-pinout.pdf": "ebe1350849abb5903c2c934a33d19c27635b50c1b09eee27968fc894f5fef836",
+    "registry/provenance/tangnano9k-6202.pdf": "71ccf1b7731589c8bc5b4c1dcf0c8906f52831785c703732d43a70f01ec574ec",
+    "registry/tools/port-export-adapters.v1.json": "e5280c30110eef352abdd25e98f446f49df6f3d848aa1335bd11f80a4abf5f1a",
+    "tests/CMakeLists.txt": "74c52472f09386f6edd5142a70ee541188fdbc8fba623413198dc4b63d8c9292",
+    "tests/virtual/k0/CMakeLists.txt": "5e8131df7065c3f234c36aa9060aa3b6f3589d620a3d7d4e3f37238abd8f22d1",
+    "tests/virtual/k0/counter.sv": "5a62bdaf2cd101f02decbb3928178f1f20e34ed5de34fa6463c1f616b35ddc1a",
+    "tests/virtual/k0/generate_batch.cpp": "902c14e50e6e5a6b621c44a1f5d5e091a85b236485415f7eb196cf9bec620372",
+    "tests/virtual/k0/interactive_main.cpp": "0853b955bf8147181d7fd29f79b6c33f1da15f51604b0b98e3ce45a51cf2734e",
+    "tests/virtual/k1/baseline_cst_probe.cpp": "ea3b96dde5af9d32397ffd14c8d7c0bc75dfcbf52a809eada73373e877b4eba6",
+    "tests/virtual/k1/CMakeLists.txt": "32787bcb1f93cb0760f74323286633b66d992e350b86ffc9337da06abdf0a607",
+    "tests/virtual/k1/fixtures/electrical-cases.synthetic.json": "4d1ebec1ac27520be0a023e2bcec51604c4a58f7382fa33bac4042d16ed690b4",
+    "tests/virtual/k1/fixtures/port-index-cases.json": "b6a81868fba7c674c8ed8f51805b7ad9fdaaf9d346530ae061b2763b68a21192",
+    "tests/virtual/k1/k1_production_tests.cpp": "60684453536d6e633c81587e4ced8ffcd77d3c032266d190992ae8e980e92a5b",
+    "tests/virtual/k1/ports.sv": "ca364f1415365921c68e6e6a900233e77aafd0be55f2902c4a1a98c8219e4ab0",
+    "tests/virtual/k2/CMakeLists.txt": "021974c7e9e1faf2986788c69867d0f521781efada201a8c801225b4c4148e32",
+    "tests/virtual/k2/counter.cst": "a41673eb5ce6b445ed2becd03955662f0d28bab63437a530b23d8d9fd0bc9e2e",
+    "tests/virtual/k2/counter.sv": "965e813e4e2709c629fdad244bcbbbbc11760a7669849328cc6ad831145c493b",
+    "tests/virtual/k2/fixture_support.hpp": "ec4efcbf615524cb2b4c00ea6df50d55f0e9ff9af068f6d512ba4b454064a463",
+    "tests/virtual/k2/fixtures/pause-replay-cases.json": "27a695664b8e0d92b54db9e56f9fc6089a3c999f0c9329f1d8a0907b467811d3",
+    "tests/virtual/k2/k2_session_tests.cpp": "ce835b50e35cb8580fa0194f6d348c6f92c66b1028e3c29a75cc7d4b783854eb",
+    "tests/virtual/k2/nonconvergent.sv": "f3aa071a083f2a92183063359db8647d6e944e00d6ed6caceb2bdae883d76b86",
+    "tests/virtual/k2/shifted.sv": "d91a989599ddb7d8de80726b1f2444b6eef1986b9914d0335cc25533a9bd210f",
+    "tests/virtual/k3/CMakeLists.txt": "a5f1f4ce530fbef3264c77d924637fc56785f7870ea4368b673c6cc313253cd6",
+    "tests/virtual/k3/fixtures/live-trace-cases.json": "f7c107fd5d6100d2f87b80f69d7dab90513c7f03970c41b87f22d34682aecf27",
+    "tests/virtual/k3/k3_live_trace_tests.cpp": "e68085b05a2b8ee7e294d6ee39e59e6d6f97b138384349dcc886da274ae95b0a",
+    "tools/virtual/analyze_k1.py": "4109835781c0b12dbbe5feedad500d6b220d249d5cde06aebdf4128045ecc08e",
+    "tools/virtual/archive_stage_evidence.py": "6bbab309c4f16865586955eeb31907822a552712c77e56d339d1b471866a2167",
+    "tools/virtual/bootstrap_dependencies.py": "a416b85628c23cc5cf063c6aac3a0d2b5722fb0c4da4709c2b90ebba8bd616fb",
+    "tools/virtual/build_reviewed_profiles.py": "425e32c77fcfb83c1933a4a94e2849bd563b60a16c1bf91ba6068f820813b4f4",
+    "tools/virtual/configure_windows.ps1": "f68d33c139645ff183b772e3489f6e8d0b7de45e9b0fc0298ffb14297f2cd3bd",
+    "tools/virtual/export_ports.py": "c2733b035f0ad79faa1f6436636c2f625cdd3ee85dcd7c1fc9a2098284e0b686",
+    "tools/virtual/generated_runner_test_support.py": "383df8e11555b87ad20e38124b4021c5e3ddc22d9bc11570795908bc0ac458fa",
+    "tools/virtual/verify_k0.py": "d92a5555653de2c1cd010f0d0848df1e5e203642e4b8c227dcd34f2b7550b309",
+    "tools/virtual/verify_k1.py": "02f4575eeb7a1cefc02836bccfa85b771d8401d24ba4aa5fc882360dacefa350",
+    "tools/virtual/verify_k2.py": "836f252119e7cffb1877e7eebca0248559295ffca9622a28c4033286df8f8b4c",
+    "tools/virtual/verify_k23.py": "5da24fdaddf88210fded3279a9d263bb128b12cede03cd018d565c8b410e7226",
+    "tools/virtual/verify_k3_tsan.py": "1c8b605edd9c433265a120a82e8f79c51d8fbe68103e952869d7330b4f69c91c"
+  },
+  "source_snapshot_sha256": "bdd82f0fc57ce814f819cef1edca48d80c819c0d7ab293d41ce34cfbb585122e",
+  "desktop_binary": {
+    "path": "E:\\sigflow\\SigFlow_VirtroFPGA\\build-m0\\sigflow.exe",
+    "sha256": "98c42a9011106921b4ed6303f5a1d9d8c16f8a5870090b297a93920211f80b9d"
+  },
+  "failure": null,
+  "execution": "Windows native GCC 14.2; full process regressions outside restricted sandbox",
+  "scope": "G2/K2a-c and G3/A8 only; no GUI virtual-board/fault or complete M0 acceptance claim",
+  "stage": "K2-closeout",
+  "status": "passed",
+  "G2": true,
+  "K2_closed": true,
+  "generated_runner_evidence": {
+    "stage": "K2-generated-runner-closeout",
+    "status": "passed",
+    "checks": [
+      "generated counter adapter checks exact refs, thread ownership and final once",
+      "actual RTL initializes with durable commit",
+      "initial state and trace share commit fence",
+      "paused input never writes or evaluates",
+      "Step reaches first 27MHz rising edge",
+      "pause intent coalescing persisted",
+      "generated model counts through CST pad wiring",
+      "CON asynchronous reset guarded before every DUT import",
+      "blocked transaction publishes neither trace nor state",
+      "pulse staged while paused",
+      "wall time does not consume pulse duration",
+      "pulse/manual ownership conflict explicit",
+      "pulse releases at exact simulation tick",
+      "actual RTL replay verifies both digests",
+      "replay fingerprint mismatch rejected",
+      "Play advances, Pause ACK freezes trace",
+      "Stop finalizes once and is idempotent",
+      "durable on-disk journal replays actual RTL",
+      "recovered trace excludes unmarked batches",
+      "forced process kill restores only checksummed committed prefix",
+      "generated runner stopped clock returns bounded error",
+      "second generated adapter validates scalar/vector refs including 64 bits",
+      "multi-bit inputs remain staged until step",
+      "nonzero descending input to ascending output uses bit_slot",
+      "[0:0] and uint64 bit 63 masks remain exact",
+      "second generated module replays without handwritten C++ glue",
+      "real combinational nonconvergence maps to bounded E_NON_CONVERGENT"
+    ],
+    "commands": [
+      {
+        "argv": [
+          "C:\\Users\\Admin\\AppData\\Local\\Programs\\Python\\Python314\\python.exe",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\tools\\virtual\\export_ports.py",
+          "--top",
+          "k2_counter",
+          "--output",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k23\\generated\\k2_counter\\ports.json",
+          "--builder",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\build-m0\\sigflow_port_manifest.exe",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\tests\\virtual\\k2\\counter.sv"
+        ],
+        "exit_code": 0
+      },
+      {
+        "argv": [
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\build-m0\\sigflow_adapter_codegen.exe",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k23\\generated\\k2_counter\\ports.json.ports.v2.json",
+          "Vk2_counter",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k23\\generated\\k2_counter\\generated_adapter.cpp"
+        ],
+        "exit_code": 0
+      },
+      {
+        "argv": [
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\tools\\verilator\\verilator-install\\bin\\verilator_bin_dbg.exe",
+          "--cc",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\tests\\virtual\\k2\\counter.sv",
+          "--exe",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k23\\generated\\k2_counter\\generated_adapter.cpp",
+          "--top-module",
+          "k2_counter",
+          "--Mdir",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k23\\generated\\k2_counter\\obj",
+          "--converge-limit",
+          "256",
+          "-Wno-fatal",
+          "-CFLAGS",
+          "-std=c++20 -DVL_USER_FATAL -IE:/sigflow/SigFlow_VirtroFPGA/include -IE:/sigflow/SigFlow_VirtroFPGA/3rd -IE:/sigflow/SigFlow_VirtroFPGA/core/src -IE:/sigflow/SigFlow_VirtroFPGA/InnerPlugin/eda-cst-gowin-cst/include -IE:/sigflow/SigFlow_VirtroFPGA/InnerPlugin/eda-target-tangnano9k/include",
+          "-LDFLAGS",
+          "E:/sigflow/SigFlow_VirtroFPGA/build-m0/core/libeda_virtual_runner.a E:/sigflow/SigFlow_VirtroFPGA/build-m0/InnerPlugin/eda-cst-gowin-cst/libeda-cst-gowin-cst.a E:/sigflow/SigFlow_VirtroFPGA/build-m0/core/libeda_virtual_board.a E:/sigflow/SigFlow_VirtroFPGA/build-m0/core/libeda_platform.a",
+          "-o",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k23\\generated\\k2_counter\\runner.exe"
+        ],
+        "exit_code": 0
+      },
+      {
+        "argv": [
+          "E:\\sigflow_fpga\\toolchain\\mingw64\\bin\\mingw32-make.exe",
+          "-C",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k23\\generated\\k2_counter\\obj",
+          "-f",
+          "Vk2_counter.mk",
+          "-j4",
+          "CXX=E:/sigflow_fpga/toolchain/mingw64/bin/g++.exe",
+          "LINK=E:/sigflow_fpga/toolchain/mingw64/bin/g++.exe",
+          "AR=E:/sigflow_fpga/toolchain/mingw64/bin/ar.exe",
+          "SHELL=E:/sigflow_fpga/toolchain/posix/sh.exe",
+          "PYTHON3=C:/Users/Admin/AppData/Local/Programs/Python/Python314/python.exe"
+        ],
+        "exit_code": 0
+      },
+      {
+        "argv": [
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k23\\generated\\k2_counter\\runner.exe",
+          "--self-test-adapter"
+        ],
+        "exit_code": 0
+      },
+      {
+        "argv": [
+          "C:\\Users\\Admin\\AppData\\Local\\Programs\\Python\\Python314\\python.exe",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\tools\\virtual\\export_ports.py",
+          "--top",
+          "k2_shifted",
+          "--output",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k23\\generated\\k2_shifted\\ports.json",
+          "--builder",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\build-m0\\sigflow_port_manifest.exe",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\tests\\virtual\\k2\\shifted.sv"
+        ],
+        "exit_code": 0
+      },
+      {
+        "argv": [
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\build-m0\\sigflow_adapter_codegen.exe",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k23\\generated\\k2_shifted\\ports.json.ports.v2.json",
+          "Vk2_shifted",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k23\\generated\\k2_shifted\\generated_adapter.cpp"
+        ],
+        "exit_code": 0
+      },
+      {
+        "argv": [
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\tools\\verilator\\verilator-install\\bin\\verilator_bin_dbg.exe",
+          "--cc",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\tests\\virtual\\k2\\shifted.sv",
+          "--exe",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k23\\generated\\k2_shifted\\generated_adapter.cpp",
+          "--top-module",
+          "k2_shifted",
+          "--Mdir",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k23\\generated\\k2_shifted\\obj",
+          "--converge-limit",
+          "256",
+          "-Wno-fatal",
+          "-CFLAGS",
+          "-std=c++20 -DVL_USER_FATAL -IE:/sigflow/SigFlow_VirtroFPGA/include -IE:/sigflow/SigFlow_VirtroFPGA/3rd -IE:/sigflow/SigFlow_VirtroFPGA/core/src -IE:/sigflow/SigFlow_VirtroFPGA/InnerPlugin/eda-cst-gowin-cst/include -IE:/sigflow/SigFlow_VirtroFPGA/InnerPlugin/eda-target-tangnano9k/include",
+          "-LDFLAGS",
+          "E:/sigflow/SigFlow_VirtroFPGA/build-m0/core/libeda_virtual_runner.a E:/sigflow/SigFlow_VirtroFPGA/build-m0/InnerPlugin/eda-cst-gowin-cst/libeda-cst-gowin-cst.a E:/sigflow/SigFlow_VirtroFPGA/build-m0/core/libeda_virtual_board.a E:/sigflow/SigFlow_VirtroFPGA/build-m0/core/libeda_platform.a",
+          "-o",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k23\\generated\\k2_shifted\\runner.exe"
+        ],
+        "exit_code": 0
+      },
+      {
+        "argv": [
+          "E:\\sigflow_fpga\\toolchain\\mingw64\\bin\\mingw32-make.exe",
+          "-C",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k23\\generated\\k2_shifted\\obj",
+          "-f",
+          "Vk2_shifted.mk",
+          "-j4",
+          "CXX=E:/sigflow_fpga/toolchain/mingw64/bin/g++.exe",
+          "LINK=E:/sigflow_fpga/toolchain/mingw64/bin/g++.exe",
+          "AR=E:/sigflow_fpga/toolchain/mingw64/bin/ar.exe",
+          "SHELL=E:/sigflow_fpga/toolchain/posix/sh.exe",
+          "PYTHON3=C:/Users/Admin/AppData/Local/Programs/Python/Python314/python.exe"
+        ],
+        "exit_code": 0
+      },
+      {
+        "argv": [
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k23\\generated\\k2_shifted\\runner.exe",
+          "--self-test-adapter"
+        ],
+        "exit_code": 0
+      },
+      {
+        "argv": [
+          "C:\\Users\\Admin\\AppData\\Local\\Programs\\Python\\Python314\\python.exe",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\tools\\virtual\\export_ports.py",
+          "--top",
+          "k2_nonconvergent",
+          "--output",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k23\\generated\\k2_nonconvergent\\ports.json",
+          "--builder",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\build-m0\\sigflow_port_manifest.exe",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\tests\\virtual\\k2\\nonconvergent.sv"
+        ],
+        "exit_code": 0
+      },
+      {
+        "argv": [
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\build-m0\\sigflow_adapter_codegen.exe",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k23\\generated\\k2_nonconvergent\\ports.json.ports.v2.json",
+          "Vk2_nonconvergent",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k23\\generated\\k2_nonconvergent\\generated_adapter.cpp"
+        ],
+        "exit_code": 0
+      },
+      {
+        "argv": [
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\tools\\verilator\\verilator-install\\bin\\verilator_bin_dbg.exe",
+          "--cc",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\tests\\virtual\\k2\\nonconvergent.sv",
+          "--exe",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k23\\generated\\k2_nonconvergent\\generated_adapter.cpp",
+          "--top-module",
+          "k2_nonconvergent",
+          "--Mdir",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k23\\generated\\k2_nonconvergent\\obj",
+          "--converge-limit",
+          "256",
+          "-Wno-fatal",
+          "-CFLAGS",
+          "-std=c++20 -DVL_USER_FATAL -IE:/sigflow/SigFlow_VirtroFPGA/include -IE:/sigflow/SigFlow_VirtroFPGA/3rd -IE:/sigflow/SigFlow_VirtroFPGA/core/src -IE:/sigflow/SigFlow_VirtroFPGA/InnerPlugin/eda-cst-gowin-cst/include -IE:/sigflow/SigFlow_VirtroFPGA/InnerPlugin/eda-target-tangnano9k/include",
+          "-LDFLAGS",
+          "E:/sigflow/SigFlow_VirtroFPGA/build-m0/core/libeda_virtual_runner.a E:/sigflow/SigFlow_VirtroFPGA/build-m0/InnerPlugin/eda-cst-gowin-cst/libeda-cst-gowin-cst.a E:/sigflow/SigFlow_VirtroFPGA/build-m0/core/libeda_virtual_board.a E:/sigflow/SigFlow_VirtroFPGA/build-m0/core/libeda_platform.a",
+          "-o",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k23\\generated\\k2_nonconvergent\\runner.exe"
+        ],
+        "exit_code": 0
+      },
+      {
+        "argv": [
+          "E:\\sigflow_fpga\\toolchain\\mingw64\\bin\\mingw32-make.exe",
+          "-C",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k23\\generated\\k2_nonconvergent\\obj",
+          "-f",
+          "Vk2_nonconvergent.mk",
+          "-j4",
+          "CXX=E:/sigflow_fpga/toolchain/mingw64/bin/g++.exe",
+          "LINK=E:/sigflow_fpga/toolchain/mingw64/bin/g++.exe",
+          "AR=E:/sigflow_fpga/toolchain/mingw64/bin/ar.exe",
+          "SHELL=E:/sigflow_fpga/toolchain/posix/sh.exe",
+          "PYTHON3=C:/Users/Admin/AppData/Local/Programs/Python/Python314/python.exe"
+        ],
+        "exit_code": 0
+      },
+      {
+        "argv": [
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k23\\generated\\k2_nonconvergent\\runner.exe",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k23\\generated\\nonconvergent-config.json",
+          "--allow-synthetic-test-profile"
+        ],
+        "exit_code": 1
+      }
+    ],
+    "modules": [
+      {
+        "top": "k2_counter",
+        "runner_sha256": "0f224cb04d8dd8543ab9119825f28e427838a4dec24d8e12c1feca567a9b38ad",
+        "generated_source_sha256": "27d8e0ca390b757cb9cbaab59f5eb209b6b872f3c45c11426a843cf870988965",
+        "real_board_profile": true
+      },
+      {
+        "top": "k2_shifted",
+        "runner_sha256": "8ae2451c5598a909982f219342114c1eab589abaad3c1d4edecb3754b74b6cb3",
+        "generated_source_sha256": "66171986ce9424ddbccf0f42419314c1adb425b65b898fb549d99d68a08e077a",
+        "synthetic_profile": true
+      }
+    ],
+    "check_count": 27,
+    "verilator_sha256": "d87f0d7a17c94bd78d4feb0a0f20a0ec5d278ad9d8653049bbce7ad3c07200aa",
+    "G2": true,
+    "generation": "Production VerilatedAdapterCodeGen; generic config-driven SessionRunnerMain; no fixture C++ glue compiled",
+    "durability": "OS FlushFileBuffers/fsync, chained checksums and marker recovery",
+    "scope": "G2 and K2a/K2b/K2c; GUI controls/full peripheral and open-fault M0 are later stages"
+  },
+  "protocol": "write-ahead begin -> evaluated prepare -> checksummed marker + OS sync -> immutable trace publication -> applied ACK",
+  "recovery_policy": "Truncate incomplete tail to batch begin; reject committed checksum corruption; exclusive writer lock.",
+  "digests": [
+    "normalized position/effective inputs/outputs",
+    "control journey with superseded/blocked/Play/Step/Pause/Stop"
+  ]
+}
