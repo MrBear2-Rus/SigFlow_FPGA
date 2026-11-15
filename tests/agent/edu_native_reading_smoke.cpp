@@ -3,6 +3,7 @@
 
 #include <wx/app.h>
 #include <wx/debug.h>
+#include <wx/dcmemory.h>
 #include <wx/frame.h>
 #include <wx/sizer.h>
 #include <wx/textctrl.h>
@@ -64,6 +65,29 @@ void ScrollThumb(wxScrolledWindow& window, int position)
     Pump();
 }
 
+void CheckEmptyConversationPaint(agent::gui::AgentConversation& thread)
+{
+    const auto size = thread.GetClientSize();
+    Check(thread.IsEmptyState() && size.x > 0 && size.y > 0, "empty conversation has a viewport");
+    if (size.x <= 0 || size.y <= 0) return;
+    wxBitmap bitmap(size.x, size.y);
+    wxMemoryDC surface(bitmap);
+    surface.SetBackground(*wxRED_BRUSH);
+    surface.Clear();
+    // Dispatch the native background paint into an offscreen DC, so the
+    // hidden fixture can verify the viewport without taking desktop focus.
+    ::SendMessageW(thread.GetHWND(), WM_ERASEBKGND,
+                   reinterpret_cast<WPARAM>(GetHdcOf(surface)), 0);
+    wxColour bottom;
+    const bool measured = surface.GetPixel(size.x / 2, size.y - 1, &bottom);
+    const auto expected = thread.GetBackgroundColour();
+    if (measured && bottom != expected)
+        std::cerr << "painted=" << bottom.GetAsString().ToStdString()
+                  << " expected=" << expected.GetAsString().ToStdString() << '\n';
+    Check(measured && bottom == expected,
+          "the first empty conversation paint fills the viewport with its theme background");
+}
+
 class ReadingApp final : public wxApp
 {
 public:
@@ -95,6 +119,7 @@ int main(int argc, char** argv)
     frame->SetSizer(sizer);
     frame->Layout();
     Pump();
+    CheckEmptyConversationPaint(*workspace->Conversation());
 
     using agent::gui::nav::Section;
     auto* accordion = workspace->SupportAccordion();

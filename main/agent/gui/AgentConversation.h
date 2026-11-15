@@ -135,7 +135,6 @@ private:
     };
 
     void OnSize(wxSizeEvent& event);
-    void OnPaint(wxPaintEvent& event);
     void ApplyTheme();
     void RebuildRows();
     void AppendMessageRows(size_t firstMessage);

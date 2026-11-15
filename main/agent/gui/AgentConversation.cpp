@@ -175,10 +175,12 @@ const char* EmptyHint()
 
 AgentConversation::AgentConversation(wxWindow* parent)
     : wxScrolledWindow(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize,
-                       wxBORDER_NONE | wxVSCROLL | wxTAB_TRAVERSAL), m_stageTimer(this)
+                       wxBORDER_NONE | wxVSCROLL | wxTAB_TRAVERSAL | wxCLIP_CHILDREN), m_stageTimer(this)
 {
     SetName("agent-conversation");
-    SetBackgroundStyle(wxBG_STYLE_PAINT);
+    // The viewport only needs a solid background. Let the native erase path
+    // fill it while its child text controls and row panels paint themselves.
+    SetBackgroundStyle(wxBG_STYLE_ERASE);
     SetScrollRate(0, std::max(1, LineHeight()));
     SetBackgroundColour(tokens::SurfaceColour(tokens::Component::Card));
     wxFont hintFont = BodyFont();
@@ -806,13 +808,6 @@ void AgentConversation::OnSize(wxSizeEvent& event)
         }
     }
     event.Skip();
-}
-
-void AgentConversation::OnPaint(wxPaintEvent&)
-{
-    wxAutoBufferedPaintDC dc(this);
-    dc.SetBackground(wxBrush(tokens::SurfaceColour(tokens::Component::Card)));
-    dc.Clear();
 }
 
 void AgentConversation::Relayout()
