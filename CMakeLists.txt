@@ -760,6 +760,32 @@ if(SIGFLOW_BUILD_TESTS)
     add_subdirectory(tests)
 endif()
 
+option(SIGFLOW_BUILD_AGENT_GUI_TESTS "Build the Windows Edu Agent GUI reading regression" OFF)
+if(WIN32 AND TARGET eda_agent_gateway AND SIGFLOW_BUILD_TESTS AND SIGFLOW_BUILD_AGENT_GUI_TESTS)
+    # Reuse the application's source list and wx configuration for the native probe.
+    get_target_property(_agent_gui_sources sigflow SOURCES)
+    list(FILTER _agent_gui_sources INCLUDE REGEX "/agent/gui/(AgentWorkspace|AgentNavigation|AgentLearningPath|AgentLayoutPolicy|AgentRichText|AgentConversation|AgentSupport|AgentSubmit|AgentComposer|AgentIcons|AgentViewModel|AgentControls|AgentTokens)\\.cpp$")
+    add_executable(edu_native_reading_smoke
+        tests/agent/edu_native_reading_smoke.cpp
+        cmake/sigflow.rc
+        main/ui/UiTheme.cpp
+        ${_agent_gui_sources})
+    get_target_property(_agent_gui_includes sigflow INCLUDE_DIRECTORIES)
+    get_target_property(_agent_gui_definitions sigflow COMPILE_DEFINITIONS)
+    target_include_directories(edu_native_reading_smoke PRIVATE ${_agent_gui_includes})
+    target_compile_definitions(edu_native_reading_smoke PRIVATE ${_agent_gui_definitions})
+    if(SIGFLOW_WX_LOCAL)
+        target_link_libraries(edu_native_reading_smoke PRIVATE wx::core wx::base)
+    else()
+        target_link_libraries(edu_native_reading_smoke PRIVATE
+            "${SIGFLOW_WX_CORE_LIBRARY}" "${SIGFLOW_WX_BASE_LIBRARY}")
+    endif()
+    # The app copies the matching wx runtime DLLs next to this executable.
+    add_dependencies(edu_native_reading_smoke sigflow)
+    add_test(NAME edu_native_reading_smoke COMMAND edu_native_reading_smoke)
+    set_tests_properties(edu_native_reading_smoke PROPERTIES TIMEOUT 25)
+endif()
+
 # ---------------------------------------------------------------------------
 # 可选：FPGA 工具链（yosys / nextpnr / apicula）源码获取 + 本地编译
 #

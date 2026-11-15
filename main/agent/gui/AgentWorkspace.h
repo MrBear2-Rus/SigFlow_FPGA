@@ -10,6 +10,8 @@
 #include "ui/UiTheme.h"
 
 #include <wx/panel.h>
+#include <wx/eventfilter.h>
+#include <wx/weakref.h>
 
 #include <cstdint>
 #include <functional>
@@ -31,7 +33,7 @@ class AgentCardHost;
 // guide/support destinations and the two form-button groups. The model owns every
 // business value; controls only project it. No request adapter, fixture, service,
 // configuration write or MainFrame dependency lives here.
-class AgentWorkspace final : public wxPanel
+class AgentWorkspace final : public wxPanel, private wxEventFilter
 {
 public:
     AgentWorkspace(wxWindow* parent, std::function<void()> onReturn);
@@ -61,8 +63,10 @@ public:
         int threadOffset = 0;
         bool threadAtBottom = false;
         wxPoint support;
+        int supportSection = -1;
+        int supportOffset = 0;
         wxPoint guide;
-        wxWindow* focus = nullptr;
+        wxWeakRef<wxWindow> focus;
     };
     ViewState CaptureViewState() const;
     void RestoreViewState(const ViewState& state);
@@ -129,8 +133,12 @@ public:
 private:
     void ApplyTheme();
     void Arrange();
+    void LayoutPage();
     void ArrangeConversation();
     void ArrangeSupport();
+    void LayoutSupportContent(const wxSize& viewport);
+    void CaptureSupportAnchor(ViewState& state) const;
+    void RestoreSupportAnchor(const ViewState& state);
     void ArrangeGuide(int x, int y, int width, int height);
     int ConversationMinimumHeight(int cardWidth);
     void SyncDraft();
@@ -143,8 +151,9 @@ private:
     void EnsureSupportSectionBuilt();
     bool NewAsk();
     bool JumpToSection(nav::Section section);
-    void ScrollPageTo(const wxPoint& target);
+    void ScrollPageTo(wxWindow* target);
     void ScrollSectionIntoView(int sectionIndex);
+    int FilterEvent(wxEvent& event) override;
 
     std::function<void()> m_onReturn;
     std::function<bool(AgentForm)> m_formRequest;
@@ -155,6 +164,13 @@ private:
     bool m_arranging = false;
     bool m_syncingDraft = false;
     bool m_destroying = false;
+    bool m_arrangingSupport = false;
+    wxWeakRef<wxWindow> m_wheelRegion;
+    int m_wheelRemainder = 0;
+    std::string m_readingProject;
+    std::string m_readingRevision;
+    std::string m_readingSession;
+    std::string m_readingRun;
     bool m_docked = false;
     bool m_columns = true;
     bool m_compact = false;
@@ -198,7 +214,7 @@ private:
     controls::AgentCardHost* m_support = nullptr;
     wxScrolledWindow* m_supportBody = nullptr;
     controls::AgentAccordion* m_supportSections = nullptr;
-    std::vector<wxStaticText*> m_sectionBody;
+    std::vector<wxTextCtrl*> m_sectionBody;
     support::AgentSupportSection* m_issueSection = nullptr;
     support::AgentSupportSection* m_evidenceSection = nullptr;
     bool m_sectionsBuilt = false;

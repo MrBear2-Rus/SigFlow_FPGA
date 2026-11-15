@@ -152,6 +152,7 @@ private:
     void AddRichBlocks(Row& row, const std::string& body);
     int MeasureText(const RowText& text, int width) const;
     void RelayoutRows(int width);
+    int LayoutContent();
     void LayoutRow(Row& row, int width, int& y);
     void PlaceContent();
     int RowTop(int index) const;

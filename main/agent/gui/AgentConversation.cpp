@@ -655,21 +655,22 @@ int AgentConversation::MeasureText(const RowText& text, int width) const
 {
     if (text.control == nullptr) return 0;
     const int contentWidth = std::max(10, width);
+    const int lineHeight = std::max(LineHeight(), text.control->GetCharHeight());
+    const int insets = text.control->GetWindowBorderSize().y + Dip(this, 4);
     if (!text.wrap) {
         int lines = 1;
         const wxString value = text.control->GetValue();
         for (wxString::const_iterator it = value.begin(); it != value.end(); ++it) {
             if (*it == '\n') ++lines;
         }
-        const int lineHeight = std::max(1, tokens::LineHeightDip(this, T::SmallBodyPx,
-                                                                 T::LineHeightHint));
-        return lines * lineHeight;
+        const int scrollbar = std::max(0, wxSystemSettings::GetMetric(wxSYS_HSCROLL_Y, text.control));
+        return lines * lineHeight + insets + scrollbar;
     }
     // Force the control to wrap at the target width, then ask it for the wrapped count.
     text.control->SetSize(0, 0, contentWidth, std::max(1, LineHeight()) * 400);
     int lines = text.control->GetNumberOfLines();
     if (lines < 1) lines = 1;
-    return lines * LineHeight();
+    return lines * lineHeight + insets;
 }
 
 void AgentConversation::LayoutRow(Row& row, int width, int& y)
@@ -734,14 +735,25 @@ void AgentConversation::LayoutRow(Row& row, int width, int& y)
 void AgentConversation::RelayoutRows(int width)
 {
     if (m_destroying) return;
-    m_width = std::max(0, width);
     m_arranging = true;
+    m_width = std::max(0, width);
+    for (int pass = 0; pass < 2; ++pass) {
+        const int height = LayoutContent();
+        SetVirtualSize(m_width, std::max(GetClientSize().y, height));
+        const int settledWidth = std::max(0, GetClientSize().x);
+        if (settledWidth == m_width || pass == 1) break;
+        m_width = settledWidth;
+    }
+    for (Row* row : m_rows) row->panel->Refresh(false);
+    m_arranging = false;
+}
+
+int AgentConversation::LayoutContent()
+{
     int y = Dip(this, S::ThreadPadY);
     for (Row* row : m_rows) {
         LayoutRow(*row, m_width, y);
-    }
-    for (size_t index = 0; index < m_rows.size(); ++index) {
-        m_rows[index]->panel->Show(true);
+        row->panel->Show(true);
     }
     // Empty state labels are placed on the scrolled window itself.
     if (m_rows.empty() && m_emptyTitle != nullptr && m_emptyHint != nullptr) {
@@ -771,12 +783,7 @@ void AgentConversation::RelayoutRows(int width)
         y = Dip(this, S::ThreadPadY) + titleHeight + Dip(this, S::ThreadGap) + hintHeight +
             Dip(this, S::ThreadPadY);
     }
-    const int virtualHeight = std::max(GetClientSize().y, y);
-    SetVirtualSize(m_width, virtualHeight);
-    for (Row* row : m_rows) {
-        row->panel->Refresh(false);
-    }
-    m_arranging = false;
+    return y;
 }
 
 void AgentConversation::OnSize(wxSizeEvent& event)
@@ -832,20 +839,13 @@ int AgentConversation::CurrentScrollY() const
 
 bool AgentConversation::IsAtBottom() const
 {
-    const int virtualHeight = GetVirtualSize().y;
-    if (virtualHeight <= 0) return true;
-    return CurrentScrollY() + GetClientSize().y >= virtualHeight - 2;
+    const int last = std::max(0, GetScrollRange(wxVERTICAL) - GetScrollThumb(wxVERTICAL));
+    return GetViewStart().y >= last;
 }
 
 void AgentConversation::ScrollToBottom()
 {
-    const int virtualHeight = GetVirtualSize().y;
-    int unitX = 0;
-    int unitY = 0;
-    GetScrollPixelsPerUnit(&unitX, &unitY);
-    const int unit = std::max(1, unitY);
-    const int target = std::max(0, virtualHeight - GetClientSize().y);
-    Scroll(0, (target + unit - 1) / unit);
+    Scroll(-1, std::max(0, GetScrollRange(wxVERTICAL) - GetScrollThumb(wxVERTICAL)));
 }
 
 wxString AgentConversation::AnchorIdAt(int scrollY, int* offset) const
