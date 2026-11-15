@@ -1,3 +1,4 @@
+#include "eda-platform/Platform.h"
 #include "FpgaPinData.h"
 
 #include "PinDatabaseStore.h"
@@ -48,8 +49,8 @@ std::filesystem::path FindPinDatabaseFile()
 
 void ApplyReservedPins(FpgaPinDatabase& db)
 {
-    const int reservedPins[] = { 56, 57, 58, 59 };
-    const char* jtagReasons[] = { "JTAG TCK", "JTAG TMS", "JTAG TDI", "JTAG TDO" };
+    const int reservedPins[] = { 5, 6, 7, 8 };
+    const char* jtagReasons[] = { "JTAG TMS", "JTAG TCK", "JTAG TDI", "JTAG TDO" };
     for (int i = 0; i < 4; ++i) {
         auto* pin = const_cast<PackagePin*>(db.FindPin(reservedPins[i]));
         if (pin) {
@@ -72,6 +73,17 @@ const FpgaPinDatabase& GetQFN88PinDatabase()
             eda::target::PinDatabaseStore::LoadFile(file, loaded, error)) {
             db.device = wxString::FromUTF8(loaded.device.c_str());
             db.packageName = wxString::FromUTF8(loaded.packageName.c_str());
+            db.boardRevision = wxString::FromUTF8(loaded.boardRevision.c_str());
+            // Resolve the declared registry reference beside a distribution or
+            // repository root, without substituting a different board profile.
+            auto parent = file.parent_path();
+            for (int depth=0; depth<8 && !parent.empty(); ++depth) {
+                auto candidate = parent / eda::platform::PathFromUtf8(loaded.electricalProfileRef);
+                if (!loaded.electricalProfileRef.empty() && std::filesystem::is_regular_file(candidate)) {
+                    db.electricalProfilePath = wxString::FromUTF8(sigflow::platform::PathToUtf8(candidate).c_str()); break;
+                }
+                auto next = parent.parent_path(); if (next == parent) break; parent=next;
+            }
             db.pins.reserve(loaded.pins.size());
             for (const auto& pin : loaded.pins) {
                 PackagePin entry;

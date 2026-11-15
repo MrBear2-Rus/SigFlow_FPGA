@@ -160,3 +160,6 @@ endif()
 
 # P2 双向同步回归（非 GUI）
 add_subdirectory(ir)
+add_subdirectory(virtual/k1)
+add_subdirectory(virtual/k2)
+add_subdirectory(virtual/k3)

@@ -1,0 +1,11 @@
+{
+  "schema": "sigflow.port-export-adapters.v1",
+  "adapter": "verilator-json-basicdtype-m0.v1",
+  "supported_tool_pairs": [
+    {
+      "yosys_sha256": "999423132587306feb3d62f064da1c8e7bf1b45278e688ddae9583f5e3a7a1a2",
+      "verilator_sha256": "d87f0d7a17c94bd78d4feb0a0f20a0ec5d278ad9d8653049bbce7ad3c07200aa"
+    }
+  ],
+  "policy": "New tool hashes require capability and port-index acceptance before addition."
+}

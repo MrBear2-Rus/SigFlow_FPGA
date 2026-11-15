@@ -1,0 +1,1173 @@
+{
+  "schema": "sigflow.pin-database.v2",
+  "device": "GW1NR-LV9QN88PC6/I5",
+  "package": "QFN88",
+  "vendor_package": "QN88P",
+  "board_revision": "6202",
+  "synthetic": false,
+  "electrical_profile_ref": "registry/electrical/tang-nano-9k.6202.reviewed.v1.json",
+  "pins": [
+    {
+      "pin": 1,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 2,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 3,
+      "bank": 3,
+      "vendor_bank_id": "3",
+      "io": "IOT2A",
+      "available": true,
+      "reserved": "",
+      "reviewed": true,
+      "default_io_type": "LVCMOS18",
+      "provenance_refs": [
+        "board-6202",
+        "pinout"
+      ]
+    },
+    {
+      "pin": 4,
+      "bank": 3,
+      "vendor_bank_id": "3",
+      "io": "IOL5A/JTAGSEL_N/LPLL_T_in",
+      "available": true,
+      "reserved": "",
+      "reviewed": true,
+      "default_io_type": "LVCMOS18",
+      "provenance_refs": [
+        "board-6202",
+        "pinout"
+      ]
+    },
+    {
+      "pin": 5,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": false,
+      "reserved": "JTAG TMS",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 6,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": false,
+      "reserved": "JTAG TCK",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 7,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": false,
+      "reserved": "JTAG TDI",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 8,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": false,
+      "reserved": "JTAG TDO",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 9,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 10,
+      "bank": 3,
+      "vendor_bank_id": "3",
+      "io": "IOL15A/GCLKT_6",
+      "available": true,
+      "reserved": "",
+      "reviewed": true,
+      "default_io_type": "LVCMOS18",
+      "provenance_refs": [
+        "board-6202",
+        "pinout"
+      ]
+    },
+    {
+      "pin": 11,
+      "bank": 3,
+      "vendor_bank_id": "3",
+      "io": "IOL16B",
+      "available": true,
+      "reserved": "",
+      "reviewed": true,
+      "default_io_type": "LVCMOS18",
+      "provenance_refs": [
+        "board-6202",
+        "pinout"
+      ]
+    },
+    {
+      "pin": 12,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 13,
+      "bank": 3,
+      "vendor_bank_id": "3",
+      "io": "IOL21B",
+      "available": true,
+      "reserved": "",
+      "reviewed": true,
+      "default_io_type": "LVCMOS18",
+      "provenance_refs": [
+        "board-6202",
+        "pinout"
+      ]
+    },
+    {
+      "pin": 14,
+      "bank": 3,
+      "vendor_bank_id": "3",
+      "io": "IOL22B",
+      "available": true,
+      "reserved": "",
+      "reviewed": true,
+      "default_io_type": "LVCMOS18",
+      "provenance_refs": [
+        "board-6202",
+        "pinout"
+      ]
+    },
+    {
+      "pin": 15,
+      "bank": 3,
+      "vendor_bank_id": "3",
+      "io": "IOL25B",
+      "available": true,
+      "reserved": "",
+      "reviewed": true,
+      "default_io_type": "LVCMOS18",
+      "provenance_refs": [
+        "board-6202",
+        "pinout"
+      ]
+    },
+    {
+      "pin": 16,
+      "bank": 3,
+      "vendor_bank_id": "3",
+      "io": "IOL26B",
+      "available": true,
+      "reserved": "",
+      "reviewed": true,
+      "default_io_type": "LVCMOS18",
+      "provenance_refs": [
+        "board-6202",
+        "pinout"
+      ]
+    },
+    {
+      "pin": 17,
+      "bank": 2,
+      "vendor_bank_id": "2",
+      "io": "IOB2A",
+      "available": true,
+      "reserved": "",
+      "reviewed": true,
+      "default_io_type": "LVCMOS33",
+      "provenance_refs": [
+        "board-6202",
+        "pinout"
+      ]
+    },
+    {
+      "pin": 18,
+      "bank": 2,
+      "vendor_bank_id": "2",
+      "io": "IOB2B",
+      "available": true,
+      "reserved": "",
+      "reviewed": true,
+      "default_io_type": "LVCMOS33",
+      "provenance_refs": [
+        "board-6202",
+        "pinout"
+      ]
+    },
+    {
+      "pin": 19,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 20,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 21,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 22,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 23,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 24,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 25,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 26,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 27,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 28,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 29,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 30,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 31,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 32,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 33,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 34,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 35,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 36,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 37,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 38,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 39,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 40,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 41,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 42,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 43,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 44,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 45,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 46,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 47,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 48,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 49,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 50,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 51,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 52,
+      "bank": 1,
+      "vendor_bank_id": "1",
+      "io": "IOR17A/GCLKT_3",
+      "available": true,
+      "reserved": "",
+      "reviewed": true,
+      "default_io_type": "LVCMOS33",
+      "provenance_refs": [
+        "board-6202",
+        "pinout"
+      ]
+    },
+    {
+      "pin": 53,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 54,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 55,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 56,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 57,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 58,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 59,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 60,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 61,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 62,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 63,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 64,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 65,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 66,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 67,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 68,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 69,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 70,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 71,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 72,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 73,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 74,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 75,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 76,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 77,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 78,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 79,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 80,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 81,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 82,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 83,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 84,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 85,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 86,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 87,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    },
+    {
+      "pin": 88,
+      "bank": null,
+      "vendor_bank_id": null,
+      "io": "",
+      "available": true,
+      "reserved": "",
+      "reviewed": false,
+      "default_io_type": null,
+      "provenance_refs": []
+    }
+  ],
+  "board_resources": [
+    {
+      "alias": "LED1",
+      "pin": 10,
+      "description": "Orange LED, active low",
+      "type": "LED",
+      "provenance_refs": [
+        "board-6202"
+      ]
+    },
+    {
+      "alias": "LED2",
+      "pin": 11,
+      "description": "Orange LED, active low",
+      "type": "LED",
+      "provenance_refs": [
+        "board-6202"
+      ]
+    },
+    {
+      "alias": "LED3",
+      "pin": 13,
+      "description": "Orange LED, active low",
+      "type": "LED",
+      "provenance_refs": [
+        "board-6202"
+      ]
+    },
+    {
+      "alias": "LED4",
+      "pin": 14,
+      "description": "Orange LED, active low",
+      "type": "LED",
+      "provenance_refs": [
+        "board-6202"
+      ]
+    },
+    {
+      "alias": "LED5",
+      "pin": 15,
+      "description": "Orange LED, active low",
+      "type": "LED",
+      "provenance_refs": [
+        "board-6202"
+      ]
+    },
+    {
+      "alias": "LED6",
+      "pin": 16,
+      "description": "Orange LED, active low",
+      "type": "LED",
+      "provenance_refs": [
+        "board-6202"
+      ]
+    },
+    {
+      "alias": "BTN1",
+      "pin": 3,
+      "description": "Button to GND, 10K external pull-up",
+      "type": "BUTTON",
+      "provenance_refs": [
+        "board-6202"
+      ]
+    },
+    {
+      "alias": "BTN2",
+      "pin": 4,
+      "description": "Button to GND, 10K external pull-up",
+      "type": "BUTTON",
+      "provenance_refs": [
+        "board-6202"
+      ]
+    },
+    {
+      "alias": "CLK",
+      "pin": 52,
+      "description": "27MHz oscillator",
+      "type": "CLK",
+      "provenance_refs": [
+        "board-6202"
+      ]
+    },
+    {
+      "alias": "UART_TX",
+      "pin": 17,
+      "description": "FPGA TX to onboard BL702 bridge",
+      "type": "UART",
+      "provenance_refs": [
+        "board-6202"
+      ]
+    },
+    {
+      "alias": "UART_RX",
+      "pin": 18,
+      "description": "FPGA RX to onboard BL702 bridge",
+      "type": "UART",
+      "provenance_refs": [
+        "board-6202"
+      ]
+    }
+  ],
+  "io_types": [
+    "LVCMOS33",
+    "LVCMOS25",
+    "LVCMOS18",
+    "LVCMOS15",
+    "LVCMOS12",
+    "LVTTL33",
+    "LVTTL25",
+    "SSTL33_I",
+    "SSTL33_II",
+    "SSTL25_I",
+    "SSTL25_II",
+    "SSTL18_I",
+    "SSTL18_II",
+    "SSTL15_I",
+    "SSTL15_II",
+    "HSTL18_I",
+    "HSTL18_II",
+    "HSTL15_I",
+    "PCI33",
+    "LVDS33",
+    "RSDS33"
+  ],
+  "provenance": [
+    {
+      "id": "board-6202",
+      "document_version": "Tang_Nano_9k_3672 / revision history 6202 (2022-10-23), schematic sheet 3/5",
+      "url": "https://dl.sipeed.com/fileList/TANG/Nano%209K/2_Schematic/Tang_Nano_9k_3672_Schematic.pdf",
+      "sha256": "71ccf1b7731589c8bc5b4c1dcf0c8906f52831785c703732d43a70f01ec574ec",
+      "physical_pages": [
+        1,
+        2
+      ],
+      "archived_file": "registry/provenance/tangnano9k-6202.pdf"
+    },
+    {
+      "id": "pinout",
+      "document_version": "UG803-1.6.5E, QN88P (PSRAM) column",
+      "url": "https://cdn.gowinsemi.com.cn/UG803E.pdf",
+      "sha256": "ebe1350849abb5903c2c934a33d19c27635b50c1b09eee27968fc894f5fef836",
+      "physical_pages": [
+        7,
+        9,
+        10,
+        12
+      ],
+      "archived_file": "registry/provenance/gw1nr9-pinout.pdf"
+    },
+    {
+      "id": "electrical",
+      "document_version": "DS117-3.2.5E, tables 3-11 / 3-12, printed pages 49 / 51",
+      "url": "https://cdn.gowinsemi.com.cn/DS117E.pdf",
+      "sha256": "09cc21999adf5053cafb13206df9835feba26f95d14a95bcee08aeabb7d9de6e",
+      "physical_pages": [
+        60,
+        62
+      ],
+      "archived_file": "registry/provenance/gw1nr-datasheet.pdf"
+    }
+  ]
+}

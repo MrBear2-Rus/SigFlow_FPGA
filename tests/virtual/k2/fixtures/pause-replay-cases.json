@@ -1,0 +1,50 @@
+{
+  "schema": "sigflow.review.pause-replay-cases.v1",
+  "purpose": "暂停意图与提交日志的参考决策；不是Verilator运行记录",
+  "pause_policy": "stage_until_step_or_play",
+  "cases": [
+    {
+      "id": "press-release-before-step",
+      "requests": [
+        { "id": "c1", "type": "input.set", "target": "key_p3", "action": "press" },
+        { "id": "c2", "type": "input.set", "target": "key_p3", "action": "release" },
+        { "id": "s1", "type": "session.step" }
+      ],
+      "expected_applied": [{ "id": "c2", "action": "release" }],
+      "expected_superseded": ["c1"]
+    },
+    {
+      "id": "press-step-release-step",
+      "requests": [
+        { "id": "c1", "type": "input.set", "target": "key_p3", "action": "press" },
+        { "id": "s1", "type": "session.step" },
+        { "id": "c2", "type": "input.set", "target": "key_p3", "action": "release" },
+        { "id": "s2", "type": "session.step" }
+      ],
+      "expected_applied": [{ "id": "c1", "action": "press" }, { "id": "c2", "action": "release" }],
+      "expected_superseded": []
+    },
+    {
+      "id": "stop-cancels-pending",
+      "requests": [
+        { "id": "c1", "type": "input.set", "target": "key_p3", "action": "press" },
+        { "id": "x1", "type": "session.stop" }
+      ],
+      "expected_applied": [],
+      "expected_superseded": [],
+      "expected_cancelled": ["c1"]
+    }
+  ],
+  "unknown_guard_cases": [
+    { "id": "floating-input", "direction": "input", "state": "FLT", "expected": "Paused.UnknownInput", "expected_dut_writes": 0 },
+    { "id": "async-reset-contention", "direction": "input", "state": "CON", "expected": "Paused.UnknownInput", "expected_dut_writes": 0 },
+    { "id": "led-branch-open", "direction": "output", "state": "FLT", "expected": "ObserveOnly", "expected_dut_writes": 0 },
+    { "id": "input-with-pullup", "direction": "input", "state": "WHI", "expected": "Import1", "expected_dut_writes": 1 }
+  ],
+  "sample_commit_log": [
+    { "kind": "intent", "command_id": "c1", "action": "press", "status": "pending" },
+    { "kind": "decision", "command_id": "c1", "status": "superseded", "by": "c2" },
+    { "kind": "intent", "command_id": "c2", "action": "release", "status": "pending" },
+    { "kind": "commit", "batch_id": "b1", "command_id": "c2", "status": "applied", "action": "release", "tick": "100", "delta": 0, "event_seq": "20", "durability": "reference_fixture_only" }
+  ]
+}

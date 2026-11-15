@@ -17,6 +17,7 @@ target_sources(eda_platform PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-platform/Sha256.cpp")
 target_sources(eda_platform PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-platform/Platform.cpp")
+target_sources(eda_platform PRIVATE src/eda-platform/DurableFile.cpp)
 
 # 内核：日志/版本/事件/schema 校验/Job 服务/插件宿主
 add_library(eda_core STATIC
@@ -37,6 +38,29 @@ add_library(eda_core STATIC
 )
 
 target_link_libraries(eda_core PUBLIC eda_api eda_platform)
+
+add_library(eda_virtual_board STATIC
+    src/eda-virtual-board/PortManifestBuilder.cpp
+    src/eda-virtual-board/ElectricalValidator.cpp
+    src/eda-virtual-board/Resolver.cpp
+    src/eda-virtual-board/LiveTraceStore.cpp
+    src/eda-virtual-board/DurableJournal.cpp
+    src/eda-virtual-board/VerilatedAdapterCodeGen.cpp
+    src/eda-virtual-board/VirtualSession.cpp)
+target_link_libraries(eda_virtual_board PUBLIC eda_api eda_platform)
+if(TARGET Threads::Threads)
+    target_link_libraries(eda_virtual_board PUBLIC Threads::Threads)
+endif()
+target_include_directories(eda_virtual_board PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
+set_target_properties(eda_virtual_board PROPERTIES POSITION_INDEPENDENT_CODE ON)
+add_executable(sigflow_port_manifest src/eda-virtual-board/PortManifestCli.cpp)
+target_link_libraries(sigflow_port_manifest PRIVATE eda_virtual_board)
+set_target_properties(sigflow_port_manifest PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
+add_executable(sigflow_adapter_codegen src/eda-virtual-board/AdapterCodeGenCli.cpp)
+target_link_libraries(sigflow_adapter_codegen PRIVATE eda_virtual_board)
+set_target_properties(sigflow_adapter_codegen PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
+add_library(eda_virtual_runner STATIC src/eda-virtual-board/RunnerSupport.cpp)
+target_link_libraries(eda_virtual_runner PUBLIC eda_virtual_board eda-cst-gowin-cst)
 target_include_directories(eda_core PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-platform")
 

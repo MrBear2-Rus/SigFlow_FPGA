@@ -1,0 +1,13 @@
+{
+  "schema": "sigflow.review.port-index-cases.v1",
+  "purpose": "手工声明的参考向量；不是Yosys实际导出或现有CST生成器执行结果",
+  "cases": [
+    { "id": "scalar", "name": "led", "shape": "scalar", "width": 1, "offset": 0, "upto": 0, "expected_indices": [null], "expected_refs": ["led"] },
+    { "id": "vector-zero", "name": "led", "shape": "packed_vector", "left": 0, "right": 0, "width": 1, "offset": 0, "upto": 0, "expected_indices": [0], "expected_refs": ["led[0]"] },
+    { "id": "descending", "name": "led", "shape": "packed_vector", "left": 3, "right": 0, "width": 4, "offset": 0, "upto": 0, "expected_indices": [0,1,2,3], "expected_refs": ["led[0]","led[1]","led[2]","led[3]"] },
+    { "id": "offset-descending", "name": "led", "shape": "packed_vector", "left": 7, "right": 4, "width": 4, "offset": 4, "upto": 0, "expected_indices": [4,5,6,7], "expected_refs": ["led[4]","led[5]","led[6]","led[7]"] },
+    { "id": "ascending", "name": "led", "shape": "packed_vector", "left": 4, "right": 7, "width": 4, "offset": 4, "upto": 1, "expected_indices": [7,6,5,4], "expected_refs": ["led[7]","led[6]","led[5]","led[4]"] },
+    { "id": "negative-index", "name": "led", "shape": "packed_vector", "left": 0, "right": -2, "width": 3, "offset": -2, "upto": 0, "expected_indices": [-2,-1,0], "expected_refs": ["led[-2]","led[-1]","led[0]"] },
+    { "id": "ambiguous-one-bit", "name": "led", "shape": "unknown", "width": 1, "offset": 0, "upto": 0, "expected_error": "E_PORT_SHAPE_UNKNOWN" }
+  ]
+}

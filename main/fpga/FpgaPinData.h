@@ -6,7 +6,7 @@
 // ==================== 封装引脚 ====================
 struct PackagePin {
     int pinNumber = 0;          // 1-88
-    int bank = 0;               // Bank 编号 (0, 1, 2)
+    int bank = -1;              // -1 = unreviewed; real vendor Bank may be 3
     wxString ioLocation;        // IO 位置: e.g. "IOT10A", "IOL5B", "IOR3C"
     bool available = true;      // false = 电源/地/JTAG/保留
     wxString reservedReason;    // 不可用原因
@@ -25,6 +25,8 @@ struct BoardResource {
 struct FpgaPinDatabase {
     wxString device;            // "GW1NR-LV9QN88PC6/I5"
     wxString packageName;       // "QFN88"
+    wxString electricalProfilePath;
+    wxString boardRevision;
     std::vector<PackagePin> pins;
     std::vector<BoardResource> boardResources;
 

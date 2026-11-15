@@ -1,0 +1,303 @@
+{
+  "stage": "K1-implementation",
+  "g1_closed": true,
+  "A2": true,
+  "A3": true,
+  "status": "passed",
+  "failure": null,
+  "commands": [
+    {
+      "argv": [
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\cmake-python\\cmake\\data\\bin\\cmake.exe",
+        "--build",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\build-m0",
+        "--parallel",
+        "4"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\cmake-python\\cmake\\data\\bin\\ctest.exe",
+        "--test-dir",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\build-m0",
+        "--output-on-failure",
+        "-j",
+        "3",
+        "--output-junit",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k1\\ctest-final.xml"
+      ],
+      "exit_code": 0
+    }
+  ],
+  "tests": [
+    {
+      "name": "job_tests",
+      "seconds": 1.83682,
+      "passed": true,
+      "output": "[PASS] legacy state serialization matches the migration name\n[PASS] legacy->contract state maps to itself\n[PASS] contract->legacy state maps back to the same serialized name\n[PASS] legacy state serialization matches the migration name\n[PASS] legacy->contract state maps to itself\n[PASS] contract->legacy state maps back to the same serialized name\n[PASS] legacy state serialization matches the migration name\n[PASS] legacy->contract state maps to itself\n[PASS] contract->legacy state maps back to the same serialized name\n[PASS] legacy state serialization matches the migration name\n[PASS] legacy->contract state maps to itself\n[PASS] contract->legacy state maps back to the same serialized name\n[PASS] legacy state serialization matches the migration name\n[PASS] legacy->contract state maps to itself\n[PASS] contract->legacy state maps back to the same serialized name\n[PASS] legacy state serialization matches the migration name\n[PASS] legacy->contract state maps to itself\n[PASS] contract->legacy state maps back to the s...\n[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]\n"
+    },
+    {
+      "name": "eda_api_contract_smoke",
+      "seconds": 1.3908,
+      "passed": true,
+      "output": "  ok: default Error is false\n  ok: Error::Ok code None\n  ok: non-None Error is true\n  ok: ToString(TimedOut)\n  ok: MethodCall carries Json params\n  ok: PluginInfo fields\n  ok: ISynthesizer::synthesizerId\n  ok: EDA_TYPED_METHOD dispatch + fromJson\n  ok: JobRequest fields\n  ok: JobState enum\n  ok: IJobProvider stub compiles\n  ok: ABI version macro\n  ok: BuildInfo() non-empty\nBuildInfo: compiler=gcc-14.2.0;cxx=202002;abi=1\n  ok: ServiceRegistry::Add returns owned ref\n  ok: ServiceRegistry::Size\n  ok: ServiceRegistry::Find hit\n  ok: ServiceRegistry::Get\n  ok: ServiceRegistry::Find miss\n  ok: ServiceRegistry::Remove\n  ok: ServiceRegistry::Size after remove\n  ok: EventBus subscriber count\n  ok: EventBus subscribe/publish\n  ok: EventBus unsubscribe stops delivery\n  ok: EventBus empty after unsubscribe\n  ok: SchemaRegistry::RegisterSchema\n  ok: SchemaRegistry::HasSchema\n  ok: SchemaRegistry::Validate ok\n  ok: SchemaRegistry::Validate missing required fails\n  ok: SchemaRegistry::Validate unknown schema fails\n  ok: Pro...\n[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]\n"
+    },
+    {
+      "name": "eda_job_service_smoke",
+      "seconds": 1.55596,
+      "passed": true,
+      "output": "  ok: job succeeded and recorded artifact\n  ok: report state Succeeded\n  ok: report artifact id\n  ok: report metric recorded\n  ok: job log is persisted for history UI\n  ok: provider exception becomes Failed\n  ok: missing provider becomes Failed\n  ok: process job reaches Running\n  ok: cancel accepted\n  ok: process job cancelled\n  ok: process job timed out\n  ok: core schema eda.job.v1 registered\n  ok: valid job record passes schema\n  ok: invalid job record rejected by schema\n  ok: restart: job completes before shutdown\n  ok: restart: completed job recovered from disk\n  ok: restart: report recovered from disk\n  ok: restart: job appears in project listing\n  ok: restart: id sequence does not collide\n  ok: restart: new job still runs after recovery\n  ok: restart: orphaned Running job becomes Failed, not fake-running\n  ok: controlled root: project directory preferred without warning\n  ok: controlled root: project-scoped path layout\n  ok: controlled root: directory created\n  ok: controlled root: distinct projects are...\n[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]\n"
+    },
+    {
+      "name": "eda_toolchain_project_smoke",
+      "seconds": 0.0296351,
+      "passed": true,
+      "output": "  ok: toolchain resolves bundled tool\n  ok: configured path takes precedence\n  ok: toolchain resolves environment variable\n  ok: toolchain resolves PATH entry\n  ok: missing tool is not found\n  ok: missing tool carries explicit reason (R19)\n  ok: toolchain resolves bundled subdirectory\n  ok: project loads\n  ok: project top module\n  ok: project source files\n  ok: add source file\n  ok: add source file is idempotent\n  ok: source count after add\n  ok: project save is atomic\n  ok: no temporary file left behind\n  ok: project reloads\n  ok: reloaded source files\n  ok: unknown fpga section preserved\n  ok: remove source file\n  ok: source count after remove\n  ok: RegisterBuiltins picks up EDA_REGISTER_PLUGIN entries\n  ok: registered builtin is retrievable\n  ok: registered builtin exposes capability\nALL PASS\n"
+    },
+    {
+      "name": "eda_plugin_host_smoke",
+      "seconds": 0.0111571,
+      "passed": true,
+      "output": "  ok: register static plugin aaa\n  ok: register static plugin bbb\n  ok: duplicate static id rejected\n  ok: ProvidersOf filters by capability\n  ok: ProvidersOf matches exact capability id\n  ok: ProvidersOf unknown capability is empty\n  ok: Select returns matching instance\n  ok: Select prefers a capable plugin over an incapable preferred id\n  ok: Get unknown id returns null\n  ok: provider list for capability\n  ok: Select falls back to first capable provider\n  ok: Discover finds the test plugin libraries\n  ok: exactly one dynamic plugin loads successfully\n  ok: test.ok is Ready\n  ok: test.ok capabilities parsed\n  ok: bad build fingerprint is rejected\n  ok: bad build error mentions fingerprint\n  ok: diagnostics report missing search directory (R1)\n  ok: diagnostics report ABI handshake rejection (R1/R13)\nALL PASS\n"
+    },
+    {
+      "name": "eda_synth_yosys_smoke",
+      "seconds": 0.0794135,
+      "passed": true,
+      "output": "  ok: EDA_REGISTER_PLUGIN registers eda-synth-yosys\n  ok: eda-synth-yosys exposes synth/yosys\n  ok: synth job reaches Succeeded with artifact\n  ok: exactly one artifact registered\n  ok: artifact id is netlist\n  ok: artifact schema is yosys-json\n  ok: artifact carries sha256\n  ok: job report records exit_code metric\n  ok: job report records cell count metric\n  ok: invalid netlist makes the job Failed\nALL PASS\n"
+    },
+    {
+      "name": "eda_pnr_nextpnr_smoke",
+      "seconds": 0.0580283,
+      "passed": true,
+      "output": "  ok: EDA_REGISTER_PLUGIN registers the plugin\n  ok: eda-pnr-nextpnr exposes pnr/nextpnr\n  ok: pnr job reaches Succeeded with artifact\n  ok: artifact id is pnr-json\n  ok: job report records exit_code metric\n  ok: log parser detects all PnR stages\n  ok: log parser extracts timing\n  ok: log parser extracts resource usage\n  ok: log parser extracts tool version\n  ok: report summary generated\n  ok: report json generated\nALL PASS\n"
+    },
+    {
+      "name": "eda_pack_flash_smoke",
+      "seconds": 0.16115,
+      "passed": true,
+      "output": "  ok: EDA_REGISTER_PLUGIN registers pack/flash plugins\n  ok: pack/gowin capability exposed\n  ok: program/openfpgaloader capability exposed\n  ok: pack job reaches Succeeded with bitstream artifact\n  ok: pack artifact id is bitstream\n  ok: flash without requireConfirm is rejected\n  ok: flash with requireConfirm succeeds\n  ok: flash rejects Gowin CRC error even when process exits 0\nALL PASS\n"
+    },
+    {
+      "name": "eda_sim_verilator_smoke",
+      "seconds": 0.416755,
+      "passed": true,
+      "output": "  ok: EDA_REGISTER_PLUGIN registers eda-sim-verilator\n  ok: sim/verilator capability exposed\n  ok: sim.build job reaches Succeeded with executable artifact\n  ok: artifact id is sim-executable\n  ok: job report records exit_code metric\n  ok: Verilator build command is invoked after preflight\n  ok: Verilator child explicitly receives the verified POSIX SHELL\n  ok: Verilator child PATH starts with the job-private python3 shim\n  ok: sim.run job reaches Succeeded with waveform artifact\n  ok: artifact id is waveform\nALL PASS\n"
+    },
+    {
+      "name": "eda_sim_frontend_smoke",
+      "seconds": 0.0148398,
+      "passed": true,
+      "output": "  ok: parses testbench code\n  ok: testbench module name\n  ok: DUT instance\n  ok: three port mappings\n  ok: initial blocks found\n  ok: clock definition detected (halfPeriod=5)\n  ok: timeline clock mapped\n  ok: timeline has events\n  ok: timeline max sim time\n  ok: generates sim_main.cpp\n  ok: includes Vtop header\n  ok: opens VCD trace\n  ok: drives clock signal\nALL PASS\n"
+    },
+    {
+      "name": "eda_target_profile_smoke",
+      "seconds": 0.009925,
+      "passed": true,
+      "output": "  ok: loads tang-nano-9k target profile file\n  ok: profile id\n  ok: profile device\n  ok: profile family\n  ok: profile yosys family\n  ok: profile programmer board\n  ok: profile debug uart pins\n  ok: profile default baud\n  ok: loads profile by id from directory\n  ok: profile-by-id id\n  ok: parses minimal inline profile\n  ok: inline profile fields\n  ok: missing optional fields\n  ok: invalid json rejected\n  ok: profile without id rejected\n  ok: missing profile file rejected\n  ok: loads pin database JSON\n  ok: pin database has 88 pins\n  ok: pin database has 11 source-reviewed M0 resources\n  ok: pin database has 21 IO types\n  ok: pin 10 available\n  ok: LED pad 10 is Bank 3 at reviewed LVCMOS18\n  ok: LED3 maps to pad 13\n  ok: BTN1 maps to pad 3\n  ok: UART TX maps to pad 17\n  ok: pin 6 reserved as JTAG TCK (UG803 QN88P)\nALL PASS\n"
+    },
+    {
+      "name": "eda_gowin_cst_smoke",
+      "seconds": 0.0104908,
+      "passed": true,
+      "output": "  ok: generate emits IO_LOC\n  ok: generate emits IO_PORT attributes\n  ok: generate emits pull mode\n  ok: round-trip parses\n  ok: round-trip binding count\n  ok: round-trip led fields\n  ok: round-trip clk fields\n  ok: parse hand-written CST\n  ok: IO_LOC and IO_PORT merged by port name\n  ok: unquoted IO_LOC is an error\n  ok: error recorded\n  ok: unknown statement is only a warning\n  ok: warning recorded\nALL PASS\n"
+    },
+    {
+      "name": "eda_constraint_sheet_smoke",
+      "seconds": 0.0264897,
+      "passed": true,
+      "output": "  ok: load pin database\n  ok: parses three ports from Yosys JSON\n  ok: led width is 3\n  ok: clk direction is input\n  ok: detects incomplete vector binding\n  ok: detects reserved pin\n  ok: unknown IO_TYPE is a warning\n  ok: detects duplicate pin assignment\n  ok: generates CST\n  ok: generated IO_LOC line\n  ok: generated DRIVE attribute\n  ok: generated bindings hash\n  ok: import round-trip\n  ok: validates a good CST file\n  ok: CST statement counts\n  ok: rejects invalid CST line\n  ok: detects unbound port coverage\nALL PASS\n"
+    },
+    {
+      "name": "eda_declarative_tool_smoke",
+      "seconds": 0.0854073,
+      "passed": true,
+      "output": "  ok: parse declarative tool spec\n  ok: spec fields\n  ok: spec missing job_type/executable rejected\n  ok: declarative job reaches Succeeded with declared artifact\n  ok: declared artifact id registered\n  ok: declarative job fails when required param missing\nALL PASS\n"
+    },
+    {
+      "name": "eda_wave_vcd_smoke",
+      "seconds": 0.0121705,
+      "passed": true,
+      "output": "  ok: opens VCD\n  ok: timescale parsed\n  ok: signal count\n  ok: clk signal width\n  ok: state signal metadata\n  ok: full name\n  ok: time range\n  ok: query transitions\n  ok: clk transition count\n  ok: value-at between transitions\n  ok: value-at exact\n  ok: vector value-at\n  ok: unknown signal rejected\n  ok: missing VCD rejected\nALL PASS\n"
+    },
+    {
+      "name": "eda_wave_trace_adapter_smoke",
+      "seconds": 0.0227687,
+      "passed": true,
+      "output": "  ok: adapter opens VCD via IWaveformBackend\n  ok: adapter exposes signals\n  ok: adapter timescale\n  ok: adapter time range\n  ok: adapter signal metadata\n  ok: adapter query transitions\n  ok: adapter value-at\nALL PASS\n"
+    },
+    {
+      "name": "eda_declarative_switch_smoke",
+      "seconds": 0.129026,
+      "passed": true,
+      "output": "  ok: parse declarative icarus spec\n  ok: register declarative icarus into PluginHost\n  ok: register verilator plugin into PluginHost\n  ok: sim/verilator capability available\n  ok: sim/icarus capability available\n  ok: capability selector returns the declarative icarus backend\n  ok: capability selector returns verilator backend\n  ok: two backends are distinct (switch without recompile)\n  ok: declarative icarus job reaches Succeeded with Job record + artifact\n  ok: declared artifact recorded\nALL PASS\n"
+    },
+    {
+      "name": "eda_component_library_smoke",
+      "seconds": 0.0175982,
+      "passed": true,
+      "output": "  ok: loads canvas_elements.json\n  ok: library has multiple components\n  ok: finds 'and' gate\n  ok: and gate has 2 input pins\n  ok: and gate has 1 output pin\n  ok: and gate bounds\n  ok: and gate has an arc shape\n  ok: finds 'nand' gate\n  ok: nand gate has a circle shape\n  ok: missing component returns null\nALL PASS\n"
+    },
+    {
+      "name": "eda_command_bus_smoke",
+      "seconds": 0.0100345,
+      "passed": true,
+      "output": "  ok: bus starts empty\n  ok: execute add5\n  ok: counter after execute\n  ok: undo depth 1\n  ok: execute add3\n  ok: counter after second execute\n  ok: undo\n  ok: counter after undo\n  ok: redo available\n  ok: redo\n  ok: counter after redo\n  ok: redo consumed\n  ok: undo again\n  ok: redo available before new execute\n  ok: execute add1\n  ok: new execute clears redo stack\n  ok: counter after undo+new execute\n  ok: failing command returns false\n  ok: failing command not pushed\n  ok: null command rejected\n  ok: clear empties stacks\n  ok: undo/redo on empty returns false\nALL PASS\n"
+    },
+    {
+      "name": "sig_tree_sync_smoke",
+      "seconds": 0.164797,
+      "passed": true,
+      "output": "  ok: ProjectNode created\n  ok: root is Project\n  ok: outMap populated\n  ok: FileNode created\n  ok: TopNode created\n  ok: top module name is 'Module top'\n  ok: exactly one TopNode\n  ok: FileNode has uid\n  ok: TopNode has uid\n  ok: outMap keyed by FileNode uid\n  ok: outMap keyed by TopNode uid\n  ok: uids are unique\n  ok: NodeByUid resolves FileNode\n  ok: NodeByUid resolves TopNode\n  ok: ToVerilog contains 'module top'\n  ok: ToVerilog contains 'endmodule'\n  ok: FileNode uid stable on re-parse\n  ok: TopNode pointer stable on re-parse\n  ok: ClearTree resets root\n  ok: edit: top found\n  ok: edit: AddSignal returns node\n  ok: edit: signal list grew after add\n  ok: edit: added signal name\n  ok: edit: signal list shrinks after remove\n  ok: edit: removed signal no longer in list\nALL PASS\n"
+    },
+    {
+      "name": "k1_port_index_roundtrip",
+      "seconds": 0.0813463,
+      "passed": true,
+      "output": "PASS \"scalar\"\nPASS \"vector-zero\"\nPASS \"descending\"\nPASS \"offset-descending\"\nPASS \"ascending\"\nPASS \"negative-index\"\nPASS 287 checks\n"
+    },
+    {
+      "name": "k1_electrical_acceptance",
+      "seconds": 0.0209667,
+      "passed": true,
+      "output": "PASS synthetic \"ok18\"\nPASS synthetic \"ok33\"\nPASS synthetic \"wrong-supply\"\nPASS synthetic \"missing-bank\"\nPASS synthetic \"missing-supply\"\nPASS synthetic \"missing-standard\"\nPASS synthetic \"unsupported-direction\"\nPASS synthetic \"no-global-default\"\nPASS 33 checks\n"
+    },
+    {
+      "name": "k1_real_tool_export",
+      "seconds": 0.376345,
+      "passed": true,
+      "output": "6 cross-checked ports\nE:\\sigflow\\SigFlow_VirtroFPGA\\build-m0\\tests\\virtual\\k1\\actual\\ports.json.ports.v2.json\n"
+    },
+    {
+      "name": "k1_real_tool_gui_cst",
+      "seconds": 0.121743,
+      "passed": true,
+      "output": "PASS 82 checks\n"
+    },
+    {
+      "name": "k2_session_pause_guard_replay",
+      "seconds": 0.0801982,
+      "passed": true,
+      "output": "PASS \"press-release-before-step\"\nPASS \"press-step-release-step\"\nPASS \"stop-cancels-pending\"\nPASS 41 K2 core checks\n"
+    },
+    {
+      "name": "k2_real_verilated_session",
+      "seconds": 2.35563,
+      "passed": true,
+      "output": "PASS: 16 actual Verilated Core session checks; K2 remains in progress.\n"
+    }
+  ],
+  "test_total": 26,
+  "test_passed": 26,
+  "gui_verification": "Real FpgaConstraint.cpp and wxBase adapter in C++ CTest; interactive window clicks not tested.",
+  "actual_tool_fixture": "tests/virtual/k1/ports.sv; 17-bit structural roundtrip, separate real 11-pad electrical acceptance.",
+  "executable": {
+    "path": "build-m0/sigflow.exe",
+    "sha256": "f15b1b447b09fdfc594797d76ebc863e9bbfc009a17d9927ecf46339cccb7a29"
+  },
+  "builder_executable_sha256": "6c60113c507944c7b51e389cd1a83716b409e24063cbb45b5166659af54f49e1",
+  "production_source_sha256": {
+    "core/src/eda-virtual-board/ElectricalValidator.cpp": "be0b401f38ff1651957ff1915a3bef95f150eac3d9dc0b61ee18612fb3d017e2",
+    "core/src/eda-virtual-board/ElectricalValidator.h": "22f6eb05946e4dd922b849ab4f506dee6791f2b13ce958d1abe50015d4cba472",
+    "core/src/eda-virtual-board/PortManifestBuilder.cpp": "da3982431c99e9ee313bf34a871ef2bad332854382f4adc8dd19b19336a7f0f0",
+    "core/src/eda-virtual-board/PortManifestBuilder.h": "166e30fb3c695ccaf55557906d42fe2e2c0c2389d3f7751c2f34aae3202a0362",
+    "core/src/eda-virtual-board/PortManifestCli.cpp": "a2508d8547b2ae9605cef5c041a222cf8ff9be449d040ec136aaea737ad0c0a4",
+    "core/src/eda-virtual-board/Resolver.cpp": "6e3615a28d34677386a52d9e360906482d90e35aca512899bc294da0e0875c70",
+    "core/src/eda-virtual-board/VirtualSession.cpp": "f2f95b777735a1e6be43173832ef6586c625f20b3aa237d1d9bed1047254ca39",
+    "core/src/eda-virtual-board/VirtualSession.h": "7a14b750535db18681491673eefc1c7c7a7292ab51a3fb9e809089d774364073",
+    "include/eda/api/port_manifest.hpp": "b173e41c0977102abced0774be2a6856d2791b361de256b37a0e382fbad0b984",
+    "include/eda/api/electrical_profile.hpp": "9e61018c1e5909462945a91fed68c87146660c7281480bee399b854e4c3a931b",
+    "InnerPlugin/eda-cst-gowin-cst/src/ConstraintSheetV2.cpp": "d2869fdc90924b7f4266627143aa155befecc08148295f6533fbb6ebd2f99847",
+    "main/fpga/FpgaConstraint.cpp": "e6d019c2cd7d1f78f7148c9d09ed72fe1a34c5940e61bc9c6f22a9270a508082",
+    "main/fpga/FpgaPinBindingPanel.cpp": "57bfec11f018b2aae2f3b7ff9ba5e50e390ca5b114e747730b3d8754f1835bf9"
+  },
+  "source_snapshot_sha256": "a513b0e1394300aacf460fc607e687a27dd2130fecc2421c0d1620f6c4e1ef57",
+  "production_electrical": {
+    "synthetic": false,
+    "reviewed_pads": [
+      3,
+      4,
+      10,
+      11,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      52
+    ],
+    "banks": {
+      "0": {
+        "vccio_mv": 3300
+      },
+      "1": {
+        "vccio_mv": 3300
+      },
+      "2": {
+        "vccio_mv": 3300
+      },
+      "3": {
+        "vccio_mv": 1800
+      }
+    },
+    "provenance": [
+      {
+        "id": "board-6202",
+        "document_version": "Tang_Nano_9k_3672 / revision history 6202 (2022-10-23), schematic sheet 3/5",
+        "url": "https://dl.sipeed.com/fileList/TANG/Nano%209K/2_Schematic/Tang_Nano_9k_3672_Schematic.pdf",
+        "sha256": "71ccf1b7731589c8bc5b4c1dcf0c8906f52831785c703732d43a70f01ec574ec",
+        "physical_pages": [
+          1,
+          2
+        ],
+        "archived_file": "registry/provenance/tangnano9k-6202.pdf"
+      },
+      {
+        "id": "pinout",
+        "document_version": "UG803-1.6.5E, QN88P (PSRAM) column",
+        "url": "https://cdn.gowinsemi.com.cn/UG803E.pdf",
+        "sha256": "ebe1350849abb5903c2c934a33d19c27635b50c1b09eee27968fc894f5fef836",
+        "physical_pages": [
+          7,
+          9,
+          10,
+          12
+        ],
+        "archived_file": "registry/provenance/gw1nr9-pinout.pdf"
+      },
+      {
+        "id": "electrical",
+        "document_version": "DS117-3.2.5E, tables 3-11 / 3-12, printed pages 49 / 51",
+        "url": "https://cdn.gowinsemi.com.cn/DS117E.pdf",
+        "sha256": "09cc21999adf5053cafb13206df9835feba26f95d14a95bcee08aeabb7d9de6e",
+        "physical_pages": [
+          60,
+          62
+        ],
+        "archived_file": "registry/provenance/gw1nr-datasheet.pdf"
+      }
+    ],
+    "policy": "Conservative validated M0 subset. Matching nominal VCCIO required for input and output; not a claim of all silicon input tolerances. Internal pulls are outside this reviewed subset. Unreviewed pads are blocked."
+  },
+  "intentional_baseline_corrections": [
+    "JTAG TCK is pad 6 (not 56); source-reviewed M0 aliases replace 18 legacy incorrect/unverified resources."
+  ],
+  "execution_environment": "Windows x64, GCC 14.2 ucrt-posix-seh; CTest outside restricted sandbox because CREATE_NO_WINDOW cmd failed with 0xC0000142 inside it.",
+  "limitations": [
+    "Plain source export entry is explicit CLI; missing/stale sidecar blocks GUI instead of guessing.",
+    "Internal pull modes/inout/other IO standards are outside the reviewed M0 electrical subset.",
+    "K1 does not assert completion of VirtualSession, LiveTrace, board rendering or full M0."
+  ],
+  "fixtures": {
+    "port-index-cases.json": {
+      "sha256": "b6a81868fba7c674c8ed8f51805b7ad9fdaaf9d346530ae061b2763b68a21192",
+      "cases": 7
+    },
+    "electrical-cases.synthetic.json": {
+      "sha256": "4d1ebec1ac27520be0a023e2bcec51604c4a58f7382fa33bac4042d16ed690b4",
+      "cases": 8
+    }
+  }
+}

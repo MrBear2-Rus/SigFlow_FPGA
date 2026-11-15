@@ -9,11 +9,12 @@ namespace target {
 
 struct PinEntry {
     int pin = 0;
-    int bank = 0;
+    int bank = -1;
     std::string ioLocation;
     bool available = true;
     std::string reservedReason;
-    std::string defaultIOType = "LVCMOS33";
+    std::string defaultIOType;
+    bool reviewed = false;
 };
 
 struct BoardResourceEntry {
@@ -27,6 +28,7 @@ struct BoardResourceEntry {
 struct PinDatabase {
     std::string device;
     std::string packageName;
+    std::string boardRevision, vendorPackage, electricalProfileRef;
     std::vector<PinEntry> pins;
     std::vector<BoardResourceEntry> boardResources;
     std::vector<std::string> ioTypes;

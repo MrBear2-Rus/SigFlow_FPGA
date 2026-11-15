@@ -34,18 +34,21 @@ bool PinDatabaseStore::Parse(const std::string& json, PinDatabase& database, std
     PinDatabase parsed;
     parsed.device = OptionalString(root, "device");
     parsed.packageName = OptionalString(root, "package");
-    const std::string defaultIoType = OptionalString(root, "default_io_type", "LVCMOS33");
+    parsed.boardRevision = OptionalString(root,"board_revision");
+    parsed.vendorPackage = OptionalString(root,"vendor_package");
+    parsed.electricalProfileRef = OptionalString(root,"electrical_profile_ref");
 
     if (root.contains("pins") && root["pins"].is_array()) {
         for (const auto& entry : root["pins"]) {
             if (!entry.is_object() || !entry.contains("pin")) continue;
             PinEntry pin;
             pin.pin = entry.value("pin", 0);
-            pin.bank = entry.value("bank", 0);
+            pin.bank = entry.contains("bank") && entry["bank"].is_number_integer() ? entry["bank"].get<int>() : -1;
             pin.ioLocation = OptionalString(entry, "io");
             pin.available = entry.value("available", true);
             pin.reservedReason = OptionalString(entry, "reserved");
-            pin.defaultIOType = defaultIoType;
+            pin.reviewed = entry.value("reviewed", false);
+            pin.defaultIOType = pin.reviewed ? OptionalString(entry,"default_io_type") : std::string();
             parsed.pins.push_back(std::move(pin));
         }
     }

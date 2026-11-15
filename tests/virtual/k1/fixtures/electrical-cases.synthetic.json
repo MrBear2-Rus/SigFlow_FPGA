@@ -1,0 +1,21 @@
+{
+  "schema": "sigflow.review.electrical-cases.v1",
+  "synthetic": true,
+  "purpose": "纯合成规则数据，Bank和Pad映射均不得用于真实Tang Nano 9K",
+  "banks": { "TEST_BANK_A": { "vccio_mv": 1800 }, "TEST_BANK_B": { "vccio_mv": 3300 }, "TEST_BANK_UNPOWERED": { "vccio_mv": null } },
+  "pads": { "test_pad_1": "TEST_BANK_A", "test_pad_2": "TEST_BANK_B", "test_pad_3": "TEST_BANK_UNPOWERED" },
+  "io_rules": {
+    "LVCMOS18": { "directions": ["input", "output"], "vccio_allowed_mv": [1800] },
+    "LVCMOS33": { "directions": ["input", "output"], "vccio_allowed_mv": [3300] }
+  },
+  "cases": [
+    { "id": "ok18", "pad": "test_pad_1", "direction": "output", "io_type": "LVCMOS18", "expected": "OK" },
+    { "id": "ok33", "pad": "test_pad_2", "direction": "output", "io_type": "LVCMOS33", "expected": "OK" },
+    { "id": "wrong-supply", "pad": "test_pad_1", "direction": "output", "io_type": "LVCMOS33", "expected": "E_IO_VCCIO_MISMATCH" },
+    { "id": "missing-bank", "pad": "unknown_pad", "direction": "output", "io_type": "LVCMOS18", "expected": "E_BANK_UNKNOWN" },
+    { "id": "missing-supply", "pad": "test_pad_3", "direction": "output", "io_type": "LVCMOS18", "expected": "E_VCCIO_UNKNOWN" },
+    { "id": "missing-standard", "pad": "test_pad_1", "direction": "output", "io_type": "LVDS25", "expected": "E_IO_STANDARD_UNKNOWN" },
+    { "id": "unsupported-direction", "pad": "test_pad_1", "direction": "inout", "io_type": "LVCMOS18", "expected": "E_ELECTRICAL_UNSUPPORTED" },
+    { "id": "no-global-default", "pad": "test_pad_1", "direction": "output", "io_type": null, "expected": "E_IO_STANDARD_UNKNOWN" }
+  ]
+}

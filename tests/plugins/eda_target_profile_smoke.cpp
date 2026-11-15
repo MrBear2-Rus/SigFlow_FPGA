@@ -84,17 +84,24 @@ int main(int argc, char** argv) {
         Check(eda::target::PinDatabaseStore::LoadFile(pinsFile, database, error),
               "loads pin database JSON");
         Check(database.pins.size() == 88, "pin database has 88 pins");
-        Check(database.boardResources.size() == 18, "pin database has 18 board resources");
+        Check(database.boardResources.size() == 11, "pin database has 11 source-reviewed M0 resources");
         Check(database.ioTypes.size() == 21, "pin database has 21 IO types");
         const eda::target::PinEntry* pin10 = nullptr;
-        const eda::target::PinEntry* pin56 = nullptr;
+        const eda::target::PinEntry* pin6 = nullptr;
         for (const auto& pin : database.pins) {
             if (pin.pin == 10) pin10 = &pin;
-            if (pin.pin == 56) pin56 = &pin;
+            if (pin.pin == 6) pin6 = &pin;
         }
         Check(pin10 != nullptr && pin10->available, "pin 10 available");
-        Check(pin56 != nullptr && !pin56->available && pin56->reservedReason == "JTAG TCK",
-              "pin 56 reserved as JTAG TCK");
+        Check(pin10 != nullptr && pin10->bank == 3 && pin10->defaultIOType == "LVCMOS18",
+              "LED pad 10 is Bank 3 at reviewed LVCMOS18");
+        for (const auto& resource : database.boardResources) {
+            if (resource.alias == "LED3") Check(resource.pin == 13, "LED3 maps to pad 13");
+            if (resource.alias == "BTN1") Check(resource.pin == 3, "BTN1 maps to pad 3");
+            if (resource.alias == "UART_TX") Check(resource.pin == 17, "UART TX maps to pad 17");
+        }
+        Check(pin6 != nullptr && !pin6->available && pin6->reservedReason == "JTAG TCK",
+              "pin 6 reserved as JTAG TCK (UG803 QN88P)");
     }
 
     std::cout << (g_failures == 0 ? "ALL PASS" : "FAILURES") << "\n";
