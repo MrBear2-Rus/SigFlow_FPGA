@@ -52,6 +52,7 @@ struct TestbenchInfo {
     std::vector<std::string> wireSignals;
     std::vector<InitialBlock> initialBlocks;
     std::uint64_t maxSimTime = 0;
+    std::string timeUnit;
 };
 
 // 自 `main/Simulation/StimulusParser` 移入并去 wx 化。

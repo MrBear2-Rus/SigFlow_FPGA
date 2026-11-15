@@ -360,7 +360,7 @@ void UiToolBarArt::ApplyTheme()
     SetTextOrientation(wxAUI_TBTOOL_TEXT_RIGHT);
 }
 
-wxSize UiToolBarArt::GetToolSize(wxDC& dc, wxWindow* wnd, const wxAuiToolBarItem& item)
+wxSize UiToolBarArt::GetToolSize(ToolSizeDC dc, wxWindow* wnd, const wxAuiToolBarItem& item)
 {
     // 防御：某些布局路径可能不传窗口；此时避免触碰位图（GetBitmapFor(nullptr) 会触发 wx 断言），
     // 退化为一个保守尺寸。
@@ -393,8 +393,8 @@ wxSize UiToolBarArt::GetToolSize(wxDC& dc, wxWindow* wnd, const wxAuiToolBarItem
 
     wxSize textSize(0, 0);
     if (!label.empty()) {
-        dc.SetFont(UiTheme::UiFont(wnd, UiTheme::TextSize::P13, UiTheme::Weight::Medium));
-        textSize = dc.GetTextExtent(label);
+        const wxFont font = UiTheme::UiFont(wnd, UiTheme::TextSize::P13, UiTheme::Weight::Medium);
+        dc.GetTextExtent(label, &textSize.x, &textSize.y, nullptr, nullptr, &font);
     }
 
     const int gap = (bitmapSize.x > 0 && textSize.x > 0) ? ChipInnerGap(wnd) : 0;

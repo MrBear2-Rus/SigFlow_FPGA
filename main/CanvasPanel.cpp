@@ -72,6 +72,9 @@ CanvasPanel::CanvasPanel(CanvasNoteBook* parent, SigFlowTree* sftree, size_t siz
     m_hiddenTextCtrl(nullptr),
     m_isUsingHiddenCtrl(false), m_currentEditingTextIndex(-1) ,
     m_isModified(false) {
+    // Creating native child controls can dispatch paint events synchronously.
+    SetBackgroundStyle(wxBG_STYLE_PAINT);
+    SetBackgroundColour(UiTheme::Palette().canvas);
     SetupHiddenTextCtrl();
 
     //滚动条
@@ -103,9 +106,6 @@ CanvasPanel::CanvasPanel(CanvasNoteBook* parent, SigFlowTree* sftree, size_t siz
     m_toolStateMachine->Bind(TOOL_STATE_CHANGED,[this](wxCommandEvent& e){SyncCanvasControls();e.Skip();});
     Bind(wxEVT_SIZE,[this](wxSizeEvent& e){LayoutCanvasControls();e.Skip();});
 
-    SetBackgroundStyle(wxBG_STYLE_PAINT);
-    // T-410：原 *wxWHITE → canvas token（浅色档同为 #ffffff，深色档随主题收敛）
-    SetBackgroundColour(UiTheme::Palette().canvas);
     m_themeSubscription = UiTheme::Subscribe([this] {
         SetBackgroundColour(UiTheme::Palette().canvas);
         Refresh(false); // 只在主题通知时刷新，不从 OnPaint 发起重绘。
@@ -144,6 +144,8 @@ CanvasPanel::CanvasPanel(CanvasNoteBook* parent, SigFlowTree* sftree, size_t siz
     SetoffSet(wxPoint(0, 0));
     LayoutCanvasControls();SyncCanvasControls();
     SetFocus();
+    m_paintReady = true;
+    Refresh(false);
 }
 
 void CanvasPanel::OnLeftDown(wxMouseEvent& evt){
@@ -347,9 +349,11 @@ void CanvasPanel::RefreshCanvasAfterElementMove()
 }
 
 void CanvasPanel::OnPaint(wxPaintEvent&) {
-    LayoutScrollbars(false); // 绘制期更新几何，不再次置脏当前画布。
     wxAutoBufferedPaintDC dc(this);
+    dc.SetBackground(wxBrush(UiTheme::Palette().canvas));
     dc.Clear();
+    if (!m_paintReady) return;
+    LayoutScrollbars(false); // 绘制期更新几何，不再次置脏当前画布。
 
     wxRect updateRect = GetUpdateRegion().GetBox();
 

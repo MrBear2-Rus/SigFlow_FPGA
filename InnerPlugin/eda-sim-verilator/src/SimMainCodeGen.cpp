@@ -42,7 +42,7 @@ std::string SimMainGenerator::GenerateIncludes(const Timeline& timeline) {
     ss << "#include \"V" << timeline.topModuleName << ".h\"\n";
     ss << "#include \"verilated.h\"\n";
     ss << "#include \"verilated_vcd_c.h\"\n";
-    ss << "#include <map>\n#include <string>\n";
+    ss << "#include <string>\n";
     // Verilator's generated model references this SystemC-compatible hook even
     // when the harness uses an explicit integer tick loop.
     ss << "double sc_time_stamp() { return 0.0; }\n";
@@ -63,6 +63,11 @@ std::string SimMainGenerator::GenerateInitialization(const Timeline& timeline,
     ss << "    V" << timeline.topModuleName << "* top = new V" << timeline.topModuleName << ";\n\n";
     ss << "    VerilatedVcdC* tfp = new VerilatedVcdC;\n";
     ss << "    top->trace(tfp, 99);\n";
+    if (!timeline.timeUnit.empty()) {
+        // The timestamps passed to dump are timeline ticks, so the VCD
+        // resolution is the testbench delay unit when it declares one.
+        ss << "    tfp->set_time_resolution(\"" << timeline.timeUnit << "\");\n";
+    }
     ss << "    tfp->open(\"" << escapedPath << "\");\n\n";
     ss << "    vluint64_t sim_time = 0;\n\n";
     ss << "    vluint64_t sim_end = " << DefaultSimulationEnd(timeline) << ";\n";
@@ -75,9 +80,8 @@ std::string SimMainGenerator::GenerateInitialization(const Timeline& timeline,
     ss << "            ++arg;\n";
     ss << "        }\n";
     ss << "    }\n\n";
-    ss << "    std::map<std::string, bool> signalStates;\n\n";
     ss << "    top->eval();\n";
-    ss << "    tfp->dump(sim_time);\n\n";
+    ss << "\n";
     return ss.str();
 }
 
@@ -93,19 +97,21 @@ std::string SimMainGenerator::GenerateEventDriving(const Timeline& timeline) {
     std::map<std::uint64_t, std::vector<const TimelineEvent*>> eventsByTime;
     for (const auto& evt : timeline.events) eventsByTime[evt.time].push_back(&evt);
 
-    const auto emitAdvanceLoop = [&](std::uint64_t targetTime) {
-        ss << "    while (sim_time < " << targetTime << " && sim_time < sim_end) {\n";
-        ss << "        sim_time++;\n";
-        if (clockActive) {
-            ss << "        if (sim_time % " << halfPeriod << " == 0) {\n";
-            ss << "            top->" << timeline.clock.signalName << " = !top->"
-               << timeline.clock.signalName << ";\n";
-            ss << "        }\n";
-        }
-        ss << "        top->eval();\n        tfp->dump(sim_time);\n    }\n\n";
-    };
+    ss << "    const auto advanceTo = [&](vluint64_t target) {\n";
+    ss << "        while (sim_time < target) {\n";
+    ss << "            // Record the completed tick once, after its assignments.\n";
+    ss << "            tfp->dump(sim_time);\n";
+    ss << "            ++sim_time;\n";
+    if (clockActive) {
+        ss << "            if (sim_time % " << halfPeriod << "ULL == 0) {\n";
+        ss << "                top->" << timeline.clock.signalName << " = !top->"
+           << timeline.clock.signalName << ";\n";
+        ss << "            }\n";
+    }
+    ss << "            top->eval();\n";
+    ss << "        }\n";
+    ss << "    };\n\n";
 
-    std::uint64_t lastTime = 0;
     for (const auto& [time, events] : eventsByTime) {
         std::vector<std::string> comments;
         std::vector<std::pair<std::string, std::string>> assignments;
@@ -114,27 +120,19 @@ std::string SimMainGenerator::GenerateEventDriving(const Timeline& timeline) {
             assignments.emplace_back(evt->signalName, VerilogValueToCpp(evt->value));
         }
         if (assignments.empty() && comments.empty()) continue;
-        if (time > lastTime) emitAdvanceLoop(time);
-        ss << "    if (sim_end >= " << time << ") {\n";
+        ss << "    if (sim_end >= " << time << "ULL) {\n";
+        if (time > 0) ss << "        advanceTo(" << time << "ULL);\n";
         for (const auto& comment : comments) ss << "        // " << comment << "\n";
         for (const auto& [signal, value] : assignments) {
             ss << "        // [" << time << "] " << signal << " = " << value << "\n";
             ss << "        top->" << signal << " = " << value << ";\n";
         }
-        if (!assignments.empty()) ss << "        top->eval();\n        tfp->dump(sim_time);\n";
+        if (!assignments.empty()) ss << "        top->eval();\n";
         ss << "    }\n\n";
-        lastTime = time;
     }
 
-    ss << "    while (sim_time < sim_end) {\n";
-    ss << "        sim_time++;\n";
-    if (clockActive) {
-        ss << "        if (sim_time % " << halfPeriod << " == 0) {\n";
-        ss << "            top->" << timeline.clock.signalName << " = !top->"
-           << timeline.clock.signalName << ";\n";
-        ss << "        }\n";
-    }
-    ss << "        top->eval();\n        tfp->dump(sim_time);\n    }\n\n";
+    ss << "    advanceTo(sim_end);\n";
+    ss << "    tfp->dump(sim_time);\n\n";
     return ss.str();
 }
 

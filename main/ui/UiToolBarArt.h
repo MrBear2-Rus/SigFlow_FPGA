@@ -26,6 +26,11 @@ class wxControl;
 
 class UiToolBarArt : public wxAuiGenericToolBarArt
 {
+    // wx 3.2 uses wxDC here. The bundled wx 3.3 headers use wxReadOnlyDC.
+    template <typename DC>
+    static DC& ToolSizeContext(wxSize (wxAuiGenericToolBarArt::*)(DC&, wxWindow*, const wxAuiToolBarItem&));
+    using ToolSizeDC = decltype(ToolSizeContext(&wxAuiGenericToolBarArt::GetToolSize));
+
 public:
     UiToolBarArt();
 
@@ -41,7 +46,7 @@ public:
     void DrawSeparator(wxDC& dc, wxWindow* wnd, const wxRect& rect) override;
 
     /// chip / 活动栏按键的最小尺寸（CMP-021 chip 高 30 DIP；LAY-003 活动栏键 34×34）
-    wxSize GetToolSize(wxDC& dc, wxWindow* wnd, const wxAuiToolBarItem& item) override;
+    wxSize GetToolSize(ToolSizeDC dc, wxWindow* wnd, const wxAuiToolBarItem& item) override;
 
     /// T-620 / A11Y-001：键盘聚焦的 tool item（tool id）。-1 = 无。
     /// UiToolBarKeyboard 选中的项以 text3 灰线显示焦点（DEC-14）；

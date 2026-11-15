@@ -330,6 +330,7 @@ public:
 private:
 
     // 工具系统
+    bool m_paintReady = false;
     ToolStateMachine* m_toolStateMachine;
     CanvasEventHandler* m_CanvasEventHandler;
     HandyToolKit* m_HandyToolKit;

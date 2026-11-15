@@ -150,9 +150,9 @@ class MemoryService:
         value=self._api().search_memories(question,as_of=as_of or now(),top_k=top_k,token_budget=self._budget(token_budget),
             current_only=current_only,revision=revision)
         return self._query(value)
-    def get_learning_timeline(self,*,as_of:str|None=None,concept:str|None=None,run_id:str|None=None,limit:int=20,offset:int=0,token_budget:int|None=None)->QueryResult:
+    def get_learning_timeline(self,*,as_of:str|None=None,concept:str|None=None,run_id:str|None=None,limit:int=20,offset:int=0,token_budget:int|None=None,newest_first:bool=False)->QueryResult:
         return self._query(self._api().get_learning_timeline(as_of=as_of or now(),concept=concept,run_id=run_id,limit=limit,
-            token_budget=self._budget(token_budget),offset=offset))
+            token_budget=self._budget(token_budget),offset=offset,newest_first=newest_first))
     def get_related_attempts(self,concept:str,*,as_of:str|None=None,token_budget:int|None=None)->RelatedAttemptsResult:
         result=self._api().get_related_attempts(concept=concept,as_of=as_of or now(),token_budget=self._budget(token_budget))
         attempts=[]

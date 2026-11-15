@@ -17,6 +17,7 @@ if defined SIGFLOW_EDU_AGENT_PYTHON (
 )
 set "PYTHONPATH=%here%..\src;%PYTHONPATH%"
 if exist "%here%..\..\sigflowAgent\sigflow_teaching_core\__init__.py" set "PYTHONPATH=%here%..\..\sigflowAgent;%PYTHONPATH%"
+if exist "%here%..\..\sigflowAgent\ua10_module\src\ua10\__init__.py" set "PYTHONPATH=%here%..\..\sigflowAgent\ua10_module\src;%here%..\..\sigflowAgent\ua10_module\vendor;%PYTHONPATH%"
 if not defined SIGFLOW_EDU_LOCAL_MODEL_DISABLE if not defined SIGFLOW_EDU_LOCAL_MODEL_CONFIG if exist "%here%..\.local\deepseek.json" set "SIGFLOW_EDU_LOCAL_MODEL_CONFIG=%here%..\.local\deepseek.json"
 "%PY%" -m sigflow_edu_agent %*
 set "code=%ERRORLEVEL%"

@@ -73,11 +73,12 @@ void ProjectRef(const Json::Value& value, vm::EvidenceView& evidence)
     evidence.sourceId = OpaqueId(value, "source_id");
     evidence.artifactId = OpaqueId(value, "artifact_id");
     evidence.jobId = OpaqueId(value, "job_id");
-    const auto evidenceId = OpaqueId(value, "evidence_id");
+    evidence.evidenceId = OpaqueId(value, "evidence_id");
+    evidence.snapshotId = OpaqueId(value, "snapshot_id");
     evidence.ref = !evidence.sourceId.empty() ? evidence.sourceId
                   : !evidence.artifactId.empty() ? evidence.artifactId
                   : !evidence.jobId.empty() ? evidence.jobId
-                                            : evidenceId;
+                                            : evidence.evidenceId;
     int start = 0;
     int end = 0;
     if (PositiveLine(value, "start_line", start) && PositiveLine(value, "end_line", end) &&
@@ -1300,6 +1301,12 @@ vm::CapabilitySet ProjectCapabilities(const Json::Value& data)
     result.protocol = String(data, "protocol");
     result.model = Flag(data["model"], "available", "reason");
     result.course = Flag(data["course"], "available", "reason");
+    const auto& teaching = data["teaching"];
+    if (teaching.isObject() && String(teaching, "schema_version") == "u1.u2-teaching.v1" &&
+        teaching["available"].isBool() && teaching["available"].asBool()) {
+        result.course = Flag(teaching, teaching.isMember("course_available") ? "course_available" : "course_configured",
+                             "course_reason");
+    }
     result.teachingCore = Flag(data["teaching_core"], "available", "reason");
     result.edaExecution = Flag(data["execution"], "can_run_eda", "note");
     if (data["modes"].isArray()) for (const auto& mode : data["modes"]) {
@@ -1309,6 +1316,126 @@ vm::CapabilitySet ProjectCapabilities(const Json::Value& data)
         }
     }
     return result;
+}
+
+static vm::TimelineView ProjectTeachingTimeline(const Json::Value& data, const vm::Version& stateVersion)
+{
+    const auto& timeline = data["teaching_timeline"];
+    if (!timeline.isObject() || String(timeline, "schema_version") != "u2.teaching-timeline.v1" ||
+        String(timeline, "session_id").empty() || String(timeline, "run_id").empty() ||
+        String(timeline, "session_id") != String(data, "session_id") ||
+        String(timeline, "run_id") != String(data, "run_id") ||
+        !timeline["events"].isArray() || timeline["events"].size() > 12 ||
+        !timeline["older_records_omitted"].isBool()) return {};
+
+    vm::TimelineView view;
+    view.present = true;
+    view.olderRecordsOmitted = timeline["older_records_omitted"].asBool();
+    const auto high = vm::Version::FromU2SequenceText(String(timeline, "high_watermark"));
+    if (!high.valid) return {};
+    std::int64_t previous = 0;
+    for (const auto& row : timeline["events"]) {
+        if (!row.isObject()) return {};
+        const auto sequence = vm::Version::FromU2SequenceText(String(row, "sequence"));
+        const auto version = vm::Version::FromU2StateVersion(String(row, "state_version"));
+        if (!sequence.valid || sequence.value <= previous || sequence.value > high.value || !version.valid)
+            return {};
+        previous = sequence.value;
+        // The timeline read can race with a later commit after the state read.
+        if (version.value > stateVersion.value) break;
+        vm::TimelineEntry entry;
+        entry.sequence = sequence.canonical;
+        entry.status = vm::RunStatusFromWire(String(row, "teaching_status"), nullptr);
+        const auto& fact = row["fact"];
+        if (fact.isObject()) {
+            entry.revision = OpaqueId(fact, "revision");
+            entry.snapshotId = OpaqueId(fact, "snapshot_id");
+            entry.baselineJobId = OpaqueId(fact, "baseline_job_id");
+            entry.details = !entry.revision.empty() && !entry.snapshotId.empty() && !entry.baselineJobId.empty();
+            if (!entry.details) return {};
+            entry.fixture = String(fact, "evidence_origin") == "fixture";
+            entry.actionKind = OpaqueId(fact, "action_kind");
+            entry.actionPhase = OpaqueId(fact, "action_phase");
+            entry.verificationJobId = OpaqueId(fact, "verification_job_id");
+            entry.verificationJobState = OpaqueId(fact, "verification_job_state");
+            if (fact["hint_level"].isInt() && fact["hint_level"].asInt() >= 1 && fact["hint_level"].asInt() <= 3)
+                entry.hintLevel = fact["hint_level"].asInt();
+            if (fact["evidence_ids"].isArray() && fact["evidence_ids"].size() <= 4) {
+                for (const auto& id : fact["evidence_ids"])
+                    if (id.isString() && selection::SafeOpaqueId(id.asString())) entry.evidenceIds.push_back(id.asString());
+            }
+        }
+        view.entries.push_back(std::move(entry));
+    }
+    return view;
+}
+
+static void ProjectTeachingSupport(const Json::Value& data, vm::RunSnapshot& out)
+{
+    const auto& context = data["course_context"];
+    if (context.isObject() && context["configured"].isBool() && context["references"].isArray() &&
+        context["references"].size() <= 8) {
+        out.course.contextStatus = OpaqueId(context, "status");
+        out.course.retrievalStatus = OpaqueId(context, "retrieval_status");
+        for (const auto& item : context["references"]) {
+            vm::CourseRefView ref;
+            if (ParseCourseRef(item, ref)) out.course.backgroundRefs.push_back(std::move(ref));
+        }
+    }
+    const auto& checks = data["checks"];
+    if (checks.isArray() && checks.size() <= 3) {
+        for (const auto& item : checks) {
+            const auto id = String(item, "id");
+            const auto status = String(item, "status");
+            vm::CheckerView check;
+            check.checkerId = id;
+            check.rawState = status;
+            check.origin = vm::Origin::Live;
+            if (id == "card_evidence") {
+                check.label = "卡片证据引用核验";
+                check.reason = status == "checked" ? "已核对绑定证据" : "尚无可核验卡片";
+                check.verdict = status == "checked" ? vm::CheckerView::Verdict::Pass : vm::CheckerView::Verdict::NotRun;
+            } else if (id == "verification_tool") {
+                check.label = "复测工具执行";
+                if (status == "Succeeded") { check.reason = "执行成功"; check.verdict = vm::CheckerView::Verdict::Pass; }
+                else if (status == "Failed" || status == "TimedOut" || status == "Rejected") {
+                    check.reason = "执行失败或超时"; check.verdict = vm::CheckerView::Verdict::Fail;
+                } else if (status == "NotRun") { check.reason = "尚未执行"; check.verdict = vm::CheckerView::Verdict::NotRun; }
+                else if (status == "Cancelled") { check.reason = "已取消"; check.verdict = vm::CheckerView::Verdict::Skipped; }
+                else check.reason = "处理中或结果待确认";
+            } else if (id == "functional_correctness") {
+                check.label = "工程功能正确性";
+                check.reason = "尚未完成独立验收";
+            } else continue;
+            out.checkers.push_back(std::move(check));
+        }
+    }
+    const auto& records = data["learning_records"];
+    if (!records.isObject() || String(records, "schema_version") != "u2.learning-records.v1" ||
+        String(records, "run_id") != String(data, "run_id") ||
+        String(records, "session_id") != String(data, "session_id") ||
+        !records["records"].isArray() || records["records"].size() > 12) return;
+    out.record.present = true;
+    out.record.origin = vm::Origin::Live;
+    out.record.rawState = String(records, "status");
+    out.record.summary = out.record.rawState == "ready" ? "已连接 UA-10 学习记录。\n" :
+        out.record.rawState == "disabled" ? "当前宿主未启用学习记录。\n" :
+        out.record.rawState == "pending" ? "学习记录正在同步。\n" : "学习记录暂不可读。\n";
+    if (out.record.rawState != "ready") return;
+    if (records["records"].empty()) out.record.summary += "当前授权范围尚无记录。\n";
+    for (const auto& row : records["records"]) {
+        if (!row.isObject()) continue;
+        std::string summary, revision, occurred;
+        if (!DisplayText(row["summary"], 2048, summary) || !DisplayText(row["revision"], 256, revision) ||
+            !DisplayText(row["occurred_at"], 64, occurred)) continue;
+        if (selection::LooksLikeSensitiveText(summary) || selection::LooksLikeSensitiveText(revision)) continue;
+        const auto source = String(row, "source_kind");
+        if (source != "real" && source != "mock" && source != "imported_unverified") continue;
+        out.record.summary += "\n" + occurred + " · 修订 " + revision +
+            (source == "real" ? " · 实际教学事实\n" : " · 示例或未核验来源\n") + summary + "\n";
+    }
+    if (records["truncated"].isBool() && records["truncated"].asBool())
+        out.record.summary += "\n当前为限量历史，较早或后续记录未全部显示。";
 }
 
 bool ProjectTeachingRun(const Json::Value& data, vm::RunSnapshot& out, std::string& error)
@@ -1373,6 +1500,8 @@ bool ProjectTeachingRun(const Json::Value& data, vm::RunSnapshot& out, std::stri
     out = std::move(projected);
     out.verification = std::move(verification);
     out.prediction = std::move(prediction);
+    out.timeline = ProjectTeachingTimeline(data, version);
+    ProjectTeachingSupport(data, out);
     out.status = mapped;
     out.rawStatus = status;
     out.version = version;

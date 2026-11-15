@@ -645,10 +645,10 @@ void AgentWorkspace::SetReportJob(const std::string& jobId, bool enabled)
 }
 
 void AgentWorkspace::SetWorkflowActions(bool visible, bool hint, bool finish, bool cancel,
-                                        std::function<void(const std::string&)> handler)
+                                        std::function<void(const std::string&)> handler, bool recordsOnly)
 {
     if (!m_composerView) return;
-    m_composerView->SetWorkflowActions(visible, hint, finish, cancel, std::move(handler));
+    m_composerView->SetWorkflowActions(visible, hint, finish, cancel, std::move(handler), recordsOnly);
     if (!m_arranging) Arrange();
 }
 
@@ -789,8 +789,9 @@ void AgentWorkspace::NotifySubmissionFinished(std::uint64_t submissionId, bool a
 bool AgentWorkspace::SyncSupport()
 {
     if (!m_issueSection || !m_evidenceSection) return false;
+    const bool sameProject = m_submitContext.projectId == m_model.BoundProjectId();
     auto projection = support::Project(m_model,
-        m_submitContext.projectId == m_model.BoundProjectId() ? m_submitContext.revision : std::string());
+        sameProject ? m_submitContext.revision : std::string(), sameProject);
     if (!m_submitContext.projectId.empty() && !m_model.BoundProjectId().empty() &&
         m_submitContext.projectId != m_model.BoundProjectId()) {
         projection.issueSummary = "当前问题 · 等待新工程会话";
@@ -816,8 +817,12 @@ bool AgentWorkspace::SyncSupport()
     m_lastPlanSummary = planProjection.summary;
 
     // 课程引用分区：折叠标题只显示条数/未生成，内容仍是只读元数据。
-    const nav::SectionProjection courseProjection =
+    nav::SectionProjection courseProjection =
         nav::ProjectSection(m_model, nav::Section::Course);
+    const bool staleSupport = !m_model.DemoMode() &&
+        (m_submitContext.projectId != m_model.BoundProjectId() ||
+         m_submitContext.revision != m_model.BoundRevision());
+    if (staleSupport) courseProjection.summary = Text("等待当前工程数据");
     const int courseIndex = SupportSectionIndex(nav::Section::Course);
     if (courseIndex >= 0) {
         wxString courseTitle = Text(nav::SectionTitle(nav::Section::Course));
@@ -826,7 +831,17 @@ bool AgentWorkspace::SyncSupport()
     }
     const bool courseChanged = courseProjection.summary != m_lastCourseSummary;
     m_lastCourseSummary = courseProjection.summary;
-    return issueChanged || evidenceChanged || planChanged || courseChanged;
+    wxString auxiliaryBody = staleSupport ? Text("等待当前工程数据") : courseProjection.body;
+    for (const auto section : {nav::Section::Record, nav::Section::Checker}) {
+        const auto projected = nav::ProjectSection(m_model, section);
+        const wxString summary = staleSupport ? Text("等待当前工程数据") : projected.summary;
+        m_supportSections->SetSectionTitle(SupportSectionIndex(section),
+            Text(nav::SectionTitle(section)) + Text(" · ") + summary);
+        if (!staleSupport) auxiliaryBody += projected.body;
+    }
+    const bool auxiliaryChanged = auxiliaryBody != m_lastAuxiliaryBody;
+    m_lastAuxiliaryBody = auxiliaryBody;
+    return issueChanged || evidenceChanged || planChanged || courseChanged || auxiliaryChanged;
 }
 
 void AgentWorkspace::SyncNavigation()
@@ -1172,7 +1187,11 @@ void AgentWorkspace::ArrangeSupport()
         wxStaticText* label = m_sectionBody[static_cast<size_t>(current)];
         if (label == nullptr) continue;
         const nav::SectionProjection projection = nav::ProjectSection(m_model, section);
-        const wxString text = projection.body;
+        const bool staleSupport = !m_model.DemoMode() &&
+            (section == nav::Section::Course || section == nav::Section::Record || section == nav::Section::Checker) &&
+            (m_submitContext.projectId != m_model.BoundProjectId() ||
+             m_submitContext.revision != m_model.BoundRevision());
+        const wxString text = staleSupport ? Text("工程或修订已切换，等待当前运行的数据。") : projection.body;
         const int textHeight = PlaceText(label, text, innerPad, Dip(this, S::CardBodyPadY),
                                          textWidth);
         auto* body = dynamic_cast<SectionBody*>(label->GetParent());

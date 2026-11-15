@@ -28,7 +28,9 @@ def u1_environment(directory,u1_source=None):
     for key in tuple(env):
         if key.startswith(('DEEPSEEK_','SIGFLOW_')):env.pop(key)
     env['SIGFLOW_DEEPSEEK_CONFIG']=str(directory/'absent-model.json')
-    env['PYTHONPATH']=os.pathsep.join((str(source.resolve()),str(Path(__file__).resolve().parents[2])))
+    package_root = Path(__file__).resolve().parents[2]
+    env['PYTHONPATH']=os.pathsep.join((str(source.resolve()),str(package_root),
+        str(package_root/'ua10_module/src'),str(package_root/'ua10_module/vendor')))
     env['TEMP']=env['TMP']=str(directory)
     return env
 
@@ -130,6 +132,8 @@ def exercise(gateway_path,directory,timeout,*,scenario='simulation',u1_source=No
                 caps=connection.request('GET','/api/v1/capabilities')
                 require(caps.get('teaching',{}).get('schema_version')=='u1.u2-teaching.v1'
                     and caps['teaching']['http_l4_available'] is False,'u2_extension_unavailable')
+                require(caps['teaching']['teaching_memory_configured'] is True
+                    and caps['teaching']['course_configured'] is True,'support_services_not_configured')
                 return child,connection
             except Exception:
                 child.close()
@@ -158,7 +162,7 @@ def exercise(gateway_path,directory,timeout,*,scenario='simulation',u1_source=No
             return wait_for(lambda:get(rid),lambda v:v['teaching_status'] in statuses
                 and (after is None or int(v['state_version'])>int(after)),deadline,'teaching_state_timeout')
         def action(rid,state,kind,aid,**extra):
-            body=dict(kind=kind,action_id=aid,expected_state_version=state['state_version'],**extra)
+            body=dict(kind=kind,action_id=aid,expected_version=state['state_version'],**extra)
             teaching.request('POST',PREFIX+'/runs/'+rid+'/actions',body,status=202,learner=True)
             return body
 
@@ -190,7 +194,7 @@ def exercise(gateway_path,directory,timeout,*,scenario='simulation',u1_source=No
         third=wait(rid,{'WaitingStudent'},restored['state_version'])
         require(third['cards'][-1]['level']=='L3','l3_unavailable')
         teaching.request('POST',PREFIX+'/runs/'+rid+'/actions',dict(kind='reference_confirm',
-            action_id='forbidden-l4',expected_state_version=third['state_version']),status=403,learner=True)
+            action_id='forbidden-l4',expected_version=third['state_version']),status=403,learner=True)
         action(rid,third,'finish','finish')
         require(wait(rid,{'Completed'})['run']['state']=='degraded','teaching_not_completed')
 
@@ -226,6 +230,12 @@ def exercise(gateway_path,directory,timeout,*,scenario='simulation',u1_source=No
             current=wait(verify_id,{'Completed','RecoveryRequired','WaitingApproval','Failed'},current['state_version'])
         require(current['teaching_status']=='Completed' and current['run']['model_used'] is False
             and current['run']['state']=='degraded','verification_feedback_incomplete')
+        require(current['course_context']['configured'] is True
+            and isinstance(current['course_context']['references'], list),'course_context_missing')
+        require(current['checks']==[
+            dict(id='card_evidence',status='checked'),
+            dict(id='verification_tool',status='Succeeded'),
+            dict(id='functional_correctness',status='not_assessed')],'verification_checks_invalid')
         expected_jobs=3 if simulation else 2
         require(count()==expected_jobs and gateway.request('GET','/api/v1/grants/'+approved)['used_jobs']
             ==(2 if simulation else 1),'unexpected_job_or_grant_count')
@@ -272,6 +282,35 @@ def exercise(gateway_path,directory,timeout,*,scenario='simulation',u1_source=No
             and all(set(row)=={'sequence','action_id','state_version','teaching_status'}
                 for row in history['events']),'public_event_metadata_invalid')
 
+        def timeline(run_id):
+            page = teaching.request('GET', PREFIX+'/runs/'+run_id+'/timeline', learner=True)
+            require(page['run_id']==run_id and page['session_id']==session and page['events'],
+                    'timeline_scope_invalid')
+            facts = [event['fact'] for event in page['events']]
+            require(all(fact['revision']==scope['revision'] and fact['snapshot_id']==snapshot
+                        and fact['baseline_job_id']==baseline and fact['evidence_origin']=='tool'
+                        for fact in facts),'timeline_evidence_scope_invalid')
+            return facts
+
+        lesson_facts = timeline(rid)
+        hints = [fact for fact in lesson_facts if 'hint_level' in fact]
+        require([fact['hint_level'] for fact in hints]==[1,2,3]
+                and all(set(fact['evidence_ids'])==initial_ids for fact in hints)
+                and lesson_facts[-1]['action_kind']=='finish','timeline_hint_history_invalid')
+        verification_facts = timeline(verify_id)
+        require(any(fact.get('action_kind')=='execute_plan' and fact.get('action_phase')=='staged'
+                    and 'verification_job_id' not in fact for fact in verification_facts)
+                and verification_facts[-1].get('verification_job_id') in result_jobs
+                and verification_facts[-1].get('verification_job_state')=='Succeeded',
+                'timeline_verification_history_invalid')
+
+        learning = wait_for(
+            lambda: teaching.request('GET', PREFIX+'/runs/'+rid+'/records', learner=True),
+            lambda page: page.get('status')=='ready' and any(
+                row.get('event_type')=='u2_card_generated' for row in page.get('records', [])),
+            deadline, 'learning_records_unavailable')
+        require(learning['project_id']==scope['project_id'] and learning['revision']==scope['revision']
+            and all(row['source_kind']=='real' for row in learning['records']),'learning_records_scope_invalid')
         cancel_id,_=start('cancel')
         cancel_wait=wait(cancel_id,{'WaitingStudent'})
         # Only the runner edits its own temporary source, then asks Core to
@@ -283,22 +322,24 @@ def exercise(gateway_path,directory,timeout,*,scenario='simulation',u1_source=No
         stale=teaching.request('GET',PREFIX+'/runs/'+cancel_id,status=409,learner=True)
         require(stale.get('code')=='STALE_REVISION','old_scope_not_rejected')
         teaching.request('POST',PREFIX+'/runs/'+cancel_id+'/actions',dict(kind='hint_next',
-            action_id='stale',expected_state_version=cancel_wait['state_version']),status=409,learner=True)
+            action_id='stale',expected_version=cancel_wait['state_version']),status=409,learner=True)
         ack=teaching.request('POST',PREFIX+'/runs/'+cancel_id+'/cancel',{},status=202,learner=True)
         require(ack.get('accepted') is True and count()==expected_jobs,'cancel_or_stale_started_job')
         events=teaching.request('GET',PREFIX+'/runs/'+rid+'/events?after=0&limit=100',status=409,learner=True)
         require(events.get('code')=='STALE_REVISION','events_not_scope_guarded')
+        require(timeline(rid)==lesson_facts,'timeline_rebound_to_new_revision')
         return dict(status='passed',schema_version='edu.u1-u2-acceptance.v1',real_core=True,real_yosys=True,
             real_verilator=simulation,model_calls=0,shared_port=True,host='formal_u1',
             extension='u1.u2-teaching.v1',scenario=scenario,job_count=expected_jobs,
             l1_l2_l3='verified',hint_replay='verified',session_run_replay='verified',
-            event_metadata='verified',
+            event_metadata='verified',teaching_timeline='verified',learning_records='verified',
+            course_context='verified',run_checks='verified',
             restart=dict(external_ids='preserved',old_cards='quarantined',explicit_recovery='verified',additional_jobs=0),
             verification=dict(status='Completed',result_jobs=len(result_jobs),observations=observations,
                 explicit_successor_confirmations=successors,model_used=False),
             prediction=wave_result,stale_revision='denied',cancel_after_revision_change='accepted',
             new_revision=fresh['revision'],http_l4='denied',functional_correctness='not_evaluated',
-            limitations=['GUI not exercised','actual UA-10 and reviewed materials not configured',
+            limitations=['GUI not exercised','reviewed reference materials not configured',
                          'teacher and target-platform acceptance pending'])
     finally:
         if teaching:

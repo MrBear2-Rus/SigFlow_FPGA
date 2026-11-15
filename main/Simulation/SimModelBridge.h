@@ -45,6 +45,7 @@ inline eda::sim::TestbenchInfo ToPlugin(const TestbenchInfo& info) {
         target.initialBlocks.push_back(converted);
     }
     target.maxSimTime = info.maxSimTime;
+    target.timeUnit = info.timeUnit;
     return target;
 }
 
@@ -77,6 +78,7 @@ inline TestbenchInfo FromPlugin(const eda::sim::TestbenchInfo& info) {
         target.initialBlocks.push_back(converted);
     }
     target.maxSimTime = info.maxSimTime;
+    target.timeUnit = info.timeUnit;
     return target;
 }
 
@@ -88,6 +90,7 @@ inline eda::sim::Timeline ToPlugin(const Timeline& timeline) {
     target.clock.initialValue = timeline.clock.initialValue;
     target.clock.valid = timeline.clock.valid;
     target.maxSimTime = timeline.maxSimTime;
+    target.timeUnit = timeline.timeUnit;
     for (const auto& evt : timeline.events) {
         target.events.push_back({evt.time, evt.signalName, evt.value, evt.comment});
     }
@@ -104,6 +107,7 @@ inline Timeline FromPlugin(const eda::sim::Timeline& timeline) {
     target.clock.initialValue = timeline.clock.initialValue;
     target.clock.valid = timeline.clock.valid;
     target.maxSimTime = timeline.maxSimTime;
+    target.timeUnit = timeline.timeUnit;
     for (const auto& evt : timeline.events) {
         TimelineEvent converted;
         converted.time = evt.time;

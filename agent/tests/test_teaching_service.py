@@ -13,20 +13,20 @@ if sys.version_info < (3, 11):
     raise unittest.SkipTest('optional U2 composition requires Python 3.11+')
 sys.path.append(str(ROOT/'sigflowAgent'))
 try:
-    _u2_spec = importlib.util.find_spec('sigflow_u2')
+    _u2_spec = importlib.util.find_spec('sigflow_teaching_core')
 except ModuleNotFoundError as error:
-    if error.name != 'sigflow_u2':
+    if error.name != 'sigflow_teaching_core':
         raise
     _u2_spec = None
 if _u2_spec is None:
     raise unittest.SkipTest('optional U2 source/package is not installed')
-from sigflow_u2.context.models import EvidenceAnchor
-from sigflow_u2.demo import FixtureSource
-from sigflow_u2.host.runtime import Runtime
-from sigflow_u2.host.shared_adapter import SharedTeachingAdapter
-from sigflow_u2.host.store import DurableStore
-from sigflow_u2.loop import TeachingLoop
-from sigflow_u2.runtime.session import TeachingSession
+from sigflow_teaching_core.context.models import EvidenceAnchor
+from sigflow_teaching_core.demo import FixtureSource
+from sigflow_teaching_core.host.runtime import Runtime
+from sigflow_teaching_core.host.shared_adapter import SharedTeachingAdapter
+from sigflow_teaching_core.host.store import DurableStore
+from sigflow_teaching_core.loop import TeachingLoop
+from sigflow_teaching_core.runtime.session import TeachingSession
 
 
 class TeachingServiceTests(unittest.TestCase):
@@ -52,9 +52,12 @@ class TeachingServiceTests(unittest.TestCase):
         owner=self
         class Source:
             def collect(self,*args):return owner.evidence
-        factory=lambda b,r,m,reserve:TeachingSession(TeachingLoop(r,Source()))
+        factory=lambda b,r,m,reserve:TeachingSession(TeachingLoop(
+            r,Source(),course_provider=getattr(self,'course_provider',None)))
+        factory.course_enabled = getattr(self, 'course_provider', None) is not None
         self.u2store=DurableStore(self.directory/'u2.sqlite','instance')
-        self.runtime=Runtime(self.u2store,'instance',factory,evidence_origin='fixture')
+        self.runtime=Runtime(self.u2store,'instance',factory,evidence_origin='fixture',
+                             teaching_memory=getattr(self,'memory_port',None))
         self.bindings=BindingStore(self.directory/'bindings.sqlite','instance')
         def current(session):
             if not self.current:raise AgentError('STALE_REVISION','revision changed',http_status=409)
@@ -123,6 +126,25 @@ class TeachingServiceTests(unittest.TestCase):
         self.service.action(rid,'learner',dict(kind='recover',action_id='recover',
             expected_state_version=view['state_version'],question=self.body['question']))
         self.assertTrue(self.wait(rid,'WaitingStudent')['cards'])
+
+    def test_timeline_migrates_existing_events_without_inventing_details(self):
+        from contextlib import closing
+        import sqlite3
+
+        _, rid = self.create()
+        self.wait(rid, 'WaitingStudent')
+        self.close()
+        with closing(sqlite3.connect(self.directory/'u2.sqlite')) as db:
+            db.execute('DROP TABLE event_timeline')
+            db.commit()
+        self.open()
+        history = self.service.timeline(rid, 'learner', after=0)
+        self.assertIsNone(history['events'][0]['fact'])
+        self.assertEqual(history['events'][-1]['teaching_status'], 'RecoveryRequired')
+        self.assertEqual(history['events'][-1]['fact']['revision'], 'revision')
+        self.assertNotIn('hint_level', history['events'][-1]['fact'])
+        self.current = False
+        self.assertEqual(self.service.timeline(rid, 'learner', after=0), history)
 
     def test_unpublished_handle_retry_after_restart_reuses_quarantined_session(self):
         from unittest.mock import patch
@@ -193,3 +215,101 @@ class TeachingServiceTests(unittest.TestCase):
         self.assertTrue(self.service.cancel(rid,'learner')['accepted'])
         handle=self.bindings.run(rid,'learner')['handle']
         self.assertEqual(self.runtime.snapshot(handle['teaching_session_id'],'learner')['status'],'Cancelled')
+
+    def test_actual_ua10_records_survive_restart_and_foreign_owner_is_denied(self):
+        from ua10 import MemoryConfig
+        from sigflow_teaching_core.host.ua10 import U2TeachingMemoryPort
+        self.close()
+        self.memory_port = U2TeachingMemoryPort(MemoryConfig(self.directory/'memory'),
+            instance_id='instance', concepts=('latch',), evidence_origin='fixture')
+        self.addCleanup(self.memory_port.close)
+        self.open()
+        _, rid = self.create()
+        self.wait(rid, 'WaitingStudent')
+        deadline = time.monotonic() + 6
+        while self.u2store.pending_teaching_facts(32) and time.monotonic() < deadline:
+            time.sleep(.03)
+        self.assertEqual(self.u2store.pending_teaching_facts(32), [])
+        deadline = time.monotonic() + 6
+        view = self.service.learning_records(rid, 'learner')
+        while view['status'] == 'pending' and time.monotonic() < deadline:
+            time.sleep(.05)
+            view = self.service.learning_records(rid, 'learner')
+        self.assertEqual(view['status'], 'ready')
+        from sigflow_edu_agent.contract_schema import ContractSchemaValidator
+        ContractSchemaValidator(ROOT/'contracts/edu-agent/v1/schemas').validate(
+            view, 'u2-learning-records.schema.json')
+        self.assertIn('u2_card_generated', [row['event_type'] for row in view['records']])
+        self.assertTrue(all(row['source_kind'] == 'mock' for row in view['records']))
+        self.assertNotIn('teaching_session_id', str(view))
+        self.close()
+        self.open()
+        restored = self.service.learning_records(rid, 'learner')
+        deadline = time.monotonic() + 6
+        while restored['status'] == 'pending' and time.monotonic() < deadline:
+            time.sleep(.05)
+            restored = self.service.learning_records(rid, 'learner')
+        self.assertEqual(view['records'], restored['records'])
+        with self.assertRaises(AgentError):
+            self.service.learning_records(rid, 'foreign')
+
+    def test_course_background_is_exposed_without_fabricating_card_citations(self):
+        from sigflow_teaching_core.domain import CourseBundle, CourseMaterial, CourseReference
+        self.close()
+        class Courses:
+            def prepare(self, question, concepts):
+                ref = CourseReference('passage-1', 'index-1', 'Latch basics', 'Latch chapter',
+                                      'https://example.edu/latch', material_kind='source_excerpt',
+                                      material_note='Test source')
+                note = CourseReference('passage-2', 'index-1', 'Latch teaching note', 'Latch chapter',
+                                       'sigflow-note:///team-note:latch', material_kind='authored_note',
+                                       material_note='Test note')
+                return CourseBundle('ok', (
+                    CourseMaterial(ref, 'A combinational block assigns all paths.'),
+                    CourseMaterial(note, 'Check the value assigned in each branch.'),
+                ))
+        self.course_provider = Courses()
+        self.open()
+        _, rid = self.create()
+        view = self.wait(rid, 'WaitingStudent')
+        self.assertTrue(view['course_context']['configured'])
+        references = {ref['course_id']: ref for ref in view['course_context']['references']}
+        self.assertEqual(references['passage-1']['url'], 'https://example.edu/latch')
+        self.assertEqual(references['passage-2']['title'], 'Latch teaching note')
+        self.assertIsNone(references['passage-2']['url'])
+        self.assertEqual(view['cards'][0]['course_refs'], [])
+        self.assertEqual(view['checks'], [
+            dict(id='card_evidence', status='checked'),
+            dict(id='verification_tool', status='NotRun'),
+            dict(id='functional_correctness', status='not_assessed')])
+
+    def test_completed_record_read_is_not_reused_after_revocation(self):
+        from threading import Event
+        from sigflow_teaching_core.host.teaching_memory import TeachingMemoryBridge
+        release, completed = Event(), Event()
+        self.addCleanup(release.set)
+        class Receiver:
+            allowed = True
+            def record_teaching_fact(self, fact):
+                return dict(event_id=fact['event_id'], accepted=True)
+            def get_teaching_context(self, **scope):
+                return None
+            def get_learning_records(self, binding):
+                result = dict(status='ready' if self.allowed else 'unavailable',
+                              records=[dict(summary='old authorized snapshot')] if self.allowed else [],
+                              truncated=False)
+                if self.allowed:
+                    release.wait(3)
+                    completed.set()
+                return result
+        receiver = Receiver()
+        bridge = TeachingMemoryBridge(self.u2store, receiver)
+        self.addCleanup(bridge.close)
+        self.assertEqual(bridge.records('scope')['status'], 'pending')
+        receiver.allowed = False
+        release.set()
+        self.assertTrue(completed.wait(2))
+        bridge._records_pending.result(timeout=2)
+        response = bridge.records('scope')
+        self.assertEqual(response['status'], 'unavailable')
+        self.assertEqual(response['records'], [])

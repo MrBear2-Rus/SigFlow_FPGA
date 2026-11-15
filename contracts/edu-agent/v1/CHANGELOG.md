@@ -1,5 +1,9 @@
 # edu-agent v1 契约变更记录
 
+## 2026-11-05 U2 教学辅助分区
+
+正式 U2 扩展追加课程上下文和只读检查状态。课程能力区分已配置与数据库、检索就绪。新增已认证的 `GET /api/v1/u2/runs/{run_id}/records`，响应版本为 `u2.learning-records.v1`，字段定义见 `schemas/u2-learning-records.schema.json`。读取沿用当前工程修订和学习者归属校验，记录保留历史修订及来源。基础 edu.api.v1 路由继续兼容既有调用者。
+
 > 2026-10-07 架构说明：教学 Agent 改为自行实现，只参考 UCAgent 架构；本目录仍是 SigFlow ↔ Agent 的机器契约，不绑定任何 Agent 框架。下文较早日期的名称保留为当时记录，不代表当前依赖。参见 [自研决策](../../../docs/edu-agent/DECISION-2026-10-07.md)。
 
 > 字段与枚举真源：本目录 `schemas/*.schema.json`（W1 冻结后）。

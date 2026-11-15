@@ -10,6 +10,7 @@
 #include <functional>
 #include <future>
 #include <memory>
+#include <optional>
 #include <string>
 
 // Small, contract-aware client for the authenticated local Agent API.  It is
@@ -58,6 +59,8 @@ public:
                                const std::string& key, const std::string& question,
                                const std::string& jobId, const std::string& mode) const;
     Response GetTeachingRun(const std::string& runId, const std::string& learnerId) const;
+    Response GetTeachingTimeline(const std::string& runId, const std::string& learnerId) const;
+    Response GetLearningRecords(const std::string& runId, const std::string& learnerId) const;
     /// U2 只读动作（contracts/edu-agent/v1/schemas/u2-action.schema.json）：
     ///   * 仅接受 hint_next / finish / refresh_evidence / observe_verification；
     ///   * 请求体严格为 {kind, action_id, expected_version}（`expected_version` 必须是
@@ -87,7 +90,7 @@ public:
 private:
     Response Request(const char* method, const std::string& path,
                      const Json::Value* body = nullptr, const std::string& learnerId = {},
-                     const std::string& idempotencyKey = {}) const;
+                     const std::string& idempotencyKey = {}, int readTimeoutSeconds = 30) const;
     Response ParseResponse(int status, const std::string& body) const;
 
     Config config_;
@@ -123,6 +126,7 @@ public:
         Json::Value data;
         Json::Value capabilities;
         bool teaching = false;
+        bool recordsOnly = false;
         std::string errorCode;
         std::string errorMessage;
     };
@@ -149,6 +153,10 @@ public:
     /// 只读动作：POST refresh_evidence → accepted 后 GET 读状态；不执行任何工具。
     /// 未接线到 GUI 时由工作台/按钮可见性控制（见 vm::ProjectRecoveryActions）。
     bool RefreshEvidence();
+    // Retry records for the displayed terminal run without reopening teaching actions.
+    bool RefreshFinalRecords(std::uint64_t generation, const std::string& projectId,
+                             const std::string& revision);
+    void DiscardFinalRecords();
     /// 恢复教学：**仅当**后端 teaching_status == "RecoveryRequired" 时允许；
     /// 空白草稿直接拒绝（不发请求），内容边界仍由 AgentApiClient 最终把关。
     bool RecoverTeaching(const std::string& question);
@@ -166,7 +174,21 @@ private:
     /// 统一 POST 动作（refresh_evidence / recover）：accepted 后 GET 读状态。
     /// 空 question 的 recover 在本地直接拒绝，不进入网络。
     bool StartPostAction(const std::string& kind, const std::string& question);
+    void PollFinalRecords();
+
+    struct FinalRecordsPoll {
+        std::shared_ptr<const AgentApiClient> client;
+        std::string learner;
+        Result result;
+        int attempts = 0;
+        std::chrono::steady_clock::time_point nextAttempt{};
+        bool exhausted = false;
+    };
+
     std::future<Result> worker_;
+    std::future<AgentApiClient::Response> recordsWorker_;
+    std::string recordsWorkerRunId_;
+    std::optional<FinalRecordsPoll> finalRecordsPoll_;
     std::shared_ptr<std::atomic<bool>> cancelSignal_;
     Callback callback_;
     std::uint64_t generation_ = 0;

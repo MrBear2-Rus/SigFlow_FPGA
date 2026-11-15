@@ -27,6 +27,14 @@ def _version(value):
     return int(value)
 
 
+def _course_reference(ref):
+    # Authored notes have internal locators and appear as display-only citations.
+    url = ref['source_url']
+    return dict(course_id=ref['passage_id'], chapter=ref['section'], title=ref['title'],
+                url=url if url.startswith('https://') else None,
+                passage_id=ref['passage_id'], index_version=ref['index_version'])
+
+
 @dataclass(frozen=True)
 class SharedRunContext:
     session_id: str
@@ -163,10 +171,7 @@ class SharedTeachingAdapter:
             ref={key:getattr(anchor,key) for key in ('evidence_id','project_id','revision','snapshot_id',
                 'job_id','artifact_id','artifact_hash')}
             evidence.append(dict(kind='job_report',ref=ref,note='引用已由宿主证据端口核对；结论仅限其范围。'))
-        courses=[]
-        for ref in card.get('course_refs',()):
-            courses.append(dict(course_id=ref['passage_id'],chapter=ref['section'],title=ref['title'],
-                url=ref['source_url'],passage_id=ref['passage_id'],index_version=ref['index_version']))
+        courses = [_course_reference(ref) for ref in card.get('course_refs', ())]
         limitations=list(card.get('limitations',())) or ['仅依据所列证据，不代表整体设计正确或概念掌握。']
         if state['evidence_origin']=='fixture' and not any('离线' in item for item in limitations):
             limitations.append('离线示例证据，不是真实工程的 EDA 验证。')
@@ -218,6 +223,15 @@ class SharedTeachingAdapter:
                     or any(plan.get(key)!=state[key] for key in ('project_id','revision','snapshot_id'))):
                 raise ValueError('invalid_shared_plan')
             result['plan_card']=plan
+        course = state.get('course', {})
+        references = [_course_reference(ref) for ref in course.get('references', [])[:8]]
+        result['course_context'] = dict(status=course.get('status', 'disabled'),
+            retrieval_status=course.get('retrieval_status', 'not_checked'),
+            references=references, configured=bool(getattr(self.runtime.factory, 'course_enabled', False)))
+        result['checks'] = [
+            dict(id='card_evidence', status='checked' if cards else 'not_checked'),
+            dict(id='verification_tool', status=state.get('verification', {}).get('job_state') or 'NotRun'),
+            dict(id='functional_correctness', status='not_assessed')]
         self._safe(result)
         # Resolving fresh external evidence must not make a stale card visible
         # after concurrent cancellation, recovery or version advancement.
@@ -264,6 +278,6 @@ class SharedTeachingAdapter:
         # or internal session ID crosses the shared boundary.
         return self._ack(handle,dict(accepted=True))
 
-    def events(self,handle,after=0,limit=100):
+    def events(self,handle,after=0,limit=100,*,timeline=False):
         self._state(handle)
-        return self.runtime.events(handle.teaching_session_id,handle.context.learner_id,after,limit)
+        return self.runtime.events(handle.teaching_session_id,handle.context.learner_id,after,limit,timeline=timeline)

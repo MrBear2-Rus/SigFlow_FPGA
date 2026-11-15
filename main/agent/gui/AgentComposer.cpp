@@ -339,15 +339,18 @@ void AgentComposer::SetSubmitCallback(SubmitCallback callback)
 }
 
 void AgentComposer::SetWorkflowActions(bool visible, bool hint, bool finish, bool cancel,
-                                       std::function<void(const std::string&)> handler)
+                                       std::function<void(const std::string&)> handler, bool recordsOnly)
 {
     m_workflowVisible = visible;
+    m_recordsOnly = recordsOnly;
     m_workflowAction = std::move(handler);
     m_hint->Enable(hint);
     m_finish->Enable(finish);
     m_cancel->Enable(cancel);
     m_refresh->Enable(visible && static_cast<bool>(m_workflowAction));
-    for (auto* button : {m_hint, m_finish, m_cancel, m_refresh}) button->Show(visible);
+    for (auto* button : {m_hint, m_finish, m_cancel}) button->Show(visible && !recordsOnly);
+    m_refresh->SetLabel(Text(recordsOnly ? "刷新学习记录" : "刷新状态"));
+    m_refresh->Show(visible);
     UpdateRecoveryButtons();
 }
 
@@ -363,7 +366,7 @@ void AgentComposer::SetRecoveryActions(bool refreshEvidenceVisible, bool recover
 void AgentComposer::UpdateRecoveryButtons()
 {
     if (m_refreshEvidence == nullptr || m_recover == nullptr) return;
-    const bool rowVisible = m_workflowVisible && static_cast<bool>(m_workflowAction);
+    const bool rowVisible = m_workflowVisible && !m_recordsOnly && static_cast<bool>(m_workflowAction);
     const bool showRefreshEvidence = rowVisible && m_refreshEvidenceRequested;
     const bool showRecover = rowVisible && m_recoverRequested;
     m_refreshEvidence->Show(showRefreshEvidence);
@@ -582,9 +585,14 @@ int AgentComposer::Arrange(int x, int y, int width)
         const int top = box.padTop + box.rowHeight + gap +
                         (wantsFeedback ? feedbackHeight + gap : 0);
         const int available = std::max(0, m_width - 2 * box.padX);
-        const int cell = std::max(0, (available - 3 * gap) / 4);
-        controls::AgentButton* buttons[] = {m_hint, m_finish, m_cancel, m_refresh};
-        for (int i = 0; i < 4; ++i) buttons[i]->SetSize(box.padX + i * (cell + gap), top, cell, actionHeight);
+        if (m_recordsOnly) {
+            m_refresh->SetSize(box.padX, top, std::min(available, Dip(this, 144)), actionHeight);
+        } else {
+            const int cell = std::max(0, (available - 3 * gap) / 4);
+            controls::AgentButton* buttons[] = {m_hint, m_finish, m_cancel, m_refresh};
+            for (int i = 0; i < 4; ++i)
+                buttons[i]->SetSize(box.padX + i * (cell + gap), top, cell, actionHeight);
+        }
         if (extraRowVisible) {
             controls::AgentButton* extra[] = {m_refreshEvidence, m_recover};
             int shown = 0;

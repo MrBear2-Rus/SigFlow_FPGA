@@ -232,6 +232,10 @@ class DurableStore:
                 session_id TEXT NOT NULL REFERENCES sessions(session_id),
                 sequence INTEGER NOT NULL, action_id TEXT, state_version TEXT NOT NULL,
                 status TEXT NOT NULL, PRIMARY KEY(session_id, sequence))''')
+            db.execute('''CREATE TABLE IF NOT EXISTS event_timeline (
+                session_id TEXT NOT NULL, sequence INTEGER NOT NULL, fact TEXT NOT NULL,
+                PRIMARY KEY(session_id, sequence),
+                FOREIGN KEY(session_id, sequence) REFERENCES events(session_id, sequence) ON DELETE CASCADE)''')
             columns={column['name'] for column in db.execute('PRAGMA table_info(actions)')}
             if 'kind' not in columns:
                 db.execute("ALTER TABLE actions ADD COLUMN kind TEXT NOT NULL DEFAULT ''")
@@ -319,8 +323,8 @@ class DurableStore:
             enqueue_facts(db,binding,state,created=True)
             if initial_action is not None:
                 db.execute('''INSERT INTO actions
-                    (session_id, action_id, fingerprint, expected_version, status, result)
-                    VALUES (?, ?, ?, ?, 'pending', NULL)''',
+                    (session_id, action_id, fingerprint, expected_version, status, result, kind)
+                    VALUES (?, ?, ?, ?, 'pending', NULL, 'create')''',
                     (session_id, initial_action[0], initial_action[1], version))
 
     def get(self, session_id):
@@ -381,28 +385,80 @@ class DurableStore:
 
     def _event(self, db, session_id, action_id, state,previous_state=None):
         db.execute('UPDATE sessions SET event_seq = event_seq + 1 WHERE session_id = ?', (session_id,))
-        sequence = self._row(db, session_id)['event_seq']
+        row = self._row(db, session_id)
+        sequence = row['event_seq']
+        action = (db.execute('SELECT kind, status FROM actions WHERE session_id=? AND action_id=?',
+                             (session_id, action_id)).fetchone() if action_id else None)
+        binding = json.loads(row['binding'])
+        fact = self._timeline_fact(binding, state, previous_state or {}, action)
         db.execute('INSERT INTO events VALUES (?, ?, ?, ?, ?)',
                    (session_id, sequence, action_id, state['state_version'], state['status']))
+        db.execute('INSERT INTO event_timeline VALUES (?, ?, ?)', (session_id, sequence, _json(fact)))
         db.execute('DELETE FROM events WHERE session_id = ? AND sequence <= ?',
                    (session_id, sequence - MAX_EVENTS))
-        row=self._row(db,session_id)
-        action=(db.execute('SELECT kind FROM actions WHERE session_id=? AND action_id=?',
-                           (session_id,action_id)).fetchone() if action_id else None)
-        enqueue_facts(db,json.loads(row['binding']),state,action_id=action_id,
+        enqueue_facts(db,binding,state,action_id=action_id,
                       action_kind=action['kind'] if action else '',
                       first_card=len((previous_state or {}).get('cards',[])))
 
-    def pending_teaching_facts(self,limit=32):
+    @staticmethod
+    def _timeline_fact(binding, state, previous, action):
+        public_actions = {'create', 'hint_next', 'refresh_evidence', 'finish', 'cancel',
+                          'recover', 'execute_plan', 'observe_verification',
+                          'prediction_request', 'prediction_submit'}
+        fact = dict(revision=binding['revision'], snapshot_id=binding['snapshot_id'],
+                    baseline_job_id=binding['job_id'])
+        if state.get('evidence_origin') in ('tool', 'fixture'):
+            fact['evidence_origin'] = state['evidence_origin']
+        kind = action['kind'] if action else ''
+        committed = action is not None and action['status'] == 'committed'
+        if kind in public_actions:
+            fact.update(action_kind=kind, action_phase='committed' if committed else 'staged')
+        cards = state['cards']
+        if (committed and state['status'] == 'WaitingStudent' and cards
+                and cards != previous.get('cards', []) and isinstance(cards[-1], dict)
+                and kind in ('create', 'hint_next', 'refresh_evidence')):
+            card = cards[-1]
+            if type(card.get('level')) is int and card['level'] in (1, 2, 3):
+                fact['hint_level'] = card['level']
+                ids = card.get('evidence_ids')
+                if isinstance(ids, (list, tuple)):
+                    fact['evidence_ids'] = [value for value in ids[:4] if isinstance(value, str)
+                                            and re.fullmatch(r'[A-Za-z0-9_.:-]{1,256}', value)]
+        verification = state.get('verification')
+        previous_verification = previous.get('verification') or {}
+        if (committed and kind in ('execute_plan', 'observe_verification')
+                and isinstance(verification, dict) and verification.get('result_evidence_ready') is True
+                and isinstance(verification.get('job_id'), str)
+                and re.fullmatch(r'[A-Za-z0-9_.:-]{1,256}', verification['job_id'])
+                and verification['job_id'] != binding['job_id']
+                and verification.get('job_state') in ('Succeeded', 'Failed', 'Cancelled', 'TimedOut', 'Rejected')
+                and (previous_verification.get('job_id') != verification['job_id']
+                     or previous_verification.get('result_evidence_ready') is not True
+                     or previous_verification.get('job_state') != verification['job_state'])):
+            fact['verification_job_id'] = verification['job_id']
+            fact['verification_job_state'] = verification['job_state']
+        return fact
+
+    def pending_teaching_facts(self,limit=32,*,exclude_sessions=()):
         """Trusted composition port, never exposed to HTTP or model tools."""
         _integer(limit,1,32)
+        excluded=tuple(_text(sid) for sid in exclude_sessions)
+        if len(excluded)>MAX_SESSIONS:raise StoreError('invalid_input')
+        query = '''SELECT o.payload,s.binding FROM teaching_outbox o JOIN sessions s
+                   ON o.session_id=s.session_id WHERE o.delivered=0'''
+        if excluded:
+            query += ' AND o.session_id NOT IN (' + ','.join('?' for _ in excluded) + ')'
         with self._transaction() as db:
             try:
                 return [validate_fact(json.loads(row['payload']),json.loads(row['binding'])) for row in db.execute(
-                    '''SELECT o.payload,s.binding FROM teaching_outbox o JOIN sessions s
-                       ON o.session_id=s.session_id WHERE o.delivered=0 ORDER BY o.rowid LIMIT ?''',(limit,))]
+                    query + ' ORDER BY o.rowid LIMIT ?', (*excluded, limit))]
             except (ValueError,KeyError,TypeError,RecursionError):
                 raise StoreError('state_corrupt') from None
+
+    def has_pending_teaching_facts(self, session_id):
+        with self._transaction() as db:
+            return db.execute('SELECT 1 FROM teaching_outbox WHERE session_id=? AND delivered=0 LIMIT 1',
+                              (_text(session_id),)).fetchone() is not None
 
     def ack_teaching_fact(self,event_id):
         if type(event_id) is not str or re.fullmatch(r'u2fact-[a-f0-9]{64}',event_id) is None:
@@ -530,23 +586,35 @@ class DurableStore:
     def cancel_requested(self, session_id):
         return self.get(session_id)['cancel_requested']
 
-    def events(self, session_id, after, limit=100):
+    def events(self, session_id, after, limit=100, *, timeline=False):
         _text(session_id)
-        _integer(after, 0, 2**63 - 1)
+        if after is not None or not timeline:
+            _integer(after, 0, 2**63 - 1)
         _integer(limit, 1, MAX_EVENTS)
         with self._transaction() as db:
             row = self._row(db, session_id)
             self._decode(row)
-            if after > row['event_seq']:
+            high = row['event_seq']
+            if after is not None and after > high:
                 raise StoreError('cursor_stale')
             first = db.execute('SELECT MIN(sequence) FROM events WHERE session_id = ?',
                                (session_id,)).fetchone()[0]
+            if after is None:
+                after = max(high - limit, (first or 1) - 1)
             if first is not None and after < first - 1:
                 raise StoreError('cursor_expired')
-            rows = db.execute('''SELECT sequence, action_id, state_version, status FROM events
-                WHERE session_id = ? AND sequence > ? ORDER BY sequence LIMIT ?''',
+            if not timeline:
+                rows = db.execute('''SELECT sequence, action_id, state_version, status FROM events
+                    WHERE session_id = ? AND sequence > ? ORDER BY sequence LIMIT ?''',
+                                  (session_id, after, limit))
+                return {'events': [dict(item) for item in rows], 'high_watermark': high}
+            rows = db.execute('''SELECT e.sequence, e.state_version, e.status, t.fact
+                FROM events e LEFT JOIN event_timeline t USING (session_id, sequence)
+                WHERE e.session_id = ? AND e.sequence > ? ORDER BY e.sequence LIMIT ?''',
                               (session_id, after, limit))
-            return {'events': [dict(item) for item in rows], 'high_watermark': row['event_seq']}
+            events = [dict(item, fact=json.loads(item['fact']) if item['fact'] is not None else None)
+                      for item in rows]
+            return dict(events=events, high_watermark=high, older_records_omitted=after > 0)
 
     def close(self):
         with self._mutex:

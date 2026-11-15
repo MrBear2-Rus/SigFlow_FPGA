@@ -140,10 +140,25 @@ class Runtime:
             replay = dict(replay, result=self._published(row))
         return dict(accepted=True, session_id=row['session_id'], **replay)
 
-    def events(self, sid, learner, after, limit=100):
+    def events(self, sid, learner, after, limit=100, *, timeline=False):
         with self._guard:
             self._owned(sid, learner)
-            return self.store.events(sid, after, limit)
+            return self.store.events(sid, after, limit, timeline=timeline)
+
+    def learning_records(self, sid, learner):
+        with self._guard:
+            row = self._owned(sid, learner)
+            binding = SessionBinding(**row['binding'])
+            if self._teaching_memory is None:
+                return dict(status='disabled', records=[], truncated=False)
+            version = row['state']['state_version']
+            if self.store.has_pending_teaching_facts(sid):
+                return dict(status='pending', records=[], truncated=False)
+        result = self._teaching_memory.records(binding, state_version=version)
+        with self._guard:
+            if self._owned(sid, learner)['state']['state_version'] != version:
+                return dict(status='pending', records=[], truncated=False)
+        return result
 
     def reference_body(self, sid, learner, expected_version):
         """Trusted internal return only; never persist a body or consume again.

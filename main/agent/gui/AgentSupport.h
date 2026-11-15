@@ -14,6 +14,7 @@ struct LocationTarget
     std::string ref, cardId, projectId, revision;
     vm::Origin origin = vm::Origin::Unknown;
     bool eligible = false;
+    std::string evidenceId, snapshotId, jobId;
     bool operator==(const LocationTarget&) const = default;
 };
 struct Block
@@ -31,7 +32,8 @@ struct Projection
 };
 
 // Read-only projection. No file parsing, no source navigation, no backend calls.
-Projection Project(const vm::AgentViewModel& model, const std::string& currentRevision = {});
+Projection Project(const vm::AgentViewModel& model, const std::string& currentRevision = {},
+                   bool includeTimeline = true);
 
 class AgentSupportSection final : public wxPanel
 {

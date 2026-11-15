@@ -100,11 +100,11 @@ std::string UniqueKey(const char* prefix) {
         std::to_string(++count);
 }
 
-TeachingSessionController::Result ReadTeachingState(
+TeachingSessionController::Result PollTeachingState(
     const std::shared_ptr<const AgentApiClient>& client,
     TeachingSessionController::Result result, const std::string& learner,
-    const std::string& previousVersion = {},
-    const std::shared_ptr<std::atomic<bool>>& cancel = {}) {
+    const std::string& previousVersion,
+    const std::shared_ptr<std::atomic<bool>>& cancel) {
     result.teaching = true;
     for (int attempt = 0; attempt < 15; ++attempt) {
         if (cancel && cancel->load()) {
@@ -173,6 +173,74 @@ TeachingSessionController::Result ReadTeachingState(
         result.errorCode = "IDEMPOTENCY_CONFLICT";
         result.errorMessage = "教学状态正在更新，请刷新重试。";
     } else result.state = TeachingSessionController::Result::State::Pending;
+    return result;
+}
+
+bool IsTerminalTeachingState(const Json::Value& data) {
+    const auto status = StringField(data, "teaching_status");
+    return status == "Completed" || status == "Cancelled" || status == "Failed" ||
+           status == "BudgetExceeded";
+}
+
+bool BoundLearningRecords(const Json::Value& records, const TeachingSessionController::Result& result) {
+    if (!records.isObject() || StringField(records, "schema_version") != "u2.learning-records.v1" ||
+        StringField(records, "session_id") != result.sessionId ||
+        StringField(records, "run_id") != result.runId ||
+        StringField(records, "project_id") != result.projectId ||
+        StringField(records, "revision") != result.revision ||
+        !records["records"].isArray() || records["records"].size() > 12) return false;
+    const auto status = StringField(records, "status");
+    return status == "ready" || status == "pending" || status == "unavailable" || status == "disabled";
+}
+
+void SetLearningRecordsStatus(TeachingSessionController::Result& result, const char* status) {
+    Json::Value records(Json::objectValue);
+    records["schema_version"] = "u2.learning-records.v1";
+    records["session_id"] = result.sessionId;
+    records["run_id"] = result.runId;
+    records["project_id"] = result.projectId;
+    records["revision"] = result.revision;
+    records["status"] = status;
+    records["records"] = Json::Value(Json::arrayValue);
+    records["truncated"] = false;
+    result.data["learning_records"] = std::move(records);
+}
+
+TeachingSessionController::Result ReadTeachingState(
+    const std::shared_ptr<const AgentApiClient>& client,
+    TeachingSessionController::Result result, const std::string& learner,
+    const std::string& previousVersion, const std::shared_ptr<std::atomic<bool>>& cancel) {
+    result = PollTeachingState(client, std::move(result), learner, previousVersion, cancel);
+    if (!result.data.isObject() || (cancel && cancel->load())) return result;
+    result.data.removeMember("learning_records");
+    const auto response = client->GetTeachingTimeline(result.runId, learner);
+    if (response.ok()) {
+        const auto& timeline = response.envelope["data"];
+        if (timeline.isObject() && StringField(timeline, "session_id") == result.sessionId &&
+            StringField(timeline, "run_id") == result.runId)
+            result.data["teaching_timeline"] = timeline;
+    }
+    if (cancel && cancel->load()) return result;
+    if (IsTerminalTeachingState(result.data)) {
+        // Completion can precede durable delivery of its learning facts.
+        // The UI timer will read records independently of the terminal result.
+        SetLearningRecordsStatus(result, "pending");
+        return result;
+    }
+    for (int attempt = 0; attempt < 4; ++attempt) {
+        if (cancel && cancel->load()) break;
+        const auto recordsResponse = client->GetLearningRecords(result.runId, learner);
+        if (!recordsResponse.ok()) break;
+        const auto& records = recordsResponse.envelope["data"];
+        if (!BoundLearningRecords(records, result)) break;
+        if (StringField(records, "status") == "pending" && attempt < 3) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            continue;
+        }
+        result.data["learning_records"] = records;
+        return result;
+    }
+    SetLearningRecordsStatus(result, "unavailable");
     return result;
 }
 
@@ -256,6 +324,18 @@ AgentApiClient::Response AgentApiClient::GetTeachingRun(const std::string& runId
     return Request("GET", "/api/v1/u2/runs/" + runId, nullptr, learnerId);
 }
 
+AgentApiClient::Response AgentApiClient::GetTeachingTimeline(const std::string& runId,
+                                                              const std::string& learnerId) const {
+    if (!SafeId(runId)) return Response{false, 0, {}, "INVALID_CLIENT_CONFIG", "Invalid run ID"};
+    return Request("GET", "/api/v1/u2/runs/" + runId + "/timeline?limit=12", nullptr, learnerId, {}, 2);
+}
+
+AgentApiClient::Response AgentApiClient::GetLearningRecords(const std::string& runId,
+                                                             const std::string& learnerId) const {
+    if (!SafeId(runId)) return Response{false, 0, {}, "INVALID_CLIENT_CONFIG", "Invalid run ID"};
+    return Request("GET", "/api/v1/u2/runs/" + runId + "/records", nullptr, learnerId, {}, 2);
+}
+
 AgentApiClient::Response AgentApiClient::TeachingAction(
     const std::string& runId, const std::string& learnerId, const std::string& kind,
     const std::string& actionId, const std::string& expectedVersion) const {
@@ -314,7 +394,7 @@ AgentApiClient::Response AgentApiClient::CancelTeachingRun(
 
 AgentApiClient::Response AgentApiClient::Request(const char* method, const std::string& path,
                                                  const Json::Value* body, const std::string& learnerId,
-                                                 const std::string& idempotencyKey) const {
+                                                 const std::string& idempotencyKey, int readTimeoutSeconds) const {
     Response result;
     if (config_.port <= 0 || config_.port > 65535 || config_.token.empty()) {
         result.errorCode = "INVALID_CLIENT_CONFIG";
@@ -323,7 +403,7 @@ AgentApiClient::Response AgentApiClient::Request(const char* method, const std::
     }
     httplib::Client client(config_.host, config_.port);
     client.set_connection_timeout(2, 0);
-    client.set_read_timeout(30, 0);
+    client.set_read_timeout(readTimeoutSeconds, 0);
     client.set_write_timeout(2, 0);
     httplib::Headers headers{{"Authorization", "Bearer " + config_.token}};
     if ((!learnerId.empty() && !SafeId(learnerId)) ||
@@ -398,6 +478,7 @@ bool TeachingSessionController::Start(std::shared_ptr<const AgentApiClient> clie
         return false;
     }
     if (worker_.valid()) worker_.get();
+    finalRecordsPoll_.reset();
     if (generation_ != generation || projectId_ != request.projectId ||
         revision_ != request.revision) sessionId_.clear();
     generation_ = generation;
@@ -524,6 +605,7 @@ bool TeachingSessionController::Start(std::shared_ptr<const AgentApiClient> clie
 }
 
 void TeachingSessionController::Tick() {
+    PollFinalRecords();
     if (!worker_.valid()) {
         if (HasTeachingRun() && teachingStatus_ == "Running" &&
             std::chrono::steady_clock::now() >= nextTeachingPoll_) TeachingAction("refresh");
@@ -548,6 +630,10 @@ void TeachingSessionController::Tick() {
         }
         if (!result.level.empty()) teachingLevel_ = result.level;
         nextTeachingPoll_ = std::chrono::steady_clock::now() + std::chrono::seconds(1);
+        if (teachingClient_ && IsTerminalTeachingState(result.data)) {
+            finalRecordsPoll_.emplace(FinalRecordsPoll{teachingClient_, teachingLearner_, result});
+            finalRecordsPoll_->result.recordsOnly = true;
+        }
     } else if (!result.teaching && !result.sessionId.empty()) sessionId_ = result.sessionId;
     if (callback_) callback_(result);
     if (result.teaching && (result.state == Result::State::Succeeded ||
@@ -555,6 +641,64 @@ void TeachingSessionController::Tick() {
                             (result.state == Result::State::Failed && result.data.isObject()))) {
         teachingRunId_.clear(); teachingSessionId_.clear(); teachingClient_.reset();
     }
+}
+
+void TeachingSessionController::PollFinalRecords() {
+    constexpr int maxAttempts = 8;
+    constexpr auto retryDelay = std::chrono::milliseconds(500);
+    if (recordsWorker_.valid()) {
+        if (recordsWorker_.wait_for(std::chrono::milliseconds(0)) != std::future_status::ready) return;
+        const auto response = recordsWorker_.get();
+        if (finalRecordsPoll_ && recordsWorkerRunId_ == finalRecordsPoll_->result.runId) {
+            auto& poll = *finalRecordsPoll_;
+            const auto& records = response.envelope["data"];
+            const bool bound = response.ok() && BoundLearningRecords(records, poll.result);
+            const auto status = bound ? StringField(records, "status") : std::string();
+            const bool retry = status == "pending" || status == "unavailable" ||
+                !response.transportOk || response.httpStatus == 409 || response.httpStatus >= 500;
+            if (retry && poll.attempts < maxAttempts) {
+                poll.nextAttempt = std::chrono::steady_clock::now() + retryDelay;
+            } else {
+                const bool finished = status == "ready" || status == "disabled";
+                if (finished) poll.result.data["learning_records"] = records;
+                else {
+                    SetLearningRecordsStatus(poll.result, "unavailable");
+                    poll.exhausted = true;
+                }
+                const auto result = poll.result;
+                if (finished) finalRecordsPoll_.reset();
+                if (callback_) callback_(result);
+            }
+        }
+    }
+    if (!finalRecordsPoll_ || finalRecordsPoll_->exhausted ||
+        std::chrono::steady_clock::now() < finalRecordsPoll_->nextAttempt) return;
+    auto& poll = *finalRecordsPoll_;
+    ++poll.attempts;
+    recordsWorkerRunId_ = poll.result.runId;
+    recordsWorker_ = std::async(std::launch::async,
+        [client = poll.client, runId = poll.result.runId, learner = poll.learner] {
+            return client->GetLearningRecords(runId, learner);
+        });
+}
+
+bool TeachingSessionController::RefreshFinalRecords(std::uint64_t generation, const std::string& projectId,
+                                                     const std::string& revision) {
+    if (!finalRecordsPoll_ || !finalRecordsPoll_->exhausted) return false;
+    auto& poll = *finalRecordsPoll_;
+    if (poll.result.generation != generation || poll.result.projectId != projectId ||
+        poll.result.revision != revision) return false;
+    poll.exhausted = false;
+    poll.attempts = 0;
+    poll.nextAttempt = {};
+    SetLearningRecordsStatus(poll.result, "pending");
+    const auto result = poll.result;
+    if (callback_) callback_(result);
+    return true;
+}
+
+void TeachingSessionController::DiscardFinalRecords() {
+    finalRecordsPoll_.reset();
 }
 
 bool TeachingSessionController::StartPostAction(const std::string& kind,
@@ -641,6 +785,7 @@ bool TeachingSessionController::TeachingAction(const std::string& action) {
 }
 
 void TeachingSessionController::Cancel() {
+    finalRecordsPoll_.reset();
     cancelled_ = true;
     if (cancelSignal_) cancelSignal_->store(true);
     ++generation_;
@@ -653,6 +798,7 @@ void TeachingSessionController::Cancel() {
 }
 
 void TeachingSessionController::InvalidateGeneration(std::uint64_t generation) {
+    finalRecordsPoll_.reset();
     cancelled_ = true;
     if (cancelSignal_) cancelSignal_->store(true);
     generation_ = generation;

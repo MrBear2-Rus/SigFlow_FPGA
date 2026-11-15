@@ -31,6 +31,7 @@ struct Timeline {
     std::uint64_t maxSimTime = 0;
     std::vector<std::string> inputSignals;
     std::map<std::string, std::string> signalInitValues;
+    std::string timeUnit;  // Physical duration of one timeline tick, if declared.
 };
 
 // 自 `main/Simulation/TimelineGenerator` 移入并去 wx 化。

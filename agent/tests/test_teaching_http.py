@@ -57,12 +57,12 @@ class TeachingHTTPTests(unittest.TestCase):
         from sigflow_edu_agent.contract_schema import ContractSchemaValidator
         validator=ContractSchemaValidator(fixture.ROOT/'contracts/edu-agent/v1/schemas')
         validator.validate(read['data']['cards'][0],'teaching-card.schema.json')
-        action=dict(kind='hint_next',action_id='hint',expected_state_version=view['state_version'])
+        action=dict(kind='hint_next',action_id='hint',expected_version=view['state_version'])
         self.assertEqual(self.request('POST',f'/api/v1/u2/runs/{rid}/actions',action)[0],202)
         second=self.wait(rid,'WaitingStudent',view['state_version'])
         self.assertEqual(self.request('POST',f'/api/v1/u2/runs/{rid}/actions',action)[0],202)
         self.assertEqual(self.service.project(rid,'learner')['state_version'],second['state_version'])
-        finish=dict(kind='finish',action_id='finish',expected_state_version=second['state_version'])
+        finish=dict(kind='finish',action_id='finish',expected_version=second['state_version'])
         self.assertEqual(self.request('POST',f'/api/v1/u2/runs/{rid}/actions',finish)[0],202)
         final=self.wait(rid,'Completed')
         validator.validate(final['run'],'agent-run.schema.json')
@@ -77,7 +77,7 @@ class TeachingHTTPTests(unittest.TestCase):
     def test_auth_owner_origin_and_scope_are_checked_before_mutation(self):
         sid,rid=self.create();view=self.wait(rid,'WaitingStudent')
         path=f'/api/v1/u2/runs/{rid}/actions'
-        action=dict(kind='hint_next',action_id='hint',expected_state_version=view['state_version'])
+        action=dict(kind='hint_next',action_id='hint',expected_version=view['state_version'])
         for options,status in ((dict(token=None),401),(dict(learner=None),400),
                 (dict(learner='foreign'),403),(dict(extra={'Origin':'https://evil.example'}),403),
                 (dict(extra={'Host':'evil.example'}),403)):
@@ -87,6 +87,55 @@ class TeachingHTTPTests(unittest.TestCase):
         self.assertEqual(self.request('POST',f'/api/v1/u2/sessions/{sid}/runs',self.body)[0],400)
         self.assertEqual(self.service.project(rid,'learner')['state_version'],view['state_version'])
         self.assertEqual(self.request('POST',f'/api/v1/u2/runs/{rid}/cancel',{})[0],202)
+
+    def test_timeline_returns_committed_facts_with_owner_and_cursor_isolation(self):
+        _, rid = self.create()
+        first = self.wait(rid, 'WaitingStudent')
+        path = f'/api/v1/u2/runs/{rid}'
+        action = dict(kind='hint_next', action_id='next-hint', expected_version=first['state_version'])
+        self.assertEqual(self.request('POST', path + '/actions', action)[0], 202)
+        self.wait(rid, 'WaitingStudent', first['state_version'])
+        self.assertEqual(self.request('POST', path + '/actions', action)[0], 202)
+
+        code, reply = self.request('GET', path + '/timeline?limit=1')
+        self.assertEqual(code, 200, reply)
+        latest, = reply['data']['events']
+        self.assertEqual(reply['data']['run_id'], rid)
+        self.assertTrue(reply['data']['older_records_omitted'])
+        self.assertEqual(latest['fact']['action_kind'], 'hint_next')
+        self.assertEqual(latest['fact']['action_phase'], 'committed')
+        self.assertEqual(latest['fact']['revision'], 'revision')
+        self.assertEqual(latest['fact']['hint_level'], 2)
+        self.assertNotIn('teaching_session_id', json.dumps(reply))
+        self.assertNotIn(self.body['question'], json.dumps(reply))
+        code, reply = self.request('GET', path + '/timeline?after=0&limit=1')
+        self.assertEqual(code, 200, reply)
+        self.assertFalse(reply['data']['older_records_omitted'])
+        earlier, = reply['data']['events']
+        code, reply = self.request('GET', path + '/timeline?after=' + earlier['sequence'] + '&limit=100')
+        self.assertEqual(code, 200, reply)
+        self.assertEqual(reply['data']['events'], [latest])
+        self.assertEqual(self.request('GET', path + '/timeline', learner='foreign')[0], 403)
+        self.assertEqual(self.request('GET', path + '/timeline', token=None)[0], 401)
+        self.assertEqual(self.request('GET', path + '/timeline?after=999999')[0], 410)
+        self.assertEqual(self.request('GET', path + '/events')[0], 200)
+
+    def test_records_route_keeps_auth_scope_and_explicit_disabled_state(self):
+        _, rid = self.create()
+        self.wait(rid, 'WaitingStudent')
+        path = f'/api/v1/u2/runs/{rid}/records'
+        code, reply = self.request('GET', path)
+        self.assertEqual(code, 200, reply)
+        self.assertEqual(reply['data']['status'], 'disabled')
+        self.assertEqual(reply['data']['records'], [])
+        from sigflow_edu_agent.contract_schema import ContractSchemaValidator
+        ContractSchemaValidator(fixture.ROOT/'contracts/edu-agent/v1/schemas').validate(
+            reply['data'], 'u2-learning-records.schema.json')
+        self.assertEqual(self.request('GET', path, learner='foreign')[0], 403)
+        self.assertEqual(self.request('GET', path, token=None)[0], 401)
+        self.assertEqual(self.request('POST', path, {})[0], 404)
+        self.current = False
+        self.assertEqual(self.request('GET', path)[0], 409)
 
     def test_disabled_extension_is_404_and_does_not_import_a_second_server(self):
         state=EduAgentState(ServerConfig(instance_id='disabled',ui_token='u1-ui'))

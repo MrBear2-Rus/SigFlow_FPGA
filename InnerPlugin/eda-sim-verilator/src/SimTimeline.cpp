@@ -11,6 +11,7 @@ TimelineGenerator::~TimelineGenerator() = default;
 Timeline TimelineGenerator::Generate(const TestbenchInfo& tbInfo, const std::string& topModule) {
     Timeline timeline;
     timeline.topModuleName = topModule;
+    timeline.timeUnit = tbInfo.timeUnit;
 
     for (const auto& block : tbInfo.initialBlocks) {
         if (block.hasClock) {
