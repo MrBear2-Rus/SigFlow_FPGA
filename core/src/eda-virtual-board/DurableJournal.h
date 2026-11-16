@@ -5,7 +5,7 @@
 #include <filesystem>
 namespace eda::virtual_board {
 struct JournalDigests {std::string circuit,control;};
-inline constexpr const char* JournalDigestVersion="sigflow.sha256-chain.v1";
+inline constexpr const char* JournalDigestVersion="sigflow.sha256-chain.v2";
 struct JournalRecovery {Json records=Json::array();uint64_t valid_bytes=0,truncated_bytes=0;};
 class DurableJournal {
 public:

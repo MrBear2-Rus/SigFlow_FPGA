@@ -1,4 +1,6 @@
 #include "RunnerSupport.h"
+#include "BoardTopology.h"
+#include "ProjectValidation.h"
 #include "DurableJournal.h"
 #include "ElectricalValidator.h"
 #include "ConstraintSheet.h"
@@ -16,6 +18,8 @@ uint8_t StateByte(const Json& value){
     return value.get<uint8_t>();
 }
 SessionContract Load(const Json& j,const PortManifest& m,const std::string& binary,bool synthetic){
+    auto validation=ValidateVirtualProject(j,m,synthetic);if(!validation.at("ok").get<bool>()){
+        const auto& d=validation.at("diagnostics").at(0);throw std::runtime_error(d.at("code").get<std::string>()+": "+d.at("message").get<std::string>());}
     if(j.at("schema")!="sigflow.virtual-session.v1")throw std::runtime_error("E_RUNNER_SCHEMA");
     SessionContract c;c.manifest=m;c.run_id=j.at("run_id");c.generation=Number(j.value("generation",Json("1")));
     const auto& id=j.at("identity");c.identity={id.at("device"),id.at("package"),id.at("board_revision")};
@@ -26,12 +30,19 @@ SessionContract Load(const Json& j,const PortManifest& m,const std::string& bina
     auto imported=eda::cst::CstGenerator().ImportCst(text,m);if(!imported.ok())throw std::runtime_error("E_RUNNER_CST");c.bindings=imported.bindings;
     eda::cst::ConstraintSheetV2 sheet;sheet.manifest=m;sheet.bindings=c.bindings;sheet.topModule=m.top_module;
     sheet.device=c.identity.device;sheet.package=c.identity.package;sheet.boardRevision=c.identity.board_revision;
-    auto errors=eda::cst::ConstraintValidator::Validate(sheet,&c.electrical);if(!errors.empty())throw std::runtime_error(errors[0].code);
+    c.allow_unbound_outputs=j.value("allow_unbound_outputs",false);
+    auto errors=eda::cst::ConstraintValidator::Validate(sheet,&c.electrical);
+    for(const auto& d:errors)if(d.code!="E_MISSING_BINDING" || !c.allow_unbound_outputs)throw std::runtime_error(d.code+": "+d.message);
+    if(j.contains("board_path"))c.board=BoardTopology::Load(platform::PathFromUtf8(j.at("board_path")),c.electrical);
     for(const auto& e:j.at("inputs")){
         InputEndpoint input;input.target=e.at("target");input.package_pin=e.at("package_pin");input.initial_manual_state=StateByte(e.value("initial_manual_state",Json(int(State::FLT))));
         for(const auto& driver:e.at("fixed_drivers"))input.fixed_drivers.push_back({driver.at("driver_id"),StateByte(driver.at("state"))});c.inputs.push_back(input);
     }
     const auto& clock=j.at("clock");c.clock_pad=clock.at("package_pin");c.frequency_hz=Number(clock.at("frequency_hz"));
+    if(clock.contains("port_ref")){
+        for(const auto& p:m.ports)if(p.direction==Direction::Input)for(const auto& ref:p.bits)if(m.Label(ref)==clock.at("port_ref").get<std::string>())c.required_clock=ref;
+        if(!c.required_clock)throw std::runtime_error("E_CLOCK_PORT_REF");
+    }
     c.clock_enabled=clock.value("enabled",true);c.max_step_events=clock.value("max_step_events",10000u);
     c.max_step_ticks=Number(clock.value("max_step_ticks",Json("1000000000000")));
     c.max_delta=j.value("max_delta",256u);c.max_commits=j.value("max_commits",size_t(100000));
@@ -63,7 +74,25 @@ int SessionRunnerMain(int argc,char** argv,const PortManifest& manifest,VirtualS
         for(std::string line;std::getline(std::cin,line);){
             try{
                 auto command=Json::parse(line);Json response;
-                if(command.at("op")=="replay")response=VirtualSession::ReplayCommitted(contract,factory,command.at("records"));
+                if(command.at("op")=="replay.current" || command.at("op")=="replay.file"){
+                    auto state=session.Submit({{"op","get"}});if(state.at("state")=="Running")throw std::runtime_error("E_REPLAY_REQUIRES_PAUSE");
+                    auto count=command.value("repetitions",3u);if(!count || count>10)throw std::runtime_error("E_REPLAY_REPETITIONS");
+                    Json records;auto replayContract=contract;
+                    if(command.at("op")=="replay.file"){
+                        records=DurableJournal::Recover(platform::PathFromUtf8(command.at("path")),false).records;
+                        if(!records.is_array() || records.empty())throw std::runtime_error("E_REPLAY_EMPTY");
+                        // Run identity is the selected journal's identity. All design/tool/
+                        // electrical fingerprints remain mandatory and are checked by replay.
+                        replayContract.run_id=records.at(0).at("trace_run_id");replayContract.generation=Number(records.at(0).at("trace_generation"));
+                    }else records=session.Submit({{"op","journal"}}).at("records");
+                    response={{"status","passed"},{"repetitions",count},{"attempts",Json::array()}};
+                    Json first;
+                    for(unsigned i=0;i<count;++i){auto r=VirtualSession::ReplayCommitted(replayContract,factory,records);
+                        if(i && (r.at("circuit_digest")!=first.at("circuit_digest") || r.at("control_digest")!=first.at("control_digest") || r.at("matched_commits")!=first.at("matched_commits")))throw std::runtime_error("E_REPLAY_DIVERGENCE");
+                        if(!i)first=r;response["attempts"].push_back(r);}
+                    for(auto key:{"matched_commits","circuit_digest","control_digest","board_trace_verified"})response[key]=first.at(key);
+                }
+                else if(command.at("op")=="replay")response=VirtualSession::ReplayCommitted(contract,factory,command.at("records"));
                 else if(command.at("op")=="recover"){
                     auto recovered=DurableJournal::Recover(platform::PathFromUtf8(command.at("path")));
                     response=VirtualSession::ReplayCommitted(contract,factory,recovered.records);

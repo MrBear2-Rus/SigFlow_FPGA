@@ -2,6 +2,8 @@
 #include "WaveValueFormat.h"
 
 #include <cmath>
+#include "../trace/LiveTraceSource.h"
+#include <map>
 
 namespace sigflow {
 namespace wave {
@@ -43,6 +45,12 @@ const WaveColor& WavePalette(int index)
     return palette[index % (sizeof(palette) / sizeof(palette[0]))];
 }
 
+std::vector<WaveformSignalData::MultiDelta> QueryMultiDelta(sigflow::trace::TraceSource& source,int signal,uint64_t begin,uint64_t end){
+    std::vector<WaveformSignalData::MultiDelta> result;auto pinned=source.PinReadSource();auto* live=dynamic_cast<sigflow::trace::LiveTraceSource*>(pinned?pinned.get():&source);if(!live)return result;
+    std::map<uint64_t,std::vector<eda::virtual_board::LiveTransition>> groups;std::optional<eda::virtual_board::TraceCursor> cursor;
+    do{auto page=live->QueryExtended(signal,begin,end,cursor);for(auto& event:page.records)groups[event.position.tick].push_back(std::move(event));cursor=page.next;}while(cursor);
+    for(auto& [tick,events]:groups)if(events.size()>1)result.push_back({tick,std::move(events)});return result;
+}
 float WaveformTimeToX(const WaveViewState& state, int width,
                       sigflow::trace::TimeValue t)
 {
@@ -107,6 +115,7 @@ bool BuildWaveformFrame(sigflow::trace::TraceSource& source,
         WaveformSignalData data;
         data.id = info->id;
         data.name = info->name;
+        data.multiDelta=QueryMultiDelta(source,signalId,t0,t1);
         data.vector = (info->kind == sigflow::trace::SignalKind::Vector ||
                        info->kind == sigflow::trace::SignalKind::Real ||
                        info->kind == sigflow::trace::SignalKind::String);

@@ -1,0 +1,4 @@
+PASS fixture revisions 1/2/3, immutable views, exact positions, cursor expiry, quotas, cache and atomic rejection
+PASS concurrency: 1 writer, 4 readers, 1000 atomic batches, 3000 transitions; reader passes=298
+PASS existing offline VCD query/value cache semantics
+PASS 124704 LiveTrace checks

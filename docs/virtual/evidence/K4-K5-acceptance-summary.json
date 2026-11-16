@@ -1,0 +1,787 @@
+{
+  "date": "2026-11-16",
+  "timezone": "Asia/Shanghai",
+  "status": "passed",
+  "K0_K5_core_complete": true,
+  "K4": true,
+  "K5": true,
+  "U0": true,
+  "U1": false,
+  "full_product_M0": false,
+  "scope": "Core/Runner A1-A10 plus U0 real controller/rendering; U1 joint product acceptance and same-tick GUI marker remain pending",
+  "branch": "SigFlow_FPGA_CMake",
+  "base_commit": "edbe3a0429568a26adc97b605e29e6ac2c3c2e03",
+  "feature_ancestor": true,
+  "source_unchanged_during_validation": true,
+  "source_sha256": {
+    "CMakeLists.txt": "b4b567a7b537db293cd2b5f0d937cb8eda4af35c6ec7eb3f47b7edf06d466561",
+    "core/CMakeLists.txt": "a775cfed49c53c0d9db333b3e9381dcad4214509ad361d36e1ebd2352a81b11b",
+    "core/src/eda-agent-gateway/ArtifactService.cpp": "3b5d61e7e411d2808f4f6d8c37b498c541e94b5461f8ede5010d58dbac6a25b5",
+    "core/src/eda-agent-gateway/ArtifactService.h": "73237b33796943a3fb352af1e1ce0153b38be21045f31a2440606b82e043cc21",
+    "core/src/eda-agent-gateway/DesignContextService.cpp": "2e54994b568dc2cce7b82deaa5c1cbd988962c32b32a0df24ad53e0130dbcc23",
+    "core/src/eda-agent-gateway/DesignContextService.h": "7f10a86a033ec48ea20e1e8d9f35da71d0d397ad3b2f3563633f13a952c1ccfd",
+    "core/src/eda-agent-gateway/DiagnosticParser.cpp": "a74148d9c141625eb14d07ead19b7214e7eef78e7ab8bccd45675ac329fa092f",
+    "core/src/eda-agent-gateway/DiagnosticParser.h": "8b874a28ca844326aa662919163430353ba0c253a3586db3423c0396ffa726c9",
+    "core/src/eda-agent-gateway/EventStore.cpp": "ef4e948c44094ea11d3269960e14c211669609dbc73686b5ec4fb05741dca557",
+    "core/src/eda-agent-gateway/EventStore.h": "ab9720f72e48c5439abbdc1c44d64319ac3341f5f68355a168c5350c5d38cac3",
+    "core/src/eda-agent-gateway/GatewayDto.cpp": "ac376ec72e673916d20003ee51032b998cb3b2566dee96253b010146fcbe969d",
+    "core/src/eda-agent-gateway/GatewayDto.h": "d6c12e8105c35bf00fe661b5fb334c29031eff4c0a2d568f719d1dd64070fbba",
+    "core/src/eda-agent-gateway/GatewayServer.cpp": "26a545f41fab5de79f7f197d30f3c23ee24b0ead4b38b9f4749b8fcdcdde48bc",
+    "core/src/eda-agent-gateway/GatewayServer.h": "03fc8b9bec5700dbdcfbeb49f15b8ad16f84898a11f679a56078521b89ad0ee9",
+    "core/src/eda-agent-gateway/GrantStore.cpp": "8bda010d608701bc33326ba407a4e53a44b41e610fecf7f53fc8cdcc1e8cd6e3",
+    "core/src/eda-agent-gateway/GrantStore.h": "1aeb6e553830d79137ee9369e1b0ce9dd161142150bfd13b275dd6bea2aa5c7c",
+    "core/src/eda-agent-gateway/IdempotencyStore.cpp": "9b39974bef020c4816b8a0767f64f99bc61c05b9e5d13bf00c9df863cac1d129",
+    "core/src/eda-agent-gateway/IdempotencyStore.h": "a97fdd22d97739eca5fa1da393ed3b66525e82e80685fadafc3dbe67f75d18e2",
+    "core/src/eda-agent-gateway/JobEventSource.cpp": "8b69b816d060c728df0e72cf98dcfd6673234b02e49494830057c4ecea1c2ac0",
+    "core/src/eda-agent-gateway/JobEventSource.h": "e9ad14a3409425668142a947cde39820cfc2b6342215d866da767e85f346097b",
+    "core/src/eda-agent-gateway/LegacyJobBridge.cpp": "736b87281ad16c6b8bbf8ca15eecc534bc7b1882f29dd34644b76eab8c571e9c",
+    "core/src/eda-agent-gateway/LegacyJobBridge.h": "6e9f342e25b770600883dcc459c27690259cb0068ff873dd40340dc729114b8a",
+    "core/src/eda-agent-gateway/PathRedaction.cpp": "b11c693e7ac211d0979282415168e1107e0dbac8e139e6a334ddd9dd53fb76a2",
+    "core/src/eda-agent-gateway/PathRedaction.h": "f85e7e5d4c210447e3c22774bba9ac9cbe3f4e9f7873001db3946e9c9e5aa477",
+    "core/src/eda-agent-gateway/ProtocolExtensions.h": "d2fefc755ffe524d11167191fda7a650c6f27a094f8a7ee56edfd2b9d02d2f8a",
+    "core/src/eda-agent-gateway/ReceiptStore.cpp": "aad0fcc1fb8cfd14c1ca17040fb17b3c07b13551120db49493785a21d821b123",
+    "core/src/eda-agent-gateway/ReceiptStore.h": "79d8ffdbeb529e87a838ce48f8896b900a1763b9f52e1e8a42d30fe85ff9ccd0",
+    "core/src/eda-agent-gateway/ReportNormalizer.cpp": "695ae02971a007bc4dbbe56cede6a225ae55ec408c1db83c43732e097f643aa1",
+    "core/src/eda-agent-gateway/ReportNormalizer.h": "04eab6b37ab08f5c4ec3e505487c5f7345d01138a3ed60e0754310ba38d7cb1e",
+    "core/src/eda-agent-gateway/SnapshotService.cpp": "2172bc37be88c4d671ac1e0360e910a517f4fda20f21ca47f09485acfc4415de",
+    "core/src/eda-agent-gateway/SnapshotService.h": "38d3d1eb73e1fd17f7172e58d6a19122ecd93069539bab1770bc3928188b30d0",
+    "core/src/eda-agent-gateway/UiAuthorizationService.cpp": "e580042a6169c874cbfa578cb781a60d416ec4330a923b4063065d2a3291f3e5",
+    "core/src/eda-agent-gateway/UiAuthorizationService.h": "6ca4d8e92f2f2f99f44548d5fe9a8c796f46021ce0cb76727089cfbb1cc295f6",
+    "core/src/eda-agent-gateway/WaveformService.cpp": "914eef3f2ed7d32958ff50d172e9da1ec634fdff4884763f5add7fe6484e2b08",
+    "core/src/eda-agent-gateway/WaveformService.h": "8091146b4c1ca79c1c59de8a892ff612b2031cbdfa58edc1844b9a0baf3c7b50",
+    "core/src/eda-core/CommandBus.cpp": "2cec06d3e8e27cd644d9564398227ba6f1db1f10a3524242ae860af62979e1bf",
+    "core/src/eda-core/CommandBus.h": "e690beb2e4f78dcf0a839f65d210751185b71cc4e84581b9bd53624de15bddeb",
+    "core/src/eda-core/CoreSchemas.cpp": "97f854dd65fbc68399cf3dbf5faa7aa0da7148ba9fd24efc4e3c531c9b36a890",
+    "core/src/eda-core/CoreSchemas.h": "b25349027e62e029652955f8ac18cebc1fcb1531117390bf90977c489aa51f8c",
+    "core/src/eda-core/DeclarativeTool.cpp": "a7ab3b6551681e0cbfb1147781e21a7706b4ad0961736a0d86cb7fa1790d3222",
+    "core/src/eda-core/DeclarativeTool.h": "3aee52d0f7bfa5251e4d7ff3879020f97680a2de3b300ae2ddb2d50f345e4603",
+    "core/src/eda-core/EventBus.cpp": "87f1c71da20e876edf917b5bfbaa5ced67668c6b62270db66414716c8ece6bee",
+    "core/src/eda-core/EventBus.h": "8f53e973ddf81a041264a1f6e49d7e7081da3dd7db0e27f870eceb243188aef6",
+    "core/src/eda-core/JobService.cpp": "a9782044854a1827df3d669ba8a0d67bc9f8aaaf1151037f29f1e46e66ca1c18",
+    "core/src/eda-core/JobService.h": "db729cfe967d53bc25a293ba27449992394569a245e2a4591d4ff50736b33717",
+    "core/src/eda-core/JobsMigration.cpp": "a1ef9a12c5755a4f697c966085cbf957c5e51eb12e72c94ab09b53d9943c6cd7",
+    "core/src/eda-core/JobsMigration.h": "4b4ea7baa311b1bc289606e65a4fdd0e3845d6e3e55587ba6de0c8d3c7d1b579",
+    "core/src/eda-core/LegacyJobHistory.cpp": "0dd3a307b25bac7abe48593dbffa6e54ac06e703133bd4da0490672a7f283051",
+    "core/src/eda-core/LegacyJobHistory.h": "c97dfd3783fac34e2c134e134a37a4f1efef8441364bca7acff17a08b92e0de4",
+    "core/src/eda-core/Logger.cpp": "9fbf1bb413b6320719b31f22f7e77dcbce99f8163ff917f84e0fbcc37b67ba59",
+    "core/src/eda-core/Logger.h": "76bf3a8f48694f9d04913fa3b4a231471908b466cddbf92e045b12e0d4dedb56",
+    "core/src/eda-core/PluginHost.cpp": "6095eb18679c786cec63277147ae02dd093c69fc21321834d6404c726e8c9547",
+    "core/src/eda-core/PluginHost.h": "3974f95713aa0f17b57b57bdad7e41f5ad6e93241413d1ceec1c8bc942bb9a5f",
+    "core/src/eda-core/PluginRegistry.cpp": "a371115df87331ebe977ca3b5887a16b822b697a4c4deb5c9bfd604828faa24d",
+    "core/src/eda-core/Project.cpp": "cd11b6781246729d4b07eb712f5e718ebe50cc836a60e7f0043cb2917f740e77",
+    "core/src/eda-core/Project.h": "f9be5854a934864d618100771b19547fa8cf044287f114389feed9a8d3e48c4c",
+    "core/src/eda-core/SchemaRegistry.cpp": "53972107188be7350891707387ed00fa12b1b053e6d47f885f5cb36c03483b7c",
+    "core/src/eda-core/SchemaRegistry.h": "3ff07bbfa91bb013ee8bdfe4a160c95022fd24cecab348750e4204bb334049e6",
+    "core/src/eda-core/Toolchain.cpp": "2ae25a484da09909c1ad469487da21755d8384462b51c3776fe4132f7e5c874d",
+    "core/src/eda-core/Toolchain.h": "6bce559f0b6dcac1a0fef788098aec201138610c6cf62120c4ff89f480852ca2",
+    "core/src/eda-core/Version.cpp": "5c2c20176d9a0ac411ebdda731287cd528f9ff2f6a25eb157fb91afabeab58ed",
+    "core/src/eda-platform/DurableFile.cpp": "de2873de556367a0c423580ee7edfb67ff75ed8f4f35607ac0525f6e606bdf11",
+    "core/src/eda-platform/DurableFile.h": "342811a97dce8510cf109f3f23fd2141ba8f7b79405bfc6f0fd8448ba02a09f5",
+    "core/src/eda-platform/DynamicLibrary.cpp": "b1d391aa916234395f67b453e3b142cac99e1153e4d085bf1d717cb5a1055a85",
+    "core/src/eda-platform/DynamicLibrary.h": "0ee27a7e5a8eb51a08eaba9404eb7d2432d22c6f3e70077dd8ceaebc07e7d395",
+    "core/src/eda-platform/Platform.cpp": "537d018789d3c068ad4d7d2cd992aff57f544f92e1e791b94e5003caf3e6536e",
+    "core/src/eda-platform/Platform.h": "6aa428290019adfc06b95b945fb34137345cc0d8c772c1e604c0d15bbb5001cd",
+    "core/src/eda-platform/posix/PlatformProcessHost.cpp": "45177e6672094069200c6ce8c273a1088b30dabf82226208f66023bb2c4e478d",
+    "core/src/eda-platform/ProcessCollector.h": "8384a7d157d3032c6211ea1ce83a9c9fb31e064dec600bf1e9967aab6f54e300",
+    "core/src/eda-platform/Sha256.cpp": "63cd9f260036c56032e30770a6fad656debc4fd653b5b9306e40db3c71c9d8ac",
+    "core/src/eda-platform/Sha256.h": "a044191f9db9f450d452187758de4d6eb6c18f871b10ab038c7ebb948679d3f8",
+    "core/src/eda-platform/win32/PlatformProcessHost.cpp": "327679c0fc4a2638c7420279fdc162879762f7169f9bfa2e6add6511a31959d6",
+    "core/src/eda-virtual-board/AdapterCodeGenCli.cpp": "7fe7b84c9dcb4f44e5bdd44c126bf89522f88a9401d8a42b5bd0ff29cdd5e328",
+    "core/src/eda-virtual-board/BoardTopology.cpp": "dd26f10e4c369d187f95516d608b496cd9598b4dfa32463206d3380ceb6f40f4",
+    "core/src/eda-virtual-board/BoardTopology.h": "8baecc47091d9859914f1ecfd426736e1b03a08b2c7b34032466af8ad9514ba6",
+    "core/src/eda-virtual-board/DurableJournal.cpp": "70a1753047d105df9d8ee69cb4a7aedb8e91c09bce7a97490299af07c7503291",
+    "core/src/eda-virtual-board/DurableJournal.h": "1d17e216e5d3110f0a8594902c1ae4d1e392eb1c1fe23717d7d37f151b203bda",
+    "core/src/eda-virtual-board/ElectricalValidator.cpp": "be0b401f38ff1651957ff1915a3bef95f150eac3d9dc0b61ee18612fb3d017e2",
+    "core/src/eda-virtual-board/ElectricalValidator.h": "1c773ba2cff7fdd7c97024183d94bd9f7c2d4b095f84da5a75878a9623c9fd15",
+    "core/src/eda-virtual-board/LiveTraceStore.cpp": "8ac6c16990e7d1e93fbc9f99e211ed3ea0bfcb574c9783874e28c19d0e15a19e",
+    "core/src/eda-virtual-board/LiveTraceStore.h": "b072c440c50c563a1dea45a93d559d6fd6f78f7c03d236572799119a8191194d",
+    "core/src/eda-virtual-board/PortManifestBuilder.cpp": "da3982431c99e9ee313bf34a871ef2bad332854382f4adc8dd19b19336a7f0f0",
+    "core/src/eda-virtual-board/PortManifestBuilder.h": "b68d6222aff663fc6a10032376ecd11e220986118d15f1ecfc63ff750bccd7e1",
+    "core/src/eda-virtual-board/PortManifestCli.cpp": "a2508d8547b2ae9605cef5c041a222cf8ff9be449d040ec136aaea737ad0c0a4",
+    "core/src/eda-virtual-board/Resolver.cpp": "7924bdac32b8950cd601ef2421cd0901c378dccc0557fb1c3a151daf4a2472a0",
+    "core/src/eda-virtual-board/RunnerSupport.cpp": "fa3292d819da40b585f37929ebe17a88c620979dba2a582de83805b967f918b2",
+    "core/src/eda-virtual-board/RunnerSupport.h": "881cf08cb2491ca6593451d26fc09eaed4dce6865a68246e246b187f905f0c42",
+    "core/src/eda-virtual-board/VerilatedAdapterCodeGen.cpp": "e9ed038bc063ad345c6cefd9e2f50a1c4786fc0abd7eaf0604f00c567bf8c7d8",
+    "core/src/eda-virtual-board/VerilatedAdapterCodeGen.h": "d6e3c23a2463e92d63f29b52350e641567ab9b83830f9f7901a175d26e4f9672",
+    "core/src/eda-virtual-board/VirtualSession.cpp": "e1b138beef9897822b90da1d3bb442d85616ba2763297cd4ea17d403d72c3a15",
+    "core/src/eda-virtual-board/VirtualSession.h": "95fb1e839dd5724ddd32c633fdafdcced30e8793d3ca0fc22e81ac6058013ea3",
+    "include/eda/api/abi.h": "da2023bea6511ed0459a7bce23e6db9755410f68fb3e157e8aac9b96d5536136",
+    "include/eda/api/build_info.h": "5ed92744f09f2df659de35ce62813f6587afb50f1f3a0df55964650262cd2a29",
+    "include/eda/api/capabilities.h": "cfa3233dad0eb65a3d218e8512951a846a720be0fed15f82b7ce2f64a3668c2f",
+    "include/eda/api/command.hpp": "d3e59298dadf7136246b276cb930868a9c2785eb0e5e338d9a6719b1ee90f1c8",
+    "include/eda/api/component_library.hpp": "f1f52a95273fd96d492631b884529ae19186f67e5170bf11e6678b19ac0119e6",
+    "include/eda/api/electrical_profile.hpp": "856cdb8a40a4f31a852b85137af16a12e8838a620cc048c7fad1787b6de3f390",
+    "include/eda/api/events.hpp": "c7c2c5e3f42d62843daa26e6675cbac6c467f44e3636040a2deb2ae62ac7bb68",
+    "include/eda/api/IPluginInteraction.h": "1525cb321d170e4b1e367b94726bcca0de73ac225255a2dde8cc3c5d3eff45ef",
+    "include/eda/api/jobs.hpp": "8b97fdb58f4c7e9beb50617a4047c48e3b10daa2176872b04a3b565daf1eecdf",
+    "include/eda/api/live_trace.hpp": "cf4a455fe9353fd38b2977f2319468410ac560e0ddc8efec3d03ec54eba683c4",
+    "include/eda/api/logic_state.hpp": "57dc7690a49cbcffedc56e88d00d3608916b0b76d208043d31cd21c3c15089d9",
+    "include/eda/api/plugin_registry.h": "743c4b5c5d48b8ff25a2cba759183f3e86df005bd12d280dbad22e859988bfb0",
+    "include/eda/api/port_manifest.hpp": "ec7c6419cb67d77e951efb9186905f71056349338649a7cfa9ae6f28fadabeec",
+    "include/eda/api/process.hpp": "20deaba0866d979fc5601afb200b5ea16dae2cbb9c0bf8fd6eb362e89367a22a",
+    "include/eda/api/project.hpp": "4c05716c9aa82fdee4a42094e4800c908a355f78f26b52bf83aa4dd58b5e787d",
+    "include/eda/api/schemas.hpp": "dcdd2644cc4f5c360a7e816e985cea6b4992165b4277cf0ba603d73b9c28a7b2",
+    "include/eda/api/services.hpp": "5e9fed157aca712d1bdc8e0cb177d2d416529537e85fd1ec05b0cd1a30ec9031",
+    "include/eda/api/target_profile.hpp": "e02b3bd5efcce754932590a104b2b90e7cb057220f0d15f7be3b828fb34c18b8",
+    "include/eda/api/toolchain.hpp": "04a2d70e8ee0241701f25095c2d7e8db31a0ce30e8b0551cf43b1da75febd004",
+    "include/eda/api/Types.h": "51df4ab2049cbc06d044120d5a8a385c1221e59f8ad318ca34b6fcece7a9d30c",
+    "include/eda/api/waveform.hpp": "a8f09e277f3749bab4cfe5ee4076ebffe1be4dc98196bfcb149bdb5a4c43d4d5",
+    "InnerPlugin/eda-sim-verilator/CMakeLists.txt": "5dfdfe3b812dddf136e903871ee5945275739fb974fc3b6e090884096f580016",
+    "InnerPlugin/eda-sim-verilator/include/SimMainCodeGen.h": "c51bf30cc83d333f64da6e2dbb9ad7bdc3261d7ae339d427e209ab3dc7386d26",
+    "InnerPlugin/eda-sim-verilator/include/SimTimeline.h": "9d48ca0ff901563937df46f21f8931edccd2ac735cb52372162a998f19933e43",
+    "InnerPlugin/eda-sim-verilator/include/StimulusModel.h": "e4a93783e6da868b2a2005661e27d9c00e392092e263291b2ebde3303a483cf5",
+    "InnerPlugin/eda-sim-verilator/include/VerilatorRunJob.h": "a08a69cc351cf16ff70f06a6b15ec925ce49f4f6148701f4b58c488742db23eb",
+    "InnerPlugin/eda-sim-verilator/include/VerilatorSimulator.h": "6c686c3da4950c1124445f2bff5f08e764facd96d19ec8cb9adfc28476df6c34",
+    "InnerPlugin/eda-sim-verilator/src/SimMainCodeGen.cpp": "fd00777582cb79d90854f244a900e6e85c4c848163558c976bfd0b4487acd995",
+    "InnerPlugin/eda-sim-verilator/src/SimTimeline.cpp": "59b3e1bd7eb92481944da01a48c61b936a0dcaa2b8cd87946746e5e4c7a1ddf6",
+    "InnerPlugin/eda-sim-verilator/src/StimulusModel.cpp": "a3b103f12711b2f87004e32c18ce109675d7aeee78db299afa9f61aa6b16e8bc",
+    "InnerPlugin/eda-sim-verilator/src/VerilatorRunJob.cpp": "b6e3bfcad7648fe4f8c273bbfc65f20767159e05390d6927b0778221ff024911",
+    "InnerPlugin/eda-sim-verilator/src/VerilatorSimulator.cpp": "adf0b10d4ec6bb8356c73277e0c7ece767d2fb6b14b055fd8e84464013670e1d",
+    "main/fpga/FpgaToolWindow.cpp": "51656ef02bc6aa735ee2f1ee24caea2116fdbee27487a78473a16fff41c34142",
+    "main/fpga/FpgaToolWindow.h": "7a5d7e5d0f6de07d953e9dd58a0acc5b1afa24ba26be32d2f472193e42bd2c19",
+    "main/MainFrame.cpp": "926722252423a6d1f00a8db3d8ecdb15b1e2162f5305007a34f33da23c60d656",
+    "main/MainFrame.h": "cd7d77a762aae97af37e870bcd351ac63ada5a1a31ef616b8d01458746f67f4a",
+    "main/trace/LiveTraceSource.cpp": "612d05ae963e1db19ed00f01fb767702752afbfdbd9790768928f75b6e33edf5",
+    "main/trace/LiveTraceSource.h": "9754add93d1d801059d80750f33236b28609de4f2733d410bf970ca261d754e9",
+    "main/trace/TraceCache.cpp": "6cbd634be630d7c6f4f459cde8bda7190962793f5f3a798235ec21834991eba3",
+    "main/trace/TraceCache.h": "c3fd2c10cdcfae0c5e611b79bbd6ed113a9e263f7ffd68a803bbf08146cf0476",
+    "main/trace/TraceMemoryBudget.cpp": "6bf56c3b5d536c52d71345b4e0119fb0e668fcbcb20d3632db818c3753e72ec3",
+    "main/trace/TraceMemoryBudget.h": "8cf76841ec46692820ad5564240d6bc8673bab6401fc21c28ff853e9099b9cdc",
+    "main/trace/TraceQueryService.cpp": "0ce717968eb072893a73f6928bc9f522aedddcf612fdfb8fc810f8a9e1952412",
+    "main/trace/TraceQueryService.h": "806e3a2f91e0267257d4303b9e76ede59a85262894d150afa35fe301e88ce08e",
+    "main/trace/TraceSidecarIndex.cpp": "9916b13421a825cddb14fe48056e2d594d733676a5ed50375a3eff736757275f",
+    "main/trace/TraceSidecarIndex.h": "eca36d5b4dd305dfa77452463c12aea7ec997d65457a5e6feff2e1dc6afea3ce",
+    "main/trace/TraceSource.h": "a0dc346563f17e818203eb8e5d8a9cfe4a886224f8374827252b6444e191e918",
+    "main/trace/TraceTimebase.h": "13acd609ebdbb50aa92d25eebc8989c2d27d219b55bc31ac5ae2ec0754767ceb",
+    "main/trace/TraceTypes.cpp": "bbbd79bcbfbe87944b8c86e7b0ec206479544813ef8d1d670aa80a0b046cf01d",
+    "main/trace/TraceTypes.h": "083e9db8f10947d3afc2d5c6e8d42f83b985efbcf1dfbd0c2f7d8c8d9a64511b",
+    "main/trace/VcdLazyTraceSource.cpp": "cdba7a30ed73b87ea863d6ca427bbf137e7b571116e415b7a32aed5b7efbc39f",
+    "main/trace/VcdLazyTraceSource.h": "f0778f03d53e025d59a43cc0ddc956a6cbad76a747c9b377bd77d33514b58d53",
+    "main/trace/WaveformBackendTraceSource.cpp": "42b6ccbbe3aed5ae79282ab97b15a84009bf49b19b25a8f31ed2727bbafe062f",
+    "main/trace/WaveformBackendTraceSource.h": "169c1725c4f45ec238636d436b272a671c7bbb80935a3e125668396d7a906cba",
+    "main/ui/UiTheme.cpp": "4e7e27458c4f2b7fab38bb2018b62fcefa14b8772126409f48f411f3cd60fd54",
+    "main/ui/UiTheme.h": "5a85126956ef02c9ec27593d50792a45738d51502f844b6bfbca488f8ba09d65",
+    "main/virtual/BoardRenderer.cpp": "396db20cacfb7a74873bdc92e8050f99a43b41a298d16c7304cb28c2542ccab5",
+    "main/virtual/BoardRenderer.h": "1d5b28b65495ac7a0ec969387288b3d64c290b2dc75a3bac5730e84b5db7c005",
+    "main/virtual/FaultInjectionPanel.cpp": "f23904f8563afabdd0bb75f33d77839fe8bdbc20402c01a0c64294a1e567f801",
+    "main/virtual/FaultInjectionPanel.h": "891d4513f13a7da4e667412936100bb21da0a92dda253d98acbfb2a3bf4c1c32",
+    "main/virtual/VirtualBoardPanel.cpp": "38ee9a6b8754e4bdaf26a0004942ca65a97d03d17d1e9d8b7c8bb7b8aff149b3",
+    "main/virtual/VirtualBoardPanel.h": "debc91ec6a6eee5be3ba7dc7f195aa45f293d0e0e579079c77fbc781fb9f61f2",
+    "main/virtual/VirtualSessionController.cpp": "52d0540e395bc09e99f0efe3b7550b935e200fb53e437315ed68c747112268c9",
+    "main/virtual/VirtualSessionController.h": "95a96a8d1ab368dbe0ef8d453efc9278a804ce5e6b0dceb02a4be23b2a4c029e",
+    "main/wave/TraceViewPanel.cpp": "93fee3caa3c4875b58f6ec1d57b20a60571c41a71c031649584b8ef747b887b1",
+    "main/wave/TraceViewPanel.h": "989b3c7b2efe84511564c20067a46df6ce9f575536d91c0a1e95387b2f6919d5",
+    "registry/boards/tang-nano-9k.virtual.json": "bd15fb585a38867c7c218af17fc38405d03e867edab8144de17ffae2b99eb304",
+    "registry/electrical/tang-nano-9k.6202.reviewed.v1.json": "714c0ae73fa696ab002553906c62cca6739a4655a5f8a669565530849ed7ea12",
+    "registry/pins/tang-nano-9k.6202.reviewed.v1.json": "86800a4150073ae07b8317786d0026f42ba2b88e51faaed1561065d842301f5c",
+    "registry/provenance/gw1nr-datasheet.pdf": "09cc21999adf5053cafb13206df9835feba26f95d14a95bcee08aeabb7d9de6e",
+    "registry/provenance/gw1nr9-pinout.pdf": "ebe1350849abb5903c2c934a33d19c27635b50c1b09eee27968fc894f5fef836",
+    "registry/provenance/tangnano9k-6202.pdf": "71ccf1b7731589c8bc5b4c1dcf0c8906f52831785c703732d43a70f01ec574ec",
+    "registry/tools/port-export-adapters.v1.json": "e5280c30110eef352abdd25e98f446f49df6f3d848aa1335bd11f80a4abf5f1a",
+    "tests/CMakeLists.txt": "cdfe9565d90bdff28a6b1f6b5a5da6df2594e443174f97682574489f21622888",
+    "tests/virtual/k0/CMakeLists.txt": "a4a730b721881b2b3a8eb960dadd152b877e936b373c1776300da2b247a8c952",
+    "tests/virtual/k0/counter.sv": "2e1ef244c602ce9db86a77215f7024345c4cb908ad00f5ce3aae216d0f8019e7",
+    "tests/virtual/k0/generate_batch.cpp": "b724357c901f50fcd04749d1ba81c66acd0f8f9c9a18f879aba5978d65861d00",
+    "tests/virtual/k0/interactive_main.cpp": "7dae3d2945b179028b0090fdba13e05a2d299a7ed07fda3f8bfaebb77fbcec93",
+    "tests/virtual/k1/baseline_cst_probe.cpp": "ca7c7a3cb441ed07be29fd4c20fc80d0fd4601705d3479d4c136711241a0650a",
+    "tests/virtual/k1/CMakeLists.txt": "ea69b2503b44ac0230dedc1f827b25d091197700445853bec6b91ff9f62d1ac9",
+    "tests/virtual/k1/fixtures/electrical-cases.synthetic.json": "7db728c86e352ed895d9d5a088c2cb73a604e4fca1431662faea5c922151e7d3",
+    "tests/virtual/k1/fixtures/port-index-cases.json": "4aa22b6cbb61eb4ac615eff1c596cdb78f08acb2abf2ee7d7ef8553aa6c3c13d",
+    "tests/virtual/k1/k1_production_tests.cpp": "60684453536d6e633c81587e4ced8ffcd77d3c032266d190992ae8e980e92a5b",
+    "tests/virtual/k1/ports.sv": "2216902f041537d0b3759b64eedeadfc250e8f13ddc115b343ea00da068a2c24",
+    "tests/virtual/k2/CMakeLists.txt": "0693b29b7420c0d3e2b857f1c81141b81cd3614d8f7a582613ac10c94e061861",
+    "tests/virtual/k2/counter.cst": "b82f9774f3b68c151e978e9d8810284d0f2613a461f9b5562aa7aa904f951e7c",
+    "tests/virtual/k2/counter.sv": "7ac4a5f183c0e2bd82c78fe61c87b9fa8993e1d87ad3ac9b45f91f2690139b11",
+    "tests/virtual/k2/fixture_support.hpp": "af071d731143ca0604a48c031351cbf499cebe3e85ad52589eb9f93b9c38942e",
+    "tests/virtual/k2/fixtures/pause-replay-cases.json": "6a0180b28e0d95bba4b35e6c989be024b197f355320a51e2da6373edce40b77e",
+    "tests/virtual/k2/k2_session_tests.cpp": "ce835b50e35cb8580fa0194f6d348c6f92c66b1028e3c29a75cc7d4b783854eb",
+    "tests/virtual/k2/nonconvergent.sv": "134592b9449cac75c23ebff2a36563b2ec01c4fba4c8960c8a793cf210116fb3",
+    "tests/virtual/k2/shifted.sv": "b97b92bccad617d187a712c53210bdf550f1dff9f72674db2967495191b716ca",
+    "tests/virtual/k3/CMakeLists.txt": "81cc6be8c2e1cf2285451525042ebda34e402fb6608f101be910fd09db2ff2b5",
+    "tests/virtual/k3/fixtures/live-trace-cases.json": "a7f13f3903666f0e8c80b52d54e14bfce871eace2c15336791aa8fd5509f50ce",
+    "tests/virtual/k3/k3_live_trace_tests.cpp": "6e353f31b77332e61af45b4b004504098e0c77218b76affcea980192dd9edee7",
+    "tests/virtual/k4_k5/CMakeLists.txt": "7f4d8f7c6917b2a68bb91d8e02aaa551e8fe7710981d78c330d6b3cae84834ee",
+    "tests/virtual/k4_k5/k45_tests.cpp": "8bb064324276739a087f88ffc7f8f4acbd81703e2b14d4b5834577dbd2f28031",
+    "tests/virtual/k4_k5/legacy_jobs.cpp": "3064f7ae034edbe0aa318fa30955dc2368a76d2215d44a56daba4d6d5ca58cf5",
+    "tests/virtual/k4_k5/TestCounter.h": "e492ebc3ddf351fd8818a78038eb983b4d6c6504adbe869d75d1614b299d8d44",
+    "tests/virtual/u0/CMakeLists.txt": "aca05386383b980d250f425058b4078c118eec91c24efe8760e78c8df8265315",
+    "tests/virtual/u0/gui_smoke.cpp": "29d7896c43d724a9b67e2fd8b3e6f9b51244fe951e6f682b54948e235abbb2eb",
+    "tools/virtual/analyze_k1.py": "a936cdcc62f0d99abbedf7305657f11451a3a16ab496c9dfe462d413f9cf92ac",
+    "tools/virtual/archive_stage_evidence.py": "8cbf219ba0c9c758f128f46e6a338212bbe42648a6bc7be29eee201cabd98399",
+    "tools/virtual/bootstrap_dependencies.py": "30404f0e4e9573139ee255e9467ff66623c3e336d5340bc1df0133c128a47d36",
+    "tools/virtual/build_reviewed_profiles.py": "2be60d16d30d8dbcd92116cd81939aca448916b04d5db6783218de06769ba020",
+    "tools/virtual/export_ports.py": "b21aa1fe1e55e53b8216bee80f69d4fbef024cfb81d7e6d56ecd7f83d0721d05",
+    "tools/virtual/generated_runner_test_support.py": "572ee8f795380e0c860ddd74552bcb4c6848456a538fd6b448dccd6518d1d7bb",
+    "tools/virtual/verify_k0.py": "69fc65ca457c89f052cfbb1cc5c1c6bef67d9f8252eb27a249affed1703a7802",
+    "tools/virtual/verify_k1.py": "ad3d5ef617e8f7991af79cfbc013f45ed8726dc6db4642c504174084d95c61c9",
+    "tools/virtual/verify_k2.py": "f37ff3b5572ee49339f6a2771e928b399747e115ccdbfcf36f9b30c1e1eaf8b9",
+    "tools/virtual/verify_k23.py": "17e3294d995146d02ebfb8894392245362f37d29fdca3ee7c1dd71cdd6f7d216",
+    "tools/virtual/verify_k3_tsan.py": "51b22af79d886d0e6669faf56fbe46b907265da5273c70b227b176763a324d99",
+    "tools/virtual/verify_k45.py": "abd151bb955cc7919bce15f3042649a57ca8302371cec31f86b90e29f5c52c14",
+    "tools/virtual/verify_k45_real.py": "367568eec0267b6f75d74c7cc128fad838bf77c39dec9fd510a263ac3fe1b4e9",
+    "tools/virtual/verify_legacy_jobs.py": "9468fabe106bf5d72f37e6665d7e960e05cf7bde72214ab9e8943f5486606398"
+  },
+  "source_snapshot_sha256": "1310b463110f703ed72b922f3959afe1707e40edb72030cb231878dbf6693410",
+  "test_total": 33,
+  "test_passed": 33,
+  "tests": [
+    {
+      "name": "job_tests",
+      "passed": true,
+      "seconds": 1.81605,
+      "output": "[PASS] legacy state serialization matches the migration name\n[PASS] legacy->contract state maps to itself\n[PASS] contract->legacy state maps back to the same serialized name\n[PASS] legacy state serialization matches the migration name\n[PASS] legacy->contract state maps to itself\n[PASS] contract->legacy state maps back to the same serialized name\n[PASS] legacy state serialization matches the migration name\n[PASS] legacy->contract state maps to itself\n[PASS] contract->legacy state maps back to the same serialized name\n[PASS] legacy state serialization matches the migration name\n[PASS] legacy->contract state maps to itself\n[PASS] contract->legacy state maps back to the same serialized name\n[PASS] legacy state serialization matches the migration name\n[PASS] legacy->contract state maps to itself\n[PASS] contract->legacy state maps back to the same serialized name\n[PASS] legacy state serialization matches the migration name\n[PASS] legacy->contract state maps to itself\n[PASS] contract->legacy state maps back to the s...\n[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]\n"
+    },
+    {
+      "name": "eda_api_contract_smoke",
+      "passed": true,
+      "seconds": 1.38312,
+      "output": "  ok: default Error is false\n  ok: Error::Ok code None\n  ok: non-None Error is true\n  ok: ToString(TimedOut)\n  ok: MethodCall carries Json params\n  ok: PluginInfo fields\n  ok: ISynthesizer::synthesizerId\n  ok: EDA_TYPED_METHOD dispatch + fromJson\n  ok: JobRequest fields\n  ok: JobState enum\n  ok: IJobProvider stub compiles\n  ok: ABI version macro\n  ok: BuildInfo() non-empty\nBuildInfo: compiler=gcc-14.2.0;cxx=202002;abi=1\n  ok: ServiceRegistry::Add returns owned ref\n  ok: ServiceRegistry::Size\n  ok: ServiceRegistry::Find hit\n  ok: ServiceRegistry::Get\n  ok: ServiceRegistry::Find miss\n  ok: ServiceRegistry::Remove\n  ok: ServiceRegistry::Size after remove\n  ok: EventBus subscriber count\n  ok: EventBus subscribe/publish\n  ok: EventBus unsubscribe stops delivery\n  ok: EventBus empty after unsubscribe\n  ok: SchemaRegistry::RegisterSchema\n  ok: SchemaRegistry::HasSchema\n  ok: SchemaRegistry::Validate ok\n  ok: SchemaRegistry::Validate missing required fails\n  ok: SchemaRegistry::Validate unknown schema fails\n  ok: Pro...\n[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]\n"
+    },
+    {
+      "name": "eda_job_service_smoke",
+      "passed": true,
+      "seconds": 1.54099,
+      "output": "  ok: job succeeded and recorded artifact\n  ok: report state Succeeded\n  ok: report artifact id\n  ok: report metric recorded\n  ok: job log is persisted for history UI\n  ok: provider exception becomes Failed\n  ok: missing provider becomes Failed\n  ok: process job reaches Running\n  ok: cancel accepted\n  ok: process job cancelled\n  ok: process job timed out\n  ok: core schema eda.job.v1 registered\n  ok: valid job record passes schema\n  ok: invalid job record rejected by schema\n  ok: restart: job completes before shutdown\n  ok: restart: completed job recovered from disk\n  ok: restart: report recovered from disk\n  ok: restart: job appears in project listing\n  ok: restart: id sequence does not collide\n  ok: restart: new job still runs after recovery\n  ok: restart: orphaned Running job becomes Failed, not fake-running\n  ok: controlled root: project directory preferred without warning\n  ok: controlled root: project-scoped path layout\n  ok: controlled root: directory created\n  ok: controlled root: distinct projects are...\n[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]\n"
+    },
+    {
+      "name": "eda_toolchain_project_smoke",
+      "passed": true,
+      "seconds": 0.0368907,
+      "output": "  ok: toolchain resolves bundled tool\n  ok: configured path takes precedence\n  ok: toolchain resolves environment variable\n  ok: toolchain resolves PATH entry\n  ok: missing tool is not found\n  ok: missing tool carries explicit reason (R19)\n  ok: toolchain resolves bundled subdirectory\n  ok: project loads\n  ok: project top module\n  ok: project source files\n  ok: add source file\n  ok: add source file is idempotent\n  ok: source count after add\n  ok: project save is atomic\n  ok: no temporary file left behind\n  ok: project reloads\n  ok: reloaded source files\n  ok: unknown fpga section preserved\n  ok: remove source file\n  ok: source count after remove\n  ok: RegisterBuiltins picks up EDA_REGISTER_PLUGIN entries\n  ok: registered builtin is retrievable\n  ok: registered builtin exposes capability\nALL PASS\n"
+    },
+    {
+      "name": "eda_plugin_host_smoke",
+      "passed": true,
+      "seconds": 0.0101475,
+      "output": "  ok: register static plugin aaa\n  ok: register static plugin bbb\n  ok: duplicate static id rejected\n  ok: ProvidersOf filters by capability\n  ok: ProvidersOf matches exact capability id\n  ok: ProvidersOf unknown capability is empty\n  ok: Select returns matching instance\n  ok: Select prefers a capable plugin over an incapable preferred id\n  ok: Get unknown id returns null\n  ok: provider list for capability\n  ok: Select falls back to first capable provider\n  ok: Discover finds the test plugin libraries\n  ok: exactly one dynamic plugin loads successfully\n  ok: test.ok is Ready\n  ok: test.ok capabilities parsed\n  ok: bad build fingerprint is rejected\n  ok: bad build error mentions fingerprint\n  ok: diagnostics report missing search directory (R1)\n  ok: diagnostics report ABI handshake rejection (R1/R13)\nALL PASS\n"
+    },
+    {
+      "name": "eda_synth_yosys_smoke",
+      "passed": true,
+      "seconds": 0.102067,
+      "output": "  ok: EDA_REGISTER_PLUGIN registers eda-synth-yosys\n  ok: eda-synth-yosys exposes synth/yosys\n  ok: synth job reaches Succeeded with artifact\n  ok: exactly one artifact registered\n  ok: artifact id is netlist\n  ok: artifact schema is yosys-json\n  ok: artifact carries sha256\n  ok: job report records exit_code metric\n  ok: job report records cell count metric\n  ok: invalid netlist makes the job Failed\nALL PASS\n"
+    },
+    {
+      "name": "eda_pnr_nextpnr_smoke",
+      "passed": true,
+      "seconds": 0.0629389,
+      "output": "  ok: EDA_REGISTER_PLUGIN registers the plugin\n  ok: eda-pnr-nextpnr exposes pnr/nextpnr\n  ok: pnr job reaches Succeeded with artifact\n  ok: artifact id is pnr-json\n  ok: job report records exit_code metric\n  ok: log parser detects all PnR stages\n  ok: log parser extracts timing\n  ok: log parser extracts resource usage\n  ok: log parser extracts tool version\n  ok: report summary generated\n  ok: report json generated\nALL PASS\n"
+    },
+    {
+      "name": "eda_pack_flash_smoke",
+      "passed": true,
+      "seconds": 0.183918,
+      "output": "  ok: EDA_REGISTER_PLUGIN registers pack/flash plugins\n  ok: pack/gowin capability exposed\n  ok: program/openfpgaloader capability exposed\n  ok: pack job reaches Succeeded with bitstream artifact\n  ok: pack artifact id is bitstream\n  ok: flash without requireConfirm is rejected\n  ok: flash with requireConfirm succeeds\n  ok: flash rejects Gowin CRC error even when process exits 0\nALL PASS\n"
+    },
+    {
+      "name": "eda_sim_verilator_smoke",
+      "passed": true,
+      "seconds": 0.278274,
+      "output": "  ok: EDA_REGISTER_PLUGIN registers eda-sim-verilator\n  ok: sim/verilator capability exposed\n  ok: sim.build job reaches Succeeded with executable artifact\n  ok: artifact id is sim-executable\n  ok: job report records exit_code metric\n  ok: Verilator build command is invoked after preflight\n  ok: Verilator child explicitly receives the verified POSIX SHELL\n  ok: Verilator child PATH starts with the job-private python3 shim\n  ok: sim.run job reaches Succeeded with waveform artifact\n  ok: artifact id is waveform\nALL PASS\n"
+    },
+    {
+      "name": "eda_sim_frontend_smoke",
+      "passed": true,
+      "seconds": 0.0232757,
+      "output": "  ok: parses testbench code\n  ok: testbench module name\n  ok: DUT instance\n  ok: three port mappings\n  ok: initial blocks found\n  ok: clock definition detected (halfPeriod=5)\n  ok: timeline clock mapped\n  ok: timeline has events\n  ok: timeline max sim time\n  ok: generates sim_main.cpp\n  ok: includes Vtop header\n  ok: opens VCD trace\n  ok: drives clock signal\n  ok: without an explicit timescale the trace uses the Verilated model's resolution\n  ok: parses explicit testbench timescale\n  ok: generates trace for explicit timescale\n  ok: VCD tick uses the testbench delay unit\n  ok: explicit timescale preserves numeric stimulus ticks\nALL PASS\n"
+    },
+    {
+      "name": "eda_target_profile_smoke",
+      "passed": true,
+      "seconds": 0.0114326,
+      "output": "  ok: loads tang-nano-9k target profile file\n  ok: profile id\n  ok: profile device\n  ok: profile family\n  ok: profile yosys family\n  ok: profile programmer board\n  ok: profile debug uart pins\n  ok: profile default baud\n  ok: loads profile by id from directory\n  ok: profile-by-id id\n  ok: parses minimal inline profile\n  ok: inline profile fields\n  ok: missing optional fields\n  ok: invalid json rejected\n  ok: profile without id rejected\n  ok: missing profile file rejected\n  ok: loads pin database JSON\n  ok: pin database has 88 pins\n  ok: pin database has 11 source-reviewed M0 resources\n  ok: pin database has 21 IO types\n  ok: pin 10 available\n  ok: LED pad 10 is Bank 3 at reviewed LVCMOS18\n  ok: LED3 maps to pad 13\n  ok: BTN1 maps to pad 3\n  ok: UART TX maps to pad 17\n  ok: pin 6 reserved as JTAG TCK (UG803 QN88P)\nALL PASS\n"
+    },
+    {
+      "name": "eda_gowin_cst_smoke",
+      "passed": true,
+      "seconds": 0.0118792,
+      "output": "  ok: generate emits IO_LOC\n  ok: generate emits IO_PORT attributes\n  ok: generate emits pull mode\n  ok: round-trip parses\n  ok: round-trip binding count\n  ok: round-trip led fields\n  ok: round-trip clk fields\n  ok: parse hand-written CST\n  ok: IO_LOC and IO_PORT merged by port name\n  ok: unquoted IO_LOC is an error\n  ok: error recorded\n  ok: unknown statement is only a warning\n  ok: warning recorded\nALL PASS\n"
+    },
+    {
+      "name": "eda_constraint_sheet_smoke",
+      "passed": true,
+      "seconds": 0.0396993,
+      "output": "  ok: load pin database\n  ok: parses three ports from Yosys JSON\n  ok: led width is 3\n  ok: clk direction is input\n  ok: detects incomplete vector binding\n  ok: detects reserved pin\n  ok: unknown IO_TYPE is a warning\n  ok: detects duplicate pin assignment\n  ok: generates CST\n  ok: generated IO_LOC line\n  ok: generated DRIVE attribute\n  ok: generated bindings hash\n  ok: import round-trip\n  ok: validates a good CST file\n  ok: CST statement counts\n  ok: rejects invalid CST line\n  ok: detects unbound port coverage\nALL PASS\n"
+    },
+    {
+      "name": "eda_declarative_tool_smoke",
+      "passed": true,
+      "seconds": 0.108531,
+      "output": "  ok: parse declarative tool spec\n  ok: spec fields\n  ok: spec missing job_type/executable rejected\n  ok: declarative job reaches Succeeded with declared artifact\n  ok: declared artifact id registered\n  ok: declarative job fails when required param missing\nALL PASS\n"
+    },
+    {
+      "name": "eda_wave_vcd_smoke",
+      "passed": true,
+      "seconds": 0.0116724,
+      "output": "  ok: opens VCD\n  ok: timescale parsed\n  ok: signal count\n  ok: clk signal width\n  ok: state signal metadata\n  ok: full name\n  ok: time range\n  ok: query transitions\n  ok: clk transition count\n  ok: value-at between transitions\n  ok: value-at exact\n  ok: vector value-at\n  ok: unknown signal rejected\n  ok: missing VCD rejected\nALL PASS\n"
+    },
+    {
+      "name": "eda_wave_trace_adapter_smoke",
+      "passed": true,
+      "seconds": 0.0217169,
+      "output": "  ok: adapter opens VCD via IWaveformBackend\n  ok: adapter exposes signals\n  ok: adapter timescale\n  ok: adapter time range\n  ok: adapter signal metadata\n  ok: adapter query transitions\n  ok: adapter value-at\nALL PASS\n"
+    },
+    {
+      "name": "eda_declarative_switch_smoke",
+      "passed": true,
+      "seconds": 0.0830396,
+      "output": "  ok: parse declarative icarus spec\n  ok: register declarative icarus into PluginHost\n  ok: register verilator plugin into PluginHost\n  ok: sim/verilator capability available\n  ok: sim/icarus capability available\n  ok: capability selector returns the declarative icarus backend\n  ok: capability selector returns verilator backend\n  ok: two backends are distinct (switch without recompile)\n  ok: declarative icarus job reaches Succeeded with Job record + artifact\n  ok: declared artifact recorded\nALL PASS\n"
+    },
+    {
+      "name": "eda_component_library_smoke",
+      "passed": true,
+      "seconds": 0.0201561,
+      "output": "  ok: loads canvas_elements.json\n  ok: library has multiple components\n  ok: finds 'and' gate\n  ok: and gate has 2 input pins\n  ok: and gate has 1 output pin\n  ok: and gate bounds\n  ok: and gate has an arc shape\n  ok: finds 'nand' gate\n  ok: nand gate has a circle shape\n  ok: missing component returns null\nALL PASS\n"
+    },
+    {
+      "name": "eda_command_bus_smoke",
+      "passed": true,
+      "seconds": 0.0137449,
+      "output": "  ok: bus starts empty\n  ok: execute add5\n  ok: counter after execute\n  ok: undo depth 1\n  ok: execute add3\n  ok: counter after second execute\n  ok: undo\n  ok: counter after undo\n  ok: redo available\n  ok: redo\n  ok: counter after redo\n  ok: redo consumed\n  ok: undo again\n  ok: redo available before new execute\n  ok: execute add1\n  ok: new execute clears redo stack\n  ok: counter after undo+new execute\n  ok: failing command returns false\n  ok: failing command not pushed\n  ok: null command rejected\n  ok: clear empties stacks\n  ok: undo/redo on empty returns false\nALL PASS\n"
+    },
+    {
+      "name": "sig_tree_sync_smoke",
+      "passed": true,
+      "seconds": 0.146076,
+      "output": "  ok: ProjectNode created\n  ok: root is Project\n  ok: outMap populated\n  ok: FileNode created\n  ok: TopNode created\n  ok: top module name is 'Module top'\n  ok: exactly one TopNode\n  ok: FileNode has uid\n  ok: TopNode has uid\n  ok: outMap keyed by FileNode uid\n  ok: outMap keyed by TopNode uid\n  ok: uids are unique\n  ok: NodeByUid resolves FileNode\n  ok: NodeByUid resolves TopNode\n  ok: ToVerilog contains 'module top'\n  ok: ToVerilog contains 'endmodule'\n  ok: FileNode uid stable on re-parse\n  ok: TopNode pointer stable on re-parse\n  ok: ClearTree resets root\n  ok: edit: top found\n  ok: edit: AddSignal returns node\n  ok: edit: signal list grew after add\n  ok: edit: added signal name\n  ok: edit: signal list shrinks after remove\n  ok: edit: removed signal no longer in list\nALL PASS\n"
+    },
+    {
+      "name": "k1_port_index_roundtrip",
+      "passed": true,
+      "seconds": 0.0723235,
+      "output": "PASS \"scalar\"\nPASS \"vector-zero\"\nPASS \"descending\"\nPASS \"offset-descending\"\nPASS \"ascending\"\nPASS \"negative-index\"\nPASS 287 checks\n"
+    },
+    {
+      "name": "k1_electrical_acceptance",
+      "passed": true,
+      "seconds": 0.0187584,
+      "output": "PASS synthetic \"ok18\"\nPASS synthetic \"ok33\"\nPASS synthetic \"wrong-supply\"\nPASS synthetic \"missing-bank\"\nPASS synthetic \"missing-supply\"\nPASS synthetic \"missing-standard\"\nPASS synthetic \"unsupported-direction\"\nPASS synthetic \"no-global-default\"\nPASS 33 checks\n"
+    },
+    {
+      "name": "k1_real_tool_export",
+      "passed": true,
+      "seconds": 0.34172,
+      "output": "6 cross-checked ports\nE:\\sigflow\\SigFlow_VirtroFPGA\\build-m0\\tests\\virtual\\k1\\actual\\ports.json.ports.v2.json\n"
+    },
+    {
+      "name": "k1_real_tool_gui_cst",
+      "passed": true,
+      "seconds": 0.128906,
+      "output": "PASS 82 checks\n"
+    },
+    {
+      "name": "k2_session_pause_guard_replay",
+      "passed": true,
+      "seconds": 0.170354,
+      "output": "PASS \"press-release-before-step\"\nPASS \"press-step-release-step\"\nPASS \"stop-cancels-pending\"\nPASS pulses/conflicts, bounded clock/delta, durable markers, 5 tail truncations, trace recovery and dual digests\nPASS 82 K2 core checks\n"
+    },
+    {
+      "name": "k2_real_verilated_session",
+      "passed": true,
+      "seconds": 16.1538,
+      "output": "PASS: 27 generated real-Verilated runner checks, 2 generic adapters plus real nonconvergence and crash recovery.\n"
+    },
+    {
+      "name": "k3_live_trace_concurrency_and_cases",
+      "passed": true,
+      "seconds": 0.0205436,
+      "output": "PASS fixture revisions 1/2/3, immutable views, exact positions, cursor expiry, quotas, cache and atomic rejection\nPASS concurrency: 1 writer, 4 readers, 1000 atomic batches, 3000 transitions; reader passes=166\nPASS existing offline VCD query/value cache semantics\nPASS 159618 LiveTrace checks\n"
+    },
+    {
+      "name": "k3_live_trace_thread_sanitizer",
+      "passed": true,
+      "seconds": 22.2147,
+      "output": "PASS fixture revisions 1/2/3, immutable views, exact positions, cursor expiry, quotas, cache and atomic rejection\nPASS concurrency: 1 writer, 4 readers, 1000 atomic batches, 3000 transitions; reader passes=298\nPASS existing offline VCD query/value cache semantics\nPASS 124704 LiveTrace checks\nPASS ThreadSanitizer: no data-race report in instrumented LiveTrace/cache/VCD stress test\n"
+    },
+    {
+      "name": "k4_board_wiring_and_cst_variants",
+      "passed": true,
+      "seconds": 0.0232224,
+      "output": "PASS A4 correct/swapped/unbound CST, required clock role, declarative board and passive LED validity\nPASS 16 K4/K5 core checks\n"
+    },
+    {
+      "name": "k5_topology_transactions",
+      "passed": true,
+      "seconds": 0.0924609,
+      "output": "PASS A7/A9/A10 staged topology, two-sided open traces, pullup counterexamples, transient deadlines and 3x normal/fault replay\nPASS 122 K4/K5 core checks\n"
+    },
+    {
+      "name": "k5_open_fault_guard_and_replay",
+      "passed": true,
+      "seconds": 6.10066,
+      "output": "PASS 28 real Verilator K4/K5 checks; normal and fault runs each replayed from zero 3 times\n"
+    },
+    {
+      "name": "k5_legacy_real_build_run_vcd",
+      "passed": true,
+      "seconds": 11.0861,
+      "output": "PASS real CoreJobService sim.build/sim.run + real Verilator full-adder VCD Open/Query/ValueAt\n"
+    },
+    {
+      "name": "u0_virtual_board_gui_smoke",
+      "passed": true,
+      "seconds": 5.93195,
+      "output": "PASS 17 U0 checks: real child runner, UI-thread callbacks, pending/applied, controls, fault mirror, token/DIP rendering\n"
+    }
+  ],
+  "commands": [
+    {
+      "argv": [
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\cmake-python\\cmake\\data\\bin\\cmake.exe",
+        "--build",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\build-m0",
+        "--parallel",
+        "4"
+      ],
+      "exit_code": 0,
+      "seconds": 29.92
+    },
+    {
+      "argv": [
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\cmake-python\\cmake\\data\\bin\\ctest.exe",
+        "--test-dir",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\build-m0",
+        "--output-on-failure",
+        "-j",
+        "3",
+        "--output-junit",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k45\\ctest-final.xml"
+      ],
+      "exit_code": 0,
+      "seconds": 63.827
+    }
+  ],
+  "acceptance": {
+    "A1": {
+      "core_runner_passed": true,
+      "tests": [
+        "k5_open_fault_guard_and_replay",
+        "u0_virtual_board_gui_smoke"
+      ]
+    },
+    "A2": {
+      "core_runner_passed": true,
+      "tests": [
+        "k1_port_index_roundtrip",
+        "k1_real_tool_gui_cst"
+      ]
+    },
+    "A3": {
+      "core_runner_passed": true,
+      "tests": [
+        "k1_electrical_acceptance"
+      ]
+    },
+    "A4": {
+      "core_runner_passed": true,
+      "tests": [
+        "k4_board_wiring_and_cst_variants",
+        "k5_open_fault_guard_and_replay"
+      ]
+    },
+    "A5": {
+      "core_runner_passed": true,
+      "tests": [
+        "k2_real_verilated_session",
+        "u0_virtual_board_gui_smoke"
+      ]
+    },
+    "A6": {
+      "core_runner_passed": true,
+      "tests": [
+        "k2_session_pause_guard_replay",
+        "k2_real_verilated_session"
+      ]
+    },
+    "A7": {
+      "core_runner_passed": true,
+      "tests": [
+        "k5_topology_transactions",
+        "k5_open_fault_guard_and_replay"
+      ]
+    },
+    "A8": {
+      "core_runner_passed": true,
+      "tests": [
+        "k3_live_trace_concurrency_and_cases",
+        "k3_live_trace_thread_sanitizer"
+      ],
+      "gui_same_tick_marker": "U1 pending; QueryExtended contract already available"
+    },
+    "A9": {
+      "core_runner_passed": true,
+      "tests": [
+        "k5_topology_transactions",
+        "k5_open_fault_guard_and_replay"
+      ]
+    },
+    "A10": {
+      "core_runner_passed": true,
+      "tests": [
+        "k5_open_fault_guard_and_replay",
+        "k5_legacy_real_build_run_vcd",
+        "eda_wave_vcd_smoke",
+        "k3_live_trace_concurrency_and_cases"
+      ]
+    }
+  },
+  "real_runner": {
+    "status": "passed",
+    "checks": [
+      "A4 correct CST drives physical LED0",
+      "A4 physical phenomenon migrates to LED1 with CST swap",
+      "A4 unbound output never bypasses CST",
+      "A4 missing-clock refuses model startup",
+      "A4 wrong-clock refuses model startup",
+      "normal from-zero real RTL board/trace replay 1",
+      "normal from-zero real RTL board/trace replay 2",
+      "normal from-zero real RTL board/trace replay 3",
+      "normal paged trace transport matches every committed endpoint event",
+      "A9 paused fault intent does not modify circuit/trace",
+      "A9 output branch remains ObserveOnly: Pad toggles, LED floats, DUT advances",
+      "A9 paused revoke reconnects exact endpoints",
+      "A9 running fault applies at safe boundary without UnknownInput pause",
+      "A9 running revoke restores at safe boundary",
+      "fault from-zero real RTL board/trace replay 1",
+      "fault from-zero real RTL board/trace replay 2",
+      "fault from-zero real RTL board/trace replay 3",
+      "fault paged trace transport matches every committed endpoint event",
+      "fault journal OS recovery and trace reconstruction match",
+      "topology phase has committed boundaries without DUT eval",
+      "A7 initial unknown guarded with zero DUT writes/evals",
+      "A7 initial CON guarded without any DUT import",
+      "A7 asynchronous reset CON blocks pre-clock delta with zero writes/evals/trace",
+      "A7 unpulled input open blocks before every import and keeps last fence",
+      "unknown input repaired through staged topology then guard retry",
+      "A7 Pad-side weak pullup survives contact branch open",
+      "clock edge open guards without bool coercion",
+      "transient half-open interval and phase-zero boundary exact on real RTL"
+    ],
+    "commands": [
+      {
+        "argv": [
+          "C:\\Users\\Admin\\AppData\\Local\\Programs\\Python\\Python314\\python.exe",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\tools\\virtual\\export_ports.py",
+          "--top",
+          "k2_counter",
+          "--output",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k45\\real\\k2_counter\\ports.json",
+          "--builder",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\build-m0\\sigflow_port_manifest.exe",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\tests\\virtual\\k2\\counter.sv"
+        ],
+        "exit_code": 0
+      },
+      {
+        "argv": [
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\build-m0\\sigflow_adapter_codegen.exe",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k45\\real\\k2_counter\\ports.json.ports.v2.json",
+          "Vk2_counter",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k45\\real\\k2_counter\\generated_adapter.cpp"
+        ],
+        "exit_code": 0
+      },
+      {
+        "argv": [
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\tools\\verilator\\verilator-install\\bin\\verilator_bin_dbg.exe",
+          "--cc",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\tests\\virtual\\k2\\counter.sv",
+          "--exe",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k45\\real\\k2_counter\\generated_adapter.cpp",
+          "--top-module",
+          "k2_counter",
+          "--Mdir",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k45\\real\\k2_counter\\obj",
+          "--converge-limit",
+          "256",
+          "-Wno-fatal",
+          "-CFLAGS",
+          "-std=c++20 -DVL_USER_FATAL -IE:/sigflow/SigFlow_VirtroFPGA/include -IE:/sigflow/SigFlow_VirtroFPGA/3rd -IE:/sigflow/SigFlow_VirtroFPGA/core/src -IE:/sigflow/SigFlow_VirtroFPGA/InnerPlugin/eda-cst-gowin-cst/include -IE:/sigflow/SigFlow_VirtroFPGA/InnerPlugin/eda-target-tangnano9k/include",
+          "-LDFLAGS",
+          "E:/sigflow/SigFlow_VirtroFPGA/build-m0/core/libeda_virtual_runner.a E:/sigflow/SigFlow_VirtroFPGA/build-m0/InnerPlugin/eda-cst-gowin-cst/libeda-cst-gowin-cst.a E:/sigflow/SigFlow_VirtroFPGA/build-m0/core/libeda_virtual_board.a E:/sigflow/SigFlow_VirtroFPGA/build-m0/core/libeda_platform.a",
+          "-o",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k45\\real\\k2_counter\\runner.exe"
+        ],
+        "exit_code": 0
+      },
+      {
+        "argv": [
+          "E:\\sigflow_fpga\\toolchain\\mingw64\\bin\\mingw32-make.exe",
+          "-C",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k45\\real\\k2_counter\\obj",
+          "-f",
+          "Vk2_counter.mk",
+          "-j4",
+          "CXX=E:/sigflow_fpga/toolchain/mingw64/bin/g++.exe",
+          "LINK=E:/sigflow_fpga/toolchain/mingw64/bin/g++.exe",
+          "AR=E:/sigflow_fpga/toolchain/mingw64/bin/ar.exe",
+          "SHELL=E:/sigflow_fpga/toolchain/posix/sh.exe",
+          "PYTHON3=C:/Users/Admin/AppData/Local/Programs/Python/Python314/python.exe"
+        ],
+        "exit_code": 0
+      },
+      {
+        "argv": [
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k45\\real\\k2_counter\\runner.exe",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k45\\real\\missing-clock.json"
+        ],
+        "exit_code": 1
+      },
+      {
+        "argv": [
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k45\\real\\k2_counter\\runner.exe",
+          "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\k45\\real\\wrong-clock.json"
+        ],
+        "exit_code": 1
+      }
+    ],
+    "check_count": 28,
+    "A4": true,
+    "A7": true,
+    "A9": true,
+    "A10_replay": true,
+    "normal_replays": [
+      {
+        "circuit": "9c0d06d57080ee5230b1c43a689234bb6123a551812f8edbf7e458cfea4ec60e",
+        "control": "340af4f8f7f48f81ed0f7905b6ca717df6c2222276cb8e688f0e02b27cc978f9",
+        "commits": 5
+      },
+      {
+        "circuit": "9c0d06d57080ee5230b1c43a689234bb6123a551812f8edbf7e458cfea4ec60e",
+        "control": "340af4f8f7f48f81ed0f7905b6ca717df6c2222276cb8e688f0e02b27cc978f9",
+        "commits": 5
+      },
+      {
+        "circuit": "9c0d06d57080ee5230b1c43a689234bb6123a551812f8edbf7e458cfea4ec60e",
+        "control": "340af4f8f7f48f81ed0f7905b6ca717df6c2222276cb8e688f0e02b27cc978f9",
+        "commits": 5
+      }
+    ],
+    "fault_replays": [
+      {
+        "circuit": "f6ad3d1fb8866740b082cc2a1094624ced97cecc6cb0d198ddf4ae8cf736bab9",
+        "control": "6622535ce115552f66542efb3b8028ca4e1d6629a34ebd3791b8f121153bbb93",
+        "commits": 21
+      },
+      {
+        "circuit": "f6ad3d1fb8866740b082cc2a1094624ced97cecc6cb0d198ddf4ae8cf736bab9",
+        "control": "6622535ce115552f66542efb3b8028ca4e1d6629a34ebd3791b8f121153bbb93",
+        "commits": 21
+      },
+      {
+        "circuit": "f6ad3d1fb8866740b082cc2a1094624ced97cecc6cb0d198ddf4ae8cf736bab9",
+        "control": "6622535ce115552f66542efb3b8028ca4e1d6629a34ebd3791b8f121153bbb93",
+        "commits": 21
+      }
+    ],
+    "runner_sha256": "de8ca4369312d2926c8b2079886b17501c81348221d980e60e3bf47e81c519d0",
+    "source_sha256": "7ac4a5f183c0e2bd82c78fe61c87b9fa8993e1d87ad3ac9b45f91f2690139b11",
+    "generated_adapter_sha256": "8b12adea123f3be3e086e26203d62690fa303f94ae05954c33fe3d88c84d54dc",
+    "board_sha256": "bd15fb585a38867c7c218af17fc38405d03e867edab8144de17ffae2b99eb304"
+  },
+  "gui": {
+    "checks": 17,
+    "raster_scales": [
+      1.0,
+      1.5
+    ],
+    "real_monitor_dpi_test": false,
+    "renderer": "wxGraphicsContext / UiTheme tokens / FromDIP",
+    "status": "passed"
+  },
+  "legacy_real_jobs": {
+    "full_adder_final_carry": 1,
+    "full_adder_final_sum": 1,
+    "runner_sha256": "8656c69d910d9a6b7f30ae703fb055bb2144240bd3136d89e3bdc8e84545cc9a",
+    "sim_build": "real PlatformProcessHost / Succeeded",
+    "sim_run": "real PlatformProcessHost / Succeeded",
+    "status": "passed",
+    "vcd_backend": "Open / Query / ValueAt",
+    "vcd_sha256": "8a26b6e505d7b5c8c40abeca7b1549514e64bd9d24efab48b766aaa5a31e683a"
+  },
+  "thread_sanitizer": {
+    "status": "passed",
+    "exit_code": 0,
+    "seconds": 22.127,
+    "argv": [
+      "wsl",
+      "-d",
+      "Ubuntu-24.04",
+      "--exec",
+      "bash",
+      "-lc",
+      "cd /mnt/e/sigflow/SigFlow_VirtroFPGA && g++ -std=c++20 -O1 -g -fsanitize=thread -pthread -Iinclude -I3rd -Icore/src -Imain/trace -IInnerPlugin/eda-wave-vcd/include tests/virtual/k3/k3_live_trace_tests.cpp core/src/eda-virtual-board/LiveTraceStore.cpp core/src/eda-platform/Platform.cpp core/src/eda-platform/Sha256.cpp main/trace/LiveTraceSource.cpp main/trace/TraceCache.cpp main/trace/TraceMemoryBudget.cpp main/trace/WaveformBackendTraceSource.cpp InnerPlugin/eda-wave-vcd/src/VcdWaveformBackend.cpp -o .work/k23/linux/k3_tsan && TSAN_OPTIONS=halt_on_error=1 setarch x86_64 -R .work/k23/linux/k3_tsan /mnt/e/sigflow/SigFlow_VirtroFPGA /mnt/e/sigflow/SigFlow_VirtroFPGA/.work/k23/linux"
+    ],
+    "output": "PASS fixture revisions 1/2/3, immutable views, exact positions, cursor expiry, quotas, cache and atomic rejection\nPASS concurrency: 1 writer, 4 readers, 1000 atomic batches, 3000 transitions; reader passes=298\nPASS existing offline VCD query/value cache semantics\nPASS 124704 LiveTrace checks\n",
+    "instrumented_sources": [
+      "tests/virtual/k3/k3_live_trace_tests.cpp",
+      "core/src/eda-virtual-board/LiveTraceStore.cpp",
+      "core/src/eda-platform/Platform.cpp",
+      "core/src/eda-platform/Sha256.cpp",
+      "main/trace/LiveTraceSource.cpp",
+      "main/trace/TraceCache.cpp",
+      "main/trace/TraceMemoryBudget.cpp",
+      "main/trace/WaveformBackendTraceSource.cpp",
+      "InnerPlugin/eda-wave-vcd/src/VcdWaveformBackend.cpp"
+    ],
+    "address_space": "setarch -R for instrumented child only; no retries or suppressions"
+  },
+  "desktop_binary": {
+    "path": "E:\\sigflow\\SigFlow_VirtroFPGA\\build-m0\\sigflow.exe",
+    "sha256": "3d333e6b6fc27d6dc378c0e2e77477a80eb7b04d7a93fa27801207a30083197c"
+  },
+  "journal_protocol": "sigflow.session-journal.m0.v3",
+  "scheduler": "sigflow.scheduler.m0.v3",
+  "digest": "sigflow.sha256-chain.v2",
+  "legacy_environment": {
+    "CXX": "MinGW GCC 14.2",
+    "LINK": "MinGW GCC 14.2",
+    "AR": "MinGW ar",
+    "PYTHON3": "current Python executable",
+    "MAKEFLAGS": "-e",
+    "scope": "test child only; locked Verilator runtime embeds unavailable build-machine defaults"
+  },
+  "artifacts": {
+    "K45-build-final.log": {
+      "sha256": "7f37cf7a5cc3454dd6b7f55697a532a4aeef0ea22501f514a5ef313a9cc42fe2",
+      "bytes": 2526
+    },
+    "K45-ctest-final.log": {
+      "sha256": "b57c4a33db02bdcf252453e81010a6e9737a1f80a33163bd28f8f7c4bfb4e78e",
+      "bytes": 4175
+    },
+    "K45-ctest-final.xml": {
+      "sha256": "46b31993f685c236e0e79fac7851f96efa1f83a449057c11a03e7b760feec01d",
+      "bytes": 20541
+    },
+    "K45-thread-sanitizer.log": {
+      "sha256": "e2048a6b05a043a866e3c9d402b85726e64534aeae3916e2e306973117608377",
+      "bytes": 297
+    },
+    "K45-legacy-jobs.log": {
+      "sha256": "b8a464c93e7f89ed92706454f2d3d4160ce1d396abaf2d05baa830ea5e9bb9ce",
+      "bytes": 3808
+    },
+    "K45-normal-journal.json": {
+      "sha256": "fb68ee90ff685a9be0643ebdc9ef119515c9a156e0da5fb3fb05f42dbae0a151",
+      "bytes": 120210
+    },
+    "K45-fault-journal.json": {
+      "sha256": "f616a94d2a649e2fd6278a14359ee969cbfc64df9f8f05ddb42667db28c5e224",
+      "bytes": 406444
+    },
+    "U0-board-light.png": {
+      "sha256": "286a51c0692ee8beca36c4d53191bfe887d09ed252c6e23877203768d1b171dc",
+      "bytes": 15912
+    },
+    "U0-board-pending.png": {
+      "sha256": "38370fe2494afb1d89cda5eb752200b7d24fc4f28400728466b146e76040014f",
+      "bytes": 16181
+    },
+    "U0-board-open-dark-150.png": {
+      "sha256": "9891f69871ce4c0ee1e59eacfc9a8ffafe78581c6bc200135a8df15d92054125",
+      "bytes": 26028
+    }
+  },
+  "failure": null
+}

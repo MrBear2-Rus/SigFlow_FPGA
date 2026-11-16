@@ -10,6 +10,7 @@
 
 namespace eda::virtual_board {
 class LiveTraceStore;
+class BoardTopology;
 class IDutAdapter {
 public:
     virtual ~IDutAdapter()=default;
@@ -45,6 +46,9 @@ struct SessionContract {
     std::string durability="memory";
     std::filesystem::path journal_path;
     TraceLimits trace_limits;
+    std::shared_ptr<const BoardTopology> board;
+    bool allow_unbound_outputs=false;
+    std::optional<PortBitRef> required_clock;
 };
 // Public methods may be called by GUI/IPC threads. The private persistent worker
 // creates, owns, evaluates, finalizes and destroys the model exactly once.

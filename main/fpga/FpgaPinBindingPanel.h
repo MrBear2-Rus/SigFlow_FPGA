@@ -16,6 +16,7 @@
 
 #include "FpgaPinData.h"
 #include "FpgaConstraint.h"
+#include <eda/api/Types.h>
 #include "FpgaTheme.h"   // T-140 / DEC-01：配色统一经 FPGA 适配层取 token（SAFE-012）
 
 class SigFlowTree;
@@ -78,6 +79,9 @@ public:
     void LoadProject(const wxString& projectPath, const wxString& topModule);
     void Fresh();       // 刷新显示
     void ClearForm();   // 清空
+    void InstallVirtualValidation(const eda::Json&);
+    bool FocusPortBit(const std::string&);
+    std::string SelectedPortBit()const;
 
 private:
     MainFrame* m_mainFrame;

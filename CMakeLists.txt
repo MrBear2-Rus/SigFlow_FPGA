@@ -687,7 +687,13 @@ endforeach()
 
 # P0-8：主程序复用核心库（Composer 使用 eda::PluginHost）。
 target_include_directories(sigflow PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/core/src")
-target_link_libraries(sigflow PRIVATE eda_core)
+target_link_libraries(sigflow PRIVATE eda_core eda_virtual_board)
+target_sources(sigflow PRIVATE
+    main/virtual/VirtualProjectSessionBuilder.cpp
+    main/virtual/VirtualSessionController.cpp
+    main/virtual/BoardRenderer.cpp
+    main/virtual/VirtualBoardPanel.cpp
+    main/virtual/FaultInjectionPanel.cpp)
 # P1-1：迁移期 main/ 的 wx 适配层调用插件；后续 P1-8 由 IJobService 取代。
 target_include_directories(sigflow PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/InnerPlugin/eda-synth-yosys/include")

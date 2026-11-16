@@ -31,6 +31,7 @@ public:
     void RefreshSynthesisJobs();
 
     void SetOpenFileHandler(std::function<void(const wxString&, long)> handler);
+    void SetOpenVirtualBoardHandler(std::function<void()> handler){m_openVirtualBoardHandler=std::move(handler);}
     void SetSynthesisStartHandler(std::function<void()> handler);
     void SetSynthesisCancelHandler(std::function<void()> handler);
     void SetSynthesisRetryHandler(std::function<void(const wxString&)> handler);
@@ -75,6 +76,7 @@ private:
     std::function<void()> m_routeCancelHandler;
     std::function<void(const wxString&)> m_routeRetryHandler;
     std::function<void()> m_packStartHandler;
+    std::function<void()> m_openVirtualBoardHandler;
     std::function<void(const wxString&)> m_programStartHandler;
 
     void ApplyTheme();

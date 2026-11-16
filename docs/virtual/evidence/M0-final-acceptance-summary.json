@@ -1,0 +1,741 @@
+{
+  "schema": "sigflow.m0-final-acceptance.v1",
+  "date": "2026-11-16",
+  "timezone": "Asia/Shanghai",
+  "status": "passed",
+  "K0_K5_core_complete": true,
+  "U0": true,
+  "U1": true,
+  "full_product_M0": true,
+  "A1": true,
+  "A2": true,
+  "A3": true,
+  "A4": true,
+  "A5": true,
+  "A6": true,
+  "A7": true,
+  "A8": true,
+  "A9": true,
+  "A10": true,
+  "test_total": 34,
+  "test_passed": 34,
+  "tests": [
+    {
+      "name": "job_tests",
+      "passed": true,
+      "seconds": 1.83736
+    },
+    {
+      "name": "eda_api_contract_smoke",
+      "passed": true,
+      "seconds": 1.3879
+    },
+    {
+      "name": "eda_job_service_smoke",
+      "passed": true,
+      "seconds": 1.62836
+    },
+    {
+      "name": "eda_toolchain_project_smoke",
+      "passed": true,
+      "seconds": 0.0329207
+    },
+    {
+      "name": "eda_plugin_host_smoke",
+      "passed": true,
+      "seconds": 0.0127012
+    },
+    {
+      "name": "eda_synth_yosys_smoke",
+      "passed": true,
+      "seconds": 0.146038
+    },
+    {
+      "name": "eda_pnr_nextpnr_smoke",
+      "passed": true,
+      "seconds": 0.0646115
+    },
+    {
+      "name": "eda_pack_flash_smoke",
+      "passed": true,
+      "seconds": 0.217856
+    },
+    {
+      "name": "eda_sim_verilator_smoke",
+      "passed": true,
+      "seconds": 0.298681
+    },
+    {
+      "name": "eda_sim_frontend_smoke",
+      "passed": true,
+      "seconds": 0.0281669
+    },
+    {
+      "name": "eda_target_profile_smoke",
+      "passed": true,
+      "seconds": 0.0099882
+    },
+    {
+      "name": "eda_gowin_cst_smoke",
+      "passed": true,
+      "seconds": 0.0108786
+    },
+    {
+      "name": "eda_constraint_sheet_smoke",
+      "passed": true,
+      "seconds": 0.0291845
+    },
+    {
+      "name": "eda_declarative_tool_smoke",
+      "passed": true,
+      "seconds": 0.107809
+    },
+    {
+      "name": "eda_wave_vcd_smoke",
+      "passed": true,
+      "seconds": 0.0109915
+    },
+    {
+      "name": "eda_wave_trace_adapter_smoke",
+      "passed": true,
+      "seconds": 0.0169948
+    },
+    {
+      "name": "eda_declarative_switch_smoke",
+      "passed": true,
+      "seconds": 0.0799704
+    },
+    {
+      "name": "eda_component_library_smoke",
+      "passed": true,
+      "seconds": 0.0209028
+    },
+    {
+      "name": "eda_command_bus_smoke",
+      "passed": true,
+      "seconds": 0.0101015
+    },
+    {
+      "name": "sig_tree_sync_smoke",
+      "passed": true,
+      "seconds": 0.151208
+    },
+    {
+      "name": "k1_port_index_roundtrip",
+      "passed": true,
+      "seconds": 0.0855188
+    },
+    {
+      "name": "k1_electrical_acceptance",
+      "passed": true,
+      "seconds": 0.0201099
+    },
+    {
+      "name": "k1_real_tool_export",
+      "passed": true,
+      "seconds": 0.355804
+    },
+    {
+      "name": "k1_real_tool_gui_cst",
+      "passed": true,
+      "seconds": 0.132788
+    },
+    {
+      "name": "k2_session_pause_guard_replay",
+      "passed": true,
+      "seconds": 0.205093
+    },
+    {
+      "name": "k2_real_verilated_session",
+      "passed": true,
+      "seconds": 13.4322
+    },
+    {
+      "name": "k3_live_trace_concurrency_and_cases",
+      "passed": true,
+      "seconds": 0.0194306
+    },
+    {
+      "name": "k3_live_trace_thread_sanitizer",
+      "passed": true,
+      "seconds": 22.2312
+    },
+    {
+      "name": "k4_board_wiring_and_cst_variants",
+      "passed": true,
+      "seconds": 0.0240047
+    },
+    {
+      "name": "k5_topology_transactions",
+      "passed": true,
+      "seconds": 0.0964499
+    },
+    {
+      "name": "k5_open_fault_guard_and_replay",
+      "passed": true,
+      "seconds": 5.49589
+    },
+    {
+      "name": "k5_legacy_real_build_run_vcd",
+      "passed": true,
+      "seconds": 10.4918
+    },
+    {
+      "name": "u0_virtual_board_gui_smoke",
+      "passed": true,
+      "seconds": 3.93681
+    },
+    {
+      "name": "u1_m0_full_product_acceptance",
+      "passed": true,
+      "seconds": 98.3772
+    }
+  ],
+  "commands": [
+    {
+      "argv": [
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\cmake-python\\cmake\\data\\bin\\cmake.exe",
+        "--build",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\build-m0",
+        "--parallel",
+        "4"
+      ],
+      "exit_code": 0,
+      "seconds": 19.328
+    },
+    {
+      "argv": [
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\cmake-python\\cmake\\data\\bin\\ctest.exe",
+        "--test-dir",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\build-m0",
+        "--output-on-failure",
+        "-j",
+        "3",
+        "--output-junit",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\m0-final\\ctest.xml"
+      ],
+      "exit_code": 0,
+      "seconds": 156.418
+    }
+  ],
+  "source_unchanged_during_validation": true,
+  "source_sha256": {
+    "CMakeLists.txt": "455b805721ccfb9e7bb89cefd006cc64f953113738058c00e184ea1ecad73b59",
+    "core/CMakeLists.txt": "c7444907f74d63ce8283f3d9c4cbea24a3b459cfc7a319b6426245646fc63ef9",
+    "core/src/eda-agent-gateway/ArtifactService.cpp": "3b5d61e7e411d2808f4f6d8c37b498c541e94b5461f8ede5010d58dbac6a25b5",
+    "core/src/eda-agent-gateway/ArtifactService.h": "73237b33796943a3fb352af1e1ce0153b38be21045f31a2440606b82e043cc21",
+    "core/src/eda-agent-gateway/DesignContextService.cpp": "2e54994b568dc2cce7b82deaa5c1cbd988962c32b32a0df24ad53e0130dbcc23",
+    "core/src/eda-agent-gateway/DesignContextService.h": "7f10a86a033ec48ea20e1e8d9f35da71d0d397ad3b2f3563633f13a952c1ccfd",
+    "core/src/eda-agent-gateway/DiagnosticParser.cpp": "a74148d9c141625eb14d07ead19b7214e7eef78e7ab8bccd45675ac329fa092f",
+    "core/src/eda-agent-gateway/DiagnosticParser.h": "8b874a28ca844326aa662919163430353ba0c253a3586db3423c0396ffa726c9",
+    "core/src/eda-agent-gateway/EventStore.cpp": "ef4e948c44094ea11d3269960e14c211669609dbc73686b5ec4fb05741dca557",
+    "core/src/eda-agent-gateway/EventStore.h": "ab9720f72e48c5439abbdc1c44d64319ac3341f5f68355a168c5350c5d38cac3",
+    "core/src/eda-agent-gateway/GatewayDto.cpp": "ac376ec72e673916d20003ee51032b998cb3b2566dee96253b010146fcbe969d",
+    "core/src/eda-agent-gateway/GatewayDto.h": "d6c12e8105c35bf00fe661b5fb334c29031eff4c0a2d568f719d1dd64070fbba",
+    "core/src/eda-agent-gateway/GatewayServer.cpp": "26a545f41fab5de79f7f197d30f3c23ee24b0ead4b38b9f4749b8fcdcdde48bc",
+    "core/src/eda-agent-gateway/GatewayServer.h": "03fc8b9bec5700dbdcfbeb49f15b8ad16f84898a11f679a56078521b89ad0ee9",
+    "core/src/eda-agent-gateway/GrantStore.cpp": "8bda010d608701bc33326ba407a4e53a44b41e610fecf7f53fc8cdcc1e8cd6e3",
+    "core/src/eda-agent-gateway/GrantStore.h": "1aeb6e553830d79137ee9369e1b0ce9dd161142150bfd13b275dd6bea2aa5c7c",
+    "core/src/eda-agent-gateway/IdempotencyStore.cpp": "9b39974bef020c4816b8a0767f64f99bc61c05b9e5d13bf00c9df863cac1d129",
+    "core/src/eda-agent-gateway/IdempotencyStore.h": "a97fdd22d97739eca5fa1da393ed3b66525e82e80685fadafc3dbe67f75d18e2",
+    "core/src/eda-agent-gateway/JobEventSource.cpp": "8b69b816d060c728df0e72cf98dcfd6673234b02e49494830057c4ecea1c2ac0",
+    "core/src/eda-agent-gateway/JobEventSource.h": "e9ad14a3409425668142a947cde39820cfc2b6342215d866da767e85f346097b",
+    "core/src/eda-agent-gateway/LegacyJobBridge.cpp": "736b87281ad16c6b8bbf8ca15eecc534bc7b1882f29dd34644b76eab8c571e9c",
+    "core/src/eda-agent-gateway/LegacyJobBridge.h": "6e9f342e25b770600883dcc459c27690259cb0068ff873dd40340dc729114b8a",
+    "core/src/eda-agent-gateway/PathRedaction.cpp": "b11c693e7ac211d0979282415168e1107e0dbac8e139e6a334ddd9dd53fb76a2",
+    "core/src/eda-agent-gateway/PathRedaction.h": "f85e7e5d4c210447e3c22774bba9ac9cbe3f4e9f7873001db3946e9c9e5aa477",
+    "core/src/eda-agent-gateway/ProtocolExtensions.h": "d2fefc755ffe524d11167191fda7a650c6f27a094f8a7ee56edfd2b9d02d2f8a",
+    "core/src/eda-agent-gateway/ReceiptStore.cpp": "aad0fcc1fb8cfd14c1ca17040fb17b3c07b13551120db49493785a21d821b123",
+    "core/src/eda-agent-gateway/ReceiptStore.h": "79d8ffdbeb529e87a838ce48f8896b900a1763b9f52e1e8a42d30fe85ff9ccd0",
+    "core/src/eda-agent-gateway/ReportNormalizer.cpp": "695ae02971a007bc4dbbe56cede6a225ae55ec408c1db83c43732e097f643aa1",
+    "core/src/eda-agent-gateway/ReportNormalizer.h": "04eab6b37ab08f5c4ec3e505487c5f7345d01138a3ed60e0754310ba38d7cb1e",
+    "core/src/eda-agent-gateway/SnapshotService.cpp": "2172bc37be88c4d671ac1e0360e910a517f4fda20f21ca47f09485acfc4415de",
+    "core/src/eda-agent-gateway/SnapshotService.h": "38d3d1eb73e1fd17f7172e58d6a19122ecd93069539bab1770bc3928188b30d0",
+    "core/src/eda-agent-gateway/UiAuthorizationService.cpp": "e580042a6169c874cbfa578cb781a60d416ec4330a923b4063065d2a3291f3e5",
+    "core/src/eda-agent-gateway/UiAuthorizationService.h": "6ca4d8e92f2f2f99f44548d5fe9a8c796f46021ce0cb76727089cfbb1cc295f6",
+    "core/src/eda-agent-gateway/WaveformService.cpp": "914eef3f2ed7d32958ff50d172e9da1ec634fdff4884763f5add7fe6484e2b08",
+    "core/src/eda-agent-gateway/WaveformService.h": "8091146b4c1ca79c1c59de8a892ff612b2031cbdfa58edc1844b9a0baf3c7b50",
+    "core/src/eda-core/CommandBus.cpp": "2cec06d3e8e27cd644d9564398227ba6f1db1f10a3524242ae860af62979e1bf",
+    "core/src/eda-core/CommandBus.h": "e690beb2e4f78dcf0a839f65d210751185b71cc4e84581b9bd53624de15bddeb",
+    "core/src/eda-core/CoreSchemas.cpp": "97f854dd65fbc68399cf3dbf5faa7aa0da7148ba9fd24efc4e3c531c9b36a890",
+    "core/src/eda-core/CoreSchemas.h": "b25349027e62e029652955f8ac18cebc1fcb1531117390bf90977c489aa51f8c",
+    "core/src/eda-core/DeclarativeTool.cpp": "a7ab3b6551681e0cbfb1147781e21a7706b4ad0961736a0d86cb7fa1790d3222",
+    "core/src/eda-core/DeclarativeTool.h": "3aee52d0f7bfa5251e4d7ff3879020f97680a2de3b300ae2ddb2d50f345e4603",
+    "core/src/eda-core/EventBus.cpp": "87f1c71da20e876edf917b5bfbaa5ced67668c6b62270db66414716c8ece6bee",
+    "core/src/eda-core/EventBus.h": "8f53e973ddf81a041264a1f6e49d7e7081da3dd7db0e27f870eceb243188aef6",
+    "core/src/eda-core/JobService.cpp": "a9782044854a1827df3d669ba8a0d67bc9f8aaaf1151037f29f1e46e66ca1c18",
+    "core/src/eda-core/JobService.h": "db729cfe967d53bc25a293ba27449992394569a245e2a4591d4ff50736b33717",
+    "core/src/eda-core/JobsMigration.cpp": "a1ef9a12c5755a4f697c966085cbf957c5e51eb12e72c94ab09b53d9943c6cd7",
+    "core/src/eda-core/JobsMigration.h": "4b4ea7baa311b1bc289606e65a4fdd0e3845d6e3e55587ba6de0c8d3c7d1b579",
+    "core/src/eda-core/LegacyJobHistory.cpp": "0dd3a307b25bac7abe48593dbffa6e54ac06e703133bd4da0490672a7f283051",
+    "core/src/eda-core/LegacyJobHistory.h": "c97dfd3783fac34e2c134e134a37a4f1efef8441364bca7acff17a08b92e0de4",
+    "core/src/eda-core/Logger.cpp": "9fbf1bb413b6320719b31f22f7e77dcbce99f8163ff917f84e0fbcc37b67ba59",
+    "core/src/eda-core/Logger.h": "76bf3a8f48694f9d04913fa3b4a231471908b466cddbf92e045b12e0d4dedb56",
+    "core/src/eda-core/PluginHost.cpp": "6095eb18679c786cec63277147ae02dd093c69fc21321834d6404c726e8c9547",
+    "core/src/eda-core/PluginHost.h": "3974f95713aa0f17b57b57bdad7e41f5ad6e93241413d1ceec1c8bc942bb9a5f",
+    "core/src/eda-core/PluginRegistry.cpp": "a371115df87331ebe977ca3b5887a16b822b697a4c4deb5c9bfd604828faa24d",
+    "core/src/eda-core/Project.cpp": "cd11b6781246729d4b07eb712f5e718ebe50cc836a60e7f0043cb2917f740e77",
+    "core/src/eda-core/Project.h": "f9be5854a934864d618100771b19547fa8cf044287f114389feed9a8d3e48c4c",
+    "core/src/eda-core/SchemaRegistry.cpp": "53972107188be7350891707387ed00fa12b1b053e6d47f885f5cb36c03483b7c",
+    "core/src/eda-core/SchemaRegistry.h": "3ff07bbfa91bb013ee8bdfe4a160c95022fd24cecab348750e4204bb334049e6",
+    "core/src/eda-core/Toolchain.cpp": "2ae25a484da09909c1ad469487da21755d8384462b51c3776fe4132f7e5c874d",
+    "core/src/eda-core/Toolchain.h": "6bce559f0b6dcac1a0fef788098aec201138610c6cf62120c4ff89f480852ca2",
+    "core/src/eda-core/Version.cpp": "5c2c20176d9a0ac411ebdda731287cd528f9ff2f6a25eb157fb91afabeab58ed",
+    "core/src/eda-platform/DurableFile.cpp": "de2873de556367a0c423580ee7edfb67ff75ed8f4f35607ac0525f6e606bdf11",
+    "core/src/eda-platform/DurableFile.h": "342811a97dce8510cf109f3f23fd2141ba8f7b79405bfc6f0fd8448ba02a09f5",
+    "core/src/eda-platform/DynamicLibrary.cpp": "b1d391aa916234395f67b453e3b142cac99e1153e4d085bf1d717cb5a1055a85",
+    "core/src/eda-platform/DynamicLibrary.h": "0ee27a7e5a8eb51a08eaba9404eb7d2432d22c6f3e70077dd8ceaebc07e7d395",
+    "core/src/eda-platform/Platform.cpp": "537d018789d3c068ad4d7d2cd992aff57f544f92e1e791b94e5003caf3e6536e",
+    "core/src/eda-platform/Platform.h": "6aa428290019adfc06b95b945fb34137345cc0d8c772c1e604c0d15bbb5001cd",
+    "core/src/eda-platform/posix/PlatformProcessHost.cpp": "45177e6672094069200c6ce8c273a1088b30dabf82226208f66023bb2c4e478d",
+    "core/src/eda-platform/ProcessCollector.h": "8384a7d157d3032c6211ea1ce83a9c9fb31e064dec600bf1e9967aab6f54e300",
+    "core/src/eda-platform/Sha256.cpp": "63cd9f260036c56032e30770a6fad656debc4fd653b5b9306e40db3c71c9d8ac",
+    "core/src/eda-platform/Sha256.h": "a044191f9db9f450d452187758de4d6eb6c18f871b10ab038c7ebb948679d3f8",
+    "core/src/eda-platform/win32/PlatformProcessHost.cpp": "327679c0fc4a2638c7420279fdc162879762f7169f9bfa2e6add6511a31959d6",
+    "core/src/eda-virtual-board/AdapterCodeGenCli.cpp": "7fe7b84c9dcb4f44e5bdd44c126bf89522f88a9401d8a42b5bd0ff29cdd5e328",
+    "core/src/eda-virtual-board/BoardTopology.cpp": "dd26f10e4c369d187f95516d608b496cd9598b4dfa32463206d3380ceb6f40f4",
+    "core/src/eda-virtual-board/BoardTopology.h": "8baecc47091d9859914f1ecfd426736e1b03a08b2c7b34032466af8ad9514ba6",
+    "core/src/eda-virtual-board/DurableJournal.cpp": "70a1753047d105df9d8ee69cb4a7aedb8e91c09bce7a97490299af07c7503291",
+    "core/src/eda-virtual-board/DurableJournal.h": "1d17e216e5d3110f0a8594902c1ae4d1e392eb1c1fe23717d7d37f151b203bda",
+    "core/src/eda-virtual-board/ElectricalValidator.cpp": "be0b401f38ff1651957ff1915a3bef95f150eac3d9dc0b61ee18612fb3d017e2",
+    "core/src/eda-virtual-board/ElectricalValidator.h": "1c773ba2cff7fdd7c97024183d94bd9f7c2d4b095f84da5a75878a9623c9fd15",
+    "core/src/eda-virtual-board/LiveTraceStore.cpp": "8ac6c16990e7d1e93fbc9f99e211ed3ea0bfcb574c9783874e28c19d0e15a19e",
+    "core/src/eda-virtual-board/LiveTraceStore.h": "b072c440c50c563a1dea45a93d559d6fd6f78f7c03d236572799119a8191194d",
+    "core/src/eda-virtual-board/PortManifestBuilder.cpp": "da3982431c99e9ee313bf34a871ef2bad332854382f4adc8dd19b19336a7f0f0",
+    "core/src/eda-virtual-board/PortManifestBuilder.h": "b68d6222aff663fc6a10032376ecd11e220986118d15f1ecfc63ff750bccd7e1",
+    "core/src/eda-virtual-board/PortManifestCli.cpp": "a2508d8547b2ae9605cef5c041a222cf8ff9be449d040ec136aaea737ad0c0a4",
+    "core/src/eda-virtual-board/ProjectValidation.cpp": "8a5f4bc5a0fff57081d3db8a4cf587e4c3ae7d26426eebd23754b3d86e8bae0b",
+    "core/src/eda-virtual-board/ProjectValidation.h": "83a0d03083e2b87127cee2e66ee70ed852d6207bbae52bba99ff097266903f50",
+    "core/src/eda-virtual-board/ProjectValidationCli.cpp": "2ca09da5cc2a7fccf6738bb0c872903f7e69043ed5f0fa65a1bda1ea4a5d307a",
+    "core/src/eda-virtual-board/Resolver.cpp": "7924bdac32b8950cd601ef2421cd0901c378dccc0557fb1c3a151daf4a2472a0",
+    "core/src/eda-virtual-board/RunnerSupport.cpp": "9ac600d94ab98a102dc61ad9b7c78e0309655bbcd5179260a790ec2e111ed9db",
+    "core/src/eda-virtual-board/RunnerSupport.h": "881cf08cb2491ca6593451d26fc09eaed4dce6865a68246e246b187f905f0c42",
+    "core/src/eda-virtual-board/VerilatedAdapterCodeGen.cpp": "e9ed038bc063ad345c6cefd9e2f50a1c4786fc0abd7eaf0604f00c567bf8c7d8",
+    "core/src/eda-virtual-board/VerilatedAdapterCodeGen.h": "d6e3c23a2463e92d63f29b52350e641567ab9b83830f9f7901a175d26e4f9672",
+    "core/src/eda-virtual-board/VirtualSession.cpp": "e1b138beef9897822b90da1d3bb442d85616ba2763297cd4ea17d403d72c3a15",
+    "core/src/eda-virtual-board/VirtualSession.h": "95fb1e839dd5724ddd32c633fdafdcced30e8793d3ca0fc22e81ac6058013ea3",
+    "examples/virtual/counter/counter.cst": "b82f9774f3b68c151e978e9d8810284d0f2613a461f9b5562aa7aa904f951e7c",
+    "examples/virtual/counter/counter.sv": "7ac4a5f183c0e2bd82c78fe61c87b9fa8993e1d87ad3ac9b45f91f2690139b11",
+    "examples/virtual/counter/virtual.project.json": "24e25748604e426921f32fa158341017ed875ea2e7c500ea88839c1a8e9783cd",
+    "include/eda/api/abi.h": "da2023bea6511ed0459a7bce23e6db9755410f68fb3e157e8aac9b96d5536136",
+    "include/eda/api/build_info.h": "5ed92744f09f2df659de35ce62813f6587afb50f1f3a0df55964650262cd2a29",
+    "include/eda/api/capabilities.h": "cfa3233dad0eb65a3d218e8512951a846a720be0fed15f82b7ce2f64a3668c2f",
+    "include/eda/api/command.hpp": "d3e59298dadf7136246b276cb930868a9c2785eb0e5e338d9a6719b1ee90f1c8",
+    "include/eda/api/component_library.hpp": "f1f52a95273fd96d492631b884529ae19186f67e5170bf11e6678b19ac0119e6",
+    "include/eda/api/electrical_profile.hpp": "856cdb8a40a4f31a852b85137af16a12e8838a620cc048c7fad1787b6de3f390",
+    "include/eda/api/events.hpp": "c7c2c5e3f42d62843daa26e6675cbac6c467f44e3636040a2deb2ae62ac7bb68",
+    "include/eda/api/IPluginInteraction.h": "1525cb321d170e4b1e367b94726bcca0de73ac225255a2dde8cc3c5d3eff45ef",
+    "include/eda/api/jobs.hpp": "8b97fdb58f4c7e9beb50617a4047c48e3b10daa2176872b04a3b565daf1eecdf",
+    "include/eda/api/live_trace.hpp": "cf4a455fe9353fd38b2977f2319468410ac560e0ddc8efec3d03ec54eba683c4",
+    "include/eda/api/logic_state.hpp": "57dc7690a49cbcffedc56e88d00d3608916b0b76d208043d31cd21c3c15089d9",
+    "include/eda/api/plugin_registry.h": "743c4b5c5d48b8ff25a2cba759183f3e86df005bd12d280dbad22e859988bfb0",
+    "include/eda/api/port_manifest.hpp": "ec7c6419cb67d77e951efb9186905f71056349338649a7cfa9ae6f28fadabeec",
+    "include/eda/api/process.hpp": "20deaba0866d979fc5601afb200b5ea16dae2cbb9c0bf8fd6eb362e89367a22a",
+    "include/eda/api/project.hpp": "4c05716c9aa82fdee4a42094e4800c908a355f78f26b52bf83aa4dd58b5e787d",
+    "include/eda/api/schemas.hpp": "dcdd2644cc4f5c360a7e816e985cea6b4992165b4277cf0ba603d73b9c28a7b2",
+    "include/eda/api/services.hpp": "5e9fed157aca712d1bdc8e0cb177d2d416529537e85fd1ec05b0cd1a30ec9031",
+    "include/eda/api/target_profile.hpp": "e02b3bd5efcce754932590a104b2b90e7cb057220f0d15f7be3b828fb34c18b8",
+    "include/eda/api/toolchain.hpp": "04a2d70e8ee0241701f25095c2d7e8db31a0ce30e8b0551cf43b1da75febd004",
+    "include/eda/api/Types.h": "51df4ab2049cbc06d044120d5a8a385c1221e59f8ad318ca34b6fcece7a9d30c",
+    "include/eda/api/waveform.hpp": "a8f09e277f3749bab4cfe5ee4076ebffe1be4dc98196bfcb149bdb5a4c43d4d5",
+    "InnerPlugin/eda-cst-gowin-cst/CMakeLists.txt": "044f46fa764562c1ae3c6f49f6cb3d37e57c7bd53696e9f1220aeaf2aecc2f0c",
+    "InnerPlugin/eda-cst-gowin-cst/include/ConstraintSheet.h": "8e2b20f27fc3b162dbd525d87ec81864eec8c39b66cbd9c674767427616bde3a",
+    "InnerPlugin/eda-cst-gowin-cst/include/CstFileValidator.h": "72b489e473246ddec0421e50139ab01beaa67b5557dfc70d2a25e2173bfa21cc",
+    "InnerPlugin/eda-cst-gowin-cst/include/GowinCst.h": "0b47b85c41c48d688c9e77fbbe200878589e103d9e3128359a8ce7b325dbcae7",
+    "InnerPlugin/eda-cst-gowin-cst/src/ConstraintSheet.cpp": "c357a3866bfb73049e81d81d1a4e67a9eccff847394e1e40ced7d5c72812f736",
+    "InnerPlugin/eda-cst-gowin-cst/src/ConstraintSheetV2.cpp": "d2869fdc90924b7f4266627143aa155befecc08148295f6533fbb6ebd2f99847",
+    "InnerPlugin/eda-cst-gowin-cst/src/CstFileValidator.cpp": "92ceea452ff1d30b04c1207db573fd1535e0a84085ffc1d764166d57096deae7",
+    "InnerPlugin/eda-cst-gowin-cst/src/GowinCst.cpp": "fe7f308392f8ddd8130316aa7844209cfc122a73f698eace2576bed7c4cc05c7",
+    "InnerPlugin/eda-sim-verilator/CMakeLists.txt": "5dfdfe3b812dddf136e903871ee5945275739fb974fc3b6e090884096f580016",
+    "InnerPlugin/eda-sim-verilator/include/SimMainCodeGen.h": "c51bf30cc83d333f64da6e2dbb9ad7bdc3261d7ae339d427e209ab3dc7386d26",
+    "InnerPlugin/eda-sim-verilator/include/SimTimeline.h": "9d48ca0ff901563937df46f21f8931edccd2ac735cb52372162a998f19933e43",
+    "InnerPlugin/eda-sim-verilator/include/StimulusModel.h": "e4a93783e6da868b2a2005661e27d9c00e392092e263291b2ebde3303a483cf5",
+    "InnerPlugin/eda-sim-verilator/include/VerilatorRunJob.h": "a08a69cc351cf16ff70f06a6b15ec925ce49f4f6148701f4b58c488742db23eb",
+    "InnerPlugin/eda-sim-verilator/include/VerilatorSimulator.h": "6c686c3da4950c1124445f2bff5f08e764facd96d19ec8cb9adfc28476df6c34",
+    "InnerPlugin/eda-sim-verilator/src/SimMainCodeGen.cpp": "fd00777582cb79d90854f244a900e6e85c4c848163558c976bfd0b4487acd995",
+    "InnerPlugin/eda-sim-verilator/src/SimTimeline.cpp": "59b3e1bd7eb92481944da01a48c61b936a0dcaa2b8cd87946746e5e4c7a1ddf6",
+    "InnerPlugin/eda-sim-verilator/src/StimulusModel.cpp": "a3b103f12711b2f87004e32c18ce109675d7aeee78db299afa9f61aa6b16e8bc",
+    "InnerPlugin/eda-sim-verilator/src/VerilatorRunJob.cpp": "b6e3bfcad7648fe4f8c273bbfc65f20767159e05390d6927b0778221ff024911",
+    "InnerPlugin/eda-sim-verilator/src/VerilatorSimulator.cpp": "adf0b10d4ec6bb8356c73277e0c7ece767d2fb6b14b055fd8e84464013670e1d",
+    "main/fpga/ArtifactValidator.cpp": "63bc048d6724d5c74f57fe8171ce2043d591c0930f7edfd7fe805533ac114844",
+    "main/fpga/ArtifactValidator.h": "0aa6476c5f3e1419ac3e8a9878fbdd99062e6f464b699ce8f1e8122f98af2a65",
+    "main/fpga/CstValidator.cpp": "b61550047bb238f810e79c564969963f37fa089506947a25ba35b1686bf05a22",
+    "main/fpga/CstValidator.h": "6fe086a0da20e4f996f8687679b1619cf0f6d55aa78134734f95bb599983cd90",
+    "main/fpga/FpgaConstraint.cpp": "e6d019c2cd7d1f78f7148c9d09ed72fe1a34c5940e61bc9c6f22a9270a508082",
+    "main/fpga/FpgaConstraint.h": "966bd64d850171ce696acac36e0999a26d95515e92734b2d7ed0f4e7f8d54301",
+    "main/fpga/FpgaPackService.cpp": "2bbf9f19659c802718d2ca3b1d95ca094957507beb8a933ff977a161b5838088",
+    "main/fpga/FpgaPackService.h": "acecc2520a1742a629bda8aa230134e7f75ddd90404c1049bc3cb020fb8ff604",
+    "main/fpga/FpgaPinBindingPanel.cpp": "fbbeaf8e77c8c421756c5450ad40e96e6a0c7af51c48234e1bfaf8be57c60d25",
+    "main/fpga/FpgaPinBindingPanel.h": "2e076c0aacca49cdfde108a3b5e9836c5def0957774fbc422a3abf2724235274",
+    "main/fpga/FpgaPinData.cpp": "1d5c8d2477bff2e7b825445abcd765d1cab78a45c59a6c94b38d4db7a5a732f5",
+    "main/fpga/FpgaPinData.h": "d57c0ee38c68081a4bfd9b63224bd687cbcdb8dafc3f27a45e7617d2160ad31b",
+    "main/fpga/FpgaSynthesisJobsPanel.cpp": "c1bb5f55f7ec338b91950355e433c65026324c4ee2c42a69a930cafc29de4154",
+    "main/fpga/FpgaSynthesisJobsPanel.h": "5bdcbf6354d4f27801d4fae0644b591d50ab85fee038566e3c0d2b63ebbdbdc7",
+    "main/fpga/FpgaTheme.h": "24db6e3389162120f14f85402ff9d1a4e0571904646f05eb613221426b2d386a",
+    "main/fpga/FpgaToolWindow.cpp": "51656ef02bc6aa735ee2f1ee24caea2116fdbee27487a78473a16fff41c34142",
+    "main/fpga/FpgaToolWindow.h": "7a5d7e5d0f6de07d953e9dd58a0acc5b1afa24ba26be32d2f472193e42bd2c19",
+    "main/fpga/FpgaYosysLogParser.cpp": "850a304cb2908de3d4f88e49792d94e597350b0015e341a93870d79c523dfd9c",
+    "main/fpga/FpgaYosysLogParser.h": "ad8af015c79da1a0323ec3f90ed48602256760f6302f3a42b62f77d0fb004905",
+    "main/fpga/FpgaYosysReport.cpp": "dfd9a541a8f75495216e95a386581b51622ace5cf7c15d5d5e7f907c5e972104",
+    "main/fpga/FpgaYosysReport.h": "ef8d3786adddf3ca4c3ad152462a621b823d3cf4692e25a31687f38449ac1ac0",
+    "main/fpga/NextpnrExecutor.cpp": "cc66289235e0f02d22b441bebb61df03e84cf71308ba35ceeadd64c3cd2fbd66",
+    "main/fpga/NextpnrExecutor.h": "858ced5ad41804b6b87c5bda25ae95c53a63fa1349665599e08a23a3b9cf1390",
+    "main/fpga/NextpnrJob.cpp": "cb7c34f4713f2aae9ed1f2c05cc81b361241accf16afe2a3473a6c0ede63d15c",
+    "main/fpga/NextpnrJob.h": "63cdb99f2fdf637f9ff2f4f2912e75f0301f3ab5fe191f5379fd18648edb8356",
+    "main/fpga/NextpnrJobsPanel.cpp": "1d35e50392931d5a14427c9f3107563731712ea2ea46cfc572ab05f5c5ef42ec",
+    "main/fpga/NextpnrJobsPanel.h": "1e426b9e396ec8e076212d09fb82cf69636607561b6211ed7b69466597848fd9",
+    "main/fpga/NextpnrLogParser.cpp": "eb6ab4128b983ab3b9b43e409e49fd85aeab1697e99ff81d7981ece47c858ca2",
+    "main/fpga/NextpnrLogParser.h": "1805f0d27cde8556ca6c0c7b220683eaa726a00ce0b8b634c59ce3ccae6b784e",
+    "main/fpga/NextpnrRecordBridge.h": "1c0cc3ba48dc3d60ffe30506389616abe835d203a08c1e0dfe9c0e9a5d2ba5eb",
+    "main/fpga/NextpnrReport.cpp": "f151167e5e34a9cd1a19fcb8b16b8bde315ab941602c81c2e761d3b30116d7d5",
+    "main/fpga/NextpnrReport.h": "a2abaf2d971e7ab1794c86664bfa40a7f629b602e4e5cd801e168ef4d7af6afe",
+    "main/fpga/target-profiles/tang-nano-9k.json": "7fa8c2f1793cd9c645e2f3b9e2ecb5d2ac80b3020ff3a69c92f06d7f34494c18",
+    "main/fpga/target-profiles/tang-nano-9k.pins.json": "86800a4150073ae07b8317786d0026f42ba2b88e51faaed1561065d842301f5c",
+    "main/MainFrame.cpp": "12818368724c0b77524f8bc0feb6e05fb57fd3ffcfd002b75ae80612a0f5897f",
+    "main/MainFrame.h": "cd7d77a762aae97af37e870bcd351ac63ada5a1a31ef616b8d01458746f67f4a",
+    "main/trace/LiveTraceSource.cpp": "612d05ae963e1db19ed00f01fb767702752afbfdbd9790768928f75b6e33edf5",
+    "main/trace/LiveTraceSource.h": "9754add93d1d801059d80750f33236b28609de4f2733d410bf970ca261d754e9",
+    "main/trace/TraceCache.cpp": "6cbd634be630d7c6f4f459cde8bda7190962793f5f3a798235ec21834991eba3",
+    "main/trace/TraceCache.h": "c3fd2c10cdcfae0c5e611b79bbd6ed113a9e263f7ffd68a803bbf08146cf0476",
+    "main/trace/TraceMemoryBudget.cpp": "6bf56c3b5d536c52d71345b4e0119fb0e668fcbcb20d3632db818c3753e72ec3",
+    "main/trace/TraceMemoryBudget.h": "8cf76841ec46692820ad5564240d6bc8673bab6401fc21c28ff853e9099b9cdc",
+    "main/trace/TraceQueryService.cpp": "0ce717968eb072893a73f6928bc9f522aedddcf612fdfb8fc810f8a9e1952412",
+    "main/trace/TraceQueryService.h": "806e3a2f91e0267257d4303b9e76ede59a85262894d150afa35fe301e88ce08e",
+    "main/trace/TraceSidecarIndex.cpp": "9916b13421a825cddb14fe48056e2d594d733676a5ed50375a3eff736757275f",
+    "main/trace/TraceSidecarIndex.h": "eca36d5b4dd305dfa77452463c12aea7ec997d65457a5e6feff2e1dc6afea3ce",
+    "main/trace/TraceSource.h": "a0dc346563f17e818203eb8e5d8a9cfe4a886224f8374827252b6444e191e918",
+    "main/trace/TraceTimebase.h": "13acd609ebdbb50aa92d25eebc8989c2d27d219b55bc31ac5ae2ec0754767ceb",
+    "main/trace/TraceTypes.cpp": "bbbd79bcbfbe87944b8c86e7b0ec206479544813ef8d1d670aa80a0b046cf01d",
+    "main/trace/TraceTypes.h": "083e9db8f10947d3afc2d5c6e8d42f83b985efbcf1dfbd0c2f7d8c8d9a64511b",
+    "main/trace/VcdLazyTraceSource.cpp": "cdba7a30ed73b87ea863d6ca427bbf137e7b571116e415b7a32aed5b7efbc39f",
+    "main/trace/VcdLazyTraceSource.h": "f0778f03d53e025d59a43cc0ddc956a6cbad76a747c9b377bd77d33514b58d53",
+    "main/trace/WaveformBackendTraceSource.cpp": "42b6ccbbe3aed5ae79282ab97b15a84009bf49b19b25a8f31ed2727bbafe062f",
+    "main/trace/WaveformBackendTraceSource.h": "169c1725c4f45ec238636d436b272a671c7bbb80935a3e125668396d7a906cba",
+    "main/ui/CanvasControls.h": "9748df40d857e5826a6a244b40a1ddb181ca791d4b4d9f0261bdaf95a2131b14",
+    "main/ui/CanvasVisuals.h": "4e3f457f646a4492363252dd61384489677c082ec00e99b4b85ac80e408815f0",
+    "main/ui/EditorChrome.h": "b084cbe80ed280f7b465eb386f3896d9d4945298783cac14ac837734cdca37c8",
+    "main/ui/UiDockArt.cpp": "1b78c21dc76456d5c11a18a84b4a43da9f6e8d983af76615713c6a9ce252f9ef",
+    "main/ui/UiDockArt.h": "184ee3494d05121dc72a576fcdfba4a9d518ec8a7e76d730aea07e01a19df499",
+    "main/ui/UiFocusRing.h": "a791bbe212429c4b28e08d9537c493fbb1249c8afe242d6766d2e5e0dc50a161",
+    "main/ui/UiFocusTrace.h": "7587aaa7b460860c83afaf9c988b119c150ecc1b67c970a2d3a2ed490e5c2d77",
+    "main/ui/UiImageResources.h": "b420304f59978eca21246f307a8bf59817d5221d71b6c8465a262ebcc736c8bb",
+    "main/ui/UiLayoutPicker.cpp": "80cc1eea92408b5ddbaa925097212c3ed610a9dc2aa90bc05c2d71e042d56073",
+    "main/ui/UiLayoutPicker.h": "5511b729ba7b4c60e4a4571a6599021194d7026a0a06f2fcda7b82a77c518d60",
+    "main/ui/UiLayoutState.cpp": "f5082002c26f5dcfcd2d433424d0650b998a05d299c52abf189e9b8559c8d32b",
+    "main/ui/UiLayoutState.h": "7096e337f22f59429243ffa913b9f0ad3e9877b3c62020d7385b8939e935e50f",
+    "main/ui/UiMenuBar.cpp": "0f40090a4dd4660a96159e66fd7e7ded268e19e3c6ba8e73c4f1a52688896b56",
+    "main/ui/UiMenuBar.h": "85a10f1a04aee92fc2db2f88fa439fc78380c835bab9144ae7d283822b7f4874",
+    "main/ui/UiRegionHost.cpp": "46107906b8ede33919dc951b4b501a8a86b01d25ce131222bf32ed8f60eabf0f",
+    "main/ui/UiRegionHost.h": "64ce9c831aca67f1cc828c42228057c30c4187f190d24388c9d6be287a34671b",
+    "main/ui/UiTabArt.cpp": "bd9c71007e2ec7d6906f3c73ad9c3c54f6a63daf2abf87307b6855ed1047a938",
+    "main/ui/UiTabArt.h": "ddc3463cc9f9fd1f63f0d6d06ab0d13649068579c0fcc6b8f7ce7a5bed1aeab4",
+    "main/ui/UiTheme.cpp": "4e7e27458c4f2b7fab38bb2018b62fcefa14b8772126409f48f411f3cd60fd54",
+    "main/ui/UiTheme.h": "5a85126956ef02c9ec27593d50792a45738d51502f844b6bfbca488f8ba09d65",
+    "main/ui/UiToolBarArt.cpp": "cb67438797adee4a58b3cc11357c8cfbf05e55fe9c83c6403ad4abb97fbb0235",
+    "main/ui/UiToolBarArt.h": "e1ec0465ea80c0ad44c99cea42b8160ed1108d7639ae92833e928c8b89855f34",
+    "main/ui/UiToolBarKeyboard.h": "4b82dc0a78513302c1511a92f50292394bb1f1da99de4db3a5552319956454f8",
+    "main/ui/UiWorkspaceSplitter.h": "0866e7762f81fc7faa5cf00f85ea587f998ef8c6b3ea8d31ad21e8c19b39d918",
+    "main/virtual/BoardRenderer.cpp": "396db20cacfb7a74873bdc92e8050f99a43b41a298d16c7304cb28c2542ccab5",
+    "main/virtual/BoardRenderer.h": "1d5b28b65495ac7a0ec969387288b3d64c290b2dc75a3bac5730e84b5db7c005",
+    "main/virtual/FaultInjectionPanel.cpp": "f23b62e56a52c9b24b1b0d80e8a374e4dc5b610e0c77259ce884af1c1b6f479c",
+    "main/virtual/FaultInjectionPanel.h": "bcda06dd3562777fc70e3d062d9e7767e4baa03bf70ed109dbc7559c3c39c4dc",
+    "main/virtual/VirtualBoardPanel.cpp": "f1b477d27de13ed46daacff8fa9a79ca945dba9cfa704fe035c4327d136445a1",
+    "main/virtual/VirtualBoardPanel.h": "0cc09c8c6834ba9c6f11b311904ec9005814226316a5376581daee14fd8afa42",
+    "main/virtual/VirtualProjectSessionBuilder.cpp": "cb4a3573e3c2dd569f3b40a3286bcd154a840f71a7ab63e16453deca6d6e9625",
+    "main/virtual/VirtualProjectSessionBuilder.h": "351efabcc06e9559b9cc8fb6dffdb60a41bd8a3d78521dff5164a309b60210d2",
+    "main/virtual/VirtualSessionController.cpp": "aeff4cffc1e66925228798d81ba7e7d52993717dce4da07b8ad46d187f070c94",
+    "main/virtual/VirtualSessionController.h": "136e0124fb3c1931578e24d171b7a895babc896c623504f6ecc2f20ef20cffd7",
+    "main/wave/schemas/wave-session.schema.json": "9585398d89d22050b410162f36df89352567b01c9df9aef4461c95ace563b742",
+    "main/wave/TraceViewPanel.cpp": "e9fa2e67e08e820f638fa6929eeec9ee6794363bc821becbf0a5687a9521518e",
+    "main/wave/TraceViewPanel.h": "8ed12a1aedd1ac8eda6c203dd3760677b2d7d0f05f5e96933d6b8a4d3bd32bf0",
+    "main/wave/WaveAnalysis.cpp": "ed7553965a5ca5ab3bbd6ee981886ce76d025fa1f842aa95b2bae54f2e6e5a2b",
+    "main/wave/WaveAnalysis.h": "e8767fb923b4873f9bbc9bc31bef5e2dd1534549acb71640a19ab18beaaee1f2",
+    "main/wave/WaveCompareHub.cpp": "01a54e24eff86eff031a1f6fe40be2c99869f94748dd3524da4302d732f3de7a",
+    "main/wave/WaveCompareHub.h": "551d0d24a6ee092ea6193214b113970db5a64e59941d90a70eaab64c702b7e02",
+    "main/wave/WaveCompareSession.cpp": "d340834b714e318ba44cf7ab558b686ea9a70bf3d603ecf10fa1168d3a05cd71",
+    "main/wave/WaveCompareSession.h": "c19605e36f084a5bb28528f45e613e92b5ea50372c17090039b72aea1a617933",
+    "main/wave/WaveformGLCanvas.cpp": "7bea8e3a9b891835b334745393611d8a69b4112836513c9ed1452443151b7248",
+    "main/wave/WaveformGLCanvas.h": "cbfabe6c1331dc06e0c9c929e50a7eff53c9aa9b3696d35fafbbb27176d283cd",
+    "main/wave/WaveformGLRenderer.cpp": "51bfe50d86a830cec9a2a99e8e75decef478d8d14da2b847b78279e91a41761b",
+    "main/wave/WaveformGLRenderer.h": "8ea956f4a28b4d08aa181482a125c31d4a06308e13c39b4ce1924d0965b63882",
+    "main/wave/WaveformMiniMap.cpp": "029b018bdba525d000f2cc087e5546d3fda5dfa524dfeb3c1496bf421d72f52b",
+    "main/wave/WaveformMiniMap.h": "43337c1ec1bcdca132c641f21b617685ed4b2a2c9b3c89d31526d595b4d129ab",
+    "main/wave/WaveformRenderData.cpp": "2ffbd462b783ed85d9e38745625445ccd7e89719262efc89881d014c31652b3b",
+    "main/wave/WaveformRenderData.h": "7f83b55a7dcf3158833cd05962b426b1aca1be678b68f5244e209b3c60492a71",
+    "main/wave/WaveformTextLayer.cpp": "f0c17836d65ee69f93d9f968d6777142d935e4bed90263dc7cb29a61c6b23ffd",
+    "main/wave/WaveformTextLayer.h": "ee71eb2c2cbba6cc29908f12e519c422692662849939cb70bce950505067606a",
+    "main/wave/WaveformView.cpp": "88c9fcaa669eaeb5b244c258ec32716a10bb273abe56ed1a1a51d5ed08ac8e61",
+    "main/wave/WaveformView.h": "c9d38964f5766993e3b676a270fc6ce18e69c724fc2948218ca32c65fddf05b9",
+    "main/wave/WavePatternSearch.cpp": "327145b7f380de6d7201504ed88bd919b29d9f9cd659aa41a443a307fd94fd5b",
+    "main/wave/WavePatternSearch.h": "f7facdaa549af38398b5c8123a79eff7551ff8c0dbe63d7d1594cfb8da7bafc0",
+    "main/wave/WavePerformanceProbe.cpp": "85ba45c18e22d63e0ed0b3ed0d596d844b0cdf790f2f8c1ca3e84a8d2c3fef4d",
+    "main/wave/WavePerformanceProbe.h": "3aef9942e4393cafeb02e8c19f69dcf2824fe857677a6448018f662594c49fd4",
+    "main/wave/WaveProtocolCache.h": "c85c85d97be9f8b1f116e2bcf77889092f6206e76d967c8b3c31f6ab3a6a2303",
+    "main/wave/WaveProtocolDecoder.cpp": "194c0b30b8b741a85a4bde74069cae87c87c03172f6580349e45a830d7ef771a",
+    "main/wave/WaveProtocolDecoder.h": "3e4df605e2a11b4a1c0a36f3aad89b6ade4443562835c19798fe5deb1f0fdd18",
+    "main/wave/WaveProtocolEventReport.cpp": "b392c2a93e2ae931b058bfc9785d5c9387929d906643581b5c45ef597495c6bf",
+    "main/wave/WaveProtocolEventReport.h": "d88ceca66a3cee72b0d12a2f2f60f41939b5e8130e564bdf5fdef8f65ec74007",
+    "main/wave/WaveSession.cpp": "068a33ebaa96a052a76e42a62d46ccb9f743ed5d2b16e93196395aade82907ce",
+    "main/wave/WaveSession.h": "67a36074c175e8592ed50af4b73edab676f6480a1c4bc71dac722ea06d3d45c1",
+    "main/wave/WaveTheme.h": "fd5d7de4dda850d310a2d856768d012759394be32220a79504efcc5676e728a9",
+    "main/wave/WaveThemeMode.h": "5eb504c2de334b986aa80c2f375d47d3451892ed21bcd14a9d3401d3cc39974a",
+    "main/wave/WaveUartLane.cpp": "626e7d0549d135367243d605873dde5cd888c90fa7af85750763e90cde983e2b",
+    "main/wave/WaveUartLane.h": "5e9a2d0fc5934f1bb5bbba778fd222cde7b4f1b82a68c01691cc5e7db9ecc7a2",
+    "main/wave/WaveValueFormat.h": "a180406f25b0e509b1e367e6b5550598574c0995e60da56c303f89af29475cbb",
+    "main/wave/WaveViewState.h": "bdf2489da9cc26b9881f00b44b67c836b310a9e40d748942303e12fe9e6600d8",
+    "registry/boards/tang-nano-9k.virtual.json": "bd15fb585a38867c7c218af17fc38405d03e867edab8144de17ffae2b99eb304",
+    "registry/electrical/tang-nano-9k.6202.reviewed.v1.json": "714c0ae73fa696ab002553906c62cca6739a4655a5f8a669565530849ed7ea12",
+    "registry/pins/tang-nano-9k.6202.reviewed.v1.json": "86800a4150073ae07b8317786d0026f42ba2b88e51faaed1561065d842301f5c",
+    "registry/provenance/gw1nr-datasheet.pdf": "09cc21999adf5053cafb13206df9835feba26f95d14a95bcee08aeabb7d9de6e",
+    "registry/provenance/gw1nr9-pinout.pdf": "ebe1350849abb5903c2c934a33d19c27635b50c1b09eee27968fc894f5fef836",
+    "registry/provenance/tangnano9k-6202.pdf": "71ccf1b7731589c8bc5b4c1dcf0c8906f52831785c703732d43a70f01ec574ec",
+    "registry/tools/port-export-adapters.v1.json": "e5280c30110eef352abdd25e98f446f49df6f3d848aa1335bd11f80a4abf5f1a",
+    "tests/CMakeLists.txt": "f97268beb66540f24ae27a41d44c11ff10570ba5af9b970e2d960003dcd4f4dd",
+    "tests/virtual/k0/CMakeLists.txt": "a4a730b721881b2b3a8eb960dadd152b877e936b373c1776300da2b247a8c952",
+    "tests/virtual/k0/counter.sv": "2e1ef244c602ce9db86a77215f7024345c4cb908ad00f5ce3aae216d0f8019e7",
+    "tests/virtual/k0/generate_batch.cpp": "b724357c901f50fcd04749d1ba81c66acd0f8f9c9a18f879aba5978d65861d00",
+    "tests/virtual/k0/interactive_main.cpp": "7dae3d2945b179028b0090fdba13e05a2d299a7ed07fda3f8bfaebb77fbcec93",
+    "tests/virtual/k1/baseline_cst_probe.cpp": "ca7c7a3cb441ed07be29fd4c20fc80d0fd4601705d3479d4c136711241a0650a",
+    "tests/virtual/k1/CMakeLists.txt": "ea69b2503b44ac0230dedc1f827b25d091197700445853bec6b91ff9f62d1ac9",
+    "tests/virtual/k1/fixtures/electrical-cases.synthetic.json": "7db728c86e352ed895d9d5a088c2cb73a604e4fca1431662faea5c922151e7d3",
+    "tests/virtual/k1/fixtures/port-index-cases.json": "4aa22b6cbb61eb4ac615eff1c596cdb78f08acb2abf2ee7d7ef8553aa6c3c13d",
+    "tests/virtual/k1/k1_production_tests.cpp": "60684453536d6e633c81587e4ced8ffcd77d3c032266d190992ae8e980e92a5b",
+    "tests/virtual/k1/ports.sv": "2216902f041537d0b3759b64eedeadfc250e8f13ddc115b343ea00da068a2c24",
+    "tests/virtual/k2/CMakeLists.txt": "0693b29b7420c0d3e2b857f1c81141b81cd3614d8f7a582613ac10c94e061861",
+    "tests/virtual/k2/counter.cst": "b82f9774f3b68c151e978e9d8810284d0f2613a461f9b5562aa7aa904f951e7c",
+    "tests/virtual/k2/counter.sv": "7ac4a5f183c0e2bd82c78fe61c87b9fa8993e1d87ad3ac9b45f91f2690139b11",
+    "tests/virtual/k2/fixture_support.hpp": "af071d731143ca0604a48c031351cbf499cebe3e85ad52589eb9f93b9c38942e",
+    "tests/virtual/k2/fixtures/pause-replay-cases.json": "6a0180b28e0d95bba4b35e6c989be024b197f355320a51e2da6373edce40b77e",
+    "tests/virtual/k2/k2_session_tests.cpp": "ce835b50e35cb8580fa0194f6d348c6f92c66b1028e3c29a75cc7d4b783854eb",
+    "tests/virtual/k2/nonconvergent.sv": "134592b9449cac75c23ebff2a36563b2ec01c4fba4c8960c8a793cf210116fb3",
+    "tests/virtual/k2/shifted.sv": "b97b92bccad617d187a712c53210bdf550f1dff9f72674db2967495191b716ca",
+    "tests/virtual/k3/CMakeLists.txt": "81cc6be8c2e1cf2285451525042ebda34e402fb6608f101be910fd09db2ff2b5",
+    "tests/virtual/k3/fixtures/live-trace-cases.json": "a7f13f3903666f0e8c80b52d54e14bfce871eace2c15336791aa8fd5509f50ce",
+    "tests/virtual/k3/k3_live_trace_tests.cpp": "6e353f31b77332e61af45b4b004504098e0c77218b76affcea980192dd9edee7",
+    "tests/virtual/k4_k5/CMakeLists.txt": "7f4d8f7c6917b2a68bb91d8e02aaa551e8fe7710981d78c330d6b3cae84834ee",
+    "tests/virtual/k4_k5/k45_tests.cpp": "8bb064324276739a087f88ffc7f8f4acbd81703e2b14d4b5834577dbd2f28031",
+    "tests/virtual/k4_k5/legacy_jobs.cpp": "3064f7ae034edbe0aa318fa30955dc2368a76d2215d44a56daba4d6d5ca58cf5",
+    "tests/virtual/k4_k5/TestCounter.h": "e492ebc3ddf351fd8818a78038eb983b4d6c6504adbe869d75d1614b299d8d44",
+    "tests/virtual/u0/CMakeLists.txt": "811c85a16f2f58be86603e20e8314e73d51fbe8fa0cebcd1c173219374c91ca5",
+    "tests/virtual/u0/gui_smoke.cpp": "29d7896c43d724a9b67e2fd8b3e6f9b51244fe951e6f682b54948e235abbb2eb",
+    "tests/virtual/u1/CMakeLists.txt": "9ab164fe36f4544d13bfc355aae27241d2ca530212ca260fca5a22c124c6c39b",
+    "tests/virtual/u1/gui_acceptance.cpp": "7a3e82cf41bb84d2097abcad544b495ddae8e77c63cb9487ff937255796c5f67",
+    "tools/virtual/analyze_k1.py": "a936cdcc62f0d99abbedf7305657f11451a3a16ab496c9dfe462d413f9cf92ac",
+    "tools/virtual/archive_stage_evidence.py": "8cbf219ba0c9c758f128f46e6a338212bbe42648a6bc7be29eee201cabd98399",
+    "tools/virtual/bootstrap_dependencies.py": "30404f0e4e9573139ee255e9467ff66623c3e336d5340bc1df0133c128a47d36",
+    "tools/virtual/build_reviewed_profiles.py": "2be60d16d30d8dbcd92116cd81939aca448916b04d5db6783218de06769ba020",
+    "tools/virtual/build_virtual_project.py": "2b90fec3755c227b24f0f0e27a96c0a43372072cc4229a32269cc8e4d329f5f2",
+    "tools/virtual/export_ports.py": "b21aa1fe1e55e53b8216bee80f69d4fbef024cfb81d7e6d56ecd7f83d0721d05",
+    "tools/virtual/generated_runner_test_support.py": "572ee8f795380e0c860ddd74552bcb4c6848456a538fd6b448dccd6518d1d7bb",
+    "tools/virtual/verify_k0.py": "69fc65ca457c89f052cfbb1cc5c1c6bef67d9f8252eb27a249affed1703a7802",
+    "tools/virtual/verify_k1.py": "ad3d5ef617e8f7991af79cfbc013f45ed8726dc6db4642c504174084d95c61c9",
+    "tools/virtual/verify_k2.py": "f37ff3b5572ee49339f6a2771e928b399747e115ccdbfcf36f9b30c1e1eaf8b9",
+    "tools/virtual/verify_k23.py": "17e3294d995146d02ebfb8894392245362f37d29fdca3ee7c1dd71cdd6f7d216",
+    "tools/virtual/verify_k3_tsan.py": "51b22af79d886d0e6669faf56fbe46b907265da5273c70b227b176763a324d99",
+    "tools/virtual/verify_k45.py": "abd151bb955cc7919bce15f3042649a57ca8302371cec31f86b90e29f5c52c14",
+    "tools/virtual/verify_k45_real.py": "367568eec0267b6f75d74c7cc128fad838bf77c39dec9fd510a263ac3fe1b4e9",
+    "tools/virtual/verify_legacy_jobs.py": "9468fabe106bf5d72f37e6665d7e960e05cf7bde72214ab9e8943f5486606398",
+    "tools/virtual/verify_m0_final.py": "e822a7d9b01f84d94dfd4aaf4e0016aa34de2d357d15a9fd050f69263881fa27",
+    "tools/virtual/verify_u1_gui.py": "d5939056f44c3c51137532ee3388a43c808ad91b91cded7922da4771bc4b5ca2"
+  },
+  "source_snapshot_sha256": "7c59ff94f04ef991c3d39b4badfce42d23279429496d3fde410de67ab3510742",
+  "desktop_binary": {
+    "path": "E:\\sigflow\\SigFlow_VirtroFPGA\\build-m0\\sigflow.exe",
+    "sha256": "796869c9fe2b73fe2481e87bb8d34c6da87d15e899333c7d42c09329a81aa289"
+  },
+  "gui_assertions": 437,
+  "gui_host": "real wxApp + VirtualProjectSessionBuilder + VirtualSessionController + VirtualBoardPanel + FaultInjectionPanel + TraceViewPanel + FpgaPinBindingPanel",
+  "lifecycle_cycles": 20,
+  "dpi_scope": "native wx controls exercised through DPI-change events and checked for overlap/clipping; injected wx GetDPI vector geometry at 96/144/192; no physical monitor switch or raster upsampling",
+  "real_monitor_dpi_test": false,
+  "normal_replays": {
+    "attempts": [
+      {
+        "board_trace_verified": true,
+        "circuit_digest": "617fb3c3a4c9d5345e1464cdf1a8492f828d5f1343fdb323f61c290e7f0dee8f",
+        "control_digest": "d9f8e5e04adec5f9aec4d3dd522d35863845a26b4fb4228d2da50a9b1d32d085",
+        "durability": "durable",
+        "matched_commits": 228,
+        "outputs": {
+          "led_n[0]": false,
+          "led_n[1]": true,
+          "led_n[2]": true,
+          "led_n[3]": true,
+          "led_n[4]": true,
+          "led_n[5]": true
+        },
+        "status": "passed"
+      },
+      {
+        "board_trace_verified": true,
+        "circuit_digest": "617fb3c3a4c9d5345e1464cdf1a8492f828d5f1343fdb323f61c290e7f0dee8f",
+        "control_digest": "d9f8e5e04adec5f9aec4d3dd522d35863845a26b4fb4228d2da50a9b1d32d085",
+        "durability": "durable",
+        "matched_commits": 228,
+        "outputs": {
+          "led_n[0]": false,
+          "led_n[1]": true,
+          "led_n[2]": true,
+          "led_n[3]": true,
+          "led_n[4]": true,
+          "led_n[5]": true
+        },
+        "status": "passed"
+      },
+      {
+        "board_trace_verified": true,
+        "circuit_digest": "617fb3c3a4c9d5345e1464cdf1a8492f828d5f1343fdb323f61c290e7f0dee8f",
+        "control_digest": "d9f8e5e04adec5f9aec4d3dd522d35863845a26b4fb4228d2da50a9b1d32d085",
+        "durability": "durable",
+        "matched_commits": 228,
+        "outputs": {
+          "led_n[0]": false,
+          "led_n[1]": true,
+          "led_n[2]": true,
+          "led_n[3]": true,
+          "led_n[4]": true,
+          "led_n[5]": true
+        },
+        "status": "passed"
+      }
+    ],
+    "board_trace_verified": true,
+    "circuit_digest": "617fb3c3a4c9d5345e1464cdf1a8492f828d5f1343fdb323f61c290e7f0dee8f",
+    "control_digest": "d9f8e5e04adec5f9aec4d3dd522d35863845a26b4fb4228d2da50a9b1d32d085",
+    "matched_commits": 228,
+    "repetitions": 3,
+    "status": "passed"
+  },
+  "fault_replays": {
+    "attempts": [
+      {
+        "board_trace_verified": true,
+        "circuit_digest": "67742a828bba2bc0aed97a840fd73a65138f6eb5e0dfed2aced0ebc3cc136c88",
+        "control_digest": "d1ded99b9a29475951b18787266b96a6ac6af21597d8db0529fed5af38903817",
+        "durability": "durable",
+        "matched_commits": 740,
+        "outputs": {
+          "led_n[0]": true,
+          "led_n[1]": true,
+          "led_n[2]": true,
+          "led_n[3]": true,
+          "led_n[4]": false,
+          "led_n[5]": false
+        },
+        "status": "passed"
+      },
+      {
+        "board_trace_verified": true,
+        "circuit_digest": "67742a828bba2bc0aed97a840fd73a65138f6eb5e0dfed2aced0ebc3cc136c88",
+        "control_digest": "d1ded99b9a29475951b18787266b96a6ac6af21597d8db0529fed5af38903817",
+        "durability": "durable",
+        "matched_commits": 740,
+        "outputs": {
+          "led_n[0]": true,
+          "led_n[1]": true,
+          "led_n[2]": true,
+          "led_n[3]": true,
+          "led_n[4]": false,
+          "led_n[5]": false
+        },
+        "status": "passed"
+      },
+      {
+        "board_trace_verified": true,
+        "circuit_digest": "67742a828bba2bc0aed97a840fd73a65138f6eb5e0dfed2aced0ebc3cc136c88",
+        "control_digest": "d1ded99b9a29475951b18787266b96a6ac6af21597d8db0529fed5af38903817",
+        "durability": "durable",
+        "matched_commits": 740,
+        "outputs": {
+          "led_n[0]": true,
+          "led_n[1]": true,
+          "led_n[2]": true,
+          "led_n[3]": true,
+          "led_n[4]": false,
+          "led_n[5]": false
+        },
+        "status": "passed"
+      }
+    ],
+    "board_trace_verified": true,
+    "circuit_digest": "67742a828bba2bc0aed97a840fd73a65138f6eb5e0dfed2aced0ebc3cc136c88",
+    "control_digest": "d1ded99b9a29475951b18787266b96a6ac6af21597d8db0529fed5af38903817",
+    "matched_commits": 740,
+    "repetitions": 3,
+    "status": "passed"
+  },
+  "artifacts": {
+    "M0-build-final.log": {
+      "sha256": "2408ce5b6227d862d3b37fa4038a234a42ff3dd1c932c32a728c8fe1c8d31f99",
+      "bytes": 3158
+    },
+    "M0-ctest-final.log": {
+      "sha256": "33b8f71cc1f3c9c60c6b117f0647b2198b5ec19681b4455fc061e5e344220516",
+      "bytes": 4300
+    },
+    "M0-ctest-final.xml": {
+      "sha256": "cf5778201af063cd4856ec15dadee6e99385f74e76823c1e92ed34df5014c1a7",
+      "bytes": 20762
+    },
+    "U1-gui-results.json": {
+      "sha256": "e650b7bb8af700593edf1116aeb0193300f1b05647b37f5fa33cb4f4d4434c94",
+      "bytes": 94986
+    },
+    "U1-gui-progress.log": {
+      "sha256": "e4ae6da08fa10fa664fe2dbc1aa1d4846317986ac8f9b5f9e856553691c2e7d1",
+      "bytes": 28926
+    },
+    "U1-gui-stderr.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "U1-same-tick-details.json": {
+      "sha256": "88e6bfc528fcc4bd2a5e3ab19c1dbfb1ee1a1f72c66c7144de6227257b35e463",
+      "bytes": 479
+    },
+    "U1-same-tick-marker.png": {
+      "sha256": "58b0dfe15416de1305667db12639ffeb1fbc85cbb8e2974326d39cc9fc1be617",
+      "bytes": 4770
+    },
+    "U1-normal.journal.jsonl": {
+      "sha256": "da09016e7740c75fe879821b494e2a838a8dba15cc821b4e9ed88e2d765ce7c7",
+      "bytes": 1199497
+    },
+    "U1-fault.journal.jsonl": {
+      "sha256": "162211f87c82682f66328acb599b354714e884e3517dbdbaa637f6153a4b1866",
+      "bytes": 4325684
+    },
+    "M0-thread-sanitizer.log": {
+      "sha256": "a929e894cd2e6f8ad780cbe85879b9cf4e290239ff12560f50eaf1f0f1d67b44",
+      "bytes": 297
+    },
+    "U1-dark-144dpi.png": {
+      "sha256": "5c346f350837b22cd9328e6e9656f3f569c9b70e48202193277933bf007a5547",
+      "bytes": 24866
+    },
+    "U1-dark-192dpi.png": {
+      "sha256": "6cb5b84cc754d5c36eef09948fbcb15855782a436fed1de669526c9a31f543a2",
+      "bytes": 33922
+    },
+    "U1-dark-96dpi.png": {
+      "sha256": "1d0c51cead9fda26200308bb1d288efa3d30934f587dc2d9c480f7e890c042ba",
+      "bytes": 15578
+    },
+    "U1-light-144dpi.png": {
+      "sha256": "a1ffa9636353e8e60a0902b20d77bd637e2342ef83680619e70cbc3cf9698a8e",
+      "bytes": 24581
+    },
+    "U1-light-192dpi.png": {
+      "sha256": "d4fb06dd9c10b8eeaa9a0fd8bb8e73b96a9b178739142fbd1a0bc3f641c65f43",
+      "bytes": 33296
+    },
+    "U1-light-96dpi.png": {
+      "sha256": "a7077bd47e322f1e82fab6f6aefbc4a770a1a39270ca6ba21f8d02f02b53b7d2",
+      "bytes": 15329
+    }
+  },
+  "base_commit": "edbe3a0429568a26adc97b605e29e6ac2c3c2e03",
+  "branch": "SigFlow_FPGA_CMake",
+  "journal_protocol": "sigflow.session-journal.m0.v3",
+  "digest": "sigflow.sha256-chain.v2"
+}

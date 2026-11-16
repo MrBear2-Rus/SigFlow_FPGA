@@ -1,0 +1,2585 @@
+{
+  "A1": true,
+  "A10": true,
+  "A2": true,
+  "A3": true,
+  "A4": true,
+  "A5": true,
+  "A6": true,
+  "A7": true,
+  "A8": true,
+  "A9": true,
+  "build_first": {
+    "cache_hit": false,
+    "cache_key": "b1c2444776ed433d8f35e900a8f13cd0a945e487daa596f5937a76acea35a659",
+    "commands": [
+      {
+        "argv": [
+          "C:\\Users\\Admin\\AppData\\Local\\Programs\\Python\\Python314\\python.exe",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/virtual/export_ports.py",
+          "--top",
+          "k2_counter",
+          "--output",
+          "E:/sigflow/SigFlow_VirtroFPGA/.work/u1-acceptance/cache-47556/b1c2444776ed433d8f35e900a8f13cd0a945e487daa596f5937a76acea35a659/declarations.json",
+          "--builder",
+          "E:/sigflow/SigFlow_VirtroFPGA/build-m0/sigflow_port_manifest.exe",
+          "--yosys",
+          "E:/sigflow/SigFlow_VirtroFPGA/external/fpga-tools/runtime/yosys/bin/yosys.exe",
+          "--verilator",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/bin/verilator_bin_dbg.exe",
+          "E:/sigflow/SigFlow_VirtroFPGA/.work/u1-acceptance/project/counter.sv"
+        ],
+        "exit_code": 0,
+        "log": "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\virtual-project-sessions\\virtual-560b8c023dd94c22b4f5a9cf93cf3702\\export.log",
+        "seconds": 0.354,
+        "stage": "export"
+      },
+      {
+        "argv": [
+          "E:/sigflow/SigFlow_VirtroFPGA/build-m0/sigflow_session_validate.exe",
+          "E:/sigflow/SigFlow_VirtroFPGA/.work/u1-acceptance/cache-47556/b1c2444776ed433d8f35e900a8f13cd0a945e487daa596f5937a76acea35a659/declarations.json.ports.v2.json",
+          "E:/sigflow/SigFlow_VirtroFPGA/.work/virtual-project-sessions/virtual-560b8c023dd94c22b4f5a9cf93cf3702/session.json"
+        ],
+        "exit_code": 0,
+        "log": "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\virtual-project-sessions\\virtual-560b8c023dd94c22b4f5a9cf93cf3702\\validate.log",
+        "seconds": 0.028,
+        "stage": "validate"
+      },
+      {
+        "argv": [
+          "E:/sigflow/SigFlow_VirtroFPGA/build-m0/sigflow_adapter_codegen.exe",
+          "E:/sigflow/SigFlow_VirtroFPGA/.work/u1-acceptance/cache-47556/b1c2444776ed433d8f35e900a8f13cd0a945e487daa596f5937a76acea35a659/declarations.json.ports.v2.json",
+          "Vk2_counter",
+          "E:/sigflow/SigFlow_VirtroFPGA/.work/u1-acceptance/cache-47556/b1c2444776ed433d8f35e900a8f13cd0a945e487daa596f5937a76acea35a659/generated_adapter.cpp"
+        ],
+        "exit_code": 0,
+        "log": "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\virtual-project-sessions\\virtual-560b8c023dd94c22b4f5a9cf93cf3702\\generate.log",
+        "seconds": 0.01,
+        "stage": "generate"
+      },
+      {
+        "argv": [
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/bin/verilator_bin_dbg.exe",
+          "--cc",
+          "E:/sigflow/SigFlow_VirtroFPGA/.work/u1-acceptance/project/counter.sv",
+          "--exe",
+          "E:/sigflow/SigFlow_VirtroFPGA/.work/u1-acceptance/cache-47556/b1c2444776ed433d8f35e900a8f13cd0a945e487daa596f5937a76acea35a659/generated_adapter.cpp",
+          "--top-module",
+          "k2_counter",
+          "--Mdir",
+          "E:/sigflow/SigFlow_VirtroFPGA/.work/u1-acceptance/cache-47556/b1c2444776ed433d8f35e900a8f13cd0a945e487daa596f5937a76acea35a659/obj",
+          "--converge-limit",
+          "256",
+          "-Wno-fatal",
+          "-CFLAGS",
+          "-std=c++20 -DVL_USER_FATAL -I\"E:/sigflow/SigFlow_VirtroFPGA/include\" -I\"E:/sigflow/SigFlow_VirtroFPGA/3rd\" -I\"E:/sigflow/SigFlow_VirtroFPGA/core/src\" -I\"E:/sigflow/SigFlow_VirtroFPGA/InnerPlugin/eda-cst-gowin-cst/include\" -I\"E:/sigflow/SigFlow_VirtroFPGA/InnerPlugin/eda-target-tangnano9k/include\"",
+          "-LDFLAGS",
+          "E:/sigflow/SigFlow_VirtroFPGA/build-m0/core/libeda_virtual_runner.a E:/sigflow/SigFlow_VirtroFPGA/build-m0/InnerPlugin/eda-cst-gowin-cst/libeda-cst-gowin-cst.a E:/sigflow/SigFlow_VirtroFPGA/build-m0/core/libeda_virtual_board.a E:/sigflow/SigFlow_VirtroFPGA/build-m0/core/libeda_platform.a",
+          "-o",
+          "E:/sigflow/SigFlow_VirtroFPGA/.work/u1-acceptance/cache-47556/b1c2444776ed433d8f35e900a8f13cd0a945e487daa596f5937a76acea35a659/runner.exe"
+        ],
+        "exit_code": 0,
+        "log": "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\virtual-project-sessions\\virtual-560b8c023dd94c22b4f5a9cf93cf3702\\verilate.log",
+        "seconds": 0.074,
+        "stage": "verilate"
+      },
+      {
+        "argv": [
+          "E:/sigflow_fpga/toolchain/mingw64/bin/mingw32-make.exe",
+          "-C",
+          "E:/sigflow/SigFlow_VirtroFPGA/.work/u1-acceptance/cache-47556/b1c2444776ed433d8f35e900a8f13cd0a945e487daa596f5937a76acea35a659/obj",
+          "-f",
+          "Vk2_counter.mk",
+          "-j4",
+          "CXX=E:/sigflow_fpga/toolchain/mingw64/bin/g++.exe",
+          "LINK=E:/sigflow_fpga/toolchain/mingw64/bin/g++.exe",
+          "AR=E:/sigflow_fpga/toolchain/mingw64/bin/ar.exe",
+          "SHELL=E:/sigflow_fpga/toolchain/posix/sh.exe",
+          "PYTHON3=C:/Users/Admin/AppData/Local/Programs/Python/Python314/python.exe"
+        ],
+        "exit_code": 0,
+        "log": "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\virtual-project-sessions\\virtual-560b8c023dd94c22b4f5a9cf93cf3702\\compile.log",
+        "seconds": 4.082,
+        "stage": "compile"
+      }
+    ],
+    "diagnostics": [],
+    "input_sha256": {
+      "C:/Users/Admin/AppData/Local/Programs/Python/Python314/python.exe": "03168c01b7b7491423350e82c26fee71f35b43694d1319d3c668bda6903a0c38",
+      "E:/sigflow/SigFlow_VirtroFPGA/.work/u1-acceptance/project/counter.cst": "b82f9774f3b68c151e978e9d8810284d0f2613a461f9b5562aa7aa904f951e7c",
+      "E:/sigflow/SigFlow_VirtroFPGA/.work/u1-acceptance/project/counter.sv": "7ac4a5f183c0e2bd82c78fe61c87b9fa8993e1d87ad3ac9b45f91f2690139b11",
+      "E:/sigflow/SigFlow_VirtroFPGA/build-m0/InnerPlugin/eda-cst-gowin-cst/libeda-cst-gowin-cst.a": "1f09e67c044c5085ff4d5f59003878b25952b0b3b0c5c0257e4f36237cadb9d9",
+      "E:/sigflow/SigFlow_VirtroFPGA/build-m0/core/libeda_platform.a": "b6159435d47f49aa0d2dc904f7ffb850c48ecac8e1e00e7cf55572de8253adab",
+      "E:/sigflow/SigFlow_VirtroFPGA/build-m0/core/libeda_virtual_board.a": "ea35191dfcecf3e7fdcdc6e3d8b41b0468a3c96847affb1ebf5619979c454073",
+      "E:/sigflow/SigFlow_VirtroFPGA/build-m0/core/libeda_virtual_runner.a": "791123ebabd9ef2dce83349058ea357bc813d984e1fe24b245bdda160d875b58",
+      "E:/sigflow/SigFlow_VirtroFPGA/build-m0/sigflow_adapter_codegen.exe": "6f24f6605041f8e03b48629efed5e80b8c14b02841d61b934c0968f50b8ff0b3",
+      "E:/sigflow/SigFlow_VirtroFPGA/build-m0/sigflow_port_manifest.exe": "2603da35e44e9506650de23c436ec9d6e5bc429e9af88bf94dc5f22ea93e4491",
+      "E:/sigflow/SigFlow_VirtroFPGA/build-m0/sigflow_session_validate.exe": "4086e75d4caf4ad46f78dd7375f669f1c3d275ca7d352e838b613a21f34277c0",
+      "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/BoardTopology.h": "8baecc47091d9859914f1ecfd426736e1b03a08b2c7b34032466af8ad9514ba6",
+      "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/DurableJournal.h": "1d17e216e5d3110f0a8594902c1ae4d1e392eb1c1fe23717d7d37f151b203bda",
+      "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/ElectricalValidator.h": "1c773ba2cff7fdd7c97024183d94bd9f7c2d4b095f84da5a75878a9623c9fd15",
+      "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/LiveTraceStore.h": "b072c440c50c563a1dea45a93d559d6fd6f78f7c03d236572799119a8191194d",
+      "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/PortManifestBuilder.h": "b68d6222aff663fc6a10032376ecd11e220986118d15f1ecfc63ff750bccd7e1",
+      "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/ProjectValidation.h": "83a0d03083e2b87127cee2e66ee70ed852d6207bbae52bba99ff097266903f50",
+      "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/RunnerSupport.h": "881cf08cb2491ca6593451d26fc09eaed4dce6865a68246e246b187f905f0c42",
+      "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/VerilatedAdapterCodeGen.h": "d6e3c23a2463e92d63f29b52350e641567ab9b83830f9f7901a175d26e4f9672",
+      "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/VirtualSession.h": "95fb1e839dd5724ddd32c633fdafdcced30e8793d3ca0fc22e81ac6058013ea3",
+      "E:/sigflow/SigFlow_VirtroFPGA/external/fpga-tools/runtime/yosys/bin/yosys.exe": "999423132587306feb3d62f064da1c8e7bf1b45278e688ddae9583f5e3a7a1a2",
+      "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/command.hpp": "d3e59298dadf7136246b276cb930868a9c2785eb0e5e338d9a6719b1ee90f1c8",
+      "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/component_library.hpp": "f1f52a95273fd96d492631b884529ae19186f67e5170bf11e6678b19ac0119e6",
+      "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/electrical_profile.hpp": "856cdb8a40a4f31a852b85137af16a12e8838a620cc048c7fad1787b6de3f390",
+      "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/events.hpp": "c7c2c5e3f42d62843daa26e6675cbac6c467f44e3636040a2deb2ae62ac7bb68",
+      "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/jobs.hpp": "8b97fdb58f4c7e9beb50617a4047c48e3b10daa2176872b04a3b565daf1eecdf",
+      "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/live_trace.hpp": "cf4a455fe9353fd38b2977f2319468410ac560e0ddc8efec3d03ec54eba683c4",
+      "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/logic_state.hpp": "57dc7690a49cbcffedc56e88d00d3608916b0b76d208043d31cd21c3c15089d9",
+      "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/port_manifest.hpp": "ec7c6419cb67d77e951efb9186905f71056349338649a7cfa9ae6f28fadabeec",
+      "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/process.hpp": "20deaba0866d979fc5601afb200b5ea16dae2cbb9c0bf8fd6eb362e89367a22a",
+      "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/project.hpp": "4c05716c9aa82fdee4a42094e4800c908a355f78f26b52bf83aa4dd58b5e787d",
+      "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/schemas.hpp": "dcdd2644cc4f5c360a7e816e985cea6b4992165b4277cf0ba603d73b9c28a7b2",
+      "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/services.hpp": "5e9fed157aca712d1bdc8e0cb177d2d416529537e85fd1ec05b0cd1a30ec9031",
+      "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/target_profile.hpp": "e02b3bd5efcce754932590a104b2b90e7cb057220f0d15f7be3b828fb34c18b8",
+      "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/toolchain.hpp": "04a2d70e8ee0241701f25095c2d7e8db31a0ce30e8b0551cf43b1da75febd004",
+      "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/waveform.hpp": "a8f09e277f3749bab4cfe5ee4076ebffe1be4dc98196bfcb149bdb5a4c43d4d5",
+      "E:/sigflow/SigFlow_VirtroFPGA/registry/boards/tang-nano-9k.virtual.json": "bd15fb585a38867c7c218af17fc38405d03e867edab8144de17ffae2b99eb304",
+      "E:/sigflow/SigFlow_VirtroFPGA/registry/electrical/tang-nano-9k.6202.reviewed.v1.json": "714c0ae73fa696ab002553906c62cca6739a4655a5f8a669565530849ed7ea12",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/bin/verilator_bin_dbg.exe": "d87f0d7a17c94bd78d4feb0a0f20a0ec5d278ad9d8653049bbce7ad3c07200aa",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/gtkwave/fastlz.h": "c5ec8ede50dbc26c0f20ae3658cdcfbb740b06c0956fde6b6a441aefb04853f3",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/gtkwave/fst_config.h": "b16a3b21414ff2005a5bda9dd6996115c91fc1ea1fb46f3b506445224e973cfd",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/gtkwave/fst_win_unistd.h": "ba1ba5cfc5858700cbd39865ef502d94abfd719fe07a73443b431ed9b8d6f986",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/gtkwave/fstapi.h": "beb35236f29f785e00e2424e6b06a249d9e9f71f4135a11d35d245e33b5a24a0",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/gtkwave/lz4.h": "e75bc7e7b1c9ff7329ce6d035cec0080b39f4515fbc223c992e77206757ccb27",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated.cpp": "3f761a36c43f615497e2d38d35417079af3183575000d29e814578f495610e36",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated.h": "78158375f0297e1a7d23d71a697513644dabe2bc535e873e5423c70ce3626100",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated.mk": "1700dedde0b94aad29cfb4a84c3177368e8acf77e8f2256f84570c36ae54d521",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_config.h": "34b054a3001e67bb4891364f149ac8d652b3eb81b14ee12908cebd7d63fce1c9",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_cov.cpp": "b80d2a51cb4b23719a5dddee1bf4cfb888a2240c69b34f69dbb95653bb95a41c",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_cov.h": "cc14840c2138802f5fda6e2e9c88968481c152727aa7b79263e4b107dc9471d6",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_cov_key.h": "3e235e9a8cf00b5f966cdb173fad8892d5fbe7c7c66c93d97b8c428fe8509135",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_dpi.cpp": "9189b35e48317695a150a5292ddd8615451238a4c34718999a28c121882de4fb",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_dpi.h": "7b90933b991bcac9ec1b9887e26b752a4c74464b76e2dabb787c50a30384a339",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_force.h": "bcda4ef36061d9b27e828dee7ae81c8a0534ab451f2bd58757227292c07e3bbc",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_fst_c.cpp": "2b90fdb82255870d1308fdc12ebc92b63c4c0c2dde5a5c6007df15dbab9530e7",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_fst_c.h": "cc063e499e0b06c34cac2394e744c3b31c9e406c791b4fe6967b5526b5340672",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_fst_sc.cpp": "4bc3e09d1567a89be077d3967cbe3e7a91e26d8a92d46b33008a96e960dbdc9d",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_fst_sc.h": "ac9ee8e797c3641bb6de1a27878566317a14da7f2acab8f47625f1dc9d4faa5b",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_funcs.h": "6603bd3d9bc82ca1ff7f997d8cb446b27fcf7b66a101a1bc78efd016b569a6dd",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_imp.h": "9d236f215686764876289d7eabe802693b5925a7d196702cdbca0643a13e61bb",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_intrinsics.h": "3c7b1b07ab3dc18aa9be2d463021f07eae91edff4c7bbbeb20543209fa9f273e",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_probdist.cpp": "8179e7ab6d5c7e8ac76b4441231e36db5beb06a447f95c64d692627c288ab5e8",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_profiler.cpp": "c1c70348e78dfe25e2d49083888da51966540a7d0afe84fb29ff9f68b56c0e8d",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_profiler.h": "4d66901919811e36a1e4d168a9d0e26b4317796ff03424aecb360052684fae7b",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_random.cpp": "34c23e130423b9863795fd28df373ec16765e1d58082a53bf2f9d20bb8fb12b3",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_random.h": "88d52a9880e2daae0574fb63f90afb1ef4a8fdfd698898ca1864e0454b2b5c4d",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_saif_c.cpp": "f80efbc359e92043c07aba191a5c58524b8bdfccb43e7bd92d24f88479807798",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_saif_c.h": "a459303d2bb1f16d4b4729b39e36028978c38c8f1c150d0c6745ce1bc0c91dc2",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_saif_sc.h": "75be5cc3641a8cbd17a6b57d840f693645bb80e958f49dc5b9382ac3dbe8b380",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_save.cpp": "c820ea975c1f7b1dbb998abeab377ef33e39d7f65c0451c5b0e1d4b01421660d",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_save.h": "374356b3028f817ccc341c1584c3d27bb50b102325c34370a22a1953b8a47c1c",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_sc.h": "f43e93af1ee15083a2991bd0ffa0d488de8d511918d94644ad982580584cab87",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_sc_trace.h": "d3f16775a5f498698992c89c37d0bffcb9d61b92c6a2d4cd5dc3e6e84ac75113",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_sym_props.h": "2b70c63809b139c5d6255e69beaa5a3d56a61c5f30ebf52ceb0d63ea7727d527",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_syms.h": "9ea7b2cde5d99e56f1fa97a989cb3c16063d6bd688d4728e45b03dd35b77545a",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_threads.cpp": "8dd2fc9740d1237c8c27ca6f13c12bbae88eb77f5ccc87390fbcb4660588f1b7",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_threads.h": "603cb33e099292028a1afcdd9ecbb682ae92797378486965d3b1fe40586c8121",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_timing.cpp": "427bf6f1a6e33bab94ae7c69cddc8bf3182681ec9acf752904a4d62ffa07a249",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_timing.h": "1bc02be7be011ee64857a8d6c15ebda933d4266ff270c90b7bd2e9d39ef40357",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_trace.h": "108e5cb5522fac9d596bdf3773d0be4e456b2475694b44b1c879e6ae86aed48b",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_trace_imp.h": "4d62745dd179cb8d4677d2a2b61fced88f2cbb740acea28a36b498f445882c1d",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_types.h": "f17af3fbbcdfe8e67d30a86dc432fdd896543a6689054e4afabba2cd5659948d",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_vcd_c.cpp": "b0a38254f3bc982868509e4af89d4c8390bbb2feb81a4038d7daf34df05e660c",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_vcd_c.h": "7f656e45b6db5806c0440a87c905fc0df4c4cdc36fe1051652c8fe55afb15dec",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_vcd_sc.cpp": "a803ebc27cf4d22c4a08199e95e9e583767accc00736381fa405e17a5c0fa9b8",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_vcd_sc.h": "e0157742e90aa626f702509fdcf4aafcb887a6d9b2ee93c339abbeaa053e1866",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_vpi.cpp": "a0cbadaf202b9845eb3d875d8d09d531f01392868dad0993daa0bcfabec6cdce",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_vpi.h": "50a399497c858eee10f4562affc1ff344fd7c45f251c75c46b8cb6f80690bd0f",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilatedos.h": "0674fcd1296a9dc9e218e4c243de3e7cb966b2bd01dfbed260b4f446f225209a",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilatedos_c.h": "a6d890598e12b73c9d7a42157a044e30ec41e6154dddf4bfd11408f37fc0c2d2",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/vltstd/sv_vpi_user.h": "e72e4229cbb8ff497e22e604a1db73653a006365488337b83f9f89102a98b69e",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/vltstd/svdpi.h": "8b80c6f2bc4fc74438391927daeb3bbd050408e9739bb515b83089260f31c860",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/vltstd/veriuser.h": "bf3c5f639f107f87cdab32960f8a5c152b84700271db03c82e5a673abe78596a",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/vltstd/vpi_user.h": "d70e329af43a50d2c447ebc1ae27ec005b2440eddcdffbeb91d33a819a664f00",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/virtual/build_virtual_project.py": "2b90fec3755c227b24f0f0e27a96c0a43372072cc4229a32269cc8e4d329f5f2",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/virtual/export_ports.py": "b21aa1fe1e55e53b8216bee80f69d4fbef024cfb81d7e6d56ecd7f83d0721d05",
+      "E:/sigflow_fpga/toolchain/mingw64/bin/g++.exe": "f45f8fd915aecbf8a15692089dee8ebef0f210148f13ea5c1642e55376dd234c",
+      "E:/sigflow_fpga/toolchain/mingw64/bin/mingw32-make.exe": "4e2ad3951e7ea75bb0da56cddb4863c1d73081f66a2e288190afeba488975430",
+      "E:/sigflow_fpga/toolchain/posix/sh.exe": "07bb1e5b095b00d68a695481f9240879f33c5724b40aa2308f999d54ed78f075"
+    },
+    "model_started": false,
+    "ok": true,
+    "project_root": "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\u1-acceptance\\project",
+    "runner_path": "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\u1-acceptance\\cache-47556\\b1c2444776ed433d8f35e900a8f13cd0a945e487daa596f5937a76acea35a659\\runner.exe",
+    "runner_sha256": "8ceacdf3134c48d99a62f00af288387ef52f0071a95c2b1d668f19c208397dba",
+    "schema": "sigflow.virtual-build-result.v1",
+    "seconds": 4.895,
+    "session_config": "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\virtual-project-sessions\\virtual-560b8c023dd94c22b4f5a9cf93cf3702\\session.json",
+    "toolchain_sha256": {
+      "codegen": "6f24f6605041f8e03b48629efed5e80b8c14b02841d61b934c0968f50b8ff0b3",
+      "cxx": "f45f8fd915aecbf8a15692089dee8ebef0f210148f13ea5c1642e55376dd234c",
+      "make": "4e2ad3951e7ea75bb0da56cddb4863c1d73081f66a2e288190afeba488975430",
+      "manifest": "2603da35e44e9506650de23c436ec9d6e5bc429e9af88bf94dc5f22ea93e4491",
+      "python": "03168c01b7b7491423350e82c26fee71f35b43694d1319d3c668bda6903a0c38",
+      "sh": "07bb1e5b095b00d68a695481f9240879f33c5724b40aa2308f999d54ed78f075",
+      "validator": "4086e75d4caf4ad46f78dd7375f669f1c3d275ca7d352e838b613a21f34277c0",
+      "verilator": "d87f0d7a17c94bd78d4feb0a0f20a0ec5d278ad9d8653049bbce7ad3c07200aa",
+      "yosys": "999423132587306feb3d62f064da1c8e7bf1b45278e688ddae9583f5e3a7a1a2"
+    },
+    "validation": {
+      "binding_rows": [
+        {
+          "direction": "input",
+          "io_type": "LVCMOS33",
+          "label": "clock_in",
+          "package_pin": 52,
+          "ref": {
+            "bit_slot": 0,
+            "hdl_index": null,
+            "port_id": "k2_counter::clock_in"
+          }
+        },
+        {
+          "direction": "input",
+          "io_type": "LVCMOS18",
+          "label": "reset_n",
+          "package_pin": 4,
+          "ref": {
+            "bit_slot": 0,
+            "hdl_index": null,
+            "port_id": "k2_counter::reset_n"
+          }
+        },
+        {
+          "direction": "input",
+          "io_type": "LVCMOS18",
+          "label": "key_n",
+          "package_pin": 3,
+          "ref": {
+            "bit_slot": 0,
+            "hdl_index": null,
+            "port_id": "k2_counter::key_n"
+          }
+        },
+        {
+          "direction": "output",
+          "io_type": "LVCMOS18",
+          "label": "led_n[0]",
+          "package_pin": 10,
+          "ref": {
+            "bit_slot": 0,
+            "hdl_index": 0,
+            "port_id": "k2_counter::led_n"
+          }
+        },
+        {
+          "direction": "output",
+          "io_type": "LVCMOS18",
+          "label": "led_n[1]",
+          "package_pin": 11,
+          "ref": {
+            "bit_slot": 1,
+            "hdl_index": 1,
+            "port_id": "k2_counter::led_n"
+          }
+        },
+        {
+          "direction": "output",
+          "io_type": "LVCMOS18",
+          "label": "led_n[2]",
+          "package_pin": 13,
+          "ref": {
+            "bit_slot": 2,
+            "hdl_index": 2,
+            "port_id": "k2_counter::led_n"
+          }
+        },
+        {
+          "direction": "output",
+          "io_type": "LVCMOS18",
+          "label": "led_n[3]",
+          "package_pin": 14,
+          "ref": {
+            "bit_slot": 3,
+            "hdl_index": 3,
+            "port_id": "k2_counter::led_n"
+          }
+        },
+        {
+          "direction": "output",
+          "io_type": "LVCMOS18",
+          "label": "led_n[4]",
+          "package_pin": 15,
+          "ref": {
+            "bit_slot": 4,
+            "hdl_index": 4,
+            "port_id": "k2_counter::led_n"
+          }
+        },
+        {
+          "direction": "output",
+          "io_type": "LVCMOS18",
+          "label": "led_n[5]",
+          "package_pin": 16,
+          "ref": {
+            "bit_slot": 5,
+            "hdl_index": 5,
+            "port_id": "k2_counter::led_n"
+          }
+        }
+      ],
+      "diagnostics": [],
+      "manifest": {
+        "ports": [
+          {
+            "bits": [
+              {
+                "bit_slot": 0,
+                "hdl_index": null,
+                "port_id": "k2_counter::clock_in"
+              }
+            ],
+            "decl_left": null,
+            "decl_right": null,
+            "direction": "input",
+            "port_id": "k2_counter::clock_in",
+            "rtl_name": "clock_in",
+            "shape": "scalar",
+            "source_ref": "e,2:16,2:24",
+            "width": 1
+          },
+          {
+            "bits": [
+              {
+                "bit_slot": 0,
+                "hdl_index": null,
+                "port_id": "k2_counter::reset_n"
+              }
+            ],
+            "decl_left": null,
+            "decl_right": null,
+            "direction": "input",
+            "port_id": "k2_counter::reset_n",
+            "rtl_name": "reset_n",
+            "shape": "scalar",
+            "source_ref": "e,3:16,3:23",
+            "width": 1
+          },
+          {
+            "bits": [
+              {
+                "bit_slot": 0,
+                "hdl_index": null,
+                "port_id": "k2_counter::key_n"
+              }
+            ],
+            "decl_left": null,
+            "decl_right": null,
+            "direction": "input",
+            "port_id": "k2_counter::key_n",
+            "rtl_name": "key_n",
+            "shape": "scalar",
+            "source_ref": "e,4:16,4:21",
+            "width": 1
+          },
+          {
+            "bits": [
+              {
+                "bit_slot": 0,
+                "hdl_index": 0,
+                "port_id": "k2_counter::led_n"
+              },
+              {
+                "bit_slot": 1,
+                "hdl_index": 1,
+                "port_id": "k2_counter::led_n"
+              },
+              {
+                "bit_slot": 2,
+                "hdl_index": 2,
+                "port_id": "k2_counter::led_n"
+              },
+              {
+                "bit_slot": 3,
+                "hdl_index": 3,
+                "port_id": "k2_counter::led_n"
+              },
+              {
+                "bit_slot": 4,
+                "hdl_index": 4,
+                "port_id": "k2_counter::led_n"
+              },
+              {
+                "bit_slot": 5,
+                "hdl_index": 5,
+                "port_id": "k2_counter::led_n"
+              }
+            ],
+            "decl_left": 5,
+            "decl_right": 0,
+            "direction": "output",
+            "port_id": "k2_counter::led_n",
+            "rtl_name": "led_n",
+            "shape": "packed_vector",
+            "source_ref": "e,5:23,5:28",
+            "width": 6
+          }
+        ],
+        "schema": "sigflow.port-manifest.v2",
+        "source_sha256": "db456152c43db64bd6ea1aff56c0d75853a5a4ac3003c2209a15e718ff7fe79f",
+        "top_module": "k2_counter"
+      },
+      "ok": true,
+      "schema": "sigflow.virtual-project-validation.v1"
+    },
+    "working_directory": "E:\\sigflow\\SigFlow_VirtroFPGA"
+  },
+  "checks": [
+    {
+      "area": "A1",
+      "assertion": "GUI exports declarations, validates, generates, verilates and compiles before Ready"
+    },
+    {
+      "area": "A1",
+      "assertion": "real child session starts Paused(Ready)"
+    },
+    {
+      "area": "A1",
+      "assertion": "unchanged project reuses fingerprinted binary and revalidates bindings"
+    },
+    {
+      "area": "A2",
+      "assertion": "GUI binding rows retain zero and nonzero HDL indices"
+    },
+    {
+      "area": "A2",
+      "assertion": "nonzero HDL bit 4 drives physical LED0 via generated adapter"
+    },
+    {
+      "area": "A3",
+      "assertion": "invalid project rejected before DUT: E_IO_VCCIO_MISMATCH"
+    },
+    {
+      "area": "A3",
+      "assertion": "diagnostic focuses exact Pin Binding row"
+    },
+    {
+      "area": "A3",
+      "assertion": "structured diagnostic E_IO_VCCIO_MISMATCH"
+    },
+    {
+      "area": "A3",
+      "assertion": "invalid project rejected before DUT: E_BANK_UNKNOWN"
+    },
+    {
+      "area": "A3",
+      "assertion": "diagnostic focuses exact Pin Binding row"
+    },
+    {
+      "area": "A3",
+      "assertion": "structured diagnostic E_BANK_UNKNOWN"
+    },
+    {
+      "area": "A3",
+      "assertion": "invalid project rejected before DUT: E_VCCIO_UNKNOWN"
+    },
+    {
+      "area": "A3",
+      "assertion": "diagnostic focuses exact Pin Binding row"
+    },
+    {
+      "area": "A3",
+      "assertion": "diagnostic focuses exact Pin Binding row"
+    },
+    {
+      "area": "A3",
+      "assertion": "diagnostic focuses exact Pin Binding row"
+    },
+    {
+      "area": "A3",
+      "assertion": "diagnostic focuses exact Pin Binding row"
+    },
+    {
+      "area": "A3",
+      "assertion": "diagnostic focuses exact Pin Binding row"
+    },
+    {
+      "area": "A3",
+      "assertion": "diagnostic focuses exact Pin Binding row"
+    },
+    {
+      "area": "A3",
+      "assertion": "diagnostic focuses exact Pin Binding row"
+    },
+    {
+      "area": "A3",
+      "assertion": "diagnostic focuses exact Pin Binding row"
+    },
+    {
+      "area": "A3",
+      "assertion": "structured diagnostic E_VCCIO_UNKNOWN"
+    },
+    {
+      "area": "A3",
+      "assertion": "invalid project rejected before DUT: E_CST_UNMANAGED"
+    },
+    {
+      "area": "A3",
+      "assertion": "diagnostic focuses exact Pin Binding row"
+    },
+    {
+      "area": "A3",
+      "assertion": "structured diagnostic E_CST_UNMANAGED"
+    },
+    {
+      "area": "A3",
+      "assertion": "invalid project rejected before DUT: E_CLOCK_BINDING"
+    },
+    {
+      "area": "A3",
+      "assertion": "diagnostic focuses exact Pin Binding row"
+    },
+    {
+      "area": "A3",
+      "assertion": "structured diagnostic E_CLOCK_BINDING"
+    },
+    {
+      "area": "A3",
+      "assertion": "reviewed 1.8V LED/button Bank and 3.3V oscillator Bank pass together"
+    },
+    {
+      "area": "A4",
+      "assertion": "correct CST turns on LED0"
+    },
+    {
+      "area": "A4",
+      "assertion": "swapped CST migrates physical light to LED1"
+    },
+    {
+      "area": "A4",
+      "assertion": "invalid project rejected before DUT: E_MISSING_BINDING"
+    },
+    {
+      "area": "A4",
+      "assertion": "diagnostic focuses exact Pin Binding row"
+    },
+    {
+      "area": "A4",
+      "assertion": "structured diagnostic E_MISSING_BINDING"
+    },
+    {
+      "area": "A4",
+      "assertion": "explicit teaching-unbound never bypasses the physical map"
+    },
+    {
+      "area": "A5",
+      "assertion": "released reset initializes zero count"
+    },
+    {
+      "area": "A5",
+      "assertion": "paused contact edits perform no DUT imports"
+    },
+    {
+      "area": "A6",
+      "assertion": "press-release-Step coalesces without a pulse"
+    },
+    {
+      "area": "A6",
+      "assertion": "press-Step commits a sampled low contact"
+    },
+    {
+      "area": "A6",
+      "assertion": "release-Step preserves the count"
+    },
+    {
+      "area": "A5",
+      "assertion": "Play/Pause leaves persistent model available for Step"
+    },
+    {
+      "area": "A10",
+      "assertion": "normal GUI three from-zero replays match both digests"
+    },
+    {
+      "area": "A10",
+      "assertion": "selected Journal replay verifies original run identity and fingerprints"
+    },
+    {
+      "area": "A7",
+      "assertion": "initial FLT blocks before first model write/evaluation"
+    },
+    {
+      "area": "A7",
+      "assertion": "both panels expose boundary, STATE and driver provenance"
+    },
+    {
+      "area": "A7",
+      "assertion": "staged contact repair resumes from retained initial boundary"
+    },
+    {
+      "area": "A7",
+      "assertion": "unpulled input branch open blocks without DUT import"
+    },
+    {
+      "area": "A7",
+      "assertion": "pending fault revocation recovers on Step"
+    },
+    {
+      "area": "A7",
+      "assertion": "between-clock asynchronous reset CON blocks with zero writes and unchanged committed boundary"
+    },
+    {
+      "area": "A7",
+      "assertion": "revoking input contention resumes at preserved boundary"
+    },
+    {
+      "area": "A8",
+      "assertion": "QueryExtended generates exactly one three-event marker at physical tick 100"
+    },
+    {
+      "area": "A8",
+      "assertion": "clicking rendered track badge opens event inspection"
+    },
+    {
+      "area": "A8",
+      "assertion": "detail list retains exact (tick,delta,event_seq,value,STATE,valid,contention)"
+    },
+    {
+      "area": "A8",
+      "assertion": "exports renderer snapshot without stretching delta into physical time"
+    },
+    {
+      "area": "A9",
+      "assertion": "Paused open is pending and does not change applied topology"
+    },
+    {
+      "area": "A9",
+      "assertion": "output open never pauses and separates pad from endpoint"
+    },
+    {
+      "area": "A9",
+      "assertion": "both physical branch waveforms update in the LiveTrace UI source"
+    },
+    {
+      "area": "A9",
+      "assertion": "Running revoke/reapply updates actual board LED state"
+    },
+    {
+      "area": "A10",
+      "assertion": "fault GUI three from-zero replays match both digests"
+    },
+    {
+      "area": "A7",
+      "assertion": "bounded no-clock error is inspectable in the GUI"
+    },
+    {
+      "area": "A7",
+      "assertion": "real nonconvergent RTL exits within bounded evaluation and exposes GUI error"
+    },
+    {
+      "area": "A1",
+      "assertion": "editing a source invalidates runner fingerprint and recompiles automatically"
+    },
+    {
+      "area": "A10",
+      "assertion": "manual offline VCD remains available alongside live sessions"
+    },
+    {
+      "area": "A10",
+      "assertion": "20 session/widget lifecycle cycles preserve manual offline source and release callbacks"
+    },
+    {
+      "area": "A10",
+      "assertion": "closing Running and immediately replacing session cannot call retired UI owner"
+    },
+    {
+      "area": "A10",
+      "assertion": "wx DIP conversion at 96 DPI"
+    },
+    {
+      "area": "A10",
+      "assertion": "DPI-specific vector geometry snapshot light-96dpi.png"
+    },
+    {
+      "area": "A10",
+      "assertion": "wx DIP conversion at 144 DPI"
+    },
+    {
+      "area": "A10",
+      "assertion": "DPI-specific vector geometry snapshot light-144dpi.png"
+    },
+    {
+      "area": "A10",
+      "assertion": "wx DIP conversion at 192 DPI"
+    },
+    {
+      "area": "A10",
+      "assertion": "DPI-specific vector geometry snapshot light-192dpi.png"
+    },
+    {
+      "area": "A10",
+      "assertion": "wx DIP conversion at 96 DPI"
+    },
+    {
+      "area": "A10",
+      "assertion": "DPI-specific vector geometry snapshot dark-96dpi.png"
+    },
+    {
+      "area": "A10",
+      "assertion": "wx DIP conversion at 144 DPI"
+    },
+    {
+      "area": "A10",
+      "assertion": "DPI-specific vector geometry snapshot dark-144dpi.png"
+    },
+    {
+      "area": "A10",
+      "assertion": "wx DIP conversion at 192 DPI"
+    },
+    {
+      "area": "A10",
+      "assertion": "DPI-specific vector geometry snapshot dark-192dpi.png"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 96 label=构建并启动当前工程 rect=8,8,129,25 client=1272,730"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 96 label=加载 M0 参考计数器 rect=142,8,132,25 client=1272,730"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 96 label=加载实验配置 rect=279,8,93,25 client=1272,730"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 96 label=play rect=377,8,75,25 client=1272,730"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 96 label=step rect=457,8,75,25 client=1272,730"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 96 label=pause rect=537,8,75,25 client=1272,730"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 96 label=stop rect=617,8,75,25 client=1272,730"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 96 label=重放当前日志 rect=697,8,93,25 client=1272,730"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 96 label=重放指定 Journal rect=795,8,115,25 client=1272,730"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 96 label=断开 LED0 走线（wire.led0） rect=8,8,185,17 client=1272,730"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 96 label=断开 wire.key3 rect=209,8,106,17 client=1272,730"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 96 label=断开 wire.key4 rect=331,8,106,17 client=1272,730"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 96 label=断开 wire.clock rect=453,8,109,17 client=1272,730"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 96 label=提交输入驱动（暂停时 pending） rect=258,69,205,25 client=1272,730"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 144 label=构建并启动当前工程 rect=27,27,138,32 client=1703,1011"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 144 label=加载 M0 参考计数器 rect=183,27,141,32 client=1703,1011"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 144 label=加载实验配置 rect=342,27,102,32 client=1703,1011"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 144 label=play rect=462,27,75,32 client=1703,1011"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 144 label=step rect=555,27,75,32 client=1703,1011"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 144 label=pause rect=648,27,75,32 client=1703,1011"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 144 label=stop rect=741,27,75,32 client=1703,1011"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 144 label=重放当前日志 rect=834,27,102,32 client=1703,1011"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 144 label=重放指定 Journal rect=954,27,124,32 client=1703,1011"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 144 label=断开 LED0 走线（wire.led0） rect=27,27,188,17 client=1703,1011"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 144 label=断开 wire.key3 rect=269,27,109,17 client=1703,1011"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 144 label=断开 wire.key4 rect=432,27,109,17 client=1703,1011"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 144 label=断开 wire.clock rect=595,27,112,17 client=1703,1011"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 144 label=提交输入驱动（暂停时 pending） rect=397,227,214,32 client=1703,1011"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 192 label=构建并启动当前工程 rect=64,64,147,39 client=1703,1004"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 192 label=加载 M0 参考计数器 rect=251,64,150,39 client=1703,1004"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 192 label=加载实验配置 rect=441,64,111,39 client=1703,1004"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 192 label=play rect=592,64,75,39 client=1703,1004"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 192 label=step rect=707,64,75,39 client=1703,1004"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 192 label=pause rect=822,64,75,39 client=1703,1004"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 192 label=stop rect=937,64,75,39 client=1703,1004"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 192 label=重放当前日志 rect=1052,64,111,39 client=1703,1004"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 192 label=重放指定 Journal rect=1203,64,133,39 client=1703,1004"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 192 label=断开 LED0 走线（wire.led0） rect=64,64,191,17 client=1703,1004"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 192 label=断开 wire.key3 rect=383,64,112,17 client=1703,1004"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 192 label=断开 wire.key4 rect=623,64,112,17 client=1703,1004"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 192 label=断开 wire.clock rect=863,64,115,17 client=1703,1004"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 192 label=提交输入驱动（暂停时 pending） rect=580,593,223,39 client=1703,1004"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 96 label=构建并启动当前工程 rect=8,8,129,25 client=1272,730"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 96 label=加载 M0 参考计数器 rect=142,8,132,25 client=1272,730"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 96 label=加载实验配置 rect=279,8,93,25 client=1272,730"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 96 label=play rect=377,8,75,25 client=1272,730"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 96 label=step rect=457,8,75,25 client=1272,730"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 96 label=pause rect=537,8,75,25 client=1272,730"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 96 label=stop rect=617,8,75,25 client=1272,730"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 96 label=重放当前日志 rect=697,8,93,25 client=1272,730"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 96 label=重放指定 Journal rect=795,8,115,25 client=1272,730"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 96 label=断开 LED0 走线（wire.led0） rect=8,8,185,17 client=1272,730"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 96 label=断开 wire.key3 rect=209,8,106,17 client=1272,730"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 96 label=断开 wire.key4 rect=331,8,106,17 client=1272,730"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 96 label=断开 wire.clock rect=453,8,109,17 client=1272,730"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 96 label=提交输入驱动（暂停时 pending） rect=258,69,205,25 client=1272,730"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 96"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 144 label=构建并启动当前工程 rect=27,27,138,32 client=1703,1011"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 144 label=加载 M0 参考计数器 rect=183,27,141,32 client=1703,1011"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 144 label=加载实验配置 rect=342,27,102,32 client=1703,1011"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 144 label=play rect=462,27,75,32 client=1703,1011"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 144 label=step rect=555,27,75,32 client=1703,1011"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 144 label=pause rect=648,27,75,32 client=1703,1011"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 144 label=stop rect=741,27,75,32 client=1703,1011"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 144 label=重放当前日志 rect=834,27,102,32 client=1703,1011"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 144 label=重放指定 Journal rect=954,27,124,32 client=1703,1011"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 144 label=断开 LED0 走线（wire.led0） rect=27,27,188,17 client=1703,1011"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 144 label=断开 wire.key3 rect=269,27,109,17 client=1703,1011"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 144 label=断开 wire.key4 rect=432,27,109,17 client=1703,1011"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 144 label=断开 wire.clock rect=595,27,112,17 client=1703,1011"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 144 label=提交输入驱动（暂停时 pending） rect=397,227,214,32 client=1703,1011"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 144"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 192 label=构建并启动当前工程 rect=64,64,147,39 client=1703,1004"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 192 label=加载 M0 参考计数器 rect=251,64,150,39 client=1703,1004"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 192 label=加载实验配置 rect=441,64,111,39 client=1703,1004"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 192 label=play rect=592,64,75,39 client=1703,1004"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 192 label=step rect=707,64,75,39 client=1703,1004"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 192 label=pause rect=822,64,75,39 client=1703,1004"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 192 label=stop rect=937,64,75,39 client=1703,1004"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 192 label=重放当前日志 rect=1052,64,111,39 client=1703,1004"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 192 label=重放指定 Journal rect=1203,64,133,39 client=1703,1004"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 192 label=断开 LED0 走线（wire.led0） rect=64,64,191,17 client=1703,1004"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 192 label=断开 wire.key3 rect=383,64,112,17 client=1703,1004"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 192 label=断开 wire.key4 rect=623,64,112,17 client=1703,1004"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 192 label=断开 wire.clock rect=863,64,115,17 client=1703,1004"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native widget fits at DPI-change scale 192 label=提交输入驱动（暂停时 pending） rect=580,593,223,39 client=1703,1004"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "native controls do not overlap at scale 192"
+    },
+    {
+      "area": "A10",
+      "assertion": "legacy sim.build / sim.run production providers passed in same CTest invocation"
+    }
+  ],
+  "diagnostics": [
+    {
+      "bank_id": "3",
+      "code": "E_IO_VCCIO_MISMATCH",
+      "field": "bindings",
+      "message": "IO_TYPE incompatible with board VCCIO; port=led_n[0], pad=10, Bank=3, VCCIO=1800mV, IO_TYPE=LVCMOS33. Choose a reviewed pad, its matching IO_TYPE and endpoint direction; remove unsupported pull/drive settings. [board-6202 (Tang_Nano_9k_3672 / revision history 6202 (2022-10-23), schematic sheet 3/5, PDF pages 1 2)] [pinout (UG803-1.6.5E, QN88P (PSRAM) column, PDF pages 7 9 10 12)] [electrical (DS117-3.2.5E, tables 3-11 / 3-12, printed pages 49 / 51, PDF pages 60 62)]",
+      "package_pin": 10,
+      "port_bit_ref": {
+        "bit_slot": 0,
+        "hdl_index": 0,
+        "port_id": "k2_counter::led_n"
+      },
+      "port_ref": "led_n[0]",
+      "row": 2,
+      "suggestion": "按此 Bank 的实际 VCCIO 选择兼容的 IO_TYPE；不要回退为全局 LVCMOS33。",
+      "vccio_mv": 1800
+    },
+    {
+      "bank_id": "",
+      "code": "E_BANK_UNKNOWN",
+      "field": "bindings",
+      "message": "Pad/Bank has not been reviewed; port=led_n[0], pad=10, Bank=unknown, VCCIO=unknownmV, IO_TYPE=LVCMOS18. Choose a reviewed pad, its matching IO_TYPE and endpoint direction; remove unsupported pull/drive settings. [board-6202 (Tang_Nano_9k_3672 / revision history 6202 (2022-10-23), schematic sheet 3/5, PDF pages 1 2)] [pinout (UG803-1.6.5E, QN88P (PSRAM) column, PDF pages 7 9 10 12)] [electrical (DS117-3.2.5E, tables 3-11 / 3-12, printed pages 49 / 51, PDF pages 60 62)]",
+      "package_pin": 10,
+      "port_bit_ref": {
+        "bit_slot": 0,
+        "hdl_index": 0,
+        "port_id": "k2_counter::led_n"
+      },
+      "port_ref": "led_n[0]",
+      "row": 2,
+      "suggestion": "核对所选板修订的核准 Pad/Bank/供电资料，补齐数据后重建。",
+      "vccio_mv": null
+    },
+    {
+      "bank_id": "3",
+      "code": "E_VCCIO_UNKNOWN",
+      "field": "bindings",
+      "message": "Bank supply unknown; port=key_n, pad=3, Bank=3, VCCIO=unknownmV, IO_TYPE=LVCMOS18. Choose a reviewed pad, its matching IO_TYPE and endpoint direction; remove unsupported pull/drive settings. [board-6202 (Tang_Nano_9k_3672 / revision history 6202 (2022-10-23), schematic sheet 3/5, PDF pages 1 2)] [pinout (UG803-1.6.5E, QN88P (PSRAM) column, PDF pages 7 9 10 12)] [electrical (DS117-3.2.5E, tables 3-11 / 3-12, printed pages 49 / 51, PDF pages 60 62)]",
+      "package_pin": 3,
+      "port_bit_ref": {
+        "bit_slot": 0,
+        "hdl_index": null,
+        "port_id": "k2_counter::key_n"
+      },
+      "port_ref": "key_n",
+      "row": 1,
+      "suggestion": "核对所选板修订的核准 Pad/Bank/供电资料，补齐数据后重建。",
+      "vccio_mv": null
+    },
+    {
+      "bank_id": "3",
+      "code": "E_VCCIO_UNKNOWN",
+      "field": "bindings",
+      "message": "Bank supply unknown; port=led_n[0], pad=10, Bank=3, VCCIO=unknownmV, IO_TYPE=LVCMOS18. Choose a reviewed pad, its matching IO_TYPE and endpoint direction; remove unsupported pull/drive settings. [board-6202 (Tang_Nano_9k_3672 / revision history 6202 (2022-10-23), schematic sheet 3/5, PDF pages 1 2)] [pinout (UG803-1.6.5E, QN88P (PSRAM) column, PDF pages 7 9 10 12)] [electrical (DS117-3.2.5E, tables 3-11 / 3-12, printed pages 49 / 51, PDF pages 60 62)]",
+      "package_pin": 10,
+      "port_bit_ref": {
+        "bit_slot": 0,
+        "hdl_index": 0,
+        "port_id": "k2_counter::led_n"
+      },
+      "port_ref": "led_n[0]",
+      "row": 2,
+      "suggestion": "核对所选板修订的核准 Pad/Bank/供电资料，补齐数据后重建。",
+      "vccio_mv": null
+    },
+    {
+      "bank_id": "3",
+      "code": "E_VCCIO_UNKNOWN",
+      "field": "bindings",
+      "message": "Bank supply unknown; port=led_n[1], pad=11, Bank=3, VCCIO=unknownmV, IO_TYPE=LVCMOS18. Choose a reviewed pad, its matching IO_TYPE and endpoint direction; remove unsupported pull/drive settings. [board-6202 (Tang_Nano_9k_3672 / revision history 6202 (2022-10-23), schematic sheet 3/5, PDF pages 1 2)] [pinout (UG803-1.6.5E, QN88P (PSRAM) column, PDF pages 7 9 10 12)] [electrical (DS117-3.2.5E, tables 3-11 / 3-12, printed pages 49 / 51, PDF pages 60 62)]",
+      "package_pin": 11,
+      "port_bit_ref": {
+        "bit_slot": 1,
+        "hdl_index": 1,
+        "port_id": "k2_counter::led_n"
+      },
+      "port_ref": "led_n[1]",
+      "row": 3,
+      "suggestion": "核对所选板修订的核准 Pad/Bank/供电资料，补齐数据后重建。",
+      "vccio_mv": null
+    },
+    {
+      "bank_id": "3",
+      "code": "E_VCCIO_UNKNOWN",
+      "field": "bindings",
+      "message": "Bank supply unknown; port=led_n[2], pad=13, Bank=3, VCCIO=unknownmV, IO_TYPE=LVCMOS18. Choose a reviewed pad, its matching IO_TYPE and endpoint direction; remove unsupported pull/drive settings. [board-6202 (Tang_Nano_9k_3672 / revision history 6202 (2022-10-23), schematic sheet 3/5, PDF pages 1 2)] [pinout (UG803-1.6.5E, QN88P (PSRAM) column, PDF pages 7 9 10 12)] [electrical (DS117-3.2.5E, tables 3-11 / 3-12, printed pages 49 / 51, PDF pages 60 62)]",
+      "package_pin": 13,
+      "port_bit_ref": {
+        "bit_slot": 2,
+        "hdl_index": 2,
+        "port_id": "k2_counter::led_n"
+      },
+      "port_ref": "led_n[2]",
+      "row": 4,
+      "suggestion": "核对所选板修订的核准 Pad/Bank/供电资料，补齐数据后重建。",
+      "vccio_mv": null
+    },
+    {
+      "bank_id": "3",
+      "code": "E_VCCIO_UNKNOWN",
+      "field": "bindings",
+      "message": "Bank supply unknown; port=led_n[3], pad=14, Bank=3, VCCIO=unknownmV, IO_TYPE=LVCMOS18. Choose a reviewed pad, its matching IO_TYPE and endpoint direction; remove unsupported pull/drive settings. [board-6202 (Tang_Nano_9k_3672 / revision history 6202 (2022-10-23), schematic sheet 3/5, PDF pages 1 2)] [pinout (UG803-1.6.5E, QN88P (PSRAM) column, PDF pages 7 9 10 12)] [electrical (DS117-3.2.5E, tables 3-11 / 3-12, printed pages 49 / 51, PDF pages 60 62)]",
+      "package_pin": 14,
+      "port_bit_ref": {
+        "bit_slot": 3,
+        "hdl_index": 3,
+        "port_id": "k2_counter::led_n"
+      },
+      "port_ref": "led_n[3]",
+      "row": 5,
+      "suggestion": "核对所选板修订的核准 Pad/Bank/供电资料，补齐数据后重建。",
+      "vccio_mv": null
+    },
+    {
+      "bank_id": "3",
+      "code": "E_VCCIO_UNKNOWN",
+      "field": "bindings",
+      "message": "Bank supply unknown; port=led_n[4], pad=15, Bank=3, VCCIO=unknownmV, IO_TYPE=LVCMOS18. Choose a reviewed pad, its matching IO_TYPE and endpoint direction; remove unsupported pull/drive settings. [board-6202 (Tang_Nano_9k_3672 / revision history 6202 (2022-10-23), schematic sheet 3/5, PDF pages 1 2)] [pinout (UG803-1.6.5E, QN88P (PSRAM) column, PDF pages 7 9 10 12)] [electrical (DS117-3.2.5E, tables 3-11 / 3-12, printed pages 49 / 51, PDF pages 60 62)]",
+      "package_pin": 15,
+      "port_bit_ref": {
+        "bit_slot": 4,
+        "hdl_index": 4,
+        "port_id": "k2_counter::led_n"
+      },
+      "port_ref": "led_n[4]",
+      "row": 6,
+      "suggestion": "核对所选板修订的核准 Pad/Bank/供电资料，补齐数据后重建。",
+      "vccio_mv": null
+    },
+    {
+      "bank_id": "3",
+      "code": "E_VCCIO_UNKNOWN",
+      "field": "bindings",
+      "message": "Bank supply unknown; port=led_n[5], pad=16, Bank=3, VCCIO=unknownmV, IO_TYPE=LVCMOS18. Choose a reviewed pad, its matching IO_TYPE and endpoint direction; remove unsupported pull/drive settings. [board-6202 (Tang_Nano_9k_3672 / revision history 6202 (2022-10-23), schematic sheet 3/5, PDF pages 1 2)] [pinout (UG803-1.6.5E, QN88P (PSRAM) column, PDF pages 7 9 10 12)] [electrical (DS117-3.2.5E, tables 3-11 / 3-12, printed pages 49 / 51, PDF pages 60 62)]",
+      "package_pin": 16,
+      "port_bit_ref": {
+        "bit_slot": 5,
+        "hdl_index": 5,
+        "port_id": "k2_counter::led_n"
+      },
+      "port_ref": "led_n[5]",
+      "row": 7,
+      "suggestion": "核对所选板修订的核准 Pad/Bank/供电资料，补齐数据后重建。",
+      "vccio_mv": null
+    },
+    {
+      "bank_id": "3",
+      "code": "E_VCCIO_UNKNOWN",
+      "field": "bindings",
+      "message": "Bank supply unknown; port=reset_n, pad=4, Bank=3, VCCIO=unknownmV, IO_TYPE=LVCMOS18. Choose a reviewed pad, its matching IO_TYPE and endpoint direction; remove unsupported pull/drive settings. [board-6202 (Tang_Nano_9k_3672 / revision history 6202 (2022-10-23), schematic sheet 3/5, PDF pages 1 2)] [pinout (UG803-1.6.5E, QN88P (PSRAM) column, PDF pages 7 9 10 12)] [electrical (DS117-3.2.5E, tables 3-11 / 3-12, printed pages 49 / 51, PDF pages 60 62)]",
+      "package_pin": 4,
+      "port_bit_ref": {
+        "bit_slot": 0,
+        "hdl_index": null,
+        "port_id": "k2_counter::reset_n"
+      },
+      "port_ref": "reset_n",
+      "row": 8,
+      "suggestion": "核对所选板修订的核准 Pad/Bank/供电资料，补齐数据后重建。",
+      "vccio_mv": null
+    },
+    {
+      "bank_id": "3",
+      "code": "E_CST_UNMANAGED",
+      "field": "line",
+      "message": "Unmanaged CST statement",
+      "package_pin": 10,
+      "port_bit_ref": {
+        "bit_slot": 0,
+        "hdl_index": 0,
+        "port_id": "k2_counter::led_n"
+      },
+      "port_ref": "led_n[0]",
+      "row": 19,
+      "suggestion": "删除或改写不受支持的 CST 语句；不得忽略会影响连线或电气的命令。",
+      "vccio_mv": 1800
+    },
+    {
+      "bank_id": "3",
+      "code": "E_CLOCK_BINDING",
+      "field": "bindings",
+      "message": "Required clock is not bound to oscillator Pad",
+      "package_pin": 3,
+      "port_bit_ref": {
+        "bit_slot": 0,
+        "hdl_index": null,
+        "port_id": "k2_counter::clock_in"
+      },
+      "port_ref": "clock_in",
+      "row": 0,
+      "suggestion": "将显式 clock.port_ref 的端口位通过 CST 接到板卡晶振 Pad。",
+      "vccio_mv": 1800
+    },
+    {
+      "bank_id": "",
+      "code": "E_MISSING_BINDING",
+      "field": "bindings",
+      "message": "Missing led_n[0]",
+      "package_pin": null,
+      "port_bit_ref": {
+        "bit_slot": 0,
+        "hdl_index": 0,
+        "port_id": "k2_counter::led_n"
+      },
+      "port_ref": "led_n[0]",
+      "row": -1,
+      "suggestion": "在 Pin Binding 中绑定该真实 HDL 位；教学漏绑输出需显式开启 allow_unbound_outputs。",
+      "vccio_mv": null
+    }
+  ],
+  "dpi_cases": [
+    {
+      "bitmap": "light-96dpi.png",
+      "dpi": 96,
+      "injected_wx_dpi": true
+    },
+    {
+      "bitmap": "light-144dpi.png",
+      "dpi": 144,
+      "injected_wx_dpi": true
+    },
+    {
+      "bitmap": "light-192dpi.png",
+      "dpi": 192,
+      "injected_wx_dpi": true
+    },
+    {
+      "bitmap": "dark-96dpi.png",
+      "dpi": 96,
+      "injected_wx_dpi": true
+    },
+    {
+      "bitmap": "dark-144dpi.png",
+      "dpi": 144,
+      "injected_wx_dpi": true
+    },
+    {
+      "bitmap": "dark-192dpi.png",
+      "dpi": 192,
+      "injected_wx_dpi": true
+    }
+  ],
+  "dpi_scope": "native wx controls exercised through DPI-change events and checked for overlap/clipping; injected wx GetDPI vector geometry at 96/144/192; no physical monitor switch or raster upsampling",
+  "fault_replays": {
+    "attempts": [
+      {
+        "board_trace_verified": true,
+        "circuit_digest": "67742a828bba2bc0aed97a840fd73a65138f6eb5e0dfed2aced0ebc3cc136c88",
+        "control_digest": "d1ded99b9a29475951b18787266b96a6ac6af21597d8db0529fed5af38903817",
+        "durability": "durable",
+        "matched_commits": 740,
+        "outputs": {
+          "led_n[0]": true,
+          "led_n[1]": true,
+          "led_n[2]": true,
+          "led_n[3]": true,
+          "led_n[4]": false,
+          "led_n[5]": false
+        },
+        "status": "passed"
+      },
+      {
+        "board_trace_verified": true,
+        "circuit_digest": "67742a828bba2bc0aed97a840fd73a65138f6eb5e0dfed2aced0ebc3cc136c88",
+        "control_digest": "d1ded99b9a29475951b18787266b96a6ac6af21597d8db0529fed5af38903817",
+        "durability": "durable",
+        "matched_commits": 740,
+        "outputs": {
+          "led_n[0]": true,
+          "led_n[1]": true,
+          "led_n[2]": true,
+          "led_n[3]": true,
+          "led_n[4]": false,
+          "led_n[5]": false
+        },
+        "status": "passed"
+      },
+      {
+        "board_trace_verified": true,
+        "circuit_digest": "67742a828bba2bc0aed97a840fd73a65138f6eb5e0dfed2aced0ebc3cc136c88",
+        "control_digest": "d1ded99b9a29475951b18787266b96a6ac6af21597d8db0529fed5af38903817",
+        "durability": "durable",
+        "matched_commits": 740,
+        "outputs": {
+          "led_n[0]": true,
+          "led_n[1]": true,
+          "led_n[2]": true,
+          "led_n[3]": true,
+          "led_n[4]": false,
+          "led_n[5]": false
+        },
+        "status": "passed"
+      }
+    ],
+    "board_trace_verified": true,
+    "circuit_digest": "67742a828bba2bc0aed97a840fd73a65138f6eb5e0dfed2aced0ebc3cc136c88",
+    "control_digest": "d1ded99b9a29475951b18787266b96a6ac6af21597d8db0529fed5af38903817",
+    "matched_commits": 740,
+    "repetitions": 3,
+    "status": "passed"
+  },
+  "host": "real wxApp + VirtualProjectSessionBuilder + VirtualSessionController + VirtualBoardPanel + FaultInjectionPanel + TraceViewPanel + FpgaPinBindingPanel",
+  "lifecycle_cycles": 20,
+  "native_layout_cases": [
+    {
+      "controls_checked": 14,
+      "dpi": 96,
+      "dpi_change_events": true,
+      "theme": "Light"
+    },
+    {
+      "controls_checked": 14,
+      "dpi": 144,
+      "dpi_change_events": true,
+      "theme": "Light"
+    },
+    {
+      "controls_checked": 14,
+      "dpi": 192,
+      "dpi_change_events": true,
+      "theme": "Light"
+    },
+    {
+      "controls_checked": 14,
+      "dpi": 96,
+      "dpi_change_events": true,
+      "theme": "Dark"
+    },
+    {
+      "controls_checked": 14,
+      "dpi": 144,
+      "dpi_change_events": true,
+      "theme": "Dark"
+    },
+    {
+      "controls_checked": 14,
+      "dpi": 192,
+      "dpi_change_events": true,
+      "theme": "Dark"
+    }
+  ],
+  "normal_replays": {
+    "attempts": [
+      {
+        "board_trace_verified": true,
+        "circuit_digest": "617fb3c3a4c9d5345e1464cdf1a8492f828d5f1343fdb323f61c290e7f0dee8f",
+        "control_digest": "d9f8e5e04adec5f9aec4d3dd522d35863845a26b4fb4228d2da50a9b1d32d085",
+        "durability": "durable",
+        "matched_commits": 228,
+        "outputs": {
+          "led_n[0]": false,
+          "led_n[1]": true,
+          "led_n[2]": true,
+          "led_n[3]": true,
+          "led_n[4]": true,
+          "led_n[5]": true
+        },
+        "status": "passed"
+      },
+      {
+        "board_trace_verified": true,
+        "circuit_digest": "617fb3c3a4c9d5345e1464cdf1a8492f828d5f1343fdb323f61c290e7f0dee8f",
+        "control_digest": "d9f8e5e04adec5f9aec4d3dd522d35863845a26b4fb4228d2da50a9b1d32d085",
+        "durability": "durable",
+        "matched_commits": 228,
+        "outputs": {
+          "led_n[0]": false,
+          "led_n[1]": true,
+          "led_n[2]": true,
+          "led_n[3]": true,
+          "led_n[4]": true,
+          "led_n[5]": true
+        },
+        "status": "passed"
+      },
+      {
+        "board_trace_verified": true,
+        "circuit_digest": "617fb3c3a4c9d5345e1464cdf1a8492f828d5f1343fdb323f61c290e7f0dee8f",
+        "control_digest": "d9f8e5e04adec5f9aec4d3dd522d35863845a26b4fb4228d2da50a9b1d32d085",
+        "durability": "durable",
+        "matched_commits": 228,
+        "outputs": {
+          "led_n[0]": false,
+          "led_n[1]": true,
+          "led_n[2]": true,
+          "led_n[3]": true,
+          "led_n[4]": true,
+          "led_n[5]": true
+        },
+        "status": "passed"
+      }
+    ],
+    "board_trace_verified": true,
+    "circuit_digest": "617fb3c3a4c9d5345e1464cdf1a8492f828d5f1343fdb323f61c290e7f0dee8f",
+    "control_digest": "d9f8e5e04adec5f9aec4d3dd522d35863845a26b4fb4228d2da50a9b1d32d085",
+    "matched_commits": 228,
+    "repetitions": 3,
+    "status": "passed"
+  },
+  "real_monitor_dpi_test": false,
+  "status": "passed"
+}

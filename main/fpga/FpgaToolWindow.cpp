@@ -102,6 +102,10 @@ wxPanel* FpgaToolWindow::BuildHeader()
     layout->Add(title, 0, wxALIGN_CENTER_VERTICAL | wxLEFT, header->FromDIP(14));
 
     layout->AddStretchSpacer();
+    auto* virtualBoard=new wxButton(header,wxID_ANY,wxString::FromUTF8("打开虚拟实验箱"));
+    FpgaTheme::StyleSecondaryButton(m_repaint,virtualBoard);
+    layout->Add(virtualBoard,0,wxALIGN_CENTER_VERTICAL|wxRIGHT,header->FromDIP(10));
+    virtualBoard->Bind(wxEVT_BUTTON,[this](wxCommandEvent&){if(m_openVirtualBoardHandler)m_openVirtualBoardHandler();});
 
     wxStaticText* badge = new wxStaticText(header, wxID_ANY, " Tang Nano 9K ");
     FpgaTheme::ApplyBackground(m_repaint, badge, &FpgaTheme::kPanelAlt);

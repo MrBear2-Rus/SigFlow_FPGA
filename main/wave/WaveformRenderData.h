@@ -6,6 +6,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <eda/api/live_trace.hpp>
 
 namespace sigflow {
 namespace wave {
@@ -32,7 +33,10 @@ struct WaveformSignalData {
     // Shared by software and GL renderers. Each time identifies the start of
     // an interval whose duration is at or below the configured threshold.
     std::vector<sigflow::trace::TimeValue> shortPulseTimes;
+    struct MultiDelta {uint64_t tick;std::vector<eda::virtual_board::LiveTransition> events;};
+    std::vector<MultiDelta> multiDelta;
 };
+std::vector<WaveformSignalData::MultiDelta> QueryMultiDelta(sigflow::trace::TraceSource&,int,uint64_t,uint64_t);
 
 struct WaveformTick {
     sigflow::trace::TimeValue time = 0;

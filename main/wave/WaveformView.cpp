@@ -154,6 +154,11 @@ void WaveformView::SetEvents(const std::vector<WaveEvent>& events)
     if (m_glCanvas) m_glCanvas->Refresh();
     Refresh();
 }
+void WaveformView::RefreshLiveExtent(){
+    if(!m_source)return;auto range=m_source->TimeRange();if(!range.valid)return;
+    bool full=m_state.timeOffset==0 && m_state.timeSpan>m_state.maxTime;m_state.maxTime=range.end;m_state.valid=true;
+    if(full)WaveViewInteraction::Reset(m_state);else m_state.Clamp();RefreshMiniMap();if(m_glCanvas)m_glCanvas->Refresh();Refresh();
+}
 
 void WaveformView::SetTheme(WaveTheme theme)
 {
@@ -675,11 +680,18 @@ void WaveformView::OnMouseWheel(wxMouseEvent& event)
 
 void WaveformView::OnMouseDown(wxMouseEvent& event)
 {
+    if(InspectMultiDeltaAt(event.GetPosition(),GetClientSize().x))return;
     m_dragging = true;
     m_lastMouseX = event.GetX();
     m_dragStartX = event.GetX();
     m_ctrlDrag = event.ControlDown();
     SetFocus();
+}
+bool WaveformView::InspectMultiDeltaAt(const wxPoint& point,int width){
+    if(!m_source || !m_multiDeltaHandler || point.y<m_state.headerHeight)return false;
+    auto row=(point.y-m_state.headerHeight)/m_state.rowHeight;if(row<0 || size_t(row)>=m_state.visibleSignalIds.size())return false;
+    auto signal=m_state.visibleSignalIds[row];auto groups=QueryMultiDelta(*m_source,signal,m_state.timeOffset,m_state.EndTime());
+    for(const auto& group:groups)if(std::abs(WaveformTimeToX(m_state,width,group.tick)-point.x)<=FromDIP(9)){m_multiDeltaHandler(signal,group.tick);return true;}return false;
 }
 
 void WaveformView::OnMouseMove(wxMouseEvent& event)

@@ -6,6 +6,7 @@
 #include "WaveSession.h"
 #include "../trace/TraceCache.h"
 #include "../trace/VcdLazyTraceSource.h"
+#include "../trace/LiveTraceSource.h"
 
 #include <wx/button.h>
 #include <wx/panel.h>
@@ -361,6 +362,10 @@ void TraceViewPanel::BuildUi()
     bottom->Add(searchCol, 1, wxEXPAND);
     root->Add(bottom, 0, wxEXPAND);
 
+    m_deltaList=new wxListCtrl(this,wxID_ANY,wxDefaultPosition,FromDIP(wxSize(-1,100)),wxLC_REPORT|wxLC_SINGLE_SEL);
+    for(const auto& title:{"tick (ps)","delta","event_seq","value","STATE","valid","contention"})m_deltaList->AppendColumn(title,wxLIST_FORMAT_LEFT,FromDIP(100));
+    m_deltaList->Hide();root->Add(m_deltaList,0,wxEXPAND|wxALL,FromDIP(3));
+    m_view->SetMultiDeltaHandler([this](int signal,uint64_t tick){InspectTick(signal,tick);});
     SetSizer(root);
 
     open->Bind(wxEVT_BUTTON, &TraceViewPanel::OnOpenTrace, this);
@@ -415,11 +420,34 @@ bool TraceViewPanel::OpenTrace(const std::string& path)
     InstallTrace(std::move(source), identity);
     return true;
 }
+eda::Json TraceViewPanel::InspectTick(int signal,uint64_t tick){
+    m_tickDetails=eda::Json::array();m_deltaList->DeleteAllItems();
+    auto pinned=m_source?m_source->PinReadSource():nullptr;auto* live=dynamic_cast<trace::LiveTraceSource*>(pinned.get());
+    if(live){std::optional<eda::virtual_board::TraceCursor> cursor;do{auto page=live->QueryExtended(signal,tick,tick,cursor);for(const auto& event:page.records){
+        m_tickDetails.push_back({{"tick",std::to_string(event.position.tick)},{"delta",event.position.delta},{"event_seq",std::to_string(event.position.event_seq)},{"value",event.value},{"state_code",event.state_code?eda::Json(*event.state_code):eda::Json(nullptr)},{"valid",event.valid},{"contention",event.contention}});
+        auto row=m_deltaList->InsertItem(m_deltaList->GetItemCount(),std::to_string(event.position.tick));int column=1;for(auto value:{std::to_string(event.position.delta),std::to_string(event.position.event_seq),event.value,event.state_code?std::to_string(*event.state_code):"n/a",event.valid?std::string("true"):"false",event.contention?std::string("true"):"false"})m_deltaList->SetItem(row,column++,value);
+    }cursor=page.next;}while(cursor);}
+    m_deltaList->Show(!m_tickDetails.empty());Layout();return m_tickDetails;
+}
+
+void TraceViewPanel::UseLiveTrace(std::shared_ptr<sigflow::trace::TraceSource> source)
+{
+    if(!source)return;
+    m_hasFollowedLive=true;m_lastLive=source;
+    if(source!=m_source){InstallTrace(std::move(source),{});AddSignalByName("pad.10");AddSignalByName("led0.K");AddSignalByName("wire.led0");}
+    m_measureLabel->SetLabel(wxString::FromUTF8("Live / "+m_source->CacheIdentity()));
+    m_view->RefreshLiveExtent();m_view->Refresh(false);ScheduleVisiblePrefetch();
+}
+void TraceViewPanel::FollowLiveTrace(std::shared_ptr<sigflow::trace::TraceSource> source){
+    if(!source)return;if(!m_hasFollowedLive || m_source==m_lastLive.lock() || m_source==source)UseLiveTrace(source);
+    m_hasFollowedLive=true;m_lastLive=std::move(source);
+}
 
 void TraceViewPanel::InstallTrace(std::shared_ptr<sigflow::trace::TraceSource> source,
                                   const WaveSourceIdentity& identity)
 {
     m_queryService.CancelAll();
+    m_tickDetails=eda::Json::array();if(m_deltaList){m_deltaList->DeleteAllItems();m_deltaList->Hide();}
     m_source = std::move(source);
     m_sourceIdentity = identity;
     m_signalAliases.clear();
