@@ -10,6 +10,7 @@
 #include <wx/sizer.h>
 #include <wx/stattext.h>
 #include <wx/textctrl.h>
+#include <wx/utils.h>
 
 #include <algorithm>
 #include <utility>
@@ -19,6 +20,34 @@ namespace {
 namespace S = UiTheme::AgentSpacing;
 namespace M = UiTheme::AgentMetrics;
 namespace T = UiTheme::AgentTypography;
+
+int ScrollLimit(const wxScrolledWindow& scroll)
+{
+    return std::max(0, scroll.GetScrollRange(wxVERTICAL) - scroll.GetScrollThumb(wxVERTICAL));
+}
+
+int VerticalUnit(const wxScrolledWindow& scroll)
+{
+    int x = 0;
+    int y = 0;
+    scroll.GetScrollPixelsPerUnit(&x, &y);
+    return std::max(1, y);
+}
+
+void RevealInScroll(wxScrolledWindow& scroll, wxWindow& target)
+{
+    const wxPoint origin = scroll.CalcUnscrolledPosition(
+        scroll.ScreenToClient(target.ClientToScreen(wxPoint())));
+    const int unit = VerticalUnit(scroll);
+    const int top = scroll.GetViewStart().y * unit;
+    const int height = scroll.GetClientSize().y;
+    const int targetHeight = target.GetSize().y;
+    if (origin.y >= top && origin.y + targetHeight <= top + height) return;
+    const int destination = origin.y < top || targetHeight >= height
+        ? origin.y / unit
+        : (origin.y + targetHeight - height + unit - 1) / unit;
+    scroll.Scroll(-1, std::clamp(destination, 0, ScrollLimit(scroll)));
+}
 
 int Dip(const wxWindow* window, int value)
 {
@@ -200,6 +229,9 @@ AgentWorkspace::AgentWorkspace(wxWindow* parent, std::function<void()> onReturn)
     m_supportBody->SetName(Text("教学辅助内容"));
     m_supportSections = new controls::AgentAccordion(m_supportBody, wxID_ANY);
     m_supportSections->SetName("agent-support-sections");
+    m_supportSections->Bind(controls::EVT_AGENT_ACCORDION, [this](wxCommandEvent&) {
+        ArrangeSupport();
+    });
     m_support->SetContent(m_supportBody);
     EnsureSupportSectionBuilt();
 
@@ -246,10 +278,12 @@ AgentWorkspace::AgentWorkspace(wxWindow* parent, std::function<void()> onReturn)
     m_theme = tokens::SubscribeTheme([this] { ApplyTheme(); });
     ApplyTheme();
     SyncNavigation();
+    wxEvtHandler::AddFilter(this);
 }
 
 AgentWorkspace::~AgentWorkspace()
 {
+    wxEvtHandler::RemoveFilter(this);
     m_destroying = true;
     if (m_alive) *m_alive = false;
     m_modelSubscription.Reset();
@@ -274,7 +308,9 @@ void AgentWorkspace::EnsureSupportSectionBuilt()
         }
         auto* body = new SectionBody(m_supportSections);
         body->SetName(Text("教学辅助分区正文"));
-        auto* label = Label(body, "分区正文");
+        auto* label = new wxTextCtrl(body, wxID_ANY, {}, wxDefaultPosition, wxDefaultSize,
+                                    wxTE_MULTILINE | wxTE_READONLY | wxTE_NO_VSCROLL | wxBORDER_NONE);
+        label->SetName(Text("分区正文"));
         m_sectionBody.push_back(label);
         const int index = m_supportSections->AddSection(
             Text(nav::SectionTitle(section)), body, section == nav::Section::Issue);
@@ -296,7 +332,7 @@ wxString AgentWorkspace::SupportSectionBody(nav::Section section) const
         return {};
     }
     const auto* label = m_sectionBody[static_cast<size_t>(index)];
-    return label->GetLabel();
+    return label->GetValue();
 }
 
 int AgentWorkspace::SupportSectionIndex(nav::Section section) const
@@ -425,7 +461,7 @@ bool AgentWorkspace::RevealSection(nav::Section section)
         if (m_model.Mode() != vm::AppMode::Learning) m_model.SetMode(vm::AppMode::Learning);
         Arrange();
         if (m_guide != nullptr) {
-            ScrollPageTo(m_guide->GetPosition());
+            ScrollPageTo(m_guide);
             return true;
         }
         return false;
@@ -435,37 +471,98 @@ bool AgentWorkspace::RevealSection(nav::Section section)
     Arrange();
     // "先可见再展开定位": bring the support region into the page viewport before
     // expanding the section, then scroll the section list to the header.
-    if (m_support != nullptr) ScrollPageTo(m_support->GetPosition());
+    ScrollPageTo(m_support);
     m_supportSections->SetExpanded(index, true);
     ArrangeSupport();
     ScrollSectionIntoView(index);
+    ScrollPageTo(m_supportSections->SectionHeaderWindow(index));
     return true;
 }
 
-void AgentWorkspace::ScrollPageTo(const wxPoint& target)
+void AgentWorkspace::ScrollPageTo(wxWindow* target)
 {
-    if (m_scroll == nullptr) return;
-    int unitX = 0;
-    int unitY = 0;
-    m_scroll->GetScrollPixelsPerUnit(&unitX, &unitY);
-    const int unit = std::max(1, unitY);
-    const int top = std::max(0, target.y - Dip(this, S::PagePadding));
-    m_scroll->Scroll(-1, top / unit);
+    if (m_scroll && target) RevealInScroll(*m_scroll, *target);
 }
 
 void AgentWorkspace::ScrollSectionIntoView(int sectionIndex)
 {
     if (m_supportBody == nullptr || m_supportSections == nullptr) return;
-    const wxRect header = m_supportSections->HeaderRectPx(sectionIndex);
-    if (header.IsEmpty()) return;
-    int unitX = 0;
-    int unitY = 0;
-    m_supportBody->GetScrollPixelsPerUnit(&unitX, &unitY);
-    const int unit = std::max(1, unitY);
-    // The accordion starts at the support body's virtual padding; header.y is
-    // relative to the accordion, so this is already a virtual coordinate.
-    const int target = Dip(this, S::CardBodyPadX) + header.y;
-    m_supportBody->Scroll(0, std::max(0, target - Dip(this, S::CardBodyPadY)) / unit);
+    if (auto* header = m_supportSections->SectionHeaderWindow(sectionIndex))
+        RevealInScroll(*m_supportBody, *header);
+}
+
+int AgentWorkspace::FilterEvent(wxEvent& event)
+{
+    const bool wheel = event.GetEventType() == wxEVT_MOUSEWHEEL;
+    if ((!wheel && event.GetEventType() != wxEVT_CHAR_HOOK) || m_destroying) return Event_Skip;
+
+    auto* source = dynamic_cast<wxWindow*>(event.GetEventObject());
+    if (!source) return Event_Skip;
+    int direction = 0;
+    int key = 0;
+    wxMouseEvent* mouse = nullptr;
+    if (wheel) {
+        mouse = &static_cast<wxMouseEvent&>(event);
+        if (mouse->GetWheelAxis() != wxMOUSE_WHEEL_VERTICAL || mouse->ShiftDown() ||
+            mouse->ControlDown() || mouse->AltDown() || mouse->GetWheelDelta() <= 0 ||
+            mouse->GetWheelRotation() == 0) return Event_Skip;
+        if (source->IsShownOnScreen() && IsShownOnScreen()) {
+            // MSW can deliver the wheel to the focused control rather than the
+            // one under the pointer. Route by position before checking ownership.
+            auto* underMouse = wxFindWindowAtPoint(source->ClientToScreen(mouse->GetPosition()));
+            if (!underMouse || (underMouse != this && !IsDescendant(underMouse))) return Event_Skip;
+            source = underMouse;
+        }
+        direction = mouse->GetWheelRotation() > 0 ? -1 : 1;
+    } else {
+        auto& keyboard = static_cast<wxKeyEvent&>(event);
+        if (keyboard.HasModifiers()) return Event_Skip;
+        if (auto* focus = wxWindow::FindFocus()) {
+            if (!IsDescendant(focus)) return Event_Skip;
+            source = focus;
+        }
+        if (auto* text = dynamic_cast<wxTextCtrl*>(source); text && text->IsEditable())
+            return Event_Skip;
+        key = keyboard.GetKeyCode();
+        if (key == WXK_PAGEUP || key == WXK_HOME) direction = -1;
+        else if (key == WXK_PAGEDOWN || key == WXK_END) direction = 1;
+        else return Event_Skip;
+    }
+
+    if (source != this && !IsDescendant(source)) return Event_Skip;
+    for (auto* current = source; current && current != this; current = current->GetParent()) {
+        auto* scroll = dynamic_cast<wxScrolledWindow*>(current);
+        if (!scroll) continue;
+        const int position = scroll->GetViewStart().y;
+        const int limit = ScrollLimit(*scroll);
+        if (!limit || (direction < 0 ? position == 0 : position >= limit)) continue;
+        const int page = std::max(1, scroll->GetClientSize().y / VerticalUnit(*scroll));
+        if (!wheel) {
+            const int target = key == WXK_HOME ? 0 : key == WXK_END ? limit
+                : std::clamp(position + direction * page, 0, limit);
+            scroll->Scroll(-1, target);
+            return Event_Processed;
+        }
+        if (m_wheelRegion.get() != scroll) {
+            m_wheelRegion = scroll;
+            m_wheelRemainder = 0;
+        }
+        const int delta = mouse->GetWheelDelta();
+        const auto rotation = static_cast<long long>(m_wheelRemainder) + mouse->GetWheelRotation();
+        const auto detents = rotation / delta;
+        m_wheelRemainder = static_cast<int>(rotation % delta);
+        const int step = mouse->IsPageScroll() ? page : std::max(0, mouse->GetLinesPerAction());
+        if (detents) {
+            const auto target = static_cast<long long>(position) - detents * step;
+            scroll->Scroll(-1, static_cast<int>(std::clamp(target, 0LL, static_cast<long long>(limit))));
+        }
+        return Event_Processed;
+    }
+    if (wheel) {
+        m_wheelRegion = nullptr;
+        m_wheelRemainder = 0;
+    }
+    return Event_Skip;
 }
 
 void AgentWorkspace::FocusComposer()
@@ -499,7 +596,7 @@ AgentWorkspace::ViewState AgentWorkspace::CaptureViewState() const
         state.threadOffset = m_thread->TopAnchorOffset();
         state.threadAtBottom = m_thread->IsAtBottom();
     }
-    if (m_supportBody) state.support = m_supportBody->GetViewStart();
+    CaptureSupportAnchor(state);
     if (m_guideScroll) state.guide = m_guideScroll->GetViewStart();
     auto* focus = wxWindow::FindFocus();
     if (focus && (focus == this || IsDescendant(focus))) state.focus = focus;
@@ -518,11 +615,11 @@ void AgentWorkspace::RestoreViewState(const ViewState& state)
             m_thread->RestoreTopAnchor(state.threadAnchor, state.threadOffset);
         else m_thread->Scroll(state.thread.x, state.thread.y);
     }
-    if (m_supportBody) m_supportBody->Scroll(state.support.x, state.support.y);
+    RestoreSupportAnchor(state);
     if (m_guideScroll) m_guideScroll->Scroll(state.guide.x, state.guide.y);
-    if (state.focus && state.focus != this && IsDescendant(state.focus) &&
-        state.focus->IsShownOnScreen() && state.focus->IsEnabled()) {
-        state.focus->SetFocus();
+    if (auto* focus = state.focus.get(); focus && focus != this && IsDescendant(focus) &&
+        focus->IsShownOnScreen() && focus->IsEnabled()) {
+        focus->SetFocus();
     }
 }
 
@@ -847,6 +944,22 @@ bool AgentWorkspace::SyncSupport()
 void AgentWorkspace::SyncNavigation()
 {
     if (m_destroying || m_topBar == nullptr) return;
+    const auto& project = m_submitContext.projectId;
+    const auto& revision = m_submitContext.revision;
+    const auto& session = m_model.BoundSessionId();
+    const auto& run = m_model.BoundRunId();
+    const bool contextChanged = project != m_readingProject || revision != m_readingRevision ||
+                                session != m_readingSession || run != m_readingRun;
+    if (contextChanged) {
+        m_readingProject = project;
+        m_readingRevision = revision;
+        m_readingSession = session;
+        m_readingRun = run;
+        m_scroll->Scroll(0, 0);
+        m_supportBody->Scroll(0, 0);
+        m_guideScroll->Scroll(0, 0);
+        m_guideScrollSaved = false;
+    }
     SyncConversation();
     SyncComposer();
     const bool supportChanged = SyncSupport();
@@ -981,6 +1094,14 @@ void AgentWorkspace::Arrange()
 {
     if (m_destroying || m_arranging || !m_scroll || !m_sheet || m_topBar == nullptr) return;
     m_arranging = true;
+    const int width = m_scroll->GetClientSize().x;
+    LayoutPage();
+    if (m_scroll->GetClientSize().x != width) LayoutPage();
+    m_arranging = false;
+}
+
+void AgentWorkspace::LayoutPage()
+{
     const wxSize viewport = m_scroll->GetClientSize();
     const int width = std::max(0, viewport.x);
     // AGUI-T11: every breakpoint is decided exactly once, from the page's DIP width.
@@ -1114,7 +1235,6 @@ void AgentWorkspace::Arrange()
     // Float drag may only start on the brand band of the in-page top bar; the
     // buttons/sections keep their own mouse handling and can never drag.
     m_dragHandle = wxRect(pad, 0, std::max(0, m_topBar->BrandRectPx().GetRight()), topBarHeight);
-    m_arranging = false;
 }
 
 void AgentWorkspace::ArrangeGuide(int x, int y, int width, int height)
@@ -1136,34 +1256,84 @@ void AgentWorkspace::ArrangeGuide(int x, int y, int width, int height)
     const int noteHeight = WrapForWidth(m_guideNote, m_guideNote->GetFont(),
                                         Text(GuideNoteText()), textWidth).height;
     const int noteZone = noteHeight + Dip(this, S::CardBodyPadY) + Dip(this, S::HintPadTop);
-    const int scrollHeight = std::max(0, area.y - noteZone - gap);
-    m_guideScroll->SetSize(pad, Dip(this, S::CardBodyPadY), textWidth, scrollHeight);
+    const int topPad = Dip(this, S::CardBodyPadY);
+    const int fixedHeight = std::max(0, area.y - noteZone - gap);
+    const bool scrollNote = fixedHeight < Dip(this, M::HeaderHeight);
+    const int scrollHeight = scrollNote ? std::max(0, area.y - 2 * topPad) : fixedHeight;
+    auto* noteParent = scrollNote ? static_cast<wxWindow*>(m_guideScroll) : m_guideBody;
+    if (m_guideNote->GetParent() != noteParent) m_guideNote->Reparent(noteParent);
+    m_guideScroll->SetSize(pad, topPad, textWidth, scrollHeight);
 
     // The vertical scrollbar narrows the client area; size the six-step panel to
     // the real client width so it can never overflow horizontally (no HSCROLL).
-    int pathWidth = std::max(0, textWidth);
-    int pathHeight = m_path->Arrange(pathWidth);
-    m_guideScroll->SetVirtualSize(pathWidth, std::max(scrollHeight, pathHeight));
-    const int clientWidth = m_guideScroll->GetClientSize().x;
-    if (clientWidth > 0 && clientWidth < pathWidth) {
+    int pathWidth = m_guideScroll->GetClientSize().x;
+    for (int pass = 0; pass < 2; ++pass) {
+        const int pathHeight = m_path->Arrange(pathWidth);
+        const wxPoint pathPosition = m_guideScroll->CalcScrolledPosition(wxPoint());
+        m_path->SetSize(pathPosition.x, pathPosition.y, pathWidth, pathHeight);
+        const int noteBottom = scrollNote
+            ? pathHeight + gap + PlaceText(m_guideNote, Text(GuideNoteText()), 0,
+                                           pathHeight + gap, pathWidth) + topPad
+            : pathHeight;
+        m_guideScroll->SetVirtualSize(pathWidth, std::max(scrollHeight, noteBottom));
+        const int clientWidth = m_guideScroll->GetClientSize().x;
+        if (clientWidth == pathWidth) break;
         pathWidth = clientWidth;
-        pathHeight = m_path->Arrange(pathWidth);
-        m_guideScroll->SetVirtualSize(pathWidth, std::max(scrollHeight, pathHeight));
     }
-    int pathX = 0;
-    int pathY = 0;
-    m_guideScroll->CalcScrolledPosition(0, 0, &pathX, &pathY);
-    m_path->SetSize(pathX, pathY, pathWidth, pathHeight);
-
-    const int noteTop = std::max(0, area.y - noteHeight - Dip(this, S::CardBodyPadY));
-    PlaceText(m_guideNote, Text(GuideNoteText()), pad, noteTop, textWidth);
-    m_guideBody->SetMinSize(wxSize(area.x, std::max(area.y, noteTop + noteHeight)));
+    if (!scrollNote) {
+        const int noteTop = std::max(0, area.y - noteHeight - topPad);
+        PlaceText(m_guideNote, Text(GuideNoteText()), pad, noteTop, textWidth);
+    }
 }
 
 void AgentWorkspace::ArrangeSupport()
 {
-    if (m_supportSections == nullptr || m_supportBody == nullptr) return;
-    const wxSize area = m_supportBody->GetClientSize();
+    if (m_destroying || m_arrangingSupport || !m_supportSections || !m_supportBody) return;
+    m_arrangingSupport = true;
+    ViewState state;
+    CaptureSupportAnchor(state);
+    const wxSize viewport = m_supportBody->GetClientSize();
+    LayoutSupportContent(viewport);
+    const wxSize measured = m_supportBody->GetClientSize();
+    if (measured.x != viewport.x) LayoutSupportContent(measured);
+    RestoreSupportAnchor(state);
+    m_arrangingSupport = false;
+}
+
+void AgentWorkspace::CaptureSupportAnchor(ViewState& state) const
+{
+    if (!m_supportBody || !m_supportSections) return;
+    state.support = m_supportBody->GetViewStart();
+    if (state.support.y == 0) return;
+    const int top = state.support.y * VerticalUnit(*m_supportBody);
+    const int start = m_supportBody->CalcUnscrolledPosition(m_supportSections->GetPosition()).y;
+    for (size_t i = 0; i < m_sectionBody.size(); ++i) {
+        const wxRect rect = m_supportSections->HeaderRectPx(static_cast<int>(i));
+        if (rect.IsEmpty() || start + rect.y > top) break;
+        state.supportSection = static_cast<int>(i);
+        state.supportOffset = top - start - rect.y;
+    }
+}
+
+void AgentWorkspace::RestoreSupportAnchor(const ViewState& state)
+{
+    if (!m_supportBody || !m_supportSections) return;
+    int target = state.support.y;
+    if (state.supportSection >= 0) {
+        const wxRect header = m_supportSections->HeaderRectPx(state.supportSection);
+        const wxRect body = m_supportSections->BodyRectPx(state.supportSection);
+        const wxRect section = body.IsEmpty() ? header : header.Union(body);
+        if (!section.IsEmpty()) {
+            const int start = m_supportBody->CalcUnscrolledPosition(m_supportSections->GetPosition()).y;
+            const int offset = std::clamp(state.supportOffset, 0, section.height - 1);
+            target = (start + header.y + offset) / VerticalUnit(*m_supportBody);
+        }
+    }
+    m_supportBody->Scroll(-1, std::clamp(target, 0, ScrollLimit(*m_supportBody)));
+}
+
+void AgentWorkspace::LayoutSupportContent(const wxSize& area)
+{
     const int pad = std::min(Dip(this, S::CardBodyPadX), std::max(0, area.x / 2));
     const int width = std::max(0, area.x - 2 * pad);
     const int bodyPad = Dip(this, S::AccBodyPadX);
@@ -1184,7 +1354,7 @@ void AgentWorkspace::ArrangeSupport()
             }
             continue;
         }
-        wxStaticText* label = m_sectionBody[static_cast<size_t>(current)];
+        wxTextCtrl* label = m_sectionBody[static_cast<size_t>(current)];
         if (label == nullptr) continue;
         const nav::SectionProjection projection = nav::ProjectSection(m_model, section);
         const bool staleSupport = !m_model.DemoMode() &&
@@ -1192,8 +1362,14 @@ void AgentWorkspace::ArrangeSupport()
             (m_submitContext.projectId != m_model.BoundProjectId() ||
              m_submitContext.revision != m_model.BoundRevision());
         const wxString text = staleSupport ? Text("工程或修订已切换，等待当前运行的数据。") : projection.body;
-        const int textHeight = PlaceText(label, text, innerPad, Dip(this, S::CardBodyPadY),
-                                         textWidth);
+        if (label->GetValue() != text) label->ChangeValue(text);
+        const int line = std::max(label->GetCharHeight(),
+            tokens::LineHeightDip(this, T::SmallBodyPx, T::LineHeightBody));
+        const int y = Dip(this, S::CardBodyPadY);
+        label->SetSize(innerPad, y, textWidth, line * 400);
+        const int textHeight = std::max(1, label->GetNumberOfLines()) * line +
+            label->GetWindowBorderSize().y + Dip(this, 4);
+        label->SetSize(innerPad, y, textWidth, textHeight);
         auto* body = dynamic_cast<SectionBody*>(label->GetParent());
         if (body != nullptr) {
             const int bodyWidth = std::max(0, width - 2 * bodyPad);

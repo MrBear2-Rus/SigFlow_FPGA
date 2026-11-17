@@ -135,7 +135,6 @@ private:
     };
 
     void OnSize(wxSizeEvent& event);
-    void OnPaint(wxPaintEvent& event);
     void ApplyTheme();
     void RebuildRows();
     void AppendMessageRows(size_t firstMessage);
@@ -152,6 +151,7 @@ private:
     void AddRichBlocks(Row& row, const std::string& body);
     int MeasureText(const RowText& text, int width) const;
     void RelayoutRows(int width);
+    int LayoutContent();
     void LayoutRow(Row& row, int width, int& y);
     void PlaceContent();
     int RowTop(int index) const;

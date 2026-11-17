@@ -237,7 +237,9 @@ int AgentSupportSection::Arrange(int width)
     int y = gap;
     for (auto& item : m_items) {
         item.text->SetSize(pad, y, inner, line * 400);
-        const int height = std::max(1, item.text->GetNumberOfLines()) * line;
+        const int height = std::max(1, item.text->GetNumberOfLines()) *
+            std::max(line, item.text->GetCharHeight()) +
+            item.text->GetWindowBorderSize().y + tokens::CssPxToDip(this, 4);
         item.text->SetSize(pad, y, inner, height);
         y += height + gap;
         if (item.action) {
