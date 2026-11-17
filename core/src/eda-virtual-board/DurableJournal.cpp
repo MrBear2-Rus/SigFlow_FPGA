@@ -17,6 +17,7 @@ JournalDigests Advance(JournalDigests previous,const Json& record){
         std::sort(inputs.begin(),inputs.end(),[](const auto& a,const auto& b){return a.at("port_ref").template get<std::string>()<b.at("port_ref").template get<std::string>();});
         Json normalized={{"position",record.at("position")},{"inputs",inputs},{"outputs",record.at("outputs")}};
         if(record.contains("board")){normalized["board"]=record.at("board");normalized["faults"]=record.at("faults");normalized["evaluated"]=record.at("evaluated");}
+        if(record.contains("p1")){normalized["p1"]=record.at("p1");normalized["p1_event"]=record.at("p1_event");}
         previous.circuit=Hash(previous.circuit+"\n"+normalized.dump());
     }else if(kind!="run_header"){
         auto normalized=record;normalized.erase("durability");previous.control=Hash(previous.control+"\n"+normalized.dump());

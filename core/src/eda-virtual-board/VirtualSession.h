@@ -11,6 +11,7 @@
 namespace eda::virtual_board {
 class LiveTraceStore;
 class BoardTopology;
+class Phase1Session;
 class IDutAdapter {
 public:
     virtual ~IDutAdapter()=default;
@@ -49,6 +50,10 @@ struct SessionContract {
     std::shared_ptr<const BoardTopology> board;
     bool allow_unbound_outputs=false;
     std::optional<PortBitRef> required_clock;
+    // Explicit opt-in keeps M0 journal/scheduler behavior byte-for-byte stable.
+    bool phase1=false;
+    Json fault_profile=Json::object();
+    uint64_t integration_window_ticks=20000000000ULL;
 };
 // Public methods may be called by GUI/IPC threads. The private persistent worker
 // creates, owns, evaluates, finalizes and destroys the model exactly once.
@@ -71,5 +76,6 @@ public:
 private:
     struct Impl;
     std::unique_ptr<Impl> impl_;
+    std::unique_ptr<Phase1Session> phase1_;
 };
 }

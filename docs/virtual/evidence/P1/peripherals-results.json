@@ -1,0 +1,412 @@
+{
+  "status": "passed",
+  "checks": [
+    "production builder compiled lab",
+    "real 27MHz PWM/scan RTL advances every required clock edge",
+    "integer sliding 4us window measures exact 25/50/75% from real RTL",
+    "read-only GUI polling cannot change simulated-time integration",
+    "read-only GUI polling cannot change simulated-time integration",
+    "read-only GUI polling cannot change simulated-time integration",
+    "read-only GUI polling cannot change simulated-time integration",
+    "read-only GUI polling cannot change simulated-time integration",
+    "read-only GUI polling cannot change simulated-time integration",
+    "read-only GUI polling cannot change simulated-time integration",
+    "read-only GUI polling cannot change simulated-time integration",
+    "read-only GUI polling cannot change simulated-time integration",
+    "read-only GUI polling cannot change simulated-time integration",
+    "read-only GUI polling cannot change simulated-time integration",
+    "read-only GUI polling cannot change simulated-time integration",
+    "read-only GUI polling cannot change simulated-time integration",
+    "read-only GUI polling cannot change simulated-time integration",
+    "read-only GUI polling cannot change simulated-time integration",
+    "integrated four-digit scan reconstructs 1 2 3 4 with measured scan period",
+    "single-step electrical observation only conducts the selected digit",
+    "DIP bits traverse reviewed Pad/CST into actual DUT ports",
+    "pwm-segments three from-zero real RTL replays verify RNG, integrators, UART and both digests",
+    "production builder compiled cathode",
+    "common-cathode polarity uses explicit active levels without RTL-name shortcuts",
+    "common-cathode three from-zero real RTL replays verify RNG, integrators, UART and both digests",
+    "8N1 round trip crosses UART.TX -> pad18 -> real RTL -> pad17 -> UART.RX",
+    "UART deadlines and combinational DUT input still progress during ClockStop",
+    "uart-8n1 three from-zero real RTL replays verify RNG, integrators, UART and both digests",
+    "UART detects real replace_source stop-bit error at sampled physical tick",
+    "UART receiver recovers on next valid frame after fault ends",
+    "uart-bad-stop-replace_source three from-zero real RTL replays verify RNG, integrators, UART and both digests",
+    "UART detects real short_to_rail stop-bit error at sampled physical tick",
+    "invalid UART stop sample retains raw CON code",
+    "UART receiver recovers on next valid frame after fault ends",
+    "uart-bad-stop-short_to_rail three from-zero real RTL replays verify RNG, integrators, UART and both digests",
+    "production builder compiled uart-7e2",
+    "configurable 7E2 parity and two-stop-bit FSM is sampled at integer midpoints",
+    "uart-7e2 three from-zero real RTL replays verify RNG, integrators, UART and both digests"
+  ],
+  "commands": [
+    {
+      "argv": [
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\build-m0\\tests\\virtual\\p1\\p1_native_tests.exe",
+        "E:\\sigflow\\SigFlow_VirtroFPGA",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p1\\peripherals",
+        "peripherals"
+      ],
+      "exit_code": 0,
+      "seconds": 0.012
+    },
+    {
+      "argv": [
+        "C:\\Users\\Admin\\AppData\\Local\\Programs\\Python\\Python314\\python.exe",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\tools\\virtual\\build_virtual_project.py",
+        "--request",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p1\\peripherals\\lab-request.json",
+        "--result",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p1\\peripherals\\lab-build.json"
+      ],
+      "exit_code": 0,
+      "seconds": 5.369
+    },
+    {
+      "argv": [
+        "C:\\Users\\Admin\\AppData\\Local\\Programs\\Python\\Python314\\python.exe",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\tools\\virtual\\build_virtual_project.py",
+        "--request",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p1\\peripherals\\cathode-request.json",
+        "--result",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p1\\peripherals\\cathode-build.json"
+      ],
+      "exit_code": 0,
+      "seconds": 5.43
+    },
+    {
+      "argv": [
+        "C:\\Users\\Admin\\AppData\\Local\\Programs\\Python\\Python314\\python.exe",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\tools\\virtual\\build_virtual_project.py",
+        "--request",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p1\\peripherals\\uart-7e2-request.json",
+        "--result",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p1\\peripherals\\uart-7e2-build.json"
+      ],
+      "exit_code": 0,
+      "seconds": 5.328
+    }
+  ],
+  "replays": [
+    {
+      "name": "pwm-segments",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "c6465cc8c4898fba33b4e9e808ed26bf0531fd57afaeb8f7e8427c5e66715ca3",
+          "control_digest": "177ecba5369840506fcccd57878a39b00e49e9c77e77a6befbd5b6608c423e33",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 438,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "c6465cc8c4898fba33b4e9e808ed26bf0531fd57afaeb8f7e8427c5e66715ca3",
+          "control_digest": "177ecba5369840506fcccd57878a39b00e49e9c77e77a6befbd5b6608c423e33",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 438,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "c6465cc8c4898fba33b4e9e808ed26bf0531fd57afaeb8f7e8427c5e66715ca3",
+          "control_digest": "177ecba5369840506fcccd57878a39b00e49e9c77e77a6befbd5b6608c423e33",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 438,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "c6465cc8c4898fba33b4e9e808ed26bf0531fd57afaeb8f7e8427c5e66715ca3",
+      "control_digest": "177ecba5369840506fcccd57878a39b00e49e9c77e77a6befbd5b6608c423e33",
+      "matched_commits": 438,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "name": "common-cathode",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "8dec02c3ce4fd7f0159e4085d7757caf8a02dbf4b934e92e556b2c708389dd06",
+          "control_digest": "d6de86324584e0eccd87ce7dc153302199775ace579a854478b3169199b10e86",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 435,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "8dec02c3ce4fd7f0159e4085d7757caf8a02dbf4b934e92e556b2c708389dd06",
+          "control_digest": "d6de86324584e0eccd87ce7dc153302199775ace579a854478b3169199b10e86",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 435,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "8dec02c3ce4fd7f0159e4085d7757caf8a02dbf4b934e92e556b2c708389dd06",
+          "control_digest": "d6de86324584e0eccd87ce7dc153302199775ace579a854478b3169199b10e86",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 435,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "8dec02c3ce4fd7f0159e4085d7757caf8a02dbf4b934e92e556b2c708389dd06",
+      "control_digest": "d6de86324584e0eccd87ce7dc153302199775ace579a854478b3169199b10e86",
+      "matched_commits": 435,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "name": "uart-8n1",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "6079c58ad6ac5884282ddb185f3cc15fdceb67c9492c284cbffb6cc6304ba248",
+          "control_digest": "f9cdbf0178d78657e55163fd5167554baa5fafc3656f9f5fc0da7da52ca72bc0",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 85,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "6079c58ad6ac5884282ddb185f3cc15fdceb67c9492c284cbffb6cc6304ba248",
+          "control_digest": "f9cdbf0178d78657e55163fd5167554baa5fafc3656f9f5fc0da7da52ca72bc0",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 85,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "6079c58ad6ac5884282ddb185f3cc15fdceb67c9492c284cbffb6cc6304ba248",
+          "control_digest": "f9cdbf0178d78657e55163fd5167554baa5fafc3656f9f5fc0da7da52ca72bc0",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 85,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "6079c58ad6ac5884282ddb185f3cc15fdceb67c9492c284cbffb6cc6304ba248",
+      "control_digest": "f9cdbf0178d78657e55163fd5167554baa5fafc3656f9f5fc0da7da52ca72bc0",
+      "matched_commits": 85,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "name": "uart-bad-stop-replace_source",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "6ffaa25addf378a668403fd3f6848e0a62c9f2e39846d7960182c75539542ec3",
+          "control_digest": "8ba9879f9b17f276cc96936ab1fb3b76f1ffc64298eb5cb640b7c83dfa1d211a",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 47,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "6ffaa25addf378a668403fd3f6848e0a62c9f2e39846d7960182c75539542ec3",
+          "control_digest": "8ba9879f9b17f276cc96936ab1fb3b76f1ffc64298eb5cb640b7c83dfa1d211a",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 47,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "6ffaa25addf378a668403fd3f6848e0a62c9f2e39846d7960182c75539542ec3",
+          "control_digest": "8ba9879f9b17f276cc96936ab1fb3b76f1ffc64298eb5cb640b7c83dfa1d211a",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 47,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "6ffaa25addf378a668403fd3f6848e0a62c9f2e39846d7960182c75539542ec3",
+      "control_digest": "8ba9879f9b17f276cc96936ab1fb3b76f1ffc64298eb5cb640b7c83dfa1d211a",
+      "matched_commits": 47,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "name": "uart-bad-stop-short_to_rail",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "1045a87aa10580124bfca2f26e9a693a1207f6e548f8aee9bf3150f84939d682",
+          "control_digest": "2734f598c0c093c59bf48842ee1b4d67eab37490e012905b359fc72ed1c5da41",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 47,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "1045a87aa10580124bfca2f26e9a693a1207f6e548f8aee9bf3150f84939d682",
+          "control_digest": "2734f598c0c093c59bf48842ee1b4d67eab37490e012905b359fc72ed1c5da41",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 47,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "1045a87aa10580124bfca2f26e9a693a1207f6e548f8aee9bf3150f84939d682",
+          "control_digest": "2734f598c0c093c59bf48842ee1b4d67eab37490e012905b359fc72ed1c5da41",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 47,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "1045a87aa10580124bfca2f26e9a693a1207f6e548f8aee9bf3150f84939d682",
+      "control_digest": "2734f598c0c093c59bf48842ee1b4d67eab37490e012905b359fc72ed1c5da41",
+      "matched_commits": 47,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "name": "uart-7e2",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "c9116e608cc847d2df756b6717bce352ea7b1bf31dfa6e2f1b71fa6e37b55156",
+          "control_digest": "5dfce95bf9992a36922bf3247704888c87cdd11e961fe81858cf66cf3e5facfe",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 26,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "c9116e608cc847d2df756b6717bce352ea7b1bf31dfa6e2f1b71fa6e37b55156",
+          "control_digest": "5dfce95bf9992a36922bf3247704888c87cdd11e961fe81858cf66cf3e5facfe",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 26,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "c9116e608cc847d2df756b6717bce352ea7b1bf31dfa6e2f1b71fa6e37b55156",
+          "control_digest": "5dfce95bf9992a36922bf3247704888c87cdd11e961fe81858cf66cf3e5facfe",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 26,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "c9116e608cc847d2df756b6717bce352ea7b1bf31dfa6e2f1b71fa6e37b55156",
+      "control_digest": "5dfce95bf9992a36922bf3247704888c87cdd11e961fe81858cf66cf3e5facfe",
+      "matched_commits": 26,
+      "repetitions": 3,
+      "status": "passed"
+    }
+  ],
+  "pwm_duty_ppm": [
+    250000,
+    500000,
+    750000
+  ],
+  "segment_masks": [
+    6,
+    91,
+    79,
+    102
+  ],
+  "uart_8n1_frames": {
+    "queued_bytes": 0,
+    "received": [
+      {
+        "byte": 65,
+        "framing_error": false,
+        "parity_error": false,
+        "sequence": "1",
+        "start_tick": "0",
+        "state_code": 15,
+        "tick": "10308160",
+        "type": "uart.rx",
+        "valid": true
+      },
+      {
+        "byte": 85,
+        "framing_error": false,
+        "parity_error": false,
+        "sequence": "2",
+        "start_tick": "10850694",
+        "state_code": 15,
+        "tick": "21158854",
+        "type": "uart.rx",
+        "valid": true
+      },
+      {
+        "byte": 0,
+        "framing_error": false,
+        "parity_error": false,
+        "sequence": "3",
+        "start_tick": "21701388",
+        "state_code": 15,
+        "tick": "32009548",
+        "type": "uart.rx",
+        "valid": true
+      },
+      {
+        "byte": 255,
+        "framing_error": false,
+        "parity_error": false,
+        "sequence": "4",
+        "start_tick": "32552082",
+        "state_code": 15,
+        "tick": "42860242",
+        "type": "uart.rx",
+        "valid": true
+      }
+    ],
+    "rx_byte": 255,
+    "rx_due": null,
+    "rx_error": false,
+    "rx_parity_error": false,
+    "rx_stage": 9,
+    "rx_start": "32552082",
+    "transmitted": [
+      {
+        "byte": 65,
+        "framing_error": false,
+        "sequence": "1",
+        "start_tick": "0",
+        "tick": "10850694",
+        "type": "uart.tx",
+        "valid": true
+      },
+      {
+        "byte": 85,
+        "framing_error": false,
+        "sequence": "2",
+        "start_tick": "10850694",
+        "tick": "21701388",
+        "type": "uart.tx",
+        "valid": true
+      },
+      {
+        "byte": 0,
+        "framing_error": false,
+        "sequence": "3",
+        "start_tick": "21701388",
+        "tick": "32552082",
+        "type": "uart.tx",
+        "valid": true
+      },
+      {
+        "byte": 255,
+        "framing_error": false,
+        "sequence": "4",
+        "start_tick": "32552082",
+        "tick": "43402776",
+        "type": "uart.tx",
+        "valid": true
+      }
+    ],
+    "tx_busy": false,
+    "tx_due": null,
+    "tx_high": true,
+    "tx_index": "10"
+  },
+  "check_count": 38
+}

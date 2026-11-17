@@ -33,6 +33,17 @@ BoardTopology::BoardTopology(Json j,const ElectricalProfile& p):descriptor_(std:
             if(c.at("params").at("active_level")!=0)throw std::runtime_error("E_BOARD_POLARITY");leds_[id+".K"]=0;terminals.insert(id+".K");
         }else if(model=="sigflow.button@1"){
             if(c.at("params").at("drive")!="open_drain" || c.at("params").at("pressed_level")!=0)throw std::runtime_error("E_BOARD_BUTTON");terminals.insert(id+".contact");
+        }else if(model=="sigflow.seven-segment-mux@1"){
+            if(!d.at("extensions").at("allow_model_instances").get<bool>() || !d.at("extensions").at("require_explicit_wiring").get<bool>())throw std::runtime_error("E_MODEL_INSTANCES_DISABLED");
+            const auto& params=c.at("params");if(params.at("digits")!=4 || (params.at("common")!="anode" && params.at("common")!="cathode") || params.at("segment_order")!="abcdefg.dp" || (params.at("segment_active_level")!=0 && params.at("segment_active_level")!=1) || (params.at("digit_active_level")!=0 && params.at("digit_active_level")!=1))throw std::runtime_error("E_SEVEN_SEGMENT_PARAMETERS");
+            for(auto name:{"a","b","c","d","e","f","g","dp","dig0","dig1","dig2","dig3"})terminals.insert(id+"."+name);
+        }else if(model=="sigflow.dip-switch@1"){
+            if(!d.at("extensions").at("allow_model_instances").get<bool>() || !d.at("extensions").at("require_explicit_wiring").get<bool>())throw std::runtime_error("E_MODEL_INSTANCES_DISABLED");
+            auto width=c.at("params").at("width").get<int>();if(width<1 || width>16)throw std::runtime_error("E_DIP_WIDTH");for(int i=0;i<width;++i)terminals.insert(id+".bit"+std::to_string(i));
+        }else if(model=="sigflow.uart-peer@1"){
+            if(!d.at("extensions").at("allow_model_instances").get<bool>() || !d.at("extensions").at("require_explicit_wiring").get<bool>())throw std::runtime_error("E_MODEL_INSTANCES_DISABLED");
+            const auto& params=c.at("params");int baud=params.at("baud"),bits=params.at("data_bits"),stops=params.at("stop_bits");std::string parity=params.at("parity");
+            if(baud<1 || baud>1000000000 || bits<5 || bits>8 || (stops!=1 && stops!=2) || (parity!="none" && parity!="even" && parity!="odd"))throw std::runtime_error("E_UART_PARAMETERS");terminals.insert(id+".TX");terminals.insert(id+".RX");
         }else throw std::runtime_error("E_BOARD_MODEL_UNSUPPORTED");models[id]=model;
     }
     std::set<std::string> edgeIds,connected;
@@ -42,7 +53,7 @@ BoardTopology::BoardTopology(Json j,const ElectricalProfile& p):descriptor_(std:
         if(found==p.device.pads.end() || !found->second.reviewed || !found->second.available)throw std::runtime_error("E_BOARD_PAD_UNREVIEWED");
         nodes_.insert(e.net);nodes_.insert(e.endpoint);edges_.push_back(e);
         if(e.endpoint==clock_endpoint_)clock_pad_=pad;
-        if(e.endpoint.ends_with(".contact"))controls_[pad]=e.endpoint;
+        if(e.endpoint.ends_with(".contact") || e.endpoint.ends_with(".TX") || e.endpoint.find(".bit")!=std::string::npos)controls_[pad]=e.endpoint;
     }
     if(connected!=terminals || !clock_pad_)throw std::runtime_error("E_BOARD_CONNECTION");
     for(const auto& pull:d.value("fixed_drivers",Json::array())){

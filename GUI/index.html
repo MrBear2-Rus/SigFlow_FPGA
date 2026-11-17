@@ -1485,6 +1485,12 @@ html[data-theme="light"] .term{background:#1d1d1f}
           </div>
         </div>
       </section>
+      <section class="group" id="phase1-virtual-board">
+        <h2>26 · Phase 1 虚拟实验箱局部控件</h2>
+        <p>中区实验箱：三种 Step 模式、LED PWM / 四位数码管积分与瞬时态、DIP。底部页签：实验故障、虚拟串口。六区布局与原快捷键保留。</p>
+        <p>故障：Stuck-at（replace_source / short_to_rail）、Open、ButtonBounce、ClockStop；规则显示 pending / active、触发次数与剩余边沿。串口：ASCII/Hex、行尾、帧错误、清屏与带 Tick 导出。</p>
+        <p>对应 app.html 的 sigflow-p1-controls 惰性模板与 wxWidgets 生产面板。设计样例无仿真能力；Web 研发暂缓。详见 SPEC §7.1。</p>
+      </section>
     </main>
   </div>
 </div>

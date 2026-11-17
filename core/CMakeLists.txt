@@ -40,6 +40,9 @@ add_library(eda_core STATIC
 target_link_libraries(eda_core PUBLIC eda_api eda_platform)
 
 add_library(eda_virtual_board STATIC
+    src/eda-virtual-board/Phase1Faults.cpp
+    src/eda-virtual-board/Phase1Peripherals.cpp
+    src/eda-virtual-board/Phase1Session.cpp
     src/eda-virtual-board/BoardTopology.cpp
     src/eda-virtual-board/PortManifestBuilder.cpp
     src/eda-virtual-board/ElectricalValidator.cpp

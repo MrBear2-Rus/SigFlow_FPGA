@@ -1,0 +1,445 @@
+{
+  "status": "passed",
+  "checks": [
+    "production builder compiled counter",
+    "stuck leaves original real DUT output untouched",
+    "replace_source has physically distinct driver-set semantics",
+    "same strong levels do not fabricate contention",
+    "changing DUT output is independent of stuck source transform",
+    "revoke reconstructs original driver set",
+    "replace_source three from-zero real RTL replays verify RNG, integrators, UART and both digests",
+    "stuck leaves original real DUT output untouched",
+    "short_to_rail has physically distinct driver-set semantics",
+    "same strong levels do not fabricate contention",
+    "changing DUT output is independent of stuck source transform",
+    "revoke reconstructs original driver set",
+    "short_to_rail three from-zero real RTL replays verify RNG, integrators, UART and both digests",
+    "Open start detaches actual LED endpoint without altering driven Pad",
+    "transient end is exclusive and re-resolves the graph",
+    "open three from-zero real RTL replays verify RNG, integrators, UART and both digests",
+    "default rising Step reports bounded E_NO_CLOCK_EDGE without skipping stop interval",
+    "Step N Ticks advances time while stopped",
+    "Next Event reaches stop-window end",
+    "clock resumes a full rational half-period from stop end",
+    "clock-stop three from-zero real RTL replays verify RNG, integrators, UART and both digests",
+    "conflicting profile is rejected structurally before DUT import",
+    "production builder compiled debounce",
+    "reference reset is sampled on an actual clock edge before release",
+    "10ms contact expansion advances through exact peripheral deadlines",
+    "clean real RTL raw/debounced counters have expected edge counts; actual=(1, 1)",
+    "clean three from-zero real RTL replays verify RNG, integrators, UART and both digests",
+    "reference reset is sampled on an actual clock edge before release",
+    "10ms contact expansion advances through exact peripheral deadlines",
+    "bounce real RTL raw/debounced counters have expected edge counts; actual=(3, 1)",
+    "intermittent expansion has no recursive input.intent trigger",
+    "bounce bounce RNG and edges replay three times",
+    "reference reset is sampled on an actual clock edge before release",
+    "10ms contact expansion advances through exact peripheral deadlines",
+    "bounce-unrelated real RTL raw/debounced counters have expected edge counts; actual=(3, 1)",
+    "intermittent expansion has no recursive input.intent trigger",
+    "bounce-unrelated bounce RNG and edges replay three times",
+    "reference reset is sampled on an actual clock edge before release",
+    "10ms contact expansion advances through exact peripheral deadlines",
+    "release-cancel real RTL raw/debounced counters have expected edge counts; actual=(1, 0)",
+    "intermittent expansion has no recursive input.intent trigger",
+    "release-cancel three from-zero real RTL replays verify RNG, integrators, UART and both digests",
+    "adding unrelated fault leaves every original physical contact event unchanged"
+  ],
+  "commands": [
+    {
+      "argv": [
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\build-m0\\tests\\virtual\\p1\\p1_native_tests.exe",
+        "E:\\sigflow\\SigFlow_VirtroFPGA",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p1\\faults",
+        "faults"
+      ],
+      "exit_code": 0,
+      "seconds": 2.048
+    },
+    {
+      "argv": [
+        "C:\\Users\\Admin\\AppData\\Local\\Programs\\Python\\Python314\\python.exe",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\tools\\virtual\\build_virtual_project.py",
+        "--request",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p1\\faults\\counter-request.json",
+        "--result",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p1\\faults\\counter-build.json"
+      ],
+      "exit_code": 0,
+      "seconds": 5.24
+    },
+    {
+      "argv": [
+        "C:\\Users\\Admin\\AppData\\Local\\Programs\\Python\\Python314\\python.exe",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\tools\\virtual\\build_virtual_project.py",
+        "--request",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p1\\faults\\debounce-request.json",
+        "--result",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p1\\faults\\debounce-build.json"
+      ],
+      "exit_code": 0,
+      "seconds": 5.331
+    }
+  ],
+  "replays": [
+    {
+      "name": "replace_source",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "def850a521287b20940bca1d65174cfccc20cd693243ca630ed9f8fd71248659",
+          "control_digest": "7241d07108941e8a204dfa61b3bc27e2b5d518c52f39dbd70334bf5d3e4346c8",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 11,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "def850a521287b20940bca1d65174cfccc20cd693243ca630ed9f8fd71248659",
+          "control_digest": "7241d07108941e8a204dfa61b3bc27e2b5d518c52f39dbd70334bf5d3e4346c8",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 11,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "def850a521287b20940bca1d65174cfccc20cd693243ca630ed9f8fd71248659",
+          "control_digest": "7241d07108941e8a204dfa61b3bc27e2b5d518c52f39dbd70334bf5d3e4346c8",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 11,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "def850a521287b20940bca1d65174cfccc20cd693243ca630ed9f8fd71248659",
+      "control_digest": "7241d07108941e8a204dfa61b3bc27e2b5d518c52f39dbd70334bf5d3e4346c8",
+      "matched_commits": 11,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "name": "short_to_rail",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "32b3869ea7f7bc145f1863ae8f585ea0948aae97cdecab2f932d1c9ae5af218a",
+          "control_digest": "6b2d2b51ce1fe3275bcb8c1a4a8f2c249f268198e67a986eacc8a3d694a8f9db",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 11,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "32b3869ea7f7bc145f1863ae8f585ea0948aae97cdecab2f932d1c9ae5af218a",
+          "control_digest": "6b2d2b51ce1fe3275bcb8c1a4a8f2c249f268198e67a986eacc8a3d694a8f9db",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 11,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "32b3869ea7f7bc145f1863ae8f585ea0948aae97cdecab2f932d1c9ae5af218a",
+          "control_digest": "6b2d2b51ce1fe3275bcb8c1a4a8f2c249f268198e67a986eacc8a3d694a8f9db",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 11,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "32b3869ea7f7bc145f1863ae8f585ea0948aae97cdecab2f932d1c9ae5af218a",
+      "control_digest": "6b2d2b51ce1fe3275bcb8c1a4a8f2c249f268198e67a986eacc8a3d694a8f9db",
+      "matched_commits": 11,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "name": "open",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "1327151e544f245942e9401df908d81e081f32487d62febe5c00fb19556e8cbc",
+          "control_digest": "5d4160f29607b6f09d9e698299a37e959bba25271c8df4d1cc9ed03d5a21112d",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 5,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "1327151e544f245942e9401df908d81e081f32487d62febe5c00fb19556e8cbc",
+          "control_digest": "5d4160f29607b6f09d9e698299a37e959bba25271c8df4d1cc9ed03d5a21112d",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 5,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "1327151e544f245942e9401df908d81e081f32487d62febe5c00fb19556e8cbc",
+          "control_digest": "5d4160f29607b6f09d9e698299a37e959bba25271c8df4d1cc9ed03d5a21112d",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 5,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "1327151e544f245942e9401df908d81e081f32487d62febe5c00fb19556e8cbc",
+      "control_digest": "5d4160f29607b6f09d9e698299a37e959bba25271c8df4d1cc9ed03d5a21112d",
+      "matched_commits": 5,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "name": "clock-stop",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "a4103791c894fdd8f24c8e797f0afe8be23e3ac6f4846b2efea8b3e3298d43df",
+          "control_digest": "ea147060c4f7ddb87187b7f2b659c6fbb55820b3b823c88f482f8280cd0d9705",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 8,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "a4103791c894fdd8f24c8e797f0afe8be23e3ac6f4846b2efea8b3e3298d43df",
+          "control_digest": "ea147060c4f7ddb87187b7f2b659c6fbb55820b3b823c88f482f8280cd0d9705",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 8,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "a4103791c894fdd8f24c8e797f0afe8be23e3ac6f4846b2efea8b3e3298d43df",
+          "control_digest": "ea147060c4f7ddb87187b7f2b659c6fbb55820b3b823c88f482f8280cd0d9705",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 8,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "a4103791c894fdd8f24c8e797f0afe8be23e3ac6f4846b2efea8b3e3298d43df",
+      "control_digest": "ea147060c4f7ddb87187b7f2b659c6fbb55820b3b823c88f482f8280cd0d9705",
+      "matched_commits": 8,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "name": "clean",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "76370d2d7652b28da603a6be48ae468f438a35f48762a6d441aead91200793f7",
+          "control_digest": "b7c7b7c39e119ad68c3e775645ca8ca154bd0e9da6feebbd0b25981456a6e4c4",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 45,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "76370d2d7652b28da603a6be48ae468f438a35f48762a6d441aead91200793f7",
+          "control_digest": "b7c7b7c39e119ad68c3e775645ca8ca154bd0e9da6feebbd0b25981456a6e4c4",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 45,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "76370d2d7652b28da603a6be48ae468f438a35f48762a6d441aead91200793f7",
+          "control_digest": "b7c7b7c39e119ad68c3e775645ca8ca154bd0e9da6feebbd0b25981456a6e4c4",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 45,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "76370d2d7652b28da603a6be48ae468f438a35f48762a6d441aead91200793f7",
+      "control_digest": "b7c7b7c39e119ad68c3e775645ca8ca154bd0e9da6feebbd0b25981456a6e4c4",
+      "matched_commits": 45,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "name": "bounce",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "9352b68f6d356735a93bd0bfae2e2453138161cba57355ce3332e32489c57ea5",
+          "control_digest": "e70c9ab8f98b7f292569db67573d8b88f2f1b0f375d0f66b0fbbee9e42812554",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 48,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "9352b68f6d356735a93bd0bfae2e2453138161cba57355ce3332e32489c57ea5",
+          "control_digest": "e70c9ab8f98b7f292569db67573d8b88f2f1b0f375d0f66b0fbbee9e42812554",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 48,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "9352b68f6d356735a93bd0bfae2e2453138161cba57355ce3332e32489c57ea5",
+          "control_digest": "e70c9ab8f98b7f292569db67573d8b88f2f1b0f375d0f66b0fbbee9e42812554",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 48,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "9352b68f6d356735a93bd0bfae2e2453138161cba57355ce3332e32489c57ea5",
+      "control_digest": "e70c9ab8f98b7f292569db67573d8b88f2f1b0f375d0f66b0fbbee9e42812554",
+      "matched_commits": 48,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "name": "bounce-unrelated",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "e1bd913bc25ec1e048ff089881e35d111130e0ba85b7fdd515b5bae0bbc257a8",
+          "control_digest": "2f49b461a450dc02e9ea212084cef4982e4f2c241027462617889e3083067bbc",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 48,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "e1bd913bc25ec1e048ff089881e35d111130e0ba85b7fdd515b5bae0bbc257a8",
+          "control_digest": "2f49b461a450dc02e9ea212084cef4982e4f2c241027462617889e3083067bbc",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 48,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "e1bd913bc25ec1e048ff089881e35d111130e0ba85b7fdd515b5bae0bbc257a8",
+          "control_digest": "2f49b461a450dc02e9ea212084cef4982e4f2c241027462617889e3083067bbc",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 48,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "e1bd913bc25ec1e048ff089881e35d111130e0ba85b7fdd515b5bae0bbc257a8",
+      "control_digest": "2f49b461a450dc02e9ea212084cef4982e4f2c241027462617889e3083067bbc",
+      "matched_commits": 48,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "name": "release-cancel",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "b8b541c89647d849d464da69f00e2cc8945eaa2619636be5ce8caed23b2e04eb",
+          "control_digest": "507c2da7e9d0a0c8a93ee9e4be8db11ac94693087c8aba568a5d8fc34dad1b4d",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 50,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "b8b541c89647d849d464da69f00e2cc8945eaa2619636be5ce8caed23b2e04eb",
+          "control_digest": "507c2da7e9d0a0c8a93ee9e4be8db11ac94693087c8aba568a5d8fc34dad1b4d",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 50,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "b8b541c89647d849d464da69f00e2cc8945eaa2619636be5ce8caed23b2e04eb",
+          "control_digest": "507c2da7e9d0a0c8a93ee9e4be8db11ac94693087c8aba568a5d8fc34dad1b4d",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 50,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "b8b541c89647d849d464da69f00e2cc8945eaa2619636be5ce8caed23b2e04eb",
+      "control_digest": "507c2da7e9d0a0c8a93ee9e4be8db11ac94693087c8aba568a5d8fc34dad1b4d",
+      "matched_commits": 50,
+      "repetitions": 3,
+      "status": "passed"
+    }
+  ],
+  "debounce_clock_fixture": {
+    "physical_27mhz_claim": false,
+    "purpose": "10ms debounce reference at a declared 1kHz teaching sample clock"
+  },
+  "bounce_contact_trajectory": [
+    {
+      "contention": false,
+      "position": {
+        "delta": 0,
+        "event_seq": "22",
+        "tick": "0"
+      },
+      "signal_id": 33,
+      "state_code": 7,
+      "valid": true,
+      "value": "1"
+    },
+    {
+      "contention": false,
+      "position": {
+        "delta": 1,
+        "event_seq": "62",
+        "tick": "500000000"
+      },
+      "signal_id": 33,
+      "state_code": 13,
+      "valid": true,
+      "value": "0"
+    },
+    {
+      "contention": false,
+      "position": {
+        "delta": 0,
+        "event_seq": "72",
+        "tick": "700000000"
+      },
+      "signal_id": 33,
+      "state_code": 7,
+      "valid": true,
+      "value": "1"
+    },
+    {
+      "contention": false,
+      "position": {
+        "delta": 0,
+        "event_seq": "86",
+        "tick": "1200000000"
+      },
+      "signal_id": 33,
+      "state_code": 13,
+      "valid": true,
+      "value": "0"
+    },
+    {
+      "contention": false,
+      "position": {
+        "delta": 0,
+        "event_seq": "99",
+        "tick": "2000000000"
+      },
+      "signal_id": 33,
+      "state_code": 7,
+      "valid": true,
+      "value": "1"
+    },
+    {
+      "contention": false,
+      "position": {
+        "delta": 0,
+        "event_seq": "174",
+        "tick": "10500000000"
+      },
+      "signal_id": 33,
+      "state_code": 13,
+      "valid": true,
+      "value": "0"
+    }
+  ],
+  "check_count": 43
+}

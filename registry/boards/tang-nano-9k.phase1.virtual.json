@@ -1,0 +1,319 @@
+{
+  "schema": "sigflow.virtual-board.v1",
+  "id": "tang-nano-9k",
+  "version": "1.0.0-draft",
+  "hardware_revision": "6202",
+  "target_profile": "tang-nano-9k@1.0.0",
+  "device": "GW1NR-LV9QN88PC6/I5",
+  "family": "GW1N-9C",
+  "package": "QFN88",
+  "pin_database_ref": "registry/pins/tang-nano-9k.6202.reviewed.v2.json",
+  "electrical_profile_ref": "registry/electrical/tang-nano-9k.6202.reviewed.v2.json",
+  "timebase": {
+    "tick_ps": "1",
+    "rounding": "nearest_ties_up"
+  },
+  "electrical": {
+    "state_encoding": "sigflow.state-m0.v1",
+    "resolver_version": "sigflow.state-m0.v1",
+    "unknown_input_policy": "pause_before_import"
+  },
+  "fpga": {
+    "id": "fpga0",
+    "pad_net_template": "pad.{package_pin}",
+    "binding_source": "project.cst"
+  },
+  "clocks": [
+    {
+      "id": "clk27m",
+      "model": "sigflow.clock.rational@1",
+      "frequency_hz": {
+        "num": "27000000",
+        "den": "1"
+      },
+      "initial_level": 0
+    }
+  ],
+  "components": [
+    {
+      "id": "led0",
+      "model": "sigflow.led@1",
+      "params": {
+        "active_level": 0,
+        "nominal_mv": 1800
+      }
+    },
+    {
+      "id": "led1",
+      "model": "sigflow.led@1",
+      "params": {
+        "active_level": 0,
+        "nominal_mv": 1800
+      }
+    },
+    {
+      "id": "led2",
+      "model": "sigflow.led@1",
+      "params": {
+        "active_level": 0,
+        "nominal_mv": 1800
+      }
+    },
+    {
+      "id": "led3",
+      "model": "sigflow.led@1",
+      "params": {
+        "active_level": 0,
+        "nominal_mv": 1800
+      }
+    },
+    {
+      "id": "led4",
+      "model": "sigflow.led@1",
+      "params": {
+        "active_level": 0,
+        "nominal_mv": 1800
+      }
+    },
+    {
+      "id": "led5",
+      "model": "sigflow.led@1",
+      "params": {
+        "active_level": 0,
+        "nominal_mv": 1800
+      }
+    },
+    {
+      "id": "key_p3",
+      "model": "sigflow.button@1",
+      "params": {
+        "drive": "open_drain",
+        "pressed_level": 0,
+        "pullup": "weak",
+        "bounce_default": "off"
+      }
+    },
+    {
+      "id": "key_p4",
+      "model": "sigflow.button@1",
+      "params": {
+        "drive": "open_drain",
+        "pressed_level": 0,
+        "pullup": "weak",
+        "bounce_default": "off"
+      }
+    },
+    {
+      "id": "uart0",
+      "model": "sigflow.uart-peer@1",
+      "params": {
+        "baud": 921600,
+        "data_bits": 8,
+        "parity": "none",
+        "stop_bits": 1
+      }
+    },
+    {
+      "id": "seg0",
+      "model": "sigflow.seven-segment-mux@1",
+      "params": {
+        "digits": 4,
+        "common": "anode",
+        "segment_order": "abcdefg.dp",
+        "segment_active_level": 0,
+        "digit_active_level": 1
+      },
+      "schedule": {
+        "mode": "on_change",
+        "clock_id": "clk27m",
+        "edge_select": "rising",
+        "divisor": 1,
+        "phase": 0
+      },
+      "observe": {
+        "integration_window_ticks": "20000000000",
+        "publish_hz": 60
+      }
+    },
+    {
+      "id": "dip0",
+      "model": "sigflow.dip-switch@1",
+      "params": {
+        "width": 2,
+        "initial_value": 0
+      }
+    }
+  ],
+  "connections": [
+    {
+      "id": "wire.led0",
+      "net": "pad.10",
+      "endpoint": "led0.K"
+    },
+    {
+      "id": "wire.led1",
+      "net": "pad.11",
+      "endpoint": "led1.K"
+    },
+    {
+      "id": "wire.led2",
+      "net": "pad.13",
+      "endpoint": "led2.K"
+    },
+    {
+      "id": "wire.led3",
+      "net": "pad.14",
+      "endpoint": "led3.K"
+    },
+    {
+      "id": "wire.led4",
+      "net": "pad.15",
+      "endpoint": "led4.K"
+    },
+    {
+      "id": "wire.led5",
+      "net": "pad.16",
+      "endpoint": "led5.K"
+    },
+    {
+      "id": "wire.key3",
+      "net": "pad.3",
+      "endpoint": "key_p3.contact"
+    },
+    {
+      "id": "wire.key4",
+      "net": "pad.4",
+      "endpoint": "key_p4.contact"
+    },
+    {
+      "id": "wire.clock",
+      "net": "pad.52",
+      "endpoint": "clk27m.out"
+    },
+    {
+      "id": "wire.uart-rx",
+      "net": "pad.17",
+      "endpoint": "uart0.RX"
+    },
+    {
+      "id": "wire.uart-tx",
+      "net": "pad.18",
+      "endpoint": "uart0.TX"
+    },
+    {
+      "id": "wire.seg0.a",
+      "net": "pad.25",
+      "endpoint": "seg0.a"
+    },
+    {
+      "id": "wire.seg0.b",
+      "net": "pad.26",
+      "endpoint": "seg0.b"
+    },
+    {
+      "id": "wire.seg0.c",
+      "net": "pad.27",
+      "endpoint": "seg0.c"
+    },
+    {
+      "id": "wire.seg0.d",
+      "net": "pad.28",
+      "endpoint": "seg0.d"
+    },
+    {
+      "id": "wire.seg0.e",
+      "net": "pad.29",
+      "endpoint": "seg0.e"
+    },
+    {
+      "id": "wire.seg0.f",
+      "net": "pad.30",
+      "endpoint": "seg0.f"
+    },
+    {
+      "id": "wire.seg0.g",
+      "net": "pad.33",
+      "endpoint": "seg0.g"
+    },
+    {
+      "id": "wire.seg0.dp",
+      "net": "pad.34",
+      "endpoint": "seg0.dp"
+    },
+    {
+      "id": "wire.seg0.dig0",
+      "net": "pad.35",
+      "endpoint": "seg0.dig0"
+    },
+    {
+      "id": "wire.seg0.dig1",
+      "net": "pad.36",
+      "endpoint": "seg0.dig1"
+    },
+    {
+      "id": "wire.seg0.dig2",
+      "net": "pad.37",
+      "endpoint": "seg0.dig2"
+    },
+    {
+      "id": "wire.seg0.dig3",
+      "net": "pad.38",
+      "endpoint": "seg0.dig3"
+    },
+    {
+      "id": "wire.dip0.bit0",
+      "net": "pad.40",
+      "endpoint": "dip0.bit0"
+    },
+    {
+      "id": "wire.dip0.bit1",
+      "net": "pad.41",
+      "endpoint": "dip0.bit1"
+    }
+  ],
+  "extensions": {
+    "allow_model_instances": true,
+    "require_explicit_wiring": true
+  },
+  "instruments": [],
+  "view": {
+    "kind": "board.tangnano9k",
+    "layout_ref": "layouts/tangnano9k.v1.json",
+    "led_tone": "ledAmber"
+  },
+  "fixed_drivers": [
+    {
+      "node": "pad.3",
+      "driver_id": "board-pullup-p3",
+      "state": 7
+    },
+    {
+      "node": "pad.4",
+      "driver_id": "board-pullup-p4",
+      "state": 7
+    }
+  ],
+  "unsupported_m0": [
+    "inout",
+    "analogue current"
+  ],
+  "phase1": {
+    "explicit_header_pads": [
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      40,
+      41
+    ],
+    "external_tf_lcd_attached": false
+  }
+}

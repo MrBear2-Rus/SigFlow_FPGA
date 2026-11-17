@@ -693,6 +693,7 @@ target_sources(sigflow PRIVATE
     main/virtual/VirtualSessionController.cpp
     main/virtual/BoardRenderer.cpp
     main/virtual/VirtualBoardPanel.cpp
+    main/virtual/VirtualUartPanel.cpp
     main/virtual/FaultInjectionPanel.cpp)
 # P1-1：迁移期 main/ 的 wx 适配层调用插件；后续 P1-8 由 IJobService 取代。
 target_include_directories(sigflow PRIVATE

@@ -1,0 +1,102 @@
+{
+  "schema": "sigflow.fault-profile.v1",
+  "id": "lesson-debounce-demo",
+  "revision": 1,
+  "board_ref": "tang-nano-9k@1.0.0-draft",
+  "tick_ps": "1",
+  "rng": {
+    "algorithm": "pcg32-v1",
+    "seed": "20261109",
+    "streams": "by_fault_id"
+  },
+  "conflict_policy": "reject_overlapping_mutations",
+  "faults": [
+    {
+      "id": "stuck-led0",
+      "enabled": false,
+      "visibility": "teacher_only",
+      "hook": "driver.transform",
+      "target": {
+        "kind": "fpga_pad_driver",
+        "id": "fpga0.pad.10"
+      },
+      "effect": {
+        "type": "stuck_at",
+        "value": 0,
+        "mode": "replace_source"
+      },
+      "trigger": {
+        "kind": "permanent",
+        "start_tick": "0"
+      }
+    },
+    {
+      "id": "open-led1",
+      "enabled": false,
+      "visibility": "teacher_only",
+      "hook": "topology.transform",
+      "target": {
+        "kind": "connection",
+        "id": "wire.led1"
+      },
+      "effect": {
+        "type": "open"
+      },
+      "trigger": {
+        "kind": "transient",
+        "start_tick": "100000000000",
+        "end_tick": "200000000000"
+      }
+    },
+    {
+      "id": "bounce-key3",
+      "enabled": false,
+      "visibility": "student_visible",
+      "hook": "peripheral.event",
+      "target": {
+        "kind": "component",
+        "id": "key_p3"
+      },
+      "effect": {
+        "type": "button_bounce",
+        "duration_ticks": "10000000000",
+        "drive": "open_drain",
+        "relative_edges": [
+          {
+            "dt": "0",
+            "contact": "closed"
+          },
+          {
+            "dt": "200000000",
+            "contact": "released"
+          },
+          {
+            "dt": "700000000",
+            "contact": "closed"
+          },
+          {
+            "dt": "1500000000",
+            "contact": "released"
+          },
+          {
+            "dt": "10000000000",
+            "contact": "closed"
+          }
+        ]
+      },
+      "trigger": {
+        "kind": "intermittent",
+        "event": {
+          "type": "input.intent",
+          "target": "key_p3",
+          "action": "press",
+          "occurrence": 1
+        },
+        "probability_ppm": 1000000,
+        "active_ticks": "10000000001",
+        "cooldown_ticks": "20000000000",
+        "max_activations": 1
+      }
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+add_executable(p1_native_tests phase1_native.cpp)
+target_link_libraries(p1_native_tests PRIVATE eda_virtual_board eda-cst-gowin-cst)
+add_test(NAME p1_four_faults_and_rng_replay COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/virtual/verify_phase1.py" --build-dir "${CMAKE_BINARY_DIR}" --mode faults)
+add_test(NAME p1_peripherals_pwm_seg_uart COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/virtual/verify_phase1.py" --build-dir "${CMAKE_BINARY_DIR}" --mode peripherals)
+set_tests_properties(p1_four_faults_and_rng_replay p1_peripherals_pwm_seg_uart PROPERTIES TIMEOUT 900 RUN_SERIAL TRUE)
+add_test(NAME p1_gui_mvp_acceptance COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/virtual/verify_phase1_gui.py" --build-dir "${CMAKE_BINARY_DIR}" --gui "$<TARGET_FILE:u1_m0_full_product_acceptance>")
+set_tests_properties(p1_gui_mvp_acceptance PROPERTIES TIMEOUT 900 RUN_SERIAL TRUE)

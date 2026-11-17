@@ -6,11 +6,13 @@ not a claim that a board was measured or a human signed an approval.
 """
 import hashlib
 import json
+import argparse
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCES = ROOT / '.work/k1/sources'
 OUT = ROOT / 'registry'
+parser=argparse.ArgumentParser();parser.add_argument('--phase1',action='store_true');options=parser.parse_args()
 
 def write(path, data):
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -47,6 +49,18 @@ rows = [(10,'IOL15A/GCLKT_6','3',1800,'sink','LED1'),
         (17,'IOB2A','2',3300,'sink','UART_TX'),
         (18,'IOB2B','2',3300,'source','UART_RX')]
 lookup = {r[0]:r for r in rows}
+if options.phase1:
+    # Schematic physical p2: J5 pins 5..12,14,3,2,1,13,15.
+    # UG803 QN88P PSRAM column physical p8/p9: these are Bank 2, 3.3V.
+    # No connector number is treated as a package Pad number.
+    rows += [(25,'IOB8A','2',3300,'header','J5.5'),(26,'IOB8B','2',3300,'header','J5.6'),
+             (27,'IOB11A','2',3300,'header','J5.7'),(28,'IOB11B','2',3300,'header','J5.8'),
+             (29,'IOB13A','2',3300,'header','J5.9'),(30,'IOB13B','2',3300,'header','J5.10'),
+             (33,'IOB23A','2',3300,'header','J5.11'),(34,'IOB23B','2',3300,'header','J5.12'),
+             (35,'IOB29A/GCLKT_4','2',3300,'header','J5.14'),(36,'IOB29B/GCLKC_4','2',3300,'header','J5.3'),
+             (37,'IOB31A','2',3300,'header','J5.2'),(38,'IOB31B','2',3300,'header','J5.1'),
+             (40,'IOB33B','2',3300,'header','J5.13'),(41,'IOB41A','2',3300,'header','J5.15')]
+    lookup = {r[0]:r for r in rows}
 pins, pads, endpoints = [], [], []
 reserved = {5:'JTAG TMS',6:'JTAG TCK',7:'JTAG TDI',8:'JTAG TDO'}
 for pin in range(1,89):
@@ -76,10 +90,12 @@ db = dict(schema='sigflow.pin-database.v2',device='GW1NR-LV9QN88PC6/I5',package=
 # Resource names are board facts too. Drop the old fictitious CH340/WS2812/USB
 # aliases rather than preserve incorrect connections to unreviewed pads.
 for pin,io,bank,voltage,role,alias in rows:
-    kind='LED' if alias.startswith('LED') else 'BUTTON' if alias.startswith('BTN') else 'CLK' if alias=='CLK' else 'UART'
+    kind='HEADER' if role=='header' else 'LED' if alias.startswith('LED') else 'BUTTON' if alias.startswith('BTN') else 'CLK' if alias=='CLK' else 'UART'
     description=('Orange LED, active low' if kind=='LED' else
                  'Button to GND, 10K external pull-up' if kind=='BUTTON' else
-                 '27MHz oscillator' if kind=='CLK' else 'FPGA '+alias.replace('UART_','')+' to onboard BL702 bridge')
+                 '27MHz oscillator' if kind=='CLK' else
+                 'Reviewed J5 header '+alias+'; external peripherals require explicit wiring' if kind=='HEADER' else
+                 'FPGA '+alias.replace('UART_','')+' to onboard BL702 bridge')
     db['board_resources'].append(dict(alias=alias,pin=pin,description=description,type=kind,
                                      provenance_refs=['board-6202']))
 profile = dict(schema='sigflow.electrical.v1',synthetic=False,
@@ -93,7 +109,15 @@ for io, voltage in [('LVCMOS18',1800),('LVCMOS33',3300)]:
     profile['io_standards'][io] = dict(directions=['input','output'],vccio_allowed_mv=[voltage],
                                       drive_allowed_ma=[4,8,12],pull_modes=['none'],
                                       provenance_refs=['electrical'])
-write(OUT/'pins/tang-nano-9k.6202.reviewed.v1.json',db)
-write(OUT/'electrical/tang-nano-9k.6202.reviewed.v1.json',profile)
-write(ROOT/'main/fpga/target-profiles/tang-nano-9k.pins.json',db)
-print('Reviewed profiles regenerated; 11 pads reviewed, all other banks explicitly unknown.')
+if options.phase1:
+    db['electrical_profile_ref']='registry/electrical/tang-nano-9k.6202.reviewed.v2.json'
+    profile['policy']='P1 extends M0 with 14 source-audited J5 header Pads. Header standards remain tied to Bank 2 3.3V. TF/LCD external devices are not attached in this lab configuration.'
+    for item in provenance:
+        if item['id']=='pinout':item['physical_pages']=sorted(set(item['physical_pages']+[8]))
+    write(OUT/'pins/tang-nano-9k.6202.reviewed.v2.json',db)
+    write(OUT/'electrical/tang-nano-9k.6202.reviewed.v2.json',profile)
+else:
+    write(OUT/'pins/tang-nano-9k.6202.reviewed.v1.json',db)
+    write(OUT/'electrical/tang-nano-9k.6202.reviewed.v1.json',profile)
+    write(ROOT/'main/fpga/target-profiles/tang-nano-9k.pins.json',db)
+print(f'Reviewed profiles regenerated; {len(rows)} pads reviewed, all other banks explicitly unknown.')

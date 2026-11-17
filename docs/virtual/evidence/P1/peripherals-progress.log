@@ -1,0 +1,38 @@
+True production builder compiled lab
+True real 27MHz PWM/scan RTL advances every required clock edge
+True integer sliding 4us window measures exact 25/50/75% from real RTL
+True read-only GUI polling cannot change simulated-time integration
+True read-only GUI polling cannot change simulated-time integration
+True read-only GUI polling cannot change simulated-time integration
+True read-only GUI polling cannot change simulated-time integration
+True read-only GUI polling cannot change simulated-time integration
+True read-only GUI polling cannot change simulated-time integration
+True read-only GUI polling cannot change simulated-time integration
+True read-only GUI polling cannot change simulated-time integration
+True read-only GUI polling cannot change simulated-time integration
+True read-only GUI polling cannot change simulated-time integration
+True read-only GUI polling cannot change simulated-time integration
+True read-only GUI polling cannot change simulated-time integration
+True read-only GUI polling cannot change simulated-time integration
+True read-only GUI polling cannot change simulated-time integration
+True read-only GUI polling cannot change simulated-time integration
+True integrated four-digit scan reconstructs 1 2 3 4 with measured scan period
+True single-step electrical observation only conducts the selected digit
+True DIP bits traverse reviewed Pad/CST into actual DUT ports
+True pwm-segments three from-zero real RTL replays verify RNG, integrators, UART and both digests
+True production builder compiled cathode
+True common-cathode polarity uses explicit active levels without RTL-name shortcuts
+True common-cathode three from-zero real RTL replays verify RNG, integrators, UART and both digests
+True 8N1 round trip crosses UART.TX -> pad18 -> real RTL -> pad17 -> UART.RX
+True UART deadlines and combinational DUT input still progress during ClockStop
+True uart-8n1 three from-zero real RTL replays verify RNG, integrators, UART and both digests
+True UART detects real replace_source stop-bit error at sampled physical tick
+True UART receiver recovers on next valid frame after fault ends
+True uart-bad-stop-replace_source three from-zero real RTL replays verify RNG, integrators, UART and both digests
+True UART detects real short_to_rail stop-bit error at sampled physical tick
+True invalid UART stop sample retains raw CON code
+True UART receiver recovers on next valid frame after fault ends
+True uart-bad-stop-short_to_rail three from-zero real RTL replays verify RNG, integrators, UART and both digests
+True production builder compiled uart-7e2
+True configurable 7E2 parity and two-stop-bit FSM is sampled at integer midpoints
+True uart-7e2 three from-zero real RTL replays verify RNG, integrators, UART and both digests

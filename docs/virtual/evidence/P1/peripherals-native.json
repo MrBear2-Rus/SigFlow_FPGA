@@ -1,0 +1,16 @@
+{
+  "check_count": 10,
+  "checks": [
+    "exact sliding PWM integration 25% independent of observers",
+    "FLT/CON validity is independent from PWM brightness",
+    "exact sliding PWM integration 50% independent of observers",
+    "FLT/CON validity is independent from PWM brightness",
+    "exact sliding PWM integration 75% independent of observers",
+    "FLT/CON validity is independent from PWM brightness",
+    "P1 reviewed profile loads",
+    "UART, segments and DIP use explicit reviewed graph endpoints",
+    "E_BOARD_PAD_UNREVIEWED rejected",
+    "UART idle and DIP strong sources traverse actual wires"
+  ],
+  "status": "passed"
+}

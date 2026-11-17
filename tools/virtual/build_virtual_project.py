@@ -76,7 +76,9 @@ def main():
         key=hashlib.sha256(json.dumps(dict(inputs=fingerprint,request=semantic,flags=flags),sort_keys=True,ensure_ascii=False).encode()).hexdigest()
         root=absolute(request.get('cache_root','.work/virtual-project-cache'),repo);cache=root/key;cache.mkdir(parents=True,exist_ok=True)
         run_id='virtual-'+uuid.uuid4().hex;session_dir=repo/'.work/virtual-project-sessions'/run_id;session_dir.mkdir(parents=True,exist_ok=True)
-        config={k:request[k] for k in ['clock','inputs','allow_unbound_outputs','max_delta','max_commits'] if k in request}
+        config={k:request[k] for k in ['clock','inputs','allow_unbound_outputs','max_delta','max_commits','phase1','integration_window_ticks','fault_profile'] if k in request}
+        if 'fault_profile_path' in request:
+            fault_path=absolute(request['fault_profile_path'],project);config['fault_profile']=read(fault_path)
         card=read(board);config.update(schema='sigflow.virtual-session.v1',run_id=run_id,generation='1',
             identity=dict(device=card['device'],package=card['package'],board_revision=card['hardware_revision']),
             cst_path=cst.as_posix(),board_path=board.as_posix(),electrical_profile_path=electrical.as_posix(),
