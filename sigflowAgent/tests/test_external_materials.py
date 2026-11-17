@@ -13,17 +13,17 @@ import unittest
 from unittest.mock import patch
 from dataclasses import replace
 
-from sigflow_edu_agent.courses import SQLiteCourseProvider, pack_courses
-from sigflow_edu_agent.domain import (CourseBundle, CourseMaterial, Evidence, RunRequest)
-from sigflow_edu_agent.context.models import ContextItem
-from sigflow_edu_agent.deepseek import DeepSeekConfig, DeepSeekProvider
-from sigflow_edu_agent.loop import TeachingLoop
-from sigflow_edu_agent.rag.agent_adapter import prepare_course_context, resolve_course_refs
-from sigflow_edu_agent.rag.database import DEFAULT_DB_PATH, RESOURCE_ROOT, open_database
-from sigflow_edu_agent.rag.evaluation import load_questions, run_evaluation
-from sigflow_edu_agent.rag.external_materials import RAW_ROOT
-from sigflow_edu_agent.rag.importer import build_index
-from sigflow_edu_agent.rag.retriever import retrieve_course_passages
+from sigflow_teaching_core.courses import SQLiteCourseProvider, pack_courses
+from sigflow_teaching_core.domain import (CourseBundle, CourseMaterial, Evidence, RunRequest)
+from sigflow_teaching_core.context.models import ContextItem
+from sigflow_teaching_core.deepseek import DeepSeekConfig, DeepSeekProvider
+from sigflow_teaching_core.loop import TeachingLoop
+from sigflow_teaching_core.rag.agent_adapter import prepare_course_context, resolve_course_refs
+from sigflow_teaching_core.rag.database import DEFAULT_DB_PATH, RESOURCE_ROOT, open_database
+from sigflow_teaching_core.rag.evaluation import load_questions, run_evaluation
+from sigflow_teaching_core.rag.external_materials import RAW_ROOT
+from sigflow_teaching_core.rag.importer import build_index
+from sigflow_teaching_core.rag.retriever import retrieve_course_passages
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -262,7 +262,7 @@ class ExternalMaterialIntegrationTests(unittest.TestCase):
             candidate["course_passage_ids"]=[connection.execute(
                 "SELECT chunk_id FROM evidence_chunks WHERE parent_id=? ORDER BY ordinal",
                 ("verilator_5052:warnings:widthtrunc",)).fetchone()[0]]
-        with patch("sigflow_edu_agent.deepseek.http.client.HTTPSConnection") as connection_factory:
+        with patch("sigflow_teaching_core.deepseek.http.client.HTTPSConnection") as connection_factory:
             reply = connection_factory.return_value.getresponse.return_value
             reply.status = 200
             reply.read.return_value = json.dumps({"choices": [{"finish_reason": "stop", "message": {"content": json.dumps(candidate, ensure_ascii=False)}}]}).encode()

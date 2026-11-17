@@ -12,13 +12,13 @@ import unittest
 
 from _model_isolation import isolate_model_settings
 from test_frozen_model_suite import write_suite
-from sigflow_edu_agent.evaluation.model import _hash
+from sigflow_teaching_core.evaluation.model import _hash
 
 
 class EvaluationRunnerTests(unittest.TestCase):
     def setUp(self):
         isolate_model_settings(self)
-        spec = importlib.util.find_spec('sigflow_edu_agent.evaluation.runner')
+        spec = importlib.util.find_spec('sigflow_teaching_core.evaluation.runner')
         self.assertIsNotNone(spec, 'evaluation_operator_entry_missing')
         self.module = importlib.import_module(spec.name)
         self.package = Path(__file__).resolve().parents[1]
@@ -130,7 +130,7 @@ class EvaluationRunnerTests(unittest.TestCase):
     def test_real_subprocess_default_needs_no_key_and_pin_error_precedes_provider(self):
         environment = dict(os.environ, PYTHONPATH=str(self.package))
         environment.pop('DEEPSEEK_API_KEY', None)
-        command = [sys.executable, '-m', 'sigflow_edu_agent.evaluation.runner']
+        command = [sys.executable, '-m', 'sigflow_teaching_core.evaluation.runner']
         result = subprocess.run(command+self.args, capture_output=True, env=environment, cwd=self.package, timeout=8)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads((self.output/'batch.json').read_text())['report']['real_model'], 'not_run')

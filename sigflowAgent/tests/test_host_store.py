@@ -11,7 +11,7 @@ import unittest
 from unittest.mock import patch
 
 try:
-    from sigflow_edu_agent.host.store import DurableStore, StoreError
+    from sigflow_teaching_core.host.store import DurableStore, StoreError
 except ModuleNotFoundError:
     DurableStore = StoreError = None
 
@@ -151,7 +151,7 @@ class StoreTests(unittest.TestCase):
 
     def test_same_process_and_subprocess_lock_are_exclusive_and_reusable(self):
         self.assertCode('store_locked', lambda: DurableStore(self.path, 'inst'))
-        script = "from sigflow_edu_agent.host.store import DurableStore, StoreError\nimport sys\ntry:\n DurableStore(sys.argv[1], 'inst')\nexcept StoreError as e:\n print(str(e))\n"
+        script = "from sigflow_teaching_core.host.store import DurableStore, StoreError\nimport sys\ntry:\n DurableStore(sys.argv[1], 'inst')\nexcept StoreError as e:\n print(str(e))\n"
         child = subprocess.run([sys.executable, '-c', script, str(self.path)],
                                cwd=Path(__file__).resolve().parents[1], capture_output=True, text=True)
         self.assertEqual(child.returncode, 0, child.stderr)
@@ -263,7 +263,7 @@ class StoreTests(unittest.TestCase):
     def test_event_retention_preserves_monotone_cursor(self):
         self.create()
         # Exercise pruning at a reduced cap without a thousand disk restarts.
-        with patch('sigflow_edu_agent.host.store.MAX_EVENTS', 3):
+        with patch('sigflow_teaching_core.host.store.MAX_EVENTS', 3):
             for version in range(5):
                 self.store.claim('session', str(version), 'fp', version)
                 self.store.commit('session', str(version), self.state(version + 1), None, {})
@@ -287,7 +287,7 @@ class StoreTests(unittest.TestCase):
     def test_event_retention_and_high_watermark_are_scoped_to_each_session(self):
         self.create('older')
         self.create('other')
-        with patch('sigflow_edu_agent.host.store.MAX_EVENTS', 2):
+        with patch('sigflow_teaching_core.host.store.MAX_EVENTS', 2):
             for version in range(3):
                 self.store.claim('older', str(version), 'fp', version)
                 self.store.commit('older', str(version), self.state(version + 1), None, {})

@@ -3,9 +3,9 @@ import argparse
 import json
 from pathlib import Path
 
-from sigflow_edu_agent.courses import SQLiteCourseProvider
-from sigflow_edu_agent.domain import Evidence, RunRequest
-from sigflow_edu_agent.loop import TeachingLoop
+from sigflow_teaching_core.courses import SQLiteCourseProvider
+from sigflow_teaching_core.domain import Evidence, RunRequest
+from sigflow_teaching_core.loop import TeachingLoop
 
 
 class FixtureSource:

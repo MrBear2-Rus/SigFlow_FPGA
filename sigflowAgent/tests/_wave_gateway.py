@@ -5,8 +5,8 @@ import json
 from threading import Thread
 from urllib.parse import urlsplit,parse_qs
 
-from sigflow_edu_agent.clients.gateway import GatewayConfig
-from sigflow_edu_agent.runtime.gateway_session import SessionBinding
+from sigflow_teaching_core.clients.gateway import GatewayConfig
+from sigflow_teaching_core.runtime.gateway_session import SessionBinding
 
 
 class WaveGateway:

@@ -7,14 +7,14 @@ import tempfile
 import time
 import unittest
 
-from sigflow_edu_agent.context.models import EvidenceAnchor
-from sigflow_edu_agent.demo import FixtureSource
-from sigflow_edu_agent.domain import RunRequest
-from sigflow_edu_agent.host.runtime import Runtime
-from sigflow_edu_agent.host.store import DurableStore
-from sigflow_edu_agent.loop import TeachingLoop
-from sigflow_edu_agent.runtime.gateway_session import SessionBinding
-from sigflow_edu_agent.runtime.session import TeachingSession
+from sigflow_teaching_core.context.models import EvidenceAnchor
+from sigflow_teaching_core.demo import FixtureSource
+from sigflow_teaching_core.domain import RunRequest
+from sigflow_teaching_core.host.runtime import Runtime
+from sigflow_teaching_core.host.store import DurableStore
+from sigflow_teaching_core.loop import TeachingLoop
+from sigflow_teaching_core.runtime.gateway_session import SessionBinding
+from sigflow_teaching_core.runtime.session import TeachingSession
 
 
 def scoped_evidence(job='j3'):
@@ -25,7 +25,7 @@ def scoped_evidence(job='j3'):
 
 class RepetitionTests(unittest.TestCase):
     def setUp(self):
-        spec = importlib.util.find_spec('sigflow_edu_agent.host.repetition')
+        spec = importlib.util.find_spec('sigflow_teaching_core.host.repetition')
         self.assertIsNotNone(spec, 'repeat_error_advice_missing')
         self.module = importlib.import_module(spec.name)
         self.binding = SessionBinding('inst', 'session3', 'learner', 'p', 'r', 's', 'j3', 'diag', 'issue')

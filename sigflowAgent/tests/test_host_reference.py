@@ -11,13 +11,13 @@ import time
 import unittest
 from threading import Event, Thread
 
-from sigflow_edu_agent.clients.gateway import GatewayError
-from sigflow_edu_agent.demo import FixtureSource
-from sigflow_edu_agent.host.reference import ReviewedReference
-from sigflow_edu_agent.host.runtime import Runtime
-from sigflow_edu_agent.host.store import DurableStore
-from sigflow_edu_agent.loop import TeachingLoop
-from sigflow_edu_agent.runtime.session import TeachingSession
+from sigflow_teaching_core.clients.gateway import GatewayError
+from sigflow_teaching_core.demo import FixtureSource
+from sigflow_teaching_core.host.reference import ReviewedReference
+from sigflow_teaching_core.host.runtime import Runtime
+from sigflow_teaching_core.host.store import DurableStore
+from sigflow_teaching_core.loop import TeachingLoop
+from sigflow_teaching_core.runtime.session import TeachingSession
 
 
 class ReceiptFixture:
@@ -199,8 +199,8 @@ class HostReferenceTests(unittest.TestCase):
         self.assertEqual(self.port.lookups, 0)
 
     def test_cancellation_during_consume_blocks_publication_and_preserves_audit(self):
-        from sigflow_edu_agent.host.reference_journal import ReferenceJournal
-        from sigflow_edu_agent.runtime.gateway_session import SessionBinding
+        from sigflow_teaching_core.host.reference_journal import ReferenceJournal
+        from sigflow_teaching_core.runtime.gateway_session import SessionBinding
         sid, _, state, payload = self.request()
         entered, release = Event(), Event()
         def hold():
@@ -310,8 +310,8 @@ class HostReferenceTests(unittest.TestCase):
         self.assertEqual(len(self.port.calls), 1)
 
     def test_cancel_while_quarantined_invalidates_unknown_operation_without_recovery(self):
-        from sigflow_edu_agent.host.reference_journal import ReferenceJournal
-        from sigflow_edu_agent.runtime.gateway_session import SessionBinding
+        from sigflow_teaching_core.host.reference_journal import ReferenceJournal
+        from sigflow_teaching_core.runtime.gateway_session import SessionBinding
         sid, _, state, payload = self.request()
         self.port.lose_response = True
         self.action(sid, state, 'reference_confirm', 'confirm', payload)
@@ -341,7 +341,7 @@ class HostReferenceTests(unittest.TestCase):
         from unittest.mock import patch
         sid, before, state, _ = self.request()
         deadline = int(state['reference']['challenge']['expires_at_epoch'])
-        with patch('sigflow_edu_agent.host.reference_actions.time.time', return_value=deadline):
+        with patch('sigflow_teaching_core.host.reference_actions.time.time', return_value=deadline):
             self.assertEqual(self.runtime.snapshot(sid, 'learner')['reference'], dict(status='expired'))
             replay = self.runtime.action(sid, 'learner', 'reference_request', 'request',
                 int(before['state_version']), reference={})
@@ -360,7 +360,7 @@ class HostReferenceTests(unittest.TestCase):
     def test_http_reference_stays_denied_even_with_internal_configuration(self):
         import http.client
         import threading
-        from sigflow_edu_agent.host.http import HostServer
+        from sigflow_teaching_core.host.http import HostServer
         sid, state = self.create()
         server = HostServer(self.runtime, 'test-ui')
         thread = threading.Thread(target=server.serve_forever, kwargs={'poll_interval': .01}, daemon=True)

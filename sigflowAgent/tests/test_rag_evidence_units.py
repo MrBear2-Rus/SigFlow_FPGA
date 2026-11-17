@@ -3,17 +3,17 @@ from dataclasses import asdict,replace
 from contextlib import closing
 from pathlib import Path
 import hashlib,json,sqlite3,tempfile,unittest
-from sigflow_edu_agent.rag.chunks import markdown_headings,semantic_ranges,digest
-from sigflow_edu_agent.rag.external_materials import _markdown_sections
-from sigflow_edu_agent.rag.importer import build_index,DEFAULT_RESOURCES_DIR
-from sigflow_edu_agent.rag.retriever import retrieve_course_passages,retrieve_course_candidates
-from sigflow_edu_agent.rag.citations import resolve_evidence_citations,CitationValidationError
-from sigflow_edu_agent.courses import SQLiteCourseProvider,pack_courses
-from sigflow_edu_agent.domain import Evidence,CardContext
-from sigflow_edu_agent.context.models import ContextItem
-from sigflow_edu_agent.deepseek import serialize_request
-from sigflow_edu_agent.pedagogy import checked_card,valid_evidence
-from sigflow_edu_agent.domain import RunRequest
+from sigflow_teaching_core.rag.chunks import markdown_headings,semantic_ranges,digest
+from sigflow_teaching_core.rag.external_materials import _markdown_sections
+from sigflow_teaching_core.rag.importer import build_index,DEFAULT_RESOURCES_DIR
+from sigflow_teaching_core.rag.retriever import retrieve_course_passages,retrieve_course_candidates
+from sigflow_teaching_core.rag.citations import resolve_evidence_citations,CitationValidationError
+from sigflow_teaching_core.courses import SQLiteCourseProvider,pack_courses
+from sigflow_teaching_core.domain import Evidence,CardContext
+from sigflow_teaching_core.context.models import ContextItem
+from sigflow_teaching_core.deepseek import serialize_request
+from sigflow_teaching_core.pedagogy import checked_card,valid_evidence
+from sigflow_teaching_core.domain import RunRequest
 
 
 class SemanticBoundaryTests(unittest.TestCase):

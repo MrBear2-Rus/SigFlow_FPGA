@@ -5,14 +5,14 @@ from _wave_gateway import WaveGateway
 
 class ReferenceProtocolTests(unittest.TestCase):
     def setUp(self):
-        from sigflow_edu_agent.host.reference import ReferenceGate,ReviewedReference
+        from sigflow_teaching_core.host.reference import ReferenceGate,ReviewedReference
         self.g=WaveGateway();self.addCleanup(self.g.close)
         self.content='Fixture teaching reference, not a course answer.'
         self.item=ReviewedReference('ref1',self.content,hashlib.sha256(self.content.encode()).hexdigest(),('reviewer1','reviewer2'))
         self.gate=ReferenceGate(self.g.binding,'run1',lambda binding:self.item)
 
     def test_missing_reviewed_material_never_creates_a_challenge(self):
-        from sigflow_edu_agent.host.reference import ReferenceGate
+        from sigflow_teaching_core.host.reference import ReferenceGate
         gate=ReferenceGate(self.g.binding,'run1',lambda binding:None)
         with self.assertRaisesRegex(ValueError,'reference_material_unavailable'):gate.request(3)
 
@@ -47,7 +47,7 @@ class ReferenceProtocolTests(unittest.TestCase):
                 self.gate.confirm('ui-receipt-1',challenge['challenge_id'],3,port)
 
     def test_expiry_invalidation_and_material_change_fail_closed(self):
-        from sigflow_edu_agent.host.reference import ReferenceGate
+        from sigflow_teaching_core.host.reference import ReferenceGate
         for change in ('expiry','invalidate','material'):
             gate=ReferenceGate(self.g.binding,'run1',lambda binding:self.item)
             challenge=gate.request(3)
@@ -58,7 +58,7 @@ class ReferenceProtocolTests(unittest.TestCase):
                 gate.confirm('ui-receipt-1',challenge['challenge_id'],3,None)
 
     def test_receipt_client_has_no_issuance_route_and_checks_core_identity(self):
-        from sigflow_edu_agent.clients.receipts import GatewayReceiptClient
+        from sigflow_teaching_core.clients.receipts import GatewayReceiptClient
         client=GatewayReceiptClient(self.g.config)
         self.assertFalse(hasattr(client,'issue'))
         with patch.object(client.client,'health',side_effect=ValueError('wrong_instance')):

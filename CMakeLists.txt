@@ -798,8 +798,14 @@ if(WIN32 AND TARGET eda_agent_gateway AND SIGFLOW_BUILD_TESTS AND SIGFLOW_BUILD_
     endif()
     # The app copies the matching wx runtime DLLs next to this executable.
     add_dependencies(edu_native_reading_smoke sigflow)
-    add_test(NAME edu_native_reading_smoke COMMAND edu_native_reading_smoke)
-    set_tests_properties(edu_native_reading_smoke PROPERTIES TIMEOUT 25)
+    add_executable(edu_native_reading_runner tests/agent/edu_native_reading_runner.cpp)
+    if(MINGW)
+        target_link_options(edu_native_reading_runner PRIVATE -municode -static-libgcc -static-libstdc++)
+    endif()
+    add_dependencies(edu_native_reading_smoke edu_native_reading_runner)
+    add_test(NAME edu_native_reading_smoke
+        COMMAND edu_native_reading_runner "$<TARGET_FILE:edu_native_reading_smoke>")
+    set_tests_properties(edu_native_reading_smoke PROPERTIES TIMEOUT 30)
 endif()
 
 # ---------------------------------------------------------------------------

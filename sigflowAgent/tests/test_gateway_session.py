@@ -4,9 +4,9 @@ import os
 import unittest
 from unittest.mock import patch
 
-from sigflow_edu_agent.clients.gateway import GatewayConfig
-from sigflow_edu_agent.domain import ProviderError, RunRequest, Status
-from sigflow_edu_agent.runtime.gateway_session import SessionBinding, create_gateway_session
+from sigflow_teaching_core.clients.gateway import GatewayConfig
+from sigflow_teaching_core.domain import ProviderError, RunRequest, Status
+from sigflow_teaching_core.runtime.gateway_session import SessionBinding, create_gateway_session
 from test_gateway_source import fixture
 
 
@@ -17,7 +17,7 @@ class GatewaySessionTests(unittest.TestCase):
                                       'snap-12', 'job-21', 'diag-1', 'issue-1')
         self.request = RunRequest('prj-1', 'rev-12', 'issue-1', '为什么会推断锁存器？')
         self.config = GatewayConfig(12345, 'secret-token', 'inst-1')
-        self.client_patch = patch('sigflow_edu_agent.runtime.gateway_session.GatewayClient')
+        self.client_patch = patch('sigflow_teaching_core.runtime.gateway_session.GatewayClient')
         self.client = self.client_patch.start().return_value
         self.client.job_report.side_effect = lambda *a, **kw: self.report
         self.addCleanup(self.client_patch.stop)
@@ -79,12 +79,12 @@ class GatewaySessionTests(unittest.TestCase):
                 replace(self.binding, **changes)
 
     def test_default_deepseek_requires_configuration(self):
-        with patch.dict(os.environ, {}, clear=True), patch('sigflow_edu_agent.credentials.load_config',return_value=None), self.assertRaises(ProviderError):
+        with patch.dict(os.environ, {}, clear=True), patch('sigflow_teaching_core.credentials.load_config',return_value=None), self.assertRaises(ProviderError):
             create_gateway_session(binding=self.binding, request=self.request, gateway=self.config,
                                    anchors=[self.anchor])
         self.client.job_report.assert_not_called()
 
-    @patch('sigflow_edu_agent.runtime.gateway_session.DeepSeekProvider.from_settings')
+    @patch('sigflow_teaching_core.runtime.gateway_session.DeepSeekProvider.from_settings')
     def test_missing_evidence_never_calls_model_or_records_occurrence(self, provider):
         session = self.create(mode='deepseek', anchors=[])
         state = self.advance(session)
@@ -100,7 +100,7 @@ class GatewaySessionTests(unittest.TestCase):
         self.advance(two)
         self.assertNotEqual(one.occurrences[0].binding, two.occurrences[0].binding)
 
-    @patch('sigflow_edu_agent.deepseek.http.client.HTTPSConnection')
+    @patch('sigflow_teaching_core.deepseek.http.client.HTTPSConnection')
     def test_actual_provider_is_composed_and_only_sees_question_and_evidence(self, connection):
         reply = connection.return_value.getresponse.return_value
         reply.status = 200

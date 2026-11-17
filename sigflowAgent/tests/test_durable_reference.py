@@ -7,10 +7,10 @@ import time
 import unittest
 from unittest.mock import patch
 
-from sigflow_edu_agent.clients.gateway import GatewayError
-from sigflow_edu_agent.host.reference import ReviewedReference
-from sigflow_edu_agent.host.store import DurableStore, StoreError
-from sigflow_edu_agent.runtime.gateway_session import SessionBinding
+from sigflow_teaching_core.clients.gateway import GatewayError
+from sigflow_teaching_core.host.reference import ReviewedReference
+from sigflow_teaching_core.host.store import DurableStore, StoreError
+from sigflow_teaching_core.runtime.gateway_session import SessionBinding
 
 
 class ReceiptPort:
@@ -69,8 +69,8 @@ class DurableReferenceTests(unittest.TestCase):
                     stage='E5', cards=[])
 
     def open_gate(self):
-        from sigflow_edu_agent.host.reference_journal import ReferenceJournal
-        from sigflow_edu_agent.host.durable_reference import DurableReferenceGate
+        from sigflow_teaching_core.host.reference_journal import ReferenceJournal
+        from sigflow_teaching_core.host.durable_reference import DurableReferenceGate
         self.journal = ReferenceJournal(self.store)
         self.gate = DurableReferenceGate(self.binding, 'run1', lambda binding: self.item,
                                          self.journal)
@@ -111,7 +111,7 @@ class DurableReferenceTests(unittest.TestCase):
                 self.gate.draft(current, target)
 
     def test_metadata_mode_never_returns_reference_body(self):
-        from sigflow_edu_agent.host.durable_reference import DurableReferenceGate
+        from sigflow_teaching_core.host.durable_reference import DurableReferenceGate
         import inspect
         self.assertIn('metadata_only', inspect.signature(DurableReferenceGate).parameters,
                       'host metadata-only gate mode is missing')
@@ -164,7 +164,7 @@ class DurableReferenceTests(unittest.TestCase):
 
     def test_expired_active_receipt_is_not_consumed_but_committed_replay_survives_ttl(self):
         challenge, port = self.request()
-        with patch('sigflow_edu_agent.host.durable_reference.time.time',
+        with patch('sigflow_teaching_core.host.durable_reference.time.time',
                    return_value=int(challenge['expires_at_epoch']) + 1):
             with self.assertRaises(ValueError):
                 self.gate.confirm('ui-receipt-1', challenge['challenge_id'], 3, port)
@@ -172,7 +172,7 @@ class DurableReferenceTests(unittest.TestCase):
         port.lose_response = True
         with self.assertRaises(GatewayError):
             self.gate.confirm('ui-receipt-1', challenge['challenge_id'], 3, port)
-        with patch('sigflow_edu_agent.host.durable_reference.time.time',
+        with patch('sigflow_teaching_core.host.durable_reference.time.time',
                    return_value=int(challenge['expires_at_epoch']) + 1):
             self.assertEqual(self.gate.reconcile(3, port)['content'], self.content)
         self.assertEqual(port.executions, 1)
@@ -202,7 +202,7 @@ class DurableReferenceTests(unittest.TestCase):
         self.assertEqual(self.journal.get(self.binding, 'run1')['phase'], 'consuming')
 
     def test_wrong_learner_run_and_receipt_cannot_resume(self):
-        from sigflow_edu_agent.host.durable_reference import DurableReferenceGate
+        from sigflow_teaching_core.host.durable_reference import DurableReferenceGate
         challenge, port = self.request()
         for binding, run in ((replace(self.binding, learner_id='other'), 'run1'),
                              (self.binding, 'other-run')):
@@ -229,7 +229,7 @@ class DurableReferenceTests(unittest.TestCase):
         with patch.object(port, 'consume', side_effect=GatewayError('SERVICE_UNAVAILABLE')):
             with self.assertRaises(GatewayError):
                 self.gate.confirm('ui-receipt-1', challenge['challenge_id'], 3, port)
-        with patch('sigflow_edu_agent.host.durable_reference.time.time',
+        with patch('sigflow_teaching_core.host.durable_reference.time.time',
                    return_value=int(challenge['expires_at_epoch']) + 1):
             with self.assertRaises(ValueError):
                 self.gate.reconcile(3, port)
@@ -287,7 +287,7 @@ class DurableReferenceTests(unittest.TestCase):
             record = actual_claim(*args, **kwargs)
             clock['now'] = int(challenge['expires_at_epoch']) + 1
             return record
-        with patch('sigflow_edu_agent.host.durable_reference.time.time',
+        with patch('sigflow_teaching_core.host.durable_reference.time.time',
                    side_effect=lambda: clock['now']), patch.object(self.journal, 'claim',
                    side_effect=claim_then_expire):
             with self.assertRaisesRegex(ValueError, 'reference_challenge_stale'):

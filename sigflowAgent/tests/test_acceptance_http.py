@@ -5,7 +5,7 @@ from threading import Thread
 import time
 import unittest
 
-from sigflow_edu_agent.host.closed_loop import HTTP, RunFailure
+from sigflow_teaching_core.host.closed_loop import HTTP, RunFailure
 
 
 class AcceptanceHTTPTests(unittest.TestCase):

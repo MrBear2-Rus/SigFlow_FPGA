@@ -7,12 +7,12 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from threading import Barrier
 
-from sigflow_edu_agent.demo import FixtureSource
-from sigflow_edu_agent.context.models import EvidenceAnchor
-from sigflow_edu_agent.domain import Plan, RunRequest, Status
-from sigflow_edu_agent.loop import TeachingLoop
-from sigflow_edu_agent.runtime.gateway_session import SessionBinding
-from sigflow_edu_agent.runtime.session import TeachingSession
+from sigflow_teaching_core.demo import FixtureSource
+from sigflow_teaching_core.context.models import EvidenceAnchor
+from sigflow_teaching_core.domain import Plan, RunRequest, Status
+from sigflow_teaching_core.loop import TeachingLoop
+from sigflow_teaching_core.runtime.gateway_session import SessionBinding
+from sigflow_teaching_core.runtime.session import TeachingSession
 
 
 class Source(FixtureSource):
@@ -58,7 +58,7 @@ class CheckpointTests(unittest.TestCase):
         return self.session.checkpoint(self.binding)
 
     def restore(self, payload=None, **changes):
-        from sigflow_edu_agent.runtime import checkpoint
+        from sigflow_teaching_core.runtime import checkpoint
         args = dict(binding=self.binding, request=self.request, source=self.source,
                     provider=self.provider)
         return checkpoint.restore_readonly_session(self.save() if payload is None else payload,
@@ -328,10 +328,10 @@ class CheckpointTests(unittest.TestCase):
         before = self.pause()
         script = '''
 import json,sys
-from sigflow_edu_agent.demo import FixtureSource
-from sigflow_edu_agent.domain import RunRequest
-from sigflow_edu_agent.runtime.gateway_session import SessionBinding
-from sigflow_edu_agent.runtime.checkpoint import restore_readonly_session
+from sigflow_teaching_core.demo import FixtureSource
+from sigflow_teaching_core.domain import RunRequest
+from sigflow_teaching_core.runtime.gateway_session import SessionBinding
+from sigflow_teaching_core.runtime.checkpoint import restore_readonly_session
 payload=sys.stdin.read()
 binding=SessionBinding('inst','session','learner','p','r','snap','fixture-job-1','diag','issue')
 session=restore_readonly_session(payload,binding=binding,

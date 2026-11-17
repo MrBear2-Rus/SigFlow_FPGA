@@ -2,11 +2,11 @@ import unittest
 from dataclasses import replace
 from typing import get_type_hints, get_args
 
-from sigflow_edu_agent.checkers import DetailedPlan, PlanStep, PlanChecker, OutcomeChecker
-from sigflow_edu_agent.domain import Evidence, Plan, RunRequest, Status, VerificationResult
-from sigflow_edu_agent.loop import TeachingLoop
-from sigflow_edu_agent.context.models import EvidenceAnchor
-from sigflow_edu_agent.ports import VerificationPort
+from sigflow_teaching_core.checkers import DetailedPlan, PlanStep, PlanChecker, OutcomeChecker
+from sigflow_teaching_core.domain import Evidence, Plan, RunRequest, Status, VerificationResult
+from sigflow_teaching_core.loop import TeachingLoop
+from sigflow_teaching_core.context.models import EvidenceAnchor
+from sigflow_teaching_core.ports import VerificationPort
 
 
 def synth(**kwargs):

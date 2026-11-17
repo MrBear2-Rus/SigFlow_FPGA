@@ -2,9 +2,9 @@
 import time
 import unittest
 
-from sigflow_edu_agent.contracts.plan import build_plan_card
-from sigflow_edu_agent.host.runtime import parse_plan
-from sigflow_edu_agent.host.simulation_acceptance import exercise_simulation, RunFailure
+from sigflow_teaching_core.contracts.plan import build_plan_card
+from sigflow_teaching_core.host.runtime import parse_plan
+from sigflow_teaching_core.host.simulation_acceptance import exercise_simulation, RunFailure
 
 
 SCOPE = dict(project_id='p1', revision='r1', snapshot_id='snap1')

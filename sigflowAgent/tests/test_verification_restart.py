@@ -9,11 +9,11 @@ import time
 import unittest
 
 import test_host_verification as fixture
-from sigflow_edu_agent.host.runtime import Runtime
-from sigflow_edu_agent.host.store import DurableStore
-from sigflow_edu_agent.loop import TeachingLoop
-from sigflow_edu_agent.runtime.session import TeachingSession
-from sigflow_edu_agent.contracts.plan import build_plan_card
+from sigflow_teaching_core.host.runtime import Runtime
+from sigflow_teaching_core.host.store import DurableStore
+from sigflow_teaching_core.loop import TeachingLoop
+from sigflow_teaching_core.runtime.session import TeachingSession
+from sigflow_teaching_core.contracts.plan import build_plan_card
 
 
 class VerificationRestartTests(unittest.TestCase):
@@ -116,7 +116,7 @@ class VerificationRestartTests(unittest.TestCase):
 
     def test_course_background_retrieved_on_recovery_without_execution_or_model(self):
         from test_courses import Courses, material
-        from sigflow_edu_agent.domain import CourseBundle
+        from sigflow_teaching_core.domain import CourseBundle
         self.courses = Courses(CourseBundle('ok', (material('before'),)))
         sid, before = self.create()
         self.assertEqual(len(self.courses.calls), 1)
@@ -222,15 +222,15 @@ class VerificationRestartTests(unittest.TestCase):
         self.f.job_state = 'Running'
         script = '''
 import json, os, sys, threading
-from sigflow_edu_agent.clients.gateway import GatewayConfig
-from sigflow_edu_agent.host.verification import GatewayVerification
-from sigflow_edu_agent.host.runtime import Runtime
-from sigflow_edu_agent.host.store import DurableStore
-from sigflow_edu_agent.domain import Evidence
-from sigflow_edu_agent.context.models import EvidenceAnchor
-from sigflow_edu_agent.contracts.plan import build_plan_card
-from sigflow_edu_agent.loop import TeachingLoop
-from sigflow_edu_agent.runtime.session import TeachingSession
+from sigflow_teaching_core.clients.gateway import GatewayConfig
+from sigflow_teaching_core.host.verification import GatewayVerification
+from sigflow_teaching_core.host.runtime import Runtime
+from sigflow_teaching_core.host.store import DurableStore
+from sigflow_teaching_core.domain import Evidence
+from sigflow_teaching_core.context.models import EvidenceAnchor
+from sigflow_teaching_core.contracts.plan import build_plan_card
+from sigflow_teaching_core.loop import TeachingLoop
+from sigflow_teaching_core.runtime.session import TeachingSession
 data=json.loads(sys.stdin.read())
 raw=data['baseline']; raw['anchor']=EvidenceAnchor(**raw['anchor'])
 raw['context_items']=(); raw['omitted']=()

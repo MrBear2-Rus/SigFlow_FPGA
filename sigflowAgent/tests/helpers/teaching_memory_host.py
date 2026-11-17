@@ -3,11 +3,11 @@ import json
 from pathlib import Path
 import sys
 from threading import Lock
-from types import SimpleNamespace
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from sigflow_edu_agent.host.__main__ import main
+from sigflow_teaching_core.deepseek import DeepSeekConfig, DeepSeekProvider
+from sigflow_teaching_core.host.__main__ import main
 
 
 def launch():
@@ -33,16 +33,15 @@ def launch():
             return dict(learner_id='foreign' if mode == 'foreign' else scope['learner_id'],
                 project_id=scope['project_id'], concept_ids=scope['concept_ids'], summary='history-probe')
 
-    class Provider:
-        config = SimpleNamespace(api_key='synthetic-model-key')
-
+    class Provider(DeepSeekProvider):
         def generate(self, context):
             record('model', dict(level=context.level, history=context.learning_history))
             return dict(level=context.level,
                 hint='history-probe' if context.learning_history else 'current-evidence-only',
                 question='What does the current report establish?', evidence_ids=[context.evidence.evidence_id])
 
-    with patch('sigflow_edu_agent.host.factory.DeepSeekProvider.from_settings', return_value=Provider()):
+    provider = Provider(DeepSeekConfig('synthetic-model-key', 'test-model'))
+    with patch('sigflow_teaching_core.host.factory.DeepSeekProvider.from_settings', return_value=provider):
         return main(['--bootstrap-stdin', '--gateway-evidence', '--no-course'],
                     teaching_memory=object() if mode == 'invalid' else Receiver())
 

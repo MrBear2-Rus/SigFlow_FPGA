@@ -1,8 +1,8 @@
 from dataclasses import replace
 import unittest
 
-from sigflow_edu_agent.domain import Evidence, RunRequest
-from sigflow_edu_agent.loop import TeachingLoop
+from sigflow_teaching_core.domain import Evidence, RunRequest
+from sigflow_teaching_core.loop import TeachingLoop
 
 
 class PatternLoopTests(unittest.TestCase):

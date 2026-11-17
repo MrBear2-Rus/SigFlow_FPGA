@@ -9,18 +9,18 @@ from threading import Event, Thread, get_ident
 import time
 import unittest
 
-from sigflow_edu_agent.demo import FixtureSource
-from sigflow_edu_agent.host.runtime import Runtime
-from sigflow_edu_agent.host.store import DurableStore
-from sigflow_edu_agent.loop import TeachingLoop
-from sigflow_edu_agent.runtime.session import TeachingSession
+from sigflow_teaching_core.demo import FixtureSource
+from sigflow_teaching_core.host.runtime import Runtime
+from sigflow_teaching_core.host.store import DurableStore
+from sigflow_teaching_core.loop import TeachingLoop
+from sigflow_teaching_core.runtime.session import TeachingSession
 
 
 class MemoryAdapterTests(unittest.TestCase):
     def setUp(self):
         from importlib.util import find_spec
-        self.assertIsNotNone(find_spec('sigflow_edu_agent.host.memory_adapter'), 'memory adapter missing')
-        from sigflow_edu_agent.host import memory_adapter
+        self.assertIsNotNone(find_spec('sigflow_teaching_core.host.memory_adapter'), 'memory adapter missing')
+        from sigflow_teaching_core.host import memory_adapter
         self.Adapter = memory_adapter.MemoryAdapter
         self.temp = tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1])
         self.addCleanup(self.temp.cleanup)

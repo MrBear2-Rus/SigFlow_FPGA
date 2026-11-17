@@ -2,9 +2,9 @@ import json
 import unittest
 from unittest.mock import patch
 
-from sigflow_edu_agent.deepseek import DeepSeekConfig, DeepSeekProvider
-from sigflow_edu_agent.domain import CardContext, Evidence, ProviderError, RunRequest
-from sigflow_edu_agent.loop import TeachingLoop
+from sigflow_teaching_core.deepseek import DeepSeekConfig, DeepSeekProvider
+from sigflow_teaching_core.domain import CardContext, Evidence, ProviderError, RunRequest
+from sigflow_teaching_core.loop import TeachingLoop
 
 
 def context():
@@ -23,7 +23,7 @@ def response(content=None, **updates):
 
 class DeepSeekTests(unittest.TestCase):
     def setUp(self):
-        self.network = patch('sigflow_edu_agent.deepseek.http.client.HTTPSConnection')
+        self.network = patch('sigflow_teaching_core.deepseek.http.client.HTTPSConnection')
         self.factory = self.network.start()
         self.addCleanup(self.network.stop)
         self.connection = self.factory.return_value

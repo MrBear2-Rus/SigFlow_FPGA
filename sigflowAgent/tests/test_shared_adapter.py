@@ -7,17 +7,17 @@ import tempfile
 import time
 import unittest
 
-from sigflow_edu_agent.context.models import EvidenceAnchor
-from sigflow_edu_agent.demo import FixtureSource
-from sigflow_edu_agent.host.runtime import Runtime
-from sigflow_edu_agent.host.store import DurableStore
-from sigflow_edu_agent.loop import TeachingLoop
-from sigflow_edu_agent.runtime.session import TeachingSession
+from sigflow_teaching_core.context.models import EvidenceAnchor
+from sigflow_teaching_core.demo import FixtureSource
+from sigflow_teaching_core.host.runtime import Runtime
+from sigflow_teaching_core.host.store import DurableStore
+from sigflow_teaching_core.loop import TeachingLoop
+from sigflow_teaching_core.runtime.session import TeachingSession
 
 
 class SharedAdapterTests(unittest.TestCase):
     def setUp(self):
-        spec = importlib.util.find_spec('sigflow_edu_agent.host.shared_adapter')
+        spec = importlib.util.find_spec('sigflow_teaching_core.host.shared_adapter')
         self.assertIsNotNone(spec, 'shared_adapter_missing')
         self.module = importlib.import_module(spec.name)
         self.directory = tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1])
@@ -240,7 +240,7 @@ class SharedAdapterTests(unittest.TestCase):
         self.assertEqual((ack['session_id'],ack['run_id']),('sess-1','run-1'))
 
     def test_verified_successor_job_is_projected_only_from_committed_verification_checkpoint(self):
-        from sigflow_edu_agent.domain import VerificationResult
+        from sigflow_teaching_core.domain import VerificationResult
         owner=self
         result_anchor=replace(self.anchor,evidence_id='result-evidence',job_id='result-job',artifact_id='result-artifact')
         result_evidence=replace(self.evidence,evidence_id='result-evidence',job_id='result-job',anchor=result_anchor)

@@ -8,9 +8,9 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from sigflow_edu_agent.host import receipt_acceptance
-from sigflow_edu_agent.host.reference import ReviewedReference
-from sigflow_edu_agent.runtime.gateway_session import SessionBinding
+from sigflow_teaching_core.host import receipt_acceptance
+from sigflow_teaching_core.host.reference import ReviewedReference
+from sigflow_teaching_core.runtime.gateway_session import SessionBinding
 
 
 class ReferenceHostAcceptanceTests(unittest.TestCase):
@@ -31,7 +31,7 @@ class ReferenceHostAcceptanceTests(unittest.TestCase):
                 self.assertEqual(execute.call_args.kwargs, expected)
 
     def test_host_probe_replays_original_receipt_after_explicit_revalidation_and_redacts_report(self):
-        from sigflow_edu_agent.host.reference_host_acceptance import exercise_reference_host
+        from sigflow_teaching_core.host.reference_host_acceptance import exercise_reference_host
         binding = SessionBinding('probe-inst', 'outer-probe', 'fixture-learner', 'fixture-project',
                                  'fixture-revision', 'fixture-snapshot', 'probe-job', 'probe-diag', 'probe-issue')
         content = 'Synthetic host probe answer body must never persist 813729'

@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from sigflow_edu_agent.evaluation import evaluate, load_suite
+from sigflow_teaching_core.evaluation import evaluate, load_suite
 
 
 SUITE = Path(__file__).parent / 'evaluation' / 'development.json'
@@ -17,12 +17,12 @@ class EvaluationTests(unittest.TestCase):
         suite = load_suite(SUITE)
         suite['cases'] = suite['cases'][:1]
         for value in ({'api_key': 'sk-do-not-log'}, object(), 'sk-do-not-log'):
-            with patch('sigflow_edu_agent.evaluation.run_probe', return_value=value):
+            with patch('sigflow_teaching_core.evaluation.run_probe', return_value=value):
                 report = evaluate(suite)
                 self.assertEqual(report['failed'], 1)
                 self.assertIsNone(report['results'][0]['actual'])
                 self.assertNotIn('sk-do-not-log', json.dumps(report))
-        with patch('sigflow_edu_agent.evaluation.run_probe', side_effect=RuntimeError('sk-do-not-log')):
+        with patch('sigflow_teaching_core.evaluation.run_probe', side_effect=RuntimeError('sk-do-not-log')):
             report = evaluate(suite)
             self.assertEqual(report['failed'], 1)
             self.assertEqual(report['results'][0]['reason'], 'probe_error')
@@ -64,7 +64,7 @@ class EvaluationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'suite.json'
             path.write_text(json.dumps(suite), encoding='utf-8')
-            run = subprocess.run([sys.executable, '-m', 'sigflow_edu_agent.evaluation',
+            run = subprocess.run([sys.executable, '-m', 'sigflow_teaching_core.evaluation',
                                   '--suite', str(path)], capture_output=True, text=True)
         self.assertEqual(run.returncode, 1, run.stderr)
         report = json.loads(run.stdout)
@@ -76,7 +76,7 @@ class EvaluationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'suite.json'
             path.write_text('{"secret":"sk-do-not-log"}', encoding='utf-8')
-            run = subprocess.run([sys.executable, '-m', 'sigflow_edu_agent.evaluation',
+            run = subprocess.run([sys.executable, '-m', 'sigflow_teaching_core.evaluation',
                                   '--suite', str(path)], capture_output=True, text=True)
         self.assertEqual(run.returncode, 2)
         self.assertEqual(json.loads(run.stdout), {'error': 'invalid_suite'})
