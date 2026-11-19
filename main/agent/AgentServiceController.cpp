@@ -238,6 +238,14 @@ void AgentServiceController::Stop() {
     Publish(State::Stopped, "Agent sidecar stopped.");
 }
 
+void AgentServiceController::SetModelSettings(const std::string& apiKey,
+                                              const std::string& model,
+                                              const std::string& baseUrl) {
+    config_.modelApiKey = apiKey;
+    config_.modelName = model;
+    config_.modelBaseUrl = baseUrl;
+}
+
 AgentServiceController::Status AgentServiceController::status() const { return status_; }
 
 bool AgentServiceController::Launch() {

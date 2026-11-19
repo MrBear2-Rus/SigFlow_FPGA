@@ -46,6 +46,7 @@
 #include "eda-agent-gateway/GatewayServer.h"
 #include "eda-agent-gateway/UiAuthorizationService.h"
 #include "agent/AgentApiClient.h"
+#include "agent/AgentModelSettings.h"
 #include "agent/AgentServiceController.h"
 #include <memory>
 #endif
@@ -70,10 +71,14 @@ class UiLayoutChoice;
 class UiToolBarKeyboard;
 class UiToolBarArt;
 #if defined(SIGFLOW_BUILD_EDU_AGENT)
+namespace agent {
+class AgentDashboardController;
+}
 namespace agent::gui {
 class AgentWorkspace;
 class AgentWorkspaceHost;
 class AgentFormCoordinator;
+class AgentDashboardDialog;
 enum class AgentForm;
 }
 #endif
@@ -133,6 +138,7 @@ private:
     std::unique_ptr<eda::agent::GatewayServer> m_agentGateway;
     std::unique_ptr<eda::agent::UiAuthorizationService> m_agentAuthorization;
     std::unique_ptr<AgentServiceController> m_agentSidecar;
+    agent::ModelSettings m_agentModelSettings;
     std::shared_ptr<const AgentApiClient> m_agentApiClient;
     std::unique_ptr<TeachingSessionController> m_teachingSession;
     std::uint64_t m_agentClientGeneration = 0;
@@ -161,6 +167,8 @@ private:
     wxTimer m_agentEventTimer;
     agent::gui::AgentWorkspaceHost* m_agentWorkspaceHost = nullptr;
     agent::gui::AgentWorkspace* m_agentWorkspace = nullptr;
+    agent::gui::AgentDashboardDialog* m_agentDashboard = nullptr;
+    std::unique_ptr<agent::AgentDashboardController> m_agentDashboardController;
     std::unique_ptr<agent::gui::AgentFormCoordinator> m_agentForms;
     wxAuiToolBar* m_agentRail = nullptr;      // non-owning; activity rail tool window
     wxWindow* m_agentWorkbenchBook = nullptr; // the existing three-entry sidebar book
@@ -227,6 +235,9 @@ public:
     void CancelTeachingQuestion();
     bool ShowAgentWorkspace(bool show = true);
     bool IsAgentWorkspaceShown() const;
+    /// 打开宿主侧的模型/API 仪表盘；仪表盘本身不读写配置或网络。
+    void OpenAgentDashboard();
+    wxString AgentServiceSummary();
     // AGUI-T08: Center/Dock are the full page; Float/Pet overlay the workbench
     // with the same workspace instance.
     bool SetAgentForm(agent::gui::AgentForm form);

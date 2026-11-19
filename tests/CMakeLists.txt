@@ -150,6 +150,46 @@ add_custom_command(TARGET fpga_flow_probe POST_BUILD
 )
 
 # ---------------------------------------------------------------------------
+# 宿主侧 Agent 模型凭据存储（Windows DPAPI）冒烟测试（无 GUI）
+# ---------------------------------------------------------------------------
+add_executable(edu_model_settings_smoke
+    "${CMAKE_CURRENT_SOURCE_DIR}/agent/edu_model_settings_smoke.cpp"
+    "${SIGFLOW_MAIN_DIR}/agent/AgentModelSettings.cpp"
+    "${SIGFLOW_3RD_DIR}/json/jsoncpp.cpp")
+target_include_directories(edu_model_settings_smoke PRIVATE
+    "${CMAKE_SOURCE_DIR}"
+    "${SIGFLOW_MAIN_DIR}"
+    "${SIGFLOW_3RD_DIR}")
+if(WIN32)
+    target_link_libraries(edu_model_settings_smoke PRIVATE crypt32)
+endif()
+add_test(NAME edu_model_settings_smoke COMMAND edu_model_settings_smoke)
+set_tests_properties(edu_model_settings_smoke PROPERTIES
+    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
+
+# 仪表盘后台查询：真实 loopback HTTP，校验协议信封与错误分支。
+add_executable(edu_dashboard_controller_smoke
+    "${CMAKE_CURRENT_SOURCE_DIR}/agent/edu_dashboard_controller_smoke.cpp"
+    "${SIGFLOW_MAIN_DIR}/agent/AgentApiClient.cpp"
+    "${SIGFLOW_MAIN_DIR}/agent/AgentDashboardController.cpp"
+    "${SIGFLOW_MAIN_DIR}/agent/gui/AgentSelectionContext.cpp"
+    "${SIGFLOW_3RD_DIR}/json/jsoncpp.cpp")
+target_include_directories(edu_dashboard_controller_smoke PRIVATE
+    "${CMAKE_SOURCE_DIR}"
+    "${SIGFLOW_MAIN_DIR}"
+    "${SIGFLOW_3RD_DIR}"
+    "${CMAKE_SOURCE_DIR}/3rd/httplib")
+if(WIN32)
+    target_link_libraries(edu_dashboard_controller_smoke PRIVATE ws2_32)
+else()
+    find_package(Threads REQUIRED)
+    target_link_libraries(edu_dashboard_controller_smoke PRIVATE Threads::Threads)
+endif()
+add_test(NAME edu_dashboard_controller_smoke COMMAND edu_dashboard_controller_smoke)
+set_tests_properties(edu_dashboard_controller_smoke PROPERTIES
+    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
+
+# ---------------------------------------------------------------------------
 # Harness P0 契约冒烟测试（无 GUI、无 wx/slang 依赖，仅 STL + nlohmann）
 # ---------------------------------------------------------------------------
 option(SIGFLOW_BUILD_CONTRACT_TESTS "Build the eda API contract smoke test" ON)

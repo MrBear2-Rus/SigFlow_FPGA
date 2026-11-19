@@ -294,6 +294,15 @@ AgentApiClient::Response AgentApiClient::GetEvents(const std::string& sessionId,
                    (after.empty() ? std::string() : "?after=" + after));
 }
 
+AgentApiClient::Response AgentApiClient::GetUsage(int days) const {
+    const int bounded = days < 1 ? 1 : (days > 90 ? 90 : days);
+    return Request("GET", "/api/v1/usage?days=" + std::to_string(bounded), nullptr, {}, {}, 10);
+}
+
+AgentApiClient::Response AgentApiClient::GetBalance() const {
+    return Request("GET", "/api/v1/balance", nullptr, {}, {}, 15);
+}
+
 AgentApiClient::Response AgentApiClient::CreateTeachingSession(
     const std::string& projectId, const std::string& revision,
     const std::string& learnerId, const std::string& key) const {

@@ -53,6 +53,10 @@ public:
     Response GetSession(const std::string& sessionId) const;
     Response GetRun(const std::string& runId) const;
     Response GetEvents(const std::string& sessionId, const std::string& after = {}) const;
+    /// 仪表盘只读查询：本地用量统计（10 秒有界）与 DeepSeek 余额（15 秒有界）。
+    /// 两者都走现有 UI token；失败返回统一 Response，不抛出。
+    Response GetUsage(int days = 30) const;
+    Response GetBalance() const;
     Response CreateTeachingSession(const std::string& projectId, const std::string& revision,
                                    const std::string& learnerId, const std::string& key) const;
     Response CreateTeachingRun(const std::string& sessionId, const std::string& learnerId,

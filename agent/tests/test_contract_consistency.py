@@ -132,6 +132,16 @@ class RuntimeAgentSchemaTests(unittest.TestCase):
         self.assertFalse(caps_data["course"]["available"])
         covered.add("agent-capabilities.schema.json")
 
+        usage = self.fixture.request("GET", "/api/v1/usage")
+        usage_data = self._success(usage)
+        self.validator.validate(usage_data, "agent-usage.schema.json")
+        covered.add("agent-usage.schema.json")
+
+        balance = self.fixture.request("GET", "/api/v1/balance")
+        balance_data = self._success(balance)
+        self.validator.validate(balance_data, "agent-balance.schema.json")
+        covered.add("agent-balance.schema.json")
+
         created = self.fixture.request(
             "POST",
             "/api/v1/sessions",
@@ -233,6 +243,8 @@ class RuntimeAgentSchemaTests(unittest.TestCase):
                 "envelope.schema.json",
                 "agent-health.schema.json",
                 "agent-capabilities.schema.json",
+                "agent-usage.schema.json",
+                "agent-balance.schema.json",
                 "agent-session.schema.json",
                 "agent-run.schema.json",
                 "agent-event.schema.json",

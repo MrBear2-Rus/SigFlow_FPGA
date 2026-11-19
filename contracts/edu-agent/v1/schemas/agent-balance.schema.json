@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "edu-agent/v1/schemas/agent-balance.schema.json",
+  "title": "AgentBalanceData",
+  "description": "GET /api/v1/balance 的 data 对象：sidecar 归一化后的 DeepSeek 余额。失败时 available=false 且带固定 reason，不会转发上游原始正文或 Key。",
+  "type": "object",
+  "required": ["schema", "available", "checked_at"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": { "type": "string", "const": "edu.model.balance.v1" },
+    "available": { "type": "boolean" },
+    "checked_at": {
+      "type": "string",
+      "minLength": 1,
+      "description": "查询时间，UTC ISO 8601。"
+    },
+    "reason": {
+      "type": "string",
+      "enum": [
+        "model_unconfigured",
+        "balance_unsupported_provider",
+        "balance_unauthorized",
+        "balance_unreachable",
+        "balance_timeout",
+        "balance_unavailable",
+        "balance_invalid_response"
+      ],
+      "description": "available=false 时的固定原因码。"
+    },
+    "currency": {
+      "type": "string",
+      "enum": ["CNY", "USD"]
+    },
+    "total_balance": {
+      "type": "string",
+      "pattern": "^[0-9]{1,12}(\\.[0-9]{1,6})?$"
+    },
+    "granted_balance": {
+      "type": "string",
+      "pattern": "^[0-9]{1,12}(\\.[0-9]{1,6})?$"
+    },
+    "topped_up_balance": {
+      "type": "string",
+      "pattern": "^[0-9]{1,12}(\\.[0-9]{1,6})?$"
+    }
+  }
+}

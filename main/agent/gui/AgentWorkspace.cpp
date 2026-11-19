@@ -163,6 +163,16 @@ AgentWorkspace::AgentWorkspace(wxWindow* parent, std::function<void()> onReturn)
         if (handler) handler();
     });
 
+    // Host-owned model/API dashboard: the workspace only forwards the click.
+    m_dashboard = new controls::AgentButton(m_sheet, wxID_ANY, Text("模型仪表盘"),
+                                            controls::Variant::Ghost);
+    m_dashboard->SetAccessibleName(Text("打开模型与 API 仪表盘"));
+    m_dashboard->SetToolTip(Text("配置模型 API Key，查看模型状态、账户余额与本机用量"));
+    m_dashboard->Bind(wxEVT_BUTTON, [this](wxCommandEvent&) {
+        const auto handler = m_dashboardHandler;
+        if (handler) handler();
+    });
+
     // ---- functional rail: newAsk, guide toggle, six jumps, four forms ----
     m_rail = new nav::AgentRail(m_sheet);
     m_rail->SetActionHandler([this](nav::Action action) { Trigger(action); });
@@ -730,6 +740,11 @@ void AgentWorkspace::SetReportSelectionHandler(std::function<void()> handler)
     m_reportSelection = std::move(handler);
 }
 
+void AgentWorkspace::SetDashboardHandler(std::function<void()> handler)
+{
+    m_dashboardHandler = std::move(handler);
+}
+
 void AgentWorkspace::SetReportJob(const std::string& jobId, bool enabled)
 {
     if (!m_report) return;
@@ -1061,6 +1076,12 @@ void AgentWorkspace::ApplyTheme()
     // must not override them or the token roles drift.
     if (m_composerView != nullptr) m_composerView->ApplyTheme();
     m_return->SetFont(tokens::UiFontPx(this, T::LabelPx, T::Medium));
+    if (m_dashboard != nullptr) {
+        m_dashboard->SetFont(tokens::UiFontPx(this, T::LabelPx, T::Medium));
+    }
+    if (m_report != nullptr) {
+        m_report->SetFont(tokens::UiFontPx(this, T::LabelPx, T::Medium));
+    }
     m_scroll->SetScrollRate(0, std::max(1, Dip(this, S::ThreadGap)));
     // The conversation component owns its own scroll rate (one text line per unit
     // keeps anchor arithmetic exact), so the workspace must not overwrite it.
@@ -1129,9 +1150,23 @@ void AgentWorkspace::LayoutPage()
     m_return->SetSize(std::max(0, width - pad - returnWidth), returnY, returnWidth,
                       returnHeight);
     if (m_report) {
-        const int reportWidth = std::min(std::max(0, width - 2 * pad - returnWidth - gap),
+        const int rightEdge = std::max(0, width - pad - returnWidth - gap);
+        const int reportWidth = std::min(std::max(0, rightEdge - pad),
                                          std::max(Dip(this, 64), m_report->GetBestSize().x));
         m_report->SetSize(pad, returnY, reportWidth, returnHeight);
+        if (m_dashboard) {
+            const int dashboardX = pad + reportWidth + gap;
+            const int dashboardWidth = std::min(
+                std::max(0, rightEdge - dashboardX),
+                std::max(Dip(this, 64), m_dashboard->GetBestSize().x));
+            m_dashboard->SetSize(dashboardX, returnY, dashboardWidth, returnHeight);
+        }
+    } else if (m_dashboard) {
+        const int rightEdge = std::max(0, width - pad - returnWidth - gap);
+        const int dashboardWidth = std::min(
+            std::max(0, rightEdge - pad),
+            std::max(Dip(this, 64), m_dashboard->GetBestSize().x));
+        m_dashboard->SetSize(pad, returnY, dashboardWidth, returnHeight);
     }
     y = returnY + returnHeight + gap / 2;
 

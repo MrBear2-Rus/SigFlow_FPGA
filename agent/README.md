@@ -98,6 +98,8 @@ token 处理约定：`gateway_token` / `ui_token` **只存在于内存**，不�
 |---|---|---|
 | GET | `/api/v1/health` | 协议、版本、实例 ID、`model.available` |
 | GET | `/api/v1/capabilities` | L1–L4 模式、能力就绪状态、`execution.can_run_eda=false`、`course.available=false` |
+| GET | `/api/v1/usage?days=30` | 本机模型 token 累计与按日桶（只读、不联网；`days` 1–90；含基础与 U2 教学模型调用） |
+| GET | `/api/v1/balance` | 归一化 DeepSeek 余额；失败仍 200 + `available=false` 固定原因码 |
 | POST | `/api/v1/sessions` | 创建会话，201 |
 | GET | `/api/v1/sessions/{sid}` | 会话摘要 |
 | POST | `/api/v1/sessions/{sid}/runs` | 请求一次教学运行，201 |

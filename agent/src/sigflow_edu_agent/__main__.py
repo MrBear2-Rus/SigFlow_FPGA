@@ -30,6 +30,7 @@ from .core_bridge import connect_teaching_core
 from .http_server import EduAgentState, ServerConfig, create_server
 from .model_client import ModelClient
 from .local_model_config import load_local_model_config, load_model_config
+from .usage import UsageStore
 from .util import RedactionFilter, json_dumps
 from .version import AGENT_VERSION, PROTOCOL, READY_TYPE
 
@@ -219,6 +220,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return early_exit
 
     stop_event = threading.Event()
+    usage_store = UsageStore(bootstrap.data_directory)
     config = ServerConfig(
         instance_id=bootstrap.instance_id,
         ui_token=bootstrap.ui_token,
@@ -230,7 +232,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             bootstrap.gateway_token,
             secrets=bootstrap.secrets,
         ),
-        model=ModelClient(secrets=bootstrap.secrets),
+        model=ModelClient(secrets=bootstrap.secrets, usage=usage_store),
+        usage=usage_store,
         secrets=bootstrap.secrets,
         data_directory=bootstrap.data_directory,
         stop_event=stop_event,
@@ -255,7 +258,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if args.u2_teaching or args.u2_teaching_if_available:
         try:
             from .teaching_factory import compose
-            teaching = compose(bootstrap)
+            teaching = compose(bootstrap, usage_store=usage_store)
             config.teaching = teaching
             config.secrets = tuple(config.secrets) + tuple(getattr(teaching.runtime.factory, 'model_secrets', ()))
         except Exception:

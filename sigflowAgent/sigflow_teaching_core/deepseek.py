@@ -5,6 +5,7 @@ import http.client
 import json
 import math
 import os
+from typing import Callable, Optional
 
 from .domain import CardContext, ProviderError
 
@@ -92,26 +93,44 @@ def serialize_request(context: CardContext, *, model: str, max_tokens: int) -> b
     return json.dumps(payload, ensure_ascii=False).encode('utf-8')
 
 
+def _extract_usage(payload):
+    """Return strict prompt/completion/total counters, or ``None`` if unknown."""
+    if not isinstance(payload, dict):
+        return None
+    usage = payload.get('usage')
+    if not isinstance(usage, dict):
+        return None
+    values = {}
+    for key in ('prompt_tokens', 'completion_tokens', 'total_tokens'):
+        value = usage.get(key)
+        if type(value) is not int or value < 0 or value > 1_000_000_000:
+            return None
+        values[key] = value
+    return values
+
+
 class DeepSeekProvider:
     requires_host_reservation = True
     MAX_REQUEST_BYTES = 16384
     MAX_RESPONSE_BYTES = 262144
     PROVIDER = 'deepseek'
 
-    def __init__(self, config: DeepSeekConfig):
+    def __init__(self, config: DeepSeekConfig, *, usage_recorder=None):
         self.config = config
+        # Optional host-owned counter sink; it must never affect a model call.
+        self._usage_recorder = usage_recorder
 
     @classmethod
-    def from_env(cls, *, unified=False):
+    def from_env(cls, *, unified=False, usage_recorder=None):
         prefix = 'SIGFLOW_EDU_MODEL_' if unified else 'DEEPSEEK_'
         return cls(DeepSeekConfig(
             os.environ.get(prefix + 'API_KEY', ''),
             os.environ.get(prefix + 'NAME' if unified else prefix + 'MODEL', ''),
             os.environ.get(prefix + 'BASE_URL', 'https://api.deepseek.com').rstrip('/'),
-        ))
+        ), usage_recorder=usage_recorder)
 
     @classmethod
-    def from_settings(cls):
+    def from_settings(cls, *, usage_recorder=None):
         selected = os.environ.get('SIGFLOW_EDU_MODEL_PROVIDER', '').strip().lower()
         unified = any(key in os.environ for key in (
             'SIGFLOW_EDU_MODEL_API_KEY', 'SIGFLOW_EDU_MODEL_BASE_URL', 'SIGFLOW_EDU_MODEL_NAME'))
@@ -121,9 +140,9 @@ class DeepSeekProvider:
             # explicitly and provide the dedicated edu variables.
             raise ProviderError('model_unconfigured')
         if unified or selected:
-            return cls.from_env(unified=True)
+            return cls.from_env(unified=True, usage_recorder=usage_recorder)
         if any(key in os.environ for key in ('DEEPSEEK_API_KEY','DEEPSEEK_MODEL','DEEPSEEK_BASE_URL')):
-            return cls.from_env()
+            return cls.from_env(usage_recorder=usage_recorder)
         from .credentials import load_config,CredentialError
         try:
             config=load_config()
@@ -131,7 +150,7 @@ class DeepSeekProvider:
             raise ProviderError('model_unconfigured') from None
         if config is None:
             raise ProviderError('model_unconfigured')
-        return cls(config)
+        return cls(config, usage_recorder=usage_recorder)
 
     @property
     def limits(self):
@@ -159,40 +178,56 @@ class DeepSeekProvider:
     def _complete_body(self, body):
         if len(body) > self.MAX_REQUEST_BYTES:
             raise ProviderError('context_too_large')
-        connection = http.client.HTTPSConnection('api.deepseek.com', timeout=self.config.timeout)
-        path = '/v1/chat/completions' if self.config.base_url.endswith('/v1') else '/chat/completions'
+        attempted = False
+        ok = False
+        usage_counts = None
+        connection = None
         try:
-            connection.request('POST', path, body=body, headers={
-                'Content-Type': 'application/json',
-                'Authorization': f'Bearer {self.config.api_key}',
-            })
-            reply = connection.getresponse()
-            if reply.status != 200:
-                code = {401: 'model_auth_failed', 403: 'model_auth_failed',
-                        429: 'model_rate_limited'}.get(reply.status, 'model_unavailable')
-                # Never forward provider error bodies; they can echo input/secrets.
-                raise ProviderError(code)
-            raw = reply.read(self.MAX_RESPONSE_BYTES + 1)
-            if len(raw) > self.MAX_RESPONSE_BYTES:
-                raise ProviderError('response_too_large')
-        except TimeoutError:
-            raise ProviderError('model_timeout') from None
-        except (OSError, http.client.HTTPException):
-            raise ProviderError('model_unavailable') from None
+            attempted = True
+            connection = http.client.HTTPSConnection('api.deepseek.com', timeout=self.config.timeout)
+            path = '/v1/chat/completions' if self.config.base_url.endswith('/v1') else '/chat/completions'
+            try:
+                connection.request('POST', path, body=body, headers={
+                    'Content-Type': 'application/json',
+                    'Authorization': f'Bearer {self.config.api_key}',
+                })
+                reply = connection.getresponse()
+                if reply.status != 200:
+                    code = {401: 'model_auth_failed', 403: 'model_auth_failed',
+                            429: 'model_rate_limited'}.get(reply.status, 'model_unavailable')
+                    # Never forward provider error bodies; they can echo input/secrets.
+                    raise ProviderError(code)
+                raw = reply.read(self.MAX_RESPONSE_BYTES + 1)
+                if len(raw) > self.MAX_RESPONSE_BYTES:
+                    raise ProviderError('response_too_large')
+            except TimeoutError:
+                raise ProviderError('model_timeout') from None
+            except (OSError, http.client.HTTPException):
+                raise ProviderError('model_unavailable') from None
+            finally:
+                connection.close()
+            try:
+                envelope = json.loads(raw)
+                usage_counts = _extract_usage(envelope)
+                choice = envelope['choices'][0]
+                message = choice['message']
+                if choice['finish_reason'] != 'stop' or message.get('tool_calls'):
+                    raise ValueError('incomplete_or_tool_response')
+                content = message['content']
+                if not isinstance(content, str) or not content.strip():
+                    raise ValueError('empty_content')
+                card = json.loads(content)
+                if not isinstance(card, dict):
+                    raise ValueError('object_required')
+            except (ValueError, KeyError, IndexError, TypeError, AttributeError):
+                raise ProviderError('invalid_output') from None
+            ok = True
+            return card
         finally:
-            connection.close()
-        try:
-            envelope = json.loads(raw)
-            choice = envelope['choices'][0]
-            message = choice['message']
-            if choice['finish_reason'] != 'stop' or message.get('tool_calls'):
-                raise ValueError('incomplete_or_tool_response')
-            content = message['content']
-            if not isinstance(content, str) or not content.strip():
-                raise ValueError('empty_content')
-            card = json.loads(content)
-            if not isinstance(card, dict):
-                raise ValueError('object_required')
-        except (ValueError, KeyError, IndexError, TypeError, AttributeError):
-            raise ProviderError('invalid_output') from None
-        return card
+            if attempted and self._usage_recorder is not None:
+                try:
+                    self._usage_recorder(
+                        model=self.config.model, ok=ok, usage=usage_counts)
+                except Exception:
+                    # Accounting is an enhancement; never mask the provider result.
+                    pass

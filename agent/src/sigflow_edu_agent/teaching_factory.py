@@ -13,7 +13,8 @@ from .teaching_store import BindingStore,identifier
 _AUTO_MEMORY = object()
 
 
-def compose(bootstrap,*,teaching_memory=_AUTO_MEMORY,reference_provider=None,receipt_port=None):
+def compose(bootstrap,*,teaching_memory=_AUTO_MEMORY,reference_provider=None,receipt_port=None,
+            usage_store=None):
     # Optional imports keep the original Python 3.9 U1 base independent of U2.
     from sigflow_teaching_core.clients.gateway import GatewayClient as EvidenceClient,GatewayConfig
     from sigflow_teaching_core.clients.waveform import GatewayWaveformReader
@@ -115,8 +116,13 @@ def compose(bootstrap,*,teaching_memory=_AUTO_MEMORY,reference_provider=None,rec
         bindings=BindingStore(directory/(filename+'-bindings.sqlite3'),bootstrap.instance_id)
         verification=GatewayVerification(config,directory/(filename+'-verification.sqlite3'),
             make_report_resolver(config,catalog))
+        usage_recorder = None
+        if usage_store is not None:
+            def usage_recorder(*, model, ok, usage=None):
+                usage_store.record(model=model, ok=ok, usage=usage)
         factory=make_factory(config,anchors=catalog,verification=verification,
-            course_provider=SQLiteCourseProvider(),waveform_reader=GatewayWaveformReader(config))
+            course_provider=SQLiteCourseProvider(),waveform_reader=GatewayWaveformReader(config),
+            usage_recorder=usage_recorder)
         runtime=Runtime(store,bootstrap.instance_id,factory,teaching_memory=teaching_memory,
             reference_provider=reference_provider,receipt_port=receipt_port)
         closers = (store.close, close_verification)

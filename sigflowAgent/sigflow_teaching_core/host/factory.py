@@ -89,7 +89,7 @@ def make_report_resolver(gateway, anchors, *, evidence_origin='tool'):
 
 
 def make_factory(gateway: GatewayConfig, *, anchors=(), evidence_origin='tool', verification=None,
-                 course_provider=None,waveform_reader=None):
+                 course_provider=None,waveform_reader=None, usage_recorder=None):
     if not isinstance(gateway, GatewayConfig) or evidence_origin not in ('tool', 'fixture'):
         raise ValueError('invalid_host_config')
     if course_provider is not None and not callable(getattr(course_provider, 'prepare', None)):
@@ -100,7 +100,7 @@ def make_factory(gateway: GatewayConfig, *, anchors=(), evidence_origin='tool', 
     if isinstance(anchors, GatewayEvidenceCatalog) and (anchors.gateway != gateway or evidence_origin != 'tool'):
         raise ValueError('invalid_gateway_evidence_config')
     try:
-        provider = DeepSeekProvider.from_settings()
+        provider = DeepSeekProvider.from_settings(usage_recorder=usage_recorder)
     except ProviderError:
         provider = None
 
