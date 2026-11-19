@@ -16,6 +16,7 @@ public:
     void EnableFault(const std::string&,bool);
     void SetStuckMode(const std::string&,const std::string&);
     const eda::Json& FaultRows()const{return fault_rows_;}
+    bool IsBlindLocked()const{return blind_locked_;}
 private:
     void Update();void ApplyTheme();
     std::shared_ptr<VirtualSessionController> controller_;
@@ -27,5 +28,6 @@ private:
     eda::Json profile_=eda::Json::object(),fault_rows_=eda::Json::array();std::string profile_error_,rules_signature_;
     void ApplyProfile();
     UiTheme::Subscription theme_;
+    bool blind_locked_=false;
 };
 }

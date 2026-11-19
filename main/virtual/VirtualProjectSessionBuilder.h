@@ -11,7 +11,7 @@ class VirtualProjectSessionBuilder:public wxEvtHandler {
 public:
     VirtualProjectSessionBuilder();
     ~VirtualProjectSessionBuilder();
-    void Start(eda::Json,std::function<void(eda::Json)>);
+    void Start(eda::Json,std::function<void(eda::Json)>,const std::string& tool="build_virtual_project.py");
     void Cancel();
     static std::filesystem::path FindRepository();
     static eda::Json ReadProject(const std::filesystem::path&);

@@ -1,0 +1,27 @@
+True dual-ended probe measurement performs no DUT writes
+True line endpoints expose physical baseline connection state
+True digital meter reports nominal Bank voltage model explicitly
+True circular pretrigger and decimation preserve chronological samples
+True capture-baseline three from-zero real RTL replays preserve both digests
+True dual-ended probe measurement performs no DUT writes
+True line endpoints expose physical open connection state
+True digital meter reports nominal Bank voltage model explicitly
+True circular pretrigger and decimation preserve chronological samples
+True capture-open three from-zero real RTL replays preserve both digests
+True both capture artifacts conform to versioned extended physical capture schema
+True strict-compare actual process exits successfully
+True WaveCompareSession reports first actual wire-end validity divergence
+True CaptureDecoder exports invalid physical sample as x, never fabricated zero
+True reject-phase actual process exits successfully
+True reject-edge actual process exits successfully
+True real runner edge_rising trigger produces bounded post-trigger window
+True real runner edge_falling trigger produces bounded post-trigger window
+True real runner stall trigger produces bounded post-trigger window
+True real runner timeout trigger produces bounded post-trigger window
+True sample_en gating respects finite observation budget without fabricated data
+True rtl-tracebridge actual process exits successfully
+True actual RTL consumes PING GET_INFO CONFIG ARM STATUS READ_CAPTURE COBS+CRC16 frames
+True decoded RTL capture equals independent wrapper probe samples and student files remain unchanged
+True rtl-strict-compare actual process exits successfully
+True rtl-offset-indices actual process exits successfully
+True real RTL auto-probe retains nonzero HDL ranges and single-bit vector [0] without source changes

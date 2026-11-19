@@ -25,6 +25,10 @@ public:
     void Open(const wxString& executable,const wxString& config,const wxString& workingDirectory);
     void BuildProject(eda::Json);
     void BuildReference();
+    void OpenTeaching(const std::string& courseId);
+    const eda::Json& LatestReply(const std::string& operation)const;
+    uint64_t ReplySequence(const std::string& operation)const{auto i=reply_sequences_.find(operation);return i==reply_sequences_.end()?0:i->second;}
+    uint64_t ReplySequence()const{return reply_sequence_;}
     void Replay(unsigned repetitions=3,const std::string& path={});
     const eda::Json& BuildResult()const{return build_result_;}
     const eda::Json& ReplayResult()const{return replay_result_;}
@@ -65,6 +69,9 @@ private:
     std::map<size_t,std::function<void()>> observers_;
     size_t next_observer_=0;
     bool notification_pending_=false;
+    std::map<std::string,eda::Json> replies_;
+    int response_timeout_=10;
+    uint64_t reply_sequence_=0;std::map<std::string,uint64_t> reply_sequences_;
     std::chrono::steady_clock::time_point sent_;
     std::chrono::steady_clock::time_point next_snapshot_;
 };

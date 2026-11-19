@@ -100,7 +100,7 @@ private:
     void Execute(const std::string& jobId);
     bool IsLegalTransition(JobState from, JobState to) const;
     bool Transition(const std::string& jobId, JobState to, const std::string& reason,
-                    int exitCode);
+                    int exitCode, const JobReport* completedReport = nullptr);
     std::string MakeJobId();
     int ResolveTimeout(const JobRecord& record) const;
     std::filesystem::path JobDirectory(const JobRequest& request,

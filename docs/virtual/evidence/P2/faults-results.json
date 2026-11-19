@@ -1,0 +1,511 @@
+{
+  "status": "passed",
+  "checks": [
+    "versioned schemas validate all four signed public tasks and private profiles",
+    "native actual process exits successfully",
+    "same-level bridge combines real sources without invented CON",
+    "opposite real DUT outputs bridge into one explained CON network",
+    "bridge three from-zero real RTL replays preserve both digests",
+    "actual Power short-to-rail and opposing Strong DUT driver produce explained CON under state13",
+    "state13-short-to-rail three from-zero real RTL replays preserve both digests",
+    "removing actual external pull makes input FLT before any DUT writes",
+    "remaining strong contact repairs pull loss",
+    "pull-removal three from-zero real RTL replays preserve both digests",
+    "mapping overlay retains immutable CST and effective PadMap",
+    "swap changes actual mapped physical endpoint",
+    "mapping-swap three from-zero real RTL replays preserve both digests",
+    "mapping overlay retains immutable CST and effective PadMap",
+    "unbound changes actual mapped physical endpoint",
+    "mapping-unbound three from-zero real RTL replays preserve both digests",
+    "LED polarity reversal changes observation without rewriting Pad",
+    "LED polarity three from-zero real RTL replays preserve both digests",
+    "dead_segment changes electrical peripheral model on real scanned outputs",
+    "dead_segment three from-zero real RTL replays preserve both digests",
+    "common_mismatch changes electrical peripheral model on real scanned outputs",
+    "common_mismatch three from-zero real RTL replays preserve both digests",
+    "wire-level UART stop corruption is detected by actual sampler",
+    "UART recovers on a later valid frame after protocol fault revocation",
+    "uart_framing_error{'bit': 'stop'} three from-zero real RTL replays preserve both digests",
+    "missing start bit creates no fabricated decoded byte",
+    "UART recovers on a later valid frame after protocol fault revocation",
+    "uart_framing_error{'bit': 'start'} three from-zero real RTL replays preserve both digests",
+    "baud offset changes actual TX bit deadlines with integer rounding",
+    "+2% is tolerated rather than forced into failure",
+    "UART recovers on a later valid frame after protocol fault revocation",
+    "uart_baud_offset_ppm{'offset_ppm': 20000} three from-zero real RTL replays preserve both digests",
+    "baud offset changes actual TX bit deadlines with integer rounding",
+    "UART recovers on a later valid frame after protocol fault revocation",
+    "uart_baud_offset_ppm{'offset_ppm': -50000} three from-zero real RTL replays preserve both digests",
+    "actual parity wire inversion reaches parity checker",
+    "parity-flip three from-zero real RTL replays preserve both digests"
+  ],
+  "replays": [
+    {
+      "label": "bridge",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "38d6d17cfaa0b41d215870d9d8b7306bdfd66e483008bd5f285e6b3142cc2fbd",
+          "control_digest": "0f2fbc184df5f1a5a7ff860541d3d529d2750144ce101b4ac6eba67d0371b9dd",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 7,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "38d6d17cfaa0b41d215870d9d8b7306bdfd66e483008bd5f285e6b3142cc2fbd",
+          "control_digest": "0f2fbc184df5f1a5a7ff860541d3d529d2750144ce101b4ac6eba67d0371b9dd",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 7,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "38d6d17cfaa0b41d215870d9d8b7306bdfd66e483008bd5f285e6b3142cc2fbd",
+          "control_digest": "0f2fbc184df5f1a5a7ff860541d3d529d2750144ce101b4ac6eba67d0371b9dd",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 7,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "38d6d17cfaa0b41d215870d9d8b7306bdfd66e483008bd5f285e6b3142cc2fbd",
+      "control_digest": "0f2fbc184df5f1a5a7ff860541d3d529d2750144ce101b4ac6eba67d0371b9dd",
+      "matched_commits": 7,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "label": "state13-short-to-rail",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "a8d44547388880f239b555b368aac59c09eacc7a9699ad8b5d870066e0e02000",
+          "control_digest": "69f5501899786e5cb430391e84cc661d2c513d6333a5ac408b7e95ffbf67c49c",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 7,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "a8d44547388880f239b555b368aac59c09eacc7a9699ad8b5d870066e0e02000",
+          "control_digest": "69f5501899786e5cb430391e84cc661d2c513d6333a5ac408b7e95ffbf67c49c",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 7,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "a8d44547388880f239b555b368aac59c09eacc7a9699ad8b5d870066e0e02000",
+          "control_digest": "69f5501899786e5cb430391e84cc661d2c513d6333a5ac408b7e95ffbf67c49c",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 7,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "a8d44547388880f239b555b368aac59c09eacc7a9699ad8b5d870066e0e02000",
+      "control_digest": "69f5501899786e5cb430391e84cc661d2c513d6333a5ac408b7e95ffbf67c49c",
+      "matched_commits": 7,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "label": "pull-removal",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "aa9db69f2fcd9eb02db2b38661c1dea3be11bb8902825e5b2c4a0d99d38de5aa",
+          "control_digest": "fdcb288fff13b49e4c426df7eea22c90cde995a68767df79ee6bd4d9ca3b5e88",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 3,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "aa9db69f2fcd9eb02db2b38661c1dea3be11bb8902825e5b2c4a0d99d38de5aa",
+          "control_digest": "fdcb288fff13b49e4c426df7eea22c90cde995a68767df79ee6bd4d9ca3b5e88",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 3,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "aa9db69f2fcd9eb02db2b38661c1dea3be11bb8902825e5b2c4a0d99d38de5aa",
+          "control_digest": "fdcb288fff13b49e4c426df7eea22c90cde995a68767df79ee6bd4d9ca3b5e88",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 3,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "aa9db69f2fcd9eb02db2b38661c1dea3be11bb8902825e5b2c4a0d99d38de5aa",
+      "control_digest": "fdcb288fff13b49e4c426df7eea22c90cde995a68767df79ee6bd4d9ca3b5e88",
+      "matched_commits": 3,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "label": "mapping-swap",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "b7f8a30662978f75b5abc4b5ce8798ec9f17e6a8c8dc2f6607530a9b6a0a22b5",
+          "control_digest": "63d8ae46d1c89fe7a8ca53854954b8a84406456e34b0fc93078924f40cd9f00d",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 7,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "b7f8a30662978f75b5abc4b5ce8798ec9f17e6a8c8dc2f6607530a9b6a0a22b5",
+          "control_digest": "63d8ae46d1c89fe7a8ca53854954b8a84406456e34b0fc93078924f40cd9f00d",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 7,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "b7f8a30662978f75b5abc4b5ce8798ec9f17e6a8c8dc2f6607530a9b6a0a22b5",
+          "control_digest": "63d8ae46d1c89fe7a8ca53854954b8a84406456e34b0fc93078924f40cd9f00d",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 7,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "b7f8a30662978f75b5abc4b5ce8798ec9f17e6a8c8dc2f6607530a9b6a0a22b5",
+      "control_digest": "63d8ae46d1c89fe7a8ca53854954b8a84406456e34b0fc93078924f40cd9f00d",
+      "matched_commits": 7,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "label": "mapping-unbound",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "fcf16e0e519ce2126b05d5425eed5c65b5a5b59fcaa0bbbc945f949504262a36",
+          "control_digest": "744d1641d55f8b1d86bd54ce44022a9f94de01e23a7ef4d2b4ca0fa6d0815161",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 7,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "fcf16e0e519ce2126b05d5425eed5c65b5a5b59fcaa0bbbc945f949504262a36",
+          "control_digest": "744d1641d55f8b1d86bd54ce44022a9f94de01e23a7ef4d2b4ca0fa6d0815161",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 7,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "fcf16e0e519ce2126b05d5425eed5c65b5a5b59fcaa0bbbc945f949504262a36",
+          "control_digest": "744d1641d55f8b1d86bd54ce44022a9f94de01e23a7ef4d2b4ca0fa6d0815161",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 7,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "fcf16e0e519ce2126b05d5425eed5c65b5a5b59fcaa0bbbc945f949504262a36",
+      "control_digest": "744d1641d55f8b1d86bd54ce44022a9f94de01e23a7ef4d2b4ca0fa6d0815161",
+      "matched_commits": 7,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "label": "LED polarity",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "acdad32c37f1fcc1010f91120f99b13b0c2b611dc47336f801e30d335af3d171",
+          "control_digest": "d8c04a48a9ab29ca9100deea88d28d68dfe8bbad5811219171ba5af633bfd766",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 1,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "acdad32c37f1fcc1010f91120f99b13b0c2b611dc47336f801e30d335af3d171",
+          "control_digest": "d8c04a48a9ab29ca9100deea88d28d68dfe8bbad5811219171ba5af633bfd766",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 1,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "acdad32c37f1fcc1010f91120f99b13b0c2b611dc47336f801e30d335af3d171",
+          "control_digest": "d8c04a48a9ab29ca9100deea88d28d68dfe8bbad5811219171ba5af633bfd766",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 1,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "acdad32c37f1fcc1010f91120f99b13b0c2b611dc47336f801e30d335af3d171",
+      "control_digest": "d8c04a48a9ab29ca9100deea88d28d68dfe8bbad5811219171ba5af633bfd766",
+      "matched_commits": 1,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "label": "dead_segment",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "d7946c932ef25e064e80158a9fb3301d93077a361ccc186b0539b596631503fb",
+          "control_digest": "f1695e7531487a59603c235ec908d6cdfc7516a45e88d832cbf73f78a0d893c6",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 219,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "d7946c932ef25e064e80158a9fb3301d93077a361ccc186b0539b596631503fb",
+          "control_digest": "f1695e7531487a59603c235ec908d6cdfc7516a45e88d832cbf73f78a0d893c6",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 219,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "d7946c932ef25e064e80158a9fb3301d93077a361ccc186b0539b596631503fb",
+          "control_digest": "f1695e7531487a59603c235ec908d6cdfc7516a45e88d832cbf73f78a0d893c6",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 219,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "d7946c932ef25e064e80158a9fb3301d93077a361ccc186b0539b596631503fb",
+      "control_digest": "f1695e7531487a59603c235ec908d6cdfc7516a45e88d832cbf73f78a0d893c6",
+      "matched_commits": 219,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "label": "common_mismatch",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "4d0e44eafe249ec930ed2c62fbefdf33d8645fcbc1b22b210a94b36ceabd7c4e",
+          "control_digest": "f1695e7531487a59603c235ec908d6cdfc7516a45e88d832cbf73f78a0d893c6",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 219,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "4d0e44eafe249ec930ed2c62fbefdf33d8645fcbc1b22b210a94b36ceabd7c4e",
+          "control_digest": "f1695e7531487a59603c235ec908d6cdfc7516a45e88d832cbf73f78a0d893c6",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 219,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "4d0e44eafe249ec930ed2c62fbefdf33d8645fcbc1b22b210a94b36ceabd7c4e",
+          "control_digest": "f1695e7531487a59603c235ec908d6cdfc7516a45e88d832cbf73f78a0d893c6",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 219,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "4d0e44eafe249ec930ed2c62fbefdf33d8645fcbc1b22b210a94b36ceabd7c4e",
+      "control_digest": "f1695e7531487a59603c235ec908d6cdfc7516a45e88d832cbf73f78a0d893c6",
+      "matched_commits": 219,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "label": "uart_framing_error{'bit': 'stop'}",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "447c191776984e887f097e71f38f73d3f49c05746b84e32fc6c62355b5072c8d",
+          "control_digest": "663cf1dddde6c8aa978a9dc941e99f66a3f7fef4f9f78b27433ac4d7aa26d602",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 47,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "447c191776984e887f097e71f38f73d3f49c05746b84e32fc6c62355b5072c8d",
+          "control_digest": "663cf1dddde6c8aa978a9dc941e99f66a3f7fef4f9f78b27433ac4d7aa26d602",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 47,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "447c191776984e887f097e71f38f73d3f49c05746b84e32fc6c62355b5072c8d",
+          "control_digest": "663cf1dddde6c8aa978a9dc941e99f66a3f7fef4f9f78b27433ac4d7aa26d602",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 47,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "447c191776984e887f097e71f38f73d3f49c05746b84e32fc6c62355b5072c8d",
+      "control_digest": "663cf1dddde6c8aa978a9dc941e99f66a3f7fef4f9f78b27433ac4d7aa26d602",
+      "matched_commits": 47,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "label": "uart_framing_error{'bit': 'start'}",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "c9efe18c2681cfe1e5ad38c2e05dc4ad1e1099f1cb184137d390eb217c65c4a9",
+          "control_digest": "49ebb3c7977078e317de55b441c966b5276a52fcd0664c8f60cbf61efa563a08",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 37,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "c9efe18c2681cfe1e5ad38c2e05dc4ad1e1099f1cb184137d390eb217c65c4a9",
+          "control_digest": "49ebb3c7977078e317de55b441c966b5276a52fcd0664c8f60cbf61efa563a08",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 37,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "c9efe18c2681cfe1e5ad38c2e05dc4ad1e1099f1cb184137d390eb217c65c4a9",
+          "control_digest": "49ebb3c7977078e317de55b441c966b5276a52fcd0664c8f60cbf61efa563a08",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 37,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "c9efe18c2681cfe1e5ad38c2e05dc4ad1e1099f1cb184137d390eb217c65c4a9",
+      "control_digest": "49ebb3c7977078e317de55b441c966b5276a52fcd0664c8f60cbf61efa563a08",
+      "matched_commits": 37,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "label": "uart_baud_offset_ppm{'offset_ppm': 20000}",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "72b96261fcd49e4432cf7e7ed3ab0ea0bc1c56439beec28e44cf69ebeeb54c39",
+          "control_digest": "663cf1dddde6c8aa978a9dc941e99f66a3f7fef4f9f78b27433ac4d7aa26d602",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 47,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "72b96261fcd49e4432cf7e7ed3ab0ea0bc1c56439beec28e44cf69ebeeb54c39",
+          "control_digest": "663cf1dddde6c8aa978a9dc941e99f66a3f7fef4f9f78b27433ac4d7aa26d602",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 47,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "72b96261fcd49e4432cf7e7ed3ab0ea0bc1c56439beec28e44cf69ebeeb54c39",
+          "control_digest": "663cf1dddde6c8aa978a9dc941e99f66a3f7fef4f9f78b27433ac4d7aa26d602",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 47,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "72b96261fcd49e4432cf7e7ed3ab0ea0bc1c56439beec28e44cf69ebeeb54c39",
+      "control_digest": "663cf1dddde6c8aa978a9dc941e99f66a3f7fef4f9f78b27433ac4d7aa26d602",
+      "matched_commits": 47,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "label": "uart_baud_offset_ppm{'offset_ppm': -50000}",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "3d7efcbcc52b32ae3f41bff414241383f7e8540079ce8c29ad0db07d15285574",
+          "control_digest": "663cf1dddde6c8aa978a9dc941e99f66a3f7fef4f9f78b27433ac4d7aa26d602",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 47,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "3d7efcbcc52b32ae3f41bff414241383f7e8540079ce8c29ad0db07d15285574",
+          "control_digest": "663cf1dddde6c8aa978a9dc941e99f66a3f7fef4f9f78b27433ac4d7aa26d602",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 47,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "3d7efcbcc52b32ae3f41bff414241383f7e8540079ce8c29ad0db07d15285574",
+          "control_digest": "663cf1dddde6c8aa978a9dc941e99f66a3f7fef4f9f78b27433ac4d7aa26d602",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 47,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "3d7efcbcc52b32ae3f41bff414241383f7e8540079ce8c29ad0db07d15285574",
+      "control_digest": "663cf1dddde6c8aa978a9dc941e99f66a3f7fef4f9f78b27433ac4d7aa26d602",
+      "matched_commits": 47,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "label": "parity-flip",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "279235323374fbf4fa63a2cc11072f8cd7f014da0d79408c638809a68cf08316",
+          "control_digest": "fb1c8fbabe925f6a74746689d9080b7311c1183bcb8179a10d5ada9638088b18",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 26,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "279235323374fbf4fa63a2cc11072f8cd7f014da0d79408c638809a68cf08316",
+          "control_digest": "fb1c8fbabe925f6a74746689d9080b7311c1183bcb8179a10d5ada9638088b18",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 26,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "279235323374fbf4fa63a2cc11072f8cd7f014da0d79408c638809a68cf08316",
+          "control_digest": "fb1c8fbabe925f6a74746689d9080b7311c1183bcb8179a10d5ada9638088b18",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 26,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "279235323374fbf4fa63a2cc11072f8cd7f014da0d79408c638809a68cf08316",
+      "control_digest": "fb1c8fbabe925f6a74746689d9080b7311c1183bcb8179a10d5ada9638088b18",
+      "matched_commits": 26,
+      "repetitions": 3,
+      "status": "passed"
+    }
+  ],
+  "commands": [
+    {
+      "argv": [
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\build-m0\\tests\\virtual\\p2\\p2_native_tests.exe",
+        "E:\\sigflow\\SigFlow_VirtroFPGA",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p2\\faults"
+      ],
+      "exit_code": 0,
+      "seconds": 2.251
+    }
+  ],
+  "check_count": 37
+}

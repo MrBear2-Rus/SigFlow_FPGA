@@ -1,0 +1,218 @@
+{
+  "runner_sha256": "6ba7c791019d8c9ef884cdb99e69bc613c868156bb20e403c683ebaea98803aa",
+  "results": [
+    {
+      "passed": false,
+      "tick": "20500000000",
+      "circuit": "4f2b68cf3b016ca6e26d7f604712a56e6c0b03127e3852c355d6038cb16b5aa2",
+      "profile": {
+        "schema": "sigflow.fault-profile.v2",
+        "id": "teacher-plan",
+        "revision": 1,
+        "board_ref": "tang-nano-9k@2.0.0",
+        "tick_ps": "1",
+        "rng": {
+          "algorithm": "pcg32-v1",
+          "seed": "73191",
+          "streams": "by_fault_id"
+        },
+        "conflict_policy": "reject_overlapping_mutations",
+        "faults": [
+          {
+            "id": "secret-bounce-2d1",
+            "enabled": true,
+            "visibility": "teacher_only",
+            "hook": "peripheral.event",
+            "target": {
+              "kind": "component",
+              "id": "key_p3"
+            },
+            "effect": {
+              "type": "button_bounce",
+              "duration_ticks": "10000000000",
+              "drive": "open_drain",
+              "relative_edges": [
+                {
+                  "dt": "0",
+                  "contact": "closed"
+                },
+                {
+                  "dt": "178564553",
+                  "contact": "released"
+                },
+                {
+                  "dt": "675740126",
+                  "contact": "closed"
+                },
+                {
+                  "dt": "1547739175",
+                  "contact": "released"
+                },
+                {
+                  "dt": "10000000000",
+                  "contact": "closed"
+                }
+              ]
+            },
+            "trigger": {
+              "kind": "intermittent",
+              "event": {
+                "type": "input.intent",
+                "target": "key_p3",
+                "action": "press",
+                "occurrence": 1
+              },
+              "probability_ppm": 1000000,
+              "active_ticks": "10000000001",
+              "cooldown_ticks": "20000000000",
+              "max_activations": 1
+            }
+          }
+        ]
+      },
+      "seed": "73191"
+    },
+    {
+      "passed": false,
+      "tick": "20500000000",
+      "circuit": "36a8ceaf912f6a2fca12d4443d94847b480d48b9aaffa5901aefd932e983bf78",
+      "profile": {
+        "schema": "sigflow.fault-profile.v2",
+        "id": "teacher-plan",
+        "revision": 1,
+        "board_ref": "tang-nano-9k@2.0.0",
+        "tick_ps": "1",
+        "rng": {
+          "algorithm": "pcg32-v1",
+          "seed": "88703",
+          "streams": "by_fault_id"
+        },
+        "conflict_policy": "reject_overlapping_mutations",
+        "faults": [
+          {
+            "id": "secret-bounce-2d1",
+            "enabled": true,
+            "visibility": "teacher_only",
+            "hook": "peripheral.event",
+            "target": {
+              "kind": "component",
+              "id": "key_p3"
+            },
+            "effect": {
+              "type": "button_bounce",
+              "duration_ticks": "10000000000",
+              "drive": "open_drain",
+              "relative_edges": [
+                {
+                  "dt": "0",
+                  "contact": "closed"
+                },
+                {
+                  "dt": "160172151",
+                  "contact": "released"
+                },
+                {
+                  "dt": "667325370",
+                  "contact": "closed"
+                },
+                {
+                  "dt": "1490074978",
+                  "contact": "released"
+                },
+                {
+                  "dt": "10000000000",
+                  "contact": "closed"
+                }
+              ]
+            },
+            "trigger": {
+              "kind": "intermittent",
+              "event": {
+                "type": "input.intent",
+                "target": "key_p3",
+                "action": "press",
+                "occurrence": 1
+              },
+              "probability_ppm": 1000000,
+              "active_ticks": "10000000001",
+              "cooldown_ticks": "20000000000",
+              "max_activations": 1
+            }
+          }
+        ]
+      },
+      "seed": "88703"
+    },
+    {
+      "passed": false,
+      "tick": "20500000000",
+      "circuit": "6f46c5b5735d8adcbcb437a828de50a24fe4c9cbc76826fbc747f901a3f4c9d5",
+      "profile": {
+        "schema": "sigflow.fault-profile.v2",
+        "id": "teacher-plan",
+        "revision": 1,
+        "board_ref": "tang-nano-9k@2.0.0",
+        "tick_ps": "1",
+        "rng": {
+          "algorithm": "pcg32-v1",
+          "seed": "95077",
+          "streams": "by_fault_id"
+        },
+        "conflict_policy": "reject_overlapping_mutations",
+        "faults": [
+          {
+            "id": "secret-bounce-2d1",
+            "enabled": true,
+            "visibility": "teacher_only",
+            "hook": "peripheral.event",
+            "target": {
+              "kind": "component",
+              "id": "key_p3"
+            },
+            "effect": {
+              "type": "button_bounce",
+              "duration_ticks": "10000000000",
+              "drive": "open_drain",
+              "relative_edges": [
+                {
+                  "dt": "0",
+                  "contact": "closed"
+                },
+                {
+                  "dt": "229709368",
+                  "contact": "released"
+                },
+                {
+                  "dt": "688108188",
+                  "contact": "closed"
+                },
+                {
+                  "dt": "1525393159",
+                  "contact": "released"
+                },
+                {
+                  "dt": "10000000000",
+                  "contact": "closed"
+                }
+              ]
+            },
+            "trigger": {
+              "kind": "intermittent",
+              "event": {
+                "type": "input.intent",
+                "target": "key_p3",
+                "action": "press",
+                "occurrence": 1
+              },
+              "probability_ppm": 1000000,
+              "active_ticks": "10000000001",
+              "cooldown_ticks": "20000000000",
+              "max_activations": 1
+            }
+          }
+        ]
+      },
+      "seed": "95077"
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+# Trusted teaching host; Agent SDK itself remains standard-library only.
+cryptography>=43
+jsonschema>=4.23

@@ -22,11 +22,13 @@ public:
     void Send(const std::string& uart,const std::vector<uint8_t>& bytes,uint64_t tick);
     void SetDip(const std::string& component,uint32_t value);
     void AddDrivers(std::map<std::string,std::vector<Driver>>&)const;
+    void ApplyFaults(const Json&);
     std::optional<uint64_t> NextDeadline(uint64_t tick)const;
     Json Snapshot()const;
 private:
     struct Uart {
         int baud=0,bits=8,stops=1;std::string parity;
+        int offset_ppm=0;bool bad_start=false,bad_stop=false,parity_flip=false;
         std::deque<uint8_t> queue;std::vector<bool> tx_bits;
         uint64_t tx_start=0,tx_index=0;bool tx_high=true;
         std::optional<uint64_t> tx_due,rx_due;
@@ -34,6 +36,7 @@ private:
         Json received=Json::array(),transmitted=Json::array();uint64_t rx_sequence=0,tx_sequence=0;
     };
     const BoardTopology* board_;
+    Json faults_=Json::array();
     uint64_t tick_=0;
     std::map<std::string,DutyIntegrator> channels_;
     std::map<std::string,Uart> uarts_;
@@ -41,7 +44,7 @@ private:
     std::map<std::string,std::optional<uint64_t>> digit0_edge_;
     std::map<std::string,uint64_t> scan_period_;
     std::map<std::string,bool> previous_digit0_;
-    uint64_t BitTime(const Uart&,uint64_t units,uint64_t denominator=1)const;
+    uint64_t BitTime(const Uart&,uint64_t units,uint64_t denominator=1,bool transmit=false)const;
     void StartTx(Uart&,uint64_t);
 };
 }

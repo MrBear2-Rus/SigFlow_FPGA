@@ -1,0 +1,72 @@
+{
+  "schema": "sigflow.virtual-project.v1",
+  "source_files": [
+    "phase2.sv"
+  ],
+  "top_module": "p1_lab",
+  "cst_path": "phase2.cst",
+  "board_path": "registry/boards/tang-nano-9k.phase2.virtual.json",
+  "electrical_profile_path": "registry/electrical/tang-nano-9k.6202.reviewed.v2.json",
+  "durability": "durable",
+  "clock": {
+    "port_ref": "clock_in",
+    "package_pin": 52,
+    "frequency_hz": "27000000",
+    "enabled": true
+  },
+  "inputs": [
+    {
+      "target": "key_p3",
+      "package_pin": 3,
+      "fixed_drivers": [],
+      "initial_manual_state": 2
+    },
+    {
+      "target": "reset_p4",
+      "package_pin": 4,
+      "fixed_drivers": [],
+      "initial_manual_state": 13
+    },
+    {
+      "target": "clock_p52",
+      "package_pin": 52,
+      "fixed_drivers": [],
+      "initial_manual_state": 2
+    },
+    {
+      "target": "uart_rx_p18",
+      "package_pin": 18,
+      "fixed_drivers": [],
+      "initial_manual_state": 2
+    },
+    {
+      "target": "dip0_bit0",
+      "package_pin": 40,
+      "fixed_drivers": [],
+      "initial_manual_state": 2
+    },
+    {
+      "target": "dip0_bit1",
+      "package_pin": 41,
+      "fixed_drivers": [],
+      "initial_manual_state": 2
+    }
+  ],
+  "phase1": true,
+  "integration_window_ticks": "4000000",
+  "phase2": true,
+  "fault_profile": {
+    "schema": "sigflow.fault-profile.v2",
+    "id": "teacher-plan",
+    "revision": 1,
+    "board_ref": "tang-nano-9k@2.0.0",
+    "tick_ps": "1",
+    "rng": {
+      "algorithm": "pcg32-v1",
+      "seed": "9500123",
+      "streams": "by_fault_id"
+    },
+    "conflict_policy": "reject_overlapping_mutations",
+    "faults": []
+  }
+}

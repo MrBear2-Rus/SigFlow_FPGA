@@ -1,0 +1,1008 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sigflow.fault-profile.v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "id",
+    "revision",
+    "board_ref",
+    "tick_ps",
+    "rng",
+    "conflict_policy",
+    "faults"
+  ],
+  "properties": {
+    "schema": {
+      "const": "sigflow.fault-profile.v2"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "board_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tick_ps": {
+      "const": "1"
+    },
+    "rng": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "seed",
+        "streams"
+      ],
+      "properties": {
+        "algorithm": {
+          "const": "pcg32-v1"
+        },
+        "seed": {
+          "$ref": "#/$defs/tick"
+        },
+        "streams": {
+          "const": "by_fault_id"
+        }
+      }
+    },
+    "conflict_policy": {
+      "const": "reject_overlapping_mutations"
+    },
+    "faults": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "$ref": "#/$defs/fault"
+      }
+    }
+  },
+  "$defs": {
+    "tick": {
+      "type": "string",
+      "pattern": "^[0-9]{1,20}$"
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "id"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "fpga_pad_driver",
+            "peripheral_driver",
+            "connection",
+            "component",
+            "clock",
+            "node",
+            "driver",
+            "pad_map"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "trigger": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "start_tick"
+          ],
+          "properties": {
+            "kind": {
+              "const": "permanent"
+            },
+            "start_tick": {
+              "$ref": "#/$defs/tick"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "start_tick",
+            "end_tick"
+          ],
+          "properties": {
+            "kind": {
+              "const": "transient"
+            },
+            "start_tick": {
+              "$ref": "#/$defs/tick"
+            },
+            "end_tick": {
+              "$ref": "#/$defs/tick"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "event",
+            "probability_ppm",
+            "active_ticks",
+            "cooldown_ticks",
+            "max_activations"
+          ],
+          "properties": {
+            "kind": {
+              "const": "intermittent"
+            },
+            "event": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "type",
+                "target",
+                "action",
+                "occurrence"
+              ],
+              "properties": {
+                "type": {
+                  "const": "input.intent"
+                },
+                "target": {
+                  "type": "string"
+                },
+                "action": {
+                  "const": "press"
+                },
+                "occurrence": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "probability_ppm": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            },
+            "active_ticks": {
+              "$ref": "#/$defs/tick"
+            },
+            "cooldown_ticks": {
+              "$ref": "#/$defs/tick"
+            },
+            "max_activations": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      ]
+    },
+    "effect": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "value",
+            "mode"
+          ],
+          "properties": {
+            "type": {
+              "const": "stuck_at"
+            },
+            "value": {
+              "enum": [
+                0,
+                1
+              ]
+            },
+            "mode": {
+              "enum": [
+                "replace_source",
+                "short_to_rail"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "const": "open"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "hold_level",
+            "resume_phase"
+          ],
+          "properties": {
+            "type": {
+              "const": "clock_stop"
+            },
+            "hold_level": {
+              "enum": [
+                0,
+                1
+              ]
+            },
+            "resume_phase": {
+              "const": "restart_half_period"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "duration_ticks",
+            "drive",
+            "relative_edges"
+          ],
+          "properties": {
+            "type": {
+              "const": "button_bounce"
+            },
+            "duration_ticks": {
+              "$ref": "#/$defs/tick"
+            },
+            "drive": {
+              "const": "open_drain"
+            },
+            "relative_edges": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 4096,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "dt",
+                  "contact"
+                ],
+                "properties": {
+                  "dt": {
+                    "$ref": "#/$defs/tick"
+                  },
+                  "contact": {
+                    "enum": [
+                      "closed",
+                      "released"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "bridge"
+            },
+            "other_node": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "type",
+            "other_node"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "pull_removal"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "mapping_overlay"
+            },
+            "bindings": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 88,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "port_ref": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "pad": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 88
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "port_ref",
+                  "pad"
+                ]
+              }
+            }
+          },
+          "required": [
+            "type",
+            "bindings"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "led_polarity_reverse"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "common_mismatch"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "dead_segment"
+            },
+            "segment": {
+              "enum": [
+                "a",
+                "b",
+                "c",
+                "d",
+                "e",
+                "f",
+                "g",
+                "dp"
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "segment"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "uart_baud_offset_ppm"
+            },
+            "offset_ppm": {
+              "type": "integer",
+              "minimum": -500000,
+              "maximum": 500000
+            }
+          },
+          "required": [
+            "type",
+            "offset_ppm"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "uart_framing_error"
+            },
+            "bit": {
+              "enum": [
+                "start",
+                "stop"
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "bit"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "uart_parity_flip"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        }
+      ]
+    },
+    "fault": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "enabled",
+        "visibility",
+        "hook",
+        "target",
+        "effect",
+        "trigger"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "visibility": {
+          "enum": [
+            "student_visible",
+            "teacher_only"
+          ]
+        },
+        "hook": {
+          "enum": [
+            "driver.transform",
+            "topology.transform",
+            "peripheral.event",
+            "clock.schedule",
+            "mapping.overlay",
+            "peripheral.observe",
+            "protocol.transform"
+          ]
+        },
+        "target": {
+          "$ref": "#/$defs/target"
+        },
+        "effect": {
+          "$ref": "#/$defs/effect"
+        },
+        "trigger": {
+          "$ref": "#/$defs/trigger"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "effect": {
+                "properties": {
+                  "type": {
+                    "const": "button_bounce"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "hook": {
+                "const": "peripheral.event"
+              },
+              "target": {
+                "properties": {
+                  "kind": {
+                    "const": "component"
+                  }
+                }
+              },
+              "trigger": {
+                "properties": {
+                  "kind": {
+                    "const": "intermittent"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "effect": {
+                "properties": {
+                  "type": {
+                    "const": "open"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "hook": {
+                "const": "topology.transform"
+              },
+              "target": {
+                "properties": {
+                  "kind": {
+                    "const": "connection"
+                  }
+                }
+              },
+              "trigger": {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "permanent",
+                      "transient"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "effect": {
+                "properties": {
+                  "type": {
+                    "const": "stuck_at"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "hook": {
+                "const": "driver.transform"
+              },
+              "target": {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "fpga_pad_driver",
+                      "peripheral_driver"
+                    ]
+                  }
+                }
+              },
+              "trigger": {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "permanent",
+                      "transient"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "effect": {
+                "properties": {
+                  "type": {
+                    "const": "clock_stop"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "hook": {
+                "const": "clock.schedule"
+              },
+              "target": {
+                "properties": {
+                  "kind": {
+                    "const": "clock"
+                  }
+                }
+              },
+              "trigger": {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "permanent",
+                      "transient"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "effect": {
+                "properties": {
+                  "type": {
+                    "const": "bridge"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "hook": {
+                "const": "topology.transform"
+              },
+              "target": {
+                "properties": {
+                  "kind": {
+                    "const": "node"
+                  }
+                }
+              },
+              "trigger": {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "permanent",
+                      "transient"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "effect": {
+                "properties": {
+                  "type": {
+                    "const": "pull_removal"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "hook": {
+                "const": "driver.transform"
+              },
+              "target": {
+                "properties": {
+                  "kind": {
+                    "const": "driver"
+                  }
+                }
+              },
+              "trigger": {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "permanent",
+                      "transient"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "effect": {
+                "properties": {
+                  "type": {
+                    "const": "mapping_overlay"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "hook": {
+                "const": "mapping.overlay"
+              },
+              "target": {
+                "properties": {
+                  "kind": {
+                    "const": "pad_map"
+                  }
+                }
+              },
+              "trigger": {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "permanent",
+                      "transient"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "effect": {
+                "properties": {
+                  "type": {
+                    "const": "led_polarity_reverse"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "hook": {
+                "const": "peripheral.observe"
+              },
+              "target": {
+                "properties": {
+                  "kind": {
+                    "const": "component"
+                  }
+                }
+              },
+              "trigger": {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "permanent",
+                      "transient"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "effect": {
+                "properties": {
+                  "type": {
+                    "const": "common_mismatch"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "hook": {
+                "const": "peripheral.observe"
+              },
+              "target": {
+                "properties": {
+                  "kind": {
+                    "const": "component"
+                  }
+                }
+              },
+              "trigger": {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "permanent",
+                      "transient"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "effect": {
+                "properties": {
+                  "type": {
+                    "const": "dead_segment"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "hook": {
+                "const": "peripheral.observe"
+              },
+              "target": {
+                "properties": {
+                  "kind": {
+                    "const": "component"
+                  }
+                }
+              },
+              "trigger": {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "permanent",
+                      "transient"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "effect": {
+                "properties": {
+                  "type": {
+                    "const": "uart_baud_offset_ppm"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "hook": {
+                "const": "protocol.transform"
+              },
+              "target": {
+                "properties": {
+                  "kind": {
+                    "const": "component"
+                  }
+                }
+              },
+              "trigger": {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "permanent",
+                      "transient"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "effect": {
+                "properties": {
+                  "type": {
+                    "const": "uart_framing_error"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "hook": {
+                "const": "protocol.transform"
+              },
+              "target": {
+                "properties": {
+                  "kind": {
+                    "const": "component"
+                  }
+                }
+              },
+              "trigger": {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "permanent",
+                      "transient"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "effect": {
+                "properties": {
+                  "type": {
+                    "const": "uart_parity_flip"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "hook": {
+                "const": "protocol.transform"
+              },
+              "target": {
+                "properties": {
+                  "kind": {
+                    "const": "component"
+                  }
+                }
+              },
+              "trigger": {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "permanent",
+                      "transient"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

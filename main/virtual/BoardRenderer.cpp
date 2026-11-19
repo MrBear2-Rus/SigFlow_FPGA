@@ -23,7 +23,7 @@ void BoardRenderer::Paint(wxWindow& w,wxGraphicsContext& g,const eda::Json& fram
     auto dip=[&](int x){return w.FromDIP(x);};
     auto text=[&](const wxString& s,int x,int y,const wxColour& colour){g.SetFont(UiTheme::UiFont(&w,UiTheme::TextSize::P12),colour);g.DrawText(s,dip(x),dip(y));};
     g.SetPen(wxPen(p.strokeStrong,dip(1)));g.SetBrush(wxBrush(p.bgPanel));g.DrawRoundedRectangle(0,0,dip(800),dip(330),dip(16));
-    text("Tang Nano 9K / 6202",24,14,p.text1);text(wxString::FromUTF8("27 MHz · QFN88 · CST"),520,14,p.text2);
+    text("Tang Nano 9K / 6202",24,14,p.text1);text(wxString::FromUTF8(frame.contains("frequency_hz")?frame.at("frequency_hz").get<std::string>()+" Hz · QFN88 · CST":"27 MHz · QFN88 · CST"),520,14,p.text2);
     g.SetBrush(wxBrush(p.surfaceOnPanel));g.SetPen(wxPen(p.stroke,dip(1)));g.DrawRoundedRectangle(dip(330),dip(146),dip(145),dip(76),dip(10));
     text("GW1NR-9",354,161,p.text1);text("FPGA",380,184,p.text2);
     constexpr int pads[]={10,11,13,14,15,16};
@@ -76,6 +76,7 @@ void BoardRenderer::Paint(wxWindow& w,wxGraphicsContext& g,const eda::Json& fram
 int BoardRenderer::HitButton(wxWindow& w,const wxPoint& point,bool phase1){Geometry a(w,phase1);
     for(int i=0;i<2;++i){int x=70+i*155;wxRect rect(int(a.x+w.FromDIP(x-35)*a.scale),int(a.y+w.FromDIP(234)*a.scale),int(w.FromDIP(95)*a.scale),int(w.FromDIP(44)*a.scale));if(rect.Contains(point))return 3+i;}return -1;
 }
+std::string BoardRenderer::HitNode(wxWindow& w,const wxPoint& point,bool phase1){Geometry a(w,phase1);auto hit=[&](int x,int y,int width,int height){return wxRect(int(a.x+w.FromDIP(x)*a.scale),int(a.y+w.FromDIP(y)*a.scale),int(w.FromDIP(width)*a.scale),int(w.FromDIP(height)*a.scale)).Contains(point);};for(int i=0;i<6;++i)if(hit(30+i*128,25,95,120))return "led"+std::to_string(i)+".K";for(int i=0;i<2;++i)if(hit(35+i*155,234,95,44))return "key_p"+std::to_string(i+3)+".contact";if(hit(550,235,205,48))return "pad.52";return {};}
 std::optional<std::pair<std::string,unsigned>> BoardRenderer::HitDip(wxWindow& w,const wxPoint& point,const eda::Json& frame){
     if(!frame.value("phase1",false) || !frame.contains("board") || !frame.at("board").contains("peripherals"))return {};Geometry geometry(w,true);int group=0;
     for(const auto& [id,component]:frame.at("board").at("peripherals").items())if(component.value("model",std::string())=="sigflow.dip-switch@1"){

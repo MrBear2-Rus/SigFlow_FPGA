@@ -1,0 +1,15 @@
+{
+  "actual": false,
+  "actual_valid": false,
+  "artifacts": {
+    "metadata": "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p2\\probes\\comparison\\capture.metadata.json",
+    "raw": "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p2\\probes\\comparison\\capture.raw",
+    "vcd": "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p2\\probes\\comparison\\capture.vcd"
+  },
+  "expected": true,
+  "expected_valid": true,
+  "first_failure_tick": "92593",
+  "sample_offset": -2,
+  "signal": "led0.K",
+  "status": "diverged"
+}

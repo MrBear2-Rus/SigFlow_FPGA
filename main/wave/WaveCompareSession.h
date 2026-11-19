@@ -1,6 +1,7 @@
 #pragma once
 
 #include "WaveSession.h"
+#include <eda/api/Types.h>
 
 #include <cstdint>
 #include <string>
@@ -38,6 +39,7 @@ struct WaveCompareSnapshot {
 // while tokens prevent stale asynchronous work from mutating a new window.
 class WaveCompareSession {
 public:
+    static eda::Json CompareSampledCaptures(const eda::Json&,const eda::Json&);
     bool AddTrack(WaveCompareTrack track, std::string& error);
     bool ReplaceTrack(WaveCompareTrack track, std::string& error);
     bool RemoveTrack(const std::string& trackId, std::string& error);

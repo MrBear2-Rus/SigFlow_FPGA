@@ -1,0 +1,59 @@
+{
+  "checks": 2132,
+  "explanation": {
+    "conflict_sources": [
+      {
+        "lhs_driver_id": "a",
+        "lhs_state": 13,
+        "reason": "opposing_or_indeterminate_drivers",
+        "rhs_driver_id": "z",
+        "rhs_state": 15
+      }
+    ],
+    "contention": true,
+    "drivers": [
+      {
+        "driver_id": "a",
+        "level": "low",
+        "source": "a",
+        "source_endpoint": "a",
+        "state_code": 13,
+        "strength": 3
+      },
+      {
+        "driver_id": "z",
+        "level": "high",
+        "source": "z",
+        "source_endpoint": "z",
+        "state_code": 15,
+        "strength": 3
+      }
+    ],
+    "fold_steps": [
+      {
+        "contention_triggered": false,
+        "lhs_state": 2,
+        "result_state": 13,
+        "rhs_driver_id": "a",
+        "rhs_state": 13,
+        "step_index": 0
+      },
+      {
+        "contention_triggered": true,
+        "lhs_state": 13,
+        "result_state": 46,
+        "rhs_driver_id": "z",
+        "rhs_state": 15,
+        "step_index": 1
+      }
+    ],
+    "logic": "x",
+    "resolver": "sigflow.state13.v1",
+    "schema": "sigflow.resolution-explanation.v1",
+    "state_code": 46,
+    "sticky_conflict": true,
+    "summary": "CON: inspect retained sources and each table fold",
+    "valid": false
+  },
+  "status": "passed"
+}

@@ -1,4 +1,5 @@
 #include "BoardTopology.h"
+#include "State13.h"
 #include "eda-platform/Sha256.h"
 #include <fstream>
 #include <limits>
@@ -19,7 +20,7 @@ std::shared_ptr<const BoardTopology> BoardTopology::Load(const std::filesystem::
 BoardTopology::BoardTopology(Json j,const ElectricalProfile& p):descriptor_(std::move(j)){
     const auto& d=descriptor_;
     if(d.at("schema")!="sigflow.virtual-board.v1" || d.at("device")!=p.device.device || d.at("package")!=p.device.package || d.at("hardware_revision")!=p.device.board_revision ||
-       d.at("electrical").at("resolver_version")!=ResolverVersion || d.at("electrical").at("state_encoding")!=ResolverVersion || d.at("timebase").at("tick_ps")!="1")throw std::runtime_error("E_BOARD_IDENTITY");
+       (d.at("electrical").at("resolver_version")!=ResolverVersion && d.at("electrical").at("resolver_version")!=State13Version) || d.at("electrical").at("state_encoding")!=d.at("electrical").at("resolver_version") || d.at("timebase").at("tick_ps")!="1")throw std::runtime_error("E_BOARD_IDENTITY");
     if(d.at("components").size()>128 || d.at("connections").size()>256 || d.at("clocks").size()!=1)throw std::runtime_error("E_BOARD_QUOTA");
     std::map<std::string,std::string> models;std::set<std::string> terminals,ids;
     const auto& clock=d.at("clocks").at(0);auto clockId=clock.at("id").get<std::string>();
@@ -58,24 +59,27 @@ BoardTopology::BoardTopology(Json j,const ElectricalProfile& p):descriptor_(std:
     if(connected!=terminals || !clock_pad_)throw std::runtime_error("E_BOARD_CONNECTION");
     for(const auto& pull:d.value("fixed_drivers",Json::array())){
         auto node=pull.at("node").get<std::string>();int code=pull.at("state").get<int>();auto id=pull.at("driver_id").get<std::string>();
-        if(!nodes_.count(node) || id.empty() || code<0 || code>255 || !ResolveM0({{id,uint8_t(code)}}).supported)throw std::runtime_error("E_BOARD_DRIVER");
+        if(!nodes_.count(node) || id.empty() || code<0 || code>255 || !(UsesState13()?ResolveState13({{id,uint8_t(code)}}):ResolveM0({{id,uint8_t(code)}})).supported)throw std::runtime_error("E_BOARD_DRIVER");
         fixed_[node].push_back({id,uint8_t(code)});
     }
-    for(const auto& [node,ds]:fixed_)if(!ResolveM0(ds).supported)throw std::runtime_error("E_BOARD_DRIVER");
+    for(const auto& [node,ds]:fixed_)if(!(UsesState13()?ResolveState13(ds):ResolveM0(ds)).supported)throw std::runtime_error("E_BOARD_DRIVER");
     auto text=d.dump();fingerprint_=platform::Sha256Hex(text.data(),text.size());
 }
 std::string BoardTopology::ControlEndpoint(int pad)const{auto it=controls_.find(pad);if(it==controls_.end())throw std::runtime_error("E_BOARD_INPUT_ENDPOINT");return it->second;}
 bool BoardTopology::HasEdge(const std::string& id)const{for(const auto& e:edges_)if(e.id==id)return true;return false;}
 void BoardTopology::ValidateFaults(const FaultSet& fs)const{if(fs.size()>128)throw std::runtime_error("E_FAULT_QUOTA");for(const auto& [id,f]:fs)if(!HasEdge(f.edge) || id!=f.id || id.empty() || (f.end && *f.end<=f.start))throw std::runtime_error("E_FAULT_PROFILE");}
-Json BoardTopology::Resolve(const std::map<std::string,std::vector<Driver>>& drivers,const FaultSet& faults,uint64_t tick)const{
+bool BoardTopology::UsesState13()const{return descriptor_.at("electrical").at("resolver_version")==State13Version;}
+Json BoardTopology::Resolve(const std::map<std::string,std::vector<Driver>>& drivers,const FaultSet& faults,uint64_t tick,const Json& overlay)const{
     ValidateFaults(faults);std::map<std::string,std::string> parent;for(const auto& n:nodes_)parent[n]=n;
     auto root=[&](std::string n){while(parent.at(n)!=n)n=parent.at(n);return n;};Json wires=Json::object();
     for(const auto& e:edges_){bool closed=true;for(const auto& [id,f]:faults)if(f.edge==e.id && f.Active(tick))closed=false;
         wires[e.id]=closed;if(closed){auto a=root(e.net),b=root(e.endpoint);if(a!=b)parent[std::max(a,b)]=std::min(a,b);}}
+    for(const auto& bridge:overlay.value("bridges",Json::array())){std::string lhs=bridge.at("lhs"),rhs=bridge.at("rhs");if(!nodes_.count(lhs) || !nodes_.count(rhs))throw std::runtime_error("E_BRIDGE_NODE");auto a=root(lhs),b=root(rhs);if(a!=b)parent[std::max(a,b)]=std::min(a,b);}
+    std::set<std::string> removed;for(const auto& id:overlay.value("removed_drivers",Json::array()))removed.insert(id.get<std::string>());
     std::map<std::string,std::vector<Driver>> groups;
-    auto add=[&](const auto& bynode){for(const auto& [n,ds]:bynode){if(!nodes_.count(n))throw std::runtime_error("E_BOARD_NODE");for(const auto& dr:ds)groups[root(n)].push_back({n+":"+dr.driver_id,dr.state});}};
+    auto add=[&](const auto& bynode){for(const auto& [n,ds]:bynode){if(!nodes_.count(n))throw std::runtime_error("E_BOARD_NODE");for(const auto& dr:ds)if(!removed.count(n+":"+dr.driver_id))groups[root(n)].push_back({n+":"+dr.driver_id,dr.state});}};
     add(fixed_);add(drivers);Json nodes=Json::object(),leds=Json::object();
-    for(const auto& n:nodes_){auto resolved=ResolveM0(groups[root(n)]);if(!resolved.supported)throw std::runtime_error(resolved.error);nodes[n]=StateJson(resolved);}
+    for(const auto& n:nodes_){auto resolved=UsesState13()?ResolveState13(groups[root(n)]):ResolveM0(groups[root(n)]);if(!resolved.supported)throw std::runtime_error(resolved.error);nodes[n]=StateJson(resolved);if(UsesState13())nodes[n]["explanation"]=ExplainState13(groups[root(n)]);}
     for(const auto& [endpoint,active]:leds_){const auto& s=nodes.at(endpoint);leds[endpoint.substr(0,endpoint.size()-2)]={{"lit",s.at("valid")==true && s.at("logic")=="0" && s.at("contention")==false},{"state_code",s.at("state_code")}};}
     return {{"board_id",descriptor_.at("id")},{"nodes",nodes},{"wires",wires},{"leds",leds}};
 }

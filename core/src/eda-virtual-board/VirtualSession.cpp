@@ -526,7 +526,7 @@ struct VirtualSession::Impl {
         }queue.clear();
     }
 };
-VirtualSession::VirtualSession(SessionContract c,Factory f){if(c.phase1)phase1_=std::make_unique<Phase1Session>(std::move(c),std::move(f));else impl_=std::make_unique<Impl>(std::move(c),std::move(f));}
+VirtualSession::VirtualSession(SessionContract c,Factory f){if(c.board && c.board->UsesState13()!=c.phase2)throw std::runtime_error("E_RESOLVER_MODE");if(c.phase1 || c.phase2)phase1_=std::make_unique<Phase1Session>(std::move(c),std::move(f));else impl_=std::make_unique<Impl>(std::move(c),std::move(f));}
 VirtualSession::~VirtualSession()=default;
 std::shared_ptr<const LiveTraceStore> VirtualSession::Trace()const{return phase1_?phase1_->Trace():impl_->trace;}
 Json VirtualSession::Submit(Json j){
@@ -534,7 +534,7 @@ Json VirtualSession::Submit(Json j){
     return phase1_?phase1_->Submit(std::move(j)):impl_->Submit(std::move(j));
 }
 Json VirtualSession::ReplayCommitted(const SessionContract& c,Factory factory,const Json& records){
-    if(c.phase1)return Phase1Session::Replay(c,std::move(factory),records);
+    if(c.phase1 || c.phase2)return Phase1Session::Replay(c,std::move(factory),records);
     std::promise<Json> reply;auto future=reply.get_future();
     std::thread worker([&]{
         std::unique_ptr<IDutAdapter> model;bool finalized=false;

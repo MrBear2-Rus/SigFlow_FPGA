@@ -1,0 +1,32 @@
+{
+  "schema": "sigflow.fault-profile.v2",
+  "id": "teacher-plan",
+  "revision": 1,
+  "board_ref": "tang-nano-9k@2.0.0",
+  "tick_ps": "1",
+  "rng": {
+    "algorithm": "pcg32-v1",
+    "seed": "9500123",
+    "streams": "by_fault_id"
+  },
+  "conflict_policy": "reject_overlapping_mutations",
+  "faults": [
+    {
+      "id": "secret-open-4a7",
+      "enabled": true,
+      "visibility": "teacher_only",
+      "hook": "topology.transform",
+      "target": {
+        "kind": "connection",
+        "id": "wire.led0"
+      },
+      "effect": {
+        "type": "open"
+      },
+      "trigger": {
+        "kind": "permanent",
+        "start_tick": "0"
+      }
+    }
+  ]
+}

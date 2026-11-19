@@ -109,6 +109,30 @@ int main() {
     {
         eda::CoreJobService service(&MakeHost);
         service.RegisterProvider(std::make_shared<SuccessProvider>());
+        bool atomic = true;
+        for (int n = 0; n < 32; ++n) {
+            eda::JobRequest request;
+            request.jobType = "synth";
+            request.projectId = "publication-race";
+            const auto id = service.submit(request);
+            const auto deadline = std::chrono::steady_clock::now() + 20s;
+            bool done = false;
+            while (std::chrono::steady_clock::now() < deadline) {
+                const auto result = service.report(id);
+                if (result.state == eda::JobState::Succeeded) {
+                    atomic &= result.artifacts.size() == 1 && result.metrics.value("lut", 0) == 96;
+                    done = true;
+                    break;
+                }
+                std::this_thread::yield();
+            }
+            atomic &= done;
+        }
+        Check(atomic, "terminal success atomically publishes artifacts and metrics for concurrent report observers");
+    }
+    {
+        eda::CoreJobService service(&MakeHost);
+        service.RegisterProvider(std::make_shared<SuccessProvider>());
         eda::JobRequest request;
         request.jobType = "synth";
         request.projectId = "prj";

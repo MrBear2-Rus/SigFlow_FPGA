@@ -1,0 +1,119 @@
+{
+  "schema": "sigflow.virtual-capture.v1",
+  "source": "virtual_rtl",
+  "layout": "finite_linear_rtl",
+  "sample_phase": "pre_eval",
+  "armed": false,
+  "triggered": true,
+  "trigger_index": 0,
+  "decimation": 1,
+  "sample_clock_hz": "27000000",
+  "clock_pad": 52,
+  "source_fingerprint": "ff8d48398191d7dbb35ad804081e7bf4b5927a9e56db9854bc0b4b1ae6d40856",
+  "targets": [
+    "port:led_n[0]",
+    "port:led_n[1]",
+    "port:led_n[2]",
+    "port:led_n[3]",
+    "port:led_n[4]",
+    "port:led_n[5]"
+  ],
+  "samples": [
+    {
+      "edge_index": "26255",
+      "tick": "972388889",
+      "valid_mask": 63,
+      "value": 57
+    },
+    {
+      "edge_index": "26256",
+      "tick": "972425926",
+      "valid_mask": 63,
+      "value": 56
+    },
+    {
+      "edge_index": "26257",
+      "tick": "972462963",
+      "valid_mask": 63,
+      "value": 55
+    },
+    {
+      "edge_index": "26258",
+      "tick": "972500000",
+      "valid_mask": 63,
+      "value": 54
+    },
+    {
+      "edge_index": "26259",
+      "tick": "972537037",
+      "valid_mask": 63,
+      "value": 53
+    },
+    {
+      "edge_index": "26260",
+      "tick": "972574074",
+      "valid_mask": 63,
+      "value": 52
+    },
+    {
+      "edge_index": "26261",
+      "tick": "972611111",
+      "valid_mask": 63,
+      "value": 51
+    },
+    {
+      "edge_index": "26262",
+      "tick": "972648148",
+      "valid_mask": 63,
+      "value": 50
+    },
+    {
+      "edge_index": "26263",
+      "tick": "972685185",
+      "valid_mask": 63,
+      "value": 49
+    },
+    {
+      "edge_index": "26264",
+      "tick": "972722222",
+      "valid_mask": 63,
+      "value": 48
+    },
+    {
+      "edge_index": "26265",
+      "tick": "972759259",
+      "valid_mask": 63,
+      "value": 47
+    },
+    {
+      "edge_index": "26266",
+      "tick": "972796296",
+      "valid_mask": 63,
+      "value": 46
+    },
+    {
+      "edge_index": "26267",
+      "tick": "972833333",
+      "valid_mask": 63,
+      "value": 45
+    },
+    {
+      "edge_index": "26268",
+      "tick": "972870370",
+      "valid_mask": 63,
+      "value": 44
+    },
+    {
+      "edge_index": "26269",
+      "tick": "972907407",
+      "valid_mask": 63,
+      "value": 43
+    },
+    {
+      "edge_index": "26270",
+      "tick": "972944444",
+      "valid_mask": 63,
+      "value": 42
+    }
+  ]
+}

@@ -7,3 +7,8 @@ docs/virtual/evidence/K45-* -text -whitespace
 docs/virtual/evidence/U0-* -text -whitespace
 docs/virtual/evidence/U1-* -text -whitespace
 docs/virtual/evidence/M0-* -text -whitespace
+docs/virtual/evidence/P1/uart-export.json text eol=lf
+docs/virtual/evidence/P2/** -text -whitespace
+docs/virtual/evidence/P2-acceptance-summary.json -text -whitespace
+examples/virtual/courses/** -text
+registry/teaching/course-signing-key.pub -text

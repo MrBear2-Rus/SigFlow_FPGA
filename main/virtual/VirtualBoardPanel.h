@@ -2,6 +2,8 @@
 #include "VirtualSessionController.h"
 #include "ui/UiTheme.h"
 #include <wx/panel.h>
+#include <wx/dialog.h>
+#include <wx/weakref.h>
 class wxStaticText;class wxButton;class wxTextCtrl;class wxListCtrl;class wxSpinCtrl;class wxChoice;
 namespace sigflow::virtual_lab {
 class VirtualBoardPanel:public wxPanel {
@@ -16,6 +18,7 @@ public:
     void SetIntegratedView(bool);
     bool IntegratedView()const;
     void SetDip(const std::string&,unsigned value);
+    eda::Json InspectNode(const std::string&,bool showPopup=true);
 private:
     void Update();
     void Load();
@@ -33,5 +36,6 @@ private:
     size_t subscription_=0;
     int held_pad_=-1;
     UiTheme::Subscription theme_;
+    std::vector<wxWeakRef<wxDialog>> inspections_;std::string inspection_run_;
 };
 }

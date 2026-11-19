@@ -1,0 +1,76 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": "sigflow.course-task.v1"
+    },
+    "id": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "objective": {
+      "type": "string"
+    },
+    "allowed_observations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "public_tests": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "hint_levels": {
+      "const": [
+        "L1",
+        "L2",
+        "L3",
+        "L4"
+      ]
+    },
+    "mode": {
+      "const": "student_blind_test"
+    },
+    "clock_fixture": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "frequency_hz": {
+          "type": "string",
+          "pattern": "^[0-9]{1,20}$"
+        },
+        "physical_board_oscillator_hz": {
+          "const": "27000000"
+        },
+        "teaching_override": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "frequency_hz",
+        "physical_board_oscillator_hz",
+        "teaching_override"
+      ]
+    }
+  },
+  "required": [
+    "schema",
+    "id",
+    "title",
+    "objective",
+    "allowed_observations",
+    "public_tests",
+    "hint_levels",
+    "mode",
+    "clock_fixture"
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sigflow.course-task.v1"
+}

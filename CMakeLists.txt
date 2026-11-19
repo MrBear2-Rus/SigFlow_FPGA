@@ -696,6 +696,8 @@ target_sources(sigflow PRIVATE
     main/virtual/BoardRenderer.cpp
     main/virtual/VirtualBoardPanel.cpp
     main/virtual/VirtualUartPanel.cpp
+    main/virtual/VirtualCaptureArtifacts.cpp
+    main/virtual/VirtualTeachingPanel.cpp
     main/virtual/FaultInjectionPanel.cpp)
 # P1-1：迁移期 main/ 的 wx 适配层调用插件；后续 P1-8 由 IJobService 取代。
 target_include_directories(sigflow PRIVATE
@@ -771,6 +773,7 @@ add_custom_target(sigflow_virtual_registry
         "${CMAKE_BINARY_DIR}/target-profiles")
 add_dependencies(sigflow sigflow_virtual_registry)
 
+include("${CMAKE_SOURCE_DIR}/main/virtual/DebugSupport.cmake")
 option(SIGFLOW_BUILD_TESTS "Build the jobs-layer smoke tests" ON)
 option(SIGFLOW_STRICT_WARNINGS
     "Enable -Wall -Wextra for the SigFlow target (portability sweep)" OFF)

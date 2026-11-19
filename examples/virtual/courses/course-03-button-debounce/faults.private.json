@@ -1,0 +1,65 @@
+{
+  "schema": "sigflow.fault-profile.v2",
+  "id": "teacher-plan",
+  "revision": 1,
+  "board_ref": "tang-nano-9k@2.0.0",
+  "tick_ps": "1",
+  "rng": {
+    "algorithm": "pcg32-v1",
+    "seed": "9500123",
+    "streams": "by_fault_id"
+  },
+  "conflict_policy": "reject_overlapping_mutations",
+  "faults": [
+    {
+      "id": "secret-bounce-2d1",
+      "enabled": true,
+      "visibility": "teacher_only",
+      "hook": "peripheral.event",
+      "target": {
+        "kind": "component",
+        "id": "key_p3"
+      },
+      "effect": {
+        "type": "button_bounce",
+        "duration_ticks": "10000000000",
+        "drive": "open_drain",
+        "relative_edges": [
+          {
+            "dt": "0",
+            "contact": "closed"
+          },
+          {
+            "dt": "200000000",
+            "contact": "released"
+          },
+          {
+            "dt": "700000000",
+            "contact": "closed"
+          },
+          {
+            "dt": "1500000000",
+            "contact": "released"
+          },
+          {
+            "dt": "10000000000",
+            "contact": "closed"
+          }
+        ]
+      },
+      "trigger": {
+        "kind": "intermittent",
+        "event": {
+          "type": "input.intent",
+          "target": "key_p3",
+          "action": "press",
+          "occurrence": 1
+        },
+        "probability_ppm": 1000000,
+        "active_ticks": "10000000001",
+        "cooldown_ticks": "20000000000",
+        "max_activations": 1
+      }
+    }
+  ]
+}

@@ -1,0 +1,117 @@
+{
+  "armed": false,
+  "clock_pad": 52,
+  "decimation": 1,
+  "layout": "finite_linear_rtl",
+  "sample_clock_hz": "27000000",
+  "sample_phase": "pre_eval",
+  "samples": [
+    {
+      "edge_index": "26255",
+      "tick": "972388889",
+      "valid_mask": 3,
+      "value": 1
+    },
+    {
+      "edge_index": "26256",
+      "tick": "972425926",
+      "valid_mask": 3,
+      "value": 0
+    },
+    {
+      "edge_index": "26257",
+      "tick": "972462963",
+      "valid_mask": 3,
+      "value": 3
+    },
+    {
+      "edge_index": "26258",
+      "tick": "972500000",
+      "valid_mask": 3,
+      "value": 2
+    },
+    {
+      "edge_index": "26259",
+      "tick": "972537037",
+      "valid_mask": 3,
+      "value": 1
+    },
+    {
+      "edge_index": "26260",
+      "tick": "972574074",
+      "valid_mask": 3,
+      "value": 0
+    },
+    {
+      "edge_index": "26261",
+      "tick": "972611111",
+      "valid_mask": 3,
+      "value": 3
+    },
+    {
+      "edge_index": "26262",
+      "tick": "972648148",
+      "valid_mask": 3,
+      "value": 2
+    },
+    {
+      "edge_index": "26263",
+      "tick": "972685185",
+      "valid_mask": 3,
+      "value": 1
+    },
+    {
+      "edge_index": "26264",
+      "tick": "972722222",
+      "valid_mask": 3,
+      "value": 0
+    },
+    {
+      "edge_index": "26265",
+      "tick": "972759259",
+      "valid_mask": 3,
+      "value": 3
+    },
+    {
+      "edge_index": "26266",
+      "tick": "972796296",
+      "valid_mask": 3,
+      "value": 2
+    },
+    {
+      "edge_index": "26267",
+      "tick": "972833333",
+      "valid_mask": 3,
+      "value": 1
+    },
+    {
+      "edge_index": "26268",
+      "tick": "972870370",
+      "valid_mask": 3,
+      "value": 0
+    },
+    {
+      "edge_index": "26269",
+      "tick": "972907407",
+      "valid_mask": 3,
+      "value": 3
+    },
+    {
+      "edge_index": "26270",
+      "tick": "972944444",
+      "valid_mask": 3,
+      "value": 2
+    }
+  ],
+  "schema": "sigflow.virtual-capture.v1",
+  "source": "virtual_rtl",
+  "source_fingerprint": "ff8d48398191d7dbb35ad804081e7bf4b5927a9e56db9854bc0b4b1ae6d40856",
+  "targets": [
+    "port:led_n[0]",
+    "port:led_n[1]"
+  ],
+  "trigger_index": 0,
+  "triggered": true,
+  "vcd_quantization": "exact_recorded_ticks_relative_to_first_1ps",
+  "vcd_time_origin_tick": "972388889"
+}

@@ -1,0 +1,33 @@
+{
+  "schema": "sigflow.course-task.v1",
+  "id": "lesson-3",
+  "title": "一次操作产生多次计数",
+  "objective": "采集可复核的测量证据，定位异常并提交修复",
+  "allowed_observations": [
+    "pad.10",
+    "led0.K",
+    "pad.11",
+    "led1.K",
+    "pad.3",
+    "key_p3.contact",
+    "pad.52",
+    "port:led_n[0]",
+    "port:led_n[3]"
+  ],
+  "public_tests": [
+    "reset_then_press",
+    "next_event_and_ticks"
+  ],
+  "hint_levels": [
+    "L1",
+    "L2",
+    "L3",
+    "L4"
+  ],
+  "mode": "student_blind_test",
+  "clock_fixture": {
+    "frequency_hz": "1000",
+    "physical_board_oscillator_hz": "27000000",
+    "teaching_override": true
+  }
+}

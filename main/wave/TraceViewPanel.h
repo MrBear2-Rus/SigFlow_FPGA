@@ -5,6 +5,7 @@
 #include "../debug/WaveformComparator.h"
 #include "../debug/DebugBehaviorSummary.h"
 #include "WavePatternSearch.h"
+#include "WaveCompareSession.h"
 #include "WaveformView.h"
 #include "WaveUartLane.h"
 #include "WaveProtocolDecoder.h"
@@ -45,6 +46,8 @@ public:
     explicit TraceViewPanel(wxWindow* parent);
 
     bool OpenTrace(const std::string& path);
+    eda::Json LoadVirtualCapturePair(const eda::Json& baseline,const eda::Json& actual,const std::string& folder);
+    WaveCompareSnapshot VirtualCaptureTracks()const{return m_virtualCompare.Snapshot();}
     void UseLiveTrace(std::shared_ptr<sigflow::trace::TraceSource>);
     void FollowLiveTrace(std::shared_ptr<sigflow::trace::TraceSource>);
     eda::Json InspectTick(int signal,uint64_t tick);
@@ -62,6 +65,7 @@ public:
     }
 
     WaveformView* View() { return m_view; }
+    WaveCompareSession m_virtualCompare;
     std::shared_ptr<sigflow::trace::TraceSource> Source() const { return m_source; }
     const WaveSourceIdentity& SourceIdentity() const { return m_sourceIdentity; }
     std::string SourcePath() const { return m_source ? m_source->Path() : std::string(); }

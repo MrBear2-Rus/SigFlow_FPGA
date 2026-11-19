@@ -1,0 +1,26 @@
+{
+  "schema": "sigflow.course-rubric.v1",
+  "cause": {
+    "location": "wire.led0",
+    "type": "open"
+  },
+  "hidden_seeds": [
+    "73191",
+    "88703",
+    "95077"
+  ],
+  "project": "virtual.project.json",
+  "repair_kind": "physical_service",
+  "allowed_repair": "wire.led0",
+  "assertion": "clock_and_counter_restore",
+  "hints": [
+    "观察操作后输出是否符合一次操作一次变化。",
+    "在输入、Pad 与器件端分别放置只读探针，比较变化。",
+    "用已采集的两侧观测或时钟边沿确认异常发生的物理范围。",
+    "修复连接、驱动互斥或稳定采样原则后，执行三组隐藏激励验证。"
+  ],
+  "required_observations": [
+    "pad.10",
+    "led0.K"
+  ]
+}

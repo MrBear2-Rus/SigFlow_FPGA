@@ -70,7 +70,7 @@ class UiLayoutPicker;
 class UiLayoutChoice;
 class UiToolBarKeyboard;
 class UiToolBarArt;
-namespace sigflow::virtual_lab {class VirtualSessionController;class VirtualBoardPanel;class FaultInjectionPanel;class VirtualUartPanel;}
+namespace sigflow::virtual_lab {class VirtualSessionController;class VirtualBoardPanel;class FaultInjectionPanel;class VirtualUartPanel;class VirtualTeachingPanel;}
 #if defined(SIGFLOW_BUILD_EDU_AGENT)
 namespace agent {
 class AgentDashboardController;
@@ -473,6 +473,7 @@ private:
     sigflow::virtual_lab::VirtualBoardPanel* m_virtualBoardPanel = nullptr;
     sigflow::virtual_lab::FaultInjectionPanel* m_faultInjectionPanel = nullptr;
     sigflow::virtual_lab::VirtualUartPanel* m_virtualUartPanel = nullptr;
+    sigflow::virtual_lab::VirtualTeachingPanel* m_virtualTeachingPanel = nullptr;
     size_t m_virtualWaveSubscription = 0;
     std::weak_ptr<sigflow::trace::TraceSource> m_virtualSourceSeen;
     void OpenVirtualBoard();
