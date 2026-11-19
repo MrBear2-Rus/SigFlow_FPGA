@@ -1,0 +1,40 @@
+{
+  "schema": "sigflow.virtual-project.v1",
+  "source_files": [
+    "broken.sv"
+  ],
+  "top_module": "p1_debounce",
+  "cst_path": "counter.cst",
+  "board_path": "E:\\sigflow\\SigFlow_VirtroFPGA\\examples\\virtual\\courses\\course-03-button-debounce\\board.json",
+  "electrical_profile_path": "registry/electrical/tang-nano-9k.6202.reviewed.v1.json",
+  "durability": "durable",
+  "clock": {
+    "port_ref": "clock_in",
+    "package_pin": 52,
+    "frequency_hz": "1000",
+    "enabled": true
+  },
+  "inputs": [
+    {
+      "target": "key_p3",
+      "package_pin": 3,
+      "fixed_drivers": [],
+      "initial_manual_state": 2
+    },
+    {
+      "target": "reset_p4",
+      "package_pin": 4,
+      "fixed_drivers": [],
+      "initial_manual_state": 13
+    },
+    {
+      "target": "clock_p52",
+      "package_pin": 52,
+      "fixed_drivers": [],
+      "initial_manual_state": 2
+    }
+  ],
+  "phase2": true,
+  "phase1": false,
+  "project_root": "E:\\sigflow\\SigFlow_VirtroFPGA\\examples\\virtual\\courses\\course-03-button-debounce"
+}

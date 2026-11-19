@@ -27,6 +27,7 @@ public:
     std::optional<bool> ClockHold(uint64_t tick)const;
     void Transform(std::map<std::string,std::vector<Driver>>&,FaultSet&,uint64_t)const;
     Json Snapshot(uint64_t)const;
+    Json ActiveRules(uint64_t)const;
     const Json& Profile()const{return profile_;}
     const Json& Events()const{return events_;}
     void ClearEvents(){events_=Json::array();}

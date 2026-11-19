@@ -2,6 +2,7 @@
 #include "BoardTopology.h"
 #include "ProjectValidation.h"
 #include "DurableJournal.h"
+#include "BlindProjection.h"
 #include "ElectricalValidator.h"
 #include "ConstraintSheet.h"
 #include "eda-platform/Platform.h"
@@ -47,7 +48,7 @@ SessionContract Load(const Json& j,const PortManifest& m,const std::string& bina
     c.max_step_ticks=Number(clock.value("max_step_ticks",Json("1000000000000")));
     c.max_delta=j.value("max_delta",256u);c.max_commits=j.value("max_commits",size_t(100000));
     c.durability=j.value("durability","memory");c.journal_path=platform::PathFromUtf8(j.value("journal_path",""));
-    c.phase1=j.value("phase1",false);if(c.phase1){c.integration_window_ticks=Number(j.value("integration_window_ticks",Json("20000000000")));if(j.contains("fault_profile"))c.fault_profile=j.at("fault_profile");if(j.contains("fault_profile_path"))c.fault_profile=Read(platform::PathFromUtf8(j.at("fault_profile_path")));}return c;
+    c.phase2=j.value("phase2",false);c.phase1=j.value("phase1",false);if(c.phase1 || c.phase2){c.integration_window_ticks=Number(j.value("integration_window_ticks",Json("20000000000")));if(j.contains("fault_profile"))c.fault_profile=j.at("fault_profile");if(j.contains("fault_profile_path"))c.fault_profile=Read(platform::PathFromUtf8(j.at("fault_profile_path")));}return c;
 }
 Json AdapterSelfTest(const PortManifest& m,const VirtualSession::Factory& factory){
     auto model=factory();size_t checks=0;
@@ -65,16 +66,18 @@ Json AdapterSelfTest(const PortManifest& m,const VirtualSession::Factory& factor
 }
 }
 int SessionRunnerMain(int argc,char** argv,const PortManifest& manifest,VirtualSession::Factory factory){
+    bool blind=false;std::string publicToken;
     try{
         if(argc==2 && std::string(argv[1])=="--self-test-adapter"){std::cout<<AdapterSelfTest(manifest,factory).dump()<<'\n';return 0;}
         if(argc<2 || argc>3)throw std::runtime_error("usage: generated-runner config.json [--allow-synthetic-test-profile]");
         bool synthetic=argc==3 && std::string(argv[2])=="--allow-synthetic-test-profile";
         if(argc==3 && !synthetic)throw std::runtime_error("E_RUNNER_ARGUMENT");
-        auto config=Read(platform::PathFromUtf8(argv[1]));auto contract=Load(config,manifest,platform::Sha256FileHex(platform::PathFromUtf8(argv[0])),synthetic);
+        auto config=Read(platform::PathFromUtf8(argv[1]));blind=config.value("teaching",Json::object()).value("mode",std::string())=="student_blind_test";publicToken=config.value("teaching",Json::object()).value("run_token",std::string());if(blind && publicToken.size()<32)throw std::runtime_error("E_TRUSTED_RUN_TOKEN_REQUIRED");auto contract=Load(config,manifest,platform::Sha256FileHex(platform::PathFromUtf8(argv[0])),synthetic);
         VirtualSession session(contract,factory);
         for(std::string line;std::getline(std::cin,line);){
             try{
                 auto command=Json::parse(line);Json response;
+                if(blind && !StudentCommandAllowed(command.at("op")))throw std::runtime_error("E_BLIND_OPERATION_DENIED");
                 if(command.at("op")=="replay.current" || command.at("op")=="replay.file"){
                     auto state=session.Submit({{"op","get"}});if(state.at("state")=="Running")throw std::runtime_error("E_REPLAY_REQUIRES_PAUSE");
                     auto count=command.value("repetitions",3u);if(!count || count>10)throw std::runtime_error("E_REPLAY_REPETITIONS");
@@ -100,9 +103,9 @@ int SessionRunnerMain(int argc,char** argv,const PortManifest& manifest,VirtualS
                     auto restored=DurableJournal::RestoreTrace(recovered.records);auto water=restored->Watermark();
                     response["trace_revision"]=std::to_string(water.trace_revision);response["truncated_bytes"]=recovered.truncated_bytes;
                 }else response=session.Submit(command);
-                std::cout<<response.dump()<<std::endl;
-            }catch(const std::exception& e){std::cout<<Json{{"status","rejected"},{"error",e.what()}}.dump()<<std::endl;}
+                std::cout<<(blind?StudentProjection(response,publicToken):response).dump()<<std::endl;
+            }catch(const std::exception& e){std::cout<<Json{{"status","rejected"},{"error",blind?"E_BLIND_OPERATION_DENIED":e.what()}}.dump()<<std::endl;}
         }return 0;
-    }catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}
+    }catch(const std::exception& e){std::cerr<<(blind?"E_PRIVATE_RUN_FAILURE":e.what())<<'\n';return 1;}
 }
 }

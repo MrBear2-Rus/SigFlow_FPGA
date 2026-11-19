@@ -1,0 +1,58 @@
+{
+  "schema": "sigflow.virtual-project.v1",
+  "source_files": [
+    "broken.sv"
+  ],
+  "top_module": "p2_uart_course",
+  "cst_path": "counter.cst",
+  "board_path": "E:\\sigflow\\SigFlow_VirtroFPGA\\examples\\virtual\\courses\\course-04-uart-clock-fault\\board.json",
+  "electrical_profile_path": "registry/electrical/tang-nano-9k.6202.reviewed.v2.json",
+  "durability": "durable",
+  "clock": {
+    "port_ref": "clock_in",
+    "package_pin": 52,
+    "frequency_hz": "1000000",
+    "enabled": true
+  },
+  "inputs": [
+    {
+      "target": "key_p3",
+      "package_pin": 3,
+      "fixed_drivers": [],
+      "initial_manual_state": 2
+    },
+    {
+      "target": "reset_p4",
+      "package_pin": 4,
+      "fixed_drivers": [],
+      "initial_manual_state": 13
+    },
+    {
+      "target": "clock_p52",
+      "package_pin": 52,
+      "fixed_drivers": [],
+      "initial_manual_state": 2
+    },
+    {
+      "target": "uart_rx_p18",
+      "package_pin": 18,
+      "fixed_drivers": [],
+      "initial_manual_state": 2
+    },
+    {
+      "target": "dip0_bit0",
+      "package_pin": 40,
+      "fixed_drivers": [],
+      "initial_manual_state": 2
+    },
+    {
+      "target": "dip0_bit1",
+      "package_pin": 41,
+      "fixed_drivers": [],
+      "initial_manual_state": 2
+    }
+  ],
+  "phase1": true,
+  "integration_window_ticks": "4000000",
+  "phase2": true
+}

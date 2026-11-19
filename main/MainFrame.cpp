@@ -49,6 +49,7 @@
 #include "ui/UiTheme.h"
 #include "virtual/VirtualBoardPanel.h"
 #include "virtual/VirtualUartPanel.h"
+#include "virtual/VirtualTeachingPanel.h"
 #include "virtual/FaultInjectionPanel.h"
 #include <wx/display.h>  // T-660：wxDisplay / wxDisplay::GetClientArea（工作区校验 PLT-010）
 #include "ui/UiFocusTrace.h"
@@ -1395,6 +1396,7 @@ MainFrame::MainFrame()
     bottomNotebook->AddPage(m_faultInjectionPanel,wxString::FromUTF8("实验故障"));
     m_virtualUartPanel=new sigflow::virtual_lab::VirtualUartPanel(bottomNotebook,m_virtualController);
     bottomNotebook->AddPage(m_virtualUartPanel,wxString::FromUTF8("虚拟串口"));
+    m_virtualTeachingPanel=new sigflow::virtual_lab::VirtualTeachingPanel(bottomNotebook,m_virtualController,m_virtualBoardPanel,m_wavePanel);bottomNotebook->AddPage(m_virtualTeachingPanel,wxString::FromUTF8("教学与虚拟 TraceBridge"));
     m_virtualWaveSubscription = m_virtualController->Subscribe([this]{
         if(auto source=m_virtualController->Source()){
             m_wavePanel->FollowLiveTrace(source);

@@ -1,0 +1,958 @@
+{
+  "check_count": 22,
+  "checks": [
+    {
+      "area": "P2",
+      "assertion": "GUI builds actual P2 declaration/CST/13-state session"
+    },
+    {
+      "area": "P2",
+      "assertion": "real STATE dialog shows fold steps without changing DUT inputs"
+    },
+    {
+      "area": "P2",
+      "assertion": "GUI software capture exports a real eight-sample buffer"
+    },
+    {
+      "area": "P2",
+      "assertion": "normal GUI Open changes actual wire endpoint"
+    },
+    {
+      "area": "P2",
+      "assertion": "GUI software capture exports a real eight-sample buffer"
+    },
+    {
+      "area": "P2",
+      "assertion": "TraceViewPanel loads two independent tracks and reports first wire-end validity divergence"
+    },
+    {
+      "area": "P2",
+      "assertion": "GUI asynchronously builds real ILA/link wrapper, exchanges COBS+CRC and opens captured VCD"
+    },
+    {
+      "area": "P2",
+      "assertion": "switching to blind course locks and clears controls; private checkpoint never reaches controller"
+    },
+    {
+      "area": "P2",
+      "assertion": "blind dual probe exposes high Pad vs FLT endpoint without rule provenance"
+    },
+    {
+      "area": "P2",
+      "assertion": "GUI cannot skip straight to L4"
+    },
+    {
+      "area": "P2",
+      "assertion": "GUI progressively requests L1"
+    },
+    {
+      "area": "P2",
+      "assertion": "GUI progressively requests L2"
+    },
+    {
+      "area": "P2",
+      "assertion": "GUI progressively requests L3"
+    },
+    {
+      "area": "P2",
+      "assertion": "authorized L4 uses prior evidence and hint ledger"
+    },
+    {
+      "area": "P2",
+      "assertion": "GUI wrong root cause fails despite claimed repair"
+    },
+    {
+      "area": "P2",
+      "assertion": "GUI correct location without restoration still fails"
+    },
+    {
+      "area": "P2",
+      "assertion": "GUI genuine repair runs three hidden RTL instances and returns deterministic grading report"
+    },
+    {
+      "area": "P2",
+      "assertion": "controller and visible text contain no secret rule, seed or private rubric"
+    },
+    {
+      "area": "P2",
+      "assertion": "native PrintWindow renders teaching controls"
+    },
+    {
+      "area": "P2",
+      "assertion": "exports actual native teaching controls snapshot"
+    },
+    {
+      "area": "P2",
+      "assertion": "native PrintWindow renders teaching controls"
+    },
+    {
+      "area": "P2",
+      "assertion": "exports actual native teaching controls snapshot"
+    }
+  ],
+  "grade": {
+    "actual": 1,
+    "expected": 1,
+    "first_failure_tick": null,
+    "hints_used": 4,
+    "run_fingerprint": "4bbf43f806165645680b224375bf0be77297a69f252409d56477dfbaa1cff06e",
+    "schema": "sigflow.teaching-grade.v1",
+    "score": 100,
+    "seeds_tested": 3,
+    "signal": "functional_output",
+    "status": "pass",
+    "teaching_gateway": {
+      "bearer": "iEkxQ6xNAlq8znRl5jL-oyazGngRuz2c5MVJr947td4",
+      "capabilities": [
+        "virtual.session.read",
+        "virtual.evidence.query",
+        "teaching.hint.request",
+        "teaching.grade.submit"
+      ],
+      "url": "http://127.0.0.1:6431/api/v1/virtual-teaching/call"
+    }
+  },
+  "host": "real wxApp + production Board/Fault/Teaching/UART/Trace panels + trusted Python host + real RTL",
+  "rtl": {
+    "capture_snapshot": {
+      "armed": false,
+      "clock_pad": 52,
+      "decimation": 1,
+      "layout": "finite_linear_rtl",
+      "sample_clock_hz": "27000000",
+      "sample_phase": "pre_eval",
+      "samples": [
+        {
+          "edge_index": "26255",
+          "tick": "972388889",
+          "valid_mask": 63,
+          "value": 57
+        },
+        {
+          "edge_index": "26256",
+          "tick": "972425926",
+          "valid_mask": 63,
+          "value": 56
+        },
+        {
+          "edge_index": "26257",
+          "tick": "972462963",
+          "valid_mask": 63,
+          "value": 55
+        },
+        {
+          "edge_index": "26258",
+          "tick": "972500000",
+          "valid_mask": 63,
+          "value": 54
+        },
+        {
+          "edge_index": "26259",
+          "tick": "972537037",
+          "valid_mask": 63,
+          "value": 53
+        },
+        {
+          "edge_index": "26260",
+          "tick": "972574074",
+          "valid_mask": 63,
+          "value": 52
+        },
+        {
+          "edge_index": "26261",
+          "tick": "972611111",
+          "valid_mask": 63,
+          "value": 51
+        },
+        {
+          "edge_index": "26262",
+          "tick": "972648148",
+          "valid_mask": 63,
+          "value": 50
+        },
+        {
+          "edge_index": "26263",
+          "tick": "972685185",
+          "valid_mask": 63,
+          "value": 49
+        },
+        {
+          "edge_index": "26264",
+          "tick": "972722222",
+          "valid_mask": 63,
+          "value": 48
+        },
+        {
+          "edge_index": "26265",
+          "tick": "972759259",
+          "valid_mask": 63,
+          "value": 47
+        },
+        {
+          "edge_index": "26266",
+          "tick": "972796296",
+          "valid_mask": 63,
+          "value": 46
+        },
+        {
+          "edge_index": "26267",
+          "tick": "972833333",
+          "valid_mask": 63,
+          "value": 45
+        },
+        {
+          "edge_index": "26268",
+          "tick": "972870370",
+          "valid_mask": 63,
+          "value": 44
+        },
+        {
+          "edge_index": "26269",
+          "tick": "972907407",
+          "valid_mask": 63,
+          "value": 43
+        },
+        {
+          "edge_index": "26270",
+          "tick": "972944444",
+          "valid_mask": 63,
+          "value": 42
+        }
+      ],
+      "schema": "sigflow.virtual-capture.v1",
+      "source": "virtual_rtl",
+      "source_fingerprint": "ff8d48398191d7dbb35ad804081e7bf4b5927a9e56db9854bc0b4b1ae6d40856",
+      "targets": [
+        "port:led_n[0]",
+        "port:led_n[1]",
+        "port:led_n[2]",
+        "port:led_n[3]",
+        "port:led_n[4]",
+        "port:led_n[5]"
+      ],
+      "trigger_index": 0,
+      "triggered": true
+    },
+    "commands": [
+      {
+        "argv": [
+          "C:\\Users\\Admin\\AppData\\Local\\Programs\\Python\\Python314\\python.exe",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/virtual/export_ports.py",
+          "--top",
+          "k2_counter",
+          "--output",
+          "E:/sigflow/SigFlow_VirtroFPGA/.work/virtual-rtl-captures/43160-1/ports.json",
+          "--builder",
+          "E:/sigflow/SigFlow_VirtroFPGA/build-m0/sigflow_port_manifest.exe",
+          "E:/sigflow/SigFlow_VirtroFPGA/examples/virtual/counter/counter.sv"
+        ],
+        "exit_code": 0,
+        "seconds": 0.433
+      },
+      {
+        "argv": [
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/bin/verilator_bin_dbg.exe",
+          "--cc",
+          "E:/sigflow/SigFlow_VirtroFPGA/.work/virtual-rtl-captures/43160-1/overlay.sv",
+          "E:/sigflow/SigFlow_VirtroFPGA/.work/virtual-rtl-captures/43160-1/shadow-hdl/0-counter.sv",
+          "E:/sigflow/SigFlow_VirtroFPGA/.work/virtual-rtl-captures/43160-1/shadow-hdl/1-sf_micro_ila.sv",
+          "E:/sigflow/SigFlow_VirtroFPGA/.work/virtual-rtl-captures/43160-1/shadow-hdl/2-sf_debug_link.sv",
+          "E:/sigflow/SigFlow_VirtroFPGA/.work/virtual-rtl-captures/43160-1/shadow-hdl/3-sf_uart_link.sv",
+          "--exe",
+          "E:/sigflow/SigFlow_VirtroFPGA/.work/virtual-rtl-captures/43160-1/host.cpp",
+          "-Wno-fatal",
+          "--top-module",
+          "p2_trace_overlay",
+          "--Mdir",
+          "E:/sigflow/SigFlow_VirtroFPGA/.work/virtual-rtl-captures/43160-1/obj",
+          "-CFLAGS",
+          "-std=c++20 -DVL_TIME_CONTEXT -DWIN32 -DWXUSINGDLL -D__WXMSW__ -DUNICODE -D_UNICODE -IE:/sigflow/SigFlow_VirtroFPGA/main -IE:/sigflow/SigFlow_VirtroFPGA/include -IE:/sigflow/SigFlow_VirtroFPGA/3rd -IE:/sigflow/SigFlow_VirtroFPGA/3rd/wx-mingw/include -IE:/sigflow/SigFlow_VirtroFPGA/3rd/wx-mingw/lib/wx/include/msw-unicode-3.2",
+          "-LDFLAGS",
+          "E:/sigflow/SigFlow_VirtroFPGA/build-m0/libsigflow_virtual_debug.a E:/sigflow/SigFlow_VirtroFPGA/build-m0/core/libeda_platform.a E:/sigflow/SigFlow_VirtroFPGA/3rd/wx-mingw/lib/libwx_mswu_core-3.2.dll.a E:/sigflow/SigFlow_VirtroFPGA/3rd/wx-mingw/lib/libwx_baseu-3.2.dll.a"
+        ],
+        "exit_code": 0,
+        "seconds": 0.409
+      },
+      {
+        "argv": [
+          "E:/sigflow_fpga/toolchain/mingw64/bin/mingw32-make.exe",
+          "-C",
+          "E:/sigflow/SigFlow_VirtroFPGA/.work/virtual-rtl-captures/43160-1/obj",
+          "-f",
+          "Vp2_trace_overlay.mk",
+          "-j4",
+          "CXX=E:/sigflow_fpga/toolchain/mingw64/bin/g++.exe",
+          "LINK=E:/sigflow_fpga/toolchain/mingw64/bin/g++.exe",
+          "AR=E:/sigflow_fpga/toolchain/mingw64/bin/ar.exe",
+          "SHELL=E:/sigflow_fpga/toolchain/posix/sh.exe",
+          "PYTHON3=C:/Users/Admin/AppData/Local/Programs/Python/Python314/python.exe"
+        ],
+        "exit_code": 0,
+        "seconds": 5.821
+      },
+      {
+        "argv": [
+          "E:/sigflow/SigFlow_VirtroFPGA/.work/virtual-rtl-captures/43160-1/obj/Vp2_trace_overlay.exe",
+          "E:/sigflow/SigFlow_VirtroFPGA/.work/virtual-rtl-captures/43160-1/capture"
+        ],
+        "exit_code": 0,
+        "seconds": 1.4
+      }
+    ],
+    "comment_normalization": "UTF-8 characters in comments replaced with ASCII spaces in shadow files only; all non-comment tokens unchanged",
+    "cycles": 176263,
+    "decoded_uart_bytes": 337,
+    "fingerprint": "945757dbb5595e772ee3f7e1bf0a6f70065468d802c11e305c30b0b0c3f1a1fa",
+    "fingerprint64": 6643003723619607034,
+    "independent_observations": [
+      {
+        "edge_index": "26255",
+        "tick": "972388889",
+        "valid_mask": 63,
+        "value": 57
+      },
+      {
+        "edge_index": "26256",
+        "tick": "972425926",
+        "valid_mask": 63,
+        "value": 56
+      },
+      {
+        "edge_index": "26257",
+        "tick": "972462963",
+        "valid_mask": 63,
+        "value": 55
+      },
+      {
+        "edge_index": "26258",
+        "tick": "972500000",
+        "valid_mask": 63,
+        "value": 54
+      },
+      {
+        "edge_index": "26259",
+        "tick": "972537037",
+        "valid_mask": 63,
+        "value": 53
+      },
+      {
+        "edge_index": "26260",
+        "tick": "972574074",
+        "valid_mask": 63,
+        "value": 52
+      },
+      {
+        "edge_index": "26261",
+        "tick": "972611111",
+        "valid_mask": 63,
+        "value": 51
+      },
+      {
+        "edge_index": "26262",
+        "tick": "972648148",
+        "valid_mask": 63,
+        "value": 50
+      },
+      {
+        "edge_index": "26263",
+        "tick": "972685185",
+        "valid_mask": 63,
+        "value": 49
+      },
+      {
+        "edge_index": "26264",
+        "tick": "972722222",
+        "valid_mask": 63,
+        "value": 48
+      },
+      {
+        "edge_index": "26265",
+        "tick": "972759259",
+        "valid_mask": 63,
+        "value": 47
+      },
+      {
+        "edge_index": "26266",
+        "tick": "972796296",
+        "valid_mask": 63,
+        "value": 46
+      },
+      {
+        "edge_index": "26267",
+        "tick": "972833333",
+        "valid_mask": 63,
+        "value": 45
+      },
+      {
+        "edge_index": "26268",
+        "tick": "972870370",
+        "valid_mask": 63,
+        "value": 44
+      },
+      {
+        "edge_index": "26269",
+        "tick": "972907407",
+        "valid_mask": 63,
+        "value": 43
+      },
+      {
+        "edge_index": "26270",
+        "tick": "972944444",
+        "valid_mask": 63,
+        "value": 42
+      }
+    ],
+    "independent_reference": {
+      "armed": false,
+      "clock_pad": 52,
+      "decimation": 1,
+      "layout": "finite_linear_rtl",
+      "sample_clock_hz": "27000000",
+      "sample_phase": "pre_eval",
+      "samples": [
+        {
+          "edge_index": "26255",
+          "tick": "972388889",
+          "valid_mask": 63,
+          "value": 57
+        },
+        {
+          "edge_index": "26256",
+          "tick": "972425926",
+          "valid_mask": 63,
+          "value": 56
+        },
+        {
+          "edge_index": "26257",
+          "tick": "972462963",
+          "valid_mask": 63,
+          "value": 55
+        },
+        {
+          "edge_index": "26258",
+          "tick": "972500000",
+          "valid_mask": 63,
+          "value": 54
+        },
+        {
+          "edge_index": "26259",
+          "tick": "972537037",
+          "valid_mask": 63,
+          "value": 53
+        },
+        {
+          "edge_index": "26260",
+          "tick": "972574074",
+          "valid_mask": 63,
+          "value": 52
+        },
+        {
+          "edge_index": "26261",
+          "tick": "972611111",
+          "valid_mask": 63,
+          "value": 51
+        },
+        {
+          "edge_index": "26262",
+          "tick": "972648148",
+          "valid_mask": 63,
+          "value": 50
+        },
+        {
+          "edge_index": "26263",
+          "tick": "972685185",
+          "valid_mask": 63,
+          "value": 49
+        },
+        {
+          "edge_index": "26264",
+          "tick": "972722222",
+          "valid_mask": 63,
+          "value": 48
+        },
+        {
+          "edge_index": "26265",
+          "tick": "972759259",
+          "valid_mask": 63,
+          "value": 47
+        },
+        {
+          "edge_index": "26266",
+          "tick": "972796296",
+          "valid_mask": 63,
+          "value": 46
+        },
+        {
+          "edge_index": "26267",
+          "tick": "972833333",
+          "valid_mask": 63,
+          "value": 45
+        },
+        {
+          "edge_index": "26268",
+          "tick": "972870370",
+          "valid_mask": 63,
+          "value": 44
+        },
+        {
+          "edge_index": "26269",
+          "tick": "972907407",
+          "valid_mask": 63,
+          "value": 43
+        },
+        {
+          "edge_index": "26270",
+          "tick": "972944444",
+          "valid_mask": 63,
+          "value": 42
+        }
+      ],
+      "schema": "sigflow.virtual-capture.v1",
+      "source": "independent_wrapper_probe",
+      "source_fingerprint": "ff8d48398191d7dbb35ad804081e7bf4b5927a9e56db9854bc0b4b1ae6d40856",
+      "targets": [
+        "port:led_n[0]",
+        "port:led_n[1]",
+        "port:led_n[2]",
+        "port:led_n[3]",
+        "port:led_n[4]",
+        "port:led_n[5]"
+      ],
+      "trigger_index": 0,
+      "triggered": true
+    },
+    "overlay": "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\virtual-rtl-captures\\43160-1\\overlay.sv",
+    "ping_verified": true,
+    "protocol_commands": 21,
+    "raw": "E:/sigflow/SigFlow_VirtroFPGA/.work/virtual-rtl-captures/43160-1/capture\\capture.raw",
+    "rtl_original_sha256": {
+      "counter.sv": "7ac4a5f183c0e2bd82c78fe61c87b9fa8993e1d87ad3ac9b45f91f2690139b11",
+      "sf_debug_link.sv": "9859daaadbb84deecf45d5b703ddd7cc36332d365ca30cde75501e28c85d731b",
+      "sf_micro_ila.sv": "912f0a2b6b19985dd59ebe3e9b40893a9d91ca4bcc1b30c14e8a5d99892dd894",
+      "sf_uart_link.sv": "eb820855765347628801c29a7825bf8f19eebdaf307ab015b5960cde5fa2e44b"
+    },
+    "samples": [
+      57,
+      56,
+      55,
+      54,
+      53,
+      52,
+      51,
+      50,
+      49,
+      48,
+      47,
+      46,
+      45,
+      44,
+      43,
+      42
+    ],
+    "scope": "Shadow wrapper with actual sf_micro_ila + sf_debug_link + sf_uart_link. Dedicated virtual UART, not board Pad17/18 transport validation. RTL finite linear capture rejects pretrigger.",
+    "sent_cobs_crc16_frames": [
+      {
+        "sequence": 1,
+        "type": 1,
+        "wire": [
+          0,
+          8,
+          1,
+          1,
+          1,
+          1,
+          7,
+          15,
+          185,
+          0
+        ]
+      },
+      {
+        "sequence": 1,
+        "type": 3,
+        "wire": [
+          0,
+          4,
+          1,
+          3,
+          1,
+          3,
+          21,
+          152,
+          0
+        ]
+      },
+      {
+        "sequence": 1,
+        "type": 5,
+        "wire": [
+          0,
+          5,
+          1,
+          5,
+          1,
+          12,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          2,
+          1,
+          2,
+          1,
+          3,
+          115,
+          199,
+          0
+        ]
+      },
+      {
+        "sequence": 2,
+        "type": 7,
+        "wire": [
+          0,
+          4,
+          1,
+          7,
+          2,
+          3,
+          134,
+          17,
+          0
+        ]
+      },
+      {
+        "sequence": 3,
+        "type": 9,
+        "wire": [
+          0,
+          4,
+          1,
+          9,
+          3,
+          3,
+          182,
+          57,
+          0
+        ]
+      },
+      {
+        "sequence": 4,
+        "type": 11,
+        "wire": [
+          0,
+          5,
+          1,
+          11,
+          4,
+          4,
+          1,
+          2,
+          1,
+          3,
+          84,
+          129,
+          0
+        ]
+      },
+      {
+        "sequence": 5,
+        "type": 11,
+        "wire": [
+          0,
+          6,
+          1,
+          11,
+          5,
+          4,
+          1,
+          2,
+          1,
+          3,
+          64,
+          178,
+          0
+        ]
+      },
+      {
+        "sequence": 6,
+        "type": 11,
+        "wire": [
+          0,
+          6,
+          1,
+          11,
+          6,
+          4,
+          2,
+          2,
+          1,
+          3,
+          124,
+          231,
+          0
+        ]
+      },
+      {
+        "sequence": 7,
+        "type": 11,
+        "wire": [
+          0,
+          6,
+          1,
+          11,
+          7,
+          4,
+          3,
+          2,
+          1,
+          3,
+          104,
+          212,
+          0
+        ]
+      },
+      {
+        "sequence": 8,
+        "type": 11,
+        "wire": [
+          0,
+          6,
+          1,
+          11,
+          8,
+          4,
+          4,
+          2,
+          1,
+          3,
+          70,
+          64,
+          0
+        ]
+      },
+      {
+        "sequence": 9,
+        "type": 11,
+        "wire": [
+          0,
+          6,
+          1,
+          11,
+          9,
+          4,
+          5,
+          2,
+          1,
+          3,
+          82,
+          115,
+          0
+        ]
+      },
+      {
+        "sequence": 10,
+        "type": 11,
+        "wire": [
+          0,
+          6,
+          1,
+          11,
+          10,
+          4,
+          6,
+          2,
+          1,
+          3,
+          110,
+          38,
+          0
+        ]
+      },
+      {
+        "sequence": 11,
+        "type": 11,
+        "wire": [
+          0,
+          6,
+          1,
+          11,
+          11,
+          4,
+          7,
+          2,
+          1,
+          3,
+          122,
+          21,
+          0
+        ]
+      },
+      {
+        "sequence": 12,
+        "type": 11,
+        "wire": [
+          0,
+          6,
+          1,
+          11,
+          12,
+          4,
+          8,
+          2,
+          1,
+          3,
+          213,
+          9,
+          0
+        ]
+      },
+      {
+        "sequence": 13,
+        "type": 11,
+        "wire": [
+          0,
+          6,
+          1,
+          11,
+          13,
+          4,
+          9,
+          2,
+          1,
+          3,
+          193,
+          58,
+          0
+        ]
+      },
+      {
+        "sequence": 14,
+        "type": 11,
+        "wire": [
+          0,
+          6,
+          1,
+          11,
+          14,
+          4,
+          10,
+          2,
+          1,
+          3,
+          253,
+          111,
+          0
+        ]
+      },
+      {
+        "sequence": 15,
+        "type": 11,
+        "wire": [
+          0,
+          6,
+          1,
+          11,
+          15,
+          4,
+          11,
+          2,
+          1,
+          3,
+          233,
+          92,
+          0
+        ]
+      },
+      {
+        "sequence": 16,
+        "type": 11,
+        "wire": [
+          0,
+          6,
+          1,
+          11,
+          16,
+          4,
+          12,
+          2,
+          1,
+          3,
+          67,
+          210,
+          0
+        ]
+      },
+      {
+        "sequence": 17,
+        "type": 11,
+        "wire": [
+          0,
+          6,
+          1,
+          11,
+          17,
+          4,
+          13,
+          2,
+          1,
+          3,
+          87,
+          225,
+          0
+        ]
+      },
+      {
+        "sequence": 18,
+        "type": 11,
+        "wire": [
+          0,
+          6,
+          1,
+          11,
+          18,
+          4,
+          14,
+          2,
+          1,
+          3,
+          107,
+          180,
+          0
+        ]
+      },
+      {
+        "sequence": 19,
+        "type": 11,
+        "wire": [
+          0,
+          6,
+          1,
+          11,
+          19,
+          4,
+          15,
+          2,
+          1,
+          3,
+          127,
+          135,
+          0
+        ]
+      }
+    ],
+    "source": "virtual_rtl",
+    "source_sha256": {
+      "E:\\sigflow\\SigFlow_VirtroFPGA\\examples\\virtual\\counter\\counter.sv": "7ac4a5f183c0e2bd82c78fe61c87b9fa8993e1d87ad3ac9b45f91f2690139b11"
+    },
+    "source_unchanged": true,
+    "status": "passed",
+    "transport": "bit_level_debug_uart",
+    "trigger_index": 0,
+    "vcd": "E:/sigflow/SigFlow_VirtroFPGA/.work/virtual-rtl-captures/43160-1/capture\\capture.vcd"
+  },
+  "status": "passed"
+}

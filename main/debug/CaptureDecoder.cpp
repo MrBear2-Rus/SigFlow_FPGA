@@ -59,6 +59,8 @@ bool DecodeCaptureToVcd(const std::vector<std::uint32_t>& samples,
         error = "invalid capture input (samples<depth or no probes)";
         return false;
     }
+    if(!timebase.validMasks.empty() && timebase.validMasks.size()<depth){error="capture validity mask count mismatch";return false;}
+    if(!timebase.sampleTicks.empty()){if(timebase.sampleTicks.size()<depth){error="capture timestamp count mismatch";return false;}for(size_t i=1;i<depth;++i)if(timebase.sampleTicks[i]<=timebase.sampleTicks[i-1]){error="capture timestamps must increase";return false;}}
     if (timebase.triggerObserved && triggerIndex >= depth) {
         error = "trigger index out of range";
         return false;
@@ -113,6 +115,7 @@ bool DecodeCaptureToVcd(const std::vector<std::uint32_t>& samples,
     // This expression is preflighted above. All samples use one absolute
     // rational origin; a rounded per-sample period is never accumulated.
     const auto tickAt = [&](std::uint64_t index) {
+        if(!timebase.sampleTicks.empty())return timebase.sampleTicks[index]-timebase.sampleTicks[0];
         return index * wholeStep + (index * fractionalStep) / denominator;
     };
     meta.lastSampleTime = tickAt(depth - 1);
@@ -139,7 +142,8 @@ bool DecodeCaptureToVcd(const std::vector<std::uint32_t>& samples,
                 : ((std::uint32_t(1) << probes[i].width) - 1);
             const std::uint32_t masked =
                 (sample >> probes[i].bitOffset) & widthMask;
-            const std::string value = BitsOf(masked, probes[i].width);
+            std::string value = BitsOf(masked, probes[i].width);
+            if(!timebase.validMasks.empty())for(unsigned bit=0;bit<probes[i].width;++bit)if(!(timebase.validMasks[t]&(std::uint32_t(1)<<(probes[i].bitOffset+bit))))value[probes[i].width-1-bit]='x';
             if (t == 0 || value != prev[i]) {
                 out << "b" << value << " " << IdCode(static_cast<int>(i)) << "\n";
                 prev[i] = value;

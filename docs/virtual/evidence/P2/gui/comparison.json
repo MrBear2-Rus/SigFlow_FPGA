@@ -1,0 +1,22 @@
+{
+  "actual": false,
+  "actual_valid": false,
+  "artifacts": [
+    {
+      "metadata": "E:/sigflow/SigFlow_VirtroFPGA\\.work/virtual-wave-compare\\43160-1\\baseline\\capture.metadata.json",
+      "raw": "E:/sigflow/SigFlow_VirtroFPGA\\.work/virtual-wave-compare\\43160-1\\baseline\\capture.raw",
+      "vcd": "E:/sigflow/SigFlow_VirtroFPGA\\.work/virtual-wave-compare\\43160-1\\baseline\\capture.vcd"
+    },
+    {
+      "metadata": "E:/sigflow/SigFlow_VirtroFPGA\\.work/virtual-wave-compare\\43160-1\\actual\\capture.metadata.json",
+      "raw": "E:/sigflow/SigFlow_VirtroFPGA\\.work/virtual-wave-compare\\43160-1\\actual\\capture.raw",
+      "vcd": "E:/sigflow/SigFlow_VirtroFPGA\\.work/virtual-wave-compare\\43160-1\\actual\\capture.vcd"
+    }
+  ],
+  "expected": true,
+  "expected_valid": true,
+  "first_failure_tick": "500000",
+  "sample_offset": -2,
+  "signal": "led0.K",
+  "status": "diverged"
+}

@@ -210,3 +210,15 @@ order 交换：主侧栏移到画布右侧邻位（order2 ↔3 中区在前，�
 | 生命周期 | 新面板订阅同一控制器，析构取消订阅；停/重开不继续调用旧面板；重放显示三次结果与 circuit/control digest |
 
 新增面使用 UiTheme 的 bgPanel/surfaceOnPanel/canvas/text1/text2/text3/stroke/strokeStrong/warn/danger/selOnPanel，不新增硬编码颜色。设计 HTML 的 P1 template 只表示局部控件契约，不连接仿真内核。
+
+### 7.2 Phase 2 调试与教学局部扩展（2026-11-19）
+
+| 入口 | 冻结行为 |
+|---|---|
+| 板面 STATE | 悬停显示状态，右键/教学按钮打开非模态折叠解释；切换会话回收弹窗 |
+| 双端 Probe | 默认 pad.10 / led0.K，显示 target/tick/STATE/解释链/名义 mV；只读、非 SPICE |
+| 底部教学页 | 四道课、逐级 L1–L4、根因/工作区 RTL 提交；盲测清空并锁定秘密故障控件，服务端先脱敏 |
+| 虚拟 TraceBridge | Mode A 环形采集、Mode B 真实 RTL 独立参考轨；保存基线/首个分歧；域或相位不一致显示 inconclusive |
+| 会话切换 | 清空旧证据/采集/基线；显示会话实际 Hz，显式区分教学夹具 |
+
+六区与快捷键不变。继续使用 UiTheme Token 和 FromDIP；教学页为可滚动 wrap 布局，结构化详情独立滚动。HTML template 只描述桌面局部契约，Web 工程暂缓。

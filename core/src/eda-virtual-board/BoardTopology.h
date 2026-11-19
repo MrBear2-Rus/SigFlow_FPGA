@@ -33,7 +33,8 @@ public:
     bool HasEdge(const std::string&) const;
     void ValidateFaults(const FaultSet&) const;
     // Drivers belong to individual nodes. An open edge splits connected components.
-    Json Resolve(const std::map<std::string,std::vector<Driver>>&,const FaultSet&,uint64_t tick) const;
+    Json Resolve(const std::map<std::string,std::vector<Driver>>&,const FaultSet&,uint64_t tick,const Json& overlay=Json::object()) const;
+    bool UsesState13()const;
 private:
     Json descriptor_;
     std::string fingerprint_,clock_endpoint_;

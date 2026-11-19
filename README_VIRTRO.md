@@ -11,12 +11,15 @@
 | K4 / K5 / U0 | 板级拓扑、连接开路/恢复、含故障重放与 GUI 基础面板通过；33/33 CTest，内核 K0～K5 收官 | [K4/K5/U0报告](docs/virtual/K4_K5收官与U0实测报告.md) |
 | U1 / 产品 M0 | 已实测收官：34/34 CTest、437 项 GUI 断言；U1/full_product_M0=true | [U1 联合验收与 M0 收官报告](docs/virtual/U1联合验收与M0收官报告.md) |
 | Phase 1 扩展 GUI MVP | 已实测收官：37/37 CTest、36 项新增 GUI 断言、四类故障与外设三次重放；Phase1_complete=true | [Phase 1 实测报告](docs/virtual/Phase1扩展外设与四大故障实测报告.md) |
+| Phase 2 调试与教学闭环 | 已实测收官：41/41 CTest、2132 项原生检查、22 项新增 GUI 断言；签名四课程与三组隐藏复测；Phase2_complete=true | [Phase 2 实测报告](docs/virtual/Phase2调试探针与教学判题闭环实测报告.md) |
 
 最高设计契约位于工作区`交付资料/04_SigFlow虚拟FPGA平台规划书/`。Web暂缓；新增内核后续保持零wx依赖。只读基线`.research/SigFlow_FPGA_verified`不在本工程内修改。
 
+Phase 2 调试与教学入口已加入；最终状态以 [P2 验收摘要](docs/virtual/evidence/P2-acceptance-summary.json) 为准。完整 13 态、扩展故障、Probe、真实 RTL TraceBridge 与签名课程的使用和可信边界见 [Phase 2 接口与复现实验](docs/virtual/Phase2接口与复现实验.md)。请使用 `python tools/virtual/verify_phase2_final.py` 运行完整 41 项验证并仅归档 P2；旧 final 脚本会重写旧阶段归档。
+
 M0 历史验收入口为 `python tools/virtual/verify_m0_final.py`，当时共 34 项。Phase 1 请使用 `python tools/virtual/verify_phase1_final.py`：桌面构建、原 34 项 + 新 3 项 CTest、真实 GUI/RTL/TSan，结果写入独立 [P1-acceptance-summary.json](docs/virtual/evidence/P1-acceptance-summary.json)，同时校验 M0 归档逐文件 SHA-256 不变。GUI 声明导出仍使用 `tools/virtual/export_ports.py` 与独立 sidecar，不覆盖 nextpnr 网表。
 
-最新机器可读状态：[M0-final-acceptance-summary.json](docs/virtual/evidence/M0-final-acceptance-summary.json)。既有 K0～K5/U0 报告与证据保留作历史记录，U1 的产品状态独立记录；不会将历史内核通过误写为 GUI 联合验收通过。
+最新机器可读状态：[P2-acceptance-summary.json](docs/virtual/evidence/P2-acceptance-summary.json)；M0 原始结论保留在 [M0-final-acceptance-summary.json](docs/virtual/evidence/M0-final-acceptance-summary.json)。各阶段报告与证据独立归档，不用新阶段结果覆盖历史记录。
 
 桌面使用：运行 `build-m0/sigflow.exe`，在 FPGA 工具窗打开「虚拟实验箱」，点击「加载 M0 参考计数器」；后台自动完成声明导出、CST/Bank 校验与 runner 编译，进入 Ready。先松开 P4 复位，再按住 P3 并 Step，可观察 LED 计数。Paused 的按键与故障修改均显示 pending，Step/Play 后生效；查看底部「实验故障」可断开/恢复走线或注入输入 CON。
 

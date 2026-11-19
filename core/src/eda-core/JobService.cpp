@@ -526,7 +526,8 @@ bool CoreJobService::IsLegalTransition(JobState from, JobState to) const {
 }
 
 bool CoreJobService::Transition(const std::string& jobId, JobState to,
-                                const std::string& reason, int exitCode) {
+                                const std::string& reason, int exitCode,
+                                const JobReport* completedReport) {
     JobRecord snapshot;
     {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -536,6 +537,12 @@ bool CoreJobService::Transition(const std::string& jobId, JobState to,
         it->second.updatedAt = NowUtc();
         it->second.exitCode = exitCode;
         it->second.transitions.push_back({to, it->second.updatedAt, "service", reason, exitCode});
+        if (completedReport) {
+            auto completed = *completedReport;
+            completed.state = to;
+            completed.exitCode = exitCode;
+            reports_[jobId] = std::move(completed);
+        }
         snapshot = it->second;
     }
     PersistRecord(snapshot);
@@ -748,7 +755,10 @@ void CoreJobService::Execute(const std::string& jobId) {
     } else if (static_cast<bool>(providerError)) {
         Transition(jobId, JobState::Failed, providerError.message, -1);
     } else if (Transition(jobId, JobState::ValidatingArtifact, "Validating artifacts.", 0)) {
-        Transition(jobId, JobState::Succeeded, "Job completed.", 0);
+        // A report observer must never see Succeeded before its artifacts and
+        // metrics. Publish both under the same mutex before persisting files.
+        const auto completed = BuildReport(jobId, *context, providerError, false);
+        Transition(jobId, JobState::Succeeded, "Job completed.", 0, &completed);
     }
 
     const JobReport report = BuildReport(jobId, *context, providerError, timedOut);

@@ -23,14 +23,14 @@ std::filesystem::path VirtualProjectSessionBuilder::FindRepository(){
 }
 eda::Json VirtualProjectSessionBuilder::ReadProject(const std::filesystem::path& file){auto j=Read(file);j["project_root"]=eda::platform::PathToUtf8(std::filesystem::absolute(file).parent_path());return j;}
 void VirtualProjectSessionBuilder::Cancel(){timer_.Stop();done_={};if(child_){static_cast<BuildChild*>(child_)->done={};if(pid_)wxProcess::Kill(pid_,wxSIGKILL,wxKILL_CHILDREN);child_=nullptr;pid_=0;}}
-void VirtualProjectSessionBuilder::Start(eda::Json request,std::function<void(eda::Json)> callback){
+void VirtualProjectSessionBuilder::Start(eda::Json request,std::function<void(eda::Json)> callback,const std::string& tool){
     Cancel();done_=std::move(callback);
     try{
         auto repo=request.contains("repo_root")?eda::platform::PathFromUtf8(request.at("repo_root")):FindRepository();request["repo_root"]=eda::platform::PathToUtf8(repo);
         static std::atomic<uint64_t> serial{0};auto folder=repo/".work/virtual-build-jobs"/(std::to_string(wxGetProcessId())+"-"+std::to_string(++serial));std::filesystem::create_directories(folder);
         auto input=folder/"request.json";result_=folder/"result.json";std::ofstream(input)<<request.dump(2)<<'\n';
         wxString python;if(!wxGetEnv("SIGFLOW_PYTHON3",&python))python="python.exe";
-        auto script=wxString::FromUTF8(eda::platform::PathToUtf8(repo/"tools/virtual/build_virtual_project.py"));auto in=wxString::FromUTF8(eda::platform::PathToUtf8(input));auto out=wxString::FromUTF8(eda::platform::PathToUtf8(result_));
+        if(tool!="build_virtual_project.py" && tool!="build_virtual_tracebridge.py")throw std::runtime_error("E_BUILD_TOOL");auto script=wxString::FromUTF8(eda::platform::PathToUtf8(repo/"tools/virtual"/tool));auto in=wxString::FromUTF8(eda::platform::PathToUtf8(input));auto out=wxString::FromUTF8(eda::platform::PathToUtf8(result_));
         const wchar_t* argv[]={python.wc_str(),script.wc_str(),L"--request",in.wc_str(),L"--result",out.wc_str(),nullptr};
         auto* child=new BuildChild();child_=child;child->Redirect();child->done=[this](int code){timer_.Stop();child_=nullptr;pid_=0;auto done=std::move(done_);
             eda::Json result;try{result=Read(result_);}catch(...){result={{"ok",false},{"diagnostics",eda::Json::array({{{"code","E_BUILD_PROCESS"},{"message","工程构建进程退出，未生成结果（exit="+std::to_string(code)+"）"}}})}};}if(done)done(std::move(result));};

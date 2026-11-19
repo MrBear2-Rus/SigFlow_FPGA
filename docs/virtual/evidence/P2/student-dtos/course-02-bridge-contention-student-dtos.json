@@ -1,0 +1,4853 @@
+[
+  {
+    "state": "Paused",
+    "reason": "Ready",
+    "tick_ps": "1",
+    "position": {
+      "delta": 0,
+      "event_seq": "51",
+      "tick": "0"
+    },
+    "attempted_position": {
+      "delta": 0,
+      "event_seq": "1",
+      "tick": "0"
+    },
+    "topology_position": {
+      "delta": 0,
+      "event_seq": "51",
+      "tick": "0"
+    },
+    "outputs": {
+      "led_n[0]": true,
+      "led_n[1]": true,
+      "led_n[2]": true,
+      "led_n[3]": true,
+      "led_n[4]": true,
+      "led_n[5]": true
+    },
+    "input_writes": "3",
+    "eval_calls": "1",
+    "final_calls": 0,
+    "pending_count": 0,
+    "pending_inputs": {},
+    "binding_status": "bound",
+    "phase1": true,
+    "phase2": true,
+    "mode": "student_blind_test",
+    "run_id": "qchqIydpk1lgaCUqu45mvt5Jx_S1dm4dYPZtf_YfILg",
+    "run_token": "qchqIydpk1lgaCUqu45mvt5Jx_S1dm4dYPZtf_YfILg",
+    "task": {
+      "schema": "sigflow.course-task.v1",
+      "id": "lesson-2",
+      "title": "相邻输出异常：寻找共同驱动",
+      "objective": "采集可复核的测量证据，定位异常并提交修复",
+      "allowed_observations": [
+        "pad.10",
+        "led0.K",
+        "pad.11",
+        "led1.K",
+        "pad.3",
+        "key_p3.contact",
+        "pad.52",
+        "port:led_n[0]",
+        "port:led_n[3]"
+      ],
+      "public_tests": [
+        "reset_then_press",
+        "next_event_and_ticks"
+      ],
+      "hint_levels": [
+        "L1",
+        "L2",
+        "L3",
+        "L4"
+      ],
+      "mode": "student_blind_test",
+      "clock_fixture": {
+        "frequency_hz": "27000000",
+        "physical_board_oscillator_hz": "27000000",
+        "teaching_override": false
+      }
+    },
+    "hints_used": 0,
+    "allowed_controls": [
+      "play",
+      "pause",
+      "step",
+      "stop",
+      "set",
+      "probe",
+      "capture",
+      "hint",
+      "grade"
+    ],
+    "student_workspace_source": "E:/sigflow/SigFlow_VirtroFPGA/.work/p2/teaching/course-02-bridge-contention-fa7dd50686ae41b888feb4b028fc6057/student/solution.sv",
+    "board": {
+      "board_id": "tang-nano-9k",
+      "nodes": {
+        "clk27m.out": {
+          "state_code": 13,
+          "logic": "0",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 13,
+            "logic": "0",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 13,
+                "strength": 3,
+                "level": "low"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 13,
+                "result_state": 13,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "key_p3.contact": {
+          "state_code": 7,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 7,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 2,
+                "strength": 0,
+                "level": "floating"
+              },
+              {
+                "driver_id": "observed-source-2",
+                "state_code": 7,
+                "strength": 1,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 2,
+                "result_state": 2,
+                "contention_triggered": false
+              },
+              {
+                "step_index": 1,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-2",
+                "rhs_state": 7,
+                "result_state": 7,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "key_p4.contact": {
+          "state_code": 13,
+          "logic": "0",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 13,
+            "logic": "0",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 13,
+                "strength": 3,
+                "level": "low"
+              },
+              {
+                "driver_id": "observed-source-2",
+                "state_code": 7,
+                "strength": 1,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 13,
+                "result_state": 13,
+                "contention_triggered": false
+              },
+              {
+                "step_index": 1,
+                "lhs_state": 13,
+                "rhs_driver_id": "observed-source-2",
+                "rhs_state": 7,
+                "result_state": 13,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "led0.K": {
+          "state_code": 15,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 15,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              },
+              {
+                "driver_id": "observed-source-2",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              },
+              {
+                "step_index": 1,
+                "lhs_state": 15,
+                "rhs_driver_id": "observed-source-2",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "led1.K": {
+          "state_code": 15,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 15,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              },
+              {
+                "driver_id": "observed-source-2",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              },
+              {
+                "step_index": 1,
+                "lhs_state": 15,
+                "rhs_driver_id": "observed-source-2",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "led2.K": {
+          "state_code": 15,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 15,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "led3.K": {
+          "state_code": 15,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 15,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "led4.K": {
+          "state_code": 15,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 15,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "led5.K": {
+          "state_code": 15,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 15,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "pad.10": {
+          "state_code": 15,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 15,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              },
+              {
+                "driver_id": "observed-source-2",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              },
+              {
+                "step_index": 1,
+                "lhs_state": 15,
+                "rhs_driver_id": "observed-source-2",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "pad.11": {
+          "state_code": 15,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 15,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              },
+              {
+                "driver_id": "observed-source-2",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              },
+              {
+                "step_index": 1,
+                "lhs_state": 15,
+                "rhs_driver_id": "observed-source-2",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "pad.13": {
+          "state_code": 15,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 15,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "pad.14": {
+          "state_code": 15,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 15,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "pad.15": {
+          "state_code": 15,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 15,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "pad.16": {
+          "state_code": 15,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 15,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "pad.3": {
+          "state_code": 7,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 7,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 2,
+                "strength": 0,
+                "level": "floating"
+              },
+              {
+                "driver_id": "observed-source-2",
+                "state_code": 7,
+                "strength": 1,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 2,
+                "result_state": 2,
+                "contention_triggered": false
+              },
+              {
+                "step_index": 1,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-2",
+                "rhs_state": 7,
+                "result_state": 7,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "pad.4": {
+          "state_code": 13,
+          "logic": "0",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 13,
+            "logic": "0",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 13,
+                "strength": 3,
+                "level": "low"
+              },
+              {
+                "driver_id": "observed-source-2",
+                "state_code": 7,
+                "strength": 1,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 13,
+                "result_state": 13,
+                "contention_triggered": false
+              },
+              {
+                "step_index": 1,
+                "lhs_state": 13,
+                "rhs_driver_id": "observed-source-2",
+                "rhs_state": 7,
+                "result_state": 13,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "pad.52": {
+          "state_code": 13,
+          "logic": "0",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 13,
+            "logic": "0",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 13,
+                "strength": 3,
+                "level": "low"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 13,
+                "result_state": 13,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        }
+      },
+      "leds": {
+        "led0": {
+          "integration": {
+            "active_ticks": "0",
+            "duty_ppm": 0,
+            "instant_active": false,
+            "instant_valid": true,
+            "integration_window_ticks": "20000000000",
+            "unknown_ticks": "0",
+            "valid_ticks": "0",
+            "window_ticks": "0"
+          },
+          "lit": false,
+          "state_code": 15
+        },
+        "led1": {
+          "integration": {
+            "active_ticks": "0",
+            "duty_ppm": 0,
+            "instant_active": false,
+            "instant_valid": true,
+            "integration_window_ticks": "20000000000",
+            "unknown_ticks": "0",
+            "valid_ticks": "0",
+            "window_ticks": "0"
+          },
+          "lit": false,
+          "state_code": 15
+        },
+        "led2": {
+          "integration": {
+            "active_ticks": "0",
+            "duty_ppm": 0,
+            "instant_active": false,
+            "instant_valid": true,
+            "integration_window_ticks": "20000000000",
+            "unknown_ticks": "0",
+            "valid_ticks": "0",
+            "window_ticks": "0"
+          },
+          "lit": false,
+          "state_code": 15
+        },
+        "led3": {
+          "integration": {
+            "active_ticks": "0",
+            "duty_ppm": 0,
+            "instant_active": false,
+            "instant_valid": true,
+            "integration_window_ticks": "20000000000",
+            "unknown_ticks": "0",
+            "valid_ticks": "0",
+            "window_ticks": "0"
+          },
+          "lit": false,
+          "state_code": 15
+        },
+        "led4": {
+          "integration": {
+            "active_ticks": "0",
+            "duty_ppm": 0,
+            "instant_active": false,
+            "instant_valid": true,
+            "integration_window_ticks": "20000000000",
+            "unknown_ticks": "0",
+            "valid_ticks": "0",
+            "window_ticks": "0"
+          },
+          "lit": false,
+          "state_code": 15
+        },
+        "led5": {
+          "integration": {
+            "active_ticks": "0",
+            "duty_ppm": 0,
+            "instant_active": false,
+            "instant_valid": true,
+            "integration_window_ticks": "20000000000",
+            "unknown_ticks": "0",
+            "valid_ticks": "0",
+            "window_ticks": "0"
+          },
+          "lit": false,
+          "state_code": 15
+        }
+      },
+      "peripherals": {}
+    },
+    "trace": {
+      "committed_through_tick": "0",
+      "generation": "1",
+      "revision": "1",
+      "run_id": "qchqIydpk1lgaCUqu45mvt5Jx_S1dm4dYPZtf_YfILg",
+      "tail_event_seq": "51"
+    },
+    "frequency_hz": "27000000",
+    "instruments": {
+      "live": []
+    },
+    "digests": {
+      "circuit": "a62085e82fb3f5194f63a936ff2acb9d48061881d6459691f780816636c20b39",
+      "control": "f3949b4414b8d51b253da4eb6a5fd43dad96629ace11ff538f6d6c9f8ca47ca5",
+      "algorithm": "sigflow.public-hmac.v1"
+    },
+    "error": ""
+  },
+  {
+    "state": "Paused",
+    "reason": "StepComplete",
+    "tick_ps": "1",
+    "position": {
+      "delta": 0,
+      "event_seq": "80",
+      "tick": "55556"
+    },
+    "attempted_position": {
+      "delta": 0,
+      "event_seq": "70",
+      "tick": "55556"
+    },
+    "topology_position": {
+      "delta": 0,
+      "event_seq": "80",
+      "tick": "55556"
+    },
+    "outputs": {
+      "led_n[0]": false,
+      "led_n[1]": true,
+      "led_n[2]": true,
+      "led_n[3]": true,
+      "led_n[4]": true,
+      "led_n[5]": true
+    },
+    "input_writes": "21",
+    "eval_calls": "7",
+    "final_calls": 0,
+    "pending_count": 0,
+    "pending_inputs": {},
+    "binding_status": "bound",
+    "phase1": true,
+    "phase2": true,
+    "mode": "student_blind_test",
+    "run_id": "qchqIydpk1lgaCUqu45mvt5Jx_S1dm4dYPZtf_YfILg",
+    "run_token": "qchqIydpk1lgaCUqu45mvt5Jx_S1dm4dYPZtf_YfILg",
+    "task": {
+      "schema": "sigflow.course-task.v1",
+      "id": "lesson-2",
+      "title": "相邻输出异常：寻找共同驱动",
+      "objective": "采集可复核的测量证据，定位异常并提交修复",
+      "allowed_observations": [
+        "pad.10",
+        "led0.K",
+        "pad.11",
+        "led1.K",
+        "pad.3",
+        "key_p3.contact",
+        "pad.52",
+        "port:led_n[0]",
+        "port:led_n[3]"
+      ],
+      "public_tests": [
+        "reset_then_press",
+        "next_event_and_ticks"
+      ],
+      "hint_levels": [
+        "L1",
+        "L2",
+        "L3",
+        "L4"
+      ],
+      "mode": "student_blind_test",
+      "clock_fixture": {
+        "frequency_hz": "27000000",
+        "physical_board_oscillator_hz": "27000000",
+        "teaching_override": false
+      }
+    },
+    "hints_used": 0,
+    "allowed_controls": [
+      "play",
+      "pause",
+      "step",
+      "stop",
+      "set",
+      "probe",
+      "capture",
+      "hint",
+      "grade"
+    ],
+    "student_workspace_source": "E:/sigflow/SigFlow_VirtroFPGA/.work/p2/teaching/course-02-bridge-contention-fa7dd50686ae41b888feb4b028fc6057/student/solution.sv",
+    "board": {
+      "board_id": "tang-nano-9k",
+      "nodes": {
+        "clk27m.out": {
+          "state_code": 15,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 15,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "key_p3.contact": {
+          "state_code": 13,
+          "logic": "0",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 13,
+            "logic": "0",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 13,
+                "strength": 3,
+                "level": "low"
+              },
+              {
+                "driver_id": "observed-source-2",
+                "state_code": 7,
+                "strength": 1,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 13,
+                "result_state": 13,
+                "contention_triggered": false
+              },
+              {
+                "step_index": 1,
+                "lhs_state": 13,
+                "rhs_driver_id": "observed-source-2",
+                "rhs_state": 7,
+                "result_state": 13,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "key_p4.contact": {
+          "state_code": 7,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 7,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 2,
+                "strength": 0,
+                "level": "floating"
+              },
+              {
+                "driver_id": "observed-source-2",
+                "state_code": 7,
+                "strength": 1,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 2,
+                "result_state": 2,
+                "contention_triggered": false
+              },
+              {
+                "step_index": 1,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-2",
+                "rhs_state": 7,
+                "result_state": 7,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "led0.K": {
+          "state_code": 46,
+          "logic": "x",
+          "valid": false,
+          "contention": true,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 46,
+            "logic": "x",
+            "valid": false,
+            "contention": true,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 13,
+                "strength": 3,
+                "level": "low"
+              },
+              {
+                "driver_id": "observed-source-2",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 13,
+                "result_state": 13,
+                "contention_triggered": false
+              },
+              {
+                "step_index": 1,
+                "lhs_state": 13,
+                "rhs_driver_id": "observed-source-2",
+                "rhs_state": 15,
+                "result_state": 46,
+                "contention_triggered": true
+              }
+            ],
+            "conflict_sources": [
+              {
+                "lhs_driver_id": "observed-source-1",
+                "rhs_driver_id": "observed-source-2",
+                "lhs_state": 13,
+                "rhs_state": 15
+              }
+            ],
+            "summary": "电气观测为 CON：比较已测驱动的折叠步骤。"
+          }
+        },
+        "led1.K": {
+          "state_code": 46,
+          "logic": "x",
+          "valid": false,
+          "contention": true,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 46,
+            "logic": "x",
+            "valid": false,
+            "contention": true,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 13,
+                "strength": 3,
+                "level": "low"
+              },
+              {
+                "driver_id": "observed-source-2",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 13,
+                "result_state": 13,
+                "contention_triggered": false
+              },
+              {
+                "step_index": 1,
+                "lhs_state": 13,
+                "rhs_driver_id": "observed-source-2",
+                "rhs_state": 15,
+                "result_state": 46,
+                "contention_triggered": true
+              }
+            ],
+            "conflict_sources": [
+              {
+                "lhs_driver_id": "observed-source-1",
+                "rhs_driver_id": "observed-source-2",
+                "lhs_state": 13,
+                "rhs_state": 15
+              }
+            ],
+            "summary": "电气观测为 CON：比较已测驱动的折叠步骤。"
+          }
+        },
+        "led2.K": {
+          "state_code": 15,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 15,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "led3.K": {
+          "state_code": 15,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 15,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "led4.K": {
+          "state_code": 15,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 15,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "led5.K": {
+          "state_code": 15,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 15,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "pad.10": {
+          "state_code": 46,
+          "logic": "x",
+          "valid": false,
+          "contention": true,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 46,
+            "logic": "x",
+            "valid": false,
+            "contention": true,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 13,
+                "strength": 3,
+                "level": "low"
+              },
+              {
+                "driver_id": "observed-source-2",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 13,
+                "result_state": 13,
+                "contention_triggered": false
+              },
+              {
+                "step_index": 1,
+                "lhs_state": 13,
+                "rhs_driver_id": "observed-source-2",
+                "rhs_state": 15,
+                "result_state": 46,
+                "contention_triggered": true
+              }
+            ],
+            "conflict_sources": [
+              {
+                "lhs_driver_id": "observed-source-1",
+                "rhs_driver_id": "observed-source-2",
+                "lhs_state": 13,
+                "rhs_state": 15
+              }
+            ],
+            "summary": "电气观测为 CON：比较已测驱动的折叠步骤。"
+          }
+        },
+        "pad.11": {
+          "state_code": 46,
+          "logic": "x",
+          "valid": false,
+          "contention": true,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 46,
+            "logic": "x",
+            "valid": false,
+            "contention": true,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 13,
+                "strength": 3,
+                "level": "low"
+              },
+              {
+                "driver_id": "observed-source-2",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 13,
+                "result_state": 13,
+                "contention_triggered": false
+              },
+              {
+                "step_index": 1,
+                "lhs_state": 13,
+                "rhs_driver_id": "observed-source-2",
+                "rhs_state": 15,
+                "result_state": 46,
+                "contention_triggered": true
+              }
+            ],
+            "conflict_sources": [
+              {
+                "lhs_driver_id": "observed-source-1",
+                "rhs_driver_id": "observed-source-2",
+                "lhs_state": 13,
+                "rhs_state": 15
+              }
+            ],
+            "summary": "电气观测为 CON：比较已测驱动的折叠步骤。"
+          }
+        },
+        "pad.13": {
+          "state_code": 15,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 15,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "pad.14": {
+          "state_code": 15,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 15,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "pad.15": {
+          "state_code": 15,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 15,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "pad.16": {
+          "state_code": 15,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 15,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "pad.3": {
+          "state_code": 13,
+          "logic": "0",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 13,
+            "logic": "0",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 13,
+                "strength": 3,
+                "level": "low"
+              },
+              {
+                "driver_id": "observed-source-2",
+                "state_code": 7,
+                "strength": 1,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 13,
+                "result_state": 13,
+                "contention_triggered": false
+              },
+              {
+                "step_index": 1,
+                "lhs_state": 13,
+                "rhs_driver_id": "observed-source-2",
+                "rhs_state": 7,
+                "result_state": 13,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "pad.4": {
+          "state_code": 7,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 7,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 2,
+                "strength": 0,
+                "level": "floating"
+              },
+              {
+                "driver_id": "observed-source-2",
+                "state_code": 7,
+                "strength": 1,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 2,
+                "result_state": 2,
+                "contention_triggered": false
+              },
+              {
+                "step_index": 1,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-2",
+                "rhs_state": 7,
+                "result_state": 7,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "pad.52": {
+          "state_code": 15,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 15,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        }
+      },
+      "leds": {
+        "led0": {
+          "integration": {
+            "active_ticks": "0",
+            "duty_ppm": 0,
+            "instant_active": false,
+            "instant_valid": false,
+            "integration_window_ticks": "20000000000",
+            "unknown_ticks": "0",
+            "valid_ticks": "55556",
+            "window_ticks": "55556"
+          },
+          "lit": false,
+          "state_code": 46
+        },
+        "led1": {
+          "integration": {
+            "active_ticks": "0",
+            "duty_ppm": 0,
+            "instant_active": false,
+            "instant_valid": false,
+            "integration_window_ticks": "20000000000",
+            "unknown_ticks": "0",
+            "valid_ticks": "55556",
+            "window_ticks": "55556"
+          },
+          "lit": false,
+          "state_code": 46
+        },
+        "led2": {
+          "integration": {
+            "active_ticks": "0",
+            "duty_ppm": 0,
+            "instant_active": false,
+            "instant_valid": true,
+            "integration_window_ticks": "20000000000",
+            "unknown_ticks": "0",
+            "valid_ticks": "55556",
+            "window_ticks": "55556"
+          },
+          "lit": false,
+          "state_code": 15
+        },
+        "led3": {
+          "integration": {
+            "active_ticks": "0",
+            "duty_ppm": 0,
+            "instant_active": false,
+            "instant_valid": true,
+            "integration_window_ticks": "20000000000",
+            "unknown_ticks": "0",
+            "valid_ticks": "55556",
+            "window_ticks": "55556"
+          },
+          "lit": false,
+          "state_code": 15
+        },
+        "led4": {
+          "integration": {
+            "active_ticks": "0",
+            "duty_ppm": 0,
+            "instant_active": false,
+            "instant_valid": true,
+            "integration_window_ticks": "20000000000",
+            "unknown_ticks": "0",
+            "valid_ticks": "55556",
+            "window_ticks": "55556"
+          },
+          "lit": false,
+          "state_code": 15
+        },
+        "led5": {
+          "integration": {
+            "active_ticks": "0",
+            "duty_ppm": 0,
+            "instant_active": false,
+            "instant_valid": true,
+            "integration_window_ticks": "20000000000",
+            "unknown_ticks": "0",
+            "valid_ticks": "55556",
+            "window_ticks": "55556"
+          },
+          "lit": false,
+          "state_code": 15
+        }
+      },
+      "peripherals": {}
+    },
+    "trace": {
+      "committed_through_tick": "55556",
+      "generation": "1",
+      "revision": "7",
+      "run_id": "qchqIydpk1lgaCUqu45mvt5Jx_S1dm4dYPZtf_YfILg",
+      "tail_event_seq": "80"
+    },
+    "frequency_hz": "27000000",
+    "instruments": {
+      "live": [
+        {
+          "probe_id": "p0",
+          "target": "pad.10",
+          "position": {
+            "delta": 0,
+            "event_seq": "80",
+            "tick": "55556"
+          },
+          "nominal_mv": null,
+          "voltage_model": "digital_nominal_estimate_not_spice",
+          "read_only": true,
+          "state": {
+            "state_code": 46,
+            "logic": "x",
+            "valid": false,
+            "contention": true,
+            "explanation": {
+              "schema": "sigflow.resolution-explanation.public.v1",
+              "resolver": "sigflow.state13.v1",
+              "state_code": 46,
+              "logic": "x",
+              "valid": false,
+              "contention": true,
+              "drivers": [
+                {
+                  "driver_id": "observed-source-1",
+                  "state_code": 13,
+                  "strength": 3,
+                  "level": "low"
+                },
+                {
+                  "driver_id": "observed-source-2",
+                  "state_code": 15,
+                  "strength": 3,
+                  "level": "high"
+                }
+              ],
+              "fold_steps": [
+                {
+                  "step_index": 0,
+                  "lhs_state": 2,
+                  "rhs_driver_id": "observed-source-1",
+                  "rhs_state": 13,
+                  "result_state": 13,
+                  "contention_triggered": false
+                },
+                {
+                  "step_index": 1,
+                  "lhs_state": 13,
+                  "rhs_driver_id": "observed-source-2",
+                  "rhs_state": 15,
+                  "result_state": 46,
+                  "contention_triggered": true
+                }
+              ],
+              "conflict_sources": [
+                {
+                  "lhs_driver_id": "observed-source-1",
+                  "rhs_driver_id": "observed-source-2",
+                  "lhs_state": 13,
+                  "rhs_state": 15
+                }
+              ],
+              "summary": "电气观测为 CON：比较已测驱动的折叠步骤。"
+            }
+          }
+        }
+      ]
+    },
+    "digests": {
+      "circuit": "e668f523e51301ce6bc766fd16e4cc5ffd113502aea5550a95f9da394760a9d4",
+      "control": "e9b10d3b2a25e4b9282d8591d5061e3f077c8b60c2f982a058cc977d418a6c60",
+      "algorithm": "sigflow.public-hmac.v1"
+    },
+    "error": "",
+    "instrument_reply": {
+      "probe_id": "p0",
+      "target": "pad.10",
+      "position": {
+        "delta": 0,
+        "event_seq": "80",
+        "tick": "55556"
+      },
+      "nominal_mv": null,
+      "voltage_model": "digital_nominal_estimate_not_spice",
+      "read_only": true,
+      "state": {
+        "state_code": 46,
+        "logic": "x",
+        "valid": false,
+        "contention": true,
+        "explanation": {
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "resolver": "sigflow.state13.v1",
+          "state_code": 46,
+          "logic": "x",
+          "valid": false,
+          "contention": true,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "state_code": 13,
+              "strength": 3,
+              "level": "low"
+            },
+            {
+              "driver_id": "observed-source-2",
+              "state_code": 15,
+              "strength": 3,
+              "level": "high"
+            }
+          ],
+          "fold_steps": [
+            {
+              "step_index": 0,
+              "lhs_state": 2,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 13,
+              "result_state": 13,
+              "contention_triggered": false
+            },
+            {
+              "step_index": 1,
+              "lhs_state": 13,
+              "rhs_driver_id": "observed-source-2",
+              "rhs_state": 15,
+              "result_state": 46,
+              "contention_triggered": true
+            }
+          ],
+          "conflict_sources": [
+            {
+              "lhs_driver_id": "observed-source-1",
+              "rhs_driver_id": "observed-source-2",
+              "lhs_state": 13,
+              "rhs_state": 15
+            }
+          ],
+          "summary": "电气观测为 CON：比较已测驱动的折叠步骤。"
+        }
+      },
+      "evidence_id": "measurement-1"
+    }
+  },
+  {
+    "state": "Paused",
+    "reason": "StepComplete",
+    "tick_ps": "1",
+    "position": {
+      "delta": 0,
+      "event_seq": "80",
+      "tick": "55556"
+    },
+    "attempted_position": {
+      "delta": 0,
+      "event_seq": "70",
+      "tick": "55556"
+    },
+    "topology_position": {
+      "delta": 0,
+      "event_seq": "80",
+      "tick": "55556"
+    },
+    "outputs": {
+      "led_n[0]": false,
+      "led_n[1]": true,
+      "led_n[2]": true,
+      "led_n[3]": true,
+      "led_n[4]": true,
+      "led_n[5]": true
+    },
+    "input_writes": "21",
+    "eval_calls": "7",
+    "final_calls": 0,
+    "pending_count": 0,
+    "pending_inputs": {},
+    "binding_status": "bound",
+    "phase1": true,
+    "phase2": true,
+    "mode": "student_blind_test",
+    "run_id": "qchqIydpk1lgaCUqu45mvt5Jx_S1dm4dYPZtf_YfILg",
+    "run_token": "qchqIydpk1lgaCUqu45mvt5Jx_S1dm4dYPZtf_YfILg",
+    "task": {
+      "schema": "sigflow.course-task.v1",
+      "id": "lesson-2",
+      "title": "相邻输出异常：寻找共同驱动",
+      "objective": "采集可复核的测量证据，定位异常并提交修复",
+      "allowed_observations": [
+        "pad.10",
+        "led0.K",
+        "pad.11",
+        "led1.K",
+        "pad.3",
+        "key_p3.contact",
+        "pad.52",
+        "port:led_n[0]",
+        "port:led_n[3]"
+      ],
+      "public_tests": [
+        "reset_then_press",
+        "next_event_and_ticks"
+      ],
+      "hint_levels": [
+        "L1",
+        "L2",
+        "L3",
+        "L4"
+      ],
+      "mode": "student_blind_test",
+      "clock_fixture": {
+        "frequency_hz": "27000000",
+        "physical_board_oscillator_hz": "27000000",
+        "teaching_override": false
+      }
+    },
+    "hints_used": 0,
+    "allowed_controls": [
+      "play",
+      "pause",
+      "step",
+      "stop",
+      "set",
+      "probe",
+      "capture",
+      "hint",
+      "grade"
+    ],
+    "student_workspace_source": "E:/sigflow/SigFlow_VirtroFPGA/.work/p2/teaching/course-02-bridge-contention-fa7dd50686ae41b888feb4b028fc6057/student/solution.sv",
+    "board": {
+      "board_id": "tang-nano-9k",
+      "nodes": {
+        "clk27m.out": {
+          "state_code": 15,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 15,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "key_p3.contact": {
+          "state_code": 13,
+          "logic": "0",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 13,
+            "logic": "0",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 13,
+                "strength": 3,
+                "level": "low"
+              },
+              {
+                "driver_id": "observed-source-2",
+                "state_code": 7,
+                "strength": 1,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 13,
+                "result_state": 13,
+                "contention_triggered": false
+              },
+              {
+                "step_index": 1,
+                "lhs_state": 13,
+                "rhs_driver_id": "observed-source-2",
+                "rhs_state": 7,
+                "result_state": 13,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "key_p4.contact": {
+          "state_code": 7,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 7,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 2,
+                "strength": 0,
+                "level": "floating"
+              },
+              {
+                "driver_id": "observed-source-2",
+                "state_code": 7,
+                "strength": 1,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 2,
+                "result_state": 2,
+                "contention_triggered": false
+              },
+              {
+                "step_index": 1,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-2",
+                "rhs_state": 7,
+                "result_state": 7,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "led0.K": {
+          "state_code": 46,
+          "logic": "x",
+          "valid": false,
+          "contention": true,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 46,
+            "logic": "x",
+            "valid": false,
+            "contention": true,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 13,
+                "strength": 3,
+                "level": "low"
+              },
+              {
+                "driver_id": "observed-source-2",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 13,
+                "result_state": 13,
+                "contention_triggered": false
+              },
+              {
+                "step_index": 1,
+                "lhs_state": 13,
+                "rhs_driver_id": "observed-source-2",
+                "rhs_state": 15,
+                "result_state": 46,
+                "contention_triggered": true
+              }
+            ],
+            "conflict_sources": [
+              {
+                "lhs_driver_id": "observed-source-1",
+                "rhs_driver_id": "observed-source-2",
+                "lhs_state": 13,
+                "rhs_state": 15
+              }
+            ],
+            "summary": "电气观测为 CON：比较已测驱动的折叠步骤。"
+          }
+        },
+        "led1.K": {
+          "state_code": 46,
+          "logic": "x",
+          "valid": false,
+          "contention": true,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 46,
+            "logic": "x",
+            "valid": false,
+            "contention": true,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 13,
+                "strength": 3,
+                "level": "low"
+              },
+              {
+                "driver_id": "observed-source-2",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 13,
+                "result_state": 13,
+                "contention_triggered": false
+              },
+              {
+                "step_index": 1,
+                "lhs_state": 13,
+                "rhs_driver_id": "observed-source-2",
+                "rhs_state": 15,
+                "result_state": 46,
+                "contention_triggered": true
+              }
+            ],
+            "conflict_sources": [
+              {
+                "lhs_driver_id": "observed-source-1",
+                "rhs_driver_id": "observed-source-2",
+                "lhs_state": 13,
+                "rhs_state": 15
+              }
+            ],
+            "summary": "电气观测为 CON：比较已测驱动的折叠步骤。"
+          }
+        },
+        "led2.K": {
+          "state_code": 15,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 15,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "led3.K": {
+          "state_code": 15,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 15,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "led4.K": {
+          "state_code": 15,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 15,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "led5.K": {
+          "state_code": 15,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 15,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "pad.10": {
+          "state_code": 46,
+          "logic": "x",
+          "valid": false,
+          "contention": true,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 46,
+            "logic": "x",
+            "valid": false,
+            "contention": true,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 13,
+                "strength": 3,
+                "level": "low"
+              },
+              {
+                "driver_id": "observed-source-2",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 13,
+                "result_state": 13,
+                "contention_triggered": false
+              },
+              {
+                "step_index": 1,
+                "lhs_state": 13,
+                "rhs_driver_id": "observed-source-2",
+                "rhs_state": 15,
+                "result_state": 46,
+                "contention_triggered": true
+              }
+            ],
+            "conflict_sources": [
+              {
+                "lhs_driver_id": "observed-source-1",
+                "rhs_driver_id": "observed-source-2",
+                "lhs_state": 13,
+                "rhs_state": 15
+              }
+            ],
+            "summary": "电气观测为 CON：比较已测驱动的折叠步骤。"
+          }
+        },
+        "pad.11": {
+          "state_code": 46,
+          "logic": "x",
+          "valid": false,
+          "contention": true,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 46,
+            "logic": "x",
+            "valid": false,
+            "contention": true,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 13,
+                "strength": 3,
+                "level": "low"
+              },
+              {
+                "driver_id": "observed-source-2",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 13,
+                "result_state": 13,
+                "contention_triggered": false
+              },
+              {
+                "step_index": 1,
+                "lhs_state": 13,
+                "rhs_driver_id": "observed-source-2",
+                "rhs_state": 15,
+                "result_state": 46,
+                "contention_triggered": true
+              }
+            ],
+            "conflict_sources": [
+              {
+                "lhs_driver_id": "observed-source-1",
+                "rhs_driver_id": "observed-source-2",
+                "lhs_state": 13,
+                "rhs_state": 15
+              }
+            ],
+            "summary": "电气观测为 CON：比较已测驱动的折叠步骤。"
+          }
+        },
+        "pad.13": {
+          "state_code": 15,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 15,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "pad.14": {
+          "state_code": 15,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 15,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "pad.15": {
+          "state_code": 15,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 15,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "pad.16": {
+          "state_code": 15,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 15,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "pad.3": {
+          "state_code": 13,
+          "logic": "0",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 13,
+            "logic": "0",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 13,
+                "strength": 3,
+                "level": "low"
+              },
+              {
+                "driver_id": "observed-source-2",
+                "state_code": 7,
+                "strength": 1,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 13,
+                "result_state": 13,
+                "contention_triggered": false
+              },
+              {
+                "step_index": 1,
+                "lhs_state": 13,
+                "rhs_driver_id": "observed-source-2",
+                "rhs_state": 7,
+                "result_state": 13,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "pad.4": {
+          "state_code": 7,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 7,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 2,
+                "strength": 0,
+                "level": "floating"
+              },
+              {
+                "driver_id": "observed-source-2",
+                "state_code": 7,
+                "strength": 1,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 2,
+                "result_state": 2,
+                "contention_triggered": false
+              },
+              {
+                "step_index": 1,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-2",
+                "rhs_state": 7,
+                "result_state": 7,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        },
+        "pad.52": {
+          "state_code": 15,
+          "logic": "1",
+          "valid": true,
+          "contention": false,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 15,
+            "logic": "1",
+            "valid": true,
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 15,
+                "result_state": 15,
+                "contention_triggered": false
+              }
+            ],
+            "conflict_sources": [],
+            "summary": "电气观测为 按已测状态与强度解释。"
+          }
+        }
+      },
+      "leds": {
+        "led0": {
+          "integration": {
+            "active_ticks": "0",
+            "duty_ppm": 0,
+            "instant_active": false,
+            "instant_valid": false,
+            "integration_window_ticks": "20000000000",
+            "unknown_ticks": "0",
+            "valid_ticks": "55556",
+            "window_ticks": "55556"
+          },
+          "lit": false,
+          "state_code": 46
+        },
+        "led1": {
+          "integration": {
+            "active_ticks": "0",
+            "duty_ppm": 0,
+            "instant_active": false,
+            "instant_valid": false,
+            "integration_window_ticks": "20000000000",
+            "unknown_ticks": "0",
+            "valid_ticks": "55556",
+            "window_ticks": "55556"
+          },
+          "lit": false,
+          "state_code": 46
+        },
+        "led2": {
+          "integration": {
+            "active_ticks": "0",
+            "duty_ppm": 0,
+            "instant_active": false,
+            "instant_valid": true,
+            "integration_window_ticks": "20000000000",
+            "unknown_ticks": "0",
+            "valid_ticks": "55556",
+            "window_ticks": "55556"
+          },
+          "lit": false,
+          "state_code": 15
+        },
+        "led3": {
+          "integration": {
+            "active_ticks": "0",
+            "duty_ppm": 0,
+            "instant_active": false,
+            "instant_valid": true,
+            "integration_window_ticks": "20000000000",
+            "unknown_ticks": "0",
+            "valid_ticks": "55556",
+            "window_ticks": "55556"
+          },
+          "lit": false,
+          "state_code": 15
+        },
+        "led4": {
+          "integration": {
+            "active_ticks": "0",
+            "duty_ppm": 0,
+            "instant_active": false,
+            "instant_valid": true,
+            "integration_window_ticks": "20000000000",
+            "unknown_ticks": "0",
+            "valid_ticks": "55556",
+            "window_ticks": "55556"
+          },
+          "lit": false,
+          "state_code": 15
+        },
+        "led5": {
+          "integration": {
+            "active_ticks": "0",
+            "duty_ppm": 0,
+            "instant_active": false,
+            "instant_valid": true,
+            "integration_window_ticks": "20000000000",
+            "unknown_ticks": "0",
+            "valid_ticks": "55556",
+            "window_ticks": "55556"
+          },
+          "lit": false,
+          "state_code": 15
+        }
+      },
+      "peripherals": {}
+    },
+    "trace": {
+      "committed_through_tick": "55556",
+      "generation": "1",
+      "revision": "7",
+      "run_id": "qchqIydpk1lgaCUqu45mvt5Jx_S1dm4dYPZtf_YfILg",
+      "tail_event_seq": "80"
+    },
+    "frequency_hz": "27000000",
+    "instruments": {
+      "live": [
+        {
+          "probe_id": "p0",
+          "target": "pad.10",
+          "position": {
+            "delta": 0,
+            "event_seq": "80",
+            "tick": "55556"
+          },
+          "nominal_mv": null,
+          "voltage_model": "digital_nominal_estimate_not_spice",
+          "read_only": true,
+          "state": {
+            "state_code": 46,
+            "logic": "x",
+            "valid": false,
+            "contention": true,
+            "explanation": {
+              "schema": "sigflow.resolution-explanation.public.v1",
+              "resolver": "sigflow.state13.v1",
+              "state_code": 46,
+              "logic": "x",
+              "valid": false,
+              "contention": true,
+              "drivers": [
+                {
+                  "driver_id": "observed-source-1",
+                  "state_code": 13,
+                  "strength": 3,
+                  "level": "low"
+                },
+                {
+                  "driver_id": "observed-source-2",
+                  "state_code": 15,
+                  "strength": 3,
+                  "level": "high"
+                }
+              ],
+              "fold_steps": [
+                {
+                  "step_index": 0,
+                  "lhs_state": 2,
+                  "rhs_driver_id": "observed-source-1",
+                  "rhs_state": 13,
+                  "result_state": 13,
+                  "contention_triggered": false
+                },
+                {
+                  "step_index": 1,
+                  "lhs_state": 13,
+                  "rhs_driver_id": "observed-source-2",
+                  "rhs_state": 15,
+                  "result_state": 46,
+                  "contention_triggered": true
+                }
+              ],
+              "conflict_sources": [
+                {
+                  "lhs_driver_id": "observed-source-1",
+                  "rhs_driver_id": "observed-source-2",
+                  "lhs_state": 13,
+                  "rhs_state": 15
+                }
+              ],
+              "summary": "电气观测为 CON：比较已测驱动的折叠步骤。"
+            }
+          }
+        },
+        {
+          "probe_id": "p1",
+          "target": "pad.11",
+          "position": {
+            "delta": 0,
+            "event_seq": "80",
+            "tick": "55556"
+          },
+          "nominal_mv": null,
+          "voltage_model": "digital_nominal_estimate_not_spice",
+          "read_only": true,
+          "state": {
+            "state_code": 46,
+            "logic": "x",
+            "valid": false,
+            "contention": true,
+            "explanation": {
+              "schema": "sigflow.resolution-explanation.public.v1",
+              "resolver": "sigflow.state13.v1",
+              "state_code": 46,
+              "logic": "x",
+              "valid": false,
+              "contention": true,
+              "drivers": [
+                {
+                  "driver_id": "observed-source-1",
+                  "state_code": 13,
+                  "strength": 3,
+                  "level": "low"
+                },
+                {
+                  "driver_id": "observed-source-2",
+                  "state_code": 15,
+                  "strength": 3,
+                  "level": "high"
+                }
+              ],
+              "fold_steps": [
+                {
+                  "step_index": 0,
+                  "lhs_state": 2,
+                  "rhs_driver_id": "observed-source-1",
+                  "rhs_state": 13,
+                  "result_state": 13,
+                  "contention_triggered": false
+                },
+                {
+                  "step_index": 1,
+                  "lhs_state": 13,
+                  "rhs_driver_id": "observed-source-2",
+                  "rhs_state": 15,
+                  "result_state": 46,
+                  "contention_triggered": true
+                }
+              ],
+              "conflict_sources": [
+                {
+                  "lhs_driver_id": "observed-source-1",
+                  "rhs_driver_id": "observed-source-2",
+                  "lhs_state": 13,
+                  "rhs_state": 15
+                }
+              ],
+              "summary": "电气观测为 CON：比较已测驱动的折叠步骤。"
+            }
+          }
+        }
+      ]
+    },
+    "digests": {
+      "circuit": "e668f523e51301ce6bc766fd16e4cc5ffd113502aea5550a95f9da394760a9d4",
+      "control": "e9b10d3b2a25e4b9282d8591d5061e3f077c8b60c2f982a058cc977d418a6c60",
+      "algorithm": "sigflow.public-hmac.v1"
+    },
+    "error": "",
+    "instrument_reply": {
+      "probe_id": "p1",
+      "target": "pad.11",
+      "position": {
+        "delta": 0,
+        "event_seq": "80",
+        "tick": "55556"
+      },
+      "nominal_mv": null,
+      "voltage_model": "digital_nominal_estimate_not_spice",
+      "read_only": true,
+      "state": {
+        "state_code": 46,
+        "logic": "x",
+        "valid": false,
+        "contention": true,
+        "explanation": {
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "resolver": "sigflow.state13.v1",
+          "state_code": 46,
+          "logic": "x",
+          "valid": false,
+          "contention": true,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "state_code": 13,
+              "strength": 3,
+              "level": "low"
+            },
+            {
+              "driver_id": "observed-source-2",
+              "state_code": 15,
+              "strength": 3,
+              "level": "high"
+            }
+          ],
+          "fold_steps": [
+            {
+              "step_index": 0,
+              "lhs_state": 2,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 13,
+              "result_state": 13,
+              "contention_triggered": false
+            },
+            {
+              "step_index": 1,
+              "lhs_state": 13,
+              "rhs_driver_id": "observed-source-2",
+              "rhs_state": 15,
+              "result_state": 46,
+              "contention_triggered": true
+            }
+          ],
+          "conflict_sources": [
+            {
+              "lhs_driver_id": "observed-source-1",
+              "rhs_driver_id": "observed-source-2",
+              "lhs_state": 13,
+              "rhs_state": 15
+            }
+          ],
+          "summary": "电气观测为 CON：比较已测驱动的折叠步骤。"
+        }
+      },
+      "evidence_id": "measurement-2"
+    }
+  },
+  {
+    "batches": [
+      {
+        "events": [
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "1",
+              "tick": "0"
+            },
+            "signal_id": 18,
+            "state_code": 13,
+            "valid": true,
+            "value": "0"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "2",
+              "tick": "0"
+            },
+            "signal_id": 19,
+            "state_code": 7,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "3",
+              "tick": "0"
+            },
+            "signal_id": 20,
+            "state_code": 13,
+            "valid": true,
+            "value": "0"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "4",
+              "tick": "0"
+            },
+            "signal_id": 21,
+            "state_code": 15,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "5",
+              "tick": "0"
+            },
+            "signal_id": 45,
+            "state_code": null,
+            "valid": true,
+            "value": "0"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "6",
+              "tick": "0"
+            },
+            "signal_id": 22,
+            "state_code": 15,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "7",
+              "tick": "0"
+            },
+            "signal_id": 46,
+            "state_code": null,
+            "valid": true,
+            "value": "0"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "8",
+              "tick": "0"
+            },
+            "signal_id": 23,
+            "state_code": 15,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "9",
+              "tick": "0"
+            },
+            "signal_id": 47,
+            "state_code": null,
+            "valid": true,
+            "value": "0"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "10",
+              "tick": "0"
+            },
+            "signal_id": 24,
+            "state_code": 15,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "11",
+              "tick": "0"
+            },
+            "signal_id": 48,
+            "state_code": null,
+            "valid": true,
+            "value": "0"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "12",
+              "tick": "0"
+            },
+            "signal_id": 25,
+            "state_code": 15,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "13",
+              "tick": "0"
+            },
+            "signal_id": 49,
+            "state_code": null,
+            "valid": true,
+            "value": "0"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "14",
+              "tick": "0"
+            },
+            "signal_id": 26,
+            "state_code": 15,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "15",
+              "tick": "0"
+            },
+            "signal_id": 50,
+            "state_code": null,
+            "valid": true,
+            "value": "0"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "16",
+              "tick": "0"
+            },
+            "signal_id": 27,
+            "state_code": 15,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "17",
+              "tick": "0"
+            },
+            "signal_id": 28,
+            "state_code": 15,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "18",
+              "tick": "0"
+            },
+            "signal_id": 29,
+            "state_code": 15,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "19",
+              "tick": "0"
+            },
+            "signal_id": 30,
+            "state_code": 15,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "20",
+              "tick": "0"
+            },
+            "signal_id": 31,
+            "state_code": 15,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "21",
+              "tick": "0"
+            },
+            "signal_id": 32,
+            "state_code": 15,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "22",
+              "tick": "0"
+            },
+            "signal_id": 33,
+            "state_code": 7,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "23",
+              "tick": "0"
+            },
+            "signal_id": 34,
+            "state_code": 13,
+            "valid": true,
+            "value": "0"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "24",
+              "tick": "0"
+            },
+            "signal_id": 35,
+            "state_code": 13,
+            "valid": true,
+            "value": "0"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "25",
+              "tick": "0"
+            },
+            "signal_id": 11,
+            "state_code": 15,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "26",
+              "tick": "0"
+            },
+            "signal_id": 12,
+            "state_code": 15,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "27",
+              "tick": "0"
+            },
+            "signal_id": 13,
+            "state_code": 15,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "28",
+              "tick": "0"
+            },
+            "signal_id": 14,
+            "state_code": 15,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "29",
+              "tick": "0"
+            },
+            "signal_id": 15,
+            "state_code": 15,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "30",
+              "tick": "0"
+            },
+            "signal_id": 16,
+            "state_code": 15,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "31",
+              "tick": "0"
+            },
+            "signal_id": 10,
+            "state_code": 7,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "32",
+              "tick": "0"
+            },
+            "signal_id": 17,
+            "state_code": 13,
+            "valid": true,
+            "value": "0"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "33",
+              "tick": "0"
+            },
+            "signal_id": 9,
+            "state_code": 13,
+            "valid": true,
+            "value": "0"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "34",
+              "tick": "0"
+            },
+            "signal_id": 0,
+            "state_code": null,
+            "valid": true,
+            "value": "0"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "35",
+              "tick": "0"
+            },
+            "signal_id": 2,
+            "state_code": null,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "36",
+              "tick": "0"
+            },
+            "signal_id": 3,
+            "state_code": null,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "37",
+              "tick": "0"
+            },
+            "signal_id": 4,
+            "state_code": null,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "38",
+              "tick": "0"
+            },
+            "signal_id": 5,
+            "state_code": null,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "39",
+              "tick": "0"
+            },
+            "signal_id": 6,
+            "state_code": null,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "40",
+              "tick": "0"
+            },
+            "signal_id": 7,
+            "state_code": null,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "41",
+              "tick": "0"
+            },
+            "signal_id": 8,
+            "state_code": null,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "42",
+              "tick": "0"
+            },
+            "signal_id": 1,
+            "state_code": null,
+            "valid": true,
+            "value": "0"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "43",
+              "tick": "0"
+            },
+            "signal_id": 44,
+            "state_code": null,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "44",
+              "tick": "0"
+            },
+            "signal_id": 42,
+            "state_code": null,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "45",
+              "tick": "0"
+            },
+            "signal_id": 43,
+            "state_code": null,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "46",
+              "tick": "0"
+            },
+            "signal_id": 36,
+            "state_code": null,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "47",
+              "tick": "0"
+            },
+            "signal_id": 37,
+            "state_code": null,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "48",
+              "tick": "0"
+            },
+            "signal_id": 38,
+            "state_code": null,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "49",
+              "tick": "0"
+            },
+            "signal_id": 39,
+            "state_code": null,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "50",
+              "tick": "0"
+            },
+            "signal_id": 40,
+            "state_code": null,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "51",
+              "tick": "0"
+            },
+            "signal_id": 41,
+            "state_code": null,
+            "valid": true,
+            "value": "1"
+          }
+        ],
+        "position": {
+          "delta": 0,
+          "event_seq": "51",
+          "tick": "0"
+        },
+        "revision": "1"
+      },
+      {
+        "events": [],
+        "position": {
+          "delta": 1,
+          "event_seq": "52",
+          "tick": "0"
+        },
+        "revision": "2"
+      },
+      {
+        "events": [
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "53",
+              "tick": "18519"
+            },
+            "signal_id": 18,
+            "state_code": 15,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "54",
+              "tick": "18519"
+            },
+            "signal_id": 35,
+            "state_code": 15,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "55",
+              "tick": "18519"
+            },
+            "signal_id": 9,
+            "state_code": 15,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "56",
+              "tick": "18519"
+            },
+            "signal_id": 0,
+            "state_code": null,
+            "valid": true,
+            "value": "1"
+          }
+        ],
+        "position": {
+          "delta": 0,
+          "event_seq": "56",
+          "tick": "18519"
+        },
+        "revision": "3"
+      },
+      {
+        "events": [
+          {
+            "contention": false,
+            "position": {
+              "delta": 1,
+              "event_seq": "57",
+              "tick": "18519"
+            },
+            "signal_id": 19,
+            "state_code": 13,
+            "valid": true,
+            "value": "0"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 1,
+              "event_seq": "58",
+              "tick": "18519"
+            },
+            "signal_id": 20,
+            "state_code": 7,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 1,
+              "event_seq": "59",
+              "tick": "18519"
+            },
+            "signal_id": 33,
+            "state_code": 13,
+            "valid": true,
+            "value": "0"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 1,
+              "event_seq": "60",
+              "tick": "18519"
+            },
+            "signal_id": 34,
+            "state_code": 7,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 1,
+              "event_seq": "61",
+              "tick": "18519"
+            },
+            "signal_id": 10,
+            "state_code": 13,
+            "valid": true,
+            "value": "0"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 1,
+              "event_seq": "62",
+              "tick": "18519"
+            },
+            "signal_id": 17,
+            "state_code": 7,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 1,
+              "event_seq": "63",
+              "tick": "18519"
+            },
+            "signal_id": 2,
+            "state_code": null,
+            "valid": true,
+            "value": "0"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 1,
+              "event_seq": "64",
+              "tick": "18519"
+            },
+            "signal_id": 1,
+            "state_code": null,
+            "valid": true,
+            "value": "1"
+          }
+        ],
+        "position": {
+          "delta": 1,
+          "event_seq": "64",
+          "tick": "18519"
+        },
+        "revision": "4"
+      },
+      {
+        "events": [],
+        "position": {
+          "delta": 2,
+          "event_seq": "65",
+          "tick": "18519"
+        },
+        "revision": "5"
+      },
+      {
+        "events": [
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "66",
+              "tick": "37037"
+            },
+            "signal_id": 18,
+            "state_code": 13,
+            "valid": true,
+            "value": "0"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "67",
+              "tick": "37037"
+            },
+            "signal_id": 35,
+            "state_code": 13,
+            "valid": true,
+            "value": "0"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "68",
+              "tick": "37037"
+            },
+            "signal_id": 9,
+            "state_code": 13,
+            "valid": true,
+            "value": "0"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "69",
+              "tick": "37037"
+            },
+            "signal_id": 0,
+            "state_code": null,
+            "valid": true,
+            "value": "0"
+          }
+        ],
+        "position": {
+          "delta": 0,
+          "event_seq": "69",
+          "tick": "37037"
+        },
+        "revision": "6"
+      },
+      {
+        "events": [
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "70",
+              "tick": "55556"
+            },
+            "signal_id": 18,
+            "state_code": 15,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": true,
+            "position": {
+              "delta": 0,
+              "event_seq": "71",
+              "tick": "55556"
+            },
+            "signal_id": 21,
+            "state_code": 46,
+            "valid": false,
+            "value": "x"
+          },
+          {
+            "contention": true,
+            "position": {
+              "delta": 0,
+              "event_seq": "72",
+              "tick": "55556"
+            },
+            "signal_id": 22,
+            "state_code": 46,
+            "valid": false,
+            "value": "x"
+          },
+          {
+            "contention": true,
+            "position": {
+              "delta": 0,
+              "event_seq": "73",
+              "tick": "55556"
+            },
+            "signal_id": 27,
+            "state_code": 46,
+            "valid": false,
+            "value": "x"
+          },
+          {
+            "contention": true,
+            "position": {
+              "delta": 0,
+              "event_seq": "74",
+              "tick": "55556"
+            },
+            "signal_id": 28,
+            "state_code": 46,
+            "valid": false,
+            "value": "x"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "75",
+              "tick": "55556"
+            },
+            "signal_id": 35,
+            "state_code": 15,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": true,
+            "position": {
+              "delta": 0,
+              "event_seq": "76",
+              "tick": "55556"
+            },
+            "signal_id": 11,
+            "state_code": 46,
+            "valid": false,
+            "value": "x"
+          },
+          {
+            "contention": true,
+            "position": {
+              "delta": 0,
+              "event_seq": "77",
+              "tick": "55556"
+            },
+            "signal_id": 12,
+            "state_code": 46,
+            "valid": false,
+            "value": "x"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "78",
+              "tick": "55556"
+            },
+            "signal_id": 9,
+            "state_code": 15,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "79",
+              "tick": "55556"
+            },
+            "signal_id": 0,
+            "state_code": null,
+            "valid": true,
+            "value": "1"
+          },
+          {
+            "contention": false,
+            "position": {
+              "delta": 0,
+              "event_seq": "80",
+              "tick": "55556"
+            },
+            "signal_id": 3,
+            "state_code": null,
+            "valid": true,
+            "value": "0"
+          }
+        ],
+        "position": {
+          "delta": 0,
+          "event_seq": "80",
+          "tick": "55556"
+        },
+        "revision": "7"
+      }
+    ],
+    "complete": true,
+    "generation": "1",
+    "next_revision": "7",
+    "run_id": "qchqIydpk1lgaCUqu45mvt5Jx_S1dm4dYPZtf_YfILg",
+    "signals": [
+      {
+        "id": 0,
+        "kind": "port",
+        "name": "port:clock_in",
+        "width": 1
+      },
+      {
+        "id": 1,
+        "kind": "port",
+        "name": "port:reset_n",
+        "width": 1
+      },
+      {
+        "id": 2,
+        "kind": "port",
+        "name": "port:key_n",
+        "width": 1
+      },
+      {
+        "id": 3,
+        "kind": "port",
+        "name": "port:led_n[0]",
+        "width": 1
+      },
+      {
+        "id": 4,
+        "kind": "port",
+        "name": "port:led_n[1]",
+        "width": 1
+      },
+      {
+        "id": 5,
+        "kind": "port",
+        "name": "port:led_n[2]",
+        "width": 1
+      },
+      {
+        "id": 6,
+        "kind": "port",
+        "name": "port:led_n[3]",
+        "width": 1
+      },
+      {
+        "id": 7,
+        "kind": "port",
+        "name": "port:led_n[4]",
+        "width": 1
+      },
+      {
+        "id": 8,
+        "kind": "port",
+        "name": "port:led_n[5]",
+        "width": 1
+      },
+      {
+        "id": 9,
+        "kind": "pad",
+        "name": "pad:52",
+        "width": 1
+      },
+      {
+        "id": 10,
+        "kind": "pad",
+        "name": "pad:3",
+        "width": 1
+      },
+      {
+        "id": 11,
+        "kind": "pad",
+        "name": "pad:10",
+        "width": 1
+      },
+      {
+        "id": 12,
+        "kind": "pad",
+        "name": "pad:11",
+        "width": 1
+      },
+      {
+        "id": 13,
+        "kind": "pad",
+        "name": "pad:13",
+        "width": 1
+      },
+      {
+        "id": 14,
+        "kind": "pad",
+        "name": "pad:14",
+        "width": 1
+      },
+      {
+        "id": 15,
+        "kind": "pad",
+        "name": "pad:15",
+        "width": 1
+      },
+      {
+        "id": 16,
+        "kind": "pad",
+        "name": "pad:16",
+        "width": 1
+      },
+      {
+        "id": 17,
+        "kind": "pad",
+        "name": "pad:4",
+        "width": 1
+      },
+      {
+        "id": 18,
+        "kind": "endpoint",
+        "name": "clk27m.out",
+        "width": 1
+      },
+      {
+        "id": 19,
+        "kind": "endpoint",
+        "name": "key_p3.contact",
+        "width": 1
+      },
+      {
+        "id": 20,
+        "kind": "endpoint",
+        "name": "key_p4.contact",
+        "width": 1
+      },
+      {
+        "id": 21,
+        "kind": "endpoint",
+        "name": "led0.K",
+        "width": 1
+      },
+      {
+        "id": 22,
+        "kind": "endpoint",
+        "name": "led1.K",
+        "width": 1
+      },
+      {
+        "id": 23,
+        "kind": "endpoint",
+        "name": "led2.K",
+        "width": 1
+      },
+      {
+        "id": 24,
+        "kind": "endpoint",
+        "name": "led3.K",
+        "width": 1
+      },
+      {
+        "id": 25,
+        "kind": "endpoint",
+        "name": "led4.K",
+        "width": 1
+      },
+      {
+        "id": 26,
+        "kind": "endpoint",
+        "name": "led5.K",
+        "width": 1
+      },
+      {
+        "id": 27,
+        "kind": "endpoint",
+        "name": "pad.10",
+        "width": 1
+      },
+      {
+        "id": 28,
+        "kind": "endpoint",
+        "name": "pad.11",
+        "width": 1
+      },
+      {
+        "id": 29,
+        "kind": "endpoint",
+        "name": "pad.13",
+        "width": 1
+      },
+      {
+        "id": 30,
+        "kind": "endpoint",
+        "name": "pad.14",
+        "width": 1
+      },
+      {
+        "id": 31,
+        "kind": "endpoint",
+        "name": "pad.15",
+        "width": 1
+      },
+      {
+        "id": 32,
+        "kind": "endpoint",
+        "name": "pad.16",
+        "width": 1
+      },
+      {
+        "id": 33,
+        "kind": "endpoint",
+        "name": "pad.3",
+        "width": 1
+      },
+      {
+        "id": 34,
+        "kind": "endpoint",
+        "name": "pad.4",
+        "width": 1
+      },
+      {
+        "id": 35,
+        "kind": "endpoint",
+        "name": "pad.52",
+        "width": 1
+      },
+      {
+        "id": 36,
+        "kind": "connection",
+        "name": "wire.led0",
+        "width": 1
+      },
+      {
+        "id": 37,
+        "kind": "connection",
+        "name": "wire.led1",
+        "width": 1
+      },
+      {
+        "id": 38,
+        "kind": "connection",
+        "name": "wire.led2",
+        "width": 1
+      },
+      {
+        "id": 39,
+        "kind": "connection",
+        "name": "wire.led3",
+        "width": 1
+      },
+      {
+        "id": 40,
+        "kind": "connection",
+        "name": "wire.led4",
+        "width": 1
+      },
+      {
+        "id": 41,
+        "kind": "connection",
+        "name": "wire.led5",
+        "width": 1
+      },
+      {
+        "id": 42,
+        "kind": "connection",
+        "name": "wire.key3",
+        "width": 1
+      },
+      {
+        "id": 43,
+        "kind": "connection",
+        "name": "wire.key4",
+        "width": 1
+      },
+      {
+        "id": 44,
+        "kind": "connection",
+        "name": "wire.clock",
+        "width": 1
+      },
+      {
+        "id": 45,
+        "kind": "led",
+        "name": "led0.lit",
+        "width": 1
+      },
+      {
+        "id": 46,
+        "kind": "led",
+        "name": "led1.lit",
+        "width": 1
+      },
+      {
+        "id": 47,
+        "kind": "led",
+        "name": "led2.lit",
+        "width": 1
+      },
+      {
+        "id": 48,
+        "kind": "led",
+        "name": "led3.lit",
+        "width": 1
+      },
+      {
+        "id": 49,
+        "kind": "led",
+        "name": "led4.lit",
+        "width": 1
+      },
+      {
+        "id": 50,
+        "kind": "led",
+        "name": "led5.lit",
+        "width": 1
+      }
+    ],
+    "status": "observed"
+  },
+  {
+    "schema": "sigflow.teaching-hint.v1",
+    "run_token": "qchqIydpk1lgaCUqu45mvt5Jx_S1dm4dYPZtf_YfILg",
+    "level": "L1",
+    "sequence": 1,
+    "text": "观察操作后输出是否符合一次操作一次变化。",
+    "position": {
+      "delta": 0,
+      "event_seq": "80",
+      "tick": "55556"
+    },
+    "hints_used": 1
+  },
+  {
+    "schema": "sigflow.teaching-hint.v1",
+    "run_token": "qchqIydpk1lgaCUqu45mvt5Jx_S1dm4dYPZtf_YfILg",
+    "level": "L2",
+    "sequence": 2,
+    "text": "在输入、Pad 与器件端分别放置只读探针，比较变化。",
+    "position": {
+      "delta": 0,
+      "event_seq": "80",
+      "tick": "55556"
+    },
+    "hints_used": 2
+  },
+  {
+    "schema": "sigflow.teaching-hint.v1",
+    "run_token": "qchqIydpk1lgaCUqu45mvt5Jx_S1dm4dYPZtf_YfILg",
+    "level": "L3",
+    "sequence": 3,
+    "text": "用已采集的两侧观测或时钟边沿确认异常发生的物理范围。 已记录测量点：pad.10, pad.11。",
+    "position": {
+      "delta": 0,
+      "event_seq": "80",
+      "tick": "55556"
+    },
+    "hints_used": 3
+  },
+  {
+    "schema": "sigflow.teaching-hint.v1",
+    "run_token": "qchqIydpk1lgaCUqu45mvt5Jx_S1dm4dYPZtf_YfILg",
+    "level": "L4",
+    "sequence": 4,
+    "text": "修复连接、驱动互斥或稳定采样原则后，执行三组隐藏激励验证。",
+    "position": {
+      "delta": 0,
+      "event_seq": "80",
+      "tick": "55556"
+    },
+    "hints_used": 4
+  },
+  {
+    "schema": "sigflow.teaching-grade.v1",
+    "status": "fail",
+    "score": 0,
+    "first_failure_tick": "55556",
+    "signal": "submitted_evidence",
+    "expected": "correct location supported by actual measurements",
+    "actual": "insufficient",
+    "seeds_tested": 0,
+    "hints_used": 4,
+    "run_fingerprint": "b9c1de29187106b8433833f29fcf11224ab11611e8dddb3793ea16894ddf9d8b"
+  },
+  {
+    "schema": "sigflow.teaching-grade.v1",
+    "status": "fail",
+    "score": 30,
+    "first_failure_tick": "55556",
+    "signal": "repair",
+    "expected": "physical connection restored",
+    "actual": "not restored",
+    "seeds_tested": 0,
+    "hints_used": 4,
+    "run_fingerprint": "b9c1de29187106b8433833f29fcf11224ab11611e8dddb3793ea16894ddf9d8b"
+  },
+  {
+    "schema": "sigflow.teaching-grade.v1",
+    "status": "pass",
+    "score": 100,
+    "first_failure_tick": null,
+    "signal": "functional_output",
+    "expected": 1,
+    "actual": 1,
+    "seeds_tested": 3,
+    "hints_used": 4,
+    "run_fingerprint": "bc05cfb8e5df1b4fc7685548d4284c8f68e3d531964c4e9650c93db97179edba"
+  },
+  {
+    "schema": "sigflow.public-observation-journal.v1",
+    "run_token": "qchqIydpk1lgaCUqu45mvt5Jx_S1dm4dYPZtf_YfILg",
+    "records": [
+      {
+        "operation": "step",
+        "position": {
+          "delta": 0,
+          "event_seq": "56",
+          "tick": "18519"
+        },
+        "reason": "StepComplete"
+      },
+      {
+        "operation": "set",
+        "position": {
+          "delta": 0,
+          "event_seq": "56",
+          "tick": "18519"
+        },
+        "reason": "StepComplete"
+      },
+      {
+        "operation": "set",
+        "position": {
+          "delta": 0,
+          "event_seq": "56",
+          "tick": "18519"
+        },
+        "reason": "StepComplete"
+      },
+      {
+        "operation": "step",
+        "position": {
+          "delta": 0,
+          "event_seq": "80",
+          "tick": "55556"
+        },
+        "reason": "StepComplete"
+      },
+      {
+        "operation": "probe.attach",
+        "position": {
+          "delta": 0,
+          "event_seq": "80",
+          "tick": "55556"
+        },
+        "reason": "StepComplete"
+      },
+      {
+        "operation": "probe.read",
+        "position": {
+          "delta": 0,
+          "event_seq": "80",
+          "tick": "55556"
+        },
+        "reason": "StepComplete"
+      },
+      {
+        "operation": "probe.attach",
+        "position": {
+          "delta": 0,
+          "event_seq": "80",
+          "tick": "55556"
+        },
+        "reason": "StepComplete"
+      },
+      {
+        "operation": "probe.read",
+        "position": {
+          "delta": 0,
+          "event_seq": "80",
+          "tick": "55556"
+        },
+        "reason": "StepComplete"
+      },
+      {
+        "operation": "probe.read",
+        "position": {
+          "delta": 0,
+          "event_seq": "80",
+          "tick": "55556"
+        },
+        "reason": "StepComplete"
+      }
+    ],
+    "measurements": [
+      {
+        "probe_id": "p0",
+        "target": "pad.10",
+        "position": {
+          "delta": 0,
+          "event_seq": "80",
+          "tick": "55556"
+        },
+        "nominal_mv": null,
+        "voltage_model": "digital_nominal_estimate_not_spice",
+        "read_only": true,
+        "state": {
+          "state_code": 46,
+          "logic": "x",
+          "valid": false,
+          "contention": true,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 46,
+            "logic": "x",
+            "valid": false,
+            "contention": true,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 13,
+                "strength": 3,
+                "level": "low"
+              },
+              {
+                "driver_id": "observed-source-2",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 13,
+                "result_state": 13,
+                "contention_triggered": false
+              },
+              {
+                "step_index": 1,
+                "lhs_state": 13,
+                "rhs_driver_id": "observed-source-2",
+                "rhs_state": 15,
+                "result_state": 46,
+                "contention_triggered": true
+              }
+            ],
+            "conflict_sources": [
+              {
+                "lhs_driver_id": "observed-source-1",
+                "rhs_driver_id": "observed-source-2",
+                "lhs_state": 13,
+                "rhs_state": 15
+              }
+            ],
+            "summary": "电气观测为 CON：比较已测驱动的折叠步骤。"
+          }
+        },
+        "evidence_id": "measurement-1"
+      },
+      {
+        "probe_id": "p1",
+        "target": "pad.11",
+        "position": {
+          "delta": 0,
+          "event_seq": "80",
+          "tick": "55556"
+        },
+        "nominal_mv": null,
+        "voltage_model": "digital_nominal_estimate_not_spice",
+        "read_only": true,
+        "state": {
+          "state_code": 46,
+          "logic": "x",
+          "valid": false,
+          "contention": true,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 46,
+            "logic": "x",
+            "valid": false,
+            "contention": true,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 13,
+                "strength": 3,
+                "level": "low"
+              },
+              {
+                "driver_id": "observed-source-2",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 13,
+                "result_state": 13,
+                "contention_triggered": false
+              },
+              {
+                "step_index": 1,
+                "lhs_state": 13,
+                "rhs_driver_id": "observed-source-2",
+                "rhs_state": 15,
+                "result_state": 46,
+                "contention_triggered": true
+              }
+            ],
+            "conflict_sources": [
+              {
+                "lhs_driver_id": "observed-source-1",
+                "rhs_driver_id": "observed-source-2",
+                "lhs_state": 13,
+                "rhs_state": 15
+              }
+            ],
+            "summary": "电气观测为 CON：比较已测驱动的折叠步骤。"
+          }
+        },
+        "evidence_id": "measurement-2"
+      },
+      {
+        "probe_id": "p0",
+        "target": "pad.10",
+        "position": {
+          "delta": 0,
+          "event_seq": "80",
+          "tick": "55556"
+        },
+        "nominal_mv": null,
+        "voltage_model": "digital_nominal_estimate_not_spice",
+        "read_only": true,
+        "state": {
+          "state_code": 46,
+          "logic": "x",
+          "valid": false,
+          "contention": true,
+          "explanation": {
+            "schema": "sigflow.resolution-explanation.public.v1",
+            "resolver": "sigflow.state13.v1",
+            "state_code": 46,
+            "logic": "x",
+            "valid": false,
+            "contention": true,
+            "drivers": [
+              {
+                "driver_id": "observed-source-1",
+                "state_code": 13,
+                "strength": 3,
+                "level": "low"
+              },
+              {
+                "driver_id": "observed-source-2",
+                "state_code": 15,
+                "strength": 3,
+                "level": "high"
+              }
+            ],
+            "fold_steps": [
+              {
+                "step_index": 0,
+                "lhs_state": 2,
+                "rhs_driver_id": "observed-source-1",
+                "rhs_state": 13,
+                "result_state": 13,
+                "contention_triggered": false
+              },
+              {
+                "step_index": 1,
+                "lhs_state": 13,
+                "rhs_driver_id": "observed-source-2",
+                "rhs_state": 15,
+                "result_state": 46,
+                "contention_triggered": true
+              }
+            ],
+            "conflict_sources": [
+              {
+                "lhs_driver_id": "observed-source-1",
+                "rhs_driver_id": "observed-source-2",
+                "lhs_state": 13,
+                "rhs_state": 15
+              }
+            ],
+            "summary": "电气观测为 CON：比较已测驱动的折叠步骤。"
+          }
+        },
+        "evidence_id": "measurement-3"
+      }
+    ]
+  }
+]

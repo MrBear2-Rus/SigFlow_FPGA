@@ -52,6 +52,7 @@ struct SessionContract {
     std::optional<PortBitRef> required_clock;
     // Explicit opt-in keeps M0 journal/scheduler behavior byte-for-byte stable.
     bool phase1=false;
+    bool phase2=false;
     Json fault_profile=Json::object();
     uint64_t integration_window_ticks=20000000000ULL;
 };

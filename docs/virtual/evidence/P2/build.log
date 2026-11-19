@@ -1,0 +1,113 @@
+[  2%] Built target eda_platform
+[  2%] Built target sigflow_tree_sitter
+[  5%] Built target eda_virtual_board
+[  8%] Built target eda_core
+[  8%] Built target sigflow_port_manifest
+[  9%] Built target sigflow_adapter_codegen
+[  9%] Built target eda-lib-basic
+[  9%] Built target sigflow_virtual_registry
+[ 10%] Built target eda-synth-yosys
+[ 10%] Built target eda-program-openfpgaloader
+[ 14%] Built target eda-pack-gowin
+[ 15%] Built target eda_agent_gateway
+[ 16%] Built target eda-pnr-nextpnr
+[ 18%] Built target eda-sim-verilator
+[ 18%] Built target eda-target-tangnano9k
+[ 19%] Built target eda-wave-vcd
+[ 20%] Built target eda-cst-gowin-cst
+[ 21%] Built target eda_virtual_runner
+[ 24%] Built target sigflow_virtual_debug
+[ 24%] Linking CXX executable job_tests.exe
+[ 24%] Linking CXX executable fpga_flow_probe.exe
+[ 24%] Linking CXX executable eda_api_contract_smoke.exe
+[ 24%] Building CXX object CMakeFiles/sigflow.dir/main/CanvasNoteBook.cpp.obj
+[ 24%] Built target eda_api_contract_smoke
+[ 24%] Building CXX object CMakeFiles/sigflow.dir/main/CanvasPanel.cpp.obj
+[ 28%] Built target fpga_flow_probe
+[ 29%] Building CXX object CMakeFiles/sigflow.dir/main/cMain.cpp.obj
+[ 31%] Built target job_tests
+[ 31%] Building CXX object CMakeFiles/sigflow.dir/main/Composer.cpp.obj
+[ 31%] Building CXX object CMakeFiles/sigflow.dir/main/MainFrame.cpp.obj
+[ 32%] Built target eda_job_service_smoke
+[ 33%] Linking CXX executable eda_toolchain_project_smoke.exe
+[ 33%] Built target eda_toolchain_project_smoke
+[ 33%] Building CXX object CMakeFiles/sigflow.dir/main/MainMenuBar.cpp.obj
+[ 34%] Linking CXX shared module ..\..\test-plugins\eda_test_plugin_ok.dll
+[ 34%] Built target eda_test_plugin_ok
+[ 34%] Building CXX object CMakeFiles/sigflow.dir/main/ProjectStartWindow.cpp.obj
+E:\sigflow\SigFlow_VirtroFPGA\main\MainFrame.cpp: In lambda function:
+E:\sigflow\SigFlow_VirtroFPGA\main\MainFrame.cpp:1359:42: warning: 'std::filesystem::__cxx11::path std::filesystem::__cxx11::u8path(const _Source&) [with _Source = std::__cxx11::basic_string<char>; _Require = path; _CharT = char]' is deprecated: use 'path((const char8_t*)&*source)' instead [-Wdeprecated-declarations]
+ 1359 |         auto root=std::filesystem::u8path(m_currentProjectPath.ToStdString(wxConvUTF8));
+      |                   ~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from E:/sigflow_fpga/toolchain/mingw64/include/c++/14.2.0/filesystem:52,
+                 from E:/sigflow/SigFlow_VirtroFPGA/3rd/nlohmann/json.hpp:4804,
+                 from E:\sigflow\SigFlow_VirtroFPGA\main\agent/gui/AgentReportSelection.h:27,
+                 from E:\sigflow\SigFlow_VirtroFPGA\main\MainFrame.cpp:26:
+E:/sigflow_fpga/toolchain/mingw64/include/c++/14.2.0/bits/fs_path.h:843:5: note: declared here
+  843 |     u8path(const _Source& __source)
+      |     ^~~~~~
+[ 34%] Linking CXX shared module ..\..\test-plugins\eda_test_plugin_bad_build.dll
+[ 34%] Built target eda_test_plugin_bad_build
+[ 34%] Linking CXX shared module ..\..\test-plugins\eda_test_plugin_reject_abi.dll
+[ 34%] Building CXX object tests/plugins/CMakeFiles/eda_synth_yosys_smoke.dir/eda_synth_yosys_smoke.cpp.obj
+[ 34%] Built target eda_test_plugin_reject_abi
+[ 35%] Building CXX object tests/plugins/CMakeFiles/eda_pnr_nextpnr_smoke.dir/eda_pnr_nextpnr_smoke.cpp.obj
+[ 35%] Building CXX object tests/plugins/CMakeFiles/eda_pack_flash_smoke.dir/eda_pack_flash_smoke.cpp.obj
+[ 35%] Linking CXX executable eda_synth_yosys_smoke.exe
+[ 35%] Built target eda_synth_yosys_smoke
+[ 35%] Building CXX object tests/plugins/CMakeFiles/eda_sim_verilator_smoke.dir/eda_sim_verilator_smoke.cpp.obj
+[ 35%] Linking CXX executable eda_pnr_nextpnr_smoke.exe
+[ 35%] Linking CXX executable eda_pack_flash_smoke.exe
+[ 35%] Built target eda_pnr_nextpnr_smoke
+[ 35%] Linking CXX executable eda_sim_frontend_smoke.exe
+[ 35%] Built target eda_pack_flash_smoke
+[ 36%] Linking CXX executable eda_target_profile_smoke.exe
+[ 36%] Built target eda_sim_frontend_smoke
+[ 36%] Linking CXX executable eda_gowin_cst_smoke.exe
+[ 36%] Built target eda_target_profile_smoke
+[ 36%] Built target eda_gowin_cst_smoke
+[ 37%] Linking CXX executable eda_constraint_sheet_smoke.exe
+[ 37%] Building CXX object tests/plugins/CMakeFiles/eda_declarative_tool_smoke.dir/eda_declarative_tool_smoke.cpp.obj
+[ 37%] Built target eda_constraint_sheet_smoke
+[ 37%] Linking CXX executable eda_wave_vcd_smoke.exe
+[ 37%] Built target eda_wave_vcd_smoke
+[ 38%] Linking CXX executable eda_wave_trace_adapter_smoke.exe
+[ 39%] Linking CXX executable eda_sim_verilator_smoke.exe
+[ 39%] Built target eda_wave_trace_adapter_smoke
+[ 39%] Building CXX object tests/plugins/CMakeFiles/eda_declarative_switch_smoke.dir/eda_declarative_switch_smoke.cpp.obj
+[ 39%] Built target eda_sim_verilator_smoke
+[ 39%] Linking CXX executable eda_component_library_smoke.exe
+[ 39%] Built target eda_component_library_smoke
+[ 40%] Linking CXX executable eda_command_bus_smoke.exe
+[ 40%] Built target eda_command_bus_smoke
+[ 40%] Linking CXX executable sig_tree_sync_smoke.exe
+[ 40%] Linking CXX executable eda_declarative_tool_smoke.exe
+[ 40%] Built target eda_declarative_tool_smoke
+[ 40%] Linking CXX executable k1_production_tests.exe
+[ 40%] Built target sig_tree_sync_smoke
+[ 40%] Linking CXX executable k2_session_tests.exe
+[ 41%] Built target k2_session_tests
+[ 41%] Linking CXX executable k3_live_trace_tests.exe
+[ 42%] Linking CXX executable eda_declarative_switch_smoke.exe
+[ 44%] Built target k1_production_tests
+[ 44%] Built target k3_live_trace_tests
+[ 44%] Linking CXX executable k45_tests.exe
+[ 44%] Built target eda_declarative_switch_smoke
+[ 45%] Built target k45_legacy_jobs
+[ 46%] Linking CXX executable u0_virtual_board_gui_smoke.exe
+[ 47%] Linking CXX executable p1_native_tests.exe
+[ 47%] Built target k45_tests
+[ 47%] Linking CXX executable p2_native_tests.exe
+[ 47%] Built target p1_native_tests
+[ 47%] Linking CXX executable p2_capture_artifacts.exe
+[ 48%] Built target p2_native_tests
+[ 49%] Linking CXX executable ..\sigflow_session_validate.exe
+[ 49%] Built target p2_capture_artifacts
+[ 49%] Linking CXX executable eda_plugin_host_smoke.exe
+[ 49%] Built target sigflow_session_validate
+[ 50%] Built target u0_virtual_board_gui_smoke
+[ 51%] Linking CXX executable u1_m0_full_product_acceptance.exe
+[ 51%] Built target eda_plugin_host_smoke
+[ 60%] Built target u1_m0_full_product_acceptance
+[ 60%] Linking CXX executable sigflow.exe
+[100%] Built target sigflow

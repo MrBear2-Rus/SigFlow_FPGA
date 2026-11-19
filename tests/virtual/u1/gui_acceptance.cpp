@@ -1,6 +1,7 @@
 #include "virtual/VirtualBoardPanel.h"
 #include "virtual/FaultInjectionPanel.h"
 #include "virtual/VirtualUartPanel.h"
+#include "virtual/VirtualTeachingPanel.h"
 #include "wave/TraceViewPanel.h"
 #include "fpga/FpgaPinBindingPanel.h"
 #include "virtual/BoardRenderer.h"
@@ -40,7 +41,9 @@ const Json& Node(const Json& f,const std::string& name){return f.at("board").at(
 class DpiSurface:public wxPanel {public:DpiSurface(wxWindow* parent,int dpi):wxPanel(parent),dpi_(dpi){}wxSize GetDPI()const override{return {dpi_,dpi_};}double GetDPIScaleFactor()const override{return dpi_/96.0;}private:int dpi_;};
 }
 #include "../p1/gui_acceptance.inc"
+#include "../p2/gui_acceptance.inc"
 int main(int argc,char** argv){
+    if(argc==4 && std::string(argv[3])=="--phase2")return RunPhase2Gui(argc,argv);
     if(argc==4 && std::string(argv[3])=="--phase1")return RunPhase1Gui(argc,argv);
     if(argc!=3)return 2;repo=eda::platform::PathFromUtf8(argv[1]);build=eda::platform::PathFromUtf8(argv[2]);work=repo/".work/u1-acceptance";fs::create_directories(work);progress.open(work/"progress.log");
     wxApp::SetInstance(new AcceptanceApp());if(!wxEntryStart(argc,argv))return 3;wxTheApp->CallOnInit();wxInitAllImageHandlers();wxLog::SetActiveTarget(new wxLogStderr());

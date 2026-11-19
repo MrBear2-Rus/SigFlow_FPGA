@@ -1,0 +1,9 @@
+{
+  "artifacts": {
+    "metadata": "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p2\\probes\\rtl-comparison\\capture.metadata.json",
+    "raw": "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p2\\probes\\rtl-comparison\\capture.raw",
+    "vcd": "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p2\\probes\\rtl-comparison\\capture.vcd"
+  },
+  "samples_compared": 16,
+  "status": "matched"
+}

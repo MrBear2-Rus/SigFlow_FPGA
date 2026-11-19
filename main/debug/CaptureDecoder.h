@@ -19,6 +19,8 @@ struct CaptureTimebase {
     std::uint64_t sampleClockHz = 0; // 0 = legacy sample-index time, not physical
     std::uint32_t decimation = 1;
     bool triggerObserved = true;
+    std::vector<std::uint32_t> validMasks; // optional extended capture validity
+    std::vector<std::uint64_t> sampleTicks; // optional exact physical timestamps
 };
 
 // All times are VCD ticks. Physical captures use 1ps and absolute rational

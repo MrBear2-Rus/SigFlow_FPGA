@@ -1,0 +1,34 @@
+{
+  "schema": "sigflow.fault-profile.v2",
+  "id": "teacher-plan",
+  "revision": 1,
+  "board_ref": "tang-nano-9k@2.0.0-teaching-1mhz",
+  "tick_ps": "1",
+  "rng": {
+    "algorithm": "pcg32-v1",
+    "seed": "9500123",
+    "streams": "by_fault_id"
+  },
+  "conflict_policy": "reject_overlapping_mutations",
+  "faults": [
+    {
+      "id": "secret-clock-9c3",
+      "enabled": true,
+      "visibility": "teacher_only",
+      "hook": "clock.schedule",
+      "target": {
+        "kind": "clock",
+        "id": "clk27m"
+      },
+      "effect": {
+        "hold_level": 0,
+        "resume_phase": "restart_half_period",
+        "type": "clock_stop"
+      },
+      "trigger": {
+        "kind": "permanent",
+        "start_tick": "0"
+      }
+    }
+  ]
+}

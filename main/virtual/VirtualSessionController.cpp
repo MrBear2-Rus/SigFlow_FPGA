@@ -29,6 +29,7 @@ const char* StateName(SessionState s){switch(s){case SessionState::Unbuilt:retur
 SessionState MapState(const Json& f){auto s=f.value("state","");if(s=="Running")return SessionState::Running;if(s=="Stopped")return SessionState::Stopped;
     if(s=="Paused")return f.value("reason","")=="Ready"?SessionState::Ready:SessionState::Paused;return SessionState::Error;}
 bool CanCommand(SessionState s,const std::string& op){if(op=="replay.current" || op=="replay.file")return s==SessionState::Ready || s==SessionState::Paused || s==SessionState::Stopped;
+    if(op.starts_with("teaching.") || op=="virtual.evidence.query")return s==SessionState::Ready || s==SessionState::Paused || s==SessionState::Stopped;
     if(op=="pause")return s==SessionState::Running;if(op=="step")return s==SessionState::Ready || s==SessionState::Paused;
     return s==SessionState::Ready || s==SessionState::Paused || s==SessionState::Running;}
 VirtualSessionController::VirtualSessionController():timer_(this),alive_(std::make_shared<std::atomic<bool>>(true)){Bind(wxEVT_TIMER,&VirtualSessionController::Tick,this);}
@@ -58,21 +59,27 @@ void VirtualSessionController::Open(const wxString& executable,const wxString& c
     if(!wxIsMainThread())throw std::runtime_error("E_GUI_THREAD");Shutdown();frame_=Json::object();buffer_.clear();stderr_.clear();error_.clear();targets_.clear();mirror_.reset();source_.reset();mirror_revision_=0;state_=SessionState::Building;Notify();
     try{
         std::ifstream in(eda::platform::PathFromUtf8(config.ToStdString(wxConvUTF8)));Json definition;in>>definition;
+        replies_.clear();reply_sequences_.clear();response_timeout_=definition.value("teaching_service",false)?600:definition.value("phase2",false)?120:10;
         if(!definition.contains("board_path"))throw std::runtime_error("实验会话需要显式板卡定义 board_path");
         for(const auto& input:definition.at("inputs"))targets_[input.at("package_pin").get<int>()]=input.at("target");
         auto* child=new Child();process_=child;child->Redirect();
         child->done=[this]{std::string failure;try{Drain();}catch(const std::exception& e){failure=e.what();}process_=nullptr;pid_=0;
             if(!failure.empty())Fail(failure);else if(state_!=SessionState::Stopped && state_!=SessionState::Error)Fail("会话进程已退出。"+stderr_);};
-        const wchar_t* args[]={executable.wc_str(),config.wc_str(),nullptr};wxExecuteEnv env;env.cwd=cwd;
-        pid_=wxExecute(args,wxEXEC_ASYNC|wxEXEC_HIDE_CONSOLE,child,&env);
+        std::vector<wxString> arguments{executable};if(definition.value("teaching_service",false)){auto repo=VirtualProjectSessionBuilder::FindRepository();arguments.push_back(wxString::FromUTF8(eda::platform::PathToUtf8(repo/"tools/virtual/virtual_teaching_service.py")));arguments.push_back("--config");}arguments.push_back(config);std::vector<const wchar_t*> args;for(const auto& argument:arguments)args.push_back(argument.wc_str());args.push_back(nullptr);wxExecuteEnv env;env.cwd=cwd;
+        pid_=wxExecute(args.data(),wxEXEC_ASYNC|wxEXEC_HIDE_CONSOLE,child,&env);
         if(!pid_){process_=nullptr;delete child;throw std::runtime_error("无法启动实验会话进程");}
         Send({{"op","get"}});timer_.Start(33);
     }catch(const std::exception& e){Fail(e.what());}
 }
 std::string VirtualSessionController::CommandId(){return "gui-"+std::to_string(++command_);}
+const Json& VirtualSessionController::LatestReply(const std::string& op)const{static const Json empty=Json::object();auto it=replies_.find(op);return it==replies_.end()?empty:it->second;}
+void VirtualSessionController::OpenTeaching(const std::string& id){
+    if(id!="course-01-open-wire" && id!="course-02-bridge-contention" && id!="course-03-button-debounce" && id!="course-04-uart-clock-fault")throw std::runtime_error("E_COURSE_ID");auto repo=VirtualProjectSessionBuilder::FindRepository();auto project=VirtualProjectSessionBuilder::ReadProject(repo/"examples/virtual/courses"/id/"virtual.project.json");static uint64_t serial=0;auto folder=repo/".work/virtual-course-ui"/(std::to_string(wxGetProcessId())+"-"+std::to_string(++serial));std::filesystem::create_directories(folder);Json launch={{"teaching_service",true},{"course_id",id},{"inputs",project.at("inputs")},{"board_path",project.at("board_path")},{"build_dir",eda::platform::PathToUtf8(repo/"build-m0")},{"work",eda::platform::PathToUtf8(folder/"trusted")}};auto file=folder/"launch.json";std::ofstream(file)<<launch.dump(2);wxString python;if(!wxGetEnv("SIGFLOW_PYTHON3",&python))python="python.exe";build_result_=Json::object();Open(python,wxString::FromUTF8(eda::platform::PathToUtf8(file)),wxString::FromUTF8(eda::platform::PathToUtf8(repo)));
+}
 void VirtualSessionController::Queue(Json command){
     if(!wxIsMainThread()){auto alive=alive_;CallAfter([this,alive,command=std::move(command)]{if(*alive)Queue(command);});return;}
     if(!process_ || !CanCommand(state_,command.value("op","")))return;
+    auto operation=command.value("op",std::string());if(frame_.value("mode",std::string())=="student_blind_test" && (operation.starts_with("fault.") || operation=="profile.load")){error_="盲测模式只允许测量、提示与修复提交";Notify();return;}replies_.erase(operation);
     if(queue_.size()>=128){error_="操作队列已满，请等待当前操作完成";Notify();return;}
     if(!command.contains("command_id"))command["command_id"]=CommandId();queue_.push_back(std::move(command));
 }
@@ -96,7 +103,7 @@ void VirtualSessionController::Drain(){
     for(size_t end; (end=buffer_.find('\n'))!=std::string::npos;){auto line=buffer_.substr(0,end);buffer_.erase(0,end+1);Receive(Json::parse(line));}
 }
 void VirtualSessionController::Receive(const Json& response){
-    if(outstanding_.is_null())throw std::runtime_error("E_GUI_UNSOLICITED_FRAME");auto op=outstanding_.at("op").get<std::string>();outstanding_=nullptr;
+    if(outstanding_.is_null())throw std::runtime_error("E_GUI_UNSOLICITED_FRAME");auto op=outstanding_.at("op").get<std::string>();outstanding_=nullptr;replies_[op]=response;reply_sequences_[op]=++reply_sequence_;
     if(op=="replay.current" || op=="replay.file"){replay_result_=response;Notify();return;}
     if(response.value("status","")=="rejected"){
         error_=response.value("error","会话拒绝操作");if(response.contains("state")){frame_=response;state_=MapState(frame_);}else if(state_==SessionState::Building)state_=SessionState::Error;
@@ -116,12 +123,13 @@ void VirtualSessionController::Receive(const Json& response){
         source_->RefreshReadView();Notify();return;
     }
     if(response.contains("state")){frame_=response;state_=MapState(frame_);error_=response.value("error","");Notify();}
+    else if(op.starts_with("teaching.") || op=="virtual.evidence.query"){error_.clear();Notify();}
 }
 void VirtualSessionController::Tick(wxTimerEvent&){
     try{
         Drain();if(!process_)return;
         if(!outstanding_.is_null()){
-            auto timeout=outstanding_.value("op",std::string()).rfind("replay.",0)==0?120:10;
+            auto timeout=outstanding_.value("op",std::string()).rfind("replay.",0)==0?120:response_timeout_;
             if(std::chrono::steady_clock::now()-sent_>std::chrono::seconds(timeout))throw std::runtime_error("会话响应超时");return;
         }
         if(!queue_.empty()){auto next=queue_.front();queue_.pop_front();Send(next);return;}

@@ -1,9 +1,11 @@
 #include "Phase1Faults.h"
+#include "Phase2Faults.h"
 #include "eda-platform/Sha256.h"
 #include <limits>
 #include <algorithm>
 namespace eda::virtual_board {
 namespace {
+std::string Resource(const Json& spec){auto type=spec.at("effect").at("type").get<std::string>(),target=spec.at("target").at("id").get<std::string>();if(type=="bridge"){auto other=spec.at("effect").at("other_node").get<std::string>();return "bridge:"+std::min(target,other)+":"+std::max(target,other);}if(type=="common_mismatch" || type=="dead_segment" || type=="led_polarity_reverse" || type=="uart_baud_offset_ppm" || type=="uart_framing_error" || type=="uart_parity_flip")return spec.at("target").dump()+":"+type+":"+spec.at("effect").value("segment",spec.at("effect").value("bit",std::string()));return spec.at("target").dump();}
 void Keys(const Json& object,std::initializer_list<const char*> names){
     if(!object.is_object())throw std::runtime_error("E_FAULT_SCHEMA_OBJECT");
     for(const auto& [key,value]:object.items()){bool known=false;for(auto name:names)known|=key==name;if(!known)throw std::runtime_error("E_FAULT_SCHEMA_FIELD: "+key);}
@@ -28,17 +30,17 @@ uint32_t Pcg32::Next(){uint64_t old=state_;state_=old*6364136223846793005ULL+inc
 uint32_t Pcg32::Bounded(uint32_t bound){if(!bound)throw std::runtime_error("E_RNG_BOUND");uint32_t threshold=uint32_t(-bound)%bound;for(;;){auto value=Next();if(value>=threshold)return value%bound;}}
 Json Pcg32::Snapshot()const{return {{"algorithm","pcg32-v1"},{"state",std::to_string(state_)},{"increment",std::to_string(increment_)}};}
 Phase1Faults::Phase1Faults(const BoardTopology& board):board_(&board){profile_=EmptyProfile(board);}
-Json Phase1Faults::EmptyProfile(const BoardTopology& board){return {{"schema","sigflow.fault-profile.v1"},{"id","empty"},{"revision",1},{"board_ref",board.Descriptor().at("id").get<std::string>()+"@"+board.Descriptor().at("version").get<std::string>()},{"tick_ps","1"},{"rng",{{"algorithm","pcg32-v1"},{"seed","0"},{"streams","by_fault_id"}}},{"conflict_policy","reject_overlapping_mutations"},{"faults",Json::array()}};}
+Json Phase1Faults::EmptyProfile(const BoardTopology& board){return {{"schema",board.UsesState13()?"sigflow.fault-profile.v2":"sigflow.fault-profile.v1"},{"id","empty"},{"revision",1},{"board_ref",board.Descriptor().at("id").get<std::string>()+"@"+board.Descriptor().at("version").get<std::string>()},{"tick_ps","1"},{"rng",{{"algorithm","pcg32-v1"},{"seed","0"},{"streams","by_fault_id"}}},{"conflict_policy","reject_overlapping_mutations"},{"faults",Json::array()}};}
 bool Phase1Faults::Active(const Rule& r,uint64_t tick)const{return r.spec.at("enabled")==true && r.start && tick>=*r.start && (!r.end || tick<*r.end);}
 void Phase1Faults::ValidateConflicts(const std::map<std::string,Rule>& rules,uint64_t tick)const{
-    for(auto a=rules.begin();a!=rules.end();++a)for(auto b=std::next(a);b!=rules.end();++b)if(a->second.spec.at("enabled")==true && b->second.spec.at("enabled")==true && a->second.spec.at("target")==b->second.spec.at("target") && a->second.start && b->second.start){auto begin=std::max(*a->second.start,*b->second.start);if((!a->second.end || begin<*a->second.end) && (!b->second.end || begin<*b->second.end))throw std::runtime_error("E_FAULT_CONFLICT: "+a->first+" / "+b->first);}
+    for(auto a=rules.begin();a!=rules.end();++a)for(auto b=std::next(a);b!=rules.end();++b)if(a->second.spec.at("enabled")==true && b->second.spec.at("enabled")==true && Resource(a->second.spec)==Resource(b->second.spec) && a->second.start && b->second.start){auto begin=std::max(*a->second.start,*b->second.start);if((!a->second.end || begin<*a->second.end) && (!b->second.end || begin<*b->second.end))throw std::runtime_error("E_FAULT_CONFLICT: "+a->first+" / "+b->first);}
     std::map<std::string,std::string> resources;
-    for(const auto& [id,r]:rules){if(!Active(r,tick))continue;auto key=r.spec.at("target").at("kind").get<std::string>()+":"+r.spec.at("target").at("id").get<std::string>();
+    for(const auto& [id,r]:rules){if(!Active(r,tick))continue;auto key=Resource(r.spec);
         auto [it,inserted]=resources.emplace(key,id);if(!inserted)throw std::runtime_error("E_FAULT_CONFLICT: "+it->second+" / "+id+" -> "+key);}
 }
 void Phase1Faults::Load(const Json& p,uint64_t tick){
     Keys(p,{"schema","id","revision","board_ref","tick_ps","rng","conflict_policy","faults"});Keys(p.at("rng"),{"algorithm","seed","streams"});
-    if(p.at("schema")!="sigflow.fault-profile.v1" || !p.at("id").is_string() || p.at("id").get<std::string>().empty() || !p.at("revision").is_number_unsigned() && !p.at("revision").is_number_integer() || p.at("revision").get<int64_t>()<1 || p.at("tick_ps")!="1" || p.at("rng").at("algorithm")!="pcg32-v1" || p.at("rng").at("streams")!="by_fault_id" || p.at("conflict_policy")!="reject_overlapping_mutations")throw std::runtime_error("E_FAULT_PROFILE_VERSION");
+    if(p.at("schema")!=(board_->UsesState13()?"sigflow.fault-profile.v2":"sigflow.fault-profile.v1") || !p.at("id").is_string() || p.at("id").get<std::string>().empty() || !p.at("revision").is_number_unsigned() && !p.at("revision").is_number_integer() || p.at("revision").get<int64_t>()<1 || p.at("tick_ps")!="1" || p.at("rng").at("algorithm")!="pcg32-v1" || p.at("rng").at("streams")!="by_fault_id" || p.at("conflict_policy")!="reject_overlapping_mutations")throw std::runtime_error("E_FAULT_PROFILE_VERSION");
     const auto& descriptor=board_->Descriptor();auto exact=descriptor.at("id").get<std::string>()+"@"+descriptor.at("version").get<std::string>();
     if(p.at("board_ref")!=exact)throw std::runtime_error("E_FAULT_BOARD_REF: expected "+exact);
     if(!p.at("faults").is_array() || p.at("faults").size()>128)throw std::runtime_error("E_FAULT_QUOTA");uint64_t seed=P1Tick(p.at("rng").at("seed"));std::map<std::string,Rule> next;
@@ -64,7 +66,7 @@ void Phase1Faults::Load(const Json& p,uint64_t tick){
             auto duration=P1Tick(f.at("effect").at("duration_ticks"));const auto& es=f.at("effect").at("relative_edges");if(!duration || !es.is_array() || es.empty() || es.size()>4096)throw std::runtime_error("E_BOUNCE_EDGES");uint64_t last=0;bool first=true;
             for(const auto& edge:es){Keys(edge,{"dt","contact"});auto dt=P1Tick(edge.at("dt"));std::string contact=edge.at("contact");if((first && dt!=0) || (!first && dt<=last) || dt>duration || (contact!="closed" && contact!="released"))throw std::runtime_error("E_BOUNCE_EDGES");first=false;last=dt;}
             if(last!=duration || es.back().at("contact")!="closed")throw std::runtime_error("E_BOUNCE_TERMINAL_EDGE");
-        }else throw std::runtime_error("E_FAULT_UNSUPPORTED");
+        }else if(!ValidatePhase2Fault(*board_,f))throw std::runtime_error("E_FAULT_UNSUPPORTED");
         const auto& tr=f.at("trigger");if(trigger=="permanent" || trigger=="transient"){
             if(trigger=="permanent")Keys(tr,{"kind","start_tick"});else Keys(tr,{"kind","start_tick","end_tick"});
             r.start=P1Tick(tr.at("start_tick"));if(trigger=="transient"){r.end=P1Tick(tr.at("end_tick"));if(*r.end<=*r.start)throw std::runtime_error("E_FAULT_WINDOW");}
@@ -76,7 +78,7 @@ void Phase1Faults::Load(const Json& p,uint64_t tick){
         }else throw std::runtime_error("E_FAULT_TRIGGER");
     }
     // Reject conflicting enabled windows statically as well as dynamically.
-    for(auto a=next.begin();a!=next.end();++a)for(auto b=std::next(a);b!=next.end();++b)if(a->second.spec.at("enabled")==true && b->second.spec.at("enabled")==true && a->second.spec.at("target")==b->second.spec.at("target") && a->second.start && b->second.start){
+    for(auto a=next.begin();a!=next.end();++a)for(auto b=std::next(a);b!=next.end();++b)if(a->second.spec.at("enabled")==true && b->second.spec.at("enabled")==true && Resource(a->second.spec)==Resource(b->second.spec) && a->second.start && b->second.start){
         auto begin=std::max(*a->second.start,*b->second.start);if((!a->second.end || begin<*a->second.end) && (!b->second.end || begin<*b->second.end))throw std::runtime_error("E_FAULT_CONFLICT: "+a->first+" / "+b->first);}
     // A profile edit must not restart unrelated live bounce schedules or streams.
     // Changing the global seed explicitly starts a new set of streams.
@@ -111,12 +113,17 @@ void Phase1Faults::Transform(std::map<std::string,std::vector<Driver>>& drivers,
         else if(kind=="button_bounce" && r.contact){auto& ds=drivers[target+".contact"];for(auto& d:ds)if(d.driver_id=="contact")d.state=*r.contact;}
         else if(kind=="stuck_at"){
             bool fpga=r.spec.at("target").at("kind")=="fpga_pad_driver";auto node=fpga?target.substr(6):target;auto value=r.spec.at("effect").at("value")==1?State::SHI:State::SLO;
-            if(r.spec.at("effect").at("mode")=="short_to_rail")drivers[node].push_back({"fault:"+id,uint8_t(value)});
+            if(r.spec.at("effect").at("mode")=="short_to_rail"){
+                // P2 explicitly models a Power rail; P1 retains its frozen Strong rail.
+                uint8_t rail=board_->UsesState13()?uint8_t(value==State::SHI?31:29):uint8_t(value);
+                drivers[node].push_back({"fault:"+id,rail});
+            }
             else {bool found=false;auto source=fpga?std::string():PeripheralSource(*board_,target);for(auto& d:drivers[node])if(fpga?d.driver_id.starts_with("dut:"):d.driver_id==source){d.state=uint8_t(value);found=true;}
                 // A missing original source remains floating; replacement is not a new driver.
                 if(!found && !fpga)throw std::runtime_error("E_STUCK_DRIVER_MISSING: "+target);}
         }
     }
 }
+Json Phase1Faults::ActiveRules(uint64_t tick)const{Json rules=Json::array();for(const auto& [id,r]:rules_)if(Active(r,tick))rules.push_back(r.spec);return rules;}
 Json Phase1Faults::Snapshot(uint64_t tick)const{Json rules=Json::array();for(const auto& [id,r]:rules_)rules.push_back({{"id",id},{"type",r.spec.at("effect").at("type")},{"target",r.spec.at("target")},{"effect",r.spec.at("effect")},{"trigger",r.spec.at("trigger")},{"enabled",r.spec.at("enabled")},{"active",Active(r,tick)},{"matches",std::to_string(r.matches)},{"activations",std::to_string(r.activations)},{"remaining_edges",r.edges.size()},{"cooldown_until",std::to_string(r.cooldown_until)},{"rng",r.rng.Snapshot()}});return {{"profile_id",profile_.at("id")},{"revision",profile_.at("revision")},{"rules",rules},{"events",events_}};}
 }

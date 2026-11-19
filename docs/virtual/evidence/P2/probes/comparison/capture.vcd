@@ -1,0 +1,28 @@
+$date
+  SigFlow TraceBridge capture
+$end
+$version
+  CaptureDecoder 2.0
+$end
+$timescale 1ps $end
+$comment sigflow_time_domain physical $end
+$comment sample_clock_hz 27000000 decimation 2 $end
+$comment capture_layout linear_address_order $end
+$comment trigger_index 2 $end
+$comment trigger_observed 1 $end
+$comment trigger_time 148148 $end
+$scope module debug $end
+$var wire 1 ! 10 $end
+$var wire 1 " K $end
+$upscope $end
+$enddefinitions $end
+#0
+b1 !
+bx "
+#74074
+#148148
+#222222
+#296296
+#370370
+#444444
+#518518

@@ -1,0 +1,37 @@
+True versioned schemas validate all four signed public tasks and private profiles
+True native actual process exits successfully
+True same-level bridge combines real sources without invented CON
+True opposite real DUT outputs bridge into one explained CON network
+True bridge three from-zero real RTL replays preserve both digests
+True actual Power short-to-rail and opposing Strong DUT driver produce explained CON under state13
+True state13-short-to-rail three from-zero real RTL replays preserve both digests
+True removing actual external pull makes input FLT before any DUT writes
+True remaining strong contact repairs pull loss
+True pull-removal three from-zero real RTL replays preserve both digests
+True mapping overlay retains immutable CST and effective PadMap
+True swap changes actual mapped physical endpoint
+True mapping-swap three from-zero real RTL replays preserve both digests
+True mapping overlay retains immutable CST and effective PadMap
+True unbound changes actual mapped physical endpoint
+True mapping-unbound three from-zero real RTL replays preserve both digests
+True LED polarity reversal changes observation without rewriting Pad
+True LED polarity three from-zero real RTL replays preserve both digests
+True dead_segment changes electrical peripheral model on real scanned outputs
+True dead_segment three from-zero real RTL replays preserve both digests
+True common_mismatch changes electrical peripheral model on real scanned outputs
+True common_mismatch three from-zero real RTL replays preserve both digests
+True wire-level UART stop corruption is detected by actual sampler
+True UART recovers on a later valid frame after protocol fault revocation
+True uart_framing_error{'bit': 'stop'} three from-zero real RTL replays preserve both digests
+True missing start bit creates no fabricated decoded byte
+True UART recovers on a later valid frame after protocol fault revocation
+True uart_framing_error{'bit': 'start'} three from-zero real RTL replays preserve both digests
+True baud offset changes actual TX bit deadlines with integer rounding
+True +2% is tolerated rather than forced into failure
+True UART recovers on a later valid frame after protocol fault revocation
+True uart_baud_offset_ppm{'offset_ppm': 20000} three from-zero real RTL replays preserve both digests
+True baud offset changes actual TX bit deadlines with integer rounding
+True UART recovers on a later valid frame after protocol fault revocation
+True uart_baud_offset_ppm{'offset_ppm': -50000} three from-zero real RTL replays preserve both digests
+True actual parity wire inversion reaches parity checker
+True parity-flip three from-zero real RTL replays preserve both digests

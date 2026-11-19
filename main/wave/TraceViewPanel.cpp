@@ -1,4 +1,6 @@
 #include "TraceViewPanel.h"
+#include "virtual/VirtualCaptureArtifacts.h"
+#include "eda-platform/Platform.h"
 
 #include "WaveAnalysis.h"
 #include "WaveCompareHub.h"
@@ -1221,5 +1223,10 @@ bool TraceViewPanel::LoadSession(const std::string& path)
     return true;
 }
 
+eda::Json TraceViewPanel::LoadVirtualCapturePair(const eda::Json& baseline,const eda::Json& actual,const std::string& folder){
+    namespace fs=std::filesystem;auto root=eda::platform::PathFromUtf8(folder);m_virtualCompare=WaveCompareSession();std::string error;eda::Json files=eda::Json::array();int index=0;
+    for(const auto* capture:{&baseline,&actual}){auto paths=virtual_lab::ExportVirtualCapture(*capture,root/(index==0?"baseline":"actual"));WaveCompareTrack track;track.trackId=index==0?"virtual-baseline":"virtual-actual";track.captureId=track.trackId;track.sourcePath=paths.at("vcd");track.timeRange.valid=true;track.timeRange.begin=0;track.timeRange.end=std::stoull(capture->at("samples").back().at("tick").get<std::string>())-std::stoull(capture->at("samples").front().at("tick").get<std::string>());if(!m_virtualCompare.AddTrack(track,error))throw std::runtime_error(error);files.push_back(paths);++index;}
+    auto comparison=WaveCompareSession::CompareSampledCaptures(baseline,actual);comparison["artifacts"]=files;if(!OpenTrace(files.at(1).at("vcd")))throw std::runtime_error("E_CAPTURE_VCD_OPEN");return comparison;
+}
 } // namespace wave
 } // namespace sigflow

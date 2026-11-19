@@ -1,0 +1,65 @@
+{
+  "runner_sha256": "0a3b433ad5cda136e7a299c939d46326a1deec60af8d766c97825bfc887a104f",
+  "results": [
+    {
+      "passed": true,
+      "tick": "55556",
+      "circuit": "0b447dfb745c28a00c5ded2a97090191e14791e683ffc8dc4353ed1b479f3f49",
+      "profile": {
+        "schema": "sigflow.fault-profile.v2",
+        "id": "teacher-plan",
+        "revision": 1,
+        "board_ref": "tang-nano-9k@2.0.0",
+        "tick_ps": "1",
+        "rng": {
+          "algorithm": "pcg32-v1",
+          "seed": "73191",
+          "streams": "by_fault_id"
+        },
+        "conflict_policy": "reject_overlapping_mutations",
+        "faults": []
+      },
+      "seed": "73191"
+    },
+    {
+      "passed": true,
+      "tick": "55556",
+      "circuit": "0b447dfb745c28a00c5ded2a97090191e14791e683ffc8dc4353ed1b479f3f49",
+      "profile": {
+        "schema": "sigflow.fault-profile.v2",
+        "id": "teacher-plan",
+        "revision": 1,
+        "board_ref": "tang-nano-9k@2.0.0",
+        "tick_ps": "1",
+        "rng": {
+          "algorithm": "pcg32-v1",
+          "seed": "88703",
+          "streams": "by_fault_id"
+        },
+        "conflict_policy": "reject_overlapping_mutations",
+        "faults": []
+      },
+      "seed": "88703"
+    },
+    {
+      "passed": true,
+      "tick": "55556",
+      "circuit": "0b447dfb745c28a00c5ded2a97090191e14791e683ffc8dc4353ed1b479f3f49",
+      "profile": {
+        "schema": "sigflow.fault-profile.v2",
+        "id": "teacher-plan",
+        "revision": 1,
+        "board_ref": "tang-nano-9k@2.0.0",
+        "tick_ps": "1",
+        "rng": {
+          "algorithm": "pcg32-v1",
+          "seed": "95077",
+          "streams": "by_fault_id"
+        },
+        "conflict_policy": "reject_overlapping_mutations",
+        "faults": []
+      },
+      "seed": "95077"
+    }
+  ]
+}

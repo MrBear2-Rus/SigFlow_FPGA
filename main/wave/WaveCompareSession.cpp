@@ -1,10 +1,12 @@
 #include "WaveCompareSession.h"
+#include "eda-virtual-board/VirtualInstruments.h"
 
 #include <algorithm>
 #include <limits>
 #include <utility>
 
 namespace sigflow::wave {
+eda::Json WaveCompareSession::CompareSampledCaptures(const eda::Json& expected,const eda::Json& actual){return eda::virtual_board::VirtualInstruments::Compare(expected,actual);}
 
 bool WaveCompareSession::ValidTrack(const WaveCompareTrack& track, std::string& error)
 {

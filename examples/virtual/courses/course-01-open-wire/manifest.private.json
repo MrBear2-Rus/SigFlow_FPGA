@@ -1,0 +1,14 @@
+{
+  "schema": "sigflow.signed-course.v1",
+  "algorithm": "Ed25519",
+  "files": {
+    "task.public.json": "a4d7d961c336c4a3c050e1b03785724bee752c2adc244dbda267d75b7160ad85",
+    "faults.private.json": "3eb9797bf15770b14288ab57c8c492bce88ebade95f664513a80f347d9ae5bb7",
+    "rubric.private.json": "d860404cabca1bf18e3c557af78f2553598573491c92f8bbf74c26dffa5b7b64",
+    "virtual.project.json": "e7f8ab68403d2b562aeb2e721dc8fff8fc94582d16259a59d22f70c0aacb6627",
+    "board.json": "4bf8c4396d8d9a3482892a24c2761d19cd6403c2f65c4d7b8f3f0a3c64914992",
+    "broken.sv": "7ac4a5f183c0e2bd82c78fe61c87b9fa8993e1d87ad3ac9b45f91f2690139b11",
+    "counter.cst": "b82f9774f3b68c151e978e9d8810284d0f2613a461f9b5562aa7aa904f951e7c"
+  },
+  "signature": "1870cf52c3971a88338f088f8233d1249c78d61caf6ca5e6f80432dc84318e76df267995ad934b1e1dc8754a14dd03b1af2633288853d6a8db9b206224c4f301"
+}
