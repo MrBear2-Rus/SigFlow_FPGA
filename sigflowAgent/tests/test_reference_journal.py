@@ -7,8 +7,8 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from sigflow_edu_agent.host.store import DurableStore
-from sigflow_edu_agent.runtime.gateway_session import SessionBinding
+from sigflow_teaching_core.host.store import DurableStore
+from sigflow_teaching_core.runtime.gateway_session import SessionBinding
 
 
 class ReferenceJournalTests(unittest.TestCase):
@@ -24,7 +24,7 @@ class ReferenceJournalTests(unittest.TestCase):
                           'rule', 'diagnose', self.state(3))
         # An absent implementation is a behavioral assertion during the first RED.
         try:
-            from sigflow_edu_agent.host.reference_journal import ReferenceJournal
+            from sigflow_teaching_core.host.reference_journal import ReferenceJournal
         except ModuleNotFoundError:
             self.fail('ReferenceJournal durable metadata implementation is missing')
         self.journal = ReferenceJournal(self.store)
@@ -186,7 +186,7 @@ class ReferenceJournalTests(unittest.TestCase):
         self.claim()
         self.store.close()
         self.store = DurableStore(self.path, 'inst')
-        from sigflow_edu_agent.host.reference_journal import ReferenceJournal
+        from sigflow_teaching_core.host.reference_journal import ReferenceJournal
         self.journal = ReferenceJournal(self.store)
         self.assertEqual(self.store.get('s1')['state']['status'], 'RecoveryRequired')
         self.assertEqual(self.journal.get(self.binding, 'run1')['receipt_id'], 'ui-receipt-1')

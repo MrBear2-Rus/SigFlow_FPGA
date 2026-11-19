@@ -14,7 +14,7 @@ import sys
 import tempfile
 import unittest
 
-from sigflow_edu_agent.demo import FixtureSource
+from sigflow_teaching_core.demo import FixtureSource
 
 
 class EvaluationPreflightTests(unittest.TestCase):
@@ -23,7 +23,7 @@ class EvaluationPreflightTests(unittest.TestCase):
         self.directory = tempfile.TemporaryDirectory(dir=self.package)
         self.addCleanup(self.directory.cleanup)
         self.folder = Path(self.directory.name)
-        spec = importlib.util.find_spec('sigflow_edu_agent.evaluation.preflight')
+        spec = importlib.util.find_spec('sigflow_teaching_core.evaluation.preflight')
         self.assertIsNotNone(spec, 'offline_evaluation_preflight_missing')
         self.module = importlib.import_module(spec.name)
 
@@ -183,8 +183,8 @@ class EvaluationPreflightTests(unittest.TestCase):
         script = '''
 import json, runpy, socket, sys, urllib.request
 from unittest.mock import patch
-from sigflow_edu_agent.deepseek import DeepSeekProvider
-from sigflow_edu_agent.evaluation import model
+from sigflow_teaching_core.deepseek import DeepSeekProvider
+from sigflow_teaching_core.evaluation import model
 allowed = {sys.argv[1], sys.argv[2]}
 def audit(event, values):
     if event.startswith('socket.') or (event == 'open' and isinstance(values[0], str)
@@ -196,7 +196,7 @@ with patch.object(DeepSeekProvider, 'from_settings', side_effect=RuntimeError('s
      patch.object(model, 'run_model_evaluation', side_effect=RuntimeError('model_run')), \\
      patch.object(socket, 'socket', side_effect=RuntimeError('network')), \\
      patch.object(urllib.request, 'urlopen', side_effect=RuntimeError('network')):
-    runpy.run_module('sigflow_edu_agent.evaluation.preflight', run_name='__main__')
+    runpy.run_module('sigflow_teaching_core.evaluation.preflight', run_name='__main__')
 '''
         environment = {key:value for key, value in os.environ.items()
                        if not key.startswith(('DEEPSEEK_', 'SIGFLOW_DEEPSEEK'))}

@@ -27,6 +27,7 @@ public:
     ~WaveformView() override;
 
     void SetTraceSource(std::shared_ptr<sigflow::trace::TraceSource> source);
+    void RefreshLiveExtent();
     void SetVisibleSignals(const std::vector<int>& signalIds);
     void SetDisplayFormat(int signalId, WaveDisplayFormat format);
     WaveDisplayFormat DisplayFormat(int signalId) const;
@@ -79,11 +80,14 @@ public:
 
     bool UsingOpenGL() const;
     const WaveViewState& State() const { return m_state; }
+    void SetMultiDeltaHandler(std::function<void(int,uint64_t)> f){m_multiDeltaHandler=std::move(f);}
+    bool InspectMultiDeltaAt(const wxPoint&,int width);
     void ShowContextMenu(const wxPoint& point,
                          sigflow::trace::TimeValue a,
                          sigflow::trace::TimeValue b);
 
 private:
+    std::function<void(int,uint64_t)> m_multiDeltaHandler;
     void OnPaint(wxPaintEvent& event);
     void OnSize(wxSizeEvent& event);
     void OnMouseWheel(wxMouseEvent& event);

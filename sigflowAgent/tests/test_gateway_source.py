@@ -6,11 +6,11 @@ import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Thread
 
-from sigflow_edu_agent.clients.gateway import GatewayClient, GatewayConfig
-from sigflow_edu_agent.context.gateway_report import GatewayReportSource, normalize_report_artifacts
-from sigflow_edu_agent.context.models import EvidenceAnchor
-from sigflow_edu_agent.domain import EvidenceError, RunRequest, Status
-from sigflow_edu_agent.loop import TeachingLoop
+from sigflow_teaching_core.clients.gateway import GatewayClient, GatewayConfig
+from sigflow_teaching_core.context.gateway_report import GatewayReportSource, normalize_report_artifacts
+from sigflow_teaching_core.context.models import EvidenceAnchor
+from sigflow_teaching_core.domain import EvidenceError, RunRequest, Status
+from sigflow_teaching_core.loop import TeachingLoop
 
 
 def fixture():

@@ -4,11 +4,11 @@ from dataclasses import asdict
 import json
 from pathlib import Path
 
-from sigflow_edu_agent.courses import SQLiteCourseProvider
-from sigflow_edu_agent.demo import FixtureSource
-from sigflow_edu_agent.domain import RunRequest
-from sigflow_edu_agent.loop import TeachingLoop
-from sigflow_edu_agent.pedagogy import RuleProvider
+from sigflow_teaching_core.courses import SQLiteCourseProvider
+from sigflow_teaching_core.demo import FixtureSource
+from sigflow_teaching_core.domain import RunRequest
+from sigflow_teaching_core.loop import TeachingLoop
+from sigflow_teaching_core.pedagogy import RuleProvider
 
 
 class OfflineCitationProbe:

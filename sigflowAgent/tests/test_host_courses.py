@@ -12,12 +12,12 @@ import unittest
 import test_gateway_source as fixture
 from test_courses import Courses, material
 from _model_isolation import isolate_model_settings
-from sigflow_edu_agent.clients.gateway import GatewayConfig
-from sigflow_edu_agent.domain import CourseBundle
-from sigflow_edu_agent.host.factory import make_factory
-from sigflow_edu_agent.host.http import HostServer
-from sigflow_edu_agent.host.runtime import Runtime
-from sigflow_edu_agent.host.store import DurableStore
+from sigflow_teaching_core.clients.gateway import GatewayConfig
+from sigflow_teaching_core.domain import CourseBundle
+from sigflow_teaching_core.host.factory import make_factory
+from sigflow_teaching_core.host.http import HostServer
+from sigflow_teaching_core.host.runtime import Runtime
+from sigflow_teaching_core.host.store import DurableStore
 
 
 class HostCoursesTests(unittest.TestCase):
@@ -118,7 +118,7 @@ class HostCoursesTests(unittest.TestCase):
         self.assertEqual(after['model_calls'], before['model_calls'])
 
     def test_missing_database_is_unavailable_without_failing_teaching(self):
-        from sigflow_edu_agent.courses import SQLiteCourseProvider
+        from sigflow_teaching_core.courses import SQLiteCourseProvider
         self.close(); self.courses = SQLiteCourseProvider(Path(self.temp.name) / 'private-missing.sqlite'); self.open()
         _, state = self.create()
         self.assertEqual((state['status'], state['course']['status']), ('WaitingStudent', 'unavailable'))
@@ -163,7 +163,7 @@ class HostCoursesTests(unittest.TestCase):
         self.assertNotIn('prior-model-course-interpretation', repr(replay))
 
     def test_sqlite_neutral_task_uses_question_without_invented_hardware_concept(self):
-        from sigflow_edu_agent.courses import SQLiteCourseProvider
+        from sigflow_teaching_core.courses import SQLiteCourseProvider
         bundle = SQLiteCourseProvider().prepare('Yosys read_verilog', ('job_observation',))
         self.assertEqual(bundle.status, 'ok')
         self.assertTrue(bundle.materials)
@@ -188,22 +188,22 @@ class HostCoursesTests(unittest.TestCase):
 class CourseAcceptanceMetadataTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        from sigflow_edu_agent.courses import SQLiteCourseProvider
+        from sigflow_teaching_core.courses import SQLiteCourseProvider
         cls.provider = SQLiteCourseProvider()
         bundle = cls.provider.prepare('Yosys read_verilog', ('job_observation',))
         cls.background = dict(status='partial', answerability='not_assessed',
             references=json.loads(json.dumps([asdict(bundle.materials[0].reference)])))
 
     def test_real_database_locators_are_verified_without_reporting_passage_body(self):
-        from sigflow_edu_agent.host.course_acceptance import verify_course_background
+        from sigflow_teaching_core.host.course_acceptance import verify_course_background
         facts = verify_course_background(self.background, self.provider.db_path)
         self.assertTrue(facts['metadata_verified'])
         self.assertEqual(facts['reference_count'], 1)
         self.assertNotIn('references', facts)
 
     def test_changed_title_url_parent_or_line_cannot_pass_metadata_acceptance(self):
-        from sigflow_edu_agent.host.course_acceptance import verify_course_background
-        from sigflow_edu_agent.host.acceptance_support import RunFailure
+        from sigflow_teaching_core.host.course_acceptance import verify_course_background
+        from sigflow_teaching_core.host.acceptance_support import RunFailure
         for key in ('title', 'source_url', 'parent_id', 'line_start'):
             with self.subTest(key=key):
                 background = deepcopy(self.background)

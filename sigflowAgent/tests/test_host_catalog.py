@@ -12,11 +12,11 @@ from threading import Thread
 import time
 import unittest
 
-from sigflow_edu_agent.clients.gateway import GatewayConfig
-from sigflow_edu_agent.context.models import SourceRef
-from sigflow_edu_agent.domain import EvidenceError, RunRequest, Status
-from sigflow_edu_agent.host.factory import load_anchors, make_factory, make_report_resolver
-from sigflow_edu_agent.runtime.gateway_session import SessionBinding
+from sigflow_teaching_core.clients.gateway import GatewayConfig
+from sigflow_teaching_core.context.models import SourceRef
+from sigflow_teaching_core.domain import EvidenceError, RunRequest, Status
+from sigflow_teaching_core.host.factory import load_anchors, make_factory, make_report_resolver
+from sigflow_teaching_core.runtime.gateway_session import SessionBinding
 import test_gateway_source
 from _model_isolation import isolate_model_settings
 
@@ -31,9 +31,9 @@ class CatalogFixture:
 
     def catalog(self):
         # Missing public API is an assertion failure before importing it.
-        specification = importlib.util.find_spec('sigflow_edu_agent.host.catalog')
+        specification = importlib.util.find_spec('sigflow_teaching_core.host.catalog')
         self.assertIsNotNone(specification, 'dynamic AnchorCatalog module missing')
-        module = importlib.import_module('sigflow_edu_agent.host.catalog')
+        module = importlib.import_module('sigflow_teaching_core.host.catalog')
         self.assertTrue(hasattr(module, 'AnchorCatalog'), 'dynamic AnchorCatalog API missing')
         return module.AnchorCatalog(self.path)
 
@@ -194,7 +194,7 @@ class LiveCatalogProcessTests(CatalogFixture, unittest.TestCase):
         environment = os.environ | {'PYTHONPATH': package,
                                     'SIGFLOW_U2_ANCHORS': str(self.path.with_suffix('.missing'))}
         environment.pop('DEEPSEEK_API_KEY', None)
-        process = subprocess.Popen([sys.executable, '-m', 'sigflow_edu_agent.host', '--bootstrap-stdin',
+        process = subprocess.Popen([sys.executable, '-m', 'sigflow_teaching_core.host', '--bootstrap-stdin',
                                     '--anchors', str(self.path), '--evidence-origin', 'fixture'],
                                    stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                    cwd=package, env=environment)

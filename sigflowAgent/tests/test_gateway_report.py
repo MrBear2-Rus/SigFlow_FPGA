@@ -3,7 +3,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Thread
 import unittest
 
-from sigflow_edu_agent.clients.gateway import GatewayClient, GatewayConfig, GatewayError
+from sigflow_teaching_core.clients.gateway import GatewayClient, GatewayConfig, GatewayError
 
 
 class GatewayReportTests(unittest.TestCase):

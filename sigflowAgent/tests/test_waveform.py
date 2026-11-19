@@ -4,8 +4,8 @@ import json
 from pathlib import Path
 import unittest
 
-from sigflow_edu_agent.context.models import EvidenceAnchor
-from sigflow_edu_agent.context.waveform import WaveformError, check_waveform, compare_sample
+from sigflow_teaching_core.context.models import EvidenceAnchor
+from sigflow_teaching_core.context.waveform import WaveformError, check_waveform, compare_sample
 
 
 def data():

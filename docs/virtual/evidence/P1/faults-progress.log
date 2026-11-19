@@ -1,0 +1,43 @@
+True production builder compiled counter
+True stuck leaves original real DUT output untouched
+True replace_source has physically distinct driver-set semantics
+True same strong levels do not fabricate contention
+True changing DUT output is independent of stuck source transform
+True revoke reconstructs original driver set
+True replace_source three from-zero real RTL replays verify RNG, integrators, UART and both digests
+True stuck leaves original real DUT output untouched
+True short_to_rail has physically distinct driver-set semantics
+True same strong levels do not fabricate contention
+True changing DUT output is independent of stuck source transform
+True revoke reconstructs original driver set
+True short_to_rail three from-zero real RTL replays verify RNG, integrators, UART and both digests
+True Open start detaches actual LED endpoint without altering driven Pad
+True transient end is exclusive and re-resolves the graph
+True open three from-zero real RTL replays verify RNG, integrators, UART and both digests
+True default rising Step reports bounded E_NO_CLOCK_EDGE without skipping stop interval
+True Step N Ticks advances time while stopped
+True Next Event reaches stop-window end
+True clock resumes a full rational half-period from stop end
+True clock-stop three from-zero real RTL replays verify RNG, integrators, UART and both digests
+True conflicting profile is rejected structurally before DUT import
+True production builder compiled debounce
+True reference reset is sampled on an actual clock edge before release
+True 10ms contact expansion advances through exact peripheral deadlines
+True clean real RTL raw/debounced counters have expected edge counts; actual=(1, 1)
+True clean three from-zero real RTL replays verify RNG, integrators, UART and both digests
+True reference reset is sampled on an actual clock edge before release
+True 10ms contact expansion advances through exact peripheral deadlines
+True bounce real RTL raw/debounced counters have expected edge counts; actual=(3, 1)
+True intermittent expansion has no recursive input.intent trigger
+True bounce bounce RNG and edges replay three times
+True reference reset is sampled on an actual clock edge before release
+True 10ms contact expansion advances through exact peripheral deadlines
+True bounce-unrelated real RTL raw/debounced counters have expected edge counts; actual=(3, 1)
+True intermittent expansion has no recursive input.intent trigger
+True bounce-unrelated bounce RNG and edges replay three times
+True reference reset is sampled on an actual clock edge before release
+True 10ms contact expansion advances through exact peripheral deadlines
+True release-cancel real RTL raw/debounced counters have expected edge counts; actual=(1, 0)
+True intermittent expansion has no recursive input.intent trigger
+True release-cancel three from-zero real RTL replays verify RNG, integrators, UART and both digests
+True adding unrelated fault leaves every original physical contact event unchanged

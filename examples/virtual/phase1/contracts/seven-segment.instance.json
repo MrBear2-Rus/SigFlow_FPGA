@@ -1,0 +1,22 @@
+{
+  "id": "seg0",
+  "model": "sigflow.seven-segment-mux@1",
+  "params": {
+    "digits": 4,
+    "common": "anode",
+    "segment_order": "abcdefg.dp",
+    "segment_active_level": 0,
+    "digit_active_level": 1
+  },
+  "schedule": {
+    "mode": "on_change",
+    "clock_id": "clk27m",
+    "edge_select": "rising",
+    "divisor": 1,
+    "phase": 0
+  },
+  "observe": {
+    "integration_window_ticks": "20000000000",
+    "publish_hz": 60
+  }
+}

@@ -8,12 +8,12 @@ from threading import Event, Thread
 import time
 import unittest
 
-from sigflow_edu_agent.demo import FixtureSource
-from sigflow_edu_agent.host.reference import ReviewedReference
-from sigflow_edu_agent.host.runtime import Runtime
-from sigflow_edu_agent.host.store import DurableStore
-from sigflow_edu_agent.loop import TeachingLoop
-from sigflow_edu_agent.runtime.session import TeachingSession
+from sigflow_teaching_core.demo import FixtureSource
+from sigflow_teaching_core.host.reference import ReviewedReference
+from sigflow_teaching_core.host.runtime import Runtime
+from sigflow_teaching_core.host.store import DurableStore
+from sigflow_teaching_core.loop import TeachingLoop
+from sigflow_teaching_core.runtime.session import TeachingSession
 from test_host_reference import ReceiptFixture
 
 
@@ -114,8 +114,8 @@ class ReferenceBodyTests(unittest.TestCase):
             self.assertEqual(self.reads,before)
 
     def test_real_pinned_provider_rechecks_review_revocation_after_confirmation(self):
-        from sigflow_edu_agent.host.materials import ReviewedMaterialProvider
-        from sigflow_edu_agent.host.reference import POLICY
+        from sigflow_teaching_core.host.materials import ReviewedMaterialProvider
+        from sigflow_teaching_core.host.reference import POLICY
         root=Path(self.temp.name)/'materials';root.mkdir()
         (root/'synthetic-ref.txt').write_text(self.content,encoding='utf-8')
         manifest=root/'manifest.json'

@@ -1,7 +1,7 @@
 import unittest
 from dataclasses import FrozenInstanceError, replace
-from sigflow_edu_agent.checkers.plan import DetailedPlan, PlanStep
-from sigflow_edu_agent.contracts import build_plan_card
+from sigflow_teaching_core.checkers.plan import DetailedPlan, PlanStep
+from sigflow_teaching_core.contracts import build_plan_card
 
 
 def plan():

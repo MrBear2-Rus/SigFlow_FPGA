@@ -40,6 +40,10 @@ add_library(eda_core STATIC
 target_link_libraries(eda_core PUBLIC eda_api eda_platform)
 
 add_library(eda_virtual_board STATIC
+    src/eda-virtual-board/Phase1Faults.cpp
+    src/eda-virtual-board/Phase1Peripherals.cpp
+    src/eda-virtual-board/Phase1Session.cpp
+    src/eda-virtual-board/BoardTopology.cpp
     src/eda-virtual-board/PortManifestBuilder.cpp
     src/eda-virtual-board/ElectricalValidator.cpp
     src/eda-virtual-board/Resolver.cpp
@@ -59,8 +63,11 @@ set_target_properties(sigflow_port_manifest PROPERTIES RUNTIME_OUTPUT_DIRECTORY 
 add_executable(sigflow_adapter_codegen src/eda-virtual-board/AdapterCodeGenCli.cpp)
 target_link_libraries(sigflow_adapter_codegen PRIVATE eda_virtual_board)
 set_target_properties(sigflow_adapter_codegen PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
-add_library(eda_virtual_runner STATIC src/eda-virtual-board/RunnerSupport.cpp)
+add_library(eda_virtual_runner STATIC src/eda-virtual-board/RunnerSupport.cpp src/eda-virtual-board/ProjectValidation.cpp)
 target_link_libraries(eda_virtual_runner PUBLIC eda_virtual_board eda-cst-gowin-cst)
+add_executable(sigflow_session_validate src/eda-virtual-board/ProjectValidationCli.cpp)
+target_link_libraries(sigflow_session_validate PRIVATE eda_virtual_runner)
+set_target_properties(sigflow_session_validate PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 target_include_directories(eda_core PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src/eda-platform")
 

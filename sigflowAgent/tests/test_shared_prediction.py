@@ -1,8 +1,8 @@
 """Formal shared projection includes only actionable, committed prediction metadata."""
 import unittest
 import test_host_prediction as fixture
-from sigflow_edu_agent.host.shared_adapter import SharedRunContext,TeachingHandle,SharedTeachingAdapter
-from sigflow_edu_agent.host.gateway_evidence import GatewayEvidenceCatalog
+from sigflow_teaching_core.host.shared_adapter import SharedRunContext,TeachingHandle,SharedTeachingAdapter
+from sigflow_teaching_core.host.gateway_evidence import GatewayEvidenceCatalog
 
 
 class SharedPredictionTests(unittest.TestCase):

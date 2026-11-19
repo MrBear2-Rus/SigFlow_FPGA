@@ -16,6 +16,7 @@
 #include <wx/tokenzr.h>
 #include <wx/colour.h>
 #include <algorithm>
+#include "eda-virtual-board/PortManifestBuilder.h"
 
 namespace {
 
@@ -609,6 +610,16 @@ void FpgaPinBindingPanel::RefreshBindingsList() {
     }
     m_packageView->SetHighlightedPins(boundPins);
 }
+void FpgaPinBindingPanel::InstallVirtualValidation(const eda::Json& validation){
+    auto result=eda::virtual_board::PortManifestBuilder::Deserialize(validation.at("manifest"));if(!result.ok())return;
+    m_ports=result.manifest;m_sheet.manifest=m_ports;m_sheet.bindings=MakeGuiBindingRows(m_ports);
+    for(const auto& row:validation.at("binding_rows")){auto* binding=m_sheet.FindBinding(wxString::FromUTF8(row.at("label").get<std::string>()));if(!binding)continue;
+        if(!row.at("package_pin").is_null())binding->packagePin=row.at("package_pin");binding->ioType=wxString::FromUTF8(row.at("io_type").get<std::string>());}
+    RefreshBindingsList();
+}
+bool FpgaPinBindingPanel::FocusPortBit(const std::string& label){for(long row=0;row<m_portList->GetItemCount();++row)if(m_portList->GetItemText(row,0)==wxString::FromUTF8(label)){
+    m_portList->SetItemState(-1,0,wxLIST_STATE_SELECTED);m_portList->SetItemState(row,wxLIST_STATE_SELECTED|wxLIST_STATE_FOCUSED,wxLIST_STATE_SELECTED|wxLIST_STATE_FOCUSED);m_portList->EnsureVisible(row);wxListEvent event(wxEVT_LIST_ITEM_SELECTED,m_portList->GetId());event.SetIndex(row);OnPortSelected(event);return true;}return false;}
+std::string FpgaPinBindingPanel::SelectedPortBit()const{auto row=m_portList->GetNextItem(-1,wxLIST_NEXT_ALL,wxLIST_STATE_SELECTED);return row<0?"":m_portList->GetItemText(row,0).ToStdString(wxConvUTF8);}
 
 void FpgaPinBindingPanel::RefreshPinTable(const wxString& filter) {
     m_pinTable->Freeze();

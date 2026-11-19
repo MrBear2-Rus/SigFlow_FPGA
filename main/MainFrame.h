@@ -70,6 +70,7 @@ class UiLayoutPicker;
 class UiLayoutChoice;
 class UiToolBarKeyboard;
 class UiToolBarArt;
+namespace sigflow::virtual_lab {class VirtualSessionController;class VirtualBoardPanel;class FaultInjectionPanel;class VirtualUartPanel;}
 #if defined(SIGFLOW_BUILD_EDU_AGENT)
 namespace agent {
 class AgentDashboardController;
@@ -467,6 +468,14 @@ private:
     int m_lastGeometrySignature = -1;    ///< side/pos/bal 的组合签名；-1 表示尚未施加过
     UiRegionHost* m_bottomHost = nullptr;
     wxAuiNotebook* m_bottomNotebook = nullptr;
+    wxAuiNotebook* m_designBoardTabs = nullptr;
+    std::shared_ptr<sigflow::virtual_lab::VirtualSessionController> m_virtualController;
+    sigflow::virtual_lab::VirtualBoardPanel* m_virtualBoardPanel = nullptr;
+    sigflow::virtual_lab::FaultInjectionPanel* m_faultInjectionPanel = nullptr;
+    sigflow::virtual_lab::VirtualUartPanel* m_virtualUartPanel = nullptr;
+    size_t m_virtualWaveSubscription = 0;
+    std::weak_ptr<sigflow::trace::TraceSource> m_virtualSourceSeen;
+    void OpenVirtualBoard();
     wxControl* m_layoutControls = nullptr;
     /* 方案 B：自绘菜单条（原生 wxMenuBar 在 MSW 上无法改高度/内边距/颜色）。
      * 菜单对象仍是 MainMenuBar（GetMenuBar() 不受影响），只是不再挂到非客户区。 */

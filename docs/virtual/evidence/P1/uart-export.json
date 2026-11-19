@@ -1,0 +1,151 @@
+{
+  "frames": [
+    {
+      "byte": 65,
+      "direction": "RX",
+      "framing_error": false,
+      "parity_error": false,
+      "sequence": "1",
+      "start_tick": "8000125",
+      "state_code": 15,
+      "tick": "18308285",
+      "type": "uart.rx",
+      "uart": "uart0",
+      "valid": true
+    },
+    {
+      "byte": 65,
+      "direction": "TX",
+      "framing_error": false,
+      "sequence": "1",
+      "start_tick": "8000125",
+      "tick": "18850819",
+      "type": "uart.tx",
+      "uart": "uart0",
+      "valid": true
+    },
+    {
+      "byte": 85,
+      "direction": "RX",
+      "framing_error": false,
+      "parity_error": false,
+      "sequence": "2",
+      "start_tick": "18850819",
+      "state_code": 15,
+      "tick": "29158979",
+      "type": "uart.rx",
+      "uart": "uart0",
+      "valid": true
+    },
+    {
+      "byte": 85,
+      "direction": "TX",
+      "framing_error": false,
+      "sequence": "2",
+      "start_tick": "18850819",
+      "tick": "29701513",
+      "type": "uart.tx",
+      "uart": "uart0",
+      "valid": true
+    },
+    {
+      "byte": 90,
+      "direction": "RX",
+      "framing_error": false,
+      "parity_error": false,
+      "sequence": "3",
+      "start_tick": "33542660",
+      "state_code": 15,
+      "tick": "43850820",
+      "type": "uart.rx",
+      "uart": "uart0",
+      "valid": true
+    },
+    {
+      "byte": 90,
+      "direction": "TX",
+      "framing_error": false,
+      "sequence": "3",
+      "start_tick": "33542660",
+      "tick": "44393354",
+      "type": "uart.tx",
+      "uart": "uart0",
+      "valid": true
+    },
+    {
+      "byte": 13,
+      "direction": "RX",
+      "framing_error": false,
+      "parity_error": false,
+      "sequence": "4",
+      "start_tick": "44393354",
+      "state_code": 15,
+      "tick": "54701514",
+      "type": "uart.rx",
+      "uart": "uart0",
+      "valid": true
+    },
+    {
+      "byte": 13,
+      "direction": "TX",
+      "framing_error": false,
+      "sequence": "4",
+      "start_tick": "44393354",
+      "tick": "55244048",
+      "type": "uart.tx",
+      "uart": "uart0",
+      "valid": true
+    },
+    {
+      "byte": 10,
+      "direction": "RX",
+      "framing_error": false,
+      "parity_error": false,
+      "sequence": "5",
+      "start_tick": "55244048",
+      "state_code": 15,
+      "tick": "65552208",
+      "type": "uart.rx",
+      "uart": "uart0",
+      "valid": true
+    },
+    {
+      "byte": 10,
+      "direction": "TX",
+      "framing_error": false,
+      "sequence": "5",
+      "start_tick": "55244048",
+      "tick": "66094742",
+      "type": "uart.tx",
+      "uart": "uart0",
+      "valid": true
+    },
+    {
+      "byte": 85,
+      "direction": "RX",
+      "framing_error": true,
+      "parity_error": false,
+      "sequence": "6",
+      "start_tick": "68542660",
+      "state_code": 13,
+      "tick": "78850820",
+      "type": "uart.framing_error",
+      "uart": "uart0",
+      "valid": false
+    },
+    {
+      "byte": 85,
+      "direction": "TX",
+      "framing_error": false,
+      "sequence": "6",
+      "start_tick": "68542660",
+      "tick": "79393354",
+      "type": "uart.tx",
+      "uart": "uart0",
+      "valid": true
+    }
+  ],
+  "run_id": "virtual-0e885c60b5a74bf7bdd89315c2046dc6",
+  "schema": "sigflow.uart-frames.v1",
+  "tick_ps": "1"
+}

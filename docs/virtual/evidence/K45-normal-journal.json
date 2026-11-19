@@ -1,0 +1,4809 @@
+{
+  "acks": {
+    "first": {
+      "active_pulses": 0,
+      "attempted_position": {
+        "delta": 0,
+        "event_seq": "60",
+        "tick": "18519"
+      },
+      "binding_diagnostics": [],
+      "binding_status": "bound",
+      "board": {
+        "board_id": "tang-nano-9k",
+        "leds": {
+          "led0": {
+            "lit": true,
+            "state_code": 13
+          },
+          "led1": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led2": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led3": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led4": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led5": {
+            "lit": false,
+            "state_code": 15
+          }
+        },
+        "nodes": {
+          "clk27m.out": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "clk27m.out:oscillator",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "key_p3.contact": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p3.contact:contact",
+                "state": 13
+              },
+              {
+                "driver_id": "pad.3:board-pullup-p3",
+                "state": 7
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "key_p4.contact": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p4.contact:contact",
+                "state": 2
+              },
+              {
+                "driver_id": "pad.4:board-pullup-p4",
+                "state": 7
+              }
+            ],
+            "logic": "1",
+            "state_code": 7,
+            "valid": true
+          },
+          "led0.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.10:dut:led_n[0]",
+                "state": 13
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "led1.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.11:dut:led_n[1]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led2.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.13:dut:led_n[2]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led3.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.14:dut:led_n[3]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led4.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.15:dut:led_n[4]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led5.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.16:dut:led_n[5]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.10": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.10:dut:led_n[0]",
+                "state": 13
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "pad.11": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.11:dut:led_n[1]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.13": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.13:dut:led_n[2]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.14": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.14:dut:led_n[3]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.15": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.15:dut:led_n[4]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.16": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.16:dut:led_n[5]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.3": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p3.contact:contact",
+                "state": 13
+              },
+              {
+                "driver_id": "pad.3:board-pullup-p3",
+                "state": 7
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "pad.4": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p4.contact:contact",
+                "state": 2
+              },
+              {
+                "driver_id": "pad.4:board-pullup-p4",
+                "state": 7
+              }
+            ],
+            "logic": "1",
+            "state_code": 7,
+            "valid": true
+          },
+          "pad.52": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "clk27m.out:oscillator",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          }
+        },
+        "wires": {
+          "wire.clock": true,
+          "wire.key3": true,
+          "wire.key4": true,
+          "wire.led0": true,
+          "wire.led1": true,
+          "wire.led2": true,
+          "wire.led3": true,
+          "wire.led4": true,
+          "wire.led5": true
+        }
+      },
+      "command_id": "first",
+      "digests": {
+        "algorithm": "sigflow.sha256-chain.v2",
+        "circuit": "d7824873571c2d93d38a70e313878346d9a3196e1910a27cd6becf8e5aae820d",
+        "control": "a7604d89e13438ab964eaf2e913e1c07e3b47b0e4a2eef0c071171b653369e4c"
+      },
+      "durability": "memory",
+      "edges": "1",
+      "error": "",
+      "eval_calls": "3",
+      "faults": [],
+      "final_calls": 0,
+      "guard": {},
+      "input_writes": "9",
+      "model_instances": 1,
+      "outputs": {
+        "led_n[0]": false,
+        "led_n[1]": true,
+        "led_n[2]": true,
+        "led_n[3]": true,
+        "led_n[4]": true,
+        "led_n[5]": true
+      },
+      "pending_count": 0,
+      "pending_faults": [],
+      "pending_inputs": {},
+      "position": {
+        "delta": 0,
+        "event_seq": "68",
+        "tick": "18519"
+      },
+      "reason": "StepComplete",
+      "resolver_version": "sigflow.state-m0.v1",
+      "run_id": "k45-normal",
+      "state": "Paused",
+      "status": "applied",
+      "tick_ps": "1",
+      "topology_position": {
+        "delta": 0,
+        "event_seq": "0",
+        "tick": "0"
+      },
+      "trace": {
+        "committed_through_tick": "18519",
+        "generation": "1",
+        "revision": "3",
+        "run_id": "k45-normal",
+        "tail_event_seq": "68"
+      }
+    },
+    "normal-second": {
+      "active_pulses": 0,
+      "attempted_position": {
+        "delta": 0,
+        "event_seq": "73",
+        "tick": "55556"
+      },
+      "binding_diagnostics": [],
+      "binding_status": "bound",
+      "board": {
+        "board_id": "tang-nano-9k",
+        "leds": {
+          "led0": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led1": {
+            "lit": true,
+            "state_code": 13
+          },
+          "led2": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led3": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led4": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led5": {
+            "lit": false,
+            "state_code": 15
+          }
+        },
+        "nodes": {
+          "clk27m.out": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "clk27m.out:oscillator",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "key_p3.contact": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p3.contact:contact",
+                "state": 13
+              },
+              {
+                "driver_id": "pad.3:board-pullup-p3",
+                "state": 7
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "key_p4.contact": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p4.contact:contact",
+                "state": 2
+              },
+              {
+                "driver_id": "pad.4:board-pullup-p4",
+                "state": 7
+              }
+            ],
+            "logic": "1",
+            "state_code": 7,
+            "valid": true
+          },
+          "led0.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.10:dut:led_n[0]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led1.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.11:dut:led_n[1]",
+                "state": 13
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "led2.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.13:dut:led_n[2]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led3.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.14:dut:led_n[3]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led4.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.15:dut:led_n[4]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led5.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.16:dut:led_n[5]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.10": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.10:dut:led_n[0]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.11": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.11:dut:led_n[1]",
+                "state": 13
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "pad.13": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.13:dut:led_n[2]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.14": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.14:dut:led_n[3]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.15": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.15:dut:led_n[4]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.16": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.16:dut:led_n[5]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.3": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p3.contact:contact",
+                "state": 13
+              },
+              {
+                "driver_id": "pad.3:board-pullup-p3",
+                "state": 7
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "pad.4": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p4.contact:contact",
+                "state": 2
+              },
+              {
+                "driver_id": "pad.4:board-pullup-p4",
+                "state": 7
+              }
+            ],
+            "logic": "1",
+            "state_code": 7,
+            "valid": true
+          },
+          "pad.52": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "clk27m.out:oscillator",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          }
+        },
+        "wires": {
+          "wire.clock": true,
+          "wire.key3": true,
+          "wire.key4": true,
+          "wire.led0": true,
+          "wire.led1": true,
+          "wire.led2": true,
+          "wire.led3": true,
+          "wire.led4": true,
+          "wire.led5": true
+        }
+      },
+      "command_id": "normal-second",
+      "digests": {
+        "algorithm": "sigflow.sha256-chain.v2",
+        "circuit": "9c0d06d57080ee5230b1c43a689234bb6123a551812f8edbf7e458cfea4ec60e",
+        "control": "25b12c3ea745b97b465c65ad12507d71901f313e0e4622b07ca9f5c76bf38000"
+      },
+      "durability": "memory",
+      "edges": "3",
+      "error": "",
+      "eval_calls": "5",
+      "faults": [],
+      "final_calls": 0,
+      "guard": {},
+      "input_writes": "15",
+      "model_instances": 1,
+      "outputs": {
+        "led_n[0]": true,
+        "led_n[1]": false,
+        "led_n[2]": true,
+        "led_n[3]": true,
+        "led_n[4]": true,
+        "led_n[5]": true
+      },
+      "pending_count": 0,
+      "pending_faults": [],
+      "pending_inputs": {},
+      "position": {
+        "delta": 0,
+        "event_seq": "86",
+        "tick": "55556"
+      },
+      "reason": "StepComplete",
+      "resolver_version": "sigflow.state-m0.v1",
+      "run_id": "k45-normal",
+      "state": "Paused",
+      "status": "applied",
+      "tick_ps": "1",
+      "topology_position": {
+        "delta": 0,
+        "event_seq": "0",
+        "tick": "0"
+      },
+      "trace": {
+        "committed_through_tick": "55556",
+        "generation": "1",
+        "revision": "5",
+        "run_id": "k45-normal",
+        "tail_event_seq": "86"
+      }
+    },
+    "press": {
+      "active_pulses": 0,
+      "attempted_position": {
+        "delta": 1,
+        "event_seq": "52",
+        "tick": "0"
+      },
+      "batch_id": "2",
+      "binding_diagnostics": [],
+      "binding_status": "bound",
+      "board": {
+        "board_id": "tang-nano-9k",
+        "leds": {
+          "led0": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led1": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led2": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led3": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led4": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led5": {
+            "lit": false,
+            "state_code": 15
+          }
+        },
+        "nodes": {
+          "clk27m.out": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "clk27m.out:oscillator",
+                "state": 13
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "key_p3.contact": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p3.contact:contact",
+                "state": 13
+              },
+              {
+                "driver_id": "pad.3:board-pullup-p3",
+                "state": 7
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "key_p4.contact": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p4.contact:contact",
+                "state": 2
+              },
+              {
+                "driver_id": "pad.4:board-pullup-p4",
+                "state": 7
+              }
+            ],
+            "logic": "1",
+            "state_code": 7,
+            "valid": true
+          },
+          "led0.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.10:dut:led_n[0]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led1.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.11:dut:led_n[1]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led2.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.13:dut:led_n[2]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led3.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.14:dut:led_n[3]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led4.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.15:dut:led_n[4]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led5.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.16:dut:led_n[5]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.10": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.10:dut:led_n[0]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.11": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.11:dut:led_n[1]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.13": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.13:dut:led_n[2]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.14": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.14:dut:led_n[3]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.15": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.15:dut:led_n[4]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.16": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.16:dut:led_n[5]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.3": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p3.contact:contact",
+                "state": 13
+              },
+              {
+                "driver_id": "pad.3:board-pullup-p3",
+                "state": 7
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "pad.4": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p4.contact:contact",
+                "state": 2
+              },
+              {
+                "driver_id": "pad.4:board-pullup-p4",
+                "state": 7
+              }
+            ],
+            "logic": "1",
+            "state_code": 7,
+            "valid": true
+          },
+          "pad.52": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "clk27m.out:oscillator",
+                "state": 13
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          }
+        },
+        "wires": {
+          "wire.clock": true,
+          "wire.key3": true,
+          "wire.key4": true,
+          "wire.led0": true,
+          "wire.led1": true,
+          "wire.led2": true,
+          "wire.led3": true,
+          "wire.led4": true,
+          "wire.led5": true
+        }
+      },
+      "command_id": "press",
+      "digests": {
+        "algorithm": "sigflow.sha256-chain.v2",
+        "circuit": "0583e97031cd914ed6fd6661bed71ee0291ba68312fc94aa0f93e5f7e60bdae2",
+        "control": "15743564c242b06d15aaa6d377acbaae824ff9ce1d30d15e3d2769aea2d30b8b"
+      },
+      "durability": "memory",
+      "edges": "0",
+      "error": "",
+      "eval_calls": "2",
+      "faults": [],
+      "final_calls": 0,
+      "guard": {},
+      "input_writes": "6",
+      "model_instances": 1,
+      "outputs": {
+        "led_n[0]": true,
+        "led_n[1]": true,
+        "led_n[2]": true,
+        "led_n[3]": true,
+        "led_n[4]": true,
+        "led_n[5]": true
+      },
+      "pending_count": 0,
+      "pending_faults": [],
+      "pending_inputs": {},
+      "position": {
+        "delta": 1,
+        "event_seq": "59",
+        "tick": "0"
+      },
+      "reason": "Ready",
+      "resolver_version": "sigflow.state-m0.v1",
+      "run_id": "k45-normal",
+      "state": "Paused",
+      "status": "applied",
+      "tick_ps": "1",
+      "topology_position": {
+        "delta": 0,
+        "event_seq": "0",
+        "tick": "0"
+      },
+      "trace": {
+        "committed_through_tick": "0",
+        "generation": "1",
+        "revision": "2",
+        "run_id": "k45-normal",
+        "tail_event_seq": "59"
+      }
+    },
+    "release-reset": {
+      "active_pulses": 0,
+      "attempted_position": {
+        "delta": 1,
+        "event_seq": "52",
+        "tick": "0"
+      },
+      "batch_id": "2",
+      "binding_diagnostics": [],
+      "binding_status": "bound",
+      "board": {
+        "board_id": "tang-nano-9k",
+        "leds": {
+          "led0": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led1": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led2": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led3": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led4": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led5": {
+            "lit": false,
+            "state_code": 15
+          }
+        },
+        "nodes": {
+          "clk27m.out": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "clk27m.out:oscillator",
+                "state": 13
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "key_p3.contact": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p3.contact:contact",
+                "state": 13
+              },
+              {
+                "driver_id": "pad.3:board-pullup-p3",
+                "state": 7
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "key_p4.contact": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p4.contact:contact",
+                "state": 2
+              },
+              {
+                "driver_id": "pad.4:board-pullup-p4",
+                "state": 7
+              }
+            ],
+            "logic": "1",
+            "state_code": 7,
+            "valid": true
+          },
+          "led0.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.10:dut:led_n[0]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led1.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.11:dut:led_n[1]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led2.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.13:dut:led_n[2]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led3.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.14:dut:led_n[3]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led4.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.15:dut:led_n[4]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led5.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.16:dut:led_n[5]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.10": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.10:dut:led_n[0]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.11": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.11:dut:led_n[1]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.13": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.13:dut:led_n[2]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.14": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.14:dut:led_n[3]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.15": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.15:dut:led_n[4]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.16": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.16:dut:led_n[5]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.3": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p3.contact:contact",
+                "state": 13
+              },
+              {
+                "driver_id": "pad.3:board-pullup-p3",
+                "state": 7
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "pad.4": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p4.contact:contact",
+                "state": 2
+              },
+              {
+                "driver_id": "pad.4:board-pullup-p4",
+                "state": 7
+              }
+            ],
+            "logic": "1",
+            "state_code": 7,
+            "valid": true
+          },
+          "pad.52": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "clk27m.out:oscillator",
+                "state": 13
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          }
+        },
+        "wires": {
+          "wire.clock": true,
+          "wire.key3": true,
+          "wire.key4": true,
+          "wire.led0": true,
+          "wire.led1": true,
+          "wire.led2": true,
+          "wire.led3": true,
+          "wire.led4": true,
+          "wire.led5": true
+        }
+      },
+      "command_id": "release-reset",
+      "digests": {
+        "algorithm": "sigflow.sha256-chain.v2",
+        "circuit": "0583e97031cd914ed6fd6661bed71ee0291ba68312fc94aa0f93e5f7e60bdae2",
+        "control": "a1086c89ec6a148f2f50730b0ac483abd79e55dfb6d4daa26a8b8e989311dc67"
+      },
+      "durability": "memory",
+      "edges": "0",
+      "error": "",
+      "eval_calls": "2",
+      "faults": [],
+      "final_calls": 0,
+      "guard": {},
+      "input_writes": "6",
+      "model_instances": 1,
+      "outputs": {
+        "led_n[0]": true,
+        "led_n[1]": true,
+        "led_n[2]": true,
+        "led_n[3]": true,
+        "led_n[4]": true,
+        "led_n[5]": true
+      },
+      "pending_count": 0,
+      "pending_faults": [],
+      "pending_inputs": {},
+      "position": {
+        "delta": 1,
+        "event_seq": "59",
+        "tick": "0"
+      },
+      "reason": "Ready",
+      "resolver_version": "sigflow.state-m0.v1",
+      "run_id": "k45-normal",
+      "state": "Paused",
+      "status": "applied",
+      "tick_ps": "1",
+      "topology_position": {
+        "delta": 0,
+        "event_seq": "0",
+        "tick": "0"
+      },
+      "trace": {
+        "committed_through_tick": "0",
+        "generation": "1",
+        "revision": "2",
+        "run_id": "k45-normal",
+        "tail_event_seq": "59"
+      }
+    },
+    "stop": {
+      "active_pulses": 0,
+      "attempted_position": {
+        "delta": 0,
+        "event_seq": "73",
+        "tick": "55556"
+      },
+      "binding_diagnostics": [],
+      "binding_status": "bound",
+      "board": {
+        "board_id": "tang-nano-9k",
+        "leds": {
+          "led0": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led1": {
+            "lit": true,
+            "state_code": 13
+          },
+          "led2": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led3": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led4": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led5": {
+            "lit": false,
+            "state_code": 15
+          }
+        },
+        "nodes": {
+          "clk27m.out": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "clk27m.out:oscillator",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "key_p3.contact": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p3.contact:contact",
+                "state": 13
+              },
+              {
+                "driver_id": "pad.3:board-pullup-p3",
+                "state": 7
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "key_p4.contact": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p4.contact:contact",
+                "state": 2
+              },
+              {
+                "driver_id": "pad.4:board-pullup-p4",
+                "state": 7
+              }
+            ],
+            "logic": "1",
+            "state_code": 7,
+            "valid": true
+          },
+          "led0.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.10:dut:led_n[0]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led1.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.11:dut:led_n[1]",
+                "state": 13
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "led2.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.13:dut:led_n[2]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led3.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.14:dut:led_n[3]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led4.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.15:dut:led_n[4]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led5.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.16:dut:led_n[5]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.10": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.10:dut:led_n[0]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.11": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.11:dut:led_n[1]",
+                "state": 13
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "pad.13": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.13:dut:led_n[2]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.14": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.14:dut:led_n[3]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.15": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.15:dut:led_n[4]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.16": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.16:dut:led_n[5]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.3": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p3.contact:contact",
+                "state": 13
+              },
+              {
+                "driver_id": "pad.3:board-pullup-p3",
+                "state": 7
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "pad.4": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p4.contact:contact",
+                "state": 2
+              },
+              {
+                "driver_id": "pad.4:board-pullup-p4",
+                "state": 7
+              }
+            ],
+            "logic": "1",
+            "state_code": 7,
+            "valid": true
+          },
+          "pad.52": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "clk27m.out:oscillator",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          }
+        },
+        "wires": {
+          "wire.clock": true,
+          "wire.key3": true,
+          "wire.key4": true,
+          "wire.led0": true,
+          "wire.led1": true,
+          "wire.led2": true,
+          "wire.led3": true,
+          "wire.led4": true,
+          "wire.led5": true
+        }
+      },
+      "command_id": "stop",
+      "digests": {
+        "algorithm": "sigflow.sha256-chain.v2",
+        "circuit": "9c0d06d57080ee5230b1c43a689234bb6123a551812f8edbf7e458cfea4ec60e",
+        "control": "340af4f8f7f48f81ed0f7905b6ca717df6c2222276cb8e688f0e02b27cc978f9"
+      },
+      "durability": "memory",
+      "edges": "3",
+      "error": "",
+      "eval_calls": "5",
+      "faults": [],
+      "final_calls": 1,
+      "guard": {},
+      "input_writes": "15",
+      "model_instances": 1,
+      "outputs": {
+        "led_n[0]": true,
+        "led_n[1]": false,
+        "led_n[2]": true,
+        "led_n[3]": true,
+        "led_n[4]": true,
+        "led_n[5]": true
+      },
+      "pending_count": 0,
+      "pending_faults": [],
+      "pending_inputs": {},
+      "position": {
+        "delta": 0,
+        "event_seq": "86",
+        "tick": "55556"
+      },
+      "reason": "User",
+      "resolver_version": "sigflow.state-m0.v1",
+      "run_id": "k45-normal",
+      "state": "Stopped",
+      "status": "applied",
+      "tick_ps": "1",
+      "topology_position": {
+        "delta": 0,
+        "event_seq": "0",
+        "tick": "0"
+      },
+      "trace": {
+        "committed_through_tick": "55556",
+        "generation": "1",
+        "revision": "5",
+        "run_id": "k45-normal",
+        "tail_event_seq": "86"
+      }
+    }
+  },
+  "digests": {
+    "algorithm": "sigflow.sha256-chain.v2",
+    "circuit": "9c0d06d57080ee5230b1c43a689234bb6123a551812f8edbf7e458cfea4ec60e",
+    "control": "340af4f8f7f48f81ed0f7905b6ca717df6c2222276cb8e688f0e02b27cc978f9"
+  },
+  "durability": "memory",
+  "records": [
+    {
+      "adapter_sha256": "de8ca4369312d2926c8b2079886b17501c81348221d980e60e3bf47e81c519d0",
+      "allow_unbound_outputs": false,
+      "bindings_sha256": "85446473a2bbb535d0e993de82b5aee1c7eb648d1c24d4510a4da5a0dd961df5",
+      "board_sha256": "bb0d914e78f9a266304abb748e3cdff19d7b899ff6e40e60aa645a8f97b80a6b",
+      "clock_enabled": true,
+      "digest_version": "sigflow.sha256-chain.v2",
+      "electrical_sha256": "714c0ae73fa696ab002553906c62cca6739a4655a5f8a669565530849ed7ea12",
+      "frequency_hz": "27000000",
+      "kind": "run_header",
+      "max_delta": 256,
+      "required_clock": "clock_in",
+      "resolver_version": "sigflow.state-m0.v1",
+      "scheduler_version": "sigflow.scheduler.m0.v3",
+      "schema": "sigflow.session-journal.m0.v3",
+      "source_sha256": "c7b197be819f47896726a69ba99405360c68a61df9dd4adf50f7022fb071bf50",
+      "tick_ps": "1",
+      "trace_generation": "1",
+      "trace_run_id": "k45-normal",
+      "trace_signals": [
+        {
+          "id": 0,
+          "kind": "port",
+          "name": "port:clock_in",
+          "width": 1
+        },
+        {
+          "id": 1,
+          "kind": "port",
+          "name": "port:reset_n",
+          "width": 1
+        },
+        {
+          "id": 2,
+          "kind": "port",
+          "name": "port:key_n",
+          "width": 1
+        },
+        {
+          "id": 3,
+          "kind": "port",
+          "name": "port:led_n[0]",
+          "width": 1
+        },
+        {
+          "id": 4,
+          "kind": "port",
+          "name": "port:led_n[1]",
+          "width": 1
+        },
+        {
+          "id": 5,
+          "kind": "port",
+          "name": "port:led_n[2]",
+          "width": 1
+        },
+        {
+          "id": 6,
+          "kind": "port",
+          "name": "port:led_n[3]",
+          "width": 1
+        },
+        {
+          "id": 7,
+          "kind": "port",
+          "name": "port:led_n[4]",
+          "width": 1
+        },
+        {
+          "id": 8,
+          "kind": "port",
+          "name": "port:led_n[5]",
+          "width": 1
+        },
+        {
+          "id": 9,
+          "kind": "pad",
+          "name": "pad:3",
+          "width": 1
+        },
+        {
+          "id": 10,
+          "kind": "pad",
+          "name": "pad:4",
+          "width": 1
+        },
+        {
+          "id": 11,
+          "kind": "pad",
+          "name": "pad:10",
+          "width": 1
+        },
+        {
+          "id": 12,
+          "kind": "pad",
+          "name": "pad:11",
+          "width": 1
+        },
+        {
+          "id": 13,
+          "kind": "pad",
+          "name": "pad:13",
+          "width": 1
+        },
+        {
+          "id": 14,
+          "kind": "pad",
+          "name": "pad:14",
+          "width": 1
+        },
+        {
+          "id": 15,
+          "kind": "pad",
+          "name": "pad:15",
+          "width": 1
+        },
+        {
+          "id": 16,
+          "kind": "pad",
+          "name": "pad:16",
+          "width": 1
+        },
+        {
+          "id": 17,
+          "kind": "pad",
+          "name": "pad:52",
+          "width": 1
+        },
+        {
+          "id": 18,
+          "kind": "endpoint",
+          "name": "clk27m.out",
+          "width": 1
+        },
+        {
+          "id": 19,
+          "kind": "endpoint",
+          "name": "key_p3.contact",
+          "width": 1
+        },
+        {
+          "id": 20,
+          "kind": "endpoint",
+          "name": "key_p4.contact",
+          "width": 1
+        },
+        {
+          "id": 21,
+          "kind": "endpoint",
+          "name": "led0.K",
+          "width": 1
+        },
+        {
+          "id": 22,
+          "kind": "endpoint",
+          "name": "led1.K",
+          "width": 1
+        },
+        {
+          "id": 23,
+          "kind": "endpoint",
+          "name": "led2.K",
+          "width": 1
+        },
+        {
+          "id": 24,
+          "kind": "endpoint",
+          "name": "led3.K",
+          "width": 1
+        },
+        {
+          "id": 25,
+          "kind": "endpoint",
+          "name": "led4.K",
+          "width": 1
+        },
+        {
+          "id": 26,
+          "kind": "endpoint",
+          "name": "led5.K",
+          "width": 1
+        },
+        {
+          "id": 27,
+          "kind": "endpoint",
+          "name": "pad.10",
+          "width": 1
+        },
+        {
+          "id": 28,
+          "kind": "endpoint",
+          "name": "pad.11",
+          "width": 1
+        },
+        {
+          "id": 29,
+          "kind": "endpoint",
+          "name": "pad.13",
+          "width": 1
+        },
+        {
+          "id": 30,
+          "kind": "endpoint",
+          "name": "pad.14",
+          "width": 1
+        },
+        {
+          "id": 31,
+          "kind": "endpoint",
+          "name": "pad.15",
+          "width": 1
+        },
+        {
+          "id": 32,
+          "kind": "endpoint",
+          "name": "pad.16",
+          "width": 1
+        },
+        {
+          "id": 33,
+          "kind": "endpoint",
+          "name": "pad.3",
+          "width": 1
+        },
+        {
+          "id": 34,
+          "kind": "endpoint",
+          "name": "pad.4",
+          "width": 1
+        },
+        {
+          "id": 35,
+          "kind": "endpoint",
+          "name": "pad.52",
+          "width": 1
+        },
+        {
+          "id": 36,
+          "kind": "connection",
+          "name": "wire.led0",
+          "width": 1
+        },
+        {
+          "id": 37,
+          "kind": "connection",
+          "name": "wire.led1",
+          "width": 1
+        },
+        {
+          "id": 38,
+          "kind": "connection",
+          "name": "wire.led2",
+          "width": 1
+        },
+        {
+          "id": 39,
+          "kind": "connection",
+          "name": "wire.led3",
+          "width": 1
+        },
+        {
+          "id": 40,
+          "kind": "connection",
+          "name": "wire.led4",
+          "width": 1
+        },
+        {
+          "id": 41,
+          "kind": "connection",
+          "name": "wire.led5",
+          "width": 1
+        },
+        {
+          "id": 42,
+          "kind": "connection",
+          "name": "wire.key3",
+          "width": 1
+        },
+        {
+          "id": 43,
+          "kind": "connection",
+          "name": "wire.key4",
+          "width": 1
+        },
+        {
+          "id": 44,
+          "kind": "connection",
+          "name": "wire.clock",
+          "width": 1
+        },
+        {
+          "id": 45,
+          "kind": "led",
+          "name": "led0.lit",
+          "width": 1
+        },
+        {
+          "id": 46,
+          "kind": "led",
+          "name": "led1.lit",
+          "width": 1
+        },
+        {
+          "id": 47,
+          "kind": "led",
+          "name": "led2.lit",
+          "width": 1
+        },
+        {
+          "id": 48,
+          "kind": "led",
+          "name": "led3.lit",
+          "width": 1
+        },
+        {
+          "id": 49,
+          "kind": "led",
+          "name": "led4.lit",
+          "width": 1
+        },
+        {
+          "id": 50,
+          "kind": "led",
+          "name": "led5.lit",
+          "width": 1
+        }
+      ]
+    },
+    {
+      "batch_id": "1",
+      "board": {
+        "board_id": "tang-nano-9k",
+        "leds": {
+          "led0": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led1": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led2": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led3": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led4": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led5": {
+            "lit": false,
+            "state_code": 15
+          }
+        },
+        "nodes": {
+          "clk27m.out": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "clk27m.out:oscillator",
+                "state": 13
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "key_p3.contact": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p3.contact:contact",
+                "state": 2
+              },
+              {
+                "driver_id": "pad.3:board-pullup-p3",
+                "state": 7
+              }
+            ],
+            "logic": "1",
+            "state_code": 7,
+            "valid": true
+          },
+          "key_p4.contact": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p4.contact:contact",
+                "state": 13
+              },
+              {
+                "driver_id": "pad.4:board-pullup-p4",
+                "state": 7
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "led0.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.10:dut:led_n[0]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led1.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.11:dut:led_n[1]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led2.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.13:dut:led_n[2]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led3.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.14:dut:led_n[3]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led4.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.15:dut:led_n[4]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led5.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.16:dut:led_n[5]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.10": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.10:dut:led_n[0]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.11": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.11:dut:led_n[1]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.13": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.13:dut:led_n[2]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.14": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.14:dut:led_n[3]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.15": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.15:dut:led_n[4]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.16": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.16:dut:led_n[5]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.3": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p3.contact:contact",
+                "state": 2
+              },
+              {
+                "driver_id": "pad.3:board-pullup-p3",
+                "state": 7
+              }
+            ],
+            "logic": "1",
+            "state_code": 7,
+            "valid": true
+          },
+          "pad.4": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p4.contact:contact",
+                "state": 13
+              },
+              {
+                "driver_id": "pad.4:board-pullup-p4",
+                "state": 7
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "pad.52": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "clk27m.out:oscillator",
+                "state": 13
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          }
+        },
+        "wires": {
+          "wire.clock": true,
+          "wire.key3": true,
+          "wire.key4": true,
+          "wire.led0": true,
+          "wire.led1": true,
+          "wire.led2": true,
+          "wire.led3": true,
+          "wire.led4": true,
+          "wire.led5": true
+        }
+      },
+      "board_inputs": {
+        "clock_p52": 2,
+        "key_p3": 2,
+        "reset_p4": 13
+      },
+      "clock_high": false,
+      "durability": "memory",
+      "effective_inputs": [
+        {
+          "port_ref": "key_n",
+          "state": 7,
+          "value": true
+        },
+        {
+          "port_ref": "reset_n",
+          "state": 13,
+          "value": false
+        },
+        {
+          "port_ref": "clock_in",
+          "state": 13,
+          "value": false
+        }
+      ],
+      "evaluated": true,
+      "evaluation_position": {
+        "delta": 0,
+        "event_seq": "1",
+        "tick": "0"
+      },
+      "faults": [],
+      "kind": "commit",
+      "outputs": {
+        "led_n[0]": true,
+        "led_n[1]": true,
+        "led_n[2]": true,
+        "led_n[3]": true,
+        "led_n[4]": true,
+        "led_n[5]": true
+      },
+      "position": {
+        "delta": 0,
+        "event_seq": "51",
+        "tick": "0"
+      },
+      "trace_events": [
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "1",
+            "tick": "0"
+          },
+          "signal_id": 18,
+          "state_code": 13,
+          "valid": true,
+          "value": "0"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "2",
+            "tick": "0"
+          },
+          "signal_id": 19,
+          "state_code": 7,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "3",
+            "tick": "0"
+          },
+          "signal_id": 20,
+          "state_code": 13,
+          "valid": true,
+          "value": "0"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "4",
+            "tick": "0"
+          },
+          "signal_id": 21,
+          "state_code": 15,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "5",
+            "tick": "0"
+          },
+          "signal_id": 45,
+          "state_code": null,
+          "valid": true,
+          "value": "0"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "6",
+            "tick": "0"
+          },
+          "signal_id": 22,
+          "state_code": 15,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "7",
+            "tick": "0"
+          },
+          "signal_id": 46,
+          "state_code": null,
+          "valid": true,
+          "value": "0"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "8",
+            "tick": "0"
+          },
+          "signal_id": 23,
+          "state_code": 15,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "9",
+            "tick": "0"
+          },
+          "signal_id": 47,
+          "state_code": null,
+          "valid": true,
+          "value": "0"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "10",
+            "tick": "0"
+          },
+          "signal_id": 24,
+          "state_code": 15,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "11",
+            "tick": "0"
+          },
+          "signal_id": 48,
+          "state_code": null,
+          "valid": true,
+          "value": "0"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "12",
+            "tick": "0"
+          },
+          "signal_id": 25,
+          "state_code": 15,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "13",
+            "tick": "0"
+          },
+          "signal_id": 49,
+          "state_code": null,
+          "valid": true,
+          "value": "0"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "14",
+            "tick": "0"
+          },
+          "signal_id": 26,
+          "state_code": 15,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "15",
+            "tick": "0"
+          },
+          "signal_id": 50,
+          "state_code": null,
+          "valid": true,
+          "value": "0"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "16",
+            "tick": "0"
+          },
+          "signal_id": 27,
+          "state_code": 15,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "17",
+            "tick": "0"
+          },
+          "signal_id": 28,
+          "state_code": 15,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "18",
+            "tick": "0"
+          },
+          "signal_id": 29,
+          "state_code": 15,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "19",
+            "tick": "0"
+          },
+          "signal_id": 30,
+          "state_code": 15,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "20",
+            "tick": "0"
+          },
+          "signal_id": 31,
+          "state_code": 15,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "21",
+            "tick": "0"
+          },
+          "signal_id": 32,
+          "state_code": 15,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "22",
+            "tick": "0"
+          },
+          "signal_id": 33,
+          "state_code": 7,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "23",
+            "tick": "0"
+          },
+          "signal_id": 34,
+          "state_code": 13,
+          "valid": true,
+          "value": "0"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "24",
+            "tick": "0"
+          },
+          "signal_id": 35,
+          "state_code": 13,
+          "valid": true,
+          "value": "0"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "25",
+            "tick": "0"
+          },
+          "signal_id": 11,
+          "state_code": 15,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "26",
+            "tick": "0"
+          },
+          "signal_id": 12,
+          "state_code": 15,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "27",
+            "tick": "0"
+          },
+          "signal_id": 13,
+          "state_code": 15,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "28",
+            "tick": "0"
+          },
+          "signal_id": 14,
+          "state_code": 15,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "29",
+            "tick": "0"
+          },
+          "signal_id": 15,
+          "state_code": 15,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "30",
+            "tick": "0"
+          },
+          "signal_id": 16,
+          "state_code": 15,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "31",
+            "tick": "0"
+          },
+          "signal_id": 9,
+          "state_code": 7,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "32",
+            "tick": "0"
+          },
+          "signal_id": 10,
+          "state_code": 13,
+          "valid": true,
+          "value": "0"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "33",
+            "tick": "0"
+          },
+          "signal_id": 17,
+          "state_code": 13,
+          "valid": true,
+          "value": "0"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "34",
+            "tick": "0"
+          },
+          "signal_id": 0,
+          "state_code": null,
+          "valid": true,
+          "value": "0"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "35",
+            "tick": "0"
+          },
+          "signal_id": 2,
+          "state_code": null,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "36",
+            "tick": "0"
+          },
+          "signal_id": 3,
+          "state_code": null,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "37",
+            "tick": "0"
+          },
+          "signal_id": 4,
+          "state_code": null,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "38",
+            "tick": "0"
+          },
+          "signal_id": 5,
+          "state_code": null,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "39",
+            "tick": "0"
+          },
+          "signal_id": 6,
+          "state_code": null,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "40",
+            "tick": "0"
+          },
+          "signal_id": 7,
+          "state_code": null,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "41",
+            "tick": "0"
+          },
+          "signal_id": 8,
+          "state_code": null,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "42",
+            "tick": "0"
+          },
+          "signal_id": 1,
+          "state_code": null,
+          "valid": true,
+          "value": "0"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "43",
+            "tick": "0"
+          },
+          "signal_id": 44,
+          "state_code": null,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "44",
+            "tick": "0"
+          },
+          "signal_id": 42,
+          "state_code": null,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "45",
+            "tick": "0"
+          },
+          "signal_id": 43,
+          "state_code": null,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "46",
+            "tick": "0"
+          },
+          "signal_id": 36,
+          "state_code": null,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "47",
+            "tick": "0"
+          },
+          "signal_id": 37,
+          "state_code": null,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "48",
+            "tick": "0"
+          },
+          "signal_id": 38,
+          "state_code": null,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "49",
+            "tick": "0"
+          },
+          "signal_id": 39,
+          "state_code": null,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "50",
+            "tick": "0"
+          },
+          "signal_id": 40,
+          "state_code": null,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "51",
+            "tick": "0"
+          },
+          "signal_id": 41,
+          "state_code": null,
+          "valid": true,
+          "value": "1"
+        }
+      ],
+      "trace_revision": "1"
+    },
+    {
+      "command_id": "release-reset",
+      "kind": "intent",
+      "request": {
+        "command_id": "release-reset",
+        "op": "set",
+        "state": 2,
+        "target": "reset_p4"
+      },
+      "status": "pending"
+    },
+    {
+      "command_id": "release-reset",
+      "kind": "control",
+      "op": "set",
+      "position": {
+        "delta": 0,
+        "event_seq": "51",
+        "tick": "0"
+      },
+      "status": "pending"
+    },
+    {
+      "command_id": "press",
+      "kind": "intent",
+      "request": {
+        "command_id": "press",
+        "op": "set",
+        "state": 13,
+        "target": "key_p3"
+      },
+      "status": "pending"
+    },
+    {
+      "command_id": "press",
+      "kind": "control",
+      "op": "set",
+      "position": {
+        "delta": 0,
+        "event_seq": "51",
+        "tick": "0"
+      },
+      "status": "pending"
+    },
+    {
+      "command_id": "first",
+      "kind": "intent",
+      "request": {
+        "command_id": "first",
+        "op": "step"
+      },
+      "status": "pending"
+    },
+    {
+      "batch_id": "2",
+      "board": {
+        "board_id": "tang-nano-9k",
+        "leds": {
+          "led0": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led1": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led2": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led3": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led4": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led5": {
+            "lit": false,
+            "state_code": 15
+          }
+        },
+        "nodes": {
+          "clk27m.out": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "clk27m.out:oscillator",
+                "state": 13
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "key_p3.contact": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p3.contact:contact",
+                "state": 13
+              },
+              {
+                "driver_id": "pad.3:board-pullup-p3",
+                "state": 7
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "key_p4.contact": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p4.contact:contact",
+                "state": 2
+              },
+              {
+                "driver_id": "pad.4:board-pullup-p4",
+                "state": 7
+              }
+            ],
+            "logic": "1",
+            "state_code": 7,
+            "valid": true
+          },
+          "led0.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.10:dut:led_n[0]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led1.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.11:dut:led_n[1]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led2.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.13:dut:led_n[2]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led3.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.14:dut:led_n[3]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led4.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.15:dut:led_n[4]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led5.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.16:dut:led_n[5]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.10": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.10:dut:led_n[0]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.11": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.11:dut:led_n[1]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.13": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.13:dut:led_n[2]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.14": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.14:dut:led_n[3]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.15": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.15:dut:led_n[4]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.16": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.16:dut:led_n[5]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.3": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p3.contact:contact",
+                "state": 13
+              },
+              {
+                "driver_id": "pad.3:board-pullup-p3",
+                "state": 7
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "pad.4": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p4.contact:contact",
+                "state": 2
+              },
+              {
+                "driver_id": "pad.4:board-pullup-p4",
+                "state": 7
+              }
+            ],
+            "logic": "1",
+            "state_code": 7,
+            "valid": true
+          },
+          "pad.52": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "clk27m.out:oscillator",
+                "state": 13
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          }
+        },
+        "wires": {
+          "wire.clock": true,
+          "wire.key3": true,
+          "wire.key4": true,
+          "wire.led0": true,
+          "wire.led1": true,
+          "wire.led2": true,
+          "wire.led3": true,
+          "wire.led4": true,
+          "wire.led5": true
+        }
+      },
+      "board_inputs": {
+        "clock_p52": 2,
+        "key_p3": 13,
+        "reset_p4": 2
+      },
+      "clock_high": false,
+      "durability": "memory",
+      "effective_inputs": [
+        {
+          "port_ref": "key_n",
+          "state": 13,
+          "value": false
+        },
+        {
+          "port_ref": "reset_n",
+          "state": 7,
+          "value": true
+        },
+        {
+          "port_ref": "clock_in",
+          "state": 13,
+          "value": false
+        }
+      ],
+      "evaluated": true,
+      "evaluation_position": {
+        "delta": 1,
+        "event_seq": "52",
+        "tick": "0"
+      },
+      "faults": [],
+      "kind": "commit",
+      "outputs": {
+        "led_n[0]": true,
+        "led_n[1]": true,
+        "led_n[2]": true,
+        "led_n[3]": true,
+        "led_n[4]": true,
+        "led_n[5]": true
+      },
+      "position": {
+        "delta": 1,
+        "event_seq": "59",
+        "tick": "0"
+      },
+      "trace_events": [
+        {
+          "contention": false,
+          "position": {
+            "delta": 1,
+            "event_seq": "52",
+            "tick": "0"
+          },
+          "signal_id": 19,
+          "state_code": 13,
+          "valid": true,
+          "value": "0"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 1,
+            "event_seq": "53",
+            "tick": "0"
+          },
+          "signal_id": 20,
+          "state_code": 7,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 1,
+            "event_seq": "54",
+            "tick": "0"
+          },
+          "signal_id": 33,
+          "state_code": 13,
+          "valid": true,
+          "value": "0"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 1,
+            "event_seq": "55",
+            "tick": "0"
+          },
+          "signal_id": 34,
+          "state_code": 7,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 1,
+            "event_seq": "56",
+            "tick": "0"
+          },
+          "signal_id": 9,
+          "state_code": 13,
+          "valid": true,
+          "value": "0"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 1,
+            "event_seq": "57",
+            "tick": "0"
+          },
+          "signal_id": 10,
+          "state_code": 7,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 1,
+            "event_seq": "58",
+            "tick": "0"
+          },
+          "signal_id": 2,
+          "state_code": null,
+          "valid": true,
+          "value": "0"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 1,
+            "event_seq": "59",
+            "tick": "0"
+          },
+          "signal_id": 1,
+          "state_code": null,
+          "valid": true,
+          "value": "1"
+        }
+      ],
+      "trace_revision": "2"
+    },
+    {
+      "by": "",
+      "command_id": "press",
+      "kind": "decision",
+      "status": "applied"
+    },
+    {
+      "batch_id": "2",
+      "command_id": "press",
+      "durability": "memory",
+      "kind": "input_commit",
+      "position": {
+        "delta": 1,
+        "event_seq": "59",
+        "tick": "0"
+      },
+      "state": 13,
+      "status": "applied",
+      "target": "key_p3"
+    },
+    {
+      "by": "",
+      "command_id": "release-reset",
+      "kind": "decision",
+      "status": "applied"
+    },
+    {
+      "batch_id": "2",
+      "command_id": "release-reset",
+      "durability": "memory",
+      "kind": "input_commit",
+      "position": {
+        "delta": 1,
+        "event_seq": "59",
+        "tick": "0"
+      },
+      "state": 2,
+      "status": "applied",
+      "target": "reset_p4"
+    },
+    {
+      "batch_id": "3",
+      "board": {
+        "board_id": "tang-nano-9k",
+        "leds": {
+          "led0": {
+            "lit": true,
+            "state_code": 13
+          },
+          "led1": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led2": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led3": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led4": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led5": {
+            "lit": false,
+            "state_code": 15
+          }
+        },
+        "nodes": {
+          "clk27m.out": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "clk27m.out:oscillator",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "key_p3.contact": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p3.contact:contact",
+                "state": 13
+              },
+              {
+                "driver_id": "pad.3:board-pullup-p3",
+                "state": 7
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "key_p4.contact": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p4.contact:contact",
+                "state": 2
+              },
+              {
+                "driver_id": "pad.4:board-pullup-p4",
+                "state": 7
+              }
+            ],
+            "logic": "1",
+            "state_code": 7,
+            "valid": true
+          },
+          "led0.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.10:dut:led_n[0]",
+                "state": 13
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "led1.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.11:dut:led_n[1]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led2.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.13:dut:led_n[2]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led3.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.14:dut:led_n[3]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led4.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.15:dut:led_n[4]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led5.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.16:dut:led_n[5]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.10": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.10:dut:led_n[0]",
+                "state": 13
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "pad.11": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.11:dut:led_n[1]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.13": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.13:dut:led_n[2]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.14": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.14:dut:led_n[3]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.15": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.15:dut:led_n[4]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.16": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.16:dut:led_n[5]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.3": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p3.contact:contact",
+                "state": 13
+              },
+              {
+                "driver_id": "pad.3:board-pullup-p3",
+                "state": 7
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "pad.4": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p4.contact:contact",
+                "state": 2
+              },
+              {
+                "driver_id": "pad.4:board-pullup-p4",
+                "state": 7
+              }
+            ],
+            "logic": "1",
+            "state_code": 7,
+            "valid": true
+          },
+          "pad.52": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "clk27m.out:oscillator",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          }
+        },
+        "wires": {
+          "wire.clock": true,
+          "wire.key3": true,
+          "wire.key4": true,
+          "wire.led0": true,
+          "wire.led1": true,
+          "wire.led2": true,
+          "wire.led3": true,
+          "wire.led4": true,
+          "wire.led5": true
+        }
+      },
+      "board_inputs": {
+        "clock_p52": 2,
+        "key_p3": 13,
+        "reset_p4": 2
+      },
+      "clock_high": true,
+      "durability": "memory",
+      "effective_inputs": [
+        {
+          "port_ref": "key_n",
+          "state": 13,
+          "value": false
+        },
+        {
+          "port_ref": "reset_n",
+          "state": 7,
+          "value": true
+        },
+        {
+          "port_ref": "clock_in",
+          "state": 15,
+          "value": true
+        }
+      ],
+      "evaluated": true,
+      "evaluation_position": {
+        "delta": 0,
+        "event_seq": "60",
+        "tick": "18519"
+      },
+      "faults": [],
+      "kind": "commit",
+      "outputs": {
+        "led_n[0]": false,
+        "led_n[1]": true,
+        "led_n[2]": true,
+        "led_n[3]": true,
+        "led_n[4]": true,
+        "led_n[5]": true
+      },
+      "position": {
+        "delta": 0,
+        "event_seq": "68",
+        "tick": "18519"
+      },
+      "trace_events": [
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "60",
+            "tick": "18519"
+          },
+          "signal_id": 18,
+          "state_code": 15,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "61",
+            "tick": "18519"
+          },
+          "signal_id": 21,
+          "state_code": 13,
+          "valid": true,
+          "value": "0"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "62",
+            "tick": "18519"
+          },
+          "signal_id": 45,
+          "state_code": null,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "63",
+            "tick": "18519"
+          },
+          "signal_id": 27,
+          "state_code": 13,
+          "valid": true,
+          "value": "0"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "64",
+            "tick": "18519"
+          },
+          "signal_id": 35,
+          "state_code": 15,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "65",
+            "tick": "18519"
+          },
+          "signal_id": 11,
+          "state_code": 13,
+          "valid": true,
+          "value": "0"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "66",
+            "tick": "18519"
+          },
+          "signal_id": 17,
+          "state_code": 15,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "67",
+            "tick": "18519"
+          },
+          "signal_id": 0,
+          "state_code": null,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "68",
+            "tick": "18519"
+          },
+          "signal_id": 3,
+          "state_code": null,
+          "valid": true,
+          "value": "0"
+        }
+      ],
+      "trace_revision": "3"
+    },
+    {
+      "command_id": "first",
+      "kind": "control",
+      "op": "step",
+      "position": {
+        "delta": 0,
+        "event_seq": "68",
+        "tick": "18519"
+      },
+      "status": "applied"
+    },
+    {
+      "command_id": "normal-second",
+      "kind": "intent",
+      "request": {
+        "command_id": "normal-second",
+        "op": "step"
+      },
+      "status": "pending"
+    },
+    {
+      "batch_id": "4",
+      "board": {
+        "board_id": "tang-nano-9k",
+        "leds": {
+          "led0": {
+            "lit": true,
+            "state_code": 13
+          },
+          "led1": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led2": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led3": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led4": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led5": {
+            "lit": false,
+            "state_code": 15
+          }
+        },
+        "nodes": {
+          "clk27m.out": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "clk27m.out:oscillator",
+                "state": 13
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "key_p3.contact": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p3.contact:contact",
+                "state": 13
+              },
+              {
+                "driver_id": "pad.3:board-pullup-p3",
+                "state": 7
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "key_p4.contact": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p4.contact:contact",
+                "state": 2
+              },
+              {
+                "driver_id": "pad.4:board-pullup-p4",
+                "state": 7
+              }
+            ],
+            "logic": "1",
+            "state_code": 7,
+            "valid": true
+          },
+          "led0.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.10:dut:led_n[0]",
+                "state": 13
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "led1.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.11:dut:led_n[1]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led2.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.13:dut:led_n[2]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led3.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.14:dut:led_n[3]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led4.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.15:dut:led_n[4]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led5.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.16:dut:led_n[5]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.10": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.10:dut:led_n[0]",
+                "state": 13
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "pad.11": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.11:dut:led_n[1]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.13": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.13:dut:led_n[2]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.14": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.14:dut:led_n[3]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.15": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.15:dut:led_n[4]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.16": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.16:dut:led_n[5]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.3": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p3.contact:contact",
+                "state": 13
+              },
+              {
+                "driver_id": "pad.3:board-pullup-p3",
+                "state": 7
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "pad.4": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p4.contact:contact",
+                "state": 2
+              },
+              {
+                "driver_id": "pad.4:board-pullup-p4",
+                "state": 7
+              }
+            ],
+            "logic": "1",
+            "state_code": 7,
+            "valid": true
+          },
+          "pad.52": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "clk27m.out:oscillator",
+                "state": 13
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          }
+        },
+        "wires": {
+          "wire.clock": true,
+          "wire.key3": true,
+          "wire.key4": true,
+          "wire.led0": true,
+          "wire.led1": true,
+          "wire.led2": true,
+          "wire.led3": true,
+          "wire.led4": true,
+          "wire.led5": true
+        }
+      },
+      "board_inputs": {
+        "clock_p52": 2,
+        "key_p3": 13,
+        "reset_p4": 2
+      },
+      "clock_high": false,
+      "durability": "memory",
+      "effective_inputs": [
+        {
+          "port_ref": "key_n",
+          "state": 13,
+          "value": false
+        },
+        {
+          "port_ref": "reset_n",
+          "state": 7,
+          "value": true
+        },
+        {
+          "port_ref": "clock_in",
+          "state": 13,
+          "value": false
+        }
+      ],
+      "evaluated": true,
+      "evaluation_position": {
+        "delta": 0,
+        "event_seq": "69",
+        "tick": "37037"
+      },
+      "faults": [],
+      "kind": "commit",
+      "outputs": {
+        "led_n[0]": false,
+        "led_n[1]": true,
+        "led_n[2]": true,
+        "led_n[3]": true,
+        "led_n[4]": true,
+        "led_n[5]": true
+      },
+      "position": {
+        "delta": 0,
+        "event_seq": "72",
+        "tick": "37037"
+      },
+      "trace_events": [
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "69",
+            "tick": "37037"
+          },
+          "signal_id": 18,
+          "state_code": 13,
+          "valid": true,
+          "value": "0"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "70",
+            "tick": "37037"
+          },
+          "signal_id": 35,
+          "state_code": 13,
+          "valid": true,
+          "value": "0"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "71",
+            "tick": "37037"
+          },
+          "signal_id": 17,
+          "state_code": 13,
+          "valid": true,
+          "value": "0"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "72",
+            "tick": "37037"
+          },
+          "signal_id": 0,
+          "state_code": null,
+          "valid": true,
+          "value": "0"
+        }
+      ],
+      "trace_revision": "4"
+    },
+    {
+      "batch_id": "5",
+      "board": {
+        "board_id": "tang-nano-9k",
+        "leds": {
+          "led0": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led1": {
+            "lit": true,
+            "state_code": 13
+          },
+          "led2": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led3": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led4": {
+            "lit": false,
+            "state_code": 15
+          },
+          "led5": {
+            "lit": false,
+            "state_code": 15
+          }
+        },
+        "nodes": {
+          "clk27m.out": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "clk27m.out:oscillator",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "key_p3.contact": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p3.contact:contact",
+                "state": 13
+              },
+              {
+                "driver_id": "pad.3:board-pullup-p3",
+                "state": 7
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "key_p4.contact": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p4.contact:contact",
+                "state": 2
+              },
+              {
+                "driver_id": "pad.4:board-pullup-p4",
+                "state": 7
+              }
+            ],
+            "logic": "1",
+            "state_code": 7,
+            "valid": true
+          },
+          "led0.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.10:dut:led_n[0]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led1.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.11:dut:led_n[1]",
+                "state": 13
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "led2.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.13:dut:led_n[2]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led3.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.14:dut:led_n[3]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led4.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.15:dut:led_n[4]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "led5.K": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.16:dut:led_n[5]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.10": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.10:dut:led_n[0]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.11": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.11:dut:led_n[1]",
+                "state": 13
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "pad.13": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.13:dut:led_n[2]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.14": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.14:dut:led_n[3]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.15": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.15:dut:led_n[4]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.16": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "pad.16:dut:led_n[5]",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          },
+          "pad.3": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p3.contact:contact",
+                "state": 13
+              },
+              {
+                "driver_id": "pad.3:board-pullup-p3",
+                "state": 7
+              }
+            ],
+            "logic": "0",
+            "state_code": 13,
+            "valid": true
+          },
+          "pad.4": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "key_p4.contact:contact",
+                "state": 2
+              },
+              {
+                "driver_id": "pad.4:board-pullup-p4",
+                "state": 7
+              }
+            ],
+            "logic": "1",
+            "state_code": 7,
+            "valid": true
+          },
+          "pad.52": {
+            "contention": false,
+            "drivers": [
+              {
+                "driver_id": "clk27m.out:oscillator",
+                "state": 15
+              }
+            ],
+            "logic": "1",
+            "state_code": 15,
+            "valid": true
+          }
+        },
+        "wires": {
+          "wire.clock": true,
+          "wire.key3": true,
+          "wire.key4": true,
+          "wire.led0": true,
+          "wire.led1": true,
+          "wire.led2": true,
+          "wire.led3": true,
+          "wire.led4": true,
+          "wire.led5": true
+        }
+      },
+      "board_inputs": {
+        "clock_p52": 2,
+        "key_p3": 13,
+        "reset_p4": 2
+      },
+      "clock_high": true,
+      "durability": "memory",
+      "effective_inputs": [
+        {
+          "port_ref": "key_n",
+          "state": 13,
+          "value": false
+        },
+        {
+          "port_ref": "reset_n",
+          "state": 7,
+          "value": true
+        },
+        {
+          "port_ref": "clock_in",
+          "state": 15,
+          "value": true
+        }
+      ],
+      "evaluated": true,
+      "evaluation_position": {
+        "delta": 0,
+        "event_seq": "73",
+        "tick": "55556"
+      },
+      "faults": [],
+      "kind": "commit",
+      "outputs": {
+        "led_n[0]": true,
+        "led_n[1]": false,
+        "led_n[2]": true,
+        "led_n[3]": true,
+        "led_n[4]": true,
+        "led_n[5]": true
+      },
+      "position": {
+        "delta": 0,
+        "event_seq": "86",
+        "tick": "55556"
+      },
+      "trace_events": [
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "73",
+            "tick": "55556"
+          },
+          "signal_id": 18,
+          "state_code": 15,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "74",
+            "tick": "55556"
+          },
+          "signal_id": 21,
+          "state_code": 15,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "75",
+            "tick": "55556"
+          },
+          "signal_id": 45,
+          "state_code": null,
+          "valid": true,
+          "value": "0"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "76",
+            "tick": "55556"
+          },
+          "signal_id": 22,
+          "state_code": 13,
+          "valid": true,
+          "value": "0"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "77",
+            "tick": "55556"
+          },
+          "signal_id": 46,
+          "state_code": null,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "78",
+            "tick": "55556"
+          },
+          "signal_id": 27,
+          "state_code": 15,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "79",
+            "tick": "55556"
+          },
+          "signal_id": 28,
+          "state_code": 13,
+          "valid": true,
+          "value": "0"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "80",
+            "tick": "55556"
+          },
+          "signal_id": 35,
+          "state_code": 15,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "81",
+            "tick": "55556"
+          },
+          "signal_id": 11,
+          "state_code": 15,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "82",
+            "tick": "55556"
+          },
+          "signal_id": 12,
+          "state_code": 13,
+          "valid": true,
+          "value": "0"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "83",
+            "tick": "55556"
+          },
+          "signal_id": 17,
+          "state_code": 15,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "84",
+            "tick": "55556"
+          },
+          "signal_id": 0,
+          "state_code": null,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "85",
+            "tick": "55556"
+          },
+          "signal_id": 3,
+          "state_code": null,
+          "valid": true,
+          "value": "1"
+        },
+        {
+          "contention": false,
+          "position": {
+            "delta": 0,
+            "event_seq": "86",
+            "tick": "55556"
+          },
+          "signal_id": 4,
+          "state_code": null,
+          "valid": true,
+          "value": "0"
+        }
+      ],
+      "trace_revision": "5"
+    },
+    {
+      "command_id": "normal-second",
+      "kind": "control",
+      "op": "step",
+      "position": {
+        "delta": 0,
+        "event_seq": "86",
+        "tick": "55556"
+      },
+      "status": "applied"
+    },
+    {
+      "command_id": "stop",
+      "kind": "intent",
+      "request": {
+        "command_id": "stop",
+        "op": "stop"
+      },
+      "status": "pending"
+    },
+    {
+      "command_id": "stop",
+      "kind": "control",
+      "op": "stop",
+      "position": {
+        "delta": 0,
+        "event_seq": "86",
+        "tick": "55556"
+      },
+      "status": "applied"
+    }
+  ],
+  "status": "observed"
+}

@@ -8,8 +8,8 @@ import sys
 import unittest
 from unittest.mock import patch
 
-from sigflow_edu_agent.clients import probe
-from sigflow_edu_agent.clients.gateway import Capabilities, GatewayError
+from sigflow_teaching_core.clients import probe
+from sigflow_teaching_core.clients.gateway import Capabilities, GatewayError
 
 
 class ProbeTests(unittest.TestCase):
@@ -86,7 +86,7 @@ class ProbeTransportTests(unittest.TestCase):
                    SIGFLOW_JOB_ID='job-1', SIGFLOW_PROJECT_ID='p1', SIGFLOW_REVISION='r1',
                    SIGFLOW_SNAPSHOT_ID='snap-1', PYTHONUTF8='1')
         env.update(changes)
-        return subprocess.run([sys.executable, '-S', '-m', 'sigflow_edu_agent.clients.probe', '--report'],
+        return subprocess.run([sys.executable, '-S', '-m', 'sigflow_teaching_core.clients.probe', '--report'],
                               cwd=Path(__file__).resolve().parents[1], env=env,
                               capture_output=True, encoding='utf-8', timeout=10)
 

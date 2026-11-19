@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../trace/TraceSource.h"
+#include <eda/api/Types.h>
 #include "../debug/WaveformComparator.h"
 #include "../debug/DebugBehaviorSummary.h"
 #include "WavePatternSearch.h"
@@ -44,6 +45,10 @@ public:
     explicit TraceViewPanel(wxWindow* parent);
 
     bool OpenTrace(const std::string& path);
+    void UseLiveTrace(std::shared_ptr<sigflow::trace::TraceSource>);
+    void FollowLiveTrace(std::shared_ptr<sigflow::trace::TraceSource>);
+    eda::Json InspectTick(int signal,uint64_t tick);
+    const eda::Json& TickDetails()const{return m_tickDetails;}
     void AutoLoadTrace();
     void SaveSession(const std::string& path);
     bool LoadSession(const std::string& path);
@@ -85,6 +90,10 @@ public:
     void ReapplyTheme();
 
 private:
+    eda::Json m_tickDetails=eda::Json::array();
+    bool m_hasFollowedLive=false;
+    std::weak_ptr<sigflow::trace::TraceSource> m_lastLive;
+    wxListCtrl* m_deltaList=nullptr;
     struct SignalTreeData : public wxClientData {
         explicit SignalTreeData(int id) : signalId(id) {}
         int signalId = -1;

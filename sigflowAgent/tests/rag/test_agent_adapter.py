@@ -8,13 +8,13 @@ import sqlite3
 import tempfile
 import unittest
 
-from sigflow_edu_agent.rag.agent_adapter import prepare_course_context, resolve_course_refs
-from sigflow_edu_agent.rag.citations import CitationValidationError, render_citations
-from sigflow_edu_agent.rag.importer import build_index, DEFAULT_RESOURCES_DIR
+from sigflow_teaching_core.rag.agent_adapter import prepare_course_context, resolve_course_refs
+from sigflow_teaching_core.rag.citations import CitationValidationError, render_citations
+from sigflow_teaching_core.rag.importer import build_index, DEFAULT_RESOURCES_DIR
 import os
 SNAPSHOT_DIR = Path(os.environ.get('SIGFLOW_COURSE_SNAPSHOT', str(Path(__file__).resolve().parents[4] / 'doc/sources/ysyx/2607')))
 
-from sigflow_edu_agent.rag.retriever import retrieve_course_passages
+from sigflow_teaching_core.rag.retriever import retrieve_course_passages
 
 
 @unittest.skipUnless((SNAPSHOT_DIR / "manifest.jsonl").is_file(), "Set SIGFLOW_COURSE_SNAPSHOT for local original-text regression")
@@ -101,13 +101,13 @@ class AgentAdapterTests(unittest.TestCase):
         self.assertEqual(prepared.passages, ())
         self.assertEqual(prepared.index_version, self.version)
 
-    @unittest.skipUnless(importlib.util.find_spec('sigflow_edu_agent'), 'Install the official U2 package for integration')
+    @unittest.skipUnless(importlib.util.find_spec('sigflow_teaching_core'), 'Install the official U2 package for integration')
     def test_real_u2_loop_receives_course_and_returns_verified_reference(self):
-        from sigflow_edu_agent.courses import SQLiteCourseProvider
-        from sigflow_edu_agent.demo import FixtureSource
-        from sigflow_edu_agent.domain import RunRequest, Status
-        from sigflow_edu_agent.loop import TeachingLoop
-        from sigflow_edu_agent.pedagogy import RuleProvider
+        from sigflow_teaching_core.courses import SQLiteCourseProvider
+        from sigflow_teaching_core.demo import FixtureSource
+        from sigflow_teaching_core.domain import RunRequest, Status
+        from sigflow_teaching_core.loop import TeachingLoop
+        from sigflow_teaching_core.pedagogy import RuleProvider
         seen = []
         class OfflineProbe:
             def generate(self, context):

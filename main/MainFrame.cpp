@@ -46,6 +46,9 @@
 #endif
 #include "platform/PlatformPaths.h"
 #include "ui/UiTheme.h"
+#include "virtual/VirtualBoardPanel.h"
+#include "virtual/VirtualUartPanel.h"
+#include "virtual/FaultInjectionPanel.h"
 #include <wx/display.h>  // T-660：wxDisplay / wxDisplay::GetClientArea（工作区校验 PLT-010）
 #include "ui/UiFocusTrace.h"
 #include "ui/UiToolBarKeyboard.h"
@@ -730,6 +733,8 @@ MainFrame::MainFrame()
     });
     m_verilogMgr = new VerilogManager(m_verilogEditor, sigTree, m_parser);
     m_fpgaToolWindow = new FpgaToolWindow(this);
+    m_virtualController = std::make_shared<sigflow::virtual_lab::VirtualSessionController>();
+    m_fpgaToolWindow->SetOpenVirtualBoardHandler([this]{OpenVirtualBoard();});
     m_fpgaToolWindow->SetOpenFileHandler([this](const wxString& path, long line) {
         wxFileName fn(path);
         wxString ext = fn.GetExt().Lower();
@@ -1340,10 +1345,28 @@ MainFrame::MainFrame()
     centerRegionHost->SetContent(mainSplitter);
 #endif
     m_editorChrome->Reparent(mainSplitter);
-    m_canvas->Reparent(mainSplitter);
+    m_designBoardTabs = new wxAuiNotebook(mainSplitter,wxID_ANY,wxDefaultPosition,wxDefaultSize,wxAUI_NB_TOP|wxBORDER_NONE);
+    m_designBoardTabs->SetArtProvider(new UiTabArt());
+    m_canvas->Reparent(m_designBoardTabs);
+    m_designBoardTabs->AddPage(m_canvas,wxString::FromUTF8("设计画布"));
+    m_virtualBoardPanel = new sigflow::virtual_lab::VirtualBoardPanel(m_designBoardTabs,m_virtualController);
+    m_designBoardTabs->AddPage(m_virtualBoardPanel,wxString::FromUTF8("虚拟实验箱"));
+    m_virtualBoardPanel->SetProjectProvider([this]{
+        if(m_currentProjectPath.IsEmpty())throw std::runtime_error("请先打开工程，或使用 M0 参考实验入口。");
+        auto root=std::filesystem::u8path(m_currentProjectPath.ToStdString(wxConvUTF8));
+        if(!std::filesystem::is_directory(root))root=root.parent_path();
+        auto descriptor=root/"virtual.project.json";if(!std::filesystem::exists(descriptor))throw std::runtime_error("E_VIRTUAL_PROJECT_REQUIRED: 工程根目录需要 virtual.project.json，显式声明时钟、CST 与输入角色。");
+        auto project=sigflow::virtual_lab::VirtualProjectSessionBuilder::ReadProject(descriptor);wxString top;std::vector<wxString> files;
+        if(LoadProjectConfig(m_currentProjectPath,top,files)){project["top_module"]=top.ToStdString(wxConvUTF8);project["source_files"]=eda::Json::array();for(const auto& file:files)project["source_files"].push_back(file.ToStdString(wxConvUTF8));}return project;
+    });
+    m_virtualController->SetDiagnosticHandler([this](const eda::Json& d){
+        const auto& result=m_virtualController->BuildResult();if(result.contains("validation"))m_fpgaPinBindingPanel->InstallVirtualValidation(result.at("validation"));
+        m_fpgaPinBindingPanel->FocusPortBit(d.value("port_ref",std::string()));auto* tabs=dynamic_cast<wxAuiNotebook*>(m_fpgaPinBindingPanel->GetParent());
+        if(tabs)for(size_t i=0;i<tabs->GetPageCount();++i)if(tabs->GetPage(i)==m_fpgaPinBindingPanel)tabs->SetSelection(i);
+    });
     // LAY-010：画布 / 编辑器默认 62% / 38%，拖拽范围 25%–80%
     // 此处先给一个占位高度；真实比例在客户区尺寸确定后统一设置（见构造函数末尾的骨架尺寸段）
-    mainSplitter->SplitHorizontally(m_canvas, m_editorChrome, FromDIP(430));
+    mainSplitter->SplitHorizontally(m_designBoardTabs, m_editorChrome, FromDIP(430));
     mainSplitter->SetMinimumPaneSize(FromDIP(UiTheme::Skeleton::SplitMinPx)); // 防止某个窗口被缩成 0 找不到了
     mainSplitter->EnableAccessibleSash();
     // T-620 / KEY-008：sash 聚焦时 ←/→ 每次 12 DIP 调整侧栏宽度；
@@ -1366,6 +1389,16 @@ MainFrame::MainFrame()
     m_wavePanel->Reparent(bottomNotebook);
     bottomNotebook->AddPage(m_terminalCtrl, "Terminal");
     bottomNotebook->AddPage(m_wavePanel, "Waveform");
+    m_faultInjectionPanel = new sigflow::virtual_lab::FaultInjectionPanel(bottomNotebook,m_virtualController);
+    bottomNotebook->AddPage(m_faultInjectionPanel,wxString::FromUTF8("实验故障"));
+    m_virtualUartPanel=new sigflow::virtual_lab::VirtualUartPanel(bottomNotebook,m_virtualController);
+    bottomNotebook->AddPage(m_virtualUartPanel,wxString::FromUTF8("虚拟串口"));
+    m_virtualWaveSubscription = m_virtualController->Subscribe([this]{
+        if(auto source=m_virtualController->Source()){
+            m_wavePanel->FollowLiveTrace(source);
+            m_virtualSourceSeen=source;
+        }
+    });
 
 
     // 1. 先最大化窗口，确保尺寸基准正确
@@ -1714,6 +1747,7 @@ void MainFrame::ApplyTheme()
     applyTabArt(dynamic_cast<wxAuiNotebook*>(m_canvas));  // 画布多标签
     applyTabArt(dynamic_cast<wxAuiNotebook*>(paneContent(m_auiMgr.GetPane("right_sidebar").window)));
     applyTabArt(m_bottomNotebook);
+    applyTabArt(m_designBoardTabs);
 
     // ---------------------------------------------------------------------
     // T-140 / THE-030 缺口修复：**已注册面板的刷新遍历**（T-719 夹具实测 reached=0/8）
@@ -2808,6 +2842,7 @@ void MainFrame::SaveLayoutState()
 
 MainFrame::~MainFrame()
 {
+    if(m_virtualController){m_virtualController->Unsubscribe(m_virtualWaveSubscription);m_virtualController->Shutdown();}
     m_coreJobTimer.Stop();
 #if defined(SIGFLOW_BUILD_EDU_AGENT)
     m_agentEventTimer.Stop();
@@ -5222,6 +5257,16 @@ bool MainFrame::LoadProjectConfig(const wxString& projectPath,
     }
     
     return !outTopModule.IsEmpty() && !outSourceFiles.empty();
+}
+
+void MainFrame::OpenVirtualBoard()
+{
+    if(auto source=m_virtualController->Source()){m_wavePanel->UseLiveTrace(source);m_virtualSourceSeen=source;}
+    if(m_designBoardTabs)m_designBoardTabs->SetSelection(1);
+    if(m_faultInjectionPanel && m_bottomNotebook){
+        auto page=m_bottomNotebook->GetPageIndex(m_faultInjectionPanel);if(page!=wxNOT_FOUND)m_bottomNotebook->SetSelection(page);
+    }
+    SetPaneVisible("bottom_tabs",true);m_auiMgr.Update();
 }
 
 void MainFrame::ShowFpgaToolWindow(FpgaToolPage page)

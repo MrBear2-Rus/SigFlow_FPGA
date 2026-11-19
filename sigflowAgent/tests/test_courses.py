@@ -8,16 +8,16 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from sigflow_edu_agent.courses import SQLiteCourseProvider
-from sigflow_edu_agent.domain import (CourseBundle, CourseMaterial, CourseReference, Evidence,
+from sigflow_teaching_core.courses import SQLiteCourseProvider
+from sigflow_teaching_core.domain import (CourseBundle, CourseMaterial, CourseReference, Evidence,
                                      RunRequest, Status)
-from sigflow_edu_agent.context.models import ContextItem
-from sigflow_edu_agent.deepseek import DeepSeekConfig, DeepSeekProvider
-from sigflow_edu_agent.loop import TeachingLoop
-from sigflow_edu_agent.pedagogy import RuleProvider
-from sigflow_edu_agent.rag.database import open_database
-from sigflow_edu_agent.rag.importer import _write_index_file, content_hash
-from sigflow_edu_agent.rag.retriever import retrieve_course_passages
+from sigflow_teaching_core.context.models import ContextItem
+from sigflow_teaching_core.deepseek import DeepSeekConfig, DeepSeekProvider
+from sigflow_teaching_core.loop import TeachingLoop
+from sigflow_teaching_core.pedagogy import RuleProvider
+from sigflow_teaching_core.rag.database import open_database
+from sigflow_teaching_core.rag.importer import _write_index_file, content_hash
+from sigflow_teaching_core.rag.retriever import retrieve_course_passages
 
 
 class Source:
@@ -148,7 +148,7 @@ class CourseIntegrationTests(unittest.TestCase):
         self.assertEqual(state.cards[-1].course_refs, ())
 
     def test_mocked_model_receives_course_text_and_allowed_ids(self):
-        with patch('sigflow_edu_agent.deepseek.http.client.HTTPSConnection') as factory:
+        with patch('sigflow_teaching_core.deepseek.http.client.HTTPSConnection') as factory:
             reply = factory.return_value.getresponse.return_value
             reply.status = 200
             candidate = {'level': 1, 'hint': '请检查保持状态的条件。', 'question': '是否有未赋值路径？',

@@ -1,0 +1,9 @@
+# Acceptance hashes describe the delivered bytes; Git must not rewrite journals,
+# logs or JSON evidence under core.autocrlf=true.
+# Raw tool logs/journals retain their original CRLF and any tool whitespace.
+# Production source files continue to use Git's normal whitespace checks.
+docs/virtual/evidence/K4-K5-acceptance-summary.json -text -whitespace
+docs/virtual/evidence/K45-* -text -whitespace
+docs/virtual/evidence/U0-* -text -whitespace
+docs/virtual/evidence/U1-* -text -whitespace
+docs/virtual/evidence/M0-* -text -whitespace

@@ -1,0 +1,187 @@
+{
+  "check_count": 36,
+  "checks": [
+    {
+      "area": "GUI",
+      "assertion": "current project action builds actual 27MHz P1 RTL and starts persistent worker"
+    },
+    {
+      "area": "GUI",
+      "assertion": "real PWM integral visible in board frame 0"
+    },
+    {
+      "area": "GUI",
+      "assertion": "real PWM integral visible in board frame 1"
+    },
+    {
+      "area": "GUI",
+      "assertion": "real PWM integral visible in board frame 2"
+    },
+    {
+      "area": "GUI",
+      "assertion": "visual integration selection uses production wxChoice"
+    },
+    {
+      "area": "GUI",
+      "assertion": "electrical instantaneous selection uses production wxChoice"
+    },
+    {
+      "area": "GUI",
+      "assertion": "four synthesized digits retain one instantaneous conducting digit"
+    },
+    {
+      "area": "GUI",
+      "assertion": "captures 25/50/75 PWM and all four integrated scan digits before stopping clock"
+    },
+    {
+      "area": "GUI",
+      "assertion": "DIP interaction crosses explicit wire and CST into real DUT"
+    },
+    {
+      "area": "GUI",
+      "assertion": "profile edit is pending without modifying DUT while paused"
+    },
+    {
+      "area": "GUI",
+      "assertion": "ClockStop profile activates through GUI"
+    },
+    {
+      "area": "GUI",
+      "assertion": "rising Step exposes bounded no-clock error"
+    },
+    {
+      "area": "GUI",
+      "assertion": "Step N Ticks advances during permanent ClockStop"
+    },
+    {
+      "area": "GUI",
+      "assertion": "Next Event consumes UART deadline with oscillator held"
+    },
+    {
+      "area": "GUI",
+      "assertion": "Hex terminal sends physical bits and receives real RTL loopback at exact ticks"
+    },
+    {
+      "area": "GUI",
+      "assertion": "ASCII and CRLF controls append three physical frames"
+    },
+    {
+      "area": "GUI",
+      "assertion": "invalid Hex is rejected locally without time advance"
+    },
+    {
+      "area": "GUI",
+      "assertion": "terminal lists actual UART framing_error record for error highlighting"
+    },
+    {
+      "area": "GUI",
+      "assertion": "actual wxListCtrl invalid frame row has danger Token text colour and framing_error label"
+    },
+    {
+      "area": "GUI",
+      "assertion": "export preserves complete tick-synchronized RX/TX history"
+    },
+    {
+      "area": "GUI",
+      "assertion": "clear affects presentation while persistent evidence remains intact"
+    },
+    {
+      "area": "GUI",
+      "assertion": "replace_source view has no fabricated extra driver"
+    },
+    {
+      "area": "GUI",
+      "assertion": "short_to_rail retains original driver plus strong rail"
+    },
+    {
+      "area": "GUI",
+      "assertion": "revoke reconstructs original physical driver set"
+    },
+    {
+      "area": "GUI",
+      "assertion": "legacy Open controls share P1 profile engine"
+    },
+    {
+      "area": "GUI",
+      "assertion": "fault rows and LiveTrace mirror remain connected"
+    },
+    {
+      "area": "GUI",
+      "assertion": "P1 board, PWM and external tray vector snapshot light-96dpi.png"
+    },
+    {
+      "area": "GUI",
+      "assertion": "P1 board, PWM and external tray vector snapshot light-144dpi.png"
+    },
+    {
+      "area": "GUI",
+      "assertion": "P1 board, PWM and external tray vector snapshot light-192dpi.png"
+    },
+    {
+      "area": "GUI",
+      "assertion": "P1 board, PWM and external tray vector snapshot dark-96dpi.png"
+    },
+    {
+      "area": "GUI",
+      "assertion": "P1 board, PWM and external tray vector snapshot dark-144dpi.png"
+    },
+    {
+      "area": "GUI",
+      "assertion": "P1 board, PWM and external tray vector snapshot dark-192dpi.png"
+    },
+    {
+      "area": "GUI",
+      "assertion": "GUI Replay verifies UART/fault/integrator run from zero three times with both digests"
+    },
+    {
+      "area": "GUI",
+      "assertion": "virtual button invokes exact 10ms bounce; real raw/debounced counters show 3/1 on declared 1kHz fixture"
+    },
+    {
+      "area": "GUI",
+      "assertion": "ButtonBounce panel exposes activation count and remaining expansion edges"
+    },
+    {
+      "area": "GUI",
+      "assertion": "20 P1 session/terminal/fault subscriber lifecycles completed"
+    }
+  ],
+  "dpi_scope": "injected wx DPI vector surfaces at 96/144/192; no physical monitor switch",
+  "host": "real wxApp + project builder + session controller + board + faults + UART + TraceViewPanel",
+  "lifecycle_cycles": 20,
+  "replay": {
+    "attempts": [
+      {
+        "board_trace_verified": true,
+        "circuit_digest": "a4959203ae5c6514af38501ba63523699fb5971bebab3cf9568d9add1c512681",
+        "control_digest": "4118285d0591165b9ebfaf1dfb816bba1451a3038bb4467869944b4fc4690702",
+        "fault_rng_peripherals_verified": true,
+        "matched_commits": 589,
+        "status": "passed"
+      },
+      {
+        "board_trace_verified": true,
+        "circuit_digest": "a4959203ae5c6514af38501ba63523699fb5971bebab3cf9568d9add1c512681",
+        "control_digest": "4118285d0591165b9ebfaf1dfb816bba1451a3038bb4467869944b4fc4690702",
+        "fault_rng_peripherals_verified": true,
+        "matched_commits": 589,
+        "status": "passed"
+      },
+      {
+        "board_trace_verified": true,
+        "circuit_digest": "a4959203ae5c6514af38501ba63523699fb5971bebab3cf9568d9add1c512681",
+        "control_digest": "4118285d0591165b9ebfaf1dfb816bba1451a3038bb4467869944b4fc4690702",
+        "fault_rng_peripherals_verified": true,
+        "matched_commits": 589,
+        "status": "passed"
+      }
+    ],
+    "board_trace_verified": true,
+    "circuit_digest": "a4959203ae5c6514af38501ba63523699fb5971bebab3cf9568d9add1c512681",
+    "control_digest": "4118285d0591165b9ebfaf1dfb816bba1451a3038bb4467869944b4fc4690702",
+    "matched_commits": 589,
+    "repetitions": 3,
+    "status": "passed"
+  },
+  "status": "passed"
+}

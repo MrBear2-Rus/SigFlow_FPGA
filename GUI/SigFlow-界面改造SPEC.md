@@ -195,3 +195,18 @@ order 交换：主侧栏移到画布右侧邻位（order2 ↔3 中区在前，�
 
 - SPEC v1.0（随 app.html 当前态）—— 定格于 Apple 亮色规范 + 自定义布局 + 独立窗口。
 - 变更流程：修改任何规格需同步改：`app.html`（参考实现）+ `index.html`（模块图）+ 本 SPEC + `改造落地指南.md`（若涉工程方案）。
+
+### 7.1 Phase 1 虚拟实验箱局部扩展（2026-11-17）
+
+六区结构、原快捷键和 Terminal 插件诊断保持原有语义。中区「虚拟实验箱」增加「加载 P1 外设实验」、三种 Step 模式与瞬时/积分观测选择；底部 notebook 增加「虚拟串口」，与「实验故障」共用同一个会话控制器。这里定义桌面交互；Web 实现仍暂缓。
+
+| 控件/观测 | 冻结行为 |
+|---|---|
+| Step | 默认下一主时钟上升沿；Next Event 消费最近外设/故障/时钟边界；N Ticks 使用十进制整数字符串。停振时 rising 明确显示 E_NO_CLOCK_EDGE |
+| LED / 数码管 | 自动模式 Running 使用积分，Paused 使用瞬时；允许显式切换。显示内核 duty_ppm；FLT/CON 使用状态文字与 danger Token，不按有效 PWM 显示 |
+| 外接托盘 | 四位 a..g/dp 和 DIP；端点连接只由板卡显式图/CST 决定。绘制、命中测试共用 FromDIP 几何 |
+| 实验故障 | 可滚动面板；JSON 加载/编辑/保存；规则列表双击启停；Stuck-at 模式可切换。显示 pending/armed/active/disabled、触发次数、剩余抖动边沿 |
+| 虚拟串口 | ASCII/Hex、none/LF/CR/CRLF；RX/TX、Hex、ASCII、tick、valid/framing/parity 列；错误文字与 danger 同时可见；清屏仅改变展示，导出保留完整历史 |
+| 生命周期 | 新面板订阅同一控制器，析构取消订阅；停/重开不继续调用旧面板；重放显示三次结果与 circuit/control digest |
+
+新增面使用 UiTheme 的 bgPanel/surfaceOnPanel/canvas/text1/text2/text3/stroke/strokeStrong/warn/danger/selOnPanel，不新增硬编码颜色。设计 HTML 的 P1 template 只表示局部控件契约，不连接仿真内核。

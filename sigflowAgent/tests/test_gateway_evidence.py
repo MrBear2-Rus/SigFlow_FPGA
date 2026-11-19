@@ -13,14 +13,14 @@ import time
 import unittest
 from unittest.mock import patch
 
-from sigflow_edu_agent.clients.gateway import GatewayClient, GatewayConfig, GatewayError
-from sigflow_edu_agent.domain import EvidenceError, RunRequest, Status
-from sigflow_edu_agent.host.factory import make_factory, make_report_resolver
-from sigflow_edu_agent.loop import TeachingLoop
-from sigflow_edu_agent.patterns import assess, PATTERNS
-from sigflow_edu_agent.pedagogy import RuleProvider
-from sigflow_edu_agent.domain import CardContext
-from sigflow_edu_agent.runtime.gateway_session import SessionBinding
+from sigflow_teaching_core.clients.gateway import GatewayClient, GatewayConfig, GatewayError
+from sigflow_teaching_core.domain import EvidenceError, RunRequest, Status
+from sigflow_teaching_core.host.factory import make_factory, make_report_resolver
+from sigflow_teaching_core.loop import TeachingLoop
+from sigflow_teaching_core.patterns import assess, PATTERNS
+from sigflow_teaching_core.pedagogy import RuleProvider
+from sigflow_teaching_core.domain import CardContext
+from sigflow_teaching_core.runtime.gateway_session import SessionBinding
 from _model_isolation import isolate_model_settings
 
 
@@ -70,12 +70,12 @@ class GatewayEvidenceTests(unittest.TestCase):
                     def read(self, limit): return json.dumps(envelope).encode()[:limit]
                 return Reply()
             def close(self): pass
-        transport = patch('sigflow_edu_agent.clients.gateway.http.client.HTTPConnection', Connection)
+        transport = patch('sigflow_teaching_core.clients.gateway.http.client.HTTPConnection', Connection)
         transport.start()
         self.addCleanup(transport.stop)
 
     def catalog(self):
-        spec = importlib.util.find_spec('sigflow_edu_agent.host.gateway_evidence')
+        spec = importlib.util.find_spec('sigflow_teaching_core.host.gateway_evidence')
         self.assertIsNotNone(spec, 'trusted Gateway evidence catalog missing')
         return importlib.import_module(spec.name).GatewayEvidenceCatalog(self.config)
 
@@ -239,7 +239,7 @@ class GatewayEvidenceTests(unittest.TestCase):
         self.assertEqual(len(state.cards), 1)
 
     def test_process_success_without_independent_expected_result_stays_indeterminate(self):
-        from sigflow_edu_agent.checkers.outcome import OutcomeChecker
+        from sigflow_teaching_core.checkers.outcome import OutcomeChecker
         old = self.collect()
         new = replace(old, evidence_id='fresh', job_id='new-job', anchor=replace(old.anchor,
             evidence_id='fresh', job_id='new-job'))
@@ -263,12 +263,12 @@ class GatewayEvidenceTests(unittest.TestCase):
 
     def test_cli_mode_conflicts_are_rejected_before_bootstrap(self):
         environment = os.environ | {'SIGFLOW_U2_ANCHORS': 'missing-catalog.json'}
-        result = subprocess.run([sys.executable, '-m', 'sigflow_edu_agent.host', '--bootstrap-stdin', '--gateway-evidence'],
+        result = subprocess.run([sys.executable, '-m', 'sigflow_teaching_core.host', '--bootstrap-stdin', '--gateway-evidence'],
             input=b'', capture_output=True, env=environment, timeout=10)
         self.assertEqual(result.returncode, 2)
         self.assertIn(b'gateway_evidence_conflicts_with_anchors', result.stderr)
         environment.pop('SIGFLOW_U2_ANCHORS', None)
-        result = subprocess.run([sys.executable, '-m', 'sigflow_edu_agent.host', '--bootstrap-stdin',
+        result = subprocess.run([sys.executable, '-m', 'sigflow_teaching_core.host', '--bootstrap-stdin',
             '--gateway-evidence', '--anchors', 'missing.json'], input=b'', capture_output=True, env=environment, timeout=10)
         self.assertEqual(result.returncode, 2)
         self.assertIn(b'not allowed with argument', result.stderr)
@@ -316,7 +316,7 @@ class GatewayEvidenceProcessTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             environment = dict(os.environ)
             environment.pop('SIGFLOW_U2_ANCHORS', None)
-            process = subprocess.Popen([sys.executable, '-m', 'sigflow_edu_agent.host',
+            process = subprocess.Popen([sys.executable, '-m', 'sigflow_teaching_core.host',
                 '--bootstrap-stdin', '--gateway-evidence'], stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=environment)
             self.addCleanup(lambda: process.kill() if process.poll() is None else None)

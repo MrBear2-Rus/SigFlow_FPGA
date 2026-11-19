@@ -4,8 +4,8 @@ import importlib.util
 import unittest
 
 from _wave_gateway import WaveGateway
-from sigflow_edu_agent.context.waveform import WaveformError,check_waveform
-from sigflow_edu_agent.clients.gateway import GatewayError
+from sigflow_teaching_core.context.waveform import WaveformError,check_waveform
+from sigflow_teaching_core.clients.gateway import GatewayError
 
 
 class GatewayWaveformTests(unittest.TestCase):
@@ -13,9 +13,9 @@ class GatewayWaveformTests(unittest.TestCase):
         self.gateway=WaveGateway();self.addCleanup(self.gateway.close)
 
     def reader(self):
-        self.assertIsNotNone(importlib.util.find_spec('sigflow_edu_agent.clients.waveform'),
+        self.assertIsNotNone(importlib.util.find_spec('sigflow_teaching_core.clients.waveform'),
                              'trusted waveform reader missing')
-        from sigflow_edu_agent.clients.waveform import GatewayWaveformReader
+        from sigflow_teaching_core.clients.waveform import GatewayWaveformReader
         return GatewayWaveformReader(self.gateway.config)
 
     def test_describe_exposes_signal_metadata_without_querying_values(self):

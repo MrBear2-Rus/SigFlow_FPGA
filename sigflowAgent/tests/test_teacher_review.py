@@ -1,9 +1,9 @@
 from dataclasses import replace
 import unittest
 
-from sigflow_edu_agent.evaluation.review import TeacherRating, aggregate_teacher_reviews
+from sigflow_teaching_core.evaluation.review import TeacherRating, aggregate_teacher_reviews
 from test_model_evaluation import case, Provider
-from sigflow_edu_agent.evaluation.model import run_model_evaluation
+from sigflow_teaching_core.evaluation.model import run_model_evaluation
 
 
 class TeacherReviewTests(unittest.TestCase):

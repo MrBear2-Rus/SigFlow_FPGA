@@ -7,8 +7,8 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from sigflow_edu_agent.deepseek import DeepSeekConfig, DeepSeekProvider
-from sigflow_edu_agent.domain import ProviderError
+from sigflow_teaching_core.deepseek import DeepSeekConfig, DeepSeekProvider
+from sigflow_teaching_core.domain import ProviderError
 
 
 class CredentialTests(unittest.TestCase):
@@ -18,12 +18,12 @@ class CredentialTests(unittest.TestCase):
         self.path=Path(self.directory.name)/'private'/'credentials.json'
 
     def test_missing_file_does_not_make_a_network_request(self):
-        from sigflow_edu_agent.credentials import load_config
+        from sigflow_teaching_core.credentials import load_config
         self.assertIsNone(load_config(self.path))
 
     @unittest.skipUnless(os.name=='nt','DPAPI is a Windows current-user store')
     def test_real_dpapi_roundtrip_stores_no_plaintext_key(self):
-        from sigflow_edu_agent.credentials import save_config,load_config
+        from sigflow_teaching_core.credentials import save_config,load_config
         config=DeepSeekConfig('fake-secret-for-local-roundtrip','test-model')
         save_config(config,self.path)
         self.assertEqual(load_config(self.path),config)
@@ -35,7 +35,7 @@ class CredentialTests(unittest.TestCase):
         self.assertEqual(len(list(self.path.parent.iterdir())),1)
 
     def test_malformed_or_oversized_file_has_only_fixed_errors(self):
-        from sigflow_edu_agent.credentials import load_config,CredentialError
+        from sigflow_teaching_core.credentials import load_config,CredentialError
         self.path.parent.mkdir()
         for data in (b'private-text-not-json',b'{}',b'{"schema":"wrong","encrypted":"aaa"}',b'x'*16385):
             self.path.write_bytes(data)
@@ -46,7 +46,7 @@ class CredentialTests(unittest.TestCase):
 
     @unittest.skipUnless(os.name=='nt','DPAPI is a Windows current-user store')
     def test_tampered_ciphertext_is_not_silently_accepted(self):
-        from sigflow_edu_agent.credentials import save_config,load_config,CredentialError
+        from sigflow_teaching_core.credentials import save_config,load_config,CredentialError
         import base64
         save_config(DeepSeekConfig('test-key','test-model'),self.path)
         body=json.loads(self.path.read_text())
@@ -59,10 +59,10 @@ class CredentialTests(unittest.TestCase):
 
     @unittest.skipUnless(os.name=='nt','DPAPI is a Windows current-user store')
     def test_failed_atomic_replace_keeps_previous_configuration(self):
-        from sigflow_edu_agent.credentials import save_config,load_config,CredentialError
+        from sigflow_teaching_core.credentials import save_config,load_config,CredentialError
         original=DeepSeekConfig('original-fake-key','original-model')
         save_config(original,self.path)
-        with patch('sigflow_edu_agent.credentials.os.replace',side_effect=OSError('private-file-detail')):
+        with patch('sigflow_teaching_core.credentials.os.replace',side_effect=OSError('private-file-detail')):
             with self.assertRaisesRegex(CredentialError,'key_store_write_failed'):
                 save_config(DeepSeekConfig('new-fake-key','new-model'),self.path)
         self.assertEqual(load_config(self.path),original)
@@ -70,30 +70,30 @@ class CredentialTests(unittest.TestCase):
 
     def test_environment_wins_without_mixing_saved_values(self):
         with patch.dict(os.environ,{'DEEPSEEK_API_KEY':'env-key','DEEPSEEK_MODEL':'env-model'},clear=True), \
-                patch('sigflow_edu_agent.credentials.load_config') as load:
+                patch('sigflow_teaching_core.credentials.load_config') as load:
             self.assertEqual(DeepSeekProvider.from_settings().config.model,'env-model')
             load.assert_not_called()
         with patch.dict(os.environ,{'DEEPSEEK_MODEL':'partial'},clear=True), \
-                patch('sigflow_edu_agent.credentials.load_config') as load:
+                patch('sigflow_teaching_core.credentials.load_config') as load:
             with self.assertRaises(ProviderError):
                 DeepSeekProvider.from_settings()
             load.assert_not_called()
 
     def test_saved_config_is_used_without_environment_credentials(self):
         config=DeepSeekConfig('saved-key','saved-model')
-        with patch.dict(os.environ,{},clear=True),patch('sigflow_edu_agent.credentials.load_config',return_value=config):
+        with patch.dict(os.environ,{},clear=True),patch('sigflow_teaching_core.credentials.load_config',return_value=config):
             self.assertEqual(DeepSeekProvider.from_settings().config,config)
 
     def test_non_windows_has_no_plaintext_persistence_fallback(self):
-        from sigflow_edu_agent.credentials import save_config,CredentialError
-        with patch('sigflow_edu_agent.credentials.os.name','posix'):
+        from sigflow_teaching_core.credentials import save_config,CredentialError
+        with patch('sigflow_teaching_core.credentials.os.name','posix'):
             with self.assertRaisesRegex(CredentialError,'key_store_unsupported'):
                 save_config(DeepSeekConfig('test-key','m'),self.path)
         self.assertFalse(self.path.exists())
 
     def test_saved_provider_supplies_host_secret_redaction_material_without_network(self):
-        from sigflow_edu_agent.host.factory import make_factory
-        from sigflow_edu_agent.clients.gateway import GatewayConfig
+        from sigflow_teaching_core.host.factory import make_factory
+        from sigflow_teaching_core.clients.gateway import GatewayConfig
         provider=DeepSeekProvider(DeepSeekConfig('saved-redaction-key','m'))
         with patch.object(DeepSeekProvider,'from_settings',return_value=provider):
             factory=make_factory(GatewayConfig(12345,'gateway-fixture-token','inst-1'))
@@ -118,15 +118,15 @@ class CredentialTests(unittest.TestCase):
 
 class ConfigCLITests(unittest.TestCase):
     def invoke(self,args):
-        from sigflow_edu_agent.model_config import main
+        from sigflow_teaching_core.model_config import main
         out,error=io.StringIO(),io.StringIO()
         with redirect_stdout(out),redirect_stderr(error):
             result=main(args)
         return result,out.getvalue(),error.getvalue()
 
     def test_configure_uses_hidden_prompt_and_never_echoes_key(self):
-        with patch('sigflow_edu_agent.model_config.getpass.getpass',return_value='private-prompt-key'), \
-                patch('sigflow_edu_agent.model_config.save_config') as save:
+        with patch('sigflow_teaching_core.model_config.getpass.getpass',return_value='private-prompt-key'), \
+                patch('sigflow_teaching_core.model_config.save_config') as save:
             code,out,error=self.invoke(['configure','--model','test-model'])
         self.assertEqual((code,error),(0,''))
         self.assertEqual(save.call_args.args[0].api_key,'private-prompt-key')
@@ -134,7 +134,7 @@ class ConfigCLITests(unittest.TestCase):
 
     def test_status_does_not_contact_provider_or_print_key(self):
         provider=DeepSeekProvider(DeepSeekConfig('private-status-key','m'))
-        with patch('sigflow_edu_agent.model_config.DeepSeekProvider.from_settings',return_value=provider), \
+        with patch('sigflow_teaching_core.model_config.DeepSeekProvider.from_settings',return_value=provider), \
                 patch.object(DeepSeekProvider,'generate') as generate:
             code,out,error=self.invoke(['status'])
         self.assertEqual((code,error),(0,''))
@@ -146,7 +146,7 @@ class ConfigCLITests(unittest.TestCase):
         provider=DeepSeekProvider(DeepSeekConfig('private-smoke-key','m'))
         def generate(context):
             return dict(level=1,hint='报告观察到存储行为。',question='输出需要记忆吗？',evidence_ids=[context.evidence.evidence_id])
-        with patch('sigflow_edu_agent.model_config.DeepSeekProvider.from_settings',return_value=provider), \
+        with patch('sigflow_teaching_core.model_config.DeepSeekProvider.from_settings',return_value=provider), \
                 patch.object(provider,'generate',side_effect=generate) as generate_mock:
             code,out,error=self.invoke(['test'])
         self.assertEqual((code,error),(0,''))
@@ -157,7 +157,7 @@ class ConfigCLITests(unittest.TestCase):
 
     def test_api_failure_is_explicit_and_never_falls_back_or_leaks(self):
         provider=DeepSeekProvider(DeepSeekConfig('private-smoke-key','m'))
-        with patch('sigflow_edu_agent.model_config.DeepSeekProvider.from_settings',return_value=provider), \
+        with patch('sigflow_teaching_core.model_config.DeepSeekProvider.from_settings',return_value=provider), \
                 patch.object(provider,'generate',side_effect=ProviderError('model_auth_failed')) as generate:
             code,out,error=self.invoke(['test'])
         self.assertEqual((code,out,error.strip()),(3,'','model_auth_failed'))
@@ -165,7 +165,7 @@ class ConfigCLITests(unittest.TestCase):
 
     def test_invalid_card_does_not_report_success_or_fallback(self):
         provider=DeepSeekProvider(DeepSeekConfig('fake-key','m'))
-        with patch('sigflow_edu_agent.model_config.DeepSeekProvider.from_settings',return_value=provider), \
+        with patch('sigflow_teaching_core.model_config.DeepSeekProvider.from_settings',return_value=provider), \
                 patch.object(provider,'generate',return_value={'unsafe':'candidate'}):
             code,out,error=self.invoke(['test'])
         self.assertEqual((code,out,error.strip()),(3,'','invalid_output'))
@@ -174,7 +174,7 @@ class ConfigCLITests(unittest.TestCase):
         provider=DeepSeekProvider(DeepSeekConfig('private-echo-key','m'))
         def generate(context):
             return dict(level=1,hint='private-echo-key',question='请核对观察。',evidence_ids=[context.evidence.evidence_id])
-        with patch('sigflow_edu_agent.model_config.DeepSeekProvider.from_settings',return_value=provider), \
+        with patch('sigflow_teaching_core.model_config.DeepSeekProvider.from_settings',return_value=provider), \
                 patch.object(provider,'generate',side_effect=generate):
             code,out,error=self.invoke(['test'])
         self.assertEqual((code,error),(0,''))
@@ -185,8 +185,8 @@ class ConfigCLITests(unittest.TestCase):
         import getpass,warnings
         def prompt(*args):
             warnings.warn('unsafe terminal',getpass.GetPassWarning)
-        with patch('sigflow_edu_agent.model_config.getpass.getpass',side_effect=prompt), \
-                patch('sigflow_edu_agent.model_config.save_config') as save:
+        with patch('sigflow_teaching_core.model_config.getpass.getpass',side_effect=prompt), \
+                patch('sigflow_teaching_core.model_config.save_config') as save:
             code,out,error=self.invoke(['configure','--model','m'])
         self.assertEqual((code,out,error.strip()),(2,'','hidden_input_unavailable'))
         save.assert_not_called()

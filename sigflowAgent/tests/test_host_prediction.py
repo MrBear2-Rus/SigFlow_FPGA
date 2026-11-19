@@ -4,11 +4,11 @@ import tempfile,time,unittest
 from unittest.mock import patch
 from _wave_gateway import WaveGateway
 from _model_isolation import isolate_model_settings
-from sigflow_edu_agent.clients.waveform import GatewayWaveformReader
-from sigflow_edu_agent.host.gateway_evidence import GatewayEvidenceCatalog
-from sigflow_edu_agent.host.factory import make_factory
-from sigflow_edu_agent.host.runtime import Runtime
-from sigflow_edu_agent.host.store import DurableStore
+from sigflow_teaching_core.clients.waveform import GatewayWaveformReader
+from sigflow_teaching_core.host.gateway_evidence import GatewayEvidenceCatalog
+from sigflow_teaching_core.host.factory import make_factory
+from sigflow_teaching_core.host.runtime import Runtime
+from sigflow_teaching_core.host.store import DurableStore
 
 
 class HostPredictionTests(unittest.TestCase):
@@ -111,7 +111,7 @@ class HostPredictionTests(unittest.TestCase):
 
     def test_http_prediction_contract_rejects_untrusted_fields_and_requires_learner(self):
         import http.client,json,threading
-        from sigflow_edu_agent.host.http import HostServer
+        from sigflow_teaching_core.host.http import HostServer
         server=HostServer(self.runtime,'test-ui')
         thread=threading.Thread(target=server.serve_forever,kwargs={'poll_interval':.01},daemon=True)
         thread.start()

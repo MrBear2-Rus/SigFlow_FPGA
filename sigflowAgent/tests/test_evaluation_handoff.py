@@ -11,7 +11,7 @@ class EvaluationHandoffTests(unittest.TestCase):
     def write(self):
         self.manifest.write_text(json.dumps(self.value));return hashlib.sha256(self.manifest.read_bytes()).hexdigest()
     def load(self,digest):
-        from sigflow_edu_agent.evaluation.handoff import load_frozen_suite
+        from sigflow_teaching_core.evaluation.handoff import load_frozen_suite
         return load_frozen_suite(self.manifest,self.suite,expected_manifest_sha256=digest)
     def test_pinned_manifest_and_raw_suite_hash_are_verified(self):
         loaded=self.load(self.write());self.assertEqual(loaded['suite_version'],'development-v1')
@@ -35,7 +35,7 @@ class EvaluationHandoffTests(unittest.TestCase):
         self.value['suite_sha256']=hashlib.sha256(self.suite.read_bytes()).hexdigest()
         with self.assertRaises(ValueError):self.load(self.write())
     def test_handoff_report_never_promotes_development_to_teacher_acceptance(self):
-        from sigflow_edu_agent.evaluation.handoff import build_handoff
+        from sigflow_teaching_core.evaluation.handoff import build_handoff
         root=Path(__file__).resolve().parent/'evaluation'
         report=build_handoff(root/'development.json',root/'fixtures_frozen.jsonl')
         self.assertEqual((report['development']['total'],report['development']['failed']),(40,0))
@@ -43,7 +43,7 @@ class EvaluationHandoffTests(unittest.TestCase):
         self.assertEqual(report['team_gate'],'pending_external_signoff')
         self.assertEqual(report['real_model'],'not_run');self.assertEqual(report['teacher_review'],'not_run')
     def test_matrix_keeps_warning_labels_separate_from_proven_hardware_roots(self):
-        from sigflow_edu_agent.patterns.support import support_matrix
+        from sigflow_teaching_core.patterns.support import support_matrix
         rows=support_matrix();self.assertEqual(len(rows),8)
         by={r['concept']:r for r in rows}
         self.assertFalse(by['latch']['production_detector'])

@@ -11,20 +11,20 @@ from contextlib import redirect_stdout, redirect_stderr
 import io
 from unittest.mock import patch
 
-from sigflow_edu_agent.host.runtime import Runtime
-from sigflow_edu_agent.host.store import DurableStore
-from sigflow_edu_agent.clients.gateway import GatewayConfig
+from sigflow_teaching_core.host.runtime import Runtime
+from sigflow_teaching_core.host.store import DurableStore
+from sigflow_teaching_core.clients.gateway import GatewayConfig
 import test_gateway_source
 from _model_isolation import isolate_model_settings
 
 
 class HostHTTPTests(unittest.TestCase):
     def setUp(self):
-        self.assertIsNotNone(importlib.util.find_spec('sigflow_edu_agent.host.http'), 'HTTP host missing')
-        from sigflow_edu_agent.host.http import HostServer
-        from sigflow_edu_agent.host.factory import make_factory
-        from sigflow_edu_agent.domain import ProviderError
-        provider_patch=patch('sigflow_edu_agent.host.factory.DeepSeekProvider.from_settings',
+        self.assertIsNotNone(importlib.util.find_spec('sigflow_teaching_core.host.http'), 'HTTP host missing')
+        from sigflow_teaching_core.host.http import HostServer
+        from sigflow_teaching_core.host.factory import make_factory
+        from sigflow_teaching_core.domain import ProviderError
+        provider_patch=patch('sigflow_teaching_core.host.factory.DeepSeekProvider.from_settings',
                              side_effect=ProviderError('model_unconfigured'))
         provider_patch.start()
         self.addCleanup(provider_patch.stop)
@@ -103,7 +103,7 @@ class HostHTTPTests(unittest.TestCase):
         self.assertEqual(value['data']['teaching_memory']['reason'],'adapter_required')
 
     def probe(self, *, instance='inst-1', body=None):
-        from sigflow_edu_agent.host.probe import main
+        from sigflow_teaching_core.host.probe import main
         path = Path(self.temp.name) / 'probe-request.json'
         path.write_text(json.dumps(self.body if body is None else body), encoding='utf-8')
         out, error = io.StringIO(), io.StringIO()
@@ -199,7 +199,7 @@ class HostHTTPTests(unittest.TestCase):
         state = self.wait(sid)
         self.runtime.close()
         self.store.close()
-        from sigflow_edu_agent.host.factory import make_factory
+        from sigflow_teaching_core.host.factory import make_factory
         self.store = DurableStore(Path(self.temp.name) / 'state.sqlite3', 'inst-1')
         self.addCleanup(self.store.close)
         self.runtime = Runtime(self.store, 'inst-1', make_factory(
@@ -224,7 +224,7 @@ class HostHTTPTests(unittest.TestCase):
         self.assertEqual(self.request('GET', f'/api/v1/teaching/sessions/{sid}/events?after=999')[0], 410)
 
     def test_missing_anchors_and_unconfigured_model_publish_no_invented_evidence(self):
-        from sigflow_edu_agent.host.factory import make_factory
+        from sigflow_teaching_core.host.factory import make_factory
         from unittest.mock import patch
         with patch.dict('os.environ', {}, clear=True):
             self.runtime.factory = make_factory(GatewayConfig(self.gateway.server.server_port, 'fixture-token', 'inst-1'),
@@ -237,8 +237,8 @@ class HostHTTPTests(unittest.TestCase):
 
     def test_verify_http_accepts_ui_grant_and_does_not_invent_new_job_evidence(self):
         import test_host_verification
-        from sigflow_edu_agent.context.models import EvidenceAnchor
-        from sigflow_edu_agent.host.factory import make_factory, make_report_resolver
+        from sigflow_teaching_core.context.models import EvidenceAnchor
+        from sigflow_teaching_core.host.factory import make_factory, make_report_resolver
         fixture = test_host_verification.VerificationHTTPFixture()
         fixture.setUp()
         self.addCleanup(fixture.doCleanups)
@@ -284,7 +284,7 @@ class HostHTTPTests(unittest.TestCase):
         self.assertEqual(len(fixture.posts), 1)
 
     def test_model_authored_text_cannot_echo_process_secrets_or_absolute_paths(self):
-        from sigflow_edu_agent.runtime.gateway_session import create_gateway_session
+        from sigflow_teaching_core.runtime.gateway_session import create_gateway_session
         class CandidateFixture:
             def generate(self, context):
                 return dict(level=context.level, hint='ui-secret C:/private/key.txt /tmp/key.txt',
@@ -307,12 +307,12 @@ class HostFactoryTests(unittest.TestCase):
 
     def test_verify_plan_requires_explicit_verifier_and_composes_real_session(self):
         import inspect
-        from sigflow_edu_agent.host.factory import make_factory
+        from sigflow_teaching_core.host.factory import make_factory
         self.assertIn('verification', inspect.signature(make_factory).parameters, 'verification composition missing')
-        from sigflow_edu_agent.checkers.plan import DetailedPlan, PlanStep
-        from sigflow_edu_agent.domain import RunRequest, Status
-        from sigflow_edu_agent.host.verification import GatewayVerification
-        from sigflow_edu_agent.runtime.gateway_session import SessionBinding
+        from sigflow_teaching_core.checkers.plan import DetailedPlan, PlanStep
+        from sigflow_teaching_core.domain import RunRequest, Status
+        from sigflow_teaching_core.host.verification import GatewayVerification
+        from sigflow_teaching_core.runtime.gateway_session import SessionBinding
         gateway = test_gateway_source.GatewaySourceHTTPTests()
         gateway.setUp()
         self.addCleanup(gateway.doCleanups)
@@ -340,9 +340,9 @@ class HostFactoryTests(unittest.TestCase):
         self.assertEqual(len(gateway.requests), 2)
 
     def test_quota_failure_prevents_provider_request(self):
-        from sigflow_edu_agent.host.factory import BudgetedProvider
-        from sigflow_edu_agent.deepseek import DeepSeekProvider, DeepSeekConfig
-        from sigflow_edu_agent.domain import ProviderError
+        from sigflow_teaching_core.host.factory import BudgetedProvider
+        from sigflow_teaching_core.deepseek import DeepSeekProvider, DeepSeekConfig
+        from sigflow_teaching_core.domain import ProviderError
         provider = DeepSeekProvider(DeepSeekConfig('fake-test-key', 'test-model'))
         def reserve():
             raise ValueError('budget_exhausted')
@@ -351,12 +351,12 @@ class HostFactoryTests(unittest.TestCase):
         self.assertEqual(error.exception.code, 'model_budget_exceeded')
 
     def test_strict_json_rejects_overflow_number(self):
-        from sigflow_edu_agent.host.http import strict_json
+        from sigflow_teaching_core.host.http import strict_json
         with self.assertRaises(ValueError):
             strict_json(b'{"number":1e999}')
 
     def test_trusted_report_resolver_refetches_only_matching_anchor(self):
-        from sigflow_edu_agent.host.factory import make_report_resolver
+        from sigflow_teaching_core.host.factory import make_report_resolver
         gateway = test_gateway_source.GatewaySourceHTTPTests()
         gateway.setUp()
         self.addCleanup(gateway.doCleanups)

@@ -49,6 +49,15 @@ void DrawTextLayer(wxDC& dc, const WaveformFrame& frame,
                 ++drawn;
             }
         }
+        // A badge has screen width only; every event retains the same physical X.
+        // This layer is shared by GL and software rendering.
+        for(const auto& group:signal.multiDelta){
+            int x=int(WaveformTimeToX(state,width,group.tick));if(x<state.leftMargin || x>width-state.rightMargin)continue;
+            int y=rowTop+state.rowHeight/2;int radius=dc.GetWindow()?dc.GetWindow()->FromDIP(5):5;
+            wxPoint diamond[]={{x,y-radius},{x+radius,y},{x,y+radius},{x-radius,y}};
+            dc.SetPen(wxPen(ui.warn));dc.SetBrush(wxBrush(ui.warn));dc.DrawPolygon(4,diamond);
+            dc.SetTextForeground(ui.warn);dc.DrawText(wxString::FromUTF8("Δ"+std::to_string(group.events.size())),x+radius+2,rowTop);
+        }
         ++row;
     }
 

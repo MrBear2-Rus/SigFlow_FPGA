@@ -5,17 +5,17 @@ from pathlib import Path
 from dataclasses import replace
 from threading import Event
 
-from sigflow_edu_agent import host
-from sigflow_edu_agent.demo import FixtureSource
-from sigflow_edu_agent.domain import RunRequest, Status, VerificationResult
-from sigflow_edu_agent.loop import TeachingLoop
-from sigflow_edu_agent.runtime.session import TeachingSession
+from sigflow_teaching_core import host
+from sigflow_teaching_core.demo import FixtureSource
+from sigflow_teaching_core.domain import RunRequest, Status, VerificationResult
+from sigflow_teaching_core.loop import TeachingLoop
+from sigflow_teaching_core.runtime.session import TeachingSession
 
 
 class HostRuntimeTests(unittest.TestCase):
     def setUp(self):
         self.assertTrue(hasattr(host, 'Runtime'), 'runtime_missing')
-        from sigflow_edu_agent.host.store import DurableStore
+        from sigflow_teaching_core.host.store import DurableStore
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.path = Path(self.temp.name) / 'state.sqlite3'
@@ -100,7 +100,7 @@ class HostRuntimeTests(unittest.TestCase):
         first = self.wait(sid)
         self.runtime.close()
         self.store.close()
-        from sigflow_edu_agent.host.store import DurableStore
+        from sigflow_teaching_core.host.store import DurableStore
         self.store = DurableStore(self.path, 'inst')
         self.runtime = self.open_runtime()
         recovered = self.runtime.snapshot(sid, 'learner')
@@ -124,7 +124,7 @@ class HostRuntimeTests(unittest.TestCase):
         self.wait(sid)
         self.runtime.close()
         self.store.close()
-        from sigflow_edu_agent.host.store import DurableStore
+        from sigflow_teaching_core.host.store import DurableStore
         self.store = DurableStore(self.path, 'inst')
         self.runtime = self.open_runtime()
         version = int(self.runtime.snapshot(sid, 'learner')['state_version'])
@@ -152,7 +152,7 @@ class HostRuntimeTests(unittest.TestCase):
         self.assertEqual(self.store.model_used(self.sid), 4)
         self.runtime.close()
         self.store.close()
-        from sigflow_edu_agent.host.store import DurableStore
+        from sigflow_teaching_core.host.store import DurableStore
         self.store = DurableStore(self.path, 'inst')
         self.runtime = self.open_runtime()
         recover = self.runtime.snapshot(self.sid, 'learner')
@@ -181,7 +181,7 @@ class HostRuntimeTests(unittest.TestCase):
         self.assertEqual(result['cards'], [])
 
     def verification_setup(self, job_state):
-        from sigflow_edu_agent.context.models import EvidenceAnchor
+        from sigflow_teaching_core.context.models import EvidenceAnchor
         owner = self
         self.source = FixtureSource()
         original = self.source.collect
@@ -232,7 +232,7 @@ class HostRuntimeTests(unittest.TestCase):
     def restart(self):
         self.runtime.close()
         self.store.close()
-        from sigflow_edu_agent.host.store import DurableStore
+        from sigflow_teaching_core.host.store import DurableStore
         self.store = DurableStore(self.path, 'inst')
         self.runtime = self.open_runtime()
 
@@ -306,7 +306,7 @@ class HostRuntimeTests(unittest.TestCase):
         state = self.wait(sid)
         self.runtime.action(sid, 'learner', 'hint_next', 'cancel-10', int(state['state_version']))
         self.wait(sid, 'cancel-10')
-        with patch('sigflow_edu_agent.host.store.MAX_ACTIONS', 2):
+        with patch('sigflow_teaching_core.host.store.MAX_ACTIONS', 2):
             self.runtime.cancel(sid, 'learner')
         self.assertEqual(self.runtime.snapshot(sid, 'learner')['status'], 'Cancelled')
 

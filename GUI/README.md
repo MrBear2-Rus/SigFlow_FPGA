@@ -12,7 +12,7 @@
 | `SigFlow-界面改造SPEC.md` | **验收基准**。token 表、材质规则、组件规格、验收清单。实现与本文冲突时**以本文为准** |
 | `改造落地指南.md` | 工程路线 + wxWidgets API 映射 |
 | `app.html` | 参考实现（交互实底）。与 `index.html` **互相引用，请成对保留** |
-| `index.html` | 模块 01–25 组件规格库 |
+| `index.html` | 模块 01–26 组件规格库，含 P1 实验箱局部扩展 |
 | `app.html.artifact.json` / `index.html.artifact.json` | OpenDesign 的产物清单（元数据），保留以备追溯 |
 
 ## 怎么用

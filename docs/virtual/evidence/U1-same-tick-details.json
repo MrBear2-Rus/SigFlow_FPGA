@@ -1,0 +1,29 @@
+[
+  {
+    "contention": false,
+    "delta": 0,
+    "event_seq": "2",
+    "state_code": 13,
+    "tick": "100",
+    "valid": true,
+    "value": "0"
+  },
+  {
+    "contention": false,
+    "delta": 1,
+    "event_seq": "3",
+    "state_code": 15,
+    "tick": "100",
+    "valid": true,
+    "value": "1"
+  },
+  {
+    "contention": false,
+    "delta": 2,
+    "event_seq": "4",
+    "state_code": 13,
+    "tick": "100",
+    "valid": true,
+    "value": "0"
+  }
+]

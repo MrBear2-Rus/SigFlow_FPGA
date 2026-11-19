@@ -11,25 +11,28 @@ from unittest.mock import patch
 
 import test_host_verification as fixture_module
 from _model_isolation import isolate_model_settings
-from sigflow_edu_agent.checkers.plan import DetailedPlan, PlanStep
-from sigflow_edu_agent.clients.gateway import GatewayConfig
-from sigflow_edu_agent.clients.gateway import GatewayError
-from sigflow_edu_agent.context.models import EvidenceAnchor
-from sigflow_edu_agent.contracts.plan import build_plan_card
-from sigflow_edu_agent.host.factory import make_factory, make_report_resolver
-from sigflow_edu_agent.host.http import HostServer
-from sigflow_edu_agent.host.runtime import Runtime
-from sigflow_edu_agent.host.store import DurableStore
+from sigflow_teaching_core.checkers.plan import DetailedPlan, PlanStep
+from sigflow_teaching_core.clients.gateway import GatewayConfig
+from sigflow_teaching_core.clients.gateway import GatewayError
+from sigflow_teaching_core.context.models import EvidenceAnchor
+from sigflow_teaching_core.contracts.plan import build_plan_card
+from sigflow_teaching_core.host.factory import make_factory, make_report_resolver
+from sigflow_teaching_core.host.http import HostServer
+from sigflow_teaching_core.host.runtime import Runtime
+from sigflow_teaching_core.host.store import DurableStore
 
 
 class CoupledHostTests(unittest.TestCase):
     def setUp(self):
         isolate_model_settings(self)
-        from sigflow_edu_agent.host.catalog import AnchorCatalog
+        from sigflow_teaching_core.host.catalog import AnchorCatalog
         self.g = fixture_module.VerificationHTTPFixture()
         self.g.setUp()
         self.addCleanup(self.g.doCleanups)
-        self.g.adapter.wait_timeout=.3  # Allow Windows fixture HTTP scheduling under combined suites.
+        self.g.adapter.wait_timeout = .3
+        # Each host action observes once. Tests request later observations
+        # explicitly, without a last poll using a near-zero HTTP timeout.
+        self.g.adapter.poll_interval = self.g.adapter.wait_timeout
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         directory = Path(self.temp.name)
@@ -199,7 +202,7 @@ class CoupledHostTests(unittest.TestCase):
         self.body.pop('plan')
         self.body.pop('gateway_plan_hash')
         self.body['intent']='diagnose'
-        with patch('sigflow_edu_agent.host.store.MAX_EVENTS',1):
+        with patch('sigflow_teaching_core.host.store.MAX_EVENTS',1):
             sid=self.create()
             state=self.wait(sid,'WaitingStudent')
             self.action(sid,'hint_next','hint-1',state)

@@ -13,7 +13,7 @@ class CliTests(unittest.TestCase):
         env['PYTHONUTF8'] = '1'
         with tempfile.TemporaryDirectory() as directory:
             env['SIGFLOW_DEEPSEEK_CONFIG'] = str(Path(directory)/'no-user-credentials.json')
-            return subprocess.run([sys.executable, '-m', 'sigflow_edu_agent', *args],
+            return subprocess.run([sys.executable, '-m', 'sigflow_teaching_core', *args],
                                   input=text, capture_output=True, encoding='utf-8',
                                   cwd=Path(__file__).resolve().parents[1], env=env, timeout=10)
 

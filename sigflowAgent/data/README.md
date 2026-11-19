@@ -4,4 +4,4 @@
 
 当前库为 RAG v0.1，9,625,600 字节（约 9.18 MiB），包含 554 个 Parent、762 个 Child，SHA-256 为 `4a98cecdc34a16446c3a5860072db18776871f437c329b2c62cda153fe662b01`。运行检索只读取此文件，不依赖原始快照。来源许可和未审阅状态保留在数据库中；纳入 Git 的决定不代表许可核查已完成。
 
-从本地快照重建、显式指定其他位置及课程故障处理，见 [RAG 接入说明](../docs/rag-integration.md)。安装后的部署请设置 `SIGFLOW_COURSE_DB` 或传入 `--course-db`。
+从本地快照重建、显式指定其他位置及课程故障处理，见 [RAG 接入说明](../docs/guides/rag-integration.md)。安装后的部署请设置 `SIGFLOW_COURSE_DB` 或传入 `--course-db`。

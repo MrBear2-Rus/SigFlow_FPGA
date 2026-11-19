@@ -3,6 +3,7 @@
 
 #include "WaveformRenderData.h"
 #include "WaveformTextLayer.h"
+#include "WaveformView.h"
 
 #include <wx/dcmemory.h>
 #include <wx/dcclient.h>
@@ -259,6 +260,7 @@ void WaveformGLCanvas::OnMouseWheel(wxMouseEvent& event)
 
 void WaveformGLCanvas::OnMouseDown(wxMouseEvent& event)
 {
+    if(event.LeftDown())if(auto* owner=dynamic_cast<WaveformView*>(GetParent()))if(owner->InspectMultiDeltaAt(event.GetPosition(),GetClientSize().x))return;
     if (event.RightDown()) {
         m_rightDragging = true;
         m_rightStartX = event.GetX();

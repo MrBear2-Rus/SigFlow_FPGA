@@ -1,7 +1,7 @@
 """Simulation duration is an explicit uint64 tick count, never milliseconds."""
 import unittest
-from sigflow_edu_agent.checkers.plan import DetailedPlan, PlanStep
-from sigflow_edu_agent.contracts.plan import build_plan_card
+from sigflow_teaching_core.checkers.plan import DetailedPlan, PlanStep
+from sigflow_teaching_core.contracts.plan import build_plan_card
 
 
 class DurationTicksTests(unittest.TestCase):

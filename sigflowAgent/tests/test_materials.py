@@ -9,14 +9,14 @@ import tempfile
 import time
 import unittest
 
-from sigflow_edu_agent.host.reference import POLICY
-from sigflow_edu_agent.runtime.gateway_session import SessionBinding
+from sigflow_teaching_core.host.reference import POLICY
+from sigflow_teaching_core.runtime.gateway_session import SessionBinding
 
 
 class MaterialsTests(unittest.TestCase):
     def setUp(self):
-        self.assertIsNotNone(find_spec('sigflow_edu_agent.host.materials'),'reviewed material provider missing')
-        from sigflow_edu_agent.host.materials import ReviewedMaterialProvider
+        self.assertIsNotNone(find_spec('sigflow_teaching_core.host.materials'),'reviewed material provider missing')
+        from sigflow_teaching_core.host.materials import ReviewedMaterialProvider
         self.Provider=ReviewedMaterialProvider
         self.temp=tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1])
         self.addCleanup(self.temp.cleanup)
@@ -91,7 +91,7 @@ class MaterialsTests(unittest.TestCase):
             if len(self.reviews)==2:clock[0]=200
             return True
         provider=self.Provider(self.manifest,self.pinned,self.body_root,verify)
-        with patch('sigflow_edu_agent.host.materials.time.time',side_effect=lambda:clock[0]):
+        with patch('sigflow_teaching_core.host.materials.time.time',side_effect=lambda:clock[0]):
             with self.assertRaisesRegex(ValueError,'reference_material_unavailable'):provider(self.binding)
 
     def test_symlink_escape_is_rejected(self):

@@ -1770,4 +1770,16 @@ layoutToggles.forEach(t => {
 </script>
 
 
+<!-- Phase 1 local desktop control contract. Inert design template; Web deferred. -->
+<template id="sigflow-p1-controls">
+  <section aria-label="虚拟实验箱 Phase 1">
+    <button type="button">加载 P1 外设实验</button>
+    <label>Step <select><option>下一主时钟上升沿</option><option>下一事件 Next Event</option><option>指定 Tick 数</option></select></label>
+    <label>Ticks <input inputmode="numeric" value="1000000"></label>
+    <select aria-label="板面观测"><option>自动：运行积分 / 暂停瞬时</option><option>电气瞬时态</option><option>视觉积分态</option></select>
+    <p>LED Duty 25% / 50% / 75% · 四位扫描 1234 · DIP · FLT / CON 独立显示</p>
+    <p>实验故障：JSON 编辑 · replace_source / short_to_rail · Open · ButtonBounce · ClockStop · pending / active</p>
+    <fieldset><legend>虚拟串口</legend><select aria-label="格式"><option>ASCII</option><option>Hex</option></select><select aria-label="行尾"><option>none</option><option>LF</option><option>CR</option><option>CRLF</option></select><input aria-label="发送内容"><button type="button">发送</button><button type="button">清屏</button><button type="button">导出全部帧</button><p>Tick / UART / RX-TX / Hex / ASCII / valid-framing_error-parity_error</p></fieldset>
+  </section>
+</template>
 </body></html>

@@ -2,13 +2,13 @@
 import importlib.util
 import unittest
 from dataclasses import replace
-from sigflow_edu_agent.domain import Evidence, CardContext
-from sigflow_edu_agent.context.models import EvidenceAnchor
-from sigflow_edu_agent.pedagogy import RuleProvider, checked_card
+from sigflow_teaching_core.domain import Evidence, CardContext
+from sigflow_teaching_core.context.models import EvidenceAnchor
+from sigflow_teaching_core.pedagogy import RuleProvider, checked_card
 
-AVAILABLE = importlib.util.find_spec('sigflow_edu_agent.patterns') is not None
+AVAILABLE = importlib.util.find_spec('sigflow_teaching_core.patterns') is not None
 if AVAILABLE:
-    from sigflow_edu_agent.patterns import PatternFacts, assess
+    from sigflow_teaching_core.patterns import PatternFacts, assess
 
 CASES = (
     ('syntax', ('parser_diagnostic', 'source_location'), 'accepted_language_construct'),

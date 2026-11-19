@@ -12,7 +12,7 @@ class SharedAcceptanceTests(unittest.TestCase):
         self.owned.mkdir(parents=True,exist_ok=True)
 
     def test_missing_gateway_fails_with_fixed_report_and_no_model_call(self):
-        name='sigflow_edu_agent.host.shared_acceptance'
+        name='sigflow_teaching_core.host.shared_acceptance'
         self.assertIsNotNone(importlib.util.find_spec(name),'formal U1/U2 acceptance missing')
         module=importlib.import_module(name)
         with tempfile.TemporaryDirectory(dir=self.owned) as directory:
@@ -27,7 +27,7 @@ class SharedAcceptanceTests(unittest.TestCase):
 
     def test_cleanup_failure_cannot_publish_passed_acceptance(self):
         from contextlib import contextmanager
-        module=importlib.import_module('sigflow_edu_agent.host.shared_acceptance')
+        module=importlib.import_module('sigflow_teaching_core.host.shared_acceptance')
         with tempfile.TemporaryDirectory(dir=self.owned) as owned:
             directory=Path(owned);binary=directory/'placeholder';binary.write_bytes(b'not executed')
             output=directory/'report.json'
@@ -45,7 +45,7 @@ class SharedAcceptanceTests(unittest.TestCase):
             self.assertNotIn(str(directory),json.dumps(result))
 
     def test_report_write_failure_returns_failed_stdout_and_exit_code(self):
-        module=importlib.import_module('sigflow_edu_agent.host.shared_acceptance')
+        module=importlib.import_module('sigflow_teaching_core.host.shared_acceptance')
         with tempfile.TemporaryDirectory(dir=self.owned) as owned:
             directory=Path(owned);stream=io.StringIO()
             with redirect_stdout(stream):

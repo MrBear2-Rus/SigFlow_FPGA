@@ -1,0 +1,437 @@
+A1: GUI exports declarations, validates, generates, verilates and compiles before Ready = 1
+A1: real child session starts Paused(Ready) = 1
+A1: unchanged project reuses fingerprinted binary and revalidates bindings = 1
+A2: GUI binding rows retain zero and nonzero HDL indices = 1
+A2: nonzero HDL bit 4 drives physical LED0 via generated adapter = 1
+A3: invalid project rejected before DUT: E_IO_VCCIO_MISMATCH = 1
+A3: diagnostic focuses exact Pin Binding row = 1
+A3: structured diagnostic E_IO_VCCIO_MISMATCH = 1
+A3: invalid project rejected before DUT: E_BANK_UNKNOWN = 1
+A3: diagnostic focuses exact Pin Binding row = 1
+A3: structured diagnostic E_BANK_UNKNOWN = 1
+A3: invalid project rejected before DUT: E_VCCIO_UNKNOWN = 1
+A3: diagnostic focuses exact Pin Binding row = 1
+A3: diagnostic focuses exact Pin Binding row = 1
+A3: diagnostic focuses exact Pin Binding row = 1
+A3: diagnostic focuses exact Pin Binding row = 1
+A3: diagnostic focuses exact Pin Binding row = 1
+A3: diagnostic focuses exact Pin Binding row = 1
+A3: diagnostic focuses exact Pin Binding row = 1
+A3: diagnostic focuses exact Pin Binding row = 1
+A3: structured diagnostic E_VCCIO_UNKNOWN = 1
+A3: invalid project rejected before DUT: E_CST_UNMANAGED = 1
+A3: diagnostic focuses exact Pin Binding row = 1
+A3: structured diagnostic E_CST_UNMANAGED = 1
+A3: invalid project rejected before DUT: E_CLOCK_BINDING = 1
+A3: diagnostic focuses exact Pin Binding row = 1
+A3: structured diagnostic E_CLOCK_BINDING = 1
+A3: reviewed 1.8V LED/button Bank and 3.3V oscillator Bank pass together = 1
+A4: correct CST turns on LED0 = 1
+A4: swapped CST migrates physical light to LED1 = 1
+A4: invalid project rejected before DUT: E_MISSING_BINDING = 1
+A4: diagnostic focuses exact Pin Binding row = 1
+A4: structured diagnostic E_MISSING_BINDING = 1
+A4: explicit teaching-unbound never bypasses the physical map = 1
+A5: released reset initializes zero count = 1
+A5: paused contact edits perform no DUT imports = 1
+A6: press-release-Step coalesces without a pulse = 1
+A6: press-Step commits a sampled low contact = 1
+A6: release-Step preserves the count = 1
+A5: Play/Pause leaves persistent model available for Step = 1
+A10: normal GUI three from-zero replays match both digests = 1
+A10: selected Journal replay verifies original run identity and fingerprints = 1
+A7: initial FLT blocks before first model write/evaluation = 1
+A7: both panels expose boundary, STATE and driver provenance = 1
+A7: staged contact repair resumes from retained initial boundary = 1
+A7: unpulled input branch open blocks without DUT import = 1
+A7: pending fault revocation recovers on Step = 1
+A7: between-clock asynchronous reset CON blocks with zero writes and unchanged committed boundary = 1
+A7: revoking input contention resumes at preserved boundary = 1
+A8: QueryExtended generates exactly one three-event marker at physical tick 100 = 1
+A8: clicking rendered track badge opens event inspection = 1
+A8: detail list retains exact (tick,delta,event_seq,value,STATE,valid,contention) = 1
+A8: exports renderer snapshot without stretching delta into physical time = 1
+A9: Paused open is pending and does not change applied topology = 1
+A9: output open never pauses and separates pad from endpoint = 1
+A9: both physical branch waveforms update in the LiveTrace UI source = 1
+A9: Running revoke/reapply updates actual board LED state = 1
+A10: fault GUI three from-zero replays match both digests = 1
+A7: bounded no-clock error is inspectable in the GUI = 1
+A7: real nonconvergent RTL exits within bounded evaluation and exposes GUI error = 1
+A1: editing a source invalidates runner fingerprint and recompiles automatically = 1
+A10: manual offline VCD remains available alongside live sessions = 1
+A10: 20 session/widget lifecycle cycles preserve manual offline source and release callbacks = 1
+A10: closing Running and immediately replacing session cannot call retired UI owner = 1
+A10: wx DIP conversion at 96 DPI = 1
+A10: DPI-specific vector geometry snapshot light-96dpi.png = 1
+A10: wx DIP conversion at 144 DPI = 1
+A10: DPI-specific vector geometry snapshot light-144dpi.png = 1
+A10: wx DIP conversion at 192 DPI = 1
+A10: DPI-specific vector geometry snapshot light-192dpi.png = 1
+A10: wx DIP conversion at 96 DPI = 1
+A10: DPI-specific vector geometry snapshot dark-96dpi.png = 1
+A10: wx DIP conversion at 144 DPI = 1
+A10: DPI-specific vector geometry snapshot dark-144dpi.png = 1
+A10: wx DIP conversion at 192 DPI = 1
+A10: DPI-specific vector geometry snapshot dark-192dpi.png = 1
+A10: native widget fits at DPI-change scale 96 label=构建并启动当前工程 rect=8,8,129,25 client=1272,730 = 1
+A10: native widget fits at DPI-change scale 96 label=加载 M0 参考计数器 rect=142,8,132,25 client=1272,730 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native widget fits at DPI-change scale 96 label=加载实验配置 rect=279,8,93,25 client=1272,730 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native widget fits at DPI-change scale 96 label=play rect=377,8,75,25 client=1272,730 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native widget fits at DPI-change scale 96 label=step rect=457,8,75,25 client=1272,730 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native widget fits at DPI-change scale 96 label=pause rect=537,8,75,25 client=1272,730 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native widget fits at DPI-change scale 96 label=stop rect=617,8,75,25 client=1272,730 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native widget fits at DPI-change scale 96 label=重放当前日志 rect=697,8,93,25 client=1272,730 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native widget fits at DPI-change scale 96 label=重放指定 Journal rect=795,8,115,25 client=1272,730 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native widget fits at DPI-change scale 96 label=断开 LED0 走线（wire.led0） rect=8,8,185,17 client=1272,730 = 1
+A10: native widget fits at DPI-change scale 96 label=断开 wire.key3 rect=209,8,106,17 client=1272,730 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native widget fits at DPI-change scale 96 label=断开 wire.key4 rect=331,8,106,17 client=1272,730 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native widget fits at DPI-change scale 96 label=断开 wire.clock rect=453,8,109,17 client=1272,730 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native widget fits at DPI-change scale 96 label=提交输入驱动（暂停时 pending） rect=258,69,205,25 client=1272,730 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native widget fits at DPI-change scale 144 label=构建并启动当前工程 rect=27,27,138,32 client=1703,1011 = 1
+A10: native widget fits at DPI-change scale 144 label=加载 M0 参考计数器 rect=183,27,141,32 client=1703,1011 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native widget fits at DPI-change scale 144 label=加载实验配置 rect=342,27,102,32 client=1703,1011 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native widget fits at DPI-change scale 144 label=play rect=462,27,75,32 client=1703,1011 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native widget fits at DPI-change scale 144 label=step rect=555,27,75,32 client=1703,1011 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native widget fits at DPI-change scale 144 label=pause rect=648,27,75,32 client=1703,1011 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native widget fits at DPI-change scale 144 label=stop rect=741,27,75,32 client=1703,1011 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native widget fits at DPI-change scale 144 label=重放当前日志 rect=834,27,102,32 client=1703,1011 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native widget fits at DPI-change scale 144 label=重放指定 Journal rect=954,27,124,32 client=1703,1011 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native widget fits at DPI-change scale 144 label=断开 LED0 走线（wire.led0） rect=27,27,188,17 client=1703,1011 = 1
+A10: native widget fits at DPI-change scale 144 label=断开 wire.key3 rect=269,27,109,17 client=1703,1011 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native widget fits at DPI-change scale 144 label=断开 wire.key4 rect=432,27,109,17 client=1703,1011 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native widget fits at DPI-change scale 144 label=断开 wire.clock rect=595,27,112,17 client=1703,1011 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native widget fits at DPI-change scale 144 label=提交输入驱动（暂停时 pending） rect=397,227,214,32 client=1703,1011 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native widget fits at DPI-change scale 192 label=构建并启动当前工程 rect=64,64,147,39 client=1703,1004 = 1
+A10: native widget fits at DPI-change scale 192 label=加载 M0 参考计数器 rect=251,64,150,39 client=1703,1004 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native widget fits at DPI-change scale 192 label=加载实验配置 rect=441,64,111,39 client=1703,1004 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native widget fits at DPI-change scale 192 label=play rect=592,64,75,39 client=1703,1004 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native widget fits at DPI-change scale 192 label=step rect=707,64,75,39 client=1703,1004 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native widget fits at DPI-change scale 192 label=pause rect=822,64,75,39 client=1703,1004 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native widget fits at DPI-change scale 192 label=stop rect=937,64,75,39 client=1703,1004 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native widget fits at DPI-change scale 192 label=重放当前日志 rect=1052,64,111,39 client=1703,1004 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native widget fits at DPI-change scale 192 label=重放指定 Journal rect=1203,64,133,39 client=1703,1004 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native widget fits at DPI-change scale 192 label=断开 LED0 走线（wire.led0） rect=64,64,191,17 client=1703,1004 = 1
+A10: native widget fits at DPI-change scale 192 label=断开 wire.key3 rect=383,64,112,17 client=1703,1004 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native widget fits at DPI-change scale 192 label=断开 wire.key4 rect=623,64,112,17 client=1703,1004 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native widget fits at DPI-change scale 192 label=断开 wire.clock rect=863,64,115,17 client=1703,1004 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native widget fits at DPI-change scale 192 label=提交输入驱动（暂停时 pending） rect=580,593,223,39 client=1703,1004 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native widget fits at DPI-change scale 96 label=构建并启动当前工程 rect=8,8,129,25 client=1272,730 = 1
+A10: native widget fits at DPI-change scale 96 label=加载 M0 参考计数器 rect=142,8,132,25 client=1272,730 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native widget fits at DPI-change scale 96 label=加载实验配置 rect=279,8,93,25 client=1272,730 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native widget fits at DPI-change scale 96 label=play rect=377,8,75,25 client=1272,730 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native widget fits at DPI-change scale 96 label=step rect=457,8,75,25 client=1272,730 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native widget fits at DPI-change scale 96 label=pause rect=537,8,75,25 client=1272,730 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native widget fits at DPI-change scale 96 label=stop rect=617,8,75,25 client=1272,730 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native widget fits at DPI-change scale 96 label=重放当前日志 rect=697,8,93,25 client=1272,730 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native widget fits at DPI-change scale 96 label=重放指定 Journal rect=795,8,115,25 client=1272,730 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native widget fits at DPI-change scale 96 label=断开 LED0 走线（wire.led0） rect=8,8,185,17 client=1272,730 = 1
+A10: native widget fits at DPI-change scale 96 label=断开 wire.key3 rect=209,8,106,17 client=1272,730 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native widget fits at DPI-change scale 96 label=断开 wire.key4 rect=331,8,106,17 client=1272,730 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native widget fits at DPI-change scale 96 label=断开 wire.clock rect=453,8,109,17 client=1272,730 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native widget fits at DPI-change scale 96 label=提交输入驱动（暂停时 pending） rect=258,69,205,25 client=1272,730 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native controls do not overlap at scale 96 = 1
+A10: native widget fits at DPI-change scale 144 label=构建并启动当前工程 rect=27,27,138,32 client=1703,1011 = 1
+A10: native widget fits at DPI-change scale 144 label=加载 M0 参考计数器 rect=183,27,141,32 client=1703,1011 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native widget fits at DPI-change scale 144 label=加载实验配置 rect=342,27,102,32 client=1703,1011 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native widget fits at DPI-change scale 144 label=play rect=462,27,75,32 client=1703,1011 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native widget fits at DPI-change scale 144 label=step rect=555,27,75,32 client=1703,1011 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native widget fits at DPI-change scale 144 label=pause rect=648,27,75,32 client=1703,1011 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native widget fits at DPI-change scale 144 label=stop rect=741,27,75,32 client=1703,1011 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native widget fits at DPI-change scale 144 label=重放当前日志 rect=834,27,102,32 client=1703,1011 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native widget fits at DPI-change scale 144 label=重放指定 Journal rect=954,27,124,32 client=1703,1011 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native widget fits at DPI-change scale 144 label=断开 LED0 走线（wire.led0） rect=27,27,188,17 client=1703,1011 = 1
+A10: native widget fits at DPI-change scale 144 label=断开 wire.key3 rect=269,27,109,17 client=1703,1011 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native widget fits at DPI-change scale 144 label=断开 wire.key4 rect=432,27,109,17 client=1703,1011 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native widget fits at DPI-change scale 144 label=断开 wire.clock rect=595,27,112,17 client=1703,1011 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native widget fits at DPI-change scale 144 label=提交输入驱动（暂停时 pending） rect=397,227,214,32 client=1703,1011 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native controls do not overlap at scale 144 = 1
+A10: native widget fits at DPI-change scale 192 label=构建并启动当前工程 rect=64,64,147,39 client=1703,1004 = 1
+A10: native widget fits at DPI-change scale 192 label=加载 M0 参考计数器 rect=251,64,150,39 client=1703,1004 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native widget fits at DPI-change scale 192 label=加载实验配置 rect=441,64,111,39 client=1703,1004 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native widget fits at DPI-change scale 192 label=play rect=592,64,75,39 client=1703,1004 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native widget fits at DPI-change scale 192 label=step rect=707,64,75,39 client=1703,1004 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native widget fits at DPI-change scale 192 label=pause rect=822,64,75,39 client=1703,1004 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native widget fits at DPI-change scale 192 label=stop rect=937,64,75,39 client=1703,1004 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native widget fits at DPI-change scale 192 label=重放当前日志 rect=1052,64,111,39 client=1703,1004 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native widget fits at DPI-change scale 192 label=重放指定 Journal rect=1203,64,133,39 client=1703,1004 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native widget fits at DPI-change scale 192 label=断开 LED0 走线（wire.led0） rect=64,64,191,17 client=1703,1004 = 1
+A10: native widget fits at DPI-change scale 192 label=断开 wire.key3 rect=383,64,112,17 client=1703,1004 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native widget fits at DPI-change scale 192 label=断开 wire.key4 rect=623,64,112,17 client=1703,1004 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native widget fits at DPI-change scale 192 label=断开 wire.clock rect=863,64,115,17 client=1703,1004 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native widget fits at DPI-change scale 192 label=提交输入驱动（暂停时 pending） rect=580,593,223,39 client=1703,1004 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: native controls do not overlap at scale 192 = 1
+A10: legacy sim.build / sim.run production providers passed in same CTest invocation = 1
