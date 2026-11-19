@@ -10,9 +10,9 @@ import unittest
 
 class SimulationAcceptanceTests(unittest.TestCase):
     def module(self):
-        self.assertIsNotNone(importlib.util.find_spec('sigflow_edu_agent.host.simulation_acceptance'),
+        self.assertIsNotNone(importlib.util.find_spec('sigflow_teaching_core.host.simulation_acceptance'),
                              'simulation acceptance boundary is missing')
-        from sigflow_edu_agent.host import simulation_acceptance
+        from sigflow_teaching_core.host import simulation_acceptance
         return simulation_acceptance
 
     def fixtures(self):

@@ -1,10 +1,10 @@
 """Joint RAG/engineering-gate regressions for the merge."""
 from dataclasses import replace
 import unittest
-from sigflow_edu_agent.context.models import Omission
-from sigflow_edu_agent.domain import Evidence, RunRequest
-from sigflow_edu_agent.patterns import assess
-from sigflow_edu_agent.loop import TeachingLoop
+from sigflow_teaching_core.context.models import Omission
+from sigflow_teaching_core.domain import Evidence, RunRequest
+from sigflow_teaching_core.patterns import assess
+from sigflow_teaching_core.loop import TeachingLoop
 from tests.test_courses import Courses, Probe
 
 

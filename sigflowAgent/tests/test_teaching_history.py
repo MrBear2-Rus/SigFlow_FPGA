@@ -3,15 +3,15 @@ from dataclasses import replace
 import json
 import unittest
 
-from sigflow_edu_agent.demo import FixtureSource
-from sigflow_edu_agent.domain import RunRequest, ProviderError
-from sigflow_edu_agent.loop import TeachingLoop
-from sigflow_edu_agent.deepseek import serialize_request
+from sigflow_teaching_core.demo import FixtureSource
+from sigflow_teaching_core.domain import RunRequest, ProviderError
+from sigflow_teaching_core.loop import TeachingLoop
+from sigflow_teaching_core.deepseek import serialize_request
 
 
 class TeachingHistoryTests(unittest.TestCase):
     def setUp(self):
-        self.assertIn('learning_history',__import__('sigflow_edu_agent.domain',fromlist=['CardContext']).CardContext.__dataclass_fields__,
+        self.assertIn('learning_history',__import__('sigflow_teaching_core.domain',fromlist=['CardContext']).CardContext.__dataclass_fields__,
                       'history_context_port_missing')
         self.contexts=[];self.reads=[]
         owner=self
@@ -54,7 +54,7 @@ class TeachingHistoryTests(unittest.TestCase):
                 self.assertEqual(self.contexts[0].learning_history,'')
 
     def test_history_never_displaces_engineering_or_exceeds_provider_request_budget(self):
-        from sigflow_edu_agent.context.models import ContextItem
+        from sigflow_teaching_core.context.models import ContextItem
         source=FixtureSource()
         evidence=source.collect('p','r')
         # Model request is already near its limit; preserve the engineering body.

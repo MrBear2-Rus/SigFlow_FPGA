@@ -2,10 +2,10 @@ import unittest
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 
-from sigflow_edu_agent.demo import FixtureSource
-from sigflow_edu_agent.domain import RunRequest, Status
-from sigflow_edu_agent.loop import TeachingLoop
-from sigflow_edu_agent.runtime.session import TeachingSession
+from sigflow_teaching_core.demo import FixtureSource
+from sigflow_teaching_core.domain import RunRequest, Status
+from sigflow_teaching_core.loop import TeachingLoop
+from sigflow_teaching_core.runtime.session import TeachingSession
 
 
 class SessionTests(unittest.TestCase):

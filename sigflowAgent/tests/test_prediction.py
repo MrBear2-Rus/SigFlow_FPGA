@@ -3,7 +3,7 @@ import importlib.util
 import unittest
 from unittest.mock import patch
 from _wave_gateway import WaveGateway
-from sigflow_edu_agent.clients.waveform import GatewayWaveformReader
+from sigflow_teaching_core.clients.waveform import GatewayWaveformReader
 
 
 class PredictionTests(unittest.TestCase):
@@ -12,8 +12,8 @@ class PredictionTests(unittest.TestCase):
         self.payload=dict(artifact_id='wave1',signal_id=0,start_tick='10',end_tick='20',sample_tick='12')
 
     def controller(self):
-        self.assertIsNotNone(importlib.util.find_spec('sigflow_edu_agent.host.prediction'),'prediction controller missing')
-        from sigflow_edu_agent.host.prediction import PredictionController
+        self.assertIsNotNone(importlib.util.find_spec('sigflow_teaching_core.host.prediction'),'prediction controller missing')
+        from sigflow_teaching_core.host.prediction import PredictionController
         return PredictionController(GatewayWaveformReader(self.gateway.config),self.gateway.binding)
 
     def test_request_reads_only_metadata_then_submit_compares_explicit_expected(self):
@@ -68,7 +68,7 @@ class PredictionTests(unittest.TestCase):
 
     def test_expired_challenge_is_denied_without_query(self):
         c=self.controller();challenge=c.begin(self.payload)
-        with patch('sigflow_edu_agent.host.prediction.time.monotonic',return_value=c._deadline):
+        with patch('sigflow_teaching_core.host.prediction.time.monotonic',return_value=c._deadline):
             with self.assertRaisesRegex(ValueError,'prediction_challenge_stale'):
                 c.submit(dict(challenge_id=challenge['challenge_id'],expected='1'))
         self.assertEqual(self.gateway.query_count,0)

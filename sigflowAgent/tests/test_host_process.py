@@ -26,7 +26,7 @@ class HostProcessTests(unittest.TestCase):
         package = str(Path(__file__).resolve().parents[1])
         env = os.environ | {'PYTHONPATH': package}
         env.pop('DEEPSEEK_API_KEY', None)
-        command = [sys.executable, '-m', 'sigflow_edu_agent.host', '--bootstrap-stdin']
+        command = [sys.executable, '-m', 'sigflow_teaching_core.host', '--bootstrap-stdin']
         cwd = package
         if launcher:
             env['SIGFLOW_EDU_AGENT_PYTHON'] = sys.executable
@@ -55,7 +55,7 @@ class HostProcessTests(unittest.TestCase):
         self.exercise_process(launcher=True)
 
     def exercise_process(self, *, launcher=False):
-        self.assertIsNotNone(importlib.util.find_spec('sigflow_edu_agent.host.__main__'), 'host process missing')
+        self.assertIsNotNone(importlib.util.find_spec('sigflow_teaching_core.host.__main__'), 'host process missing')
         with tempfile.TemporaryDirectory() as directory:
             process = self.run_process(launcher=launcher)
             self.addCleanup(lambda: process.kill() if process.poll() is None else None)
@@ -93,7 +93,7 @@ class HostProcessTests(unittest.TestCase):
                     self.assertNotIn(b'gateway-private', raw)
 
     def test_bad_bootstrap_fails_sanitized_with_no_ready(self):
-        self.assertIsNotNone(importlib.util.find_spec('sigflow_edu_agent.host.__main__'), 'host process missing')
+        self.assertIsNotNone(importlib.util.find_spec('sigflow_teaching_core.host.__main__'), 'host process missing')
         with tempfile.TemporaryDirectory() as directory:
             payload = self.bootstrap(directory)
             cases = [payload | {'gateway_url': 'http://example.com:80'},

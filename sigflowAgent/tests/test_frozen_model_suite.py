@@ -8,7 +8,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from sigflow_edu_agent.demo import FixtureSource
+from sigflow_teaching_core.demo import FixtureSource
 
 
 def write_suite(directory, *, rows=None):
@@ -29,7 +29,7 @@ def write_suite(directory, *, rows=None):
 
 class FrozenModelSuiteTests(unittest.TestCase):
     def setUp(self):
-        spec = importlib.util.find_spec('sigflow_edu_agent.evaluation.frozen')
+        spec = importlib.util.find_spec('sigflow_teaching_core.evaluation.frozen')
         self.assertIsNotNone(spec, 'frozen_model_case_loader_missing')
         self.module = importlib.import_module(spec.name)
         self.directory = tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1])

@@ -7,9 +7,9 @@ import json
 
 import test_host_verification as gateway_fixture
 import test_host_runtime as runtime_fixture
-from sigflow_edu_agent.clients.gateway import GatewayError
-from sigflow_edu_agent.contracts.plan import build_plan_card
-from sigflow_edu_agent.domain import VerificationResult
+from sigflow_teaching_core.clients.gateway import GatewayError
+from sigflow_teaching_core.contracts.plan import build_plan_card
+from sigflow_teaching_core.domain import VerificationResult
 
 
 class GatewayObservationTests(unittest.TestCase):

@@ -3,12 +3,12 @@ import json
 from pathlib import Path
 import unittest
 
-from sigflow_edu_agent.context.models import ContextItem, EvidenceAnchor, SourceRef
-from sigflow_edu_agent.context.builder import build_context
-from sigflow_edu_agent.context.report import ReportEvidenceSource
-from sigflow_edu_agent.domain import EvidenceError, RunRequest, Status
-from sigflow_edu_agent.loop import TeachingLoop
-from sigflow_edu_agent.pedagogy import RuleProvider
+from sigflow_teaching_core.context.models import ContextItem, EvidenceAnchor, SourceRef
+from sigflow_teaching_core.context.builder import build_context
+from sigflow_teaching_core.context.report import ReportEvidenceSource
+from sigflow_teaching_core.domain import EvidenceError, RunRequest, Status
+from sigflow_teaching_core.loop import TeachingLoop
+from sigflow_teaching_core.pedagogy import RuleProvider
 
 
 def sample():

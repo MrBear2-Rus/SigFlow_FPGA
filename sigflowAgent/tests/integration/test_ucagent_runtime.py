@@ -14,12 +14,12 @@ if SOURCE:
     from ucagent.checkers.base import Checker
     from ucagent.stage.vstage import VerifyStage
     from ucagent.tools.uctool import UCTool
-    from sigflow_edu_agent.runtime.ucagent_adapter import build_stage, build_tools, validate_tools
+    from sigflow_teaching_core.runtime.ucagent_adapter import build_stage, build_tools, validate_tools
 
-from sigflow_edu_agent.demo import FixtureSource, FixtureVerification
-from sigflow_edu_agent.domain import RunRequest, Status, Plan
-from sigflow_edu_agent.loop import TeachingLoop
-from sigflow_edu_agent.runtime.session import TeachingSession
+from sigflow_teaching_core.demo import FixtureSource, FixtureVerification
+from sigflow_teaching_core.domain import RunRequest, Status, Plan
+from sigflow_teaching_core.loop import TeachingLoop
+from sigflow_teaching_core.runtime.session import TeachingSession
 
 
 @unittest.skipUnless(SOURCE, 'Set SIGFLOW_UCAGENT_SOURCE and install the optional runtime dependencies.')

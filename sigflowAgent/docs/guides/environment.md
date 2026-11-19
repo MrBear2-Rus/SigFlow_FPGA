@@ -1,0 +1,97 @@
+# 开发环境与依赖
+
+复核日期：2026-10-13。工作目录：`SigFlow_Cmake/sigflowAgent`。
+
+当前实施依据为[自研决策](../../../docs/edu-agent/DECISION-2026-10-07.md)。
+产品核心只要求 Python >=3.11 与标准库，不依赖 UCAgent。下文上游版本、安装和 smoke
+仅保留历史实验复现用途，不作为当前安装要求或发布验收。下文实验基线为 f5a3dc8。
+
+## 2026-10-13 环境快照
+
+| 项目 | 状态 |
+|---|---|
+| 操作系统 | Windows / PowerShell |
+| 基础解释器 | `C:\Users\NiZhe\anaconda3\python.exe`，Python 3.13.5 |
+| 项目解释器 | `sigflowAgent\.venv\Scripts\python.exe`，Python 3.13.5 |
+| Conda | 不要求激活；已有 aiAgent 为 Python 3.10.20，不满足本项目 >=3.11 |
+| SigFlow 基线 | `SigFlow_FPGA_CMake` / `b7e5186`，从 `3deee0e` 快进更新 |
+| UCAgent 基线 | `ac00768`，从 `c96ceb1` 快进更新 |
+| 上游源码位置 | `C:\Users\NiZhe\Desktop\SuperEDA\UCAgent\UCAgent` |
+
+直接指定 `.venv` 的解释器可避免 PowerShell 激活脚本策略问题。基础解释器来自 Anaconda 不意味着需要启动 Conda 环境。
+
+## 依赖层次
+
+领域核心、规则 Provider、DeepSeek HTTP、Gateway HTTP 和上下文适配器均为标准库实现。运行核心测试无需安装第三方库，不需要本地 GPU、CUDA 或本地模型权重。
+
+真实 UCAgent 类的导入依赖 LangChain、Pydantic、MCP、PyYAML、GitPython、psutil、Jinja2 及其传递依赖。本次仅安装阶段扩展 smoke 所需依赖，未安装完整 UCAgent 的全部 EDA、Web UI 或模型后端依赖。版本快照见 [requirements-ucagent-smoke.txt](../../requirements-ucagent-smoke.txt)，针对当前 Windows / Python 3.13 环境生成，包含 `pywin32`；跨平台应另建并验证依赖锁定。
+
+已验证组合：langchain 1.4.3、langchain-core 1.6.6、langchain-openai 1.6.7、langchain-mcp-adapters 0.3.2、mcp 1.30.0、pydantic 2.13.5。上游涉及私有 API，升级后须重跑集成测试。
+
+## 独立核心环境
+
+未参与 UCAgent 适配的成员只需 Python >=3.11。以下命令在本目录执行，
+不需要兄弟目录中的 UCAgent checkout，也不安装上游依赖：
+
+```powershell
+python -m venv .venv
+Remove-Item Env:SIGFLOW_UCAGENT_SOURCE -ErrorAction SilentlyContinue
+.\.venv\Scripts\python.exe -m sigflow_teaching_core --provider rule --once
+.\.venv\Scripts\python.exe -S -m sigflow_teaching_core.evaluation --suite tests/evaluation/development.json
+```
+
+开发评测使用固定输入，可在 `-S` 模式验证标准库路径。当前核心包为 `sigflow-teaching-core`，与 U1 Sidecar 使用独立导入名。
+
+### U2 全量回归
+
+在 `sigflowAgent` 目录执行。使用能加载 SSL 的 Python 3.11+，并为联合测试提供 U1 与 UA-10 的源码路径。
+
+```powershell
+$u2Python = (Get-Command python -CommandType Application).Source
+& $u2Python -c "import ssl; print(ssl.OPENSSL_VERSION)"
+if ($LASTEXITCODE -ne 0) { throw 'Select a Python interpreter that can load SSL.' }
+$env:PYTHONPATH = "$PWD;$PWD\ua10_module\src;$PWD\ua10_module\vendor;$PWD\..\agent\src"
+& $u2Python -m unittest discover -s tests -q
+```
+
+离线打包验证使用当前环境已有的 pip、setuptools 和 wheel。历史 UCAgent 实验和需要原始课程快照的用例根据本机输入跳过。正式宿主 HTTP 回归见[复测入口](../features/l4-reference/verification.md#复测入口与结果登记)，单独验证 UA-10 时从仓库根运行 `tools\run_u2_memory_regression.cmd`。
+
+### 原生 GUI 回归
+
+在 Windows 默认交互桌面的 PowerShell 中，从仓库根目录运行已有构建的原生冒烟测试。
+
+```powershell
+ctest --test-dir build-main-msvcrt --no-tests=error -R '^edu_native_reading_smoke$' --output-on-failure
+```
+
+2026-11-17，隔离桌面 `CodexSandboxDesktop-*` 下的 Windows 加载器记录到 `USER32.dll` 在 `DLL_PROCESS_ATTACH` 阶段初始化失败，进程以 `0xc0000142` 退出。只调用 `GetDesktopWindow()` 的最小 Win32 程序也复现。两个相同的二进制在 `Default` 桌面均以 0 退出，CTest 1/1 通过。隔离桌面每次启动失败都可能触发一条 Windows 应用程序错误弹窗。
+
+新的 CTest 启动器在创建 GUI 进程前配置 Windows 错误处理模式，将 DLL 初始化失败及超时写到 CTest 日志，并返回失败。构建 `edu_native_reading_smoke` 目标时会同时构建启动器。原生控件验收使用默认交互桌面。
+
+## 历史 UCAgent 实验复现环境
+
+在 `sigflowAgent` 目录执行，基础 Python 需 >=3.11；当前复现基线为 3.13.5：
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-ucagent-smoke.txt
+$env:SIGFLOW_UCAGENT_SOURCE = (Resolve-Path '..\..\UCAgent\UCAgent').Path
+.\.venv\Scripts\python.exe -m pip check
+.\.venv\Scripts\python.exe -m unittest discover -s tests -q
+.\.venv\Scripts\python.exe -m sigflow_teaching_core.runtime.smoke
+```
+
+`SIGFLOW_UCAGENT_SOURCE` 指向包含 `ucagent/__init__.py` 的可信 checkout。测试与 smoke 显式加入此路径；库适配器本身不自动修改搜索路径。服务部署应通过安装固定上游版本或受控 `PYTHONPATH` 配置提供 `ucagent`。
+
+上述兄弟目录路径是本机示例；其他成员应设置自己的可信源码绝对路径。
+旧周期四中完整 UCAgent 教育运行时的验收要求已被自研决策替代；当前验收使用
+仓库 docs/edu-agent/ucagent/task.md，自研运行时与真实教学闭环仍需验收。
+
+当前测试从源码目录运行，无需安装本项目 wheel。`.venv` 和 `.env*` 已忽略；`.env.example` 保留为变量模板。凭据通过进程环境注入，不能写入依赖文件、文档、提交或测试日志。
+
+## 联调前置条件
+
+- Windows 上的 HTTPS 环境可用 `python -c "import ssl; print(ssl.OPENSSL_VERSION)"` 检查。请使用实际运行联调的解释器执行检查。若虚拟环境加载 `_ssl` 失败，可先验证另一个 Python 3.11+ 解释器，再通过 `SIGFLOW_EDU_AGENT_PYTHON` 为本次 DeepSeek 或 UA-10 联调指定该解释器的绝对路径。
+- DeepSeek：配置 `DEEPSEEK_API_KEY`、`DEEPSEEK_MODEL`，由账户实际可用模型决定模型 ID；本次未调用真实 API。
+- Gateway：宿主提供端口、Bearer token 和预期 instance_id，运行于同机 127.0.0.1；不从无认证 health 自动接受新实例。
+- EDA：本批不启动真实 Job；后续真实综合/仿真需由 SigFlow provider 配置工具链，不能用 Python smoke 替代工具链验收。

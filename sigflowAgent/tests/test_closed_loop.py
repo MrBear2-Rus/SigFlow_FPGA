@@ -26,9 +26,9 @@ class ClosedLoopRunnerTests(unittest.TestCase):
         with self.assertRaises(SystemExit):runner.main(['--gateway','missing','--waves','--output','unused'])
 
     def module(self):
-        self.assertIsNotNone(importlib.util.find_spec('sigflow_edu_agent.host.closed_loop'),
+        self.assertIsNotNone(importlib.util.find_spec('sigflow_teaching_core.host.closed_loop'),
                              'closed-loop runner must exist')
-        from sigflow_edu_agent.host import closed_loop
+        from sigflow_teaching_core.host import closed_loop
         return closed_loop
 
     def test_rule_environment_cannot_inherit_model_or_anchor_configuration(self):
@@ -176,7 +176,7 @@ class ClosedLoopRunnerTests(unittest.TestCase):
             script = r"""
 import json,os,sys,time
 from pathlib import Path
-from sigflow_edu_agent.host.closed_loop import Child, RunFailure, close_children
+from sigflow_teaching_core.host.closed_loop import Child, RunFailure, close_children
 result_path,done = map(Path,sys.argv[1:])
 leaf = 'import time; from pathlib import Path; time.sleep(5); Path('+repr(str(done))+').touch()'
 program = 'import subprocess,sys; subprocess.Popen([sys.executable,"-c",'+repr(leaf)+']); print("{}",flush=True); sys.stdin.read()'

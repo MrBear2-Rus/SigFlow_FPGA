@@ -3,9 +3,9 @@ import json
 import unittest
 from unittest.mock import patch
 
-from sigflow_edu_agent.deepseek import DeepSeekConfig, DeepSeekProvider
-from sigflow_edu_agent.domain import Evidence, ProviderError
-from sigflow_edu_agent.evaluation.model import ModelCase, run_model_evaluation
+from sigflow_teaching_core.deepseek import DeepSeekConfig, DeepSeekProvider
+from sigflow_teaching_core.domain import Evidence, ProviderError
+from sigflow_teaching_core.evaluation.model import ModelCase, run_model_evaluation
 
 
 class Provider:
@@ -101,7 +101,7 @@ class ModelEvaluationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.run_batch(mode='deepseek')
 
-    @patch('sigflow_edu_agent.deepseek.http.client.HTTPSConnection')
+    @patch('sigflow_teaching_core.deepseek.http.client.HTTPSConnection')
     def test_deepseek_adapter_test_is_explicitly_mock_and_records_actual_config(self, connection):
         reply = connection.return_value.getresponse.return_value
         reply.status = 200

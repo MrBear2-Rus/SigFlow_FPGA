@@ -7,11 +7,11 @@ from contextlib import closing
 import unittest
 from pathlib import Path
 
-from sigflow_edu_agent.rag.citations import CitationValidationError, render_citations, validate_citations
-from sigflow_edu_agent.rag.evaluation import run_evaluation
-from sigflow_edu_agent.rag.database import open_database
-from sigflow_edu_agent.rag.importer import ImportValidationError, build_index, content_hash, DEFAULT_RESOURCES_DIR
-from sigflow_edu_agent.rag.retriever import format_agent_context, retrieve_course_passages
+from sigflow_teaching_core.rag.citations import CitationValidationError, render_citations, validate_citations
+from sigflow_teaching_core.rag.evaluation import run_evaluation
+from sigflow_teaching_core.rag.database import open_database
+from sigflow_teaching_core.rag.importer import ImportValidationError, build_index, content_hash, DEFAULT_RESOURCES_DIR
+from sigflow_teaching_core.rag.retriever import format_agent_context, retrieve_course_passages
 import os
 SNAPSHOT_DIR = Path(os.environ.get('SIGFLOW_COURSE_SNAPSHOT', str(Path(__file__).resolve().parents[4] / 'doc/sources/ysyx/2607')))
 

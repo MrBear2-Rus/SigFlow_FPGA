@@ -13,14 +13,15 @@ from threading import Barrier, Thread
 from concurrent.futures import ThreadPoolExecutor
 import time
 import unittest
+from unittest.mock import patch
 
-from sigflow_edu_agent.checkers.plan import DetailedPlan, PlanStep
-from sigflow_edu_agent.clients.gateway import GatewayConfig, GatewayError
-from sigflow_edu_agent.context.models import EvidenceAnchor
-from sigflow_edu_agent.contracts.plan import ApprovalPackage, build_plan_card
-from sigflow_edu_agent.domain import Evidence, Plan
+from sigflow_teaching_core.checkers.plan import DetailedPlan, PlanStep
+from sigflow_teaching_core.clients.gateway import GatewayConfig, GatewayError
+from sigflow_teaching_core.context.models import EvidenceAnchor
+from sigflow_teaching_core.contracts.plan import ApprovalPackage, build_plan_card
+from sigflow_teaching_core.domain import Evidence, Plan
 try:
-    from sigflow_edu_agent.host.verification import GatewayVerification
+    from sigflow_teaching_core.host.verification import GatewayVerification
 except ImportError:
     GatewayVerification = None
 
@@ -152,9 +153,9 @@ class VerificationHTTPFixture(unittest.TestCase):
         return Evidence('ev-' + job_id, project_id, revision, job_id, 'counter', True,
                         'Fixture counter observation', origin='fixture', anchor=anchor)
 
-    def create_adapter(self, **kwargs):
+    def create_adapter(self, *, wait_timeout=0.08, poll_interval=0.005, **kwargs):
         obj = GatewayVerification(GatewayConfig(self.server.server_port, 'token-secret', 'inst-a', timeout=0.3),
-            self.journal, self.evidence, wait_timeout=0.08, poll_interval=0.005, **kwargs)
+            self.journal, self.evidence, wait_timeout=wait_timeout, poll_interval=poll_interval, **kwargs)
         obj.register_approval(self.plan, self.package, 'ui-approved-hash')
         return obj
 
@@ -314,14 +315,22 @@ class VerificationHTTPFixture(unittest.TestCase):
         self.assertEqual(len(self.posts), 4)
 
     def test_wait_is_bounded_and_repeat_only_polls_known_job(self):
+        self.adapter.close()
+        self.adapter = self.create_adapter(wait_timeout=0.4, poll_interval=0.4)
+        self.addCleanup(self.adapter.close)
         self.job_state = 'Running'
-        start = time.monotonic()
-        result = self.execute()
-        self.assertEqual(result.state, 'Running')
-        self.assertLess(time.monotonic() - start, 0.8)
+        # Advance the polling deadline without squeezing real loopback I/O
+        # into the last few milliseconds of the wait budget.
+        with patch('sigflow_teaching_core.host.verification.time') as clock:
+            clock.monotonic.side_effect = (0.0, 0.0, 0.0, 0.4)
+            result = self.execute()
+        clock.sleep.assert_called_once_with(0.4)
+        self.assertEqual((result.state, result.job_id), ('Running', 'job-1'))
         self.job_state = 'Succeeded'
         self.assertEqual(self.execute().state, 'Succeeded')
         self.assertEqual(len(self.posts), 1)
+        polls = [path for path, _ in self.gets if path == '/api/v1/jobs/job-1']
+        self.assertEqual(len(polls), 2)
 
     def test_unknown_post_is_durable_and_never_automatically_resubmitted(self):
         self.post_mode = 'drop'

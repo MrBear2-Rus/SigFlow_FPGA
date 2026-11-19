@@ -7,16 +7,16 @@ import shutil
 import tempfile
 import unittest
 
-from sigflow_edu_agent.rag.importer import _write_index_file, content_hash
-from sigflow_edu_agent.rag.database import DEFAULT_DB_PATH
-from sigflow_edu_agent.rag.agent_adapter import prepare_course_context
-from sigflow_edu_agent.rag.retriever import retrieve_course_candidates
-from sigflow_edu_agent.rag.external_materials import _concepts
-from sigflow_edu_agent.rag.citations import resolve_evidence_citations, CitationValidationError, validate_citations
-from sigflow_edu_agent.courses import SQLiteCourseProvider, pack_courses
-from sigflow_edu_agent.domain import Evidence, RunRequest, Status
-from sigflow_edu_agent.context.models import ContextItem
-from sigflow_edu_agent.loop import TeachingLoop
+from sigflow_teaching_core.rag.importer import _write_index_file, content_hash
+from sigflow_teaching_core.rag.database import DEFAULT_DB_PATH
+from sigflow_teaching_core.rag.agent_adapter import prepare_course_context
+from sigflow_teaching_core.rag.retriever import retrieve_course_candidates
+from sigflow_teaching_core.rag.external_materials import _concepts
+from sigflow_teaching_core.rag.citations import resolve_evidence_citations, CitationValidationError, validate_citations
+from sigflow_teaching_core.courses import SQLiteCourseProvider, pack_courses
+from sigflow_teaching_core.domain import Evidence, RunRequest, Status
+from sigflow_teaching_core.context.models import ContextItem
+from sigflow_teaching_core.loop import TeachingLoop
 
 
 class CloseoutTests(unittest.TestCase):

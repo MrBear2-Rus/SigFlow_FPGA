@@ -1,8 +1,8 @@
 import unittest
 from dataclasses import replace
 
-from sigflow_edu_agent.domain import Evidence, Plan, RunRequest, Status, VerificationResult
-from sigflow_edu_agent.loop import TeachingLoop
+from sigflow_teaching_core.domain import Evidence, Plan, RunRequest, Status, VerificationResult
+from sigflow_teaching_core.loop import TeachingLoop
 
 
 class Source:

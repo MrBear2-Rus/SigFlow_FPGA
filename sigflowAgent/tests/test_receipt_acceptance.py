@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from sigflow_edu_agent.host import receipt_acceptance
+from sigflow_teaching_core.host import receipt_acceptance
 
 
 class ReceiptAcceptanceTests(unittest.TestCase):

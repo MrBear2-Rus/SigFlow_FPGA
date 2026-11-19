@@ -3,16 +3,16 @@ from dataclasses import asdict, replace
 import json
 import unittest
 
-from sigflow_edu_agent.context.models import EvidenceAnchor, Omission
-from sigflow_edu_agent.domain import CourseBundle, Status
-from sigflow_edu_agent.loop import TeachingLoop
-from sigflow_edu_agent.patterns import assess
-from sigflow_edu_agent.runtime.checkpoint import _digest, restore_readonly_session
-from sigflow_edu_agent.runtime.session import TeachingSession
+from sigflow_teaching_core.context.models import EvidenceAnchor, Omission
+from sigflow_teaching_core.domain import CourseBundle, Status
+from sigflow_teaching_core.loop import TeachingLoop
+from sigflow_teaching_core.patterns import assess
+from sigflow_teaching_core.runtime.checkpoint import _digest, restore_readonly_session
+from sigflow_teaching_core.runtime.session import TeachingSession
 from test_checkpoint import Source, Provider
 from test_courses import Courses, Probe, material
-from sigflow_edu_agent.domain import RunRequest
-from sigflow_edu_agent.runtime.gateway_session import SessionBinding
+from sigflow_teaching_core.domain import RunRequest
+from sigflow_teaching_core.runtime.gateway_session import SessionBinding
 
 
 class CourseRecoveryTests(unittest.TestCase):
