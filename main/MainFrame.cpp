@@ -48,6 +48,7 @@
 #include "platform/PlatformPaths.h"
 #include "ui/UiTheme.h"
 #include "virtual/VirtualBoardPanel.h"
+#include "virtual/VirtualBoardFloatFrame.h"
 #include "virtual/VirtualUartPanel.h"
 #include "virtual/VirtualTeachingPanel.h"
 #include "virtual/FaultInjectionPanel.h"
@@ -1362,6 +1363,8 @@ MainFrame::MainFrame()
         auto project=sigflow::virtual_lab::VirtualProjectSessionBuilder::ReadProject(descriptor);wxString top;std::vector<wxString> files;
         if(LoadProjectConfig(m_currentProjectPath,top,files)){project["top_module"]=top.ToStdString(wxConvUTF8);project["source_files"]=eda::Json::array();for(const auto& file:files)project["source_files"].push_back(file.ToStdString(wxConvUTF8));}return project;
     });
+    // 拖出独立浮动窗口：只迁移视图宿主，绝不销毁共享会话控制器（SPEC §4.4）。
+    m_virtualBoardPanel->SetFloatOutHandler([this]{PopOutVirtualBoard();});
     m_virtualController->SetDiagnosticHandler([this](const eda::Json& d){
         const auto& result=m_virtualController->BuildResult();if(result.contains("validation"))m_fpgaPinBindingPanel->InstallVirtualValidation(result.at("validation"));
         m_fpgaPinBindingPanel->FocusPortBit(d.value("port_ref",std::string()));auto* tabs=dynamic_cast<wxAuiNotebook*>(m_fpgaPinBindingPanel->GetParent());
@@ -1397,6 +1400,15 @@ MainFrame::MainFrame()
     m_virtualUartPanel=new sigflow::virtual_lab::VirtualUartPanel(bottomNotebook,m_virtualController);
     bottomNotebook->AddPage(m_virtualUartPanel,wxString::FromUTF8("虚拟串口"));
     m_virtualTeachingPanel=new sigflow::virtual_lab::VirtualTeachingPanel(bottomNotebook,m_virtualController,m_virtualBoardPanel,m_wavePanel);bottomNotebook->AddPage(m_virtualTeachingPanel,wxString::FromUTF8("教学与虚拟 TraceBridge"));
+    // 教学 Agent 联动：脱敏证据经既有 edu-agent 通道提交；助教不接触
+    // faults.private.json，判分仍由可信侧 teaching.grade.submit 裁决。
+    m_virtualTeachingPanel->SetAgentBridge([this](const eda::Json& evidence){
+        auto question=std::string("学生正在虚拟 FPGA 实验中盲测排障。以下为脱敏证据快照（双端 Probe 读数、"
+            "波形首个分歧与提示记录）。请给出自然语言排查解释与下一步测量建议，不要猜测或列举秘密故障：\n")
+            +evidence.dump(2);
+        StartTeachingRequest(question,"virtual-evidence");
+        return eda::Json{{"status","submitted"},{"channel","eda-agent-gateway"}};
+    });
     m_virtualWaveSubscription = m_virtualController->Subscribe([this]{
         if(auto source=m_virtualController->Source()){
             m_wavePanel->FollowLiveTrace(source);
@@ -2846,6 +2858,8 @@ void MainFrame::SaveLayoutState()
 
 MainFrame::~MainFrame()
 {
+    // 若虚拟实验箱仍弹出为独立窗口：先把视图宿主迁回主窗口树，再统一销毁。
+    if(m_virtualBoardFloatFrame){m_virtualBoardFloatFrame->SetReturnHandler(nullptr);m_virtualBoardFloatFrame->ReturnToMain();m_virtualBoardFloatFrame=nullptr;}
     if(m_virtualController){m_virtualController->Unsubscribe(m_virtualWaveSubscription);m_virtualController->Shutdown();}
     m_coreJobTimer.Stop();
 #if defined(SIGFLOW_BUILD_EDU_AGENT)
@@ -5138,6 +5152,17 @@ void MainFrame::OpenVirtualBoard()
         auto page=m_bottomNotebook->GetPageIndex(m_faultInjectionPanel);if(page!=wxNOT_FOUND)m_bottomNotebook->SetSelection(page);
     }
     SetPaneVisible("bottom_tabs",true);m_auiMgr.Update();
+}
+
+void MainFrame::PopOutVirtualBoard()
+{
+    if(!m_virtualBoardPanel || !m_designBoardTabs)return;
+    // 已弹出时仅置前；回归由浮动窗的“回到主窗口”或关闭触发。
+    if(m_virtualBoardFloatFrame){m_virtualBoardFloatFrame->Raise();return;}
+    auto source=m_virtualController->Source();
+    if(source){m_wavePanel->UseLiveTrace(source);m_virtualSourceSeen=source;}
+    m_virtualBoardFloatFrame=sigflow::virtual_lab::VirtualBoardFloatFrame::PopOut(m_designBoardTabs,m_virtualBoardPanel,wxString::FromUTF8("SigFlow · 虚拟实验箱"));
+    if(m_virtualBoardFloatFrame)m_virtualBoardFloatFrame->SetReturnHandler([this]{m_virtualBoardFloatFrame=nullptr;});
 }
 
 void MainFrame::ShowFpgaToolWindow(FpgaToolPage page)

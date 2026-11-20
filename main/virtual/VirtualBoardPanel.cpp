@@ -23,6 +23,8 @@ VirtualBoardPanel::VirtualBoardPanel(wxWindow* parent,std::shared_ptr<VirtualSes
     for(const auto& op:{"play","step","pause","stop"})button(op,op,[this,op](wxCommandEvent&){if(std::string(op)=="step")Step();else controller_->Queue({{"op",op}});});
     button("replay","重放当前日志",[this](wxCommandEvent&){controller_->Replay(replay_count_->GetValue());});
     button("replay-file","重放指定 Journal",[this](wxCommandEvent&){wxFileDialog d(this,wxString::FromUTF8("选择已关闭的 Journal"),"","","Journal (*.jsonl;*.journal)|*.jsonl;*.journal|All files|*",wxFD_OPEN|wxFD_FILE_MUST_EXIST);if(d.ShowModal()==wxID_OK)controller_->Replay(replay_count_->GetValue(),d.GetPath().ToStdString(wxConvUTF8));});
+    // 拖出独立窗口按钮由宿主安装回调时懒创建（MainFrame 接线后出现）。
+    toolbar_=toolbar;
     replay_count_=new wxSpinCtrl(this,wxID_ANY,"3",wxDefaultPosition,FromDIP(wxSize(60,-1)),wxSP_ARROW_KEYS,1,10,3);replay_count_->SetToolTip(wxString::FromUTF8("从零重放次数"));toolbar->Add(replay_count_,0,wxBOTTOM,FromDIP(5));
     layout->Add(toolbar,0,wxEXPAND|wxALL,FromDIP(8));
     phase1_controls_=new wxPanel(this);auto* p1row=new wxWrapSizer(wxHORIZONTAL);step_mode_=new wxChoice(phase1_controls_,wxID_ANY);for(auto label:{"下一主时钟上升沿","下一事件 Next Event","指定 Tick 数"})step_mode_->Append(wxString::FromUTF8(label));step_mode_->SetSelection(0);p1row->Add(step_mode_,0,wxRIGHT|wxBOTTOM,FromDIP(6));
@@ -44,6 +46,15 @@ VirtualBoardPanel::VirtualBoardPanel(wxWindow* parent,std::shared_ptr<VirtualSes
     subscription_=controller_->Subscribe([this]{Update();});theme_=UiTheme::Subscribe([this]{ApplyTheme();});ApplyTheme();Update();
 }
 VirtualBoardPanel::~VirtualBoardPanel(){controller_->Unsubscribe(subscription_);}
+void VirtualBoardPanel::SetFloatOutHandler(std::function<void()> f){
+    float_out_handler_=std::move(f);
+    if(float_out_handler_ && !float_out_ && toolbar_){
+        float_out_=new wxButton(this,wxID_ANY,wxString::FromUTF8("拖出独立窗口"));
+        float_out_->Bind(wxEVT_BUTTON,[this](wxCommandEvent&){if(float_out_handler_)float_out_handler_();});
+        const auto& p=UiTheme::Palette();float_out_->SetForegroundColour(p.text1);float_out_->SetBackgroundColour(p.surfaceOnPanel);float_out_->SetFont(UiTheme::UiFont(this,UiTheme::TextSize::P12));
+        toolbar_->Add(float_out_,0,wxRIGHT|wxBOTTOM,FromDIP(5));Layout();
+    } else if(!float_out_handler_ && float_out_)float_out_->Hide();
+}
 void VirtualBoardPanel::InvokeControl(const std::string& op){auto* b=controls_.at(op);if(!b->IsEnabled())throw std::runtime_error("E_DISABLED_CONTROL: "+op);wxCommandEvent e(wxEVT_BUTTON,b->GetId());e.SetEventObject(b);b->GetEventHandler()->ProcessEvent(e);}
 std::string VirtualBoardPanel::DetailText()const{return detail_->GetValue().ToStdString(wxConvUTF8);}
 void VirtualBoardPanel::SetStepMode(const std::string& mode,const std::string& ticks){if(mode!="rising" && mode!="next_event" && mode!="ticks")throw std::runtime_error("E_STEP_MODE");step_mode_->SetSelection(mode=="rising"?0:mode=="next_event"?1:2);step_ticks_->ChangeValue(wxString::FromUTF8(ticks));}

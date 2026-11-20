@@ -1,0 +1,133 @@
+True phase 3 projects and the diode board variant validate against the versioned schema
+True diode-less scanner contention pauses before importing contested columns
+True guard keeps the folded CON state and both fighting scan drivers
+True releasing the keys unblocks the strict guard
+True scan-contention three from-zero real RTL replays preserve both digests
+True phase 3 projects and the diode board variant validate against the versioned schema
+True diode-less scanner contention pauses before importing contested columns
+True guard keeps the folded CON state and both fighting scan drivers
+True releasing the keys unblocks the strict guard
+True scan-contention three from-zero real RTL replays preserve both digests
+True phase 3 projects and the diode board variant validate against the versioned schema
+True diode-less scanner contention pauses before importing contested columns
+True guard keeps the folded CON state and both fighting scan drivers
+True releasing the keys unblocks the strict guard
+True scan-contention three from-zero real RTL replays preserve both digests
+True diode scanner slot 0 advances without contention
+True diode scanner slot 1 advances without contention
+True diode scanner slot 2 advances without contention
+True diode scanner slot 3 advances without contention
+True diode scanner slot 4 advances without contention
+True diode scanner slot 5 advances without contention
+True diode scanner slot 6 advances without contention
+True diode scanner slot 7 advances without contention
+True two rotations detect the three real keys and the ghost column stays high in the row1 slot
+True diode model keeps exactly the three closed keys and no ghosts
+True scan-diodes three from-zero real RTL replays preserve both digests
+True ghost key (1,1) emerges from the real merged row/column junction
+True DUT input sees the ghost column as pressed
+True the merged junction also drags the released row indicator low
+True ghost-junction three from-zero real RTL replays preserve both digests
+True anti-ghost diodes suppress the ghost junction
+True released row cannot back-feed the column through a diode
+True ghost-diodes three from-zero real RTL replays preserve both digests
+False row indicator shows the manual scan before the glitch window
+True phase 3 projects and the diode board variant validate against the versioned schema
+True diode-less scanner contention pauses before importing contested columns
+True guard keeps the folded CON state and both fighting scan drivers
+True releasing the keys unblocks the strict guard
+True scan-contention three from-zero real RTL replays preserve both digests
+True diode scanner slot 0 advances without contention
+True diode scanner slot 1 advances without contention
+True diode scanner slot 2 advances without contention
+True diode scanner slot 3 advances without contention
+True diode scanner slot 4 advances without contention
+True diode scanner slot 5 advances without contention
+True diode scanner slot 6 advances without contention
+True diode scanner slot 7 advances without contention
+True two rotations detect the three real keys and the ghost column stays high in the row1 slot
+True diode model keeps exactly the three closed keys and no ghosts
+True scan-diodes three from-zero real RTL replays preserve both digests
+True ghost key (1,1) emerges from the real merged row/column junction
+True DUT input sees the ghost column as pressed
+True the merged junction also drags the released row indicator low
+True ghost-junction three from-zero real RTL replays preserve both digests
+True anti-ghost diodes suppress the ghost junction
+True released row cannot back-feed the column through a diode
+True ghost-diodes three from-zero real RTL replays preserve both digests
+True row indicator shows the manual scan before the glitch window
+True glitch step lands on its target with the clock held
+True narrow async reset glitch cleared the DUT with zero clock edges
+True journal keeps the exact press/release glitch edges
+True reset-glitch three from-zero real RTL replays preserve both digests
+True halved clock moves the first real rising edge to the doubled half period
+True second rising edge stays on the offset schedule
+True offset window completes on the real clock
+True after the window the base half-period schedule restarts
+True divider-offset three from-zero real RTL replays preserve both digests
+True phase 3 projects and the diode board variant validate against the versioned schema
+True diode-less scanner contention pauses before importing contested columns
+True guard keeps the folded CON state and both fighting scan drivers
+True releasing the keys unblocks the strict guard
+True scan-contention three from-zero real RTL replays preserve both digests
+True diode scanner slot 0 advances without contention
+True diode scanner slot 1 advances without contention
+True diode scanner slot 2 advances without contention
+True diode scanner slot 3 advances without contention
+True diode scanner slot 4 advances without contention
+True diode scanner slot 5 advances without contention
+True diode scanner slot 6 advances without contention
+True diode scanner slot 7 advances without contention
+True two rotations detect the three real keys and the ghost column stays high in the row1 slot
+True diode model keeps exactly the three closed keys and no ghosts
+True scan-diodes three from-zero real RTL replays preserve both digests
+True ghost key (1,1) emerges from the real merged row/column junction
+True DUT input sees the ghost column as pressed
+True the merged junction also drags the released row indicator low
+True ghost-junction three from-zero real RTL replays preserve both digests
+True anti-ghost diodes suppress the ghost junction
+True released row cannot back-feed the column through a diode
+True ghost-diodes three from-zero real RTL replays preserve both digests
+True row indicator shows the manual scan before the glitch window
+True glitch step lands on its target with the clock held
+True narrow async reset glitch cleared the DUT with zero clock edges
+True journal keeps the exact press/release glitch edges
+True reset-glitch three from-zero real RTL replays preserve both digests
+True halved clock moves the first real rising edge to the doubled half period
+True second rising edge stays on the offset schedule
+True offset window completes on the real clock
+True after the window the base half-period schedule restarts
+True divider-offset three from-zero real RTL replays preserve both digests
+True phase 3 projects and the diode board variant validate against the versioned schema
+True diode-less scanner contention pauses before importing contested columns
+True guard keeps the folded CON state and both fighting scan drivers
+True releasing the keys unblocks the strict guard
+True scan-contention three from-zero real RTL replays preserve both digests
+True diode scanner slot 0 advances without contention
+True diode scanner slot 1 advances without contention
+True diode scanner slot 2 advances without contention
+True diode scanner slot 3 advances without contention
+True diode scanner slot 4 advances without contention
+True diode scanner slot 5 advances without contention
+True diode scanner slot 6 advances without contention
+True diode scanner slot 7 advances without contention
+True two rotations detect the three real keys and the ghost column stays high in the row1 slot
+True diode model keeps exactly the three closed keys and no ghosts
+True scan-diodes three from-zero real RTL replays preserve both digests
+True ghost key (1,1) emerges from the real merged row/column junction
+True DUT input sees the ghost column as pressed
+True the merged junction also drags the released row indicator low
+True ghost-junction three from-zero real RTL replays preserve both digests
+True anti-ghost diodes suppress the ghost junction
+True released row cannot back-feed the column through a diode
+True ghost-diodes three from-zero real RTL replays preserve both digests
+True row indicator shows the manual scan before the glitch window
+True glitch step lands on its target with the clock held
+True narrow async reset glitch cleared the DUT with zero clock edges
+True journal keeps the exact press/release glitch edges
+True reset-glitch three from-zero real RTL replays preserve both digests
+True halved clock moves the first real rising edge to the doubled half period
+True second rising edge stays on the offset schedule
+True offset window completes on the real clock
+True after the window the base half-period schedule restarts
+True divider-offset three from-zero real RTL replays preserve both digests

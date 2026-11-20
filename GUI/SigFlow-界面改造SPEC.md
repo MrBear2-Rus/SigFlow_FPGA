@@ -222,3 +222,16 @@ order 交换：主侧栏移到画布右侧邻位（order2 ↔3 中区在前，�
 | 会话切换 | 清空旧证据/采集/基线；显示会话实际 Hz，显式区分教学夹具 |
 
 六区与快捷键不变。继续使用 UiTheme Token 和 FromDIP；教学页为可滚动 wrap 布局，结构化详情独立滚动。HTML template 只描述桌面局部契约，Web 工程暂缓。
+
+### 7.3 Phase 3 产品化与跨端同源局部扩展（2026-11-20）
+
+| 入口/对象 | 冻结行为 |
+|---|---|
+| 独立浮动窗 | 按 §4.4 拖出：`VirtualBoardFloatFrame` 880×620 DIP、34 DIP 自定义标题行（`SigFlow · 虚拟实验箱（独立窗口）` + `回到主窗口` 钮）、`wxDisplay::GetFromPoint` 落屏；主区原页签显示 `已拖出为独立窗口 —— 可拖到另一块显示器` + `回归主窗口` 钮；弹出/回归只 Reparent 视图宿主，不销毁 `VirtualSessionController` 与 `LiveTraceSource`；验收 20 次往返无悬空回调、tick 单调 |
+| 教学 Agent 联动 | 教学页 `发给 AI 助教解释` 钮：`ComposeEvidence` 生成 `sigflow.virtual-evidence.v1` 脱敏快照（双端 Probe、首个分歧、提示记录、经 `StudentProjection` 投影的板面），经宿主 `SetAgentBridge` 走既有 edu-agent 通道；助教不接触 faults.private.json，判分仍由确定性 `teaching.grade.submit` 裁决；面板回显所发证据与通道回复 |
+| SFVB 二进制帧 | 《规划书》§4.4 冻结的 64 字节小端头 + typed records（`BinaryFrameCodec`，零 wx）；full snapshot 分配运行内 numeric_id，delta 引用之；seq 断档/base_seq 失配要求 full snapshot，旧代际丢弃；Node.js 参考解码器（`sfvb_reference_decoder.js`，DataView/BigInt）逐字段一致 |
+| 矩阵键盘 | `sigflow.matrix-keypad@1`（4×4 行列端点、闭合连接边）：`diodes=false` 时闭合键为双向网络合并，鬼键由真实等电位网络产生；`diodes=true` 时只传导被扫行的低电平；推挽扫描多键按下形成 CON 争用并被严格 UnknownInput 守卫拦截 |
+| 时序故障 | `reset_glitch`（外部复位精确窄脉冲，事件级 eval，无时钟也生效）与 `clock_divider_offset`（有理主时钟分频比偏移并记录重排），并入 fault-profile v2 |
+| 离屏截图 | GUI 验收导出改用 `PrintWindow(PW_CLIENTONLY\|PW_RENDERFULLCONTENT)` + 递归 `WM_PRINT` 兜底，原生子控件（wxChoice/wxButton/wxTextCtrl）真实渲染并做像素多样性断言 |
+
+六区、快捷键与既有页签语义不变；浮动窗是中区页签的视图宿主迁移，不新增全局第七栏。

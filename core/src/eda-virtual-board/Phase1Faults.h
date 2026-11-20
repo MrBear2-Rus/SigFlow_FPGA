@@ -25,6 +25,9 @@ public:
     void Advance(uint64_t tick);
     std::optional<uint64_t> NextDeadline(uint64_t tick)const;
     std::optional<bool> ClockHold(uint64_t tick)const;
+    // Phase 3: active divide-ratio offset on the rational main clock.
+    std::optional<uint64_t> ClockDenOffset(uint64_t tick)const;
+    void Note(const Json& event){events_.push_back(event);}
     void Transform(std::map<std::string,std::vector<Driver>>&,FaultSet&,uint64_t)const;
     Json Snapshot(uint64_t)const;
     Json ActiveRules(uint64_t)const;

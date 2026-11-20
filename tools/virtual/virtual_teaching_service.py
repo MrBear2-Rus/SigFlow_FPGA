@@ -43,7 +43,7 @@ class Runner:
         self.p.stdin.write(json.dumps(request)+'\n');self.p.stdin.flush();line=self.pending.get(timeout=120)
         if line is None:raise RuntimeError('E_PRIVATE_RUNNER_EXIT')
         response=json.loads(line)
-        if response.get('status')=='rejected':raise RuntimeError('E_PRIVATE_RUNNER_COMMAND')
+        if response.get('status')=='rejected':raise RuntimeError('E_PRIVATE_RUNNER_COMMAND: '+str(response.get('error',response.get('reason',''))))
         return response
     def close(self):
         if self.p.poll() is None:

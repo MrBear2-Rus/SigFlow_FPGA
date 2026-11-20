@@ -21,7 +21,13 @@ public:
     void Observe(Json& board,uint64_t tick);
     void Send(const std::string& uart,const std::vector<uint8_t>& bytes,uint64_t tick);
     void SetDip(const std::string& component,uint32_t value);
+    // Phase 3 matrix keypad: replace the closed key set of one component.
+    void SetKeys(const std::string& component,const Json& keys);
     void AddDrivers(std::map<std::string,std::vector<Driver>>&)const;
+    // Anti-ghost diode mode couples active-low rows into columns as drivers;
+    // diode-less mode returns bridges so pressed keys merge row/column nets
+    // and ghost keys emerge from the real equipotential resolution.
+    Json KeypadOverlay()const;
     void ApplyFaults(const Json&);
     std::optional<uint64_t> NextDeadline(uint64_t tick)const;
     Json Snapshot()const;
@@ -35,12 +41,18 @@ private:
         uint64_t rx_start=0;int rx_stage=-1;uint32_t rx_byte=0;bool rx_error=false,rx_parity_error=false,rx_previous=true;
         Json received=Json::array(),transmitted=Json::array();uint64_t rx_sequence=0,tx_sequence=0;
     };
+    struct Keypad {
+        unsigned rows=0,cols=0;bool diodes=false;
+        std::set<std::pair<unsigned,unsigned>> closed;
+    };
     const BoardTopology* board_;
     Json faults_=Json::array();
     uint64_t tick_=0;
     std::map<std::string,DutyIntegrator> channels_;
     std::map<std::string,Uart> uarts_;
     std::map<std::string,std::pair<unsigned,uint32_t>> dips_;
+    std::map<std::string,Keypad> keypads_;
+    std::map<std::string,std::map<std::string,std::string>> keypad_nets_;
     std::map<std::string,std::optional<uint64_t>> digit0_edge_;
     std::map<std::string,uint64_t> scan_period_;
     std::map<std::string,bool> previous_digit0_;

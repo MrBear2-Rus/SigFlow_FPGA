@@ -19,11 +19,18 @@ Json Pos(const EventPosition& p){return {{"tick",std::to_string(p.tick)},{"delta
 std::string Hash(const Json& j){auto s=j.dump();return platform::Sha256Hex(s.data(),s.size());}
 Resolution ResolveFor(const SessionContract& c,std::vector<Driver> ds){return c.phase2?ResolveState13(std::move(ds)):ResolveM0(std::move(ds));}
 struct RationalClock {
-    uint64_t denominator,floor=0,remainder=0;
-    explicit RationalClock(uint64_t hz):denominator(2*hz){if(!hz || hz>500000000000ULL)throw std::runtime_error("E_CLOCK_RESOLUTION");}
+    // Rational half-period accumulator: frequency = num/den ticks^-1, half
+    // period = 10^12*den/(2*num) ps with quotient/remainder carry so the
+    // divide-ratio offset fault reschedules without drift or overflow.
+    uint64_t num=0,den=1,floor=0,remainder=0;
+    explicit RationalClock(uint64_t hz):num(hz),den(1){Check();}
+    RationalClock(uint64_t n,uint64_t d):num(n),den(d){Check();}
+    void Check(){if(!num || !den || den>18446744ULL || 1000000000000ULL*den<2*num)throw std::runtime_error("E_CLOCK_RESOLUTION");}
     void Restart(uint64_t tick){floor=tick;remainder=0;}
-    uint64_t Next(){auto carry=remainder+1000000000000ULL%denominator;floor=P1Add(floor,1000000000000ULL/denominator+carry/denominator);remainder=carry%denominator;return P1Add(floor,remainder>=denominator/2?1:0);}
+    uint64_t Next(){auto denom=2*num,carry=remainder+(1000000000000ULL*den)%denom;floor=P1Add(floor,(1000000000000ULL*den)/denom+carry/denom);remainder=carry%denom;return P1Add(floor,remainder>=denom/2?1:0);}
 };
+uint64_t ClockNum(const SessionContract& c){return P1Tick(c.board->Descriptor().at("clocks").at(0).at("frequency_hz").at("num"));}
+uint64_t ClockBaseDen(const SessionContract& c){return P1Tick(c.board->Descriptor().at("clocks").at(0).at("frequency_hz").at("den"));}
 std::vector<LiveSignal> Signals(const SessionContract& c){
     std::vector<LiveSignal> signals;std::set<std::string> names;auto add=[&](const std::string& name,const std::string& kind){if(names.insert(name).second)signals.push_back({uint32_t(signals.size()),name,1,kind});};
     for(const auto& p:c.manifest.ports)for(const auto& bit:p.bits)add("port:"+c.manifest.Label(bit),"port");for(const auto& b:c.bindings)add("pad:"+std::to_string(b.package_pin),"pad");
@@ -42,11 +49,12 @@ Json Header(const SessionContract& c){
 struct Runtime {
     Phase1Faults faults;Phase1Peripherals peripherals;RationalClock clock;
     std::map<std::string,uint8_t> manual;std::map<std::string,std::pair<uint64_t,uint8_t>> pulses;
-    uint64_t tick=0;std::optional<uint64_t> clock_due;bool clock_high=false,stopped=false;
+    uint64_t tick=0,clock_den=1;std::optional<uint64_t> clock_due;bool clock_high=false,stopped=false;
     Json outputs=Json::object(),board=Json::object();
     Json sampled_inputs=Json::object();
     explicit Runtime(const SessionContract& c):faults(*c.board),peripherals(*c.board,c.integration_window_ticks),clock(c.frequency_hz){
         if(!c.fault_profile.empty())faults.Load(c.fault_profile,0);for(const auto& input:c.inputs)manual[input.target]=input.initial_manual_state;
+        clock_den=ClockBaseDen(c);if(auto offset=faults.ClockDenOffset(0)){clock_den=P1Add(clock_den,*offset);clock=RationalClock(ClockNum(c),clock_den);}
         stopped=!c.clock_enabled || bool(faults.ClockHold(0));if(auto hold=faults.ClockHold(0))clock_high=*hold;if(!stopped)clock_due=clock.Next();
     }
 };
@@ -65,17 +73,26 @@ struct Engine {
         for(const auto& input:c.inputs){drivers["pad."+std::to_string(input.package_pin)]=input.fixed_drivers;if(input.package_pin!=c.clock_pad)drivers[c.board->ControlEndpoint(input.package_pin)].push_back({"contact",state.manual.at(input.target)});}
         for(const auto& b:Bindings(state)){auto node="pad."+std::to_string(b.package_pin),label=c.manifest.Label(b.ref);if(b.pull_up)drivers[node].push_back({"cst.pullup",uint8_t(State::WHI)});if(b.pull_down)drivers[node].push_back({"cst.pulldown",uint8_t(State::WLO)});
             if(c.manifest.Find(b.ref.port_id)->direction==Direction::Output && state.outputs.contains(label))drivers[node].push_back({"dut:"+label,uint8_t(state.outputs.at(label).get<bool>()?State::SHI:State::SLO)});}
-        state.peripherals.AddDrivers(drivers);FaultSet opens;state.faults.Transform(drivers,opens,state.tick);return c.board->Resolve(drivers,opens,state.tick,c.phase2?Phase2TopologyOverlay(state.faults.ActiveRules(state.tick)):Json::object());
+        state.peripherals.AddDrivers(drivers);FaultSet opens;state.faults.Transform(drivers,opens,state.tick);
+        Json overlay=c.phase2?Phase2TopologyOverlay(state.faults.ActiveRules(state.tick)):Json::object();
+        auto keypad=state.peripherals.KeypadOverlay();
+        if(!keypad.empty()){Json bridges=overlay.value("bridges",Json::array());for(const auto& bridge:keypad.at("bridges"))bridges.push_back(bridge);overlay["bridges"]=bridges;}
+        return c.board->Resolve(drivers,opens,state.tick,overlay);
     }
     void ValidateAction(const Json& a,const Runtime& state)const{
         auto op=a.at("op").get<std::string>();if(op=="profile.load"){auto copy=state.faults;copy.Load(a.at("profile"),state.tick);if(c.phase2)for(const auto& rule:a.at("profile").at("faults"))if(rule.at("effect").at("type")=="mapping_overlay"){auto mapped=Phase2Bindings(c.manifest,c.bindings,*c.board,Json::array({rule}));if(!ValidateElectrical(c.electrical,c.identity,c.manifest,mapped).empty())throw std::runtime_error("E_MAPPING_ELECTRICAL");}}
         else if(op=="fault.enable" || op=="fault.revoke"){auto copy=state.faults;copy.Enable(a.at("fault_id"),op=="fault.enable"?a.value("enabled",true):false,state.tick);}
         else if(op=="fault.apply"){auto copy=state.faults;copy.Upsert(LegacyOpen(a,state.tick),state.tick);}
         else if(op=="set" || op=="pulse"){
-            auto target=a.at("target").get<std::string>();const InputEndpoint* input=nullptr;for(const auto& i:c.inputs)if(i.target==target)input=&i;if(!input || input->package_pin==c.clock_pad || !c.board->ControlEndpoint(input->package_pin).ends_with(".contact"))throw std::runtime_error("E_INPUT_OWNERSHIP");
+            auto target=a.at("target").get<std::string>();const InputEndpoint* input=nullptr;for(const auto& i:c.inputs)if(i.target==target)input=&i;if(!input || input->package_pin==c.clock_pad)throw std::runtime_error("E_INPUT_OWNERSHIP");
+            // Manual stimulus owns button contacts and matrix scan lines; row/col
+            // endpoints let a released line float to its board pull-up.
+            auto endpoint=c.board->ControlEndpoint(input->package_pin);
+            if(!endpoint.ends_with(".contact") && endpoint.find(".row")==std::string::npos && endpoint.find(".col")==std::string::npos)throw std::runtime_error("E_INPUT_OWNERSHIP");
             int v=op=="set"?a.at("state").get<int>():a.at("pressed_state").get<int>();if(v<0 || v>255 || !ResolveFor(c,{{"manual",uint8_t(v)}}).supported)throw std::runtime_error("E_STATE_UNSUPPORTED");
             if(op=="pulse"){auto duration=P1Tick(a.at("duration_ticks"));int release=a.at("released_state");if(!duration || release<0 || release>255 || !ResolveFor(c,{{"manual",uint8_t(release)}}).supported || state.pulses.count(target))throw std::runtime_error("E_STIMULUS_CONFLICT");P1Add(state.tick,duration);}
         }else if(op=="dip.set"){auto copy=state.peripherals;copy.SetDip(a.at("target"),a.at("value"));}
+        else if(op=="keypad.set"){auto copy=state.peripherals;copy.SetKeys(a.at("target"),a.at("keys"));}
         else if(op=="uart.send"){std::vector<uint8_t> bytes;for(const auto& b:a.at("bytes")){if(!b.is_number_integer() || b.get<int>()<0 || b.get<int>()>255)throw std::runtime_error("E_UART_BYTE");bytes.push_back(b.get<uint8_t>());}auto copy=state.peripherals;copy.Send(a.at("target"),bytes,state.tick);}
         else throw std::runtime_error("E_COMMAND_UNKNOWN");
     }
@@ -90,9 +107,10 @@ struct Engine {
             std::string target=a.at("target");uint8_t value=op=="set"?a.at("state").get<uint8_t>():a.at("pressed_state").get<uint8_t>();state.manual[target]=value;
             state.faults.InputIntent(target,value,state.tick);if(op=="pulse")state.pulses[target]={P1Add(state.tick,P1Tick(a.at("duration_ticks"))),a.at("released_state").get<uint8_t>()};
         }else if(op=="dip.set")state.peripherals.SetDip(a.at("target"),a.at("value"));
+        else if(op=="keypad.set")state.peripherals.SetKeys(a.at("target"),a.at("keys"));
         else if(op=="uart.send"){std::vector<uint8_t> bytes;for(const auto& b:a.at("bytes"))bytes.push_back(b.get<uint8_t>());state.peripherals.Send(a.at("target"),bytes,state.tick);}
     }
-    Json Checkpoint(const Runtime& s)const{return {{"faults",s.faults.Snapshot(s.tick)},{"peripherals",s.peripherals.Snapshot()},{"clock_high",s.clock_high},{"clock_stopped",s.stopped},{"next_clock_tick",s.clock_due?Json(std::to_string(*s.clock_due)):Json(nullptr)},{"clock_remainder",std::to_string(s.clock.remainder)},{"clock_floor",std::to_string(s.clock.floor)}};}
+    Json Checkpoint(const Runtime& s)const{return {{"faults",s.faults.Snapshot(s.tick)},{"peripherals",s.peripherals.Snapshot()},{"clock_high",s.clock_high},{"clock_stopped",s.stopped},{"next_clock_tick",s.clock_due?Json(std::to_string(*s.clock_due)):Json(nullptr)},{"clock_remainder",std::to_string(s.clock.remainder)},{"clock_floor",std::to_string(s.clock.floor)},{"clock_den",std::to_string(s.clock_den)}};}
     std::optional<uint64_t> NextTick()const{
         std::optional<uint64_t> next;auto add=[&](std::optional<uint64_t> due){if(due && *due>runtime.tick && (!next || *due<*next))next=due;};add(runtime.clock_due);add(runtime.faults.NextDeadline(runtime.tick));add(runtime.peripherals.NextDeadline(runtime.tick));for(const auto& [target,p]:runtime.pulses)add(p.first);return next;
     }
@@ -108,10 +126,23 @@ struct Engine {
         }
         for(const auto& action:spec.at("actions"))Action(next,action);
         next.faults.Advance(tick);if(c.phase2)next.peripherals.ApplyFaults(next.faults.ActiveRules(tick));auto hold=next.faults.ClockHold(tick);bool stopped=!c.clock_enabled || bool(hold);
+        bool clockEdge=cause=="event" && runtime.clock_due==std::optional<uint64_t>(tick);
+        if(clockEdge)next.clock_high=!runtime.clock_high;
         if(hold)next.clock_high=*hold;
+        // Phase 3 clock_divider_offset: apply the active divide ratio, restart
+        // the half-period accumulator and record the rescheduling decision.
+        // Without an active rule the effective ratio returns to the board base.
+        uint64_t targetDen=ClockBaseDen(c);
+        if(auto offset=next.faults.ClockDenOffset(tick))targetDen=P1Add(targetDen,*offset);
+        if(targetDen!=next.clock_den){
+            next.clock_den=targetDen;next.clock=RationalClock(ClockNum(c),targetDen);
+            if(!stopped)next.clock.Restart(tick);
+            next.faults.Note({{"type","clock.rescheduled"},{"tick",std::to_string(tick)},{"den",std::to_string(targetDen)}});
+        }
         if(stopped){next.stopped=true;next.clock_due.reset();}
         else if(runtime.stopped){next.stopped=false;next.clock.Restart(tick);next.clock_due=next.clock.Next();}
-        else if(cause=="event" && runtime.clock_due==std::optional<uint64_t>(tick)){next.clock_high=!runtime.clock_high;next.clock_due=next.clock.Next();}
+        else if(targetDen!=runtime.clock_den)next.clock_due=next.clock.Next();
+        else if(clockEdge)next.clock_due=next.clock.Next();
         attempted={tick,tick==runtime.tick && commits?uint32_t(committed.delta+1):0,committed.event_seq+1};guard=Json::object();
         Json before=Resolve(next),effective=Json::array();std::vector<std::pair<PortBitRef,bool>> imports;
         auto effectiveBindings=Bindings(next);
@@ -209,7 +240,7 @@ struct Phase1Session::Impl {
         auto instrumentOp=command.value("op",std::string());if(instruments && (instrumentOp.starts_with("probe.") || instrumentOp.starts_with("capture.") || instrumentOp=="evidence.query")){instrumentReply=instrumentOp=="capture.compare"?VirtualInstruments::Compare(command.at("expected"),command.at("actual")):instruments->Command(command,Snapshot());auto frame=Snapshot();frame["instrument_reply"]=instrumentReply;frame["status"]="observed";return frame;}
         std::string op=command.at("op");if(op=="get"){auto frame=Snapshot();frame["status"]="observed";return frame;}if(op=="journal")return Audit();if(op=="trace.commits")return TracePage(command);
         std::string id=command.at("command_id");if(id.empty())throw std::runtime_error("E_COMMAND_ID");auto old=requests.find(id);if(old!=requests.end()){if(old->second!=command)throw std::runtime_error("E_COMMAND_ID_REUSED");return acks.at(id);}if(requests.size()>=c.max_commands && op!="stop")throw std::runtime_error("E_COMMAND_QUOTA");
-        bool mutation=op=="profile.load" || op=="fault.enable" || op=="fault.revoke" || op=="fault.apply" || op=="uart.send" || op=="dip.set",input=op=="set" || op=="pulse";
+        bool mutation=op=="profile.load" || op=="fault.enable" || op=="fault.revoke" || op=="fault.apply" || op=="uart.send" || op=="dip.set" || op=="keypad.set",input=op=="set" || op=="pulse";
         if(mutation || input)engine->ValidateAction(command,engine->runtime);else if(op!="step" && op!="play" && op!="pause" && op!="stop")throw std::runtime_error("E_COMMAND_UNKNOWN");if(op=="step" && state=="Running")throw std::runtime_error("E_PAUSE_REQUIRED");
         if(op=="step"){auto mode=command.value("mode",std::string("rising"));if(mode=="ticks"){auto ticks=P1Tick(command.at("ticks"));if(!ticks)throw std::runtime_error("E_STEP_TICKS");P1Add(engine->runtime.tick,ticks);}else if(mode!="rising" && mode!="next_event")throw std::runtime_error("E_STEP_MODE");}
         requests[id]=command;journal->AppendRecord({{"kind","intent"},{"command_id",id},{"request",command}});std::string status="applied";

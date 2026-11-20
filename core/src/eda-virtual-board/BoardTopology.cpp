@@ -41,6 +41,12 @@ BoardTopology::BoardTopology(Json j,const ElectricalProfile& p):descriptor_(std:
         }else if(model=="sigflow.dip-switch@1"){
             if(!d.at("extensions").at("allow_model_instances").get<bool>() || !d.at("extensions").at("require_explicit_wiring").get<bool>())throw std::runtime_error("E_MODEL_INSTANCES_DISABLED");
             auto width=c.at("params").at("width").get<int>();if(width<1 || width>16)throw std::runtime_error("E_DIP_WIDTH");for(int i=0;i<width;++i)terminals.insert(id+".bit"+std::to_string(i));
+        }else if(model=="sigflow.matrix-keypad@1"){
+            if(!d.at("extensions").at("allow_model_instances").get<bool>() || !d.at("extensions").at("require_explicit_wiring").get<bool>())throw std::runtime_error("E_MODEL_INSTANCES_DISABLED");
+            const auto& params=c.at("params");auto rows=params.at("rows").get<int>(),cols=params.at("cols").get<int>();
+            if(rows<1 || rows>8 || cols<1 || cols>8 || !params.at("diodes").is_boolean())throw std::runtime_error("E_KEYPAD_PARAMETERS");
+            for(int i=0;i<rows;++i)terminals.insert(id+".row"+std::to_string(i));
+            for(int i=0;i<cols;++i)terminals.insert(id+".col"+std::to_string(i));
         }else if(model=="sigflow.uart-peer@1"){
             if(!d.at("extensions").at("allow_model_instances").get<bool>() || !d.at("extensions").at("require_explicit_wiring").get<bool>())throw std::runtime_error("E_MODEL_INSTANCES_DISABLED");
             const auto& params=c.at("params");int baud=params.at("baud"),bits=params.at("data_bits"),stops=params.at("stop_bits");std::string parity=params.at("parity");
@@ -54,7 +60,7 @@ BoardTopology::BoardTopology(Json j,const ElectricalProfile& p):descriptor_(std:
         if(found==p.device.pads.end() || !found->second.reviewed || !found->second.available)throw std::runtime_error("E_BOARD_PAD_UNREVIEWED");
         nodes_.insert(e.net);nodes_.insert(e.endpoint);edges_.push_back(e);
         if(e.endpoint==clock_endpoint_)clock_pad_=pad;
-        if(e.endpoint.ends_with(".contact") || e.endpoint.ends_with(".TX") || e.endpoint.find(".bit")!=std::string::npos)controls_[pad]=e.endpoint;
+        if(e.endpoint.ends_with(".contact") || e.endpoint.ends_with(".TX") || e.endpoint.find(".bit")!=std::string::npos || e.endpoint.find(".col")!=std::string::npos || e.endpoint.find(".row")!=std::string::npos)controls_[pad]=e.endpoint;
     }
     if(connected!=terminals || !clock_pad_)throw std::runtime_error("E_BOARD_CONNECTION");
     for(const auto& pull:d.value("fixed_drivers",Json::array())){

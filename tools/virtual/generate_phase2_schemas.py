@@ -8,12 +8,15 @@ def save(name,value):
 def obj(properties,required=None):
     return dict(type='object',additionalProperties=False,properties=properties,required=list(properties) if required is None else required)
 def integer(low=0,high=4294967295):return dict(type='integer',minimum=low,maximum=high)
+def tick_string():return dict(type='string',pattern='^(0|[1-9][0-9]{0,19})$')
 def main():
     profile=json.loads((OUT/'fault-profile.v1.schema.json').read_text(encoding='utf-8'))
     profile['$id']='sigflow.fault-profile.v2';profile['properties']['schema']['const']=profile['$id']
     profile['$defs']['target']['properties']['kind']['enum']+=['node','driver','pad_map']
     profile['$defs']['fault']['properties']['hook']['enum']+=['mapping.overlay','peripheral.observe','protocol.transform']
-    extensions=[('bridge',dict(other_node=dict(type='string',minLength=1)),'topology.transform','node'),('pull_removal',{},'driver.transform','driver'),('mapping_overlay',dict(bindings=dict(type='array',minItems=1,maxItems=88,items=obj(dict(port_ref=dict(type='string',minLength=1),pad=dict(anyOf=[integer(1,88),dict(type='null')]))))),'mapping.overlay','pad_map'),('led_polarity_reverse',{},'peripheral.observe','component'),('common_mismatch',{},'peripheral.observe','component'),('dead_segment',dict(segment=dict(enum=['a','b','c','d','e','f','g','dp'])),'peripheral.observe','component'),('uart_baud_offset_ppm',dict(offset_ppm=integer(-500000,500000)),'protocol.transform','component'),('uart_framing_error',dict(bit=dict(enum=['start','stop'])),'protocol.transform','component'),('uart_parity_flip',{},'protocol.transform','component')]
+    extensions=[('bridge',dict(other_node=dict(type='string',minLength=1)),'topology.transform','node'),('pull_removal',{},'driver.transform','driver'),('mapping_overlay',dict(bindings=dict(type='array',minItems=1,maxItems=88,items=obj(dict(port_ref=dict(type='string',minLength=1),pad=dict(anyOf=[integer(1,88),dict(type='null')]))))),'mapping.overlay','pad_map'),('led_polarity_reverse',{},'peripheral.observe','component'),('common_mismatch',{},'peripheral.observe','component'),('dead_segment',dict(segment=dict(enum=['a','b','c','d','e','f','g','dp'])),'peripheral.observe','component'),('uart_baud_offset_ppm',dict(offset_ppm=integer(-500000,500000)),'protocol.transform','component'),('uart_framing_error',dict(bit=dict(enum=['start','stop'])),'protocol.transform','component'),('uart_parity_flip',{},'protocol.transform','component'),
+        ('reset_glitch',dict(pressed_state=integer(0,1),duration_ticks=tick_string()),'peripheral.event','component'),
+        ('clock_divider_offset',dict(den_offset=tick_string(),resume_phase=dict(const='restart_half_period')),'clock.schedule','clock')]
     for name,fields,hook,kind in extensions:
         profile['$defs']['effect']['oneOf'].append(obj(dict(type=dict(const=name),**fields)))
         profile['$defs']['fault']['allOf'].append({

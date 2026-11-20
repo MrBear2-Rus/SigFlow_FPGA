@@ -10,6 +10,7 @@ add_executable(u1_m0_full_product_acceptance gui_acceptance.cpp ${U1_GUI_SOURCES
     "${SIGFLOW_MAIN_DIR}/virtual/VirtualProjectSessionBuilder.cpp"
     "${SIGFLOW_MAIN_DIR}/virtual/VirtualSessionController.cpp"
     "${SIGFLOW_MAIN_DIR}/virtual/VirtualBoardPanel.cpp"
+    "${SIGFLOW_MAIN_DIR}/virtual/VirtualBoardFloatFrame.cpp"
     "${SIGFLOW_MAIN_DIR}/virtual/VirtualUartPanel.cpp"
     "${SIGFLOW_MAIN_DIR}/virtual/VirtualCaptureArtifacts.cpp"
     "${SIGFLOW_MAIN_DIR}/virtual/VirtualTeachingPanel.cpp"

@@ -693,6 +693,7 @@ target_sources(sigflow PRIVATE
     main/virtual/VirtualSessionController.cpp
     main/virtual/BoardRenderer.cpp
     main/virtual/VirtualBoardPanel.cpp
+    main/virtual/VirtualBoardFloatFrame.cpp
     main/virtual/VirtualUartPanel.cpp
     main/virtual/VirtualCaptureArtifacts.cpp
     main/virtual/VirtualTeachingPanel.cpp

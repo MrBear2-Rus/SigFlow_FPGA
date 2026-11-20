@@ -1,0 +1,257 @@
+{
+  "status": "passed",
+  "checks": [
+    "phase 3 projects and the diode board variant validate against the versioned schema",
+    "diode-less scanner contention pauses before importing contested columns",
+    "guard keeps the folded CON state and both fighting scan drivers",
+    "releasing the keys unblocks the strict guard",
+    "scan-contention three from-zero real RTL replays preserve both digests",
+    "diode scanner slot 0 advances without contention",
+    "diode scanner slot 1 advances without contention",
+    "diode scanner slot 2 advances without contention",
+    "diode scanner slot 3 advances without contention",
+    "diode scanner slot 4 advances without contention",
+    "diode scanner slot 5 advances without contention",
+    "diode scanner slot 6 advances without contention",
+    "diode scanner slot 7 advances without contention",
+    "two rotations detect the three real keys and the ghost column stays high in the row1 slot",
+    "diode model keeps exactly the three closed keys and no ghosts",
+    "scan-diodes three from-zero real RTL replays preserve both digests",
+    "ghost key (1,1) emerges from the real merged row/column junction",
+    "DUT input sees the ghost column as pressed",
+    "the merged junction also drags the released row indicator low",
+    "ghost-junction three from-zero real RTL replays preserve both digests",
+    "anti-ghost diodes suppress the ghost junction",
+    "released row cannot back-feed the column through a diode",
+    "ghost-diodes three from-zero real RTL replays preserve both digests",
+    "row indicator shows the manual scan before the glitch window",
+    "glitch step lands on its target with the clock held",
+    "narrow async reset glitch cleared the DUT with zero clock edges",
+    "journal keeps the exact press/release glitch edges",
+    "reset-glitch three from-zero real RTL replays preserve both digests",
+    "halved clock moves the first real rising edge to the doubled half period",
+    "second rising edge stays on the offset schedule",
+    "offset window completes on the real clock",
+    "after the window the base half-period schedule restarts",
+    "divider-offset three from-zero real RTL replays preserve both digests"
+  ],
+  "commands": [],
+  "replays": [
+    {
+      "label": "scan-contention",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "19926fdacf777c987c6c8d74585006f2be977f0668350e34dc85049b91f08760",
+          "control_digest": "07dd1cdafa10b307e6d748fac60f48c69d977233e3401f48dd05a4fcca8ce19c",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 9,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "19926fdacf777c987c6c8d74585006f2be977f0668350e34dc85049b91f08760",
+          "control_digest": "07dd1cdafa10b307e6d748fac60f48c69d977233e3401f48dd05a4fcca8ce19c",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 9,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "19926fdacf777c987c6c8d74585006f2be977f0668350e34dc85049b91f08760",
+          "control_digest": "07dd1cdafa10b307e6d748fac60f48c69d977233e3401f48dd05a4fcca8ce19c",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 9,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "19926fdacf777c987c6c8d74585006f2be977f0668350e34dc85049b91f08760",
+      "control_digest": "07dd1cdafa10b307e6d748fac60f48c69d977233e3401f48dd05a4fcca8ce19c",
+      "matched_commits": 9,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "label": "scan-diodes",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "e6415ddee1f4cc80688224761d9137fcc400b20b1cedc853839b9f65f337959a",
+          "control_digest": "15c0acbd920535c1a5fab255fdee57c6a1dbea8e8cd56e619314933a509a2069",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 445,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "e6415ddee1f4cc80688224761d9137fcc400b20b1cedc853839b9f65f337959a",
+          "control_digest": "15c0acbd920535c1a5fab255fdee57c6a1dbea8e8cd56e619314933a509a2069",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 445,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "e6415ddee1f4cc80688224761d9137fcc400b20b1cedc853839b9f65f337959a",
+          "control_digest": "15c0acbd920535c1a5fab255fdee57c6a1dbea8e8cd56e619314933a509a2069",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 445,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "e6415ddee1f4cc80688224761d9137fcc400b20b1cedc853839b9f65f337959a",
+      "control_digest": "15c0acbd920535c1a5fab255fdee57c6a1dbea8e8cd56e619314933a509a2069",
+      "matched_commits": 445,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "label": "ghost-junction",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "bcc4128d48533748d0d5996b58ea22e7c09ed1ebcf956480648dcc6f77dd132a",
+          "control_digest": "4a9bdb6435f2429cffa1a56550cb24a07d360d6d110bb8ceb8a8be72997db181",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 9,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "bcc4128d48533748d0d5996b58ea22e7c09ed1ebcf956480648dcc6f77dd132a",
+          "control_digest": "4a9bdb6435f2429cffa1a56550cb24a07d360d6d110bb8ceb8a8be72997db181",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 9,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "bcc4128d48533748d0d5996b58ea22e7c09ed1ebcf956480648dcc6f77dd132a",
+          "control_digest": "4a9bdb6435f2429cffa1a56550cb24a07d360d6d110bb8ceb8a8be72997db181",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 9,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "bcc4128d48533748d0d5996b58ea22e7c09ed1ebcf956480648dcc6f77dd132a",
+      "control_digest": "4a9bdb6435f2429cffa1a56550cb24a07d360d6d110bb8ceb8a8be72997db181",
+      "matched_commits": 9,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "label": "ghost-diodes",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "9f4adb952826712115e7114694477e25e4b724bc89ce220a096e6ae16f612de2",
+          "control_digest": "869436b0886c68ec76ee7ea07528845464e96f3b39478c54b47a6d285bd5dae0",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 9,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "9f4adb952826712115e7114694477e25e4b724bc89ce220a096e6ae16f612de2",
+          "control_digest": "869436b0886c68ec76ee7ea07528845464e96f3b39478c54b47a6d285bd5dae0",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 9,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "9f4adb952826712115e7114694477e25e4b724bc89ce220a096e6ae16f612de2",
+          "control_digest": "869436b0886c68ec76ee7ea07528845464e96f3b39478c54b47a6d285bd5dae0",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 9,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "9f4adb952826712115e7114694477e25e4b724bc89ce220a096e6ae16f612de2",
+      "control_digest": "869436b0886c68ec76ee7ea07528845464e96f3b39478c54b47a6d285bd5dae0",
+      "matched_commits": 9,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "label": "reset-glitch",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "d51083a84dad64c4a453be0424b093311d57973e576cb7bcd13f46c47b6b33a2",
+          "control_digest": "e39d1e66f7a632148b5918de36c5707d7ad7451298ad66041f34c8dcfb211333",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 13,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "d51083a84dad64c4a453be0424b093311d57973e576cb7bcd13f46c47b6b33a2",
+          "control_digest": "e39d1e66f7a632148b5918de36c5707d7ad7451298ad66041f34c8dcfb211333",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 13,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "d51083a84dad64c4a453be0424b093311d57973e576cb7bcd13f46c47b6b33a2",
+          "control_digest": "e39d1e66f7a632148b5918de36c5707d7ad7451298ad66041f34c8dcfb211333",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 13,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "d51083a84dad64c4a453be0424b093311d57973e576cb7bcd13f46c47b6b33a2",
+      "control_digest": "e39d1e66f7a632148b5918de36c5707d7ad7451298ad66041f34c8dcfb211333",
+      "matched_commits": 13,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "label": "divider-offset",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "717374d14ae6a9e68bf1bcb96104baded7123bcd5791e4398983a177d668595f",
+          "control_digest": "74e7a53298e1accebe5dd8f9d7fd74edb3ad111502db2df567da4dd5df9cb125",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 22,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "717374d14ae6a9e68bf1bcb96104baded7123bcd5791e4398983a177d668595f",
+          "control_digest": "74e7a53298e1accebe5dd8f9d7fd74edb3ad111502db2df567da4dd5df9cb125",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 22,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "717374d14ae6a9e68bf1bcb96104baded7123bcd5791e4398983a177d668595f",
+          "control_digest": "74e7a53298e1accebe5dd8f9d7fd74edb3ad111502db2df567da4dd5df9cb125",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 22,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "717374d14ae6a9e68bf1bcb96104baded7123bcd5791e4398983a177d668595f",
+      "control_digest": "74e7a53298e1accebe5dd8f9d7fd74edb3ad111502db2df567da4dd5df9cb125",
+      "matched_commits": 22,
+      "repetitions": 3,
+      "status": "passed"
+    }
+  ],
+  "peripherals": {
+    "contention_guard": 46,
+    "ghost": "1,1",
+    "diodes": true
+  },
+  "check_count": 33
+}

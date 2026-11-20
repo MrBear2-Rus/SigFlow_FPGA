@@ -22,6 +22,17 @@ Phase1Peripherals::Phase1Peripherals(const BoardTopology& board,uint64_t window)
         if(model=="sigflow.seven-segment-mux@1"){for(int digit=0;digit<4;++digit)for(auto segment:{"a","b","c","d","e","f","g","dp"})channels_.emplace(id+".dig"+std::to_string(digit)+"."+segment,DutyIntegrator(size));digit0_edge_[id]={};scan_period_[id]=0;previous_digit0_[id]=false;}
         if(model=="sigflow.dip-switch@1"){unsigned width=c.at("params").at("width");uint32_t initial=c.at("params").value("initial_value",0u);if(initial>=(1u<<width))throw std::runtime_error("E_DIP_VALUE");dips_[id]={width,initial};}
         if(model=="sigflow.uart-peer@1"){Uart u;const auto& p=c.at("params");u.baud=p.at("baud");u.bits=p.at("data_bits");u.parity=p.at("parity");u.stops=p.at("stop_bits");uarts_[id]=std::move(u);}
+        if(model=="sigflow.matrix-keypad@1"){Keypad k;k.rows=c.at("params").at("rows");k.cols=c.at("params").at("cols");k.diodes=c.at("params").at("diodes");keypads_[id]=std::move(k);}
+    }
+    for(const auto& [id,k]:keypads_){
+        auto& nets=keypad_nets_[id];
+        for(const auto& e:board.Descriptor().at("connections")){
+            auto endpoint=e.at("endpoint").get<std::string>();
+            if(endpoint.rfind(id+".",0)==0)nets[endpoint]=e.at("net");
+        }
+        if(nets.size()!=size_t(k.rows+k.cols))throw std::runtime_error("E_KEYPAD_WIRING");
+        for(unsigned row=0;row<k.rows;++row)if(!nets.count(id+".row"+std::to_string(row)))throw std::runtime_error("E_KEYPAD_WIRING");
+        for(unsigned col=0;col<k.cols;++col)if(!nets.count(id+".col"+std::to_string(col)))throw std::runtime_error("E_KEYPAD_WIRING");
     }
 }
 uint64_t Phase1Peripherals::BitTime(const Uart& u,uint64_t units,uint64_t denominator,bool transmit)const{
@@ -35,6 +46,17 @@ void Phase1Peripherals::StartTx(Uart& u,uint64_t tick){
 }
 void Phase1Peripherals::Send(const std::string& id,const std::vector<uint8_t>& bytes,uint64_t tick){auto it=uarts_.find(id);if(it==uarts_.end())throw std::runtime_error("E_UART_TARGET");auto& u=it->second;if(bytes.empty() || bytes.size()+u.queue.size()>4096)throw std::runtime_error("E_UART_QUEUE");for(auto byte:bytes)u.queue.push_back(byte);if(!u.tx_due)StartTx(u,tick);}
 void Phase1Peripherals::SetDip(const std::string& id,uint32_t value){auto it=dips_.find(id);if(it==dips_.end() || value>=(1u<<it->second.first))throw std::runtime_error("E_DIP_VALUE");it->second.second=value;}
+void Phase1Peripherals::SetKeys(const std::string& id,const Json& keys){
+    auto it=keypads_.find(id);if(it==keypads_.end())throw std::runtime_error("E_KEYPAD_TARGET");
+    if(!keys.is_array() || keys.size()>64)throw std::runtime_error("E_KEYPAD_KEYS");
+    std::set<std::pair<unsigned,unsigned>> closed;
+    for(const auto& key:keys){
+        if(!key.is_array() || key.size()!=2 || !key.at(0).is_number_integer() || !key.at(1).is_number_integer())throw std::runtime_error("E_KEYPAD_KEYS");
+        auto row=key.at(0).get<int64_t>(),col=key.at(1).get<int64_t>();
+        if(row<0 || col<0 || row>=int64_t(it->second.rows) || col>=int64_t(it->second.cols) || !closed.insert({unsigned(row),unsigned(col)}).second)throw std::runtime_error("E_KEYPAD_KEYS");
+    }
+    it->second.closed=std::move(closed);
+}
 void Phase1Peripherals::Advance(uint64_t tick){
     if(tick<tick_)throw std::runtime_error("E_TIME_ORDER");for(auto& [id,c]:channels_)c.Advance(tick);tick_=tick;
     for(auto& [id,u]:uarts_)if(u.tx_due && *u.tx_due<=tick){
@@ -49,6 +71,30 @@ void Phase1Peripherals::Advance(uint64_t tick){
 void Phase1Peripherals::AddDrivers(std::map<std::string,std::vector<Driver>>& drivers)const{
     for(const auto& [id,u]:uarts_){bool high=u.tx_high;if(u.tx_due){if(u.bad_start && u.tx_index==0)high=true;if(u.bad_stop && u.tx_index>=size_t(1+u.bits+(u.parity!="none")))high=false;if(u.parity_flip && u.parity!="none" && u.tx_index==size_t(u.bits+1))high=!high;}drivers[id+".TX"].push_back({"uart.tx",uint8_t(high?State::SHI:State::SLO)});}
     for(const auto& [id,p]:dips_)for(unsigned bit=0;bit<p.first;++bit)drivers[id+".bit"+std::to_string(bit)].push_back({"dip",uint8_t(p.second&(1u<<bit)?State::SHI:State::SLO)});
+    // Diode-protected keypad: a closed key conducts only the row's active-low
+    // scan drive into the column, never backwards, so rows cannot couple.
+    // A row can be driven either by the DUT (pad net) or by manual scan
+    // stimulus (contact driver on the endpoint node); inspect both.
+    for(const auto& [id,k]:keypads_){
+        if(!k.diodes)continue;const auto& nets=keypad_nets_.at(id);
+        for(const auto& [row,col]:k.closed){
+            auto rowName=id+".row"+std::to_string(row);
+            bool rowLow=false;
+            for(const auto& node:{nets.at(rowName),rowName}){
+                auto rowIt=drivers.find(node);
+                if(rowIt!=drivers.end())for(const auto& d:rowIt->second)rowLow|=d.state==uint8_t(State::SLO);
+            }
+            if(rowLow)drivers[id+".col"+std::to_string(col)].push_back({"keypad:r"+std::to_string(row)+"c"+std::to_string(col),uint8_t(State::SLO)});
+        }
+    }
+}
+Json Phase1Peripherals::KeypadOverlay()const{
+    Json bridges=Json::array();
+    for(const auto& [id,k]:keypads_){
+        if(k.diodes)continue;
+        for(const auto& [row,col]:k.closed)bridges.push_back({{"lhs",id+".row"+std::to_string(row)},{"rhs",id+".col"+std::to_string(col)}});
+    }
+    return bridges.empty()?Json::object():Json{{"bridges",bridges}};
 }
 std::optional<uint64_t> Phase1Peripherals::NextDeadline(uint64_t tick)const{std::optional<uint64_t> next;for(const auto& [id,u]:uarts_)for(auto due:{u.tx_due,u.rx_due})if(due && *due>tick && (!next || *due<*next))next=due;return next;}
 void Phase1Peripherals::Observe(Json& board,uint64_t tick){
@@ -81,12 +127,32 @@ void Phase1Peripherals::Observe(Json& board,uint64_t tick){
         u.rx_previous=valid?high:u.rx_previous;
     }
     for(const auto& [id,p]:dips_)peripherals[id]={{"model","sigflow.dip-switch@1"},{"width",p.first},{"value",p.second}};
+    for(const auto& [id,k]:keypads_){
+        const auto& nets=keypad_nets_.at(id);
+        Json closed=Json::array(),apparent=Json::object(),ghosts=Json::array();
+        for(const auto& [row,col]:k.closed)closed.push_back({std::to_string(row),std::to_string(col)});
+        for(unsigned row=0;row<k.rows;++row){
+            const auto& rowNode=board.at("nodes").at(nets.at(id+".row"+std::to_string(row)));
+            if(rowNode.at("valid")!=true || rowNode.at("logic")!="0")continue;
+            for(unsigned col=0;col<k.cols;++col){
+                const auto& colNode=board.at("nodes").at(nets.at(id+".col"+std::to_string(col)));
+                if(colNode.at("valid")!=true || colNode.at("logic")!="0")continue;
+                auto name=std::to_string(row)+","+std::to_string(col);apparent[name]=true;
+                if(!k.closed.count({row,col}))ghosts.push_back({std::to_string(row),std::to_string(col)});
+            }
+        }
+        peripherals[id]={{"model","sigflow.matrix-keypad@1"},{"rows",k.rows},{"cols",k.cols},{"diodes",k.diodes},
+            {"closed",closed},{"apparent",apparent},{"ghosts",ghosts}};
+    }
     board["peripherals"]=peripherals;board["uart"]=Snapshot().at("uart");
 }
 void Phase1Peripherals::ApplyFaults(const Json& rules){faults_=rules;for(auto& [id,u]:uarts_){int old=u.offset_ppm;u.offset_ppm=0;u.bad_start=u.bad_stop=u.parity_flip=false;for(const auto& r:rules)if(r.at("target").at("id")==id){auto type=r.at("effect").at("type");if(type=="uart_baud_offset_ppm")u.offset_ppm=r.at("effect").at("offset_ppm");if(type=="uart_framing_error"){u.bad_start|=r.at("effect").at("bit")=="start";u.bad_stop|=r.at("effect").at("bit")=="stop";}if(type=="uart_parity_flip")u.parity_flip=true;}if(u.tx_due && old!=u.offset_ppm)u.tx_due=P1Add(tick_,BitTime(u,1,1,true));}}
 Json Phase1Peripherals::Snapshot()const{
-    Json integrals=Json::object(),uart=Json::object(),dips=Json::object();for(const auto& [name,c]:channels_)integrals[name]=c.Snapshot();
+    Json integrals=Json::object(),uart=Json::object(),dips=Json::object(),keypads=Json::object();for(const auto& [name,c]:channels_)integrals[name]=c.Snapshot();
     for(const auto& [id,u]:uarts_)uart[id]={{"received",u.received},{"transmitted",u.transmitted},{"tx_busy",bool(u.tx_due)},{"queued_bytes",u.queue.size()},{"tx_due",u.tx_due?Json(std::to_string(*u.tx_due)):Json(nullptr)},{"rx_due",u.rx_due?Json(std::to_string(*u.rx_due)):Json(nullptr)},{"rx_stage",u.rx_stage},{"rx_byte",u.rx_byte},{"rx_start",std::to_string(u.rx_start)},{"rx_error",u.rx_error},{"rx_parity_error",u.rx_parity_error},{"tx_index",std::to_string(u.tx_index)},{"tx_high",u.tx_high}};
-    for(const auto& [id,p]:dips_)dips[id]=p.second;return {{"tick",std::to_string(tick_)},{"integrators",integrals},{"uart",uart},{"dips",dips}};
+    for(const auto& [id,p]:dips_)dips[id]=p.second;
+    for(const auto& [id,k]:keypads_){Json closed=Json::array();for(const auto& [row,col]:k.closed)closed.push_back({std::to_string(row),std::to_string(col)});
+        keypads[id]={{"rows",k.rows},{"cols",k.cols},{"diodes",k.diodes},{"closed",closed}};}
+    return {{"tick",std::to_string(tick_)},{"integrators",integrals},{"uart",uart},{"dips",dips},{"keypads",keypads}};
 }
 }

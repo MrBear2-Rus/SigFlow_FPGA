@@ -4,13 +4,16 @@
 #include <wx/panel.h>
 #include <wx/dialog.h>
 #include <wx/weakref.h>
-class wxStaticText;class wxButton;class wxTextCtrl;class wxListCtrl;class wxSpinCtrl;class wxChoice;
+class wxStaticText;class wxButton;class wxTextCtrl;class wxListCtrl;class wxSpinCtrl;class wxChoice;class wxSizer;class wxWrapSizer;
 namespace sigflow::virtual_lab {
 class VirtualBoardPanel:public wxPanel {
 public:
     VirtualBoardPanel(wxWindow*,std::shared_ptr<VirtualSessionController>);
     ~VirtualBoardPanel();
     void SetProjectProvider(std::function<eda::Json()> f){project_provider_=std::move(f);}
+    // Host-installed callback: pops this live panel out into the independent
+    // floating window without touching the shared session controller.
+    void SetFloatOutHandler(std::function<void()> f);
     void InvokeControl(const std::string&);
     void SetContact(int pad,bool pressed){Contact(pad,pressed);}
     std::string DetailText()const;
@@ -29,6 +32,7 @@ private:
     wxPanel* drawing_=nullptr;wxStaticText* status_=nullptr;
     wxTextCtrl* detail_=nullptr;wxListCtrl* diagnostics_=nullptr;wxSpinCtrl* replay_count_=nullptr;
     std::function<eda::Json()> project_provider_;
+    std::function<void()> float_out_handler_;wxButton* float_out_=nullptr;wxSizer* toolbar_=nullptr;
     std::string diagnostic_signature_;
     wxPanel* phase1_controls_=nullptr;wxChoice *step_mode_=nullptr,*view_mode_=nullptr;wxTextCtrl* step_ticks_=nullptr;
     void Step();

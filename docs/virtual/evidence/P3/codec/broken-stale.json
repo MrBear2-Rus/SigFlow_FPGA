@@ -1,0 +1,6 @@
+{
+  "expected": "E_SFVB_GENERATION_STALE",
+  "mode": "stale",
+  "observed": "E_SFVB_GENERATION_STALE",
+  "status": "passed"
+}

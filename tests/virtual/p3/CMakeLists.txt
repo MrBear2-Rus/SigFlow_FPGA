@@ -1,0 +1,8 @@
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+add_executable(p3_native_tests phase3_native.cpp)
+target_link_libraries(p3_native_tests PRIVATE eda_virtual_board eda-cst-gowin-cst)
+add_test(NAME p3_sfvb_binary_codec_and_js_parity COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/virtual/verify_phase3.py" --build-dir "${CMAKE_BINARY_DIR}" --mode codec)
+add_test(NAME p3_matrix_keypad_and_timing_faults COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/virtual/verify_phase3.py" --build-dir "${CMAKE_BINARY_DIR}" --mode peripherals)
+set_tests_properties(p3_sfvb_binary_codec_and_js_parity p3_matrix_keypad_and_timing_faults PROPERTIES TIMEOUT 1200 RUN_SERIAL TRUE)
+add_test(NAME p3_float_window_and_teaching_ui COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/virtual/verify_phase3_gui.py" --build-dir "${CMAKE_BINARY_DIR}" --gui "$<TARGET_FILE:u1_m0_full_product_acceptance>")
+set_tests_properties(p3_float_window_and_teaching_ui PROPERTIES TIMEOUT 1500 RUN_SERIAL TRUE)

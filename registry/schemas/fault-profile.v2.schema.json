@@ -469,6 +469,50 @@
           "required": [
             "type"
           ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "reset_glitch"
+            },
+            "pressed_state": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "duration_ticks": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]{0,19})$"
+            }
+          },
+          "required": [
+            "type",
+            "pressed_state",
+            "duration_ticks"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "clock_divider_offset"
+            },
+            "den_offset": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]{0,19})$"
+            },
+            "resume_phase": {
+              "const": "restart_half_period"
+            }
+          },
+          "required": [
+            "type",
+            "den_offset",
+            "resume_phase"
+          ]
         }
       ]
     },
@@ -986,6 +1030,80 @@
                 "properties": {
                   "kind": {
                     "const": "component"
+                  }
+                }
+              },
+              "trigger": {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "permanent",
+                      "transient"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "effect": {
+                "properties": {
+                  "type": {
+                    "const": "reset_glitch"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "hook": {
+                "const": "peripheral.event"
+              },
+              "target": {
+                "properties": {
+                  "kind": {
+                    "const": "component"
+                  }
+                }
+              },
+              "trigger": {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "permanent",
+                      "transient"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "effect": {
+                "properties": {
+                  "type": {
+                    "const": "clock_divider_offset"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "hook": {
+                "const": "clock.schedule"
+              },
+              "target": {
+                "properties": {
+                  "kind": {
+                    "const": "clock"
                   }
                 }
               },

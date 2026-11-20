@@ -42,6 +42,8 @@ target_link_libraries(eda_core PUBLIC eda_api eda_platform)
 add_library(eda_virtual_board STATIC
     src/eda-virtual-board/State13.cpp
     src/eda-virtual-board/Phase2Faults.cpp
+    src/eda-virtual-board/Phase3Faults.cpp
+    src/eda-virtual-board/BinaryFrameCodec.cpp
     src/eda-virtual-board/VirtualInstruments.cpp
     src/eda-virtual-board/BlindProjection.cpp
     src/eda-virtual-board/Phase1Faults.cpp

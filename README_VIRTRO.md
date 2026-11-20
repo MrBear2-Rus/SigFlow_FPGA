@@ -12,10 +12,13 @@
 | U1 / 产品 M0 | 已实测收官：34/34 CTest、437 项 GUI 断言；U1/full_product_M0=true | [U1 联合验收与 M0 收官报告](docs/virtual/U1联合验收与M0收官报告.md) |
 | Phase 1 扩展 GUI MVP | 已实测收官：37/37 CTest、36 项新增 GUI 断言、四类故障与外设三次重放；Phase1_complete=true | [Phase 1 实测报告](docs/virtual/Phase1扩展外设与四大故障实测报告.md) |
 | Phase 2 调试与教学闭环 | 已实测收官：41/41 CTest、2132 项原生检查、22 项新增 GUI 断言；签名四课程与三组隐藏复测；Phase2_complete=true | [Phase 2 实测报告](docs/virtual/Phase2调试探针与教学判题闭环实测报告.md) |
+| Phase 3 产品化与跨端同源 | 已实测收官：44/44 CTest；SFVB 二进制帧 C++↔JS 逐字段一致、20 次浮动窗往返、鬼键 vs 二极管、reset_glitch/分频偏移；Phase3_complete=true | [Phase 3 实测报告](docs/virtual/Phase3产品化深化与跨端同源实测报告.md) |
 
 最高设计契约位于工作区`交付资料/04_SigFlow虚拟FPGA平台规划书/`。Web暂缓；新增内核后续保持零wx依赖。只读基线`.research/SigFlow_FPGA_verified`不在本工程内修改。
 
 Phase 2 调试与教学入口已加入；最终状态以 [P2 验收摘要](docs/virtual/evidence/P2-acceptance-summary.json) 为准。完整 13 态、扩展故障、Probe、真实 RTL TraceBridge 与签名课程的使用和可信边界见 [Phase 2 接口与复现实验](docs/virtual/Phase2接口与复现实验.md)。请使用 `python tools/virtual/verify_phase2_final.py` 运行完整 41 项验证并仅归档 P2；旧 final 脚本会重写旧阶段归档。
+
+Phase 3 已加入：中区「虚拟实验箱」可一键拖出为 `SigFlow · 虚拟实验箱（独立窗口）`（880×620 DIP，主区占位 + 回归按钮，20 次往返不销毁共享会话）；`SFVB` 64 字节二进制状态/波形流与 Node.js 参考解码器跨端逐字段一致（`tools/virtual/sfvb_reference_decoder.js`）；矩阵键盘 `examples/virtual/phase3` 演示鬼键 vs 防鬼键二极管与推挽扫描争用；`reset_glitch` / `clock_divider_offset` 时序故障已并入 v2 故障档案。运行 `python tools/virtual/verify_phase3.py --mode codec|peripherals` 与 `python tools/virtual/verify_phase3_gui.py`；完整 44 项终验用 `python tools/virtual/verify_phase3_final.py`，它会把 M0/P1/P2 全部历史归档纳入 SHA-256 冻结校验并独立归档 P3。
 
 M0 历史验收入口为 `python tools/virtual/verify_m0_final.py`，当时共 34 项。Phase 1 请使用 `python tools/virtual/verify_phase1_final.py`：桌面构建、原 34 项 + 新 3 项 CTest、真实 GUI/RTL/TSan，结果写入独立 [P1-acceptance-summary.json](docs/virtual/evidence/P1-acceptance-summary.json)，同时校验 M0 归档逐文件 SHA-256 不变。GUI 声明导出仍使用 `tools/virtual/export_ports.py` 与独立 sidecar，不覆盖 nextpnr 网表。
 

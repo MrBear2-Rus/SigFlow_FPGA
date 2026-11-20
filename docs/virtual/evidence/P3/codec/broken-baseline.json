@@ -1,0 +1,6 @@
+{
+  "expected": "E_SFVB_BASELINE_LOST",
+  "mode": "baseline",
+  "observed": "E_SFVB_BASELINE_LOST",
+  "status": "passed"
+}

@@ -1,0 +1,150 @@
+True versioned schemas validate courses, phase 3 projects and the new timing fault rules
+False native actual process exits successfully: 
+True versioned schemas validate courses, phase 3 projects and the new timing fault rules
+True native actual process exits successfully: {"checks":79,"status":"passed"}
+
+True native codec/fault/keypad suite passes 79 checks
+True real trajectory advances through UART/DIP/multi-clock steps
+True real trace sweep collects per-commit batches: 529
+True trajectory three from-zero real RTL replays preserve both digests
+True versioned schemas validate courses, phase 3 projects and the new timing fault rules
+True native actual process exits successfully: {"checks":79,"status":"passed"}
+
+True native codec/fault/keypad suite passes 79 checks
+True real trajectory advances through UART/DIP/multi-clock steps
+True real trace sweep collects per-commit batches: 529
+True trajectory three from-zero real RTL replays preserve both digests
+True sfvb-encode actual process exits successfully: {"frames":16,"status":"passed"}
+
+True sfvb-js-decode actual process exits successfully: {"status":"passed","frames":16}
+
+True C++ binary decode is losslessly equivalent to the source JSON delta frames
+True Node.js DataView/BigInt decode matches the C++ frames field by field
+True cross-language canonical dumps are byte-identical
+False full snapshot opens the stream and the blind run forces a real re-baseline
+True versioned schemas validate courses, phase 3 projects and the new timing fault rules
+True native actual process exits successfully: {"checks":79,"status":"passed"}
+
+True native codec/fault/keypad suite passes 79 checks
+True real trajectory advances through UART/DIP/multi-clock steps
+True real trace sweep collects per-commit batches: 529
+True trajectory three from-zero real RTL replays preserve both digests
+True sfvb-encode actual process exits successfully: {"frames":16,"status":"passed"}
+
+True sfvb-js-decode actual process exits successfully: {"status":"passed","frames":16}
+
+True C++ binary decode is losslessly equivalent to the source JSON delta frames
+True Node.js DataView/BigInt decode matches the C++ frames field by field
+True cross-language canonical dumps are byte-identical
+True full snapshot opens the stream and the blind run forces a real re-baseline
+True decoded stream keeps stuck strong evidence and 13-state bridge contention
+True decoded stream carries the bit-level UART transmit history
+False blind decoded stream leaks no hidden-stuck
+True versioned schemas validate courses, phase 3 projects and the new timing fault rules
+True native actual process exits successfully: {"checks":79,"status":"passed"}
+
+True native codec/fault/keypad suite passes 79 checks
+True real trajectory advances through UART/DIP/multi-clock steps
+True real trace sweep collects per-commit batches: 529
+True trajectory three from-zero real RTL replays preserve both digests
+True sfvb-encode actual process exits successfully: {"frames":16,"status":"passed"}
+
+True sfvb-js-decode actual process exits successfully: {"status":"passed","frames":16}
+
+True C++ binary decode is losslessly equivalent to the source JSON delta frames
+True Node.js DataView/BigInt decode matches the C++ frames field by field
+True cross-language canonical dumps are byte-identical
+True full snapshot opens the stream and the blind run forces a real re-baseline
+True decoded stream keeps stuck strong evidence and 13-state bridge contention
+True decoded stream carries the bit-level UART transmit history
+True the blind run contributes its own projected frames
+True blind decoded frames leak no hidden-stuck
+True blind decoded frames leak no hidden-bounce
+True blind decoded frames leak no hidden-bridge
+True blind decoded frames leak no hidden-open
+True blind decoded frames leak no hidden-clock
+True blind decoded frames leak no 3100002
+True blind decoded frames leak no fault_id
+True blind decoded frames leak no rubric
+True teacher-run frames keep their deterministic fault ledger
+True sfvb-gap actual process exits successfully: {"mode":"gap","observed":"E_SFVB_SEQ_GAP","status":"passed"}
+
+True sfvb-baseline actual process exits successfully: {"mode":"baseline","observed":"E_SFVB_BASELINE_LOST","status":"passed"}
+
+True sfvb-stale actual process exits successfully: {"mode":"stale","observed":"E_SFVB_GENERATION_STALE","status":"passed"}
+
+True gap corruption is rejected with E_SFVB_SEQ_GAP
+True baseline corruption is rejected with E_SFVB_BASELINE_LOST
+True stale corruption is rejected with E_SFVB_GENERATION_STALE
+True versioned schemas validate courses, phase 3 projects and the new timing fault rules
+True native actual process exits successfully: {"checks":79,"status":"passed"}
+
+True native codec/fault/keypad suite passes 79 checks
+True real trajectory advances through UART/DIP/multi-clock steps
+True real trace sweep collects per-commit batches: 529
+True trajectory three from-zero real RTL replays preserve both digests
+True sfvb-encode actual process exits successfully: {"frames":16,"status":"passed"}
+
+True sfvb-js-decode actual process exits successfully: {"status":"passed","frames":16}
+
+True C++ binary decode is losslessly equivalent to the source JSON delta frames
+True Node.js DataView/BigInt decode matches the C++ frames field by field
+True cross-language canonical dumps are byte-identical
+True full snapshot opens the stream and the blind run forces a real re-baseline
+True decoded stream keeps stuck strong evidence and 13-state bridge contention
+True decoded stream carries the bit-level UART transmit history
+True the blind run contributes its own projected frames
+True blind decoded frames leak no hidden-stuck
+True blind decoded frames leak no hidden-bounce
+True blind decoded frames leak no hidden-bridge
+True blind decoded frames leak no hidden-open
+True blind decoded frames leak no hidden-clock
+True blind decoded frames leak no 3100002
+True blind decoded frames leak no fault_id
+True blind decoded frames leak no rubric
+True teacher-run frames keep their deterministic fault ledger
+True sfvb-gap actual process exits successfully: {"mode":"gap","observed":"E_SFVB_SEQ_GAP","status":"passed"}
+
+True sfvb-baseline actual process exits successfully: {"mode":"baseline","observed":"E_SFVB_BASELINE_LOST","status":"passed"}
+
+True sfvb-stale actual process exits successfully: {"mode":"stale","observed":"E_SFVB_GENERATION_STALE","status":"passed"}
+
+True gap corruption is rejected with E_SFVB_SEQ_GAP
+True baseline corruption is rejected with E_SFVB_BASELINE_LOST
+True stale corruption is rejected with E_SFVB_GENERATION_STALE
+True versioned schemas validate courses, phase 3 projects and the new timing fault rules
+True native actual process exits successfully: {"checks":79,"status":"passed"}
+
+True native codec/fault/keypad suite passes 79 checks
+True real trajectory advances through UART/DIP/multi-clock steps
+True real trace sweep collects per-commit batches: 529
+True trajectory three from-zero real RTL replays preserve both digests
+True sfvb-encode actual process exits successfully: {"frames":16,"status":"passed"}
+
+True sfvb-js-decode actual process exits successfully: {"status":"passed","frames":16}
+
+True C++ binary decode is losslessly equivalent to the source JSON delta frames
+True Node.js DataView/BigInt decode matches the C++ frames field by field
+True cross-language canonical dumps are byte-identical
+True full snapshot opens the stream and the blind run forces a real re-baseline
+True decoded stream keeps stuck strong evidence and 13-state bridge contention
+True decoded stream carries the bit-level UART transmit history
+True the blind run contributes its own projected frames
+True blind decoded frames leak no hidden-stuck
+True blind decoded frames leak no hidden-bounce
+True blind decoded frames leak no hidden-bridge
+True blind decoded frames leak no hidden-open
+True blind decoded frames leak no hidden-clock
+True blind decoded frames leak no 3100002
+True blind decoded frames leak no fault_id
+True blind decoded frames leak no rubric
+True teacher-run frames keep their deterministic fault ledger
+True sfvb-gap actual process exits successfully: {"mode":"gap","observed":"E_SFVB_SEQ_GAP","status":"passed"}
+
+True sfvb-baseline actual process exits successfully: {"mode":"baseline","observed":"E_SFVB_BASELINE_LOST","status":"passed"}
+
+True sfvb-stale actual process exits successfully: {"mode":"stale","observed":"E_SFVB_GENERATION_STALE","status":"passed"}
+
+True gap corruption is rejected with E_SFVB_SEQ_GAP
+True baseline corruption is rejected with E_SFVB_BASELINE_LOST
+True stale corruption is rejected with E_SFVB_GENERATION_STALE

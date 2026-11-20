@@ -1,0 +1,597 @@
+{
+  "check_count": 147,
+  "checks": [
+    {
+      "area": "P3",
+      "assertion": "cycle 0 pops the live panel into the independent frame"
+    },
+    {
+      "area": "P3",
+      "assertion": "main notebook shows the spec placeholder page while popped out"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame keeps the 880x620 DIP workspace"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame lands fully inside one display"
+    },
+    {
+      "area": "P3",
+      "assertion": "stepping inside the floating window keeps the persistent session and live trace source"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 0 returns the panel to its original notebook page"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 1 pops the live panel into the independent frame"
+    },
+    {
+      "area": "P3",
+      "assertion": "main notebook shows the spec placeholder page while popped out"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame keeps the 880x620 DIP workspace"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame lands fully inside one display"
+    },
+    {
+      "area": "P3",
+      "assertion": "stepping inside the floating window keeps the persistent session and live trace source"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 1 returns the panel to its original notebook page"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 2 pops the live panel into the independent frame"
+    },
+    {
+      "area": "P3",
+      "assertion": "main notebook shows the spec placeholder page while popped out"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame keeps the 880x620 DIP workspace"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame lands fully inside one display"
+    },
+    {
+      "area": "P3",
+      "assertion": "stepping inside the floating window keeps the persistent session and live trace source"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 2 returns the panel to its original notebook page"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 3 pops the live panel into the independent frame"
+    },
+    {
+      "area": "P3",
+      "assertion": "main notebook shows the spec placeholder page while popped out"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame keeps the 880x620 DIP workspace"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame lands fully inside one display"
+    },
+    {
+      "area": "P3",
+      "assertion": "stepping inside the floating window keeps the persistent session and live trace source"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 3 returns the panel to its original notebook page"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 4 pops the live panel into the independent frame"
+    },
+    {
+      "area": "P3",
+      "assertion": "main notebook shows the spec placeholder page while popped out"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame keeps the 880x620 DIP workspace"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame lands fully inside one display"
+    },
+    {
+      "area": "P3",
+      "assertion": "stepping inside the floating window keeps the persistent session and live trace source"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 4 returns the panel to its original notebook page"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 5 pops the live panel into the independent frame"
+    },
+    {
+      "area": "P3",
+      "assertion": "main notebook shows the spec placeholder page while popped out"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame keeps the 880x620 DIP workspace"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame lands fully inside one display"
+    },
+    {
+      "area": "P3",
+      "assertion": "stepping inside the floating window keeps the persistent session and live trace source"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 5 returns the panel to its original notebook page"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 6 pops the live panel into the independent frame"
+    },
+    {
+      "area": "P3",
+      "assertion": "main notebook shows the spec placeholder page while popped out"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame keeps the 880x620 DIP workspace"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame lands fully inside one display"
+    },
+    {
+      "area": "P3",
+      "assertion": "stepping inside the floating window keeps the persistent session and live trace source"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 6 returns the panel to its original notebook page"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 7 pops the live panel into the independent frame"
+    },
+    {
+      "area": "P3",
+      "assertion": "main notebook shows the spec placeholder page while popped out"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame keeps the 880x620 DIP workspace"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame lands fully inside one display"
+    },
+    {
+      "area": "P3",
+      "assertion": "stepping inside the floating window keeps the persistent session and live trace source"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 7 returns the panel to its original notebook page"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 8 pops the live panel into the independent frame"
+    },
+    {
+      "area": "P3",
+      "assertion": "main notebook shows the spec placeholder page while popped out"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame keeps the 880x620 DIP workspace"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame lands fully inside one display"
+    },
+    {
+      "area": "P3",
+      "assertion": "stepping inside the floating window keeps the persistent session and live trace source"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 8 returns the panel to its original notebook page"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 9 pops the live panel into the independent frame"
+    },
+    {
+      "area": "P3",
+      "assertion": "main notebook shows the spec placeholder page while popped out"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame keeps the 880x620 DIP workspace"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame lands fully inside one display"
+    },
+    {
+      "area": "P3",
+      "assertion": "stepping inside the floating window keeps the persistent session and live trace source"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 9 returns the panel to its original notebook page"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 10 pops the live panel into the independent frame"
+    },
+    {
+      "area": "P3",
+      "assertion": "main notebook shows the spec placeholder page while popped out"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame keeps the 880x620 DIP workspace"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame lands fully inside one display"
+    },
+    {
+      "area": "P3",
+      "assertion": "stepping inside the floating window keeps the persistent session and live trace source"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 10 returns the panel to its original notebook page"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 11 pops the live panel into the independent frame"
+    },
+    {
+      "area": "P3",
+      "assertion": "main notebook shows the spec placeholder page while popped out"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame keeps the 880x620 DIP workspace"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame lands fully inside one display"
+    },
+    {
+      "area": "P3",
+      "assertion": "stepping inside the floating window keeps the persistent session and live trace source"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 11 returns the panel to its original notebook page"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 12 pops the live panel into the independent frame"
+    },
+    {
+      "area": "P3",
+      "assertion": "main notebook shows the spec placeholder page while popped out"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame keeps the 880x620 DIP workspace"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame lands fully inside one display"
+    },
+    {
+      "area": "P3",
+      "assertion": "stepping inside the floating window keeps the persistent session and live trace source"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 12 returns the panel to its original notebook page"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 13 pops the live panel into the independent frame"
+    },
+    {
+      "area": "P3",
+      "assertion": "main notebook shows the spec placeholder page while popped out"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame keeps the 880x620 DIP workspace"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame lands fully inside one display"
+    },
+    {
+      "area": "P3",
+      "assertion": "stepping inside the floating window keeps the persistent session and live trace source"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 13 returns the panel to its original notebook page"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 14 pops the live panel into the independent frame"
+    },
+    {
+      "area": "P3",
+      "assertion": "main notebook shows the spec placeholder page while popped out"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame keeps the 880x620 DIP workspace"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame lands fully inside one display"
+    },
+    {
+      "area": "P3",
+      "assertion": "stepping inside the floating window keeps the persistent session and live trace source"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 14 returns the panel to its original notebook page"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 15 pops the live panel into the independent frame"
+    },
+    {
+      "area": "P3",
+      "assertion": "main notebook shows the spec placeholder page while popped out"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame keeps the 880x620 DIP workspace"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame lands fully inside one display"
+    },
+    {
+      "area": "P3",
+      "assertion": "stepping inside the floating window keeps the persistent session and live trace source"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 15 returns the panel to its original notebook page"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 16 pops the live panel into the independent frame"
+    },
+    {
+      "area": "P3",
+      "assertion": "main notebook shows the spec placeholder page while popped out"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame keeps the 880x620 DIP workspace"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame lands fully inside one display"
+    },
+    {
+      "area": "P3",
+      "assertion": "stepping inside the floating window keeps the persistent session and live trace source"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 16 returns the panel to its original notebook page"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 17 pops the live panel into the independent frame"
+    },
+    {
+      "area": "P3",
+      "assertion": "main notebook shows the spec placeholder page while popped out"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame keeps the 880x620 DIP workspace"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame lands fully inside one display"
+    },
+    {
+      "area": "P3",
+      "assertion": "stepping inside the floating window keeps the persistent session and live trace source"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 17 returns the panel to its original notebook page"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 18 pops the live panel into the independent frame"
+    },
+    {
+      "area": "P3",
+      "assertion": "main notebook shows the spec placeholder page while popped out"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame keeps the 880x620 DIP workspace"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame lands fully inside one display"
+    },
+    {
+      "area": "P3",
+      "assertion": "stepping inside the floating window keeps the persistent session and live trace source"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 18 returns the panel to its original notebook page"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 19 pops the live panel into the independent frame"
+    },
+    {
+      "area": "P3",
+      "assertion": "main notebook shows the spec placeholder page while popped out"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame keeps the 880x620 DIP workspace"
+    },
+    {
+      "area": "P3",
+      "assertion": "floating frame lands fully inside one display"
+    },
+    {
+      "area": "P3",
+      "assertion": "stepping inside the floating window keeps the persistent session and live trace source"
+    },
+    {
+      "area": "P3",
+      "assertion": "cycle 19 returns the panel to its original notebook page"
+    },
+    {
+      "area": "P3",
+      "assertion": "20 pop-out/return cycles leave no dangling callbacks and keep the simulation alive"
+    },
+    {
+      "area": "P3",
+      "assertion": "committed tick strictly advances across every migration"
+    },
+    {
+      "area": "P3",
+      "assertion": "a second pop-out request raises the existing floating window instead of forking the view"
+    },
+    {
+      "area": "P3",
+      "assertion": "blind course locks private controls before any agent traffic"
+    },
+    {
+      "area": "P3",
+      "assertion": "L4 remains gated before lower levels"
+    },
+    {
+      "area": "P3",
+      "assertion": "real repair passes the deterministic three-seed grading"
+    },
+    {
+      "area": "P3",
+      "assertion": "agent bridge receives the live desensitized evidence snapshot with dual probe readings"
+    },
+    {
+      "area": "P3",
+      "assertion": "bridge snapshot carries session facts and capture provenance"
+    },
+    {
+      "area": "P3",
+      "assertion": "agent evidence snapshot leaks no secret-open-4a7"
+    },
+    {
+      "area": "P3",
+      "assertion": "agent evidence snapshot leaks no fault_id"
+    },
+    {
+      "area": "P3",
+      "assertion": "agent evidence snapshot leaks no rubric"
+    },
+    {
+      "area": "P3",
+      "assertion": "agent evidence snapshot leaks no hidden-"
+    },
+    {
+      "area": "P3",
+      "assertion": "agent evidence snapshot leaks no faults"
+    },
+    {
+      "area": "P3",
+      "assertion": "assistant channel reply is shown transparently next to the evidence"
+    },
+    {
+      "area": "P3",
+      "assertion": "missing agent bridge fails gracefully with an explicit error"
+    },
+    {
+      "area": "P3",
+      "assertion": "controller and visible text contain no secret rule, seed or private rubric"
+    },
+    {
+      "area": "P3",
+      "assertion": "controller and visible text contain no secret rule, seed or private rubric"
+    },
+    {
+      "area": "P3",
+      "assertion": "controller and visible text contain no secret rule, seed or private rubric"
+    },
+    {
+      "area": "P3",
+      "assertion": "controller and visible text contain no secret rule, seed or private rubric"
+    },
+    {
+      "area": "P3",
+      "assertion": "PrintWindow(PW_RENDERFULLCONTENT) renders the whole teaching client"
+    },
+    {
+      "area": "P3",
+      "assertion": "native child controls paint real content instead of blank boxes"
+    },
+    {
+      "area": "P3",
+      "assertion": "readout region shows hint levels, probe readings and grading text pixels"
+    },
+    {
+      "area": "P3",
+      "assertion": "exports the fixed native teaching snapshot teaching-light.png"
+    },
+    {
+      "area": "P3",
+      "assertion": "PrintWindow(PW_RENDERFULLCONTENT) renders the whole teaching client"
+    },
+    {
+      "area": "P3",
+      "assertion": "native child controls paint real content instead of blank boxes"
+    },
+    {
+      "area": "P3",
+      "assertion": "readout region shows hint levels, probe readings and grading text pixels"
+    },
+    {
+      "area": "P3",
+      "assertion": "exports the fixed native teaching snapshot teaching-dark.png"
+    }
+  ],
+  "float_cycles": 20,
+  "float_frame": "VirtualBoardFloatFrame + placeholder page + shared controller",
+  "host": "real wxApp + VirtualBoardFloatFrame + VirtualTeachingPanel agent bridge + trusted blind course + fixed offscreen capture",
+  "status": "passed"
+}

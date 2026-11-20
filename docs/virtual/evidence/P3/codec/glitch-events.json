@@ -1,0 +1,16 @@
+[
+  {
+    "fault_id": "reset-glitch-1",
+    "origin": "fault.expansion",
+    "state": 13,
+    "tick": "200000",
+    "type": "pin.edge"
+  },
+  {
+    "fault_id": "reset-glitch-1",
+    "origin": "fault.expansion",
+    "state": 2,
+    "tick": "201500",
+    "type": "pin.edge"
+  }
+]
