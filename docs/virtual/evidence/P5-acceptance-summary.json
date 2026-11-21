@@ -1,6 +1,6 @@
 {
   "schema": "sigflow.phase5-acceptance.v1",
-  "date": "2026-11-21T15:07:53.734479+08:00",
+  "date": "2026-11-21T16:00:15.742992+08:00",
   "status": "passed",
   "Phase5_complete": true,
   "Full_Platform_v1_complete": true,
@@ -14,252 +14,252 @@
     {
       "name": "job_tests",
       "passed": true,
-      "seconds": 3.28031
+      "seconds": 2.40089
     },
     {
       "name": "eda_api_contract_smoke",
       "passed": true,
-      "seconds": 1.97851
+      "seconds": 1.47048
     },
     {
       "name": "eda_job_service_smoke",
       "passed": true,
-      "seconds": 2.31674
+      "seconds": 1.82538
     },
     {
       "name": "eda_toolchain_project_smoke",
       "passed": true,
-      "seconds": 0.709765
+      "seconds": 0.145618
     },
     {
       "name": "eda_plugin_host_smoke",
       "passed": true,
-      "seconds": 0.587543
+      "seconds": 0.329003
     },
     {
       "name": "eda_synth_yosys_smoke",
       "passed": true,
-      "seconds": 1.0496
+      "seconds": 0.212334
     },
     {
       "name": "eda_pnr_nextpnr_smoke",
       "passed": true,
-      "seconds": 0.838506
+      "seconds": 0.17584
     },
     {
       "name": "eda_pack_flash_smoke",
       "passed": true,
-      "seconds": 0.817762
+      "seconds": 0.283846
     },
     {
       "name": "eda_sim_verilator_smoke",
       "passed": true,
-      "seconds": 0.892376
+      "seconds": 0.355087
     },
     {
       "name": "eda_sim_frontend_smoke",
       "passed": true,
-      "seconds": 0.656518
+      "seconds": 0.134332
     },
     {
       "name": "eda_target_profile_smoke",
       "passed": true,
-      "seconds": 0.601786
+      "seconds": 0.09877
     },
     {
       "name": "eda_gowin_cst_smoke",
       "passed": true,
-      "seconds": 0.53441
+      "seconds": 0.0716622
     },
     {
       "name": "eda_constraint_sheet_smoke",
       "passed": true,
-      "seconds": 0.633371
+      "seconds": 0.162584
     },
     {
       "name": "eda_declarative_tool_smoke",
       "passed": true,
-      "seconds": 0.829412
+      "seconds": 0.180433
     },
     {
       "name": "eda_wave_vcd_smoke",
       "passed": true,
-      "seconds": 0.725696
+      "seconds": 0.0836735
     },
     {
       "name": "eda_wave_trace_adapter_smoke",
       "passed": true,
-      "seconds": 0.507219
+      "seconds": 0.108007
     },
     {
       "name": "eda_declarative_switch_smoke",
       "passed": true,
-      "seconds": 0.737786
+      "seconds": 0.236497
     },
     {
       "name": "eda_component_library_smoke",
       "passed": true,
-      "seconds": 0.67714
+      "seconds": 0.092084
     },
     {
       "name": "eda_command_bus_smoke",
       "passed": true,
-      "seconds": 0.637983
+      "seconds": 0.0643953
     },
     {
       "name": "sig_tree_sync_smoke",
       "passed": true,
-      "seconds": 1.69561
+      "seconds": 1.38173
     },
     {
       "name": "k1_port_index_roundtrip",
       "passed": true,
-      "seconds": 0.888003
+      "seconds": 0.707895
     },
     {
       "name": "k1_electrical_acceptance",
       "passed": true,
-      "seconds": 0.0225172
+      "seconds": 0.0190008
     },
     {
       "name": "k1_real_tool_export",
       "passed": true,
-      "seconds": 0.358845
+      "seconds": 0.426068
     },
     {
       "name": "k1_real_tool_gui_cst",
       "passed": true,
-      "seconds": 0.136435
+      "seconds": 0.12973
     },
     {
       "name": "k2_session_pause_guard_replay",
       "passed": true,
-      "seconds": 1.12195
+      "seconds": 0.482075
     },
     {
       "name": "k2_real_verilated_session",
       "passed": true,
-      "seconds": 14.6904
+      "seconds": 24.3066
     },
     {
       "name": "k3_live_trace_concurrency_and_cases",
       "passed": true,
-      "seconds": 0.687638
+      "seconds": 0.106575
     },
     {
       "name": "k3_live_trace_thread_sanitizer",
       "passed": true,
-      "seconds": 23.8002
+      "seconds": 22.3672
     },
     {
       "name": "k4_board_wiring_and_cst_variants",
       "passed": true,
-      "seconds": 0.914728
+      "seconds": 0.274059
     },
     {
       "name": "k5_topology_transactions",
       "passed": true,
-      "seconds": 0.0862479
+      "seconds": 0.100879
     },
     {
       "name": "k5_open_fault_guard_and_replay",
       "passed": true,
-      "seconds": 5.7743
+      "seconds": 5.75472
     },
     {
       "name": "k5_legacy_real_build_run_vcd",
       "passed": true,
-      "seconds": 10.5169
+      "seconds": 13.2664
     },
     {
       "name": "u0_virtual_board_gui_smoke",
       "passed": true,
-      "seconds": 3.69133
+      "seconds": 3.72464
     },
     {
       "name": "u1_m0_full_product_acceptance",
       "passed": true,
-      "seconds": 92.9823
+      "seconds": 94.0845
     },
     {
       "name": "p1_four_faults_and_rng_replay",
       "passed": true,
-      "seconds": 14.1792
+      "seconds": 2.87271
     },
     {
       "name": "p1_peripherals_pwm_seg_uart",
       "passed": true,
-      "seconds": 27.7489
+      "seconds": 12.3149
     },
     {
       "name": "p1_gui_mvp_acceptance",
       "passed": true,
-      "seconds": 96.091
+      "seconds": 82.7359
     },
     {
       "name": "p2_state13_resolver_and_extended_faults",
       "passed": true,
-      "seconds": 31.8922
+      "seconds": 17.2077
     },
     {
       "name": "p2_virtual_probe_and_tracebridge",
       "passed": true,
-      "seconds": 14.2689
+      "seconds": 15.5209
     },
     {
       "name": "p2_blind_course_gateway_and_grading",
       "passed": true,
-      "seconds": 67.041
+      "seconds": 35.2235
     },
     {
       "name": "p2_gui_teaching_closed_loop_acceptance",
       "passed": true,
-      "seconds": 36.7694
+      "seconds": 32.295
     },
     {
       "name": "p3_sfvb_binary_codec_and_js_parity",
       "passed": true,
-      "seconds": 21.9176
+      "seconds": 19.3352
     },
     {
       "name": "p3_matrix_keypad_and_timing_faults",
       "passed": true,
-      "seconds": 26.1704
+      "seconds": 10.646
     },
     {
       "name": "p3_float_window_and_teaching_ui",
       "passed": true,
-      "seconds": 34.129
+      "seconds": 32.5718
     },
     {
       "name": "p4_i2c_spi_oled_and_bus_faults",
       "passed": true,
-      "seconds": 126.383
+      "seconds": 122.434
     },
     {
       "name": "p4_crc_tamper_and_cdc_approx",
       "passed": true,
-      "seconds": 48.3074
+      "seconds": 43.2184
     },
     {
       "name": "p4_gui_oled_keypad_and_course05_acceptance",
       "passed": true,
-      "seconds": 60.1105
+      "seconds": 64.8625
     },
     {
       "name": "p5_i2c_multibyte_burst_and_recovery",
       "passed": true,
-      "seconds": 225.527
+      "seconds": 178.44
     },
     {
       "name": "p5_sfvb_web_workbench_parity",
       "passed": true,
-      "seconds": 76.0567
+      "seconds": 58.8582
     },
     {
       "name": "p5_gui_full_platform_showcase_acceptance",
       "passed": true,
-      "seconds": 48.3097
+      "seconds": 47.6855
     }
   ],
   "commands": [
@@ -272,7 +272,7 @@
         "4"
       ],
       "exit_code": 0,
-      "seconds": 2.351
+      "seconds": 3.895
     },
     {
       "argv": [
@@ -286,7 +286,7 @@
         "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\final\\ctest.xml"
       ],
       "exit_code": 0,
-      "seconds": 1131.361
+      "seconds": 952.58
     }
   ],
   "source_unchanged_during_validation": true,
@@ -890,7 +890,7 @@
     "main/virtual/DebugSupport.cmake": "18704853975709dccd61f537a483550ef8fd111a4c2e70ddac2fab66f4ec8d41",
     "main/virtual/FaultInjectionPanel.cpp": "3138f2cd52a1f2aa8adbbbeb48868a7cf0bc8fa7c1e6334d2b835d168b002ddb",
     "main/virtual/FaultInjectionPanel.h": "713618e112e40115041438b2636881ee70d9758bc7be5b71e46926b828367abd",
-    "main/virtual/VirtualBoardFloatFrame.cpp": "9fe26aaaee12c7c46a9a6c7b0d231975f45473288f3703f56b197fcc33cd3b10",
+    "main/virtual/VirtualBoardFloatFrame.cpp": "023662a3e80a3c8663cafd700726245b3819f143566e484b02320e7d11b639b5",
     "main/virtual/VirtualBoardFloatFrame.h": "b7cd0d4fa990dba0170f7a8cfdce351f5b4cd01a61073de82f35209f6870d17e",
     "main/virtual/VirtualBoardPanel.cpp": "0298a99b6f80d364fed15d774d3471110e1930bef909cb8cc25661e4c2718e6d",
     "main/virtual/VirtualBoardPanel.h": "e27af30f1685ad30fb243c1622cd34a74aa3a849a3989a98568085c639d0753a",
@@ -1068,7 +1068,7 @@
     "tests/virtual/p4/CMakeLists.txt": "56daf481ca293ff47c2f0927b5c7b228dbab39e02dfdfcac990b4971d97802cf",
     "tests/virtual/p4/gui_acceptance.inc": "1fbb601386bf1605877860c53f1caf6ec23a4fc52a37e8192ded3a1c014b47b5",
     "tests/virtual/p5/CMakeLists.txt": "ae184e77a741ccd83b13d19e04b29398c5b4ea044614714afa3cdec3b8ee22de",
-    "tests/virtual/p5/gui_acceptance.inc": "b550e0b004c5c9734f200f7fdd7f411ec3902dd2be5b99e2ddb2460d9fd43c43",
+    "tests/virtual/p5/gui_acceptance.inc": "a6ec0c6d13e013e79706be717b42036ab11848f8061e8ec6261ed88ba6eb18f3",
     "tests/virtual/u0/CMakeLists.txt": "811c85a16f2f58be86603e20e8314e73d51fbe8fa0cebcd1c173219374c91ca5",
     "tests/virtual/u0/gui_smoke.cpp": "29d7896c43d724a9b67e2fd8b3e6f9b51244fe951e6f682b54948e235abbb2eb",
     "tests/virtual/u1/CMakeLists.txt": "44cf8c568937a2da574a17bb04b4c0746af4feb05884e0339342f1ea630e4e59",
@@ -4543,7 +4543,7 @@
           "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p12-mixed-cpp-dec.json"
         ],
         "exit_code": 0,
-        "seconds": 0.139
+        "seconds": 0.127
       },
       {
         "argv": [
@@ -4553,7 +4553,7 @@
           "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p12-mixed-js-dec.json"
         ],
         "exit_code": 0,
-        "seconds": 0.06
+        "seconds": 0.056
       },
       {
         "argv": [
@@ -4563,7 +4563,7 @@
           "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p12-mixed-web-proj.json"
         ],
         "exit_code": 0,
-        "seconds": 0.136
+        "seconds": 0.11
       },
       {
         "argv": [
@@ -4575,7 +4575,7 @@
           "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p3-keypad-cpp-dec.json"
         ],
         "exit_code": 0,
-        "seconds": 0.033
+        "seconds": 0.035
       },
       {
         "argv": [
@@ -4585,7 +4585,7 @@
           "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p3-keypad-js-dec.json"
         ],
         "exit_code": 0,
-        "seconds": 0.042
+        "seconds": 0.039
       },
       {
         "argv": [
@@ -4595,7 +4595,7 @@
           "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p3-keypad-web-proj.json"
         ],
         "exit_code": 0,
-        "seconds": 0.05
+        "seconds": 0.048
       },
       {
         "argv": [
@@ -4607,7 +4607,7 @@
           "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p4-oled-cpp-dec.json"
         ],
         "exit_code": 0,
-        "seconds": 0.187
+        "seconds": 0.172
       },
       {
         "argv": [
@@ -4617,7 +4617,7 @@
           "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p4-oled-js-dec.json"
         ],
         "exit_code": 0,
-        "seconds": 0.064
+        "seconds": 0.062
       },
       {
         "argv": [
@@ -4627,7 +4627,7 @@
           "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p4-oled-web-proj.json"
         ],
         "exit_code": 0,
-        "seconds": 0.161
+        "seconds": 0.145
       },
       {
         "argv": [
@@ -4639,7 +4639,7 @@
           "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p4-crc-cdc-cpp-dec.json"
         ],
         "exit_code": 0,
-        "seconds": 0.103
+        "seconds": 0.096
       },
       {
         "argv": [
@@ -4649,7 +4649,7 @@
           "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p4-crc-cdc-js-dec.json"
         ],
         "exit_code": 0,
-        "seconds": 0.055
+        "seconds": 0.049
       },
       {
         "argv": [
@@ -4659,7 +4659,7 @@
           "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p4-crc-cdc-web-proj.json"
         ],
         "exit_code": 0,
-        "seconds": 0.105
+        "seconds": 0.097
       },
       {
         "argv": [
@@ -4671,7 +4671,7 @@
           "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p5-i2c-burst-cpp-dec.json"
         ],
         "exit_code": 0,
-        "seconds": 0.286
+        "seconds": 0.272
       },
       {
         "argv": [
@@ -4681,7 +4681,7 @@
           "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p5-i2c-burst-js-dec.json"
         ],
         "exit_code": 0,
-        "seconds": 0.077
+        "seconds": 0.071
       },
       {
         "argv": [
@@ -4691,7 +4691,7 @@
           "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p5-i2c-burst-web-proj.json"
         ],
         "exit_code": 0,
-        "seconds": 0.116
+        "seconds": 0.122
       },
       {
         "argv": [
@@ -4704,7 +4704,7 @@
           "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\web-projector-selftest.json"
         ],
         "exit_code": 0,
-        "seconds": 0.096
+        "seconds": 0.097
       }
     ],
     "replays": [],
@@ -4719,7 +4719,7 @@
     "check_count": 3001
   },
   "gui": {
-    "check_count": 25,
+    "check_count": 26,
     "checks": [
       {
         "area": "P5",
@@ -4791,6 +4791,10 @@
       },
       {
         "area": "P5",
+        "assertion": "floating window body below 34 DIP header renders live workbench canvas and peripherals (not blank gray)"
+      },
+      {
+        "area": "P5",
         "assertion": "exports float-showcase.png"
       },
       {
@@ -4827,32 +4831,32 @@
   },
   "desktop_binary": {
     "path": "E:\\sigflow\\SigFlow_VirtroFPGA\\build-m0\\sigflow.exe",
-    "sha256": "d13ed5b19249d820cd913daeea429707d36daaf882a9aa7dfe06c602980f3c7d"
+    "sha256": "59e44b6b84c141d015aabb69a91e46b3a027dc7ebeb2c640ecdcb1adcf59e0e1"
   },
   "artifacts": {
     "build.log": {
-      "sha256": "775afd07f9bf3e3d7ceccf36487ac5d5020b11e24c5e2b4597d59deeb8288ea9",
+      "sha256": "a41b8ed7cb1817aa5cfd6530f1c04686372e387798b4272c9ee27552bab6e49f",
       "bytes": 2318
     },
     "ctest.log": {
-      "sha256": "ab6eeedb5a2d92f0f807eb1a05c7d69ac276a689ca3cdcd887409f3e2a4b1e89",
-      "bytes": 6604
+      "sha256": "ea9dfd562249eaa43fd7876d6bff8ce0edf3bed97432892b457958ebd545bfcb",
+      "bytes": 6603
     },
     "ctest.xml": {
-      "sha256": "cb615c920fd1f4b946c606b2660e31ee00e501fb5dfdbfdd7a8756dd3dcb6cf0",
-      "bytes": 25129
+      "sha256": "24d3dadf7ecf81a840800573393eaa54f3ac4a730e8e8a50fd489a9ff6351b01",
+      "bytes": 25133
     },
     "i2c_burst-results.json": {
       "sha256": "23b54dfc903eace52e4742c510ccb86462303a6b4cbaa784fc68ba448076ff10",
       "bytes": 9406
     },
     "web_parity-results.json": {
-      "sha256": "b634341fa9329ffa224c12fd24eb957d920ec8f7cfd9b8af23d61e2a54e6e1d1",
-      "bytes": 152943
+      "sha256": "6f5a86a33b3abab4e0966ced07825d9178c44c7863a215925d5e9d6fdb4fa955",
+      "bytes": 152944
     },
     "gui-results.json": {
-      "sha256": "51f8f015b241bb1212cdc0a3ea8f1234d43dd48bf888157b01e416cc858ef947",
-      "bytes": 3076
+      "sha256": "1ac7e02d59ca02a3f5f155fada272ce0b443fda36bf31199b96ed53725454250",
+      "bytes": 3238
     },
     "i2c_burst-progress.log": {
       "sha256": "2a96351f63941bfe2a37f7daa9e086a04f2b388b1f6c18de95d70aed29930485",
@@ -4863,27 +4867,27 @@
       "bytes": 139578
     },
     "gui-progress.log": {
-      "sha256": "f8edc615677a7aafbbfe18af2be88c11d938bba9b4156ee170610650d1b7152b",
-      "bytes": 1662
+      "sha256": "a8f2f4f048f021950a71a401cad5a31fffe1f2055f3c6b43f0b1b1c48e278cc8",
+      "bytes": 1775
     },
     "web_parity/p12-mixed.sfvb": {
-      "sha256": "0d0ba7c6596071b579d8c125574352a0d474abdf033098053564498a368f4b91",
+      "sha256": "08ca83f4104f00b2ad2010bff7f17c084e588c69ddcb85045f43c96e56d754d1",
       "bytes": 219888
     },
     "web_parity/p3-keypad.sfvb": {
-      "sha256": "a7ce29ff206e4e58b343ac4930906015bbbce2ac786763fcf41a28c41c83b0be",
+      "sha256": "ae3d27d02944e82dde0a1b6e4b153b0ed214ed31f98b99589818d0cb38e1a0e8",
       "bytes": 12211
     },
     "web_parity/p4-crc-cdc.sfvb": {
-      "sha256": "ed87a5d1b3692b1db0f46b8727d1ed4bb90d90013dfb1ec0c32fc115884f7fa7",
+      "sha256": "94322090e39b7ae93eb33a8e17f95f316edaa431fdcdeffbaf38c0dfd558a768",
       "bytes": 149954
     },
     "web_parity/p4-oled.sfvb": {
-      "sha256": "79a9fb4e9ed4c7472cdb39ad3d28265d922652a199aa0ae0dc7a57bfcb937d2d",
+      "sha256": "3c5392dc27c6bc071ae3e787287d8341670d8e1ad92b5a7410c16aad0dda5767",
       "bytes": 249418
     },
     "web_parity/p5-i2c-burst.sfvb": {
-      "sha256": "40b0909716cc844750a2ac035d6cfa5770eec2d86d6ef978d836311ee6c571fb",
+      "sha256": "5b64ac2a032f85d1afad2d995e52cebbae1da1d10e7fe00024d552a8938de091",
       "bytes": 386534
     },
     "web_parity/web-projector-selftest.json": {
@@ -4899,19 +4903,19 @@
       "bytes": 115181
     },
     "gui/float-showcase.png": {
-      "sha256": "4c5ff253f684f19e11b45fb01af5a4d439f95b79a2e99070b93383280c03331f",
-      "bytes": 11361
+      "sha256": "6edd2e727553e85f760ad561063721ba9d460b7b46cc1d1e648f15674b124c70",
+      "bytes": 76659
     },
     "journals/i2c_burst-i2c_burst.jsonl.gz": {
-      "sha256": "39110a2773c8d8a49711f6666a50afadabdd05051b4f52697caf24e7a5953729",
-      "bytes": 2272987,
-      "uncompressed_sha256": "baf06cc9a89dbbf3d4a32e23de4bd8c51a061f47bd9060402c4291ff834b76a9",
+      "sha256": "f76396f1627e80f1dc22b6e74ab88e7ad0262a52e227dbf0d16f739e356cd19a",
+      "bytes": 2272891,
+      "uncompressed_sha256": "743ab3dbdb60d92db540307d395dd7bc7e94cbe5fdee446b8b0c5a9bce8fb40f",
       "raw_bytes": 42452939
     },
     "journals/web_parity-web_parity.jsonl.gz": {
-      "sha256": "307650ae4f4e706b5cfd64b97852814a13cf0a05f396a42a05e7d017b2462fdc",
-      "bytes": 7352513,
-      "uncompressed_sha256": "ef060bb326a99566518e234fd88a6296b017d13f5cfa819ec0d5d5fb3188103f",
+      "sha256": "db34b0105a5529fb2d743db988ab0b37d28b4ce6d55fb88645e09a88d702ac8c",
+      "bytes": 7352364,
+      "uncompressed_sha256": "c014296589019d5e3e36c8ec7eb2878efa3b95f47a038128689c1c1275689823",
       "raw_bytes": 128302871
     },
     "historical-sha256.json": {

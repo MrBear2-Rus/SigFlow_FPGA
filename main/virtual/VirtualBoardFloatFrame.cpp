@@ -41,7 +41,9 @@ VirtualBoardFloatFrame::VirtualBoardFloatFrame(wxBookCtrlBase* host,VirtualBoard
     host_->InsertPage(index_,placeholder_,wxString::FromUTF8("虚拟实验箱（已拖出）"));
     // 34 DIP custom header strip: title plus the return button (SPEC §4.4).
     header_=new wxPanel(this);auto* head=new wxBoxSizer(wxHORIZONTAL);
-    title_=new wxStaticText(header_,wxID_ANY,pageTitle+"（独立窗口）");
+    const wxString suffix=wxString::FromUTF8("（独立窗口）");
+    const wxString floatTitle=pageTitle.EndsWith(suffix)?pageTitle:(pageTitle+suffix);
+    title_=new wxStaticText(header_,wxID_ANY,floatTitle);
     title_->SetMinSize(wxSize(0,FromDIP(34)));return_=new wxButton(header_,wxID_ANY,wxString::FromUTF8("回到主窗口"));
     head->Add(title_,1,wxEXPAND|wxLEFT,FromDIP(10));head->Add(return_,0,wxALIGN_CENTER_VERTICAL|wxALL,FromDIP(4));
     header_->SetSizer(head);
@@ -49,7 +51,7 @@ VirtualBoardFloatFrame::VirtualBoardFloatFrame(wxBookCtrlBase* host,VirtualBoard
     // Detach from any previous floating layout so a returning panel can be
     // re-hosted; reparenting alone does not clear the containing sizer.
     if(auto* previous=board_->GetContainingSizer())previous->Detach(board_);
-    board_->Reparent(this);layout->Add(board_,1,wxEXPAND);SetSizer(layout);
+    board_->Reparent(this);board_->Show(true);layout->Add(board_,1,wxEXPAND);SetSizer(layout);
     return_->Bind(wxEVT_BUTTON,[this](wxCommandEvent&){ReturnToMain();});
     Bind(wxEVT_CLOSE_WINDOW,[this](wxCloseEvent&){ReturnToMain();});
     // 880x620 DIP initial size on the display under the mouse.
@@ -65,6 +67,7 @@ VirtualBoardFloatFrame::VirtualBoardFloatFrame(wxBookCtrlBase* host,VirtualBoard
     title_->SetFont(UiTheme::UiFont(this,UiTheme::TextSize::P14));
     board_->Layout();Layout();
     Show();Raise();
+    board_->Refresh();board_->wxWindow::Update();
 }
 void VirtualBoardFloatFrame::SetPlaceholderText(const wxString& message){
     if(placeholder_){placeholder_->SetPlaceholderText(message);placeholder_->ApplyTheme();}

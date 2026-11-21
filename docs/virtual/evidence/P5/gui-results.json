@@ -1,5 +1,5 @@
 {
-  "check_count": 25,
+  "check_count": 26,
   "checks": [
     {
       "area": "P5",
@@ -68,6 +68,10 @@
     {
       "area": "P5",
       "assertion": "floating window snapshot renders diverse themed pixels"
+    },
+    {
+      "area": "P5",
+      "assertion": "floating window body below 34 DIP header renders live workbench canvas and peripherals (not blank gray)"
     },
     {
       "area": "P5",

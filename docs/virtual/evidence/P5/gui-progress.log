@@ -15,6 +15,7 @@ P5: keypad toggles (1,2) and (3,0) work seamlessly inside popped-out floating wi
 P5: OLED dot matrix remains intact inside floating window = 1
 P5: captures popped-out VirtualBoardFloatFrame via PW_RENDERFULLCONTENT = 1
 P5: floating window snapshot renders diverse themed pixels = 1
+P5: floating window body below 34 DIP header renders live workbench canvas and peripherals (not blank gray) = 1
 P5: exports float-showcase.png = 1
 P5: workbench returns to main notebook without losing session state = 1
 P5: PW_RENDERFULLCONTENT renders full-platform showcase = 1

@@ -5,10 +5,10 @@
 	disabled="0"
 	skipped="0"
 	hostname=""
-	time="1131"
-	timestamp="2026-11-21T14:48:54"
+	time="951"
+	timestamp="2026-11-21T15:44:16"
 	>
-	<testcase name="job_tests" classname="job_tests" time="3.28031" status="run">
+	<testcase name="job_tests" classname="job_tests" time="2.40089" status="run">
 		<properties/>
 		<system-out>[PASS] legacy state serialization matches the migration name
 [PASS] legacy-&gt;contract state maps to itself
@@ -31,7 +31,7 @@
 [This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
 </system-out>
 	</testcase>
-	<testcase name="eda_api_contract_smoke" classname="eda_api_contract_smoke" time="1.97851" status="run">
+	<testcase name="eda_api_contract_smoke" classname="eda_api_contract_smoke" time="1.47048" status="run">
 		<properties/>
 		<system-out>  ok: default Error is false
   ok: Error::Ok code None
@@ -67,7 +67,7 @@ BuildInfo: compiler=gcc-14.2.0;cxx=202002;abi=1
 [This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
 </system-out>
 	</testcase>
-	<testcase name="eda_job_service_smoke" classname="eda_job_service_smoke" time="2.31674" status="run">
+	<testcase name="eda_job_service_smoke" classname="eda_job_service_smoke" time="1.82538" status="run">
 		<properties/>
 		<system-out>  ok: terminal success atomically publishes artifacts and metrics for concurrent report observers
   ok: job succeeded and recorded artifact
@@ -96,7 +96,7 @@ BuildInfo: compiler=gcc-14.2.0;cxx=202002;abi=1
 [This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
 </system-out>
 	</testcase>
-	<testcase name="eda_toolchain_project_smoke" classname="eda_toolchain_project_smoke" time="0.709765" status="run">
+	<testcase name="eda_toolchain_project_smoke" classname="eda_toolchain_project_smoke" time="0.145618" status="run">
 		<properties/>
 		<system-out>  ok: toolchain resolves bundled tool
   ok: configured path takes precedence
@@ -124,7 +124,7 @@ BuildInfo: compiler=gcc-14.2.0;cxx=202002;abi=1
 ALL PASS
 </system-out>
 	</testcase>
-	<testcase name="eda_plugin_host_smoke" classname="eda_plugin_host_smoke" time="0.587543" status="run">
+	<testcase name="eda_plugin_host_smoke" classname="eda_plugin_host_smoke" time="0.329003" status="run">
 		<properties/>
 		<system-out>  ok: register static plugin aaa
   ok: register static plugin bbb
@@ -148,7 +148,7 @@ ALL PASS
 ALL PASS
 </system-out>
 	</testcase>
-	<testcase name="eda_synth_yosys_smoke" classname="eda_synth_yosys_smoke" time="1.0496" status="run">
+	<testcase name="eda_synth_yosys_smoke" classname="eda_synth_yosys_smoke" time="0.212334" status="run">
 		<properties/>
 		<system-out>  ok: EDA_REGISTER_PLUGIN registers eda-synth-yosys
   ok: eda-synth-yosys exposes synth/yosys
@@ -163,7 +163,7 @@ ALL PASS
 ALL PASS
 </system-out>
 	</testcase>
-	<testcase name="eda_pnr_nextpnr_smoke" classname="eda_pnr_nextpnr_smoke" time="0.838506" status="run">
+	<testcase name="eda_pnr_nextpnr_smoke" classname="eda_pnr_nextpnr_smoke" time="0.17584" status="run">
 		<properties/>
 		<system-out>  ok: EDA_REGISTER_PLUGIN registers the plugin
   ok: eda-pnr-nextpnr exposes pnr/nextpnr
@@ -179,7 +179,7 @@ ALL PASS
 ALL PASS
 </system-out>
 	</testcase>
-	<testcase name="eda_pack_flash_smoke" classname="eda_pack_flash_smoke" time="0.817762" status="run">
+	<testcase name="eda_pack_flash_smoke" classname="eda_pack_flash_smoke" time="0.283846" status="run">
 		<properties/>
 		<system-out>  ok: EDA_REGISTER_PLUGIN registers pack/flash plugins
   ok: pack/gowin capability exposed
@@ -192,7 +192,7 @@ ALL PASS
 ALL PASS
 </system-out>
 	</testcase>
-	<testcase name="eda_sim_verilator_smoke" classname="eda_sim_verilator_smoke" time="0.892376" status="run">
+	<testcase name="eda_sim_verilator_smoke" classname="eda_sim_verilator_smoke" time="0.355087" status="run">
 		<properties/>
 		<system-out>  ok: EDA_REGISTER_PLUGIN registers eda-sim-verilator
   ok: sim/verilator capability exposed
@@ -207,7 +207,7 @@ ALL PASS
 ALL PASS
 </system-out>
 	</testcase>
-	<testcase name="eda_sim_frontend_smoke" classname="eda_sim_frontend_smoke" time="0.656518" status="run">
+	<testcase name="eda_sim_frontend_smoke" classname="eda_sim_frontend_smoke" time="0.134332" status="run">
 		<properties/>
 		<system-out>  ok: parses testbench code
   ok: testbench module name
@@ -230,7 +230,7 @@ ALL PASS
 ALL PASS
 </system-out>
 	</testcase>
-	<testcase name="eda_target_profile_smoke" classname="eda_target_profile_smoke" time="0.601786" status="run">
+	<testcase name="eda_target_profile_smoke" classname="eda_target_profile_smoke" time="0.09877" status="run">
 		<properties/>
 		<system-out>  ok: loads tang-nano-9k target profile file
   ok: profile id
@@ -261,7 +261,7 @@ ALL PASS
 ALL PASS
 </system-out>
 	</testcase>
-	<testcase name="eda_gowin_cst_smoke" classname="eda_gowin_cst_smoke" time="0.53441" status="run">
+	<testcase name="eda_gowin_cst_smoke" classname="eda_gowin_cst_smoke" time="0.0716622" status="run">
 		<properties/>
 		<system-out>  ok: generate emits IO_LOC
   ok: generate emits IO_PORT attributes
@@ -279,7 +279,7 @@ ALL PASS
 ALL PASS
 </system-out>
 	</testcase>
-	<testcase name="eda_constraint_sheet_smoke" classname="eda_constraint_sheet_smoke" time="0.633371" status="run">
+	<testcase name="eda_constraint_sheet_smoke" classname="eda_constraint_sheet_smoke" time="0.162584" status="run">
 		<properties/>
 		<system-out>  ok: load pin database
   ok: parses three ports from Yosys JSON
@@ -301,7 +301,7 @@ ALL PASS
 ALL PASS
 </system-out>
 	</testcase>
-	<testcase name="eda_declarative_tool_smoke" classname="eda_declarative_tool_smoke" time="0.829412" status="run">
+	<testcase name="eda_declarative_tool_smoke" classname="eda_declarative_tool_smoke" time="0.180433" status="run">
 		<properties/>
 		<system-out>  ok: parse declarative tool spec
   ok: spec fields
@@ -312,7 +312,7 @@ ALL PASS
 ALL PASS
 </system-out>
 	</testcase>
-	<testcase name="eda_wave_vcd_smoke" classname="eda_wave_vcd_smoke" time="0.725696" status="run">
+	<testcase name="eda_wave_vcd_smoke" classname="eda_wave_vcd_smoke" time="0.0836735" status="run">
 		<properties/>
 		<system-out>  ok: opens VCD
   ok: timescale parsed
@@ -331,7 +331,7 @@ ALL PASS
 ALL PASS
 </system-out>
 	</testcase>
-	<testcase name="eda_wave_trace_adapter_smoke" classname="eda_wave_trace_adapter_smoke" time="0.507219" status="run">
+	<testcase name="eda_wave_trace_adapter_smoke" classname="eda_wave_trace_adapter_smoke" time="0.108007" status="run">
 		<properties/>
 		<system-out>  ok: adapter opens VCD via IWaveformBackend
   ok: adapter exposes signals
@@ -343,7 +343,7 @@ ALL PASS
 ALL PASS
 </system-out>
 	</testcase>
-	<testcase name="eda_declarative_switch_smoke" classname="eda_declarative_switch_smoke" time="0.737786" status="run">
+	<testcase name="eda_declarative_switch_smoke" classname="eda_declarative_switch_smoke" time="0.236497" status="run">
 		<properties/>
 		<system-out>  ok: parse declarative icarus spec
   ok: register declarative icarus into PluginHost
@@ -358,7 +358,7 @@ ALL PASS
 ALL PASS
 </system-out>
 	</testcase>
-	<testcase name="eda_component_library_smoke" classname="eda_component_library_smoke" time="0.67714" status="run">
+	<testcase name="eda_component_library_smoke" classname="eda_component_library_smoke" time="0.092084" status="run">
 		<properties/>
 		<system-out>  ok: loads canvas_elements.json
   ok: library has multiple components
@@ -373,7 +373,7 @@ ALL PASS
 ALL PASS
 </system-out>
 	</testcase>
-	<testcase name="eda_command_bus_smoke" classname="eda_command_bus_smoke" time="0.637983" status="run">
+	<testcase name="eda_command_bus_smoke" classname="eda_command_bus_smoke" time="0.0643953" status="run">
 		<properties/>
 		<system-out>  ok: bus starts empty
   ok: execute add5
@@ -400,7 +400,7 @@ ALL PASS
 ALL PASS
 </system-out>
 	</testcase>
-	<testcase name="sig_tree_sync_smoke" classname="sig_tree_sync_smoke" time="1.69561" status="run">
+	<testcase name="sig_tree_sync_smoke" classname="sig_tree_sync_smoke" time="1.38173" status="run">
 		<properties/>
 		<system-out>  ok: ProjectNode created
   ok: root is Project
@@ -430,7 +430,7 @@ ALL PASS
 ALL PASS
 </system-out>
 	</testcase>
-	<testcase name="k1_port_index_roundtrip" classname="k1_port_index_roundtrip" time="0.888003" status="run">
+	<testcase name="k1_port_index_roundtrip" classname="k1_port_index_roundtrip" time="0.707895" status="run">
 		<properties/>
 		<system-out>PASS "scalar"
 PASS "vector-zero"
@@ -441,7 +441,7 @@ PASS "negative-index"
 PASS 287 checks
 </system-out>
 	</testcase>
-	<testcase name="k1_electrical_acceptance" classname="k1_electrical_acceptance" time="0.0225172" status="run">
+	<testcase name="k1_electrical_acceptance" classname="k1_electrical_acceptance" time="0.0190008" status="run">
 		<properties/>
 		<system-out>PASS synthetic "ok18"
 PASS synthetic "ok33"
@@ -454,18 +454,18 @@ PASS synthetic "no-global-default"
 PASS 33 checks
 </system-out>
 	</testcase>
-	<testcase name="k1_real_tool_export" classname="k1_real_tool_export" time="0.358845" status="run">
+	<testcase name="k1_real_tool_export" classname="k1_real_tool_export" time="0.426068" status="run">
 		<properties/>
 		<system-out>6 cross-checked ports
 E:\sigflow\SigFlow_VirtroFPGA\build-m0\tests\virtual\k1\actual\ports.json.ports.v2.json
 </system-out>
 	</testcase>
-	<testcase name="k1_real_tool_gui_cst" classname="k1_real_tool_gui_cst" time="0.136435" status="run">
+	<testcase name="k1_real_tool_gui_cst" classname="k1_real_tool_gui_cst" time="0.12973" status="run">
 		<properties/>
 		<system-out>PASS 82 checks
 </system-out>
 	</testcase>
-	<testcase name="k2_session_pause_guard_replay" classname="k2_session_pause_guard_replay" time="1.12195" status="run">
+	<testcase name="k2_session_pause_guard_replay" classname="k2_session_pause_guard_replay" time="0.482075" status="run">
 		<properties/>
 		<system-out>PASS "press-release-before-step"
 PASS "press-step-release-step"
@@ -474,143 +474,143 @@ PASS pulses/conflicts, bounded clock/delta, durable markers, 5 tail truncations,
 PASS 82 K2 core checks
 </system-out>
 	</testcase>
-	<testcase name="k2_real_verilated_session" classname="k2_real_verilated_session" time="14.6904" status="run">
+	<testcase name="k2_real_verilated_session" classname="k2_real_verilated_session" time="24.3066" status="run">
 		<properties/>
 		<system-out>PASS: 27 generated real-Verilated runner checks, 2 generic adapters plus real nonconvergence and crash recovery.
 </system-out>
 	</testcase>
-	<testcase name="k3_live_trace_concurrency_and_cases" classname="k3_live_trace_concurrency_and_cases" time="0.687638" status="run">
+	<testcase name="k3_live_trace_concurrency_and_cases" classname="k3_live_trace_concurrency_and_cases" time="0.106575" status="run">
 		<properties/>
 		<system-out>PASS fixture revisions 1/2/3, immutable views, exact positions, cursor expiry, quotas, cache and atomic rejection
-PASS concurrency: 1 writer, 4 readers, 1000 atomic batches, 3000 transitions; reader passes=233
+PASS concurrency: 1 writer, 4 readers, 1000 atomic batches, 3000 transitions; reader passes=265
 PASS existing offline VCD query/value cache semantics
-PASS 224306 LiveTrace checks
+PASS 194508 LiveTrace checks
 </system-out>
 	</testcase>
-	<testcase name="k3_live_trace_thread_sanitizer" classname="k3_live_trace_thread_sanitizer" time="23.8002" status="run">
+	<testcase name="k3_live_trace_thread_sanitizer" classname="k3_live_trace_thread_sanitizer" time="22.3672" status="run">
 		<properties/>
 		<system-out>PASS fixture revisions 1/2/3, immutable views, exact positions, cursor expiry, quotas, cache and atomic rejection
-PASS concurrency: 1 writer, 4 readers, 1000 atomic batches, 3000 transitions; reader passes=233
+PASS concurrency: 1 writer, 4 readers, 1000 atomic batches, 3000 transitions; reader passes=235
 PASS existing offline VCD query/value cache semantics
-PASS 120062 LiveTrace checks
+PASS 119754 LiveTrace checks
 PASS ThreadSanitizer: no data-race report in instrumented LiveTrace/cache/VCD stress test
 </system-out>
 	</testcase>
-	<testcase name="k4_board_wiring_and_cst_variants" classname="k4_board_wiring_and_cst_variants" time="0.914728" status="run">
+	<testcase name="k4_board_wiring_and_cst_variants" classname="k4_board_wiring_and_cst_variants" time="0.274059" status="run">
 		<properties/>
 		<system-out>PASS A4 correct/swapped/unbound CST, required clock role, declarative board and passive LED validity
 PASS 16 K4/K5 core checks
 </system-out>
 	</testcase>
-	<testcase name="k5_topology_transactions" classname="k5_topology_transactions" time="0.0862479" status="run">
+	<testcase name="k5_topology_transactions" classname="k5_topology_transactions" time="0.100879" status="run">
 		<properties/>
 		<system-out>PASS A7/A9/A10 staged topology, two-sided open traces, pullup counterexamples, transient deadlines and 3x normal/fault replay
 PASS 122 K4/K5 core checks
 </system-out>
 	</testcase>
-	<testcase name="k5_open_fault_guard_and_replay" classname="k5_open_fault_guard_and_replay" time="5.7743" status="run">
+	<testcase name="k5_open_fault_guard_and_replay" classname="k5_open_fault_guard_and_replay" time="5.75472" status="run">
 		<properties/>
 		<system-out>PASS 28 real Verilator K4/K5 checks; normal and fault runs each replayed from zero 3 times
 </system-out>
 	</testcase>
-	<testcase name="k5_legacy_real_build_run_vcd" classname="k5_legacy_real_build_run_vcd" time="10.5169" status="run">
+	<testcase name="k5_legacy_real_build_run_vcd" classname="k5_legacy_real_build_run_vcd" time="13.2664" status="run">
 		<properties/>
 		<system-out>PASS real CoreJobService sim.build/sim.run + real Verilator full-adder VCD Open/Query/ValueAt
 </system-out>
 	</testcase>
-	<testcase name="u0_virtual_board_gui_smoke" classname="u0_virtual_board_gui_smoke" time="3.69133" status="run">
+	<testcase name="u0_virtual_board_gui_smoke" classname="u0_virtual_board_gui_smoke" time="3.72464" status="run">
 		<properties/>
 		<system-out>PASS 17 U0 checks: real child runner, UI-thread callbacks, pending/applied, controls, fault mirror, token/DIP rendering
 </system-out>
 	</testcase>
-	<testcase name="u1_m0_full_product_acceptance" classname="u1_m0_full_product_acceptance" time="92.9823" status="run">
+	<testcase name="u1_m0_full_product_acceptance" classname="u1_m0_full_product_acceptance" time="94.0845" status="run">
 		<properties/>
 		<system-out>PASS full wxApp A1-A10; 563 assertions
 </system-out>
 	</testcase>
-	<testcase name="p1_four_faults_and_rng_replay" classname="p1_four_faults_and_rng_replay" time="14.1792" status="run">
+	<testcase name="p1_four_faults_and_rng_replay" classname="p1_four_faults_and_rng_replay" time="2.87271" status="run">
 		<properties/>
 		<system-out>PASS P1 faults: 43 real-tool assertions
 </system-out>
 	</testcase>
-	<testcase name="p1_peripherals_pwm_seg_uart" classname="p1_peripherals_pwm_seg_uart" time="27.7489" status="run">
+	<testcase name="p1_peripherals_pwm_seg_uart" classname="p1_peripherals_pwm_seg_uart" time="12.3149" status="run">
 		<properties/>
 		<system-out>PASS P1 peripherals: 38 real-tool assertions
 </system-out>
 	</testcase>
-	<testcase name="p1_gui_mvp_acceptance" classname="p1_gui_mvp_acceptance" time="96.091" status="run">
+	<testcase name="p1_gui_mvp_acceptance" classname="p1_gui_mvp_acceptance" time="82.7359" status="run">
 		<properties/>
 		<system-out>
 PASS Phase 1 real wxApp: 36 assertions
 </system-out>
 	</testcase>
-	<testcase name="p2_state13_resolver_and_extended_faults" classname="p2_state13_resolver_and_extended_faults" time="31.8922" status="run">
+	<testcase name="p2_state13_resolver_and_extended_faults" classname="p2_state13_resolver_and_extended_faults" time="17.2077" status="run">
 		<properties/>
 		<system-out>PASS P2 faults: 37 real-tool assertions
 </system-out>
 	</testcase>
-	<testcase name="p2_virtual_probe_and_tracebridge" classname="p2_virtual_probe_and_tracebridge" time="14.2689" status="run">
+	<testcase name="p2_virtual_probe_and_tracebridge" classname="p2_virtual_probe_and_tracebridge" time="15.5209" status="run">
 		<properties/>
 		<system-out>PASS P2 probes: 27 real-tool assertions
 </system-out>
 	</testcase>
-	<testcase name="p2_blind_course_gateway_and_grading" classname="p2_blind_course_gateway_and_grading" time="67.041" status="run">
+	<testcase name="p2_blind_course_gateway_and_grading" classname="p2_blind_course_gateway_and_grading" time="35.2235" status="run">
 		<properties/>
 		<system-out>PASS P2 teaching: 48 real-tool assertions
 </system-out>
 	</testcase>
-	<testcase name="p2_gui_teaching_closed_loop_acceptance" classname="p2_gui_teaching_closed_loop_acceptance" time="36.7694" status="run">
+	<testcase name="p2_gui_teaching_closed_loop_acceptance" classname="p2_gui_teaching_closed_loop_acceptance" time="32.295" status="run">
 		<properties/>
 		<system-out>
 PASS real wxApp Phase 2: 24 assertions
 </system-out>
 	</testcase>
-	<testcase name="p3_sfvb_binary_codec_and_js_parity" classname="p3_sfvb_binary_codec_and_js_parity" time="21.9176" status="run">
+	<testcase name="p3_sfvb_binary_codec_and_js_parity" classname="p3_sfvb_binary_codec_and_js_parity" time="19.3352" status="run">
 		<properties/>
 		<system-out>{"status": "passed", "checks": ["versioned schemas validate courses, phase 3 projects and the new timing fault rules", "native actual process exits successfully: {\"checks\":79,\"status\":\"passed\"}\n", "native codec/fault/keypad suite passes 79 checks", "real trajectory advances through UART/DIP/multi-clock steps", "real trace sweep collects per-commit batches: 529", "trajectory three from-zero 
 </system-out>
 	</testcase>
-	<testcase name="p3_matrix_keypad_and_timing_faults" classname="p3_matrix_keypad_and_timing_faults" time="26.1704" status="run">
+	<testcase name="p3_matrix_keypad_and_timing_faults" classname="p3_matrix_keypad_and_timing_faults" time="10.646" status="run">
 		<properties/>
 		<system-out>{"status": "passed", "checks": ["phase 3 projects and the diode board variant validate against the versioned schema", "diode-less scanner contention pauses before importing contested columns", "guard keeps the folded CON state and both fighting scan drivers", "releasing the keys unblocks the strict guard", "scan-contention three from-zero real RTL replays preserve both digests", "diode scanner slo
 </system-out>
 	</testcase>
-	<testcase name="p3_float_window_and_teaching_ui" classname="p3_float_window_and_teaching_ui" time="34.129" status="run">
+	<testcase name="p3_float_window_and_teaching_ui" classname="p3_float_window_and_teaching_ui" time="32.5718" status="run">
 		<properties/>
 		<system-out>
 PASS real wxApp Phase 3: 147 assertions
 </system-out>
 	</testcase>
-	<testcase name="p4_i2c_spi_oled_and_bus_faults" classname="p4_i2c_spi_oled_and_bus_faults" time="126.383" status="run">
+	<testcase name="p4_i2c_spi_oled_and_bus_faults" classname="p4_i2c_spi_oled_and_bus_faults" time="122.434" status="run">
 		<properties/>
 		<system-out>{"status": "passed", "check_count": 26}
 </system-out>
 	</testcase>
-	<testcase name="p4_crc_tamper_and_cdc_approx" classname="p4_crc_tamper_and_cdc_approx" time="48.3074" status="run">
+	<testcase name="p4_crc_tamper_and_cdc_approx" classname="p4_crc_tamper_and_cdc_approx" time="43.2184" status="run">
 		<properties/>
 		<system-out>{"status": "passed", "check_count": 29}
 </system-out>
 	</testcase>
-	<testcase name="p4_gui_oled_keypad_and_course05_acceptance" classname="p4_gui_oled_keypad_and_course05_acceptance" time="60.1105" status="run">
+	<testcase name="p4_gui_oled_keypad_and_course05_acceptance" classname="p4_gui_oled_keypad_and_course05_acceptance" time="64.8625" status="run">
 		<properties/>
 		<system-out>
 PASS real wxApp Phase 4: 33 assertions
 </system-out>
 	</testcase>
-	<testcase name="p5_i2c_multibyte_burst_and_recovery" classname="p5_i2c_multibyte_burst_and_recovery" time="225.527" status="run">
+	<testcase name="p5_i2c_multibyte_burst_and_recovery" classname="p5_i2c_multibyte_burst_and_recovery" time="178.44" status="run">
 		<properties/>
 		<system-out>{"status": "passed", "check_count": 20}
 </system-out>
 	</testcase>
-	<testcase name="p5_sfvb_web_workbench_parity" classname="p5_sfvb_web_workbench_parity" time="76.0567" status="run">
+	<testcase name="p5_sfvb_web_workbench_parity" classname="p5_sfvb_web_workbench_parity" time="58.8582" status="run">
 		<properties/>
 		<system-out>{"status": "passed", "check_count": 3001}
 </system-out>
 	</testcase>
-	<testcase name="p5_gui_full_platform_showcase_acceptance" classname="p5_gui_full_platform_showcase_acceptance" time="48.3097" status="run">
+	<testcase name="p5_gui_full_platform_showcase_acceptance" classname="p5_gui_full_platform_showcase_acceptance" time="47.6855" status="run">
 		<properties/>
 		<system-out>
-PASS real wxApp Phase 5: 25 assertions
+PASS real wxApp Phase 5: 26 assertions
 </system-out>
 	</testcase>
 </testsuite>

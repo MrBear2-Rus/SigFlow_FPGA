@@ -106,7 +106,10 @@ int RunPhase5Gui(int argc,char** argv){
             for(int n=0;n<4;++n)Pump();
             wxBitmap floatShot;
             Check(sigflow_acceptance::CaptureWindow(floatFrame,floatShot),"P5","captures popped-out VirtualBoardFloatFrame via PW_RENDERFULLCONTENT");
-            Check(sigflow_acceptance::DistinctColors(floatShot)>=10,"P5","floating window snapshot renders diverse themed pixels");
+            Check(sigflow_acceptance::DistinctColors(floatShot)>=12,"P5","floating window snapshot renders diverse themed pixels");
+            const int headerOffset=floatFrame->FromDIP(40);
+            wxRect clientBody(0,headerOffset,floatShot.GetWidth(),std::max(0,floatShot.GetHeight()-headerOffset));
+            Check(sigflow_acceptance::DistinctColorsInRegion(floatShot,clientBody)>=10,"P5","floating window body below 34 DIP header renders live workbench canvas and peripherals (not blank gray)");
             Check(floatShot.SaveFile(wxString::FromUTF8(Path(work/"float-showcase.png")),wxBITMAP_TYPE_PNG),"P5","exports float-showcase.png");
         }
         floatFrame->ReturnToMain();for(int n=0;n<6;++n)Pump();

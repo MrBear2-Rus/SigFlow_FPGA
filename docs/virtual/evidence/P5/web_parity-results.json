@@ -3014,7 +3014,7 @@
         "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p12-mixed-cpp-dec.json"
       ],
       "exit_code": 0,
-      "seconds": 0.139
+      "seconds": 0.127
     },
     {
       "argv": [
@@ -3024,7 +3024,7 @@
         "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p12-mixed-js-dec.json"
       ],
       "exit_code": 0,
-      "seconds": 0.06
+      "seconds": 0.056
     },
     {
       "argv": [
@@ -3034,7 +3034,7 @@
         "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p12-mixed-web-proj.json"
       ],
       "exit_code": 0,
-      "seconds": 0.136
+      "seconds": 0.11
     },
     {
       "argv": [
@@ -3046,7 +3046,7 @@
         "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p3-keypad-cpp-dec.json"
       ],
       "exit_code": 0,
-      "seconds": 0.033
+      "seconds": 0.035
     },
     {
       "argv": [
@@ -3056,7 +3056,7 @@
         "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p3-keypad-js-dec.json"
       ],
       "exit_code": 0,
-      "seconds": 0.042
+      "seconds": 0.039
     },
     {
       "argv": [
@@ -3066,7 +3066,7 @@
         "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p3-keypad-web-proj.json"
       ],
       "exit_code": 0,
-      "seconds": 0.05
+      "seconds": 0.048
     },
     {
       "argv": [
@@ -3078,7 +3078,7 @@
         "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p4-oled-cpp-dec.json"
       ],
       "exit_code": 0,
-      "seconds": 0.187
+      "seconds": 0.172
     },
     {
       "argv": [
@@ -3088,7 +3088,7 @@
         "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p4-oled-js-dec.json"
       ],
       "exit_code": 0,
-      "seconds": 0.064
+      "seconds": 0.062
     },
     {
       "argv": [
@@ -3098,7 +3098,7 @@
         "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p4-oled-web-proj.json"
       ],
       "exit_code": 0,
-      "seconds": 0.161
+      "seconds": 0.145
     },
     {
       "argv": [
@@ -3110,7 +3110,7 @@
         "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p4-crc-cdc-cpp-dec.json"
       ],
       "exit_code": 0,
-      "seconds": 0.103
+      "seconds": 0.096
     },
     {
       "argv": [
@@ -3120,7 +3120,7 @@
         "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p4-crc-cdc-js-dec.json"
       ],
       "exit_code": 0,
-      "seconds": 0.055
+      "seconds": 0.049
     },
     {
       "argv": [
@@ -3130,7 +3130,7 @@
         "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p4-crc-cdc-web-proj.json"
       ],
       "exit_code": 0,
-      "seconds": 0.105
+      "seconds": 0.097
     },
     {
       "argv": [
@@ -3142,7 +3142,7 @@
         "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p5-i2c-burst-cpp-dec.json"
       ],
       "exit_code": 0,
-      "seconds": 0.286
+      "seconds": 0.272
     },
     {
       "argv": [
@@ -3152,7 +3152,7 @@
         "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p5-i2c-burst-js-dec.json"
       ],
       "exit_code": 0,
-      "seconds": 0.077
+      "seconds": 0.071
     },
     {
       "argv": [
@@ -3162,7 +3162,7 @@
         "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p5-i2c-burst-web-proj.json"
       ],
       "exit_code": 0,
-      "seconds": 0.116
+      "seconds": 0.122
     },
     {
       "argv": [
@@ -3175,7 +3175,7 @@
         "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\web-projector-selftest.json"
       ],
       "exit_code": 0,
-      "seconds": 0.096
+      "seconds": 0.097
     }
   ],
   "replays": [],

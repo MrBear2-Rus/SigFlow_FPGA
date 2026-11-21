@@ -1,106 +1,106 @@
 Internal ctest changing into directory: E:/sigflow/SigFlow_VirtroFPGA/build-m0
 Test project E:/sigflow/SigFlow_VirtroFPGA/build-m0
       Start  1: job_tests
- 1/50 Test  #1: job_tests ....................................   Passed    3.28 sec
+ 1/50 Test  #1: job_tests ....................................   Passed    2.40 sec
       Start  2: eda_api_contract_smoke
- 2/50 Test  #2: eda_api_contract_smoke .......................   Passed    1.98 sec
+ 2/50 Test  #2: eda_api_contract_smoke .......................   Passed    1.47 sec
       Start  3: eda_job_service_smoke
- 3/50 Test  #3: eda_job_service_smoke ........................   Passed    2.32 sec
+ 3/50 Test  #3: eda_job_service_smoke ........................   Passed    1.83 sec
       Start  4: eda_toolchain_project_smoke
- 4/50 Test  #4: eda_toolchain_project_smoke ..................   Passed    0.71 sec
+ 4/50 Test  #4: eda_toolchain_project_smoke ..................   Passed    0.15 sec
       Start  5: eda_plugin_host_smoke
- 5/50 Test  #5: eda_plugin_host_smoke ........................   Passed    0.59 sec
+ 5/50 Test  #5: eda_plugin_host_smoke ........................   Passed    0.33 sec
       Start  6: eda_synth_yosys_smoke
- 6/50 Test  #6: eda_synth_yosys_smoke ........................   Passed    1.05 sec
+ 6/50 Test  #6: eda_synth_yosys_smoke ........................   Passed    0.21 sec
       Start  7: eda_pnr_nextpnr_smoke
- 7/50 Test  #7: eda_pnr_nextpnr_smoke ........................   Passed    0.84 sec
+ 7/50 Test  #7: eda_pnr_nextpnr_smoke ........................   Passed    0.18 sec
       Start  8: eda_pack_flash_smoke
- 8/50 Test  #8: eda_pack_flash_smoke .........................   Passed    0.82 sec
+ 8/50 Test  #8: eda_pack_flash_smoke .........................   Passed    0.28 sec
       Start  9: eda_sim_verilator_smoke
- 9/50 Test  #9: eda_sim_verilator_smoke ......................   Passed    0.89 sec
+ 9/50 Test  #9: eda_sim_verilator_smoke ......................   Passed    0.36 sec
       Start 10: eda_sim_frontend_smoke
-10/50 Test #10: eda_sim_frontend_smoke .......................   Passed    0.66 sec
+10/50 Test #10: eda_sim_frontend_smoke .......................   Passed    0.13 sec
       Start 11: eda_target_profile_smoke
-11/50 Test #11: eda_target_profile_smoke .....................   Passed    0.60 sec
+11/50 Test #11: eda_target_profile_smoke .....................   Passed    0.10 sec
       Start 12: eda_gowin_cst_smoke
-12/50 Test #12: eda_gowin_cst_smoke ..........................   Passed    0.53 sec
+12/50 Test #12: eda_gowin_cst_smoke ..........................   Passed    0.07 sec
       Start 13: eda_constraint_sheet_smoke
-13/50 Test #13: eda_constraint_sheet_smoke ...................   Passed    0.63 sec
+13/50 Test #13: eda_constraint_sheet_smoke ...................   Passed    0.16 sec
       Start 14: eda_declarative_tool_smoke
-14/50 Test #14: eda_declarative_tool_smoke ...................   Passed    0.83 sec
+14/50 Test #14: eda_declarative_tool_smoke ...................   Passed    0.18 sec
       Start 15: eda_wave_vcd_smoke
-15/50 Test #15: eda_wave_vcd_smoke ...........................   Passed    0.73 sec
+15/50 Test #15: eda_wave_vcd_smoke ...........................   Passed    0.08 sec
       Start 16: eda_wave_trace_adapter_smoke
-16/50 Test #16: eda_wave_trace_adapter_smoke .................   Passed    0.51 sec
+16/50 Test #16: eda_wave_trace_adapter_smoke .................   Passed    0.11 sec
       Start 17: eda_declarative_switch_smoke
-17/50 Test #17: eda_declarative_switch_smoke .................   Passed    0.74 sec
+17/50 Test #17: eda_declarative_switch_smoke .................   Passed    0.24 sec
       Start 18: eda_component_library_smoke
-18/50 Test #18: eda_component_library_smoke ..................   Passed    0.68 sec
+18/50 Test #18: eda_component_library_smoke ..................   Passed    0.09 sec
       Start 19: eda_command_bus_smoke
-19/50 Test #19: eda_command_bus_smoke ........................   Passed    0.64 sec
+19/50 Test #19: eda_command_bus_smoke ........................   Passed    0.06 sec
       Start 20: sig_tree_sync_smoke
-20/50 Test #20: sig_tree_sync_smoke ..........................   Passed    1.70 sec
+20/50 Test #20: sig_tree_sync_smoke ..........................   Passed    1.38 sec
       Start 21: k1_port_index_roundtrip
-21/50 Test #21: k1_port_index_roundtrip ......................   Passed    0.89 sec
+21/50 Test #21: k1_port_index_roundtrip ......................   Passed    0.71 sec
       Start 22: k1_electrical_acceptance
 22/50 Test #22: k1_electrical_acceptance .....................   Passed    0.02 sec
       Start 23: k1_real_tool_export
-23/50 Test #23: k1_real_tool_export ..........................   Passed    0.36 sec
+23/50 Test #23: k1_real_tool_export ..........................   Passed    0.43 sec
       Start 24: k1_real_tool_gui_cst
-24/50 Test #24: k1_real_tool_gui_cst .........................   Passed    0.14 sec
+24/50 Test #24: k1_real_tool_gui_cst .........................   Passed    0.13 sec
       Start 25: k2_session_pause_guard_replay
-25/50 Test #25: k2_session_pause_guard_replay ................   Passed    1.12 sec
+25/50 Test #25: k2_session_pause_guard_replay ................   Passed    0.48 sec
       Start 26: k2_real_verilated_session
-26/50 Test #26: k2_real_verilated_session ....................   Passed   14.69 sec
+26/50 Test #26: k2_real_verilated_session ....................   Passed   24.31 sec
       Start 27: k3_live_trace_concurrency_and_cases
-27/50 Test #27: k3_live_trace_concurrency_and_cases ..........   Passed    0.69 sec
+27/50 Test #27: k3_live_trace_concurrency_and_cases ..........   Passed    0.11 sec
       Start 28: k3_live_trace_thread_sanitizer
-28/50 Test #28: k3_live_trace_thread_sanitizer ...............   Passed   23.80 sec
+28/50 Test #28: k3_live_trace_thread_sanitizer ...............   Passed   22.37 sec
       Start 29: k4_board_wiring_and_cst_variants
-29/50 Test #29: k4_board_wiring_and_cst_variants .............   Passed    0.91 sec
+29/50 Test #29: k4_board_wiring_and_cst_variants .............   Passed    0.27 sec
       Start 30: k5_topology_transactions
-30/50 Test #30: k5_topology_transactions .....................   Passed    0.09 sec
+30/50 Test #30: k5_topology_transactions .....................   Passed    0.10 sec
       Start 31: k5_open_fault_guard_and_replay
-31/50 Test #31: k5_open_fault_guard_and_replay ...............   Passed    5.77 sec
+31/50 Test #31: k5_open_fault_guard_and_replay ...............   Passed    5.75 sec
       Start 32: k5_legacy_real_build_run_vcd
-32/50 Test #32: k5_legacy_real_build_run_vcd .................   Passed   10.52 sec
+32/50 Test #32: k5_legacy_real_build_run_vcd .................   Passed   13.27 sec
       Start 33: u0_virtual_board_gui_smoke
-33/50 Test #33: u0_virtual_board_gui_smoke ...................   Passed    3.69 sec
+33/50 Test #33: u0_virtual_board_gui_smoke ...................   Passed    3.72 sec
       Start 34: u1_m0_full_product_acceptance
-34/50 Test #34: u1_m0_full_product_acceptance ................   Passed   92.98 sec
+34/50 Test #34: u1_m0_full_product_acceptance ................   Passed   94.08 sec
       Start 35: p1_four_faults_and_rng_replay
-35/50 Test #35: p1_four_faults_and_rng_replay ................   Passed   14.18 sec
+35/50 Test #35: p1_four_faults_and_rng_replay ................   Passed    2.87 sec
       Start 36: p1_peripherals_pwm_seg_uart
-36/50 Test #36: p1_peripherals_pwm_seg_uart ..................   Passed   27.75 sec
+36/50 Test #36: p1_peripherals_pwm_seg_uart ..................   Passed   12.31 sec
       Start 37: p1_gui_mvp_acceptance
-37/50 Test #37: p1_gui_mvp_acceptance ........................   Passed   96.09 sec
+37/50 Test #37: p1_gui_mvp_acceptance ........................   Passed   82.74 sec
       Start 38: p2_state13_resolver_and_extended_faults
-38/50 Test #38: p2_state13_resolver_and_extended_faults ......   Passed   31.89 sec
+38/50 Test #38: p2_state13_resolver_and_extended_faults ......   Passed   17.21 sec
       Start 39: p2_virtual_probe_and_tracebridge
-39/50 Test #39: p2_virtual_probe_and_tracebridge .............   Passed   14.27 sec
+39/50 Test #39: p2_virtual_probe_and_tracebridge .............   Passed   15.52 sec
       Start 40: p2_blind_course_gateway_and_grading
-40/50 Test #40: p2_blind_course_gateway_and_grading ..........   Passed   67.04 sec
+40/50 Test #40: p2_blind_course_gateway_and_grading ..........   Passed   35.22 sec
       Start 41: p2_gui_teaching_closed_loop_acceptance
-41/50 Test #41: p2_gui_teaching_closed_loop_acceptance .......   Passed   36.77 sec
+41/50 Test #41: p2_gui_teaching_closed_loop_acceptance .......   Passed   32.29 sec
       Start 42: p3_sfvb_binary_codec_and_js_parity
-42/50 Test #42: p3_sfvb_binary_codec_and_js_parity ...........   Passed   21.92 sec
+42/50 Test #42: p3_sfvb_binary_codec_and_js_parity ...........   Passed   19.34 sec
       Start 43: p3_matrix_keypad_and_timing_faults
-43/50 Test #43: p3_matrix_keypad_and_timing_faults ...........   Passed   26.17 sec
+43/50 Test #43: p3_matrix_keypad_and_timing_faults ...........   Passed   10.65 sec
       Start 44: p3_float_window_and_teaching_ui
-44/50 Test #44: p3_float_window_and_teaching_ui ..............   Passed   34.13 sec
+44/50 Test #44: p3_float_window_and_teaching_ui ..............   Passed   32.57 sec
       Start 45: p4_i2c_spi_oled_and_bus_faults
-45/50 Test #45: p4_i2c_spi_oled_and_bus_faults ...............   Passed  126.38 sec
+45/50 Test #45: p4_i2c_spi_oled_and_bus_faults ...............   Passed  122.43 sec
       Start 46: p4_crc_tamper_and_cdc_approx
-46/50 Test #46: p4_crc_tamper_and_cdc_approx .................   Passed   48.31 sec
+46/50 Test #46: p4_crc_tamper_and_cdc_approx .................   Passed   43.22 sec
       Start 47: p4_gui_oled_keypad_and_course05_acceptance
-47/50 Test #47: p4_gui_oled_keypad_and_course05_acceptance ...   Passed   60.11 sec
+47/50 Test #47: p4_gui_oled_keypad_and_course05_acceptance ...   Passed   64.86 sec
       Start 48: p5_i2c_multibyte_burst_and_recovery
-48/50 Test #48: p5_i2c_multibyte_burst_and_recovery ..........   Passed  225.53 sec
+48/50 Test #48: p5_i2c_multibyte_burst_and_recovery ..........   Passed  178.44 sec
       Start 49: p5_sfvb_web_workbench_parity
-49/50 Test #49: p5_sfvb_web_workbench_parity .................   Passed   76.06 sec
+49/50 Test #49: p5_sfvb_web_workbench_parity .................   Passed   58.86 sec
       Start 50: p5_gui_full_platform_showcase_acceptance
-50/50 Test #50: p5_gui_full_platform_showcase_acceptance .....   Passed   48.31 sec
+50/50 Test #50: p5_gui_full_platform_showcase_acceptance .....   Passed   47.69 sec
 
 100% tests passed, 0 tests failed out of 50
 
-Total Test time (real) = 1131.33 sec
+Total Test time (real) = 951.93 sec
