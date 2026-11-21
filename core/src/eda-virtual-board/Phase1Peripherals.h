@@ -55,7 +55,7 @@ private:
     // (SLO when pulling low, FLT when released) for the next evaluation.
     struct I2c {
         int address=0;std::vector<uint8_t> registers;
-        enum class Phase : uint8_t { Idle,Addr,AckAddr,Write,AckData,Read,MasterAck };
+        enum class Phase : uint8_t { Idle,Addr,AckAddr,Write,AckData,Read,MasterAck,AckWriteHold };
         Phase phase=Phase::Idle;
         bool prev_valid=false,prev_scl=false,prev_sda=false;
         unsigned bits=0;uint8_t shift=0;bool read_mode=false,ack_slot_drive=false,drive_low=false;

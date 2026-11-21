@@ -1,0 +1,3017 @@
+True encode-p12-mixed exits 0: {"frames":15,"status":"passed"}
+
+True js-ref-p12-mixed exits 0: {"status":"passed","frames":15}
+
+True js-proj-p12-mixed exits 0: {"status":"passed","frames":15}
+
+True [p12-mixed] sfvb_reference_decoder.js matches C++ frame-for-frame
+True [p12-mixed] sfvb_web_projector.js projects all 15 frames
+True [p12-mixed#0] run_id parity
+True [p12-mixed#0] 64-bit tick/delta parity
+True [p12-mixed#0] state/reason parity
+True [p12-mixed#0] trace cursor parity
+True [p12-mixed#0] node set parity
+True [p12-mixed#0] node clk27m.out 13-state parity
+True [p12-mixed#0] node dip0.bit0 13-state parity
+True [p12-mixed#0] node dip0.bit1 13-state parity
+True [p12-mixed#0] node key_p3.contact 13-state parity
+True [p12-mixed#0] node key_p4.contact 13-state parity
+True [p12-mixed#0] node led0.K 13-state parity
+True [p12-mixed#0] node led1.K 13-state parity
+True [p12-mixed#0] node led2.K 13-state parity
+True [p12-mixed#0] node led3.K 13-state parity
+True [p12-mixed#0] node led4.K 13-state parity
+True [p12-mixed#0] node led5.K 13-state parity
+True [p12-mixed#0] node pad.10 13-state parity
+True [p12-mixed#0] node pad.11 13-state parity
+True [p12-mixed#0] node pad.13 13-state parity
+True [p12-mixed#0] node pad.14 13-state parity
+True [p12-mixed#0] node pad.15 13-state parity
+True [p12-mixed#0] node pad.16 13-state parity
+True [p12-mixed#0] node pad.17 13-state parity
+True [p12-mixed#0] node pad.18 13-state parity
+True [p12-mixed#0] node pad.25 13-state parity
+True [p12-mixed#0] node pad.26 13-state parity
+True [p12-mixed#0] node pad.27 13-state parity
+True [p12-mixed#0] node pad.28 13-state parity
+True [p12-mixed#0] node pad.29 13-state parity
+True [p12-mixed#0] node pad.3 13-state parity
+True [p12-mixed#0] node pad.30 13-state parity
+True [p12-mixed#0] node pad.33 13-state parity
+True [p12-mixed#0] node pad.34 13-state parity
+True [p12-mixed#0] node pad.35 13-state parity
+True [p12-mixed#0] node pad.36 13-state parity
+True [p12-mixed#0] node pad.37 13-state parity
+True [p12-mixed#0] node pad.38 13-state parity
+True [p12-mixed#0] node pad.4 13-state parity
+True [p12-mixed#0] node pad.40 13-state parity
+True [p12-mixed#0] node pad.41 13-state parity
+True [p12-mixed#0] node pad.52 13-state parity
+True [p12-mixed#0] node seg0.a 13-state parity
+True [p12-mixed#0] node seg0.b 13-state parity
+True [p12-mixed#0] node seg0.c 13-state parity
+True [p12-mixed#0] node seg0.d 13-state parity
+True [p12-mixed#0] node seg0.dig0 13-state parity
+True [p12-mixed#0] node seg0.dig1 13-state parity
+True [p12-mixed#0] node seg0.dig2 13-state parity
+True [p12-mixed#0] node seg0.dig3 13-state parity
+True [p12-mixed#0] node seg0.dp 13-state parity
+True [p12-mixed#0] node seg0.e 13-state parity
+True [p12-mixed#0] node seg0.f 13-state parity
+True [p12-mixed#0] node seg0.g 13-state parity
+True [p12-mixed#0] node uart0.RX 13-state parity
+True [p12-mixed#0] node uart0.TX 13-state parity
+True [p12-mixed#0] led0 mounted
+True [p12-mixed#0] led0 duty_ppm parity
+True [p12-mixed#0] led1 mounted
+True [p12-mixed#0] led1 duty_ppm parity
+True [p12-mixed#0] led2 mounted
+True [p12-mixed#0] led2 duty_ppm parity
+True [p12-mixed#0] led3 mounted
+True [p12-mixed#0] led3 duty_ppm parity
+True [p12-mixed#0] led4 mounted
+True [p12-mixed#0] led4 duty_ppm parity
+True [p12-mixed#0] led5 mounted
+True [p12-mixed#0] led5 duty_ppm parity
+True [p12-mixed#0] key_p3 mounted
+True [p12-mixed#0] key_p4 mounted
+True [p12-mixed#0] dip dip0 parity
+True [p12-mixed#0] seven_seg seg0 parity
+True [p12-mixed#1] run_id parity
+True [p12-mixed#1] 64-bit tick/delta parity
+True [p12-mixed#1] state/reason parity
+True [p12-mixed#1] trace cursor parity
+True [p12-mixed#1] node set parity
+True [p12-mixed#1] node clk27m.out 13-state parity
+True [p12-mixed#1] node dip0.bit0 13-state parity
+True [p12-mixed#1] node dip0.bit1 13-state parity
+True [p12-mixed#1] node key_p3.contact 13-state parity
+True [p12-mixed#1] node key_p4.contact 13-state parity
+True [p12-mixed#1] node led0.K 13-state parity
+True [p12-mixed#1] node led1.K 13-state parity
+True [p12-mixed#1] node led2.K 13-state parity
+True [p12-mixed#1] node led3.K 13-state parity
+True [p12-mixed#1] node led4.K 13-state parity
+True [p12-mixed#1] node led5.K 13-state parity
+True [p12-mixed#1] node pad.10 13-state parity
+True [p12-mixed#1] node pad.11 13-state parity
+True [p12-mixed#1] node pad.13 13-state parity
+True [p12-mixed#1] node pad.14 13-state parity
+True [p12-mixed#1] node pad.15 13-state parity
+True [p12-mixed#1] node pad.16 13-state parity
+True [p12-mixed#1] node pad.17 13-state parity
+True [p12-mixed#1] node pad.18 13-state parity
+True [p12-mixed#1] node pad.25 13-state parity
+True [p12-mixed#1] node pad.26 13-state parity
+True [p12-mixed#1] node pad.27 13-state parity
+True [p12-mixed#1] node pad.28 13-state parity
+True [p12-mixed#1] node pad.29 13-state parity
+True [p12-mixed#1] node pad.3 13-state parity
+True [p12-mixed#1] node pad.30 13-state parity
+True [p12-mixed#1] node pad.33 13-state parity
+True [p12-mixed#1] node pad.34 13-state parity
+True [p12-mixed#1] node pad.35 13-state parity
+True [p12-mixed#1] node pad.36 13-state parity
+True [p12-mixed#1] node pad.37 13-state parity
+True [p12-mixed#1] node pad.38 13-state parity
+True [p12-mixed#1] node pad.4 13-state parity
+True [p12-mixed#1] node pad.40 13-state parity
+True [p12-mixed#1] node pad.41 13-state parity
+True [p12-mixed#1] node pad.52 13-state parity
+True [p12-mixed#1] node seg0.a 13-state parity
+True [p12-mixed#1] node seg0.b 13-state parity
+True [p12-mixed#1] node seg0.c 13-state parity
+True [p12-mixed#1] node seg0.d 13-state parity
+True [p12-mixed#1] node seg0.dig0 13-state parity
+True [p12-mixed#1] node seg0.dig1 13-state parity
+True [p12-mixed#1] node seg0.dig2 13-state parity
+True [p12-mixed#1] node seg0.dig3 13-state parity
+True [p12-mixed#1] node seg0.dp 13-state parity
+True [p12-mixed#1] node seg0.e 13-state parity
+True [p12-mixed#1] node seg0.f 13-state parity
+True [p12-mixed#1] node seg0.g 13-state parity
+True [p12-mixed#1] node uart0.RX 13-state parity
+True [p12-mixed#1] node uart0.TX 13-state parity
+True [p12-mixed#1] led0 mounted
+True [p12-mixed#1] led0 duty_ppm parity
+True [p12-mixed#1] led1 mounted
+True [p12-mixed#1] led1 duty_ppm parity
+True [p12-mixed#1] led2 mounted
+True [p12-mixed#1] led2 duty_ppm parity
+True [p12-mixed#1] led3 mounted
+True [p12-mixed#1] led3 duty_ppm parity
+True [p12-mixed#1] led4 mounted
+True [p12-mixed#1] led4 duty_ppm parity
+True [p12-mixed#1] led5 mounted
+True [p12-mixed#1] led5 duty_ppm parity
+True [p12-mixed#1] key_p3 mounted
+True [p12-mixed#1] key_p4 mounted
+True [p12-mixed#1] dip dip0 parity
+True [p12-mixed#1] seven_seg seg0 parity
+True [p12-mixed#2] run_id parity
+True [p12-mixed#2] 64-bit tick/delta parity
+True [p12-mixed#2] state/reason parity
+True [p12-mixed#2] trace cursor parity
+True [p12-mixed#2] node set parity
+True [p12-mixed#2] node clk27m.out 13-state parity
+True [p12-mixed#2] node dip0.bit0 13-state parity
+True [p12-mixed#2] node dip0.bit1 13-state parity
+True [p12-mixed#2] node key_p3.contact 13-state parity
+True [p12-mixed#2] node key_p4.contact 13-state parity
+True [p12-mixed#2] node led0.K 13-state parity
+True [p12-mixed#2] node led1.K 13-state parity
+True [p12-mixed#2] node led2.K 13-state parity
+True [p12-mixed#2] node led3.K 13-state parity
+True [p12-mixed#2] node led4.K 13-state parity
+True [p12-mixed#2] node led5.K 13-state parity
+True [p12-mixed#2] node pad.10 13-state parity
+True [p12-mixed#2] node pad.11 13-state parity
+True [p12-mixed#2] node pad.13 13-state parity
+True [p12-mixed#2] node pad.14 13-state parity
+True [p12-mixed#2] node pad.15 13-state parity
+True [p12-mixed#2] node pad.16 13-state parity
+True [p12-mixed#2] node pad.17 13-state parity
+True [p12-mixed#2] node pad.18 13-state parity
+True [p12-mixed#2] node pad.25 13-state parity
+True [p12-mixed#2] node pad.26 13-state parity
+True [p12-mixed#2] node pad.27 13-state parity
+True [p12-mixed#2] node pad.28 13-state parity
+True [p12-mixed#2] node pad.29 13-state parity
+True [p12-mixed#2] node pad.3 13-state parity
+True [p12-mixed#2] node pad.30 13-state parity
+True [p12-mixed#2] node pad.33 13-state parity
+True [p12-mixed#2] node pad.34 13-state parity
+True [p12-mixed#2] node pad.35 13-state parity
+True [p12-mixed#2] node pad.36 13-state parity
+True [p12-mixed#2] node pad.37 13-state parity
+True [p12-mixed#2] node pad.38 13-state parity
+True [p12-mixed#2] node pad.4 13-state parity
+True [p12-mixed#2] node pad.40 13-state parity
+True [p12-mixed#2] node pad.41 13-state parity
+True [p12-mixed#2] node pad.52 13-state parity
+True [p12-mixed#2] node seg0.a 13-state parity
+True [p12-mixed#2] node seg0.b 13-state parity
+True [p12-mixed#2] node seg0.c 13-state parity
+True [p12-mixed#2] node seg0.d 13-state parity
+True [p12-mixed#2] node seg0.dig0 13-state parity
+True [p12-mixed#2] node seg0.dig1 13-state parity
+True [p12-mixed#2] node seg0.dig2 13-state parity
+True [p12-mixed#2] node seg0.dig3 13-state parity
+True [p12-mixed#2] node seg0.dp 13-state parity
+True [p12-mixed#2] node seg0.e 13-state parity
+True [p12-mixed#2] node seg0.f 13-state parity
+True [p12-mixed#2] node seg0.g 13-state parity
+True [p12-mixed#2] node uart0.RX 13-state parity
+True [p12-mixed#2] node uart0.TX 13-state parity
+True [p12-mixed#2] led0 mounted
+True [p12-mixed#2] led0 duty_ppm parity
+True [p12-mixed#2] led1 mounted
+True [p12-mixed#2] led1 duty_ppm parity
+True [p12-mixed#2] led2 mounted
+True [p12-mixed#2] led2 duty_ppm parity
+True [p12-mixed#2] led3 mounted
+True [p12-mixed#2] led3 duty_ppm parity
+True [p12-mixed#2] led4 mounted
+True [p12-mixed#2] led4 duty_ppm parity
+True [p12-mixed#2] led5 mounted
+True [p12-mixed#2] led5 duty_ppm parity
+True [p12-mixed#2] key_p3 mounted
+True [p12-mixed#2] key_p4 mounted
+True [p12-mixed#2] dip dip0 parity
+True [p12-mixed#2] seven_seg seg0 parity
+True [p12-mixed#3] run_id parity
+True [p12-mixed#3] 64-bit tick/delta parity
+True [p12-mixed#3] state/reason parity
+True [p12-mixed#3] trace cursor parity
+True [p12-mixed#3] node set parity
+True [p12-mixed#3] node clk27m.out 13-state parity
+True [p12-mixed#3] node dip0.bit0 13-state parity
+True [p12-mixed#3] node dip0.bit1 13-state parity
+True [p12-mixed#3] node key_p3.contact 13-state parity
+True [p12-mixed#3] node key_p4.contact 13-state parity
+True [p12-mixed#3] node led0.K 13-state parity
+True [p12-mixed#3] node led1.K 13-state parity
+True [p12-mixed#3] node led2.K 13-state parity
+True [p12-mixed#3] node led3.K 13-state parity
+True [p12-mixed#3] node led4.K 13-state parity
+True [p12-mixed#3] node led5.K 13-state parity
+True [p12-mixed#3] node pad.10 13-state parity
+True [p12-mixed#3] node pad.11 13-state parity
+True [p12-mixed#3] node pad.13 13-state parity
+True [p12-mixed#3] node pad.14 13-state parity
+True [p12-mixed#3] node pad.15 13-state parity
+True [p12-mixed#3] node pad.16 13-state parity
+True [p12-mixed#3] node pad.17 13-state parity
+True [p12-mixed#3] node pad.18 13-state parity
+True [p12-mixed#3] node pad.25 13-state parity
+True [p12-mixed#3] node pad.26 13-state parity
+True [p12-mixed#3] node pad.27 13-state parity
+True [p12-mixed#3] node pad.28 13-state parity
+True [p12-mixed#3] node pad.29 13-state parity
+True [p12-mixed#3] node pad.3 13-state parity
+True [p12-mixed#3] node pad.30 13-state parity
+True [p12-mixed#3] node pad.33 13-state parity
+True [p12-mixed#3] node pad.34 13-state parity
+True [p12-mixed#3] node pad.35 13-state parity
+True [p12-mixed#3] node pad.36 13-state parity
+True [p12-mixed#3] node pad.37 13-state parity
+True [p12-mixed#3] node pad.38 13-state parity
+True [p12-mixed#3] node pad.4 13-state parity
+True [p12-mixed#3] node pad.40 13-state parity
+True [p12-mixed#3] node pad.41 13-state parity
+True [p12-mixed#3] node pad.52 13-state parity
+True [p12-mixed#3] node seg0.a 13-state parity
+True [p12-mixed#3] node seg0.b 13-state parity
+True [p12-mixed#3] node seg0.c 13-state parity
+True [p12-mixed#3] node seg0.d 13-state parity
+True [p12-mixed#3] node seg0.dig0 13-state parity
+True [p12-mixed#3] node seg0.dig1 13-state parity
+True [p12-mixed#3] node seg0.dig2 13-state parity
+True [p12-mixed#3] node seg0.dig3 13-state parity
+True [p12-mixed#3] node seg0.dp 13-state parity
+True [p12-mixed#3] node seg0.e 13-state parity
+True [p12-mixed#3] node seg0.f 13-state parity
+True [p12-mixed#3] node seg0.g 13-state parity
+True [p12-mixed#3] node uart0.RX 13-state parity
+True [p12-mixed#3] node uart0.TX 13-state parity
+True [p12-mixed#3] led0 mounted
+True [p12-mixed#3] led0 duty_ppm parity
+True [p12-mixed#3] led1 mounted
+True [p12-mixed#3] led1 duty_ppm parity
+True [p12-mixed#3] led2 mounted
+True [p12-mixed#3] led2 duty_ppm parity
+True [p12-mixed#3] led3 mounted
+True [p12-mixed#3] led3 duty_ppm parity
+True [p12-mixed#3] led4 mounted
+True [p12-mixed#3] led4 duty_ppm parity
+True [p12-mixed#3] led5 mounted
+True [p12-mixed#3] led5 duty_ppm parity
+True [p12-mixed#3] key_p3 mounted
+True [p12-mixed#3] key_p4 mounted
+True [p12-mixed#3] dip dip0 parity
+True [p12-mixed#3] seven_seg seg0 parity
+True [p12-mixed#4] run_id parity
+True [p12-mixed#4] 64-bit tick/delta parity
+True [p12-mixed#4] state/reason parity
+True [p12-mixed#4] trace cursor parity
+True [p12-mixed#4] node set parity
+True [p12-mixed#4] node clk27m.out 13-state parity
+True [p12-mixed#4] node dip0.bit0 13-state parity
+True [p12-mixed#4] node dip0.bit1 13-state parity
+True [p12-mixed#4] node key_p3.contact 13-state parity
+True [p12-mixed#4] node key_p4.contact 13-state parity
+True [p12-mixed#4] node led0.K 13-state parity
+True [p12-mixed#4] node led1.K 13-state parity
+True [p12-mixed#4] node led2.K 13-state parity
+True [p12-mixed#4] node led3.K 13-state parity
+True [p12-mixed#4] node led4.K 13-state parity
+True [p12-mixed#4] node led5.K 13-state parity
+True [p12-mixed#4] node pad.10 13-state parity
+True [p12-mixed#4] node pad.11 13-state parity
+True [p12-mixed#4] node pad.13 13-state parity
+True [p12-mixed#4] node pad.14 13-state parity
+True [p12-mixed#4] node pad.15 13-state parity
+True [p12-mixed#4] node pad.16 13-state parity
+True [p12-mixed#4] node pad.17 13-state parity
+True [p12-mixed#4] node pad.18 13-state parity
+True [p12-mixed#4] node pad.25 13-state parity
+True [p12-mixed#4] node pad.26 13-state parity
+True [p12-mixed#4] node pad.27 13-state parity
+True [p12-mixed#4] node pad.28 13-state parity
+True [p12-mixed#4] node pad.29 13-state parity
+True [p12-mixed#4] node pad.3 13-state parity
+True [p12-mixed#4] node pad.30 13-state parity
+True [p12-mixed#4] node pad.33 13-state parity
+True [p12-mixed#4] node pad.34 13-state parity
+True [p12-mixed#4] node pad.35 13-state parity
+True [p12-mixed#4] node pad.36 13-state parity
+True [p12-mixed#4] node pad.37 13-state parity
+True [p12-mixed#4] node pad.38 13-state parity
+True [p12-mixed#4] node pad.4 13-state parity
+True [p12-mixed#4] node pad.40 13-state parity
+True [p12-mixed#4] node pad.41 13-state parity
+True [p12-mixed#4] node pad.52 13-state parity
+True [p12-mixed#4] node seg0.a 13-state parity
+True [p12-mixed#4] node seg0.b 13-state parity
+True [p12-mixed#4] node seg0.c 13-state parity
+True [p12-mixed#4] node seg0.d 13-state parity
+True [p12-mixed#4] node seg0.dig0 13-state parity
+True [p12-mixed#4] node seg0.dig1 13-state parity
+True [p12-mixed#4] node seg0.dig2 13-state parity
+True [p12-mixed#4] node seg0.dig3 13-state parity
+True [p12-mixed#4] node seg0.dp 13-state parity
+True [p12-mixed#4] node seg0.e 13-state parity
+True [p12-mixed#4] node seg0.f 13-state parity
+True [p12-mixed#4] node seg0.g 13-state parity
+True [p12-mixed#4] node uart0.RX 13-state parity
+True [p12-mixed#4] node uart0.TX 13-state parity
+True [p12-mixed#4] led0 mounted
+True [p12-mixed#4] led0 duty_ppm parity
+True [p12-mixed#4] led1 mounted
+True [p12-mixed#4] led1 duty_ppm parity
+True [p12-mixed#4] led2 mounted
+True [p12-mixed#4] led2 duty_ppm parity
+True [p12-mixed#4] led3 mounted
+True [p12-mixed#4] led3 duty_ppm parity
+True [p12-mixed#4] led4 mounted
+True [p12-mixed#4] led4 duty_ppm parity
+True [p12-mixed#4] led5 mounted
+True [p12-mixed#4] led5 duty_ppm parity
+True [p12-mixed#4] key_p3 mounted
+True [p12-mixed#4] key_p4 mounted
+True [p12-mixed#4] dip dip0 parity
+True [p12-mixed#4] seven_seg seg0 parity
+True [p12-mixed#5] run_id parity
+True [p12-mixed#5] 64-bit tick/delta parity
+True [p12-mixed#5] state/reason parity
+True [p12-mixed#5] trace cursor parity
+True [p12-mixed#5] node set parity
+True [p12-mixed#5] node clk27m.out 13-state parity
+True [p12-mixed#5] node dip0.bit0 13-state parity
+True [p12-mixed#5] node dip0.bit1 13-state parity
+True [p12-mixed#5] node key_p3.contact 13-state parity
+True [p12-mixed#5] node key_p4.contact 13-state parity
+True [p12-mixed#5] node led0.K 13-state parity
+True [p12-mixed#5] node led1.K 13-state parity
+True [p12-mixed#5] node led2.K 13-state parity
+True [p12-mixed#5] node led3.K 13-state parity
+True [p12-mixed#5] node led4.K 13-state parity
+True [p12-mixed#5] node led5.K 13-state parity
+True [p12-mixed#5] node pad.10 13-state parity
+True [p12-mixed#5] node pad.11 13-state parity
+True [p12-mixed#5] node pad.13 13-state parity
+True [p12-mixed#5] node pad.14 13-state parity
+True [p12-mixed#5] node pad.15 13-state parity
+True [p12-mixed#5] node pad.16 13-state parity
+True [p12-mixed#5] node pad.17 13-state parity
+True [p12-mixed#5] node pad.18 13-state parity
+True [p12-mixed#5] node pad.25 13-state parity
+True [p12-mixed#5] node pad.26 13-state parity
+True [p12-mixed#5] node pad.27 13-state parity
+True [p12-mixed#5] node pad.28 13-state parity
+True [p12-mixed#5] node pad.29 13-state parity
+True [p12-mixed#5] node pad.3 13-state parity
+True [p12-mixed#5] node pad.30 13-state parity
+True [p12-mixed#5] node pad.33 13-state parity
+True [p12-mixed#5] node pad.34 13-state parity
+True [p12-mixed#5] node pad.35 13-state parity
+True [p12-mixed#5] node pad.36 13-state parity
+True [p12-mixed#5] node pad.37 13-state parity
+True [p12-mixed#5] node pad.38 13-state parity
+True [p12-mixed#5] node pad.4 13-state parity
+True [p12-mixed#5] node pad.40 13-state parity
+True [p12-mixed#5] node pad.41 13-state parity
+True [p12-mixed#5] node pad.52 13-state parity
+True [p12-mixed#5] node seg0.a 13-state parity
+True [p12-mixed#5] node seg0.b 13-state parity
+True [p12-mixed#5] node seg0.c 13-state parity
+True [p12-mixed#5] node seg0.d 13-state parity
+True [p12-mixed#5] node seg0.dig0 13-state parity
+True [p12-mixed#5] node seg0.dig1 13-state parity
+True [p12-mixed#5] node seg0.dig2 13-state parity
+True [p12-mixed#5] node seg0.dig3 13-state parity
+True [p12-mixed#5] node seg0.dp 13-state parity
+True [p12-mixed#5] node seg0.e 13-state parity
+True [p12-mixed#5] node seg0.f 13-state parity
+True [p12-mixed#5] node seg0.g 13-state parity
+True [p12-mixed#5] node uart0.RX 13-state parity
+True [p12-mixed#5] node uart0.TX 13-state parity
+True [p12-mixed#5] led0 mounted
+True [p12-mixed#5] led0 duty_ppm parity
+True [p12-mixed#5] led1 mounted
+True [p12-mixed#5] led1 duty_ppm parity
+True [p12-mixed#5] led2 mounted
+True [p12-mixed#5] led2 duty_ppm parity
+True [p12-mixed#5] led3 mounted
+True [p12-mixed#5] led3 duty_ppm parity
+True [p12-mixed#5] led4 mounted
+True [p12-mixed#5] led4 duty_ppm parity
+True [p12-mixed#5] led5 mounted
+True [p12-mixed#5] led5 duty_ppm parity
+True [p12-mixed#5] key_p3 mounted
+True [p12-mixed#5] key_p4 mounted
+True [p12-mixed#5] dip dip0 parity
+True [p12-mixed#5] seven_seg seg0 parity
+True [p12-mixed#6] run_id parity
+True [p12-mixed#6] 64-bit tick/delta parity
+True [p12-mixed#6] state/reason parity
+True [p12-mixed#6] trace cursor parity
+True [p12-mixed#6] node set parity
+True [p12-mixed#6] node clk27m.out 13-state parity
+True [p12-mixed#6] node dip0.bit0 13-state parity
+True [p12-mixed#6] node dip0.bit1 13-state parity
+True [p12-mixed#6] node key_p3.contact 13-state parity
+True [p12-mixed#6] node key_p4.contact 13-state parity
+True [p12-mixed#6] node led0.K 13-state parity
+True [p12-mixed#6] node led1.K 13-state parity
+True [p12-mixed#6] node led2.K 13-state parity
+True [p12-mixed#6] node led3.K 13-state parity
+True [p12-mixed#6] node led4.K 13-state parity
+True [p12-mixed#6] node led5.K 13-state parity
+True [p12-mixed#6] node pad.10 13-state parity
+True [p12-mixed#6] node pad.11 13-state parity
+True [p12-mixed#6] node pad.13 13-state parity
+True [p12-mixed#6] node pad.14 13-state parity
+True [p12-mixed#6] node pad.15 13-state parity
+True [p12-mixed#6] node pad.16 13-state parity
+True [p12-mixed#6] node pad.17 13-state parity
+True [p12-mixed#6] node pad.18 13-state parity
+True [p12-mixed#6] node pad.25 13-state parity
+True [p12-mixed#6] node pad.26 13-state parity
+True [p12-mixed#6] node pad.27 13-state parity
+True [p12-mixed#6] node pad.28 13-state parity
+True [p12-mixed#6] node pad.29 13-state parity
+True [p12-mixed#6] node pad.3 13-state parity
+True [p12-mixed#6] node pad.30 13-state parity
+True [p12-mixed#6] node pad.33 13-state parity
+True [p12-mixed#6] node pad.34 13-state parity
+True [p12-mixed#6] node pad.35 13-state parity
+True [p12-mixed#6] node pad.36 13-state parity
+True [p12-mixed#6] node pad.37 13-state parity
+True [p12-mixed#6] node pad.38 13-state parity
+True [p12-mixed#6] node pad.4 13-state parity
+True [p12-mixed#6] node pad.40 13-state parity
+True [p12-mixed#6] node pad.41 13-state parity
+True [p12-mixed#6] node pad.52 13-state parity
+True [p12-mixed#6] node seg0.a 13-state parity
+True [p12-mixed#6] node seg0.b 13-state parity
+True [p12-mixed#6] node seg0.c 13-state parity
+True [p12-mixed#6] node seg0.d 13-state parity
+True [p12-mixed#6] node seg0.dig0 13-state parity
+True [p12-mixed#6] node seg0.dig1 13-state parity
+True [p12-mixed#6] node seg0.dig2 13-state parity
+True [p12-mixed#6] node seg0.dig3 13-state parity
+True [p12-mixed#6] node seg0.dp 13-state parity
+True [p12-mixed#6] node seg0.e 13-state parity
+True [p12-mixed#6] node seg0.f 13-state parity
+True [p12-mixed#6] node seg0.g 13-state parity
+True [p12-mixed#6] node uart0.RX 13-state parity
+True [p12-mixed#6] node uart0.TX 13-state parity
+True [p12-mixed#6] led0 mounted
+True [p12-mixed#6] led0 duty_ppm parity
+True [p12-mixed#6] led1 mounted
+True [p12-mixed#6] led1 duty_ppm parity
+True [p12-mixed#6] led2 mounted
+True [p12-mixed#6] led2 duty_ppm parity
+True [p12-mixed#6] led3 mounted
+True [p12-mixed#6] led3 duty_ppm parity
+True [p12-mixed#6] led4 mounted
+True [p12-mixed#6] led4 duty_ppm parity
+True [p12-mixed#6] led5 mounted
+True [p12-mixed#6] led5 duty_ppm parity
+True [p12-mixed#6] key_p3 mounted
+True [p12-mixed#6] key_p4 mounted
+True [p12-mixed#6] dip dip0 parity
+True [p12-mixed#6] seven_seg seg0 parity
+True [p12-mixed#7] run_id parity
+True [p12-mixed#7] 64-bit tick/delta parity
+True [p12-mixed#7] state/reason parity
+True [p12-mixed#7] trace cursor parity
+True [p12-mixed#7] node set parity
+True [p12-mixed#7] node clk27m.out 13-state parity
+True [p12-mixed#7] node dip0.bit0 13-state parity
+True [p12-mixed#7] node dip0.bit1 13-state parity
+True [p12-mixed#7] node key_p3.contact 13-state parity
+True [p12-mixed#7] node key_p4.contact 13-state parity
+True [p12-mixed#7] node led0.K 13-state parity
+True [p12-mixed#7] node led1.K 13-state parity
+True [p12-mixed#7] node led2.K 13-state parity
+True [p12-mixed#7] node led3.K 13-state parity
+True [p12-mixed#7] node led4.K 13-state parity
+True [p12-mixed#7] node led5.K 13-state parity
+True [p12-mixed#7] node pad.10 13-state parity
+True [p12-mixed#7] node pad.11 13-state parity
+True [p12-mixed#7] node pad.13 13-state parity
+True [p12-mixed#7] node pad.14 13-state parity
+True [p12-mixed#7] node pad.15 13-state parity
+True [p12-mixed#7] node pad.16 13-state parity
+True [p12-mixed#7] node pad.17 13-state parity
+True [p12-mixed#7] node pad.18 13-state parity
+True [p12-mixed#7] node pad.25 13-state parity
+True [p12-mixed#7] node pad.26 13-state parity
+True [p12-mixed#7] node pad.27 13-state parity
+True [p12-mixed#7] node pad.28 13-state parity
+True [p12-mixed#7] node pad.29 13-state parity
+True [p12-mixed#7] node pad.3 13-state parity
+True [p12-mixed#7] node pad.30 13-state parity
+True [p12-mixed#7] node pad.33 13-state parity
+True [p12-mixed#7] node pad.34 13-state parity
+True [p12-mixed#7] node pad.35 13-state parity
+True [p12-mixed#7] node pad.36 13-state parity
+True [p12-mixed#7] node pad.37 13-state parity
+True [p12-mixed#7] node pad.38 13-state parity
+True [p12-mixed#7] node pad.4 13-state parity
+True [p12-mixed#7] node pad.40 13-state parity
+True [p12-mixed#7] node pad.41 13-state parity
+True [p12-mixed#7] node pad.52 13-state parity
+True [p12-mixed#7] node seg0.a 13-state parity
+True [p12-mixed#7] node seg0.b 13-state parity
+True [p12-mixed#7] node seg0.c 13-state parity
+True [p12-mixed#7] node seg0.d 13-state parity
+True [p12-mixed#7] node seg0.dig0 13-state parity
+True [p12-mixed#7] node seg0.dig1 13-state parity
+True [p12-mixed#7] node seg0.dig2 13-state parity
+True [p12-mixed#7] node seg0.dig3 13-state parity
+True [p12-mixed#7] node seg0.dp 13-state parity
+True [p12-mixed#7] node seg0.e 13-state parity
+True [p12-mixed#7] node seg0.f 13-state parity
+True [p12-mixed#7] node seg0.g 13-state parity
+True [p12-mixed#7] node uart0.RX 13-state parity
+True [p12-mixed#7] node uart0.TX 13-state parity
+True [p12-mixed#7] led0 mounted
+True [p12-mixed#7] led0 duty_ppm parity
+True [p12-mixed#7] led1 mounted
+True [p12-mixed#7] led1 duty_ppm parity
+True [p12-mixed#7] led2 mounted
+True [p12-mixed#7] led2 duty_ppm parity
+True [p12-mixed#7] led3 mounted
+True [p12-mixed#7] led3 duty_ppm parity
+True [p12-mixed#7] led4 mounted
+True [p12-mixed#7] led4 duty_ppm parity
+True [p12-mixed#7] led5 mounted
+True [p12-mixed#7] led5 duty_ppm parity
+True [p12-mixed#7] key_p3 mounted
+True [p12-mixed#7] key_p4 mounted
+True [p12-mixed#7] dip dip0 parity
+True [p12-mixed#7] seven_seg seg0 parity
+True [p12-mixed#8] run_id parity
+True [p12-mixed#8] 64-bit tick/delta parity
+True [p12-mixed#8] state/reason parity
+True [p12-mixed#8] trace cursor parity
+True [p12-mixed#8] node set parity
+True [p12-mixed#8] node clk27m.out 13-state parity
+True [p12-mixed#8] node dip0.bit0 13-state parity
+True [p12-mixed#8] node dip0.bit1 13-state parity
+True [p12-mixed#8] node key_p3.contact 13-state parity
+True [p12-mixed#8] node key_p4.contact 13-state parity
+True [p12-mixed#8] node led0.K 13-state parity
+True [p12-mixed#8] node led1.K 13-state parity
+True [p12-mixed#8] node led2.K 13-state parity
+True [p12-mixed#8] node led3.K 13-state parity
+True [p12-mixed#8] node led4.K 13-state parity
+True [p12-mixed#8] node led5.K 13-state parity
+True [p12-mixed#8] node pad.10 13-state parity
+True [p12-mixed#8] node pad.11 13-state parity
+True [p12-mixed#8] node pad.13 13-state parity
+True [p12-mixed#8] node pad.14 13-state parity
+True [p12-mixed#8] node pad.15 13-state parity
+True [p12-mixed#8] node pad.16 13-state parity
+True [p12-mixed#8] node pad.17 13-state parity
+True [p12-mixed#8] node pad.18 13-state parity
+True [p12-mixed#8] node pad.25 13-state parity
+True [p12-mixed#8] node pad.26 13-state parity
+True [p12-mixed#8] node pad.27 13-state parity
+True [p12-mixed#8] node pad.28 13-state parity
+True [p12-mixed#8] node pad.29 13-state parity
+True [p12-mixed#8] node pad.3 13-state parity
+True [p12-mixed#8] node pad.30 13-state parity
+True [p12-mixed#8] node pad.33 13-state parity
+True [p12-mixed#8] node pad.34 13-state parity
+True [p12-mixed#8] node pad.35 13-state parity
+True [p12-mixed#8] node pad.36 13-state parity
+True [p12-mixed#8] node pad.37 13-state parity
+True [p12-mixed#8] node pad.38 13-state parity
+True [p12-mixed#8] node pad.4 13-state parity
+True [p12-mixed#8] node pad.40 13-state parity
+True [p12-mixed#8] node pad.41 13-state parity
+True [p12-mixed#8] node pad.52 13-state parity
+True [p12-mixed#8] node seg0.a 13-state parity
+True [p12-mixed#8] node seg0.b 13-state parity
+True [p12-mixed#8] node seg0.c 13-state parity
+True [p12-mixed#8] node seg0.d 13-state parity
+True [p12-mixed#8] node seg0.dig0 13-state parity
+True [p12-mixed#8] node seg0.dig1 13-state parity
+True [p12-mixed#8] node seg0.dig2 13-state parity
+True [p12-mixed#8] node seg0.dig3 13-state parity
+True [p12-mixed#8] node seg0.dp 13-state parity
+True [p12-mixed#8] node seg0.e 13-state parity
+True [p12-mixed#8] node seg0.f 13-state parity
+True [p12-mixed#8] node seg0.g 13-state parity
+True [p12-mixed#8] node uart0.RX 13-state parity
+True [p12-mixed#8] node uart0.TX 13-state parity
+True [p12-mixed#8] led0 mounted
+True [p12-mixed#8] led0 duty_ppm parity
+True [p12-mixed#8] led1 mounted
+True [p12-mixed#8] led1 duty_ppm parity
+True [p12-mixed#8] led2 mounted
+True [p12-mixed#8] led2 duty_ppm parity
+True [p12-mixed#8] led3 mounted
+True [p12-mixed#8] led3 duty_ppm parity
+True [p12-mixed#8] led4 mounted
+True [p12-mixed#8] led4 duty_ppm parity
+True [p12-mixed#8] led5 mounted
+True [p12-mixed#8] led5 duty_ppm parity
+True [p12-mixed#8] key_p3 mounted
+True [p12-mixed#8] key_p4 mounted
+True [p12-mixed#8] dip dip0 parity
+True [p12-mixed#8] seven_seg seg0 parity
+True [p12-mixed#9] run_id parity
+True [p12-mixed#9] 64-bit tick/delta parity
+True [p12-mixed#9] state/reason parity
+True [p12-mixed#9] trace cursor parity
+True [p12-mixed#9] node set parity
+True [p12-mixed#9] node clk27m.out 13-state parity
+True [p12-mixed#9] node dip0.bit0 13-state parity
+True [p12-mixed#9] node dip0.bit1 13-state parity
+True [p12-mixed#9] node key_p3.contact 13-state parity
+True [p12-mixed#9] node key_p4.contact 13-state parity
+True [p12-mixed#9] node led0.K 13-state parity
+True [p12-mixed#9] node led1.K 13-state parity
+True [p12-mixed#9] node led2.K 13-state parity
+True [p12-mixed#9] node led3.K 13-state parity
+True [p12-mixed#9] node led4.K 13-state parity
+True [p12-mixed#9] node led5.K 13-state parity
+True [p12-mixed#9] node pad.10 13-state parity
+True [p12-mixed#9] node pad.11 13-state parity
+True [p12-mixed#9] node pad.13 13-state parity
+True [p12-mixed#9] node pad.14 13-state parity
+True [p12-mixed#9] node pad.15 13-state parity
+True [p12-mixed#9] node pad.16 13-state parity
+True [p12-mixed#9] node pad.17 13-state parity
+True [p12-mixed#9] node pad.18 13-state parity
+True [p12-mixed#9] node pad.25 13-state parity
+True [p12-mixed#9] node pad.26 13-state parity
+True [p12-mixed#9] node pad.27 13-state parity
+True [p12-mixed#9] node pad.28 13-state parity
+True [p12-mixed#9] node pad.29 13-state parity
+True [p12-mixed#9] node pad.3 13-state parity
+True [p12-mixed#9] node pad.30 13-state parity
+True [p12-mixed#9] node pad.33 13-state parity
+True [p12-mixed#9] node pad.34 13-state parity
+True [p12-mixed#9] node pad.35 13-state parity
+True [p12-mixed#9] node pad.36 13-state parity
+True [p12-mixed#9] node pad.37 13-state parity
+True [p12-mixed#9] node pad.38 13-state parity
+True [p12-mixed#9] node pad.4 13-state parity
+True [p12-mixed#9] node pad.40 13-state parity
+True [p12-mixed#9] node pad.41 13-state parity
+True [p12-mixed#9] node pad.52 13-state parity
+True [p12-mixed#9] node seg0.a 13-state parity
+True [p12-mixed#9] node seg0.b 13-state parity
+True [p12-mixed#9] node seg0.c 13-state parity
+True [p12-mixed#9] node seg0.d 13-state parity
+True [p12-mixed#9] node seg0.dig0 13-state parity
+True [p12-mixed#9] node seg0.dig1 13-state parity
+True [p12-mixed#9] node seg0.dig2 13-state parity
+True [p12-mixed#9] node seg0.dig3 13-state parity
+True [p12-mixed#9] node seg0.dp 13-state parity
+True [p12-mixed#9] node seg0.e 13-state parity
+True [p12-mixed#9] node seg0.f 13-state parity
+True [p12-mixed#9] node seg0.g 13-state parity
+True [p12-mixed#9] node uart0.RX 13-state parity
+True [p12-mixed#9] node uart0.TX 13-state parity
+True [p12-mixed#9] led0 mounted
+True [p12-mixed#9] led0 duty_ppm parity
+True [p12-mixed#9] led1 mounted
+True [p12-mixed#9] led1 duty_ppm parity
+True [p12-mixed#9] led2 mounted
+True [p12-mixed#9] led2 duty_ppm parity
+True [p12-mixed#9] led3 mounted
+True [p12-mixed#9] led3 duty_ppm parity
+True [p12-mixed#9] led4 mounted
+True [p12-mixed#9] led4 duty_ppm parity
+True [p12-mixed#9] led5 mounted
+True [p12-mixed#9] led5 duty_ppm parity
+True [p12-mixed#9] key_p3 mounted
+True [p12-mixed#9] key_p4 mounted
+True [p12-mixed#9] dip dip0 parity
+True [p12-mixed#9] seven_seg seg0 parity
+True [p12-mixed#10] run_id parity
+True [p12-mixed#10] 64-bit tick/delta parity
+True [p12-mixed#10] state/reason parity
+True [p12-mixed#10] trace cursor parity
+True [p12-mixed#10] node set parity
+True [p12-mixed#10] node clk27m.out 13-state parity
+True [p12-mixed#10] node dip0.bit0 13-state parity
+True [p12-mixed#10] node dip0.bit1 13-state parity
+True [p12-mixed#10] node key_p3.contact 13-state parity
+True [p12-mixed#10] node key_p4.contact 13-state parity
+True [p12-mixed#10] node led0.K 13-state parity
+True [p12-mixed#10] node led1.K 13-state parity
+True [p12-mixed#10] node led2.K 13-state parity
+True [p12-mixed#10] node led3.K 13-state parity
+True [p12-mixed#10] node led4.K 13-state parity
+True [p12-mixed#10] node led5.K 13-state parity
+True [p12-mixed#10] node pad.10 13-state parity
+True [p12-mixed#10] node pad.11 13-state parity
+True [p12-mixed#10] node pad.13 13-state parity
+True [p12-mixed#10] node pad.14 13-state parity
+True [p12-mixed#10] node pad.15 13-state parity
+True [p12-mixed#10] node pad.16 13-state parity
+True [p12-mixed#10] node pad.17 13-state parity
+True [p12-mixed#10] node pad.18 13-state parity
+True [p12-mixed#10] node pad.25 13-state parity
+True [p12-mixed#10] node pad.26 13-state parity
+True [p12-mixed#10] node pad.27 13-state parity
+True [p12-mixed#10] node pad.28 13-state parity
+True [p12-mixed#10] node pad.29 13-state parity
+True [p12-mixed#10] node pad.3 13-state parity
+True [p12-mixed#10] node pad.30 13-state parity
+True [p12-mixed#10] node pad.33 13-state parity
+True [p12-mixed#10] node pad.34 13-state parity
+True [p12-mixed#10] node pad.35 13-state parity
+True [p12-mixed#10] node pad.36 13-state parity
+True [p12-mixed#10] node pad.37 13-state parity
+True [p12-mixed#10] node pad.38 13-state parity
+True [p12-mixed#10] node pad.4 13-state parity
+True [p12-mixed#10] node pad.40 13-state parity
+True [p12-mixed#10] node pad.41 13-state parity
+True [p12-mixed#10] node pad.52 13-state parity
+True [p12-mixed#10] node seg0.a 13-state parity
+True [p12-mixed#10] node seg0.b 13-state parity
+True [p12-mixed#10] node seg0.c 13-state parity
+True [p12-mixed#10] node seg0.d 13-state parity
+True [p12-mixed#10] node seg0.dig0 13-state parity
+True [p12-mixed#10] node seg0.dig1 13-state parity
+True [p12-mixed#10] node seg0.dig2 13-state parity
+True [p12-mixed#10] node seg0.dig3 13-state parity
+True [p12-mixed#10] node seg0.dp 13-state parity
+True [p12-mixed#10] node seg0.e 13-state parity
+True [p12-mixed#10] node seg0.f 13-state parity
+True [p12-mixed#10] node seg0.g 13-state parity
+True [p12-mixed#10] node uart0.RX 13-state parity
+True [p12-mixed#10] node uart0.TX 13-state parity
+True [p12-mixed#10] led0 mounted
+True [p12-mixed#10] led0 duty_ppm parity
+True [p12-mixed#10] led1 mounted
+True [p12-mixed#10] led1 duty_ppm parity
+True [p12-mixed#10] led2 mounted
+True [p12-mixed#10] led2 duty_ppm parity
+True [p12-mixed#10] led3 mounted
+True [p12-mixed#10] led3 duty_ppm parity
+True [p12-mixed#10] led4 mounted
+True [p12-mixed#10] led4 duty_ppm parity
+True [p12-mixed#10] led5 mounted
+True [p12-mixed#10] led5 duty_ppm parity
+True [p12-mixed#10] key_p3 mounted
+True [p12-mixed#10] key_p4 mounted
+True [p12-mixed#10] dip dip0 parity
+True [p12-mixed#10] seven_seg seg0 parity
+True [p12-mixed#11] run_id parity
+True [p12-mixed#11] 64-bit tick/delta parity
+True [p12-mixed#11] state/reason parity
+True [p12-mixed#11] trace cursor parity
+True [p12-mixed#11] node set parity
+True [p12-mixed#11] node clk27m.out 13-state parity
+True [p12-mixed#11] node dip0.bit0 13-state parity
+True [p12-mixed#11] node dip0.bit1 13-state parity
+True [p12-mixed#11] node key_p3.contact 13-state parity
+True [p12-mixed#11] node key_p4.contact 13-state parity
+True [p12-mixed#11] node led0.K 13-state parity
+True [p12-mixed#11] node led1.K 13-state parity
+True [p12-mixed#11] node led2.K 13-state parity
+True [p12-mixed#11] node led3.K 13-state parity
+True [p12-mixed#11] node led4.K 13-state parity
+True [p12-mixed#11] node led5.K 13-state parity
+True [p12-mixed#11] node pad.10 13-state parity
+True [p12-mixed#11] node pad.11 13-state parity
+True [p12-mixed#11] node pad.13 13-state parity
+True [p12-mixed#11] node pad.14 13-state parity
+True [p12-mixed#11] node pad.15 13-state parity
+True [p12-mixed#11] node pad.16 13-state parity
+True [p12-mixed#11] node pad.17 13-state parity
+True [p12-mixed#11] node pad.18 13-state parity
+True [p12-mixed#11] node pad.25 13-state parity
+True [p12-mixed#11] node pad.26 13-state parity
+True [p12-mixed#11] node pad.27 13-state parity
+True [p12-mixed#11] node pad.28 13-state parity
+True [p12-mixed#11] node pad.29 13-state parity
+True [p12-mixed#11] node pad.3 13-state parity
+True [p12-mixed#11] node pad.30 13-state parity
+True [p12-mixed#11] node pad.33 13-state parity
+True [p12-mixed#11] node pad.34 13-state parity
+True [p12-mixed#11] node pad.35 13-state parity
+True [p12-mixed#11] node pad.36 13-state parity
+True [p12-mixed#11] node pad.37 13-state parity
+True [p12-mixed#11] node pad.38 13-state parity
+True [p12-mixed#11] node pad.4 13-state parity
+True [p12-mixed#11] node pad.40 13-state parity
+True [p12-mixed#11] node pad.41 13-state parity
+True [p12-mixed#11] node pad.52 13-state parity
+True [p12-mixed#11] node seg0.a 13-state parity
+True [p12-mixed#11] node seg0.b 13-state parity
+True [p12-mixed#11] node seg0.c 13-state parity
+True [p12-mixed#11] node seg0.d 13-state parity
+True [p12-mixed#11] node seg0.dig0 13-state parity
+True [p12-mixed#11] node seg0.dig1 13-state parity
+True [p12-mixed#11] node seg0.dig2 13-state parity
+True [p12-mixed#11] node seg0.dig3 13-state parity
+True [p12-mixed#11] node seg0.dp 13-state parity
+True [p12-mixed#11] node seg0.e 13-state parity
+True [p12-mixed#11] node seg0.f 13-state parity
+True [p12-mixed#11] node seg0.g 13-state parity
+True [p12-mixed#11] node uart0.RX 13-state parity
+True [p12-mixed#11] node uart0.TX 13-state parity
+True [p12-mixed#11] led0 mounted
+True [p12-mixed#11] led0 duty_ppm parity
+True [p12-mixed#11] led1 mounted
+True [p12-mixed#11] led1 duty_ppm parity
+True [p12-mixed#11] led2 mounted
+True [p12-mixed#11] led2 duty_ppm parity
+True [p12-mixed#11] led3 mounted
+True [p12-mixed#11] led3 duty_ppm parity
+True [p12-mixed#11] led4 mounted
+True [p12-mixed#11] led4 duty_ppm parity
+True [p12-mixed#11] led5 mounted
+True [p12-mixed#11] led5 duty_ppm parity
+True [p12-mixed#11] key_p3 mounted
+True [p12-mixed#11] key_p4 mounted
+True [p12-mixed#11] dip dip0 parity
+True [p12-mixed#11] seven_seg seg0 parity
+True [p12-mixed#12] run_id parity
+True [p12-mixed#12] 64-bit tick/delta parity
+True [p12-mixed#12] state/reason parity
+True [p12-mixed#12] trace cursor parity
+True [p12-mixed#12] node set parity
+True [p12-mixed#12] node clk27m.out 13-state parity
+True [p12-mixed#12] node dip0.bit0 13-state parity
+True [p12-mixed#12] node dip0.bit1 13-state parity
+True [p12-mixed#12] node key_p3.contact 13-state parity
+True [p12-mixed#12] node key_p4.contact 13-state parity
+True [p12-mixed#12] node led0.K 13-state parity
+True [p12-mixed#12] node led1.K 13-state parity
+True [p12-mixed#12] node led2.K 13-state parity
+True [p12-mixed#12] node led3.K 13-state parity
+True [p12-mixed#12] node led4.K 13-state parity
+True [p12-mixed#12] node led5.K 13-state parity
+True [p12-mixed#12] node pad.10 13-state parity
+True [p12-mixed#12] node pad.11 13-state parity
+True [p12-mixed#12] node pad.13 13-state parity
+True [p12-mixed#12] node pad.14 13-state parity
+True [p12-mixed#12] node pad.15 13-state parity
+True [p12-mixed#12] node pad.16 13-state parity
+True [p12-mixed#12] node pad.17 13-state parity
+True [p12-mixed#12] node pad.18 13-state parity
+True [p12-mixed#12] node pad.25 13-state parity
+True [p12-mixed#12] node pad.26 13-state parity
+True [p12-mixed#12] node pad.27 13-state parity
+True [p12-mixed#12] node pad.28 13-state parity
+True [p12-mixed#12] node pad.29 13-state parity
+True [p12-mixed#12] node pad.3 13-state parity
+True [p12-mixed#12] node pad.30 13-state parity
+True [p12-mixed#12] node pad.33 13-state parity
+True [p12-mixed#12] node pad.34 13-state parity
+True [p12-mixed#12] node pad.35 13-state parity
+True [p12-mixed#12] node pad.36 13-state parity
+True [p12-mixed#12] node pad.37 13-state parity
+True [p12-mixed#12] node pad.38 13-state parity
+True [p12-mixed#12] node pad.4 13-state parity
+True [p12-mixed#12] node pad.40 13-state parity
+True [p12-mixed#12] node pad.41 13-state parity
+True [p12-mixed#12] node pad.52 13-state parity
+True [p12-mixed#12] node seg0.a 13-state parity
+True [p12-mixed#12] node seg0.b 13-state parity
+True [p12-mixed#12] node seg0.c 13-state parity
+True [p12-mixed#12] node seg0.d 13-state parity
+True [p12-mixed#12] node seg0.dig0 13-state parity
+True [p12-mixed#12] node seg0.dig1 13-state parity
+True [p12-mixed#12] node seg0.dig2 13-state parity
+True [p12-mixed#12] node seg0.dig3 13-state parity
+True [p12-mixed#12] node seg0.dp 13-state parity
+True [p12-mixed#12] node seg0.e 13-state parity
+True [p12-mixed#12] node seg0.f 13-state parity
+True [p12-mixed#12] node seg0.g 13-state parity
+True [p12-mixed#12] node uart0.RX 13-state parity
+True [p12-mixed#12] node uart0.TX 13-state parity
+True [p12-mixed#12] led0 mounted
+True [p12-mixed#12] led0 duty_ppm parity
+True [p12-mixed#12] led1 mounted
+True [p12-mixed#12] led1 duty_ppm parity
+True [p12-mixed#12] led2 mounted
+True [p12-mixed#12] led2 duty_ppm parity
+True [p12-mixed#12] led3 mounted
+True [p12-mixed#12] led3 duty_ppm parity
+True [p12-mixed#12] led4 mounted
+True [p12-mixed#12] led4 duty_ppm parity
+True [p12-mixed#12] led5 mounted
+True [p12-mixed#12] led5 duty_ppm parity
+True [p12-mixed#12] key_p3 mounted
+True [p12-mixed#12] key_p4 mounted
+True [p12-mixed#12] dip dip0 parity
+True [p12-mixed#12] seven_seg seg0 parity
+True [p12-mixed#13] run_id parity
+True [p12-mixed#13] 64-bit tick/delta parity
+True [p12-mixed#13] state/reason parity
+True [p12-mixed#13] trace cursor parity
+True [p12-mixed#13] node set parity
+True [p12-mixed#13] node clk27m.out 13-state parity
+True [p12-mixed#13] node dip0.bit0 13-state parity
+True [p12-mixed#13] node dip0.bit1 13-state parity
+True [p12-mixed#13] node key_p3.contact 13-state parity
+True [p12-mixed#13] node key_p4.contact 13-state parity
+True [p12-mixed#13] node led0.K 13-state parity
+True [p12-mixed#13] node led1.K 13-state parity
+True [p12-mixed#13] node led2.K 13-state parity
+True [p12-mixed#13] node led3.K 13-state parity
+True [p12-mixed#13] node led4.K 13-state parity
+True [p12-mixed#13] node led5.K 13-state parity
+True [p12-mixed#13] node pad.10 13-state parity
+True [p12-mixed#13] node pad.11 13-state parity
+True [p12-mixed#13] node pad.13 13-state parity
+True [p12-mixed#13] node pad.14 13-state parity
+True [p12-mixed#13] node pad.15 13-state parity
+True [p12-mixed#13] node pad.16 13-state parity
+True [p12-mixed#13] node pad.17 13-state parity
+True [p12-mixed#13] node pad.18 13-state parity
+True [p12-mixed#13] node pad.25 13-state parity
+True [p12-mixed#13] node pad.26 13-state parity
+True [p12-mixed#13] node pad.27 13-state parity
+True [p12-mixed#13] node pad.28 13-state parity
+True [p12-mixed#13] node pad.29 13-state parity
+True [p12-mixed#13] node pad.3 13-state parity
+True [p12-mixed#13] node pad.30 13-state parity
+True [p12-mixed#13] node pad.33 13-state parity
+True [p12-mixed#13] node pad.34 13-state parity
+True [p12-mixed#13] node pad.35 13-state parity
+True [p12-mixed#13] node pad.36 13-state parity
+True [p12-mixed#13] node pad.37 13-state parity
+True [p12-mixed#13] node pad.38 13-state parity
+True [p12-mixed#13] node pad.4 13-state parity
+True [p12-mixed#13] node pad.40 13-state parity
+True [p12-mixed#13] node pad.41 13-state parity
+True [p12-mixed#13] node pad.52 13-state parity
+True [p12-mixed#13] node seg0.a 13-state parity
+True [p12-mixed#13] node seg0.b 13-state parity
+True [p12-mixed#13] node seg0.c 13-state parity
+True [p12-mixed#13] node seg0.d 13-state parity
+True [p12-mixed#13] node seg0.dig0 13-state parity
+True [p12-mixed#13] node seg0.dig1 13-state parity
+True [p12-mixed#13] node seg0.dig2 13-state parity
+True [p12-mixed#13] node seg0.dig3 13-state parity
+True [p12-mixed#13] node seg0.dp 13-state parity
+True [p12-mixed#13] node seg0.e 13-state parity
+True [p12-mixed#13] node seg0.f 13-state parity
+True [p12-mixed#13] node seg0.g 13-state parity
+True [p12-mixed#13] node uart0.RX 13-state parity
+True [p12-mixed#13] node uart0.TX 13-state parity
+True [p12-mixed#13] led0 mounted
+True [p12-mixed#13] led0 duty_ppm parity
+True [p12-mixed#13] led1 mounted
+True [p12-mixed#13] led1 duty_ppm parity
+True [p12-mixed#13] led2 mounted
+True [p12-mixed#13] led2 duty_ppm parity
+True [p12-mixed#13] led3 mounted
+True [p12-mixed#13] led3 duty_ppm parity
+True [p12-mixed#13] led4 mounted
+True [p12-mixed#13] led4 duty_ppm parity
+True [p12-mixed#13] led5 mounted
+True [p12-mixed#13] led5 duty_ppm parity
+True [p12-mixed#13] key_p3 mounted
+True [p12-mixed#13] key_p4 mounted
+True [p12-mixed#13] dip dip0 parity
+True [p12-mixed#13] seven_seg seg0 parity
+True [p12-mixed#14] run_id parity
+True [p12-mixed#14] 64-bit tick/delta parity
+True [p12-mixed#14] state/reason parity
+True [p12-mixed#14] trace cursor parity
+True [p12-mixed#14] node set parity
+True [p12-mixed#14] node clk27m.out 13-state parity
+True [p12-mixed#14] node dip0.bit0 13-state parity
+True [p12-mixed#14] node dip0.bit1 13-state parity
+True [p12-mixed#14] node key_p3.contact 13-state parity
+True [p12-mixed#14] node key_p4.contact 13-state parity
+True [p12-mixed#14] node led0.K 13-state parity
+True [p12-mixed#14] node led1.K 13-state parity
+True [p12-mixed#14] node led2.K 13-state parity
+True [p12-mixed#14] node led3.K 13-state parity
+True [p12-mixed#14] node led4.K 13-state parity
+True [p12-mixed#14] node led5.K 13-state parity
+True [p12-mixed#14] node pad.10 13-state parity
+True [p12-mixed#14] node pad.11 13-state parity
+True [p12-mixed#14] node pad.13 13-state parity
+True [p12-mixed#14] node pad.14 13-state parity
+True [p12-mixed#14] node pad.15 13-state parity
+True [p12-mixed#14] node pad.16 13-state parity
+True [p12-mixed#14] node pad.17 13-state parity
+True [p12-mixed#14] node pad.18 13-state parity
+True [p12-mixed#14] node pad.25 13-state parity
+True [p12-mixed#14] node pad.26 13-state parity
+True [p12-mixed#14] node pad.27 13-state parity
+True [p12-mixed#14] node pad.28 13-state parity
+True [p12-mixed#14] node pad.29 13-state parity
+True [p12-mixed#14] node pad.3 13-state parity
+True [p12-mixed#14] node pad.30 13-state parity
+True [p12-mixed#14] node pad.33 13-state parity
+True [p12-mixed#14] node pad.34 13-state parity
+True [p12-mixed#14] node pad.35 13-state parity
+True [p12-mixed#14] node pad.36 13-state parity
+True [p12-mixed#14] node pad.37 13-state parity
+True [p12-mixed#14] node pad.38 13-state parity
+True [p12-mixed#14] node pad.4 13-state parity
+True [p12-mixed#14] node pad.40 13-state parity
+True [p12-mixed#14] node pad.41 13-state parity
+True [p12-mixed#14] node pad.52 13-state parity
+True [p12-mixed#14] node seg0.a 13-state parity
+True [p12-mixed#14] node seg0.b 13-state parity
+True [p12-mixed#14] node seg0.c 13-state parity
+True [p12-mixed#14] node seg0.d 13-state parity
+True [p12-mixed#14] node seg0.dig0 13-state parity
+True [p12-mixed#14] node seg0.dig1 13-state parity
+True [p12-mixed#14] node seg0.dig2 13-state parity
+True [p12-mixed#14] node seg0.dig3 13-state parity
+True [p12-mixed#14] node seg0.dp 13-state parity
+True [p12-mixed#14] node seg0.e 13-state parity
+True [p12-mixed#14] node seg0.f 13-state parity
+True [p12-mixed#14] node seg0.g 13-state parity
+True [p12-mixed#14] node uart0.RX 13-state parity
+True [p12-mixed#14] node uart0.TX 13-state parity
+True [p12-mixed#14] led0 mounted
+True [p12-mixed#14] led0 duty_ppm parity
+True [p12-mixed#14] led1 mounted
+True [p12-mixed#14] led1 duty_ppm parity
+True [p12-mixed#14] led2 mounted
+True [p12-mixed#14] led2 duty_ppm parity
+True [p12-mixed#14] led3 mounted
+True [p12-mixed#14] led3 duty_ppm parity
+True [p12-mixed#14] led4 mounted
+True [p12-mixed#14] led4 duty_ppm parity
+True [p12-mixed#14] led5 mounted
+True [p12-mixed#14] led5 duty_ppm parity
+True [p12-mixed#14] key_p3 mounted
+True [p12-mixed#14] key_p4 mounted
+True [p12-mixed#14] dip dip0 parity
+True [p12-mixed#14] seven_seg seg0 parity
+True p12-mixed web view retains bit-level UART tx history
+True encode-p3-keypad exits 0: {"frames":6,"status":"passed"}
+
+True js-ref-p3-keypad exits 0: {"status":"passed","frames":6}
+
+True js-proj-p3-keypad exits 0: {"status":"passed","frames":6}
+
+True [p3-keypad] sfvb_reference_decoder.js matches C++ frame-for-frame
+True [p3-keypad] sfvb_web_projector.js projects all 6 frames
+True [p3-keypad#0] run_id parity
+True [p3-keypad#0] 64-bit tick/delta parity
+True [p3-keypad#0] state/reason parity
+True [p3-keypad#0] trace cursor parity
+True [p3-keypad#0] node set parity
+True [p3-keypad#0] node clk27m.out 13-state parity
+True [p3-keypad#0] node key_p3.contact 13-state parity
+True [p3-keypad#0] node key_p4.contact 13-state parity
+True [p3-keypad#0] node keypad0.col0 13-state parity
+True [p3-keypad#0] node keypad0.col1 13-state parity
+True [p3-keypad#0] node keypad0.col2 13-state parity
+True [p3-keypad#0] node keypad0.col3 13-state parity
+True [p3-keypad#0] node keypad0.row0 13-state parity
+True [p3-keypad#0] node keypad0.row1 13-state parity
+True [p3-keypad#0] node keypad0.row2 13-state parity
+True [p3-keypad#0] node keypad0.row3 13-state parity
+True [p3-keypad#0] node led0.K 13-state parity
+True [p3-keypad#0] node led1.K 13-state parity
+True [p3-keypad#0] node led2.K 13-state parity
+True [p3-keypad#0] node led3.K 13-state parity
+True [p3-keypad#0] node led4.K 13-state parity
+True [p3-keypad#0] node led5.K 13-state parity
+True [p3-keypad#0] node pad.10 13-state parity
+True [p3-keypad#0] node pad.11 13-state parity
+True [p3-keypad#0] node pad.13 13-state parity
+True [p3-keypad#0] node pad.14 13-state parity
+True [p3-keypad#0] node pad.15 13-state parity
+True [p3-keypad#0] node pad.16 13-state parity
+True [p3-keypad#0] node pad.25 13-state parity
+True [p3-keypad#0] node pad.26 13-state parity
+True [p3-keypad#0] node pad.27 13-state parity
+True [p3-keypad#0] node pad.28 13-state parity
+True [p3-keypad#0] node pad.29 13-state parity
+True [p3-keypad#0] node pad.3 13-state parity
+True [p3-keypad#0] node pad.30 13-state parity
+True [p3-keypad#0] node pad.33 13-state parity
+True [p3-keypad#0] node pad.34 13-state parity
+True [p3-keypad#0] node pad.4 13-state parity
+True [p3-keypad#0] node pad.52 13-state parity
+True [p3-keypad#0] led0 mounted
+True [p3-keypad#0] led0 duty_ppm parity
+True [p3-keypad#0] led1 mounted
+True [p3-keypad#0] led1 duty_ppm parity
+True [p3-keypad#0] led2 mounted
+True [p3-keypad#0] led2 duty_ppm parity
+True [p3-keypad#0] led3 mounted
+True [p3-keypad#0] led3 duty_ppm parity
+True [p3-keypad#0] led4 mounted
+True [p3-keypad#0] led4 duty_ppm parity
+True [p3-keypad#0] led5 mounted
+True [p3-keypad#0] led5 duty_ppm parity
+True [p3-keypad#0] key_p3 mounted
+True [p3-keypad#0] key_p4 mounted
+True [p3-keypad#0] keypad keypad0 parity
+True [p3-keypad#1] run_id parity
+True [p3-keypad#1] 64-bit tick/delta parity
+True [p3-keypad#1] state/reason parity
+True [p3-keypad#1] trace cursor parity
+True [p3-keypad#1] node set parity
+True [p3-keypad#1] node clk27m.out 13-state parity
+True [p3-keypad#1] node key_p3.contact 13-state parity
+True [p3-keypad#1] node key_p4.contact 13-state parity
+True [p3-keypad#1] node keypad0.col0 13-state parity
+True [p3-keypad#1] node keypad0.col1 13-state parity
+True [p3-keypad#1] node keypad0.col2 13-state parity
+True [p3-keypad#1] node keypad0.col3 13-state parity
+True [p3-keypad#1] node keypad0.row0 13-state parity
+True [p3-keypad#1] node keypad0.row1 13-state parity
+True [p3-keypad#1] node keypad0.row2 13-state parity
+True [p3-keypad#1] node keypad0.row3 13-state parity
+True [p3-keypad#1] node led0.K 13-state parity
+True [p3-keypad#1] node led1.K 13-state parity
+True [p3-keypad#1] node led2.K 13-state parity
+True [p3-keypad#1] node led3.K 13-state parity
+True [p3-keypad#1] node led4.K 13-state parity
+True [p3-keypad#1] node led5.K 13-state parity
+True [p3-keypad#1] node pad.10 13-state parity
+True [p3-keypad#1] node pad.11 13-state parity
+True [p3-keypad#1] node pad.13 13-state parity
+True [p3-keypad#1] node pad.14 13-state parity
+True [p3-keypad#1] node pad.15 13-state parity
+True [p3-keypad#1] node pad.16 13-state parity
+True [p3-keypad#1] node pad.25 13-state parity
+True [p3-keypad#1] node pad.26 13-state parity
+True [p3-keypad#1] node pad.27 13-state parity
+True [p3-keypad#1] node pad.28 13-state parity
+True [p3-keypad#1] node pad.29 13-state parity
+True [p3-keypad#1] node pad.3 13-state parity
+True [p3-keypad#1] node pad.30 13-state parity
+True [p3-keypad#1] node pad.33 13-state parity
+True [p3-keypad#1] node pad.34 13-state parity
+True [p3-keypad#1] node pad.4 13-state parity
+True [p3-keypad#1] node pad.52 13-state parity
+True [p3-keypad#1] led0 mounted
+True [p3-keypad#1] led0 duty_ppm parity
+True [p3-keypad#1] led1 mounted
+True [p3-keypad#1] led1 duty_ppm parity
+True [p3-keypad#1] led2 mounted
+True [p3-keypad#1] led2 duty_ppm parity
+True [p3-keypad#1] led3 mounted
+True [p3-keypad#1] led3 duty_ppm parity
+True [p3-keypad#1] led4 mounted
+True [p3-keypad#1] led4 duty_ppm parity
+True [p3-keypad#1] led5 mounted
+True [p3-keypad#1] led5 duty_ppm parity
+True [p3-keypad#1] key_p3 mounted
+True [p3-keypad#1] key_p4 mounted
+True [p3-keypad#1] keypad keypad0 parity
+True [p3-keypad#2] run_id parity
+True [p3-keypad#2] 64-bit tick/delta parity
+True [p3-keypad#2] state/reason parity
+True [p3-keypad#2] trace cursor parity
+True [p3-keypad#2] node set parity
+True [p3-keypad#2] node clk27m.out 13-state parity
+True [p3-keypad#2] node key_p3.contact 13-state parity
+True [p3-keypad#2] node key_p4.contact 13-state parity
+True [p3-keypad#2] node keypad0.col0 13-state parity
+True [p3-keypad#2] node keypad0.col1 13-state parity
+True [p3-keypad#2] node keypad0.col2 13-state parity
+True [p3-keypad#2] node keypad0.col3 13-state parity
+True [p3-keypad#2] node keypad0.row0 13-state parity
+True [p3-keypad#2] node keypad0.row1 13-state parity
+True [p3-keypad#2] node keypad0.row2 13-state parity
+True [p3-keypad#2] node keypad0.row3 13-state parity
+True [p3-keypad#2] node led0.K 13-state parity
+True [p3-keypad#2] node led1.K 13-state parity
+True [p3-keypad#2] node led2.K 13-state parity
+True [p3-keypad#2] node led3.K 13-state parity
+True [p3-keypad#2] node led4.K 13-state parity
+True [p3-keypad#2] node led5.K 13-state parity
+True [p3-keypad#2] node pad.10 13-state parity
+True [p3-keypad#2] node pad.11 13-state parity
+True [p3-keypad#2] node pad.13 13-state parity
+True [p3-keypad#2] node pad.14 13-state parity
+True [p3-keypad#2] node pad.15 13-state parity
+True [p3-keypad#2] node pad.16 13-state parity
+True [p3-keypad#2] node pad.25 13-state parity
+True [p3-keypad#2] node pad.26 13-state parity
+True [p3-keypad#2] node pad.27 13-state parity
+True [p3-keypad#2] node pad.28 13-state parity
+True [p3-keypad#2] node pad.29 13-state parity
+True [p3-keypad#2] node pad.3 13-state parity
+True [p3-keypad#2] node pad.30 13-state parity
+True [p3-keypad#2] node pad.33 13-state parity
+True [p3-keypad#2] node pad.34 13-state parity
+True [p3-keypad#2] node pad.4 13-state parity
+True [p3-keypad#2] node pad.52 13-state parity
+True [p3-keypad#2] led0 mounted
+True [p3-keypad#2] led0 duty_ppm parity
+True [p3-keypad#2] led1 mounted
+True [p3-keypad#2] led1 duty_ppm parity
+True [p3-keypad#2] led2 mounted
+True [p3-keypad#2] led2 duty_ppm parity
+True [p3-keypad#2] led3 mounted
+True [p3-keypad#2] led3 duty_ppm parity
+True [p3-keypad#2] led4 mounted
+True [p3-keypad#2] led4 duty_ppm parity
+True [p3-keypad#2] led5 mounted
+True [p3-keypad#2] led5 duty_ppm parity
+True [p3-keypad#2] key_p3 mounted
+True [p3-keypad#2] key_p4 mounted
+True [p3-keypad#2] keypad keypad0 parity
+True [p3-keypad#3] run_id parity
+True [p3-keypad#3] 64-bit tick/delta parity
+True [p3-keypad#3] state/reason parity
+True [p3-keypad#3] trace cursor parity
+True [p3-keypad#3] node set parity
+True [p3-keypad#3] node clk27m.out 13-state parity
+True [p3-keypad#3] node key_p3.contact 13-state parity
+True [p3-keypad#3] node key_p4.contact 13-state parity
+True [p3-keypad#3] node keypad0.col0 13-state parity
+True [p3-keypad#3] node keypad0.col1 13-state parity
+True [p3-keypad#3] node keypad0.col2 13-state parity
+True [p3-keypad#3] node keypad0.col3 13-state parity
+True [p3-keypad#3] node keypad0.row0 13-state parity
+True [p3-keypad#3] node keypad0.row1 13-state parity
+True [p3-keypad#3] node keypad0.row2 13-state parity
+True [p3-keypad#3] node keypad0.row3 13-state parity
+True [p3-keypad#3] node led0.K 13-state parity
+True [p3-keypad#3] node led1.K 13-state parity
+True [p3-keypad#3] node led2.K 13-state parity
+True [p3-keypad#3] node led3.K 13-state parity
+True [p3-keypad#3] node led4.K 13-state parity
+True [p3-keypad#3] node led5.K 13-state parity
+True [p3-keypad#3] node pad.10 13-state parity
+True [p3-keypad#3] node pad.11 13-state parity
+True [p3-keypad#3] node pad.13 13-state parity
+True [p3-keypad#3] node pad.14 13-state parity
+True [p3-keypad#3] node pad.15 13-state parity
+True [p3-keypad#3] node pad.16 13-state parity
+True [p3-keypad#3] node pad.25 13-state parity
+True [p3-keypad#3] node pad.26 13-state parity
+True [p3-keypad#3] node pad.27 13-state parity
+True [p3-keypad#3] node pad.28 13-state parity
+True [p3-keypad#3] node pad.29 13-state parity
+True [p3-keypad#3] node pad.3 13-state parity
+True [p3-keypad#3] node pad.30 13-state parity
+True [p3-keypad#3] node pad.33 13-state parity
+True [p3-keypad#3] node pad.34 13-state parity
+True [p3-keypad#3] node pad.4 13-state parity
+True [p3-keypad#3] node pad.52 13-state parity
+True [p3-keypad#3] led0 mounted
+True [p3-keypad#3] led0 duty_ppm parity
+True [p3-keypad#3] led1 mounted
+True [p3-keypad#3] led1 duty_ppm parity
+True [p3-keypad#3] led2 mounted
+True [p3-keypad#3] led2 duty_ppm parity
+True [p3-keypad#3] led3 mounted
+True [p3-keypad#3] led3 duty_ppm parity
+True [p3-keypad#3] led4 mounted
+True [p3-keypad#3] led4 duty_ppm parity
+True [p3-keypad#3] led5 mounted
+True [p3-keypad#3] led5 duty_ppm parity
+True [p3-keypad#3] key_p3 mounted
+True [p3-keypad#3] key_p4 mounted
+True [p3-keypad#3] keypad keypad0 parity
+True [p3-keypad#4] run_id parity
+True [p3-keypad#4] 64-bit tick/delta parity
+True [p3-keypad#4] state/reason parity
+True [p3-keypad#4] trace cursor parity
+True [p3-keypad#4] node set parity
+True [p3-keypad#4] node clk27m.out 13-state parity
+True [p3-keypad#4] node key_p3.contact 13-state parity
+True [p3-keypad#4] node key_p4.contact 13-state parity
+True [p3-keypad#4] node keypad0.col0 13-state parity
+True [p3-keypad#4] node keypad0.col1 13-state parity
+True [p3-keypad#4] node keypad0.col2 13-state parity
+True [p3-keypad#4] node keypad0.col3 13-state parity
+True [p3-keypad#4] node keypad0.row0 13-state parity
+True [p3-keypad#4] node keypad0.row1 13-state parity
+True [p3-keypad#4] node keypad0.row2 13-state parity
+True [p3-keypad#4] node keypad0.row3 13-state parity
+True [p3-keypad#4] node led0.K 13-state parity
+True [p3-keypad#4] node led1.K 13-state parity
+True [p3-keypad#4] node led2.K 13-state parity
+True [p3-keypad#4] node led3.K 13-state parity
+True [p3-keypad#4] node led4.K 13-state parity
+True [p3-keypad#4] node led5.K 13-state parity
+True [p3-keypad#4] node pad.10 13-state parity
+True [p3-keypad#4] node pad.11 13-state parity
+True [p3-keypad#4] node pad.13 13-state parity
+True [p3-keypad#4] node pad.14 13-state parity
+True [p3-keypad#4] node pad.15 13-state parity
+True [p3-keypad#4] node pad.16 13-state parity
+True [p3-keypad#4] node pad.25 13-state parity
+True [p3-keypad#4] node pad.26 13-state parity
+True [p3-keypad#4] node pad.27 13-state parity
+True [p3-keypad#4] node pad.28 13-state parity
+True [p3-keypad#4] node pad.29 13-state parity
+True [p3-keypad#4] node pad.3 13-state parity
+True [p3-keypad#4] node pad.30 13-state parity
+True [p3-keypad#4] node pad.33 13-state parity
+True [p3-keypad#4] node pad.34 13-state parity
+True [p3-keypad#4] node pad.4 13-state parity
+True [p3-keypad#4] node pad.52 13-state parity
+True [p3-keypad#4] led0 mounted
+True [p3-keypad#4] led0 duty_ppm parity
+True [p3-keypad#4] led1 mounted
+True [p3-keypad#4] led1 duty_ppm parity
+True [p3-keypad#4] led2 mounted
+True [p3-keypad#4] led2 duty_ppm parity
+True [p3-keypad#4] led3 mounted
+True [p3-keypad#4] led3 duty_ppm parity
+True [p3-keypad#4] led4 mounted
+True [p3-keypad#4] led4 duty_ppm parity
+True [p3-keypad#4] led5 mounted
+True [p3-keypad#4] led5 duty_ppm parity
+True [p3-keypad#4] key_p3 mounted
+True [p3-keypad#4] key_p4 mounted
+True [p3-keypad#4] keypad keypad0 parity
+True [p3-keypad#5] run_id parity
+True [p3-keypad#5] 64-bit tick/delta parity
+True [p3-keypad#5] state/reason parity
+True [p3-keypad#5] trace cursor parity
+True [p3-keypad#5] node set parity
+True [p3-keypad#5] node clk27m.out 13-state parity
+True [p3-keypad#5] node key_p3.contact 13-state parity
+True [p3-keypad#5] node key_p4.contact 13-state parity
+True [p3-keypad#5] node keypad0.col0 13-state parity
+True [p3-keypad#5] node keypad0.col1 13-state parity
+True [p3-keypad#5] node keypad0.col2 13-state parity
+True [p3-keypad#5] node keypad0.col3 13-state parity
+True [p3-keypad#5] node keypad0.row0 13-state parity
+True [p3-keypad#5] node keypad0.row1 13-state parity
+True [p3-keypad#5] node keypad0.row2 13-state parity
+True [p3-keypad#5] node keypad0.row3 13-state parity
+True [p3-keypad#5] node led0.K 13-state parity
+True [p3-keypad#5] node led1.K 13-state parity
+True [p3-keypad#5] node led2.K 13-state parity
+True [p3-keypad#5] node led3.K 13-state parity
+True [p3-keypad#5] node led4.K 13-state parity
+True [p3-keypad#5] node led5.K 13-state parity
+True [p3-keypad#5] node pad.10 13-state parity
+True [p3-keypad#5] node pad.11 13-state parity
+True [p3-keypad#5] node pad.13 13-state parity
+True [p3-keypad#5] node pad.14 13-state parity
+True [p3-keypad#5] node pad.15 13-state parity
+True [p3-keypad#5] node pad.16 13-state parity
+True [p3-keypad#5] node pad.25 13-state parity
+True [p3-keypad#5] node pad.26 13-state parity
+True [p3-keypad#5] node pad.27 13-state parity
+True [p3-keypad#5] node pad.28 13-state parity
+True [p3-keypad#5] node pad.29 13-state parity
+True [p3-keypad#5] node pad.3 13-state parity
+True [p3-keypad#5] node pad.30 13-state parity
+True [p3-keypad#5] node pad.33 13-state parity
+True [p3-keypad#5] node pad.34 13-state parity
+True [p3-keypad#5] node pad.4 13-state parity
+True [p3-keypad#5] node pad.52 13-state parity
+True [p3-keypad#5] led0 mounted
+True [p3-keypad#5] led0 duty_ppm parity
+True [p3-keypad#5] led1 mounted
+True [p3-keypad#5] led1 duty_ppm parity
+True [p3-keypad#5] led2 mounted
+True [p3-keypad#5] led2 duty_ppm parity
+True [p3-keypad#5] led3 mounted
+True [p3-keypad#5] led3 duty_ppm parity
+True [p3-keypad#5] led4 mounted
+True [p3-keypad#5] led4 duty_ppm parity
+True [p3-keypad#5] led5 mounted
+True [p3-keypad#5] led5 duty_ppm parity
+True [p3-keypad#5] key_p3 mounted
+True [p3-keypad#5] key_p4 mounted
+True [p3-keypad#5] keypad keypad0 parity
+True p3-keypad web view reproduces ghost key (1,1)
+True encode-p4-oled exits 0: {"frames":7,"status":"passed"}
+
+True js-ref-p4-oled exits 0: {"status":"passed","frames":7}
+
+True js-proj-p4-oled exits 0: {"status":"passed","frames":7}
+
+True [p4-oled] sfvb_reference_decoder.js matches C++ frame-for-frame
+True [p4-oled] sfvb_web_projector.js projects all 7 frames
+True [p4-oled#0] run_id parity
+True [p4-oled#0] 64-bit tick/delta parity
+True [p4-oled#0] state/reason parity
+True [p4-oled#0] trace cursor parity
+True [p4-oled#0] node set parity
+True [p4-oled#0] node clk27m.out 13-state parity
+True [p4-oled#0] node i2c0.SCL 13-state parity
+True [p4-oled#0] node i2c0.SDA 13-state parity
+True [p4-oled#0] node key_p4.contact 13-state parity
+True [p4-oled#0] node keypad0.col0 13-state parity
+True [p4-oled#0] node keypad0.col1 13-state parity
+True [p4-oled#0] node keypad0.col2 13-state parity
+True [p4-oled#0] node keypad0.col3 13-state parity
+True [p4-oled#0] node keypad0.row0 13-state parity
+True [p4-oled#0] node keypad0.row1 13-state parity
+True [p4-oled#0] node keypad0.row2 13-state parity
+True [p4-oled#0] node keypad0.row3 13-state parity
+True [p4-oled#0] node led0.K 13-state parity
+True [p4-oled#0] node led1.K 13-state parity
+True [p4-oled#0] node led2.K 13-state parity
+True [p4-oled#0] node led3.K 13-state parity
+True [p4-oled#0] node led4.K 13-state parity
+True [p4-oled#0] node oled0.CS_n 13-state parity
+True [p4-oled#0] node oled0.DC_n 13-state parity
+True [p4-oled#0] node oled0.MOSI 13-state parity
+True [p4-oled#0] node oled0.SCK 13-state parity
+True [p4-oled#0] node pad.10 13-state parity
+True [p4-oled#0] node pad.11 13-state parity
+True [p4-oled#0] node pad.13 13-state parity
+True [p4-oled#0] node pad.14 13-state parity
+True [p4-oled#0] node pad.15 13-state parity
+True [p4-oled#0] node pad.16 13-state parity
+True [p4-oled#0] node pad.25 13-state parity
+True [p4-oled#0] node pad.26 13-state parity
+True [p4-oled#0] node pad.27 13-state parity
+True [p4-oled#0] node pad.28 13-state parity
+True [p4-oled#0] node pad.29 13-state parity
+True [p4-oled#0] node pad.30 13-state parity
+True [p4-oled#0] node pad.33 13-state parity
+True [p4-oled#0] node pad.34 13-state parity
+True [p4-oled#0] node pad.35 13-state parity
+True [p4-oled#0] node pad.36 13-state parity
+True [p4-oled#0] node pad.37 13-state parity
+True [p4-oled#0] node pad.38 13-state parity
+True [p4-oled#0] node pad.4 13-state parity
+True [p4-oled#0] node pad.40 13-state parity
+True [p4-oled#0] node pad.41 13-state parity
+True [p4-oled#0] node pad.52 13-state parity
+True [p4-oled#0] led0 mounted
+True [p4-oled#0] led0 duty_ppm parity
+True [p4-oled#0] led1 mounted
+True [p4-oled#0] led1 duty_ppm parity
+True [p4-oled#0] led2 mounted
+True [p4-oled#0] led2 duty_ppm parity
+True [p4-oled#0] led3 mounted
+True [p4-oled#0] led3 duty_ppm parity
+True [p4-oled#0] led4 mounted
+True [p4-oled#0] led4 duty_ppm parity
+True [p4-oled#0] led5 unmounted honest state
+True [p4-oled#0] multiplexed pad.16 honest label & state
+True [p4-oled#0] unmounted key_p3 honest label
+True [p4-oled#0] key_p4 mounted
+True [p4-oled#0] i2c i2c0.address_7bit parity
+True [p4-oled#0] i2c i2c0.registers parity
+True [p4-oled#0] i2c i2c0.reg_pointer parity
+True [p4-oled#0] i2c i2c0.ack_count parity
+True [p4-oled#0] i2c i2c0.nak_count parity
+True [p4-oled#0] i2c i2c0.last_read_byte parity
+True [p4-oled#0] i2c i2c0.transactions parity
+True [p4-oled#0] i2c i2c0.bus_state parity
+True [p4-oled#0] i2c i2c0.read_mode parity
+True [p4-oled#0] keypad keypad0 parity
+True [p4-oled#0] oled oled0.width parity
+True [p4-oled#0] oled oled0.height parity
+True [p4-oled#0] oled oled0.cpol parity
+True [p4-oled#0] oled oled0.cpha parity
+True [p4-oled#0] oled oled0.display_on parity
+True [p4-oled#0] oled oled0.inverted parity
+True [p4-oled#0] oled oled0.page parity
+True [p4-oled#0] oled oled0.column parity
+True [p4-oled#0] oled oled0.write_count parity
+True [p4-oled#0] oled oled0.lit_pixels parity
+True [p4-oled#0] oled oled0.frame_sha256 parity
+True [p4-oled#0] oled decoded 2D pixel bitmap parity
+True [p4-oled#1] run_id parity
+True [p4-oled#1] 64-bit tick/delta parity
+True [p4-oled#1] state/reason parity
+True [p4-oled#1] trace cursor parity
+True [p4-oled#1] node set parity
+True [p4-oled#1] node clk27m.out 13-state parity
+True [p4-oled#1] node i2c0.SCL 13-state parity
+True [p4-oled#1] node i2c0.SDA 13-state parity
+True [p4-oled#1] node key_p4.contact 13-state parity
+True [p4-oled#1] node keypad0.col0 13-state parity
+True [p4-oled#1] node keypad0.col1 13-state parity
+True [p4-oled#1] node keypad0.col2 13-state parity
+True [p4-oled#1] node keypad0.col3 13-state parity
+True [p4-oled#1] node keypad0.row0 13-state parity
+True [p4-oled#1] node keypad0.row1 13-state parity
+True [p4-oled#1] node keypad0.row2 13-state parity
+True [p4-oled#1] node keypad0.row3 13-state parity
+True [p4-oled#1] node led0.K 13-state parity
+True [p4-oled#1] node led1.K 13-state parity
+True [p4-oled#1] node led2.K 13-state parity
+True [p4-oled#1] node led3.K 13-state parity
+True [p4-oled#1] node led4.K 13-state parity
+True [p4-oled#1] node oled0.CS_n 13-state parity
+True [p4-oled#1] node oled0.DC_n 13-state parity
+True [p4-oled#1] node oled0.MOSI 13-state parity
+True [p4-oled#1] node oled0.SCK 13-state parity
+True [p4-oled#1] node pad.10 13-state parity
+True [p4-oled#1] node pad.11 13-state parity
+True [p4-oled#1] node pad.13 13-state parity
+True [p4-oled#1] node pad.14 13-state parity
+True [p4-oled#1] node pad.15 13-state parity
+True [p4-oled#1] node pad.16 13-state parity
+True [p4-oled#1] node pad.25 13-state parity
+True [p4-oled#1] node pad.26 13-state parity
+True [p4-oled#1] node pad.27 13-state parity
+True [p4-oled#1] node pad.28 13-state parity
+True [p4-oled#1] node pad.29 13-state parity
+True [p4-oled#1] node pad.30 13-state parity
+True [p4-oled#1] node pad.33 13-state parity
+True [p4-oled#1] node pad.34 13-state parity
+True [p4-oled#1] node pad.35 13-state parity
+True [p4-oled#1] node pad.36 13-state parity
+True [p4-oled#1] node pad.37 13-state parity
+True [p4-oled#1] node pad.38 13-state parity
+True [p4-oled#1] node pad.4 13-state parity
+True [p4-oled#1] node pad.40 13-state parity
+True [p4-oled#1] node pad.41 13-state parity
+True [p4-oled#1] node pad.52 13-state parity
+True [p4-oled#1] led0 mounted
+True [p4-oled#1] led0 duty_ppm parity
+True [p4-oled#1] led1 mounted
+True [p4-oled#1] led1 duty_ppm parity
+True [p4-oled#1] led2 mounted
+True [p4-oled#1] led2 duty_ppm parity
+True [p4-oled#1] led3 mounted
+True [p4-oled#1] led3 duty_ppm parity
+True [p4-oled#1] led4 mounted
+True [p4-oled#1] led4 duty_ppm parity
+True [p4-oled#1] led5 unmounted honest state
+True [p4-oled#1] multiplexed pad.16 honest label & state
+True [p4-oled#1] unmounted key_p3 honest label
+True [p4-oled#1] key_p4 mounted
+True [p4-oled#1] i2c i2c0.address_7bit parity
+True [p4-oled#1] i2c i2c0.registers parity
+True [p4-oled#1] i2c i2c0.reg_pointer parity
+True [p4-oled#1] i2c i2c0.ack_count parity
+True [p4-oled#1] i2c i2c0.nak_count parity
+True [p4-oled#1] i2c i2c0.last_read_byte parity
+True [p4-oled#1] i2c i2c0.transactions parity
+True [p4-oled#1] i2c i2c0.bus_state parity
+True [p4-oled#1] i2c i2c0.read_mode parity
+True [p4-oled#1] keypad keypad0 parity
+True [p4-oled#1] oled oled0.width parity
+True [p4-oled#1] oled oled0.height parity
+True [p4-oled#1] oled oled0.cpol parity
+True [p4-oled#1] oled oled0.cpha parity
+True [p4-oled#1] oled oled0.display_on parity
+True [p4-oled#1] oled oled0.inverted parity
+True [p4-oled#1] oled oled0.page parity
+True [p4-oled#1] oled oled0.column parity
+True [p4-oled#1] oled oled0.write_count parity
+True [p4-oled#1] oled oled0.lit_pixels parity
+True [p4-oled#1] oled oled0.frame_sha256 parity
+True [p4-oled#1] oled decoded 2D pixel bitmap parity
+True [p4-oled#2] run_id parity
+True [p4-oled#2] 64-bit tick/delta parity
+True [p4-oled#2] state/reason parity
+True [p4-oled#2] trace cursor parity
+True [p4-oled#2] node set parity
+True [p4-oled#2] node clk27m.out 13-state parity
+True [p4-oled#2] node i2c0.SCL 13-state parity
+True [p4-oled#2] node i2c0.SDA 13-state parity
+True [p4-oled#2] node key_p4.contact 13-state parity
+True [p4-oled#2] node keypad0.col0 13-state parity
+True [p4-oled#2] node keypad0.col1 13-state parity
+True [p4-oled#2] node keypad0.col2 13-state parity
+True [p4-oled#2] node keypad0.col3 13-state parity
+True [p4-oled#2] node keypad0.row0 13-state parity
+True [p4-oled#2] node keypad0.row1 13-state parity
+True [p4-oled#2] node keypad0.row2 13-state parity
+True [p4-oled#2] node keypad0.row3 13-state parity
+True [p4-oled#2] node led0.K 13-state parity
+True [p4-oled#2] node led1.K 13-state parity
+True [p4-oled#2] node led2.K 13-state parity
+True [p4-oled#2] node led3.K 13-state parity
+True [p4-oled#2] node led4.K 13-state parity
+True [p4-oled#2] node oled0.CS_n 13-state parity
+True [p4-oled#2] node oled0.DC_n 13-state parity
+True [p4-oled#2] node oled0.MOSI 13-state parity
+True [p4-oled#2] node oled0.SCK 13-state parity
+True [p4-oled#2] node pad.10 13-state parity
+True [p4-oled#2] node pad.11 13-state parity
+True [p4-oled#2] node pad.13 13-state parity
+True [p4-oled#2] node pad.14 13-state parity
+True [p4-oled#2] node pad.15 13-state parity
+True [p4-oled#2] node pad.16 13-state parity
+True [p4-oled#2] node pad.25 13-state parity
+True [p4-oled#2] node pad.26 13-state parity
+True [p4-oled#2] node pad.27 13-state parity
+True [p4-oled#2] node pad.28 13-state parity
+True [p4-oled#2] node pad.29 13-state parity
+True [p4-oled#2] node pad.30 13-state parity
+True [p4-oled#2] node pad.33 13-state parity
+True [p4-oled#2] node pad.34 13-state parity
+True [p4-oled#2] node pad.35 13-state parity
+True [p4-oled#2] node pad.36 13-state parity
+True [p4-oled#2] node pad.37 13-state parity
+True [p4-oled#2] node pad.38 13-state parity
+True [p4-oled#2] node pad.4 13-state parity
+True [p4-oled#2] node pad.40 13-state parity
+True [p4-oled#2] node pad.41 13-state parity
+True [p4-oled#2] node pad.52 13-state parity
+True [p4-oled#2] led0 mounted
+True [p4-oled#2] led0 duty_ppm parity
+True [p4-oled#2] led1 mounted
+True [p4-oled#2] led1 duty_ppm parity
+True [p4-oled#2] led2 mounted
+True [p4-oled#2] led2 duty_ppm parity
+True [p4-oled#2] led3 mounted
+True [p4-oled#2] led3 duty_ppm parity
+True [p4-oled#2] led4 mounted
+True [p4-oled#2] led4 duty_ppm parity
+True [p4-oled#2] led5 unmounted honest state
+True [p4-oled#2] multiplexed pad.16 honest label & state
+True [p4-oled#2] unmounted key_p3 honest label
+True [p4-oled#2] key_p4 mounted
+True [p4-oled#2] i2c i2c0.address_7bit parity
+True [p4-oled#2] i2c i2c0.registers parity
+True [p4-oled#2] i2c i2c0.reg_pointer parity
+True [p4-oled#2] i2c i2c0.ack_count parity
+True [p4-oled#2] i2c i2c0.nak_count parity
+True [p4-oled#2] i2c i2c0.last_read_byte parity
+True [p4-oled#2] i2c i2c0.transactions parity
+True [p4-oled#2] i2c i2c0.bus_state parity
+True [p4-oled#2] i2c i2c0.read_mode parity
+True [p4-oled#2] keypad keypad0 parity
+True [p4-oled#2] oled oled0.width parity
+True [p4-oled#2] oled oled0.height parity
+True [p4-oled#2] oled oled0.cpol parity
+True [p4-oled#2] oled oled0.cpha parity
+True [p4-oled#2] oled oled0.display_on parity
+True [p4-oled#2] oled oled0.inverted parity
+True [p4-oled#2] oled oled0.page parity
+True [p4-oled#2] oled oled0.column parity
+True [p4-oled#2] oled oled0.write_count parity
+True [p4-oled#2] oled oled0.lit_pixels parity
+True [p4-oled#2] oled oled0.frame_sha256 parity
+True [p4-oled#2] oled decoded 2D pixel bitmap parity
+True [p4-oled#3] run_id parity
+True [p4-oled#3] 64-bit tick/delta parity
+True [p4-oled#3] state/reason parity
+True [p4-oled#3] trace cursor parity
+True [p4-oled#3] node set parity
+True [p4-oled#3] node clk27m.out 13-state parity
+True [p4-oled#3] node i2c0.SCL 13-state parity
+True [p4-oled#3] node i2c0.SDA 13-state parity
+True [p4-oled#3] node key_p4.contact 13-state parity
+True [p4-oled#3] node keypad0.col0 13-state parity
+True [p4-oled#3] node keypad0.col1 13-state parity
+True [p4-oled#3] node keypad0.col2 13-state parity
+True [p4-oled#3] node keypad0.col3 13-state parity
+True [p4-oled#3] node keypad0.row0 13-state parity
+True [p4-oled#3] node keypad0.row1 13-state parity
+True [p4-oled#3] node keypad0.row2 13-state parity
+True [p4-oled#3] node keypad0.row3 13-state parity
+True [p4-oled#3] node led0.K 13-state parity
+True [p4-oled#3] node led1.K 13-state parity
+True [p4-oled#3] node led2.K 13-state parity
+True [p4-oled#3] node led3.K 13-state parity
+True [p4-oled#3] node led4.K 13-state parity
+True [p4-oled#3] node oled0.CS_n 13-state parity
+True [p4-oled#3] node oled0.DC_n 13-state parity
+True [p4-oled#3] node oled0.MOSI 13-state parity
+True [p4-oled#3] node oled0.SCK 13-state parity
+True [p4-oled#3] node pad.10 13-state parity
+True [p4-oled#3] node pad.11 13-state parity
+True [p4-oled#3] node pad.13 13-state parity
+True [p4-oled#3] node pad.14 13-state parity
+True [p4-oled#3] node pad.15 13-state parity
+True [p4-oled#3] node pad.16 13-state parity
+True [p4-oled#3] node pad.25 13-state parity
+True [p4-oled#3] node pad.26 13-state parity
+True [p4-oled#3] node pad.27 13-state parity
+True [p4-oled#3] node pad.28 13-state parity
+True [p4-oled#3] node pad.29 13-state parity
+True [p4-oled#3] node pad.30 13-state parity
+True [p4-oled#3] node pad.33 13-state parity
+True [p4-oled#3] node pad.34 13-state parity
+True [p4-oled#3] node pad.35 13-state parity
+True [p4-oled#3] node pad.36 13-state parity
+True [p4-oled#3] node pad.37 13-state parity
+True [p4-oled#3] node pad.38 13-state parity
+True [p4-oled#3] node pad.4 13-state parity
+True [p4-oled#3] node pad.40 13-state parity
+True [p4-oled#3] node pad.41 13-state parity
+True [p4-oled#3] node pad.52 13-state parity
+True [p4-oled#3] led0 mounted
+True [p4-oled#3] led0 duty_ppm parity
+True [p4-oled#3] led1 mounted
+True [p4-oled#3] led1 duty_ppm parity
+True [p4-oled#3] led2 mounted
+True [p4-oled#3] led2 duty_ppm parity
+True [p4-oled#3] led3 mounted
+True [p4-oled#3] led3 duty_ppm parity
+True [p4-oled#3] led4 mounted
+True [p4-oled#3] led4 duty_ppm parity
+True [p4-oled#3] led5 unmounted honest state
+True [p4-oled#3] multiplexed pad.16 honest label & state
+True [p4-oled#3] unmounted key_p3 honest label
+True [p4-oled#3] key_p4 mounted
+True [p4-oled#3] i2c i2c0.address_7bit parity
+True [p4-oled#3] i2c i2c0.registers parity
+True [p4-oled#3] i2c i2c0.reg_pointer parity
+True [p4-oled#3] i2c i2c0.ack_count parity
+True [p4-oled#3] i2c i2c0.nak_count parity
+True [p4-oled#3] i2c i2c0.last_read_byte parity
+True [p4-oled#3] i2c i2c0.transactions parity
+True [p4-oled#3] i2c i2c0.bus_state parity
+True [p4-oled#3] i2c i2c0.read_mode parity
+True [p4-oled#3] keypad keypad0 parity
+True [p4-oled#3] oled oled0.width parity
+True [p4-oled#3] oled oled0.height parity
+True [p4-oled#3] oled oled0.cpol parity
+True [p4-oled#3] oled oled0.cpha parity
+True [p4-oled#3] oled oled0.display_on parity
+True [p4-oled#3] oled oled0.inverted parity
+True [p4-oled#3] oled oled0.page parity
+True [p4-oled#3] oled oled0.column parity
+True [p4-oled#3] oled oled0.write_count parity
+True [p4-oled#3] oled oled0.lit_pixels parity
+True [p4-oled#3] oled oled0.frame_sha256 parity
+True [p4-oled#3] oled decoded 2D pixel bitmap parity
+True [p4-oled#4] run_id parity
+True [p4-oled#4] 64-bit tick/delta parity
+True [p4-oled#4] state/reason parity
+True [p4-oled#4] trace cursor parity
+True [p4-oled#4] node set parity
+True [p4-oled#4] node clk27m.out 13-state parity
+True [p4-oled#4] node i2c0.SCL 13-state parity
+True [p4-oled#4] node i2c0.SDA 13-state parity
+True [p4-oled#4] node key_p4.contact 13-state parity
+True [p4-oled#4] node keypad0.col0 13-state parity
+True [p4-oled#4] node keypad0.col1 13-state parity
+True [p4-oled#4] node keypad0.col2 13-state parity
+True [p4-oled#4] node keypad0.col3 13-state parity
+True [p4-oled#4] node keypad0.row0 13-state parity
+True [p4-oled#4] node keypad0.row1 13-state parity
+True [p4-oled#4] node keypad0.row2 13-state parity
+True [p4-oled#4] node keypad0.row3 13-state parity
+True [p4-oled#4] node led0.K 13-state parity
+True [p4-oled#4] node led1.K 13-state parity
+True [p4-oled#4] node led2.K 13-state parity
+True [p4-oled#4] node led3.K 13-state parity
+True [p4-oled#4] node led4.K 13-state parity
+True [p4-oled#4] node oled0.CS_n 13-state parity
+True [p4-oled#4] node oled0.DC_n 13-state parity
+True [p4-oled#4] node oled0.MOSI 13-state parity
+True [p4-oled#4] node oled0.SCK 13-state parity
+True [p4-oled#4] node pad.10 13-state parity
+True [p4-oled#4] node pad.11 13-state parity
+True [p4-oled#4] node pad.13 13-state parity
+True [p4-oled#4] node pad.14 13-state parity
+True [p4-oled#4] node pad.15 13-state parity
+True [p4-oled#4] node pad.16 13-state parity
+True [p4-oled#4] node pad.25 13-state parity
+True [p4-oled#4] node pad.26 13-state parity
+True [p4-oled#4] node pad.27 13-state parity
+True [p4-oled#4] node pad.28 13-state parity
+True [p4-oled#4] node pad.29 13-state parity
+True [p4-oled#4] node pad.30 13-state parity
+True [p4-oled#4] node pad.33 13-state parity
+True [p4-oled#4] node pad.34 13-state parity
+True [p4-oled#4] node pad.35 13-state parity
+True [p4-oled#4] node pad.36 13-state parity
+True [p4-oled#4] node pad.37 13-state parity
+True [p4-oled#4] node pad.38 13-state parity
+True [p4-oled#4] node pad.4 13-state parity
+True [p4-oled#4] node pad.40 13-state parity
+True [p4-oled#4] node pad.41 13-state parity
+True [p4-oled#4] node pad.52 13-state parity
+True [p4-oled#4] led0 mounted
+True [p4-oled#4] led0 duty_ppm parity
+True [p4-oled#4] led1 mounted
+True [p4-oled#4] led1 duty_ppm parity
+True [p4-oled#4] led2 mounted
+True [p4-oled#4] led2 duty_ppm parity
+True [p4-oled#4] led3 mounted
+True [p4-oled#4] led3 duty_ppm parity
+True [p4-oled#4] led4 mounted
+True [p4-oled#4] led4 duty_ppm parity
+True [p4-oled#4] led5 unmounted honest state
+True [p4-oled#4] multiplexed pad.16 honest label & state
+True [p4-oled#4] unmounted key_p3 honest label
+True [p4-oled#4] key_p4 mounted
+True [p4-oled#4] i2c i2c0.address_7bit parity
+True [p4-oled#4] i2c i2c0.registers parity
+True [p4-oled#4] i2c i2c0.reg_pointer parity
+True [p4-oled#4] i2c i2c0.ack_count parity
+True [p4-oled#4] i2c i2c0.nak_count parity
+True [p4-oled#4] i2c i2c0.last_read_byte parity
+True [p4-oled#4] i2c i2c0.transactions parity
+True [p4-oled#4] i2c i2c0.bus_state parity
+True [p4-oled#4] i2c i2c0.read_mode parity
+True [p4-oled#4] keypad keypad0 parity
+True [p4-oled#4] oled oled0.width parity
+True [p4-oled#4] oled oled0.height parity
+True [p4-oled#4] oled oled0.cpol parity
+True [p4-oled#4] oled oled0.cpha parity
+True [p4-oled#4] oled oled0.display_on parity
+True [p4-oled#4] oled oled0.inverted parity
+True [p4-oled#4] oled oled0.page parity
+True [p4-oled#4] oled oled0.column parity
+True [p4-oled#4] oled oled0.write_count parity
+True [p4-oled#4] oled oled0.lit_pixels parity
+True [p4-oled#4] oled oled0.frame_sha256 parity
+True [p4-oled#4] oled decoded 2D pixel bitmap parity
+True [p4-oled#5] run_id parity
+True [p4-oled#5] 64-bit tick/delta parity
+True [p4-oled#5] state/reason parity
+True [p4-oled#5] trace cursor parity
+True [p4-oled#5] node set parity
+True [p4-oled#5] node clk27m.out 13-state parity
+True [p4-oled#5] node i2c0.SCL 13-state parity
+True [p4-oled#5] node i2c0.SDA 13-state parity
+True [p4-oled#5] node key_p4.contact 13-state parity
+True [p4-oled#5] node keypad0.col0 13-state parity
+True [p4-oled#5] node keypad0.col1 13-state parity
+True [p4-oled#5] node keypad0.col2 13-state parity
+True [p4-oled#5] node keypad0.col3 13-state parity
+True [p4-oled#5] node keypad0.row0 13-state parity
+True [p4-oled#5] node keypad0.row1 13-state parity
+True [p4-oled#5] node keypad0.row2 13-state parity
+True [p4-oled#5] node keypad0.row3 13-state parity
+True [p4-oled#5] node led0.K 13-state parity
+True [p4-oled#5] node led1.K 13-state parity
+True [p4-oled#5] node led2.K 13-state parity
+True [p4-oled#5] node led3.K 13-state parity
+True [p4-oled#5] node led4.K 13-state parity
+True [p4-oled#5] node oled0.CS_n 13-state parity
+True [p4-oled#5] node oled0.DC_n 13-state parity
+True [p4-oled#5] node oled0.MOSI 13-state parity
+True [p4-oled#5] node oled0.SCK 13-state parity
+True [p4-oled#5] node pad.10 13-state parity
+True [p4-oled#5] node pad.11 13-state parity
+True [p4-oled#5] node pad.13 13-state parity
+True [p4-oled#5] node pad.14 13-state parity
+True [p4-oled#5] node pad.15 13-state parity
+True [p4-oled#5] node pad.16 13-state parity
+True [p4-oled#5] node pad.25 13-state parity
+True [p4-oled#5] node pad.26 13-state parity
+True [p4-oled#5] node pad.27 13-state parity
+True [p4-oled#5] node pad.28 13-state parity
+True [p4-oled#5] node pad.29 13-state parity
+True [p4-oled#5] node pad.30 13-state parity
+True [p4-oled#5] node pad.33 13-state parity
+True [p4-oled#5] node pad.34 13-state parity
+True [p4-oled#5] node pad.35 13-state parity
+True [p4-oled#5] node pad.36 13-state parity
+True [p4-oled#5] node pad.37 13-state parity
+True [p4-oled#5] node pad.38 13-state parity
+True [p4-oled#5] node pad.4 13-state parity
+True [p4-oled#5] node pad.40 13-state parity
+True [p4-oled#5] node pad.41 13-state parity
+True [p4-oled#5] node pad.52 13-state parity
+True [p4-oled#5] led0 mounted
+True [p4-oled#5] led0 duty_ppm parity
+True [p4-oled#5] led1 mounted
+True [p4-oled#5] led1 duty_ppm parity
+True [p4-oled#5] led2 mounted
+True [p4-oled#5] led2 duty_ppm parity
+True [p4-oled#5] led3 mounted
+True [p4-oled#5] led3 duty_ppm parity
+True [p4-oled#5] led4 mounted
+True [p4-oled#5] led4 duty_ppm parity
+True [p4-oled#5] led5 unmounted honest state
+True [p4-oled#5] multiplexed pad.16 honest label & state
+True [p4-oled#5] unmounted key_p3 honest label
+True [p4-oled#5] key_p4 mounted
+True [p4-oled#5] i2c i2c0.address_7bit parity
+True [p4-oled#5] i2c i2c0.registers parity
+True [p4-oled#5] i2c i2c0.reg_pointer parity
+True [p4-oled#5] i2c i2c0.ack_count parity
+True [p4-oled#5] i2c i2c0.nak_count parity
+True [p4-oled#5] i2c i2c0.last_read_byte parity
+True [p4-oled#5] i2c i2c0.transactions parity
+True [p4-oled#5] i2c i2c0.bus_state parity
+True [p4-oled#5] i2c i2c0.read_mode parity
+True [p4-oled#5] keypad keypad0 parity
+True [p4-oled#5] oled oled0.width parity
+True [p4-oled#5] oled oled0.height parity
+True [p4-oled#5] oled oled0.cpol parity
+True [p4-oled#5] oled oled0.cpha parity
+True [p4-oled#5] oled oled0.display_on parity
+True [p4-oled#5] oled oled0.inverted parity
+True [p4-oled#5] oled oled0.page parity
+True [p4-oled#5] oled oled0.column parity
+True [p4-oled#5] oled oled0.write_count parity
+True [p4-oled#5] oled oled0.lit_pixels parity
+True [p4-oled#5] oled oled0.frame_sha256 parity
+True [p4-oled#5] oled decoded 2D pixel bitmap parity
+True [p4-oled#6] run_id parity
+True [p4-oled#6] 64-bit tick/delta parity
+True [p4-oled#6] state/reason parity
+True [p4-oled#6] trace cursor parity
+True [p4-oled#6] node set parity
+True [p4-oled#6] node clk27m.out 13-state parity
+True [p4-oled#6] node i2c0.SCL 13-state parity
+True [p4-oled#6] node i2c0.SDA 13-state parity
+True [p4-oled#6] node key_p4.contact 13-state parity
+True [p4-oled#6] node keypad0.col0 13-state parity
+True [p4-oled#6] node keypad0.col1 13-state parity
+True [p4-oled#6] node keypad0.col2 13-state parity
+True [p4-oled#6] node keypad0.col3 13-state parity
+True [p4-oled#6] node keypad0.row0 13-state parity
+True [p4-oled#6] node keypad0.row1 13-state parity
+True [p4-oled#6] node keypad0.row2 13-state parity
+True [p4-oled#6] node keypad0.row3 13-state parity
+True [p4-oled#6] node led0.K 13-state parity
+True [p4-oled#6] node led1.K 13-state parity
+True [p4-oled#6] node led2.K 13-state parity
+True [p4-oled#6] node led3.K 13-state parity
+True [p4-oled#6] node led4.K 13-state parity
+True [p4-oled#6] node oled0.CS_n 13-state parity
+True [p4-oled#6] node oled0.DC_n 13-state parity
+True [p4-oled#6] node oled0.MOSI 13-state parity
+True [p4-oled#6] node oled0.SCK 13-state parity
+True [p4-oled#6] node pad.10 13-state parity
+True [p4-oled#6] node pad.11 13-state parity
+True [p4-oled#6] node pad.13 13-state parity
+True [p4-oled#6] node pad.14 13-state parity
+True [p4-oled#6] node pad.15 13-state parity
+True [p4-oled#6] node pad.16 13-state parity
+True [p4-oled#6] node pad.25 13-state parity
+True [p4-oled#6] node pad.26 13-state parity
+True [p4-oled#6] node pad.27 13-state parity
+True [p4-oled#6] node pad.28 13-state parity
+True [p4-oled#6] node pad.29 13-state parity
+True [p4-oled#6] node pad.30 13-state parity
+True [p4-oled#6] node pad.33 13-state parity
+True [p4-oled#6] node pad.34 13-state parity
+True [p4-oled#6] node pad.35 13-state parity
+True [p4-oled#6] node pad.36 13-state parity
+True [p4-oled#6] node pad.37 13-state parity
+True [p4-oled#6] node pad.38 13-state parity
+True [p4-oled#6] node pad.4 13-state parity
+True [p4-oled#6] node pad.40 13-state parity
+True [p4-oled#6] node pad.41 13-state parity
+True [p4-oled#6] node pad.52 13-state parity
+True [p4-oled#6] led0 mounted
+True [p4-oled#6] led0 duty_ppm parity
+True [p4-oled#6] led1 mounted
+True [p4-oled#6] led1 duty_ppm parity
+True [p4-oled#6] led2 mounted
+True [p4-oled#6] led2 duty_ppm parity
+True [p4-oled#6] led3 mounted
+True [p4-oled#6] led3 duty_ppm parity
+True [p4-oled#6] led4 mounted
+True [p4-oled#6] led4 duty_ppm parity
+True [p4-oled#6] led5 unmounted honest state
+True [p4-oled#6] multiplexed pad.16 honest label & state
+True [p4-oled#6] unmounted key_p3 honest label
+True [p4-oled#6] key_p4 mounted
+True [p4-oled#6] i2c i2c0.address_7bit parity
+True [p4-oled#6] i2c i2c0.registers parity
+True [p4-oled#6] i2c i2c0.reg_pointer parity
+True [p4-oled#6] i2c i2c0.ack_count parity
+True [p4-oled#6] i2c i2c0.nak_count parity
+True [p4-oled#6] i2c i2c0.last_read_byte parity
+True [p4-oled#6] i2c i2c0.transactions parity
+True [p4-oled#6] i2c i2c0.bus_state parity
+True [p4-oled#6] i2c i2c0.read_mode parity
+True [p4-oled#6] keypad keypad0 parity
+True [p4-oled#6] oled oled0.width parity
+True [p4-oled#6] oled oled0.height parity
+True [p4-oled#6] oled oled0.cpol parity
+True [p4-oled#6] oled oled0.cpha parity
+True [p4-oled#6] oled oled0.display_on parity
+True [p4-oled#6] oled oled0.inverted parity
+True [p4-oled#6] oled oled0.page parity
+True [p4-oled#6] oled oled0.column parity
+True [p4-oled#6] oled oled0.write_count parity
+True [p4-oled#6] oled oled0.lit_pixels parity
+True [p4-oled#6] oled oled0.frame_sha256 parity
+True [p4-oled#6] oled decoded 2D pixel bitmap parity
+True p4-oled web view reproduces exact OLED 28-pixel bitmap & digest
+True p4-oled web view matches Desktop honest P16 & KEY P3 rendering
+True encode-p4-crc-cdc exits 0: {"frames":8,"status":"passed"}
+
+True js-ref-p4-crc-cdc exits 0: {"status":"passed","frames":8}
+
+True js-proj-p4-crc-cdc exits 0: {"status":"passed","frames":8}
+
+True [p4-crc-cdc] sfvb_reference_decoder.js matches C++ frame-for-frame
+True [p4-crc-cdc] sfvb_web_projector.js projects all 8 frames
+True [p4-crc-cdc#0] run_id parity
+True [p4-crc-cdc#0] 64-bit tick/delta parity
+True [p4-crc-cdc#0] state/reason parity
+True [p4-crc-cdc#0] trace cursor parity
+True [p4-crc-cdc#0] node set parity
+True [p4-crc-cdc#0] node clk27m.out 13-state parity
+True [p4-crc-cdc#0] node dip0.bit0 13-state parity
+True [p4-crc-cdc#0] node dip0.bit1 13-state parity
+True [p4-crc-cdc#0] node key_p3.contact 13-state parity
+True [p4-crc-cdc#0] node key_p4.contact 13-state parity
+True [p4-crc-cdc#0] node led0.K 13-state parity
+True [p4-crc-cdc#0] node led1.K 13-state parity
+True [p4-crc-cdc#0] node led2.K 13-state parity
+True [p4-crc-cdc#0] node led3.K 13-state parity
+True [p4-crc-cdc#0] node led4.K 13-state parity
+True [p4-crc-cdc#0] node led5.K 13-state parity
+True [p4-crc-cdc#0] node pad.10 13-state parity
+True [p4-crc-cdc#0] node pad.11 13-state parity
+True [p4-crc-cdc#0] node pad.13 13-state parity
+True [p4-crc-cdc#0] node pad.14 13-state parity
+True [p4-crc-cdc#0] node pad.15 13-state parity
+True [p4-crc-cdc#0] node pad.16 13-state parity
+True [p4-crc-cdc#0] node pad.17 13-state parity
+True [p4-crc-cdc#0] node pad.18 13-state parity
+True [p4-crc-cdc#0] node pad.25 13-state parity
+True [p4-crc-cdc#0] node pad.26 13-state parity
+True [p4-crc-cdc#0] node pad.27 13-state parity
+True [p4-crc-cdc#0] node pad.28 13-state parity
+True [p4-crc-cdc#0] node pad.29 13-state parity
+True [p4-crc-cdc#0] node pad.3 13-state parity
+True [p4-crc-cdc#0] node pad.30 13-state parity
+True [p4-crc-cdc#0] node pad.33 13-state parity
+True [p4-crc-cdc#0] node pad.34 13-state parity
+True [p4-crc-cdc#0] node pad.35 13-state parity
+True [p4-crc-cdc#0] node pad.36 13-state parity
+True [p4-crc-cdc#0] node pad.37 13-state parity
+True [p4-crc-cdc#0] node pad.38 13-state parity
+True [p4-crc-cdc#0] node pad.4 13-state parity
+True [p4-crc-cdc#0] node pad.40 13-state parity
+True [p4-crc-cdc#0] node pad.41 13-state parity
+True [p4-crc-cdc#0] node pad.52 13-state parity
+True [p4-crc-cdc#0] node seg0.a 13-state parity
+True [p4-crc-cdc#0] node seg0.b 13-state parity
+True [p4-crc-cdc#0] node seg0.c 13-state parity
+True [p4-crc-cdc#0] node seg0.d 13-state parity
+True [p4-crc-cdc#0] node seg0.dig0 13-state parity
+True [p4-crc-cdc#0] node seg0.dig1 13-state parity
+True [p4-crc-cdc#0] node seg0.dig2 13-state parity
+True [p4-crc-cdc#0] node seg0.dig3 13-state parity
+True [p4-crc-cdc#0] node seg0.dp 13-state parity
+True [p4-crc-cdc#0] node seg0.e 13-state parity
+True [p4-crc-cdc#0] node seg0.f 13-state parity
+True [p4-crc-cdc#0] node seg0.g 13-state parity
+True [p4-crc-cdc#0] node uart0.RX 13-state parity
+True [p4-crc-cdc#0] node uart0.TX 13-state parity
+True [p4-crc-cdc#0] led0 mounted
+True [p4-crc-cdc#0] led0 duty_ppm parity
+True [p4-crc-cdc#0] led1 mounted
+True [p4-crc-cdc#0] led1 duty_ppm parity
+True [p4-crc-cdc#0] led2 mounted
+True [p4-crc-cdc#0] led2 duty_ppm parity
+True [p4-crc-cdc#0] led3 mounted
+True [p4-crc-cdc#0] led3 duty_ppm parity
+True [p4-crc-cdc#0] led4 mounted
+True [p4-crc-cdc#0] led4 duty_ppm parity
+True [p4-crc-cdc#0] led5 mounted
+True [p4-crc-cdc#0] led5 duty_ppm parity
+True [p4-crc-cdc#0] key_p3 mounted
+True [p4-crc-cdc#0] key_p4 mounted
+True [p4-crc-cdc#0] dip dip0 parity
+True [p4-crc-cdc#0] seven_seg seg0 parity
+True [p4-crc-cdc#1] run_id parity
+True [p4-crc-cdc#1] 64-bit tick/delta parity
+True [p4-crc-cdc#1] state/reason parity
+True [p4-crc-cdc#1] trace cursor parity
+True [p4-crc-cdc#1] node set parity
+True [p4-crc-cdc#1] node clk27m.out 13-state parity
+True [p4-crc-cdc#1] node dip0.bit0 13-state parity
+True [p4-crc-cdc#1] node dip0.bit1 13-state parity
+True [p4-crc-cdc#1] node key_p3.contact 13-state parity
+True [p4-crc-cdc#1] node key_p4.contact 13-state parity
+True [p4-crc-cdc#1] node led0.K 13-state parity
+True [p4-crc-cdc#1] node led1.K 13-state parity
+True [p4-crc-cdc#1] node led2.K 13-state parity
+True [p4-crc-cdc#1] node led3.K 13-state parity
+True [p4-crc-cdc#1] node led4.K 13-state parity
+True [p4-crc-cdc#1] node led5.K 13-state parity
+True [p4-crc-cdc#1] node pad.10 13-state parity
+True [p4-crc-cdc#1] node pad.11 13-state parity
+True [p4-crc-cdc#1] node pad.13 13-state parity
+True [p4-crc-cdc#1] node pad.14 13-state parity
+True [p4-crc-cdc#1] node pad.15 13-state parity
+True [p4-crc-cdc#1] node pad.16 13-state parity
+True [p4-crc-cdc#1] node pad.17 13-state parity
+True [p4-crc-cdc#1] node pad.18 13-state parity
+True [p4-crc-cdc#1] node pad.25 13-state parity
+True [p4-crc-cdc#1] node pad.26 13-state parity
+True [p4-crc-cdc#1] node pad.27 13-state parity
+True [p4-crc-cdc#1] node pad.28 13-state parity
+True [p4-crc-cdc#1] node pad.29 13-state parity
+True [p4-crc-cdc#1] node pad.3 13-state parity
+True [p4-crc-cdc#1] node pad.30 13-state parity
+True [p4-crc-cdc#1] node pad.33 13-state parity
+True [p4-crc-cdc#1] node pad.34 13-state parity
+True [p4-crc-cdc#1] node pad.35 13-state parity
+True [p4-crc-cdc#1] node pad.36 13-state parity
+True [p4-crc-cdc#1] node pad.37 13-state parity
+True [p4-crc-cdc#1] node pad.38 13-state parity
+True [p4-crc-cdc#1] node pad.4 13-state parity
+True [p4-crc-cdc#1] node pad.40 13-state parity
+True [p4-crc-cdc#1] node pad.41 13-state parity
+True [p4-crc-cdc#1] node pad.52 13-state parity
+True [p4-crc-cdc#1] node seg0.a 13-state parity
+True [p4-crc-cdc#1] node seg0.b 13-state parity
+True [p4-crc-cdc#1] node seg0.c 13-state parity
+True [p4-crc-cdc#1] node seg0.d 13-state parity
+True [p4-crc-cdc#1] node seg0.dig0 13-state parity
+True [p4-crc-cdc#1] node seg0.dig1 13-state parity
+True [p4-crc-cdc#1] node seg0.dig2 13-state parity
+True [p4-crc-cdc#1] node seg0.dig3 13-state parity
+True [p4-crc-cdc#1] node seg0.dp 13-state parity
+True [p4-crc-cdc#1] node seg0.e 13-state parity
+True [p4-crc-cdc#1] node seg0.f 13-state parity
+True [p4-crc-cdc#1] node seg0.g 13-state parity
+True [p4-crc-cdc#1] node uart0.RX 13-state parity
+True [p4-crc-cdc#1] node uart0.TX 13-state parity
+True [p4-crc-cdc#1] led0 mounted
+True [p4-crc-cdc#1] led0 duty_ppm parity
+True [p4-crc-cdc#1] led1 mounted
+True [p4-crc-cdc#1] led1 duty_ppm parity
+True [p4-crc-cdc#1] led2 mounted
+True [p4-crc-cdc#1] led2 duty_ppm parity
+True [p4-crc-cdc#1] led3 mounted
+True [p4-crc-cdc#1] led3 duty_ppm parity
+True [p4-crc-cdc#1] led4 mounted
+True [p4-crc-cdc#1] led4 duty_ppm parity
+True [p4-crc-cdc#1] led5 mounted
+True [p4-crc-cdc#1] led5 duty_ppm parity
+True [p4-crc-cdc#1] key_p3 mounted
+True [p4-crc-cdc#1] key_p4 mounted
+True [p4-crc-cdc#1] dip dip0 parity
+True [p4-crc-cdc#1] seven_seg seg0 parity
+True [p4-crc-cdc#2] run_id parity
+True [p4-crc-cdc#2] 64-bit tick/delta parity
+True [p4-crc-cdc#2] state/reason parity
+True [p4-crc-cdc#2] trace cursor parity
+True [p4-crc-cdc#2] node set parity
+True [p4-crc-cdc#2] node clk27m.out 13-state parity
+True [p4-crc-cdc#2] node dip0.bit0 13-state parity
+True [p4-crc-cdc#2] node dip0.bit1 13-state parity
+True [p4-crc-cdc#2] node key_p3.contact 13-state parity
+True [p4-crc-cdc#2] node key_p4.contact 13-state parity
+True [p4-crc-cdc#2] node led0.K 13-state parity
+True [p4-crc-cdc#2] node led1.K 13-state parity
+True [p4-crc-cdc#2] node led2.K 13-state parity
+True [p4-crc-cdc#2] node led3.K 13-state parity
+True [p4-crc-cdc#2] node led4.K 13-state parity
+True [p4-crc-cdc#2] node led5.K 13-state parity
+True [p4-crc-cdc#2] node pad.10 13-state parity
+True [p4-crc-cdc#2] node pad.11 13-state parity
+True [p4-crc-cdc#2] node pad.13 13-state parity
+True [p4-crc-cdc#2] node pad.14 13-state parity
+True [p4-crc-cdc#2] node pad.15 13-state parity
+True [p4-crc-cdc#2] node pad.16 13-state parity
+True [p4-crc-cdc#2] node pad.17 13-state parity
+True [p4-crc-cdc#2] node pad.18 13-state parity
+True [p4-crc-cdc#2] node pad.25 13-state parity
+True [p4-crc-cdc#2] node pad.26 13-state parity
+True [p4-crc-cdc#2] node pad.27 13-state parity
+True [p4-crc-cdc#2] node pad.28 13-state parity
+True [p4-crc-cdc#2] node pad.29 13-state parity
+True [p4-crc-cdc#2] node pad.3 13-state parity
+True [p4-crc-cdc#2] node pad.30 13-state parity
+True [p4-crc-cdc#2] node pad.33 13-state parity
+True [p4-crc-cdc#2] node pad.34 13-state parity
+True [p4-crc-cdc#2] node pad.35 13-state parity
+True [p4-crc-cdc#2] node pad.36 13-state parity
+True [p4-crc-cdc#2] node pad.37 13-state parity
+True [p4-crc-cdc#2] node pad.38 13-state parity
+True [p4-crc-cdc#2] node pad.4 13-state parity
+True [p4-crc-cdc#2] node pad.40 13-state parity
+True [p4-crc-cdc#2] node pad.41 13-state parity
+True [p4-crc-cdc#2] node pad.52 13-state parity
+True [p4-crc-cdc#2] node seg0.a 13-state parity
+True [p4-crc-cdc#2] node seg0.b 13-state parity
+True [p4-crc-cdc#2] node seg0.c 13-state parity
+True [p4-crc-cdc#2] node seg0.d 13-state parity
+True [p4-crc-cdc#2] node seg0.dig0 13-state parity
+True [p4-crc-cdc#2] node seg0.dig1 13-state parity
+True [p4-crc-cdc#2] node seg0.dig2 13-state parity
+True [p4-crc-cdc#2] node seg0.dig3 13-state parity
+True [p4-crc-cdc#2] node seg0.dp 13-state parity
+True [p4-crc-cdc#2] node seg0.e 13-state parity
+True [p4-crc-cdc#2] node seg0.f 13-state parity
+True [p4-crc-cdc#2] node seg0.g 13-state parity
+True [p4-crc-cdc#2] node uart0.RX 13-state parity
+True [p4-crc-cdc#2] node uart0.TX 13-state parity
+True [p4-crc-cdc#2] led0 mounted
+True [p4-crc-cdc#2] led0 duty_ppm parity
+True [p4-crc-cdc#2] led1 mounted
+True [p4-crc-cdc#2] led1 duty_ppm parity
+True [p4-crc-cdc#2] led2 mounted
+True [p4-crc-cdc#2] led2 duty_ppm parity
+True [p4-crc-cdc#2] led3 mounted
+True [p4-crc-cdc#2] led3 duty_ppm parity
+True [p4-crc-cdc#2] led4 mounted
+True [p4-crc-cdc#2] led4 duty_ppm parity
+True [p4-crc-cdc#2] led5 mounted
+True [p4-crc-cdc#2] led5 duty_ppm parity
+True [p4-crc-cdc#2] key_p3 mounted
+True [p4-crc-cdc#2] key_p4 mounted
+True [p4-crc-cdc#2] dip dip0 parity
+True [p4-crc-cdc#2] seven_seg seg0 parity
+True [p4-crc-cdc#3] run_id parity
+True [p4-crc-cdc#3] 64-bit tick/delta parity
+True [p4-crc-cdc#3] state/reason parity
+True [p4-crc-cdc#3] trace cursor parity
+True [p4-crc-cdc#3] node set parity
+True [p4-crc-cdc#3] node clk27m.out 13-state parity
+True [p4-crc-cdc#3] node dip0.bit0 13-state parity
+True [p4-crc-cdc#3] node dip0.bit1 13-state parity
+True [p4-crc-cdc#3] node key_p3.contact 13-state parity
+True [p4-crc-cdc#3] node key_p4.contact 13-state parity
+True [p4-crc-cdc#3] node led0.K 13-state parity
+True [p4-crc-cdc#3] node led1.K 13-state parity
+True [p4-crc-cdc#3] node led2.K 13-state parity
+True [p4-crc-cdc#3] node led3.K 13-state parity
+True [p4-crc-cdc#3] node led4.K 13-state parity
+True [p4-crc-cdc#3] node led5.K 13-state parity
+True [p4-crc-cdc#3] node pad.10 13-state parity
+True [p4-crc-cdc#3] node pad.11 13-state parity
+True [p4-crc-cdc#3] node pad.13 13-state parity
+True [p4-crc-cdc#3] node pad.14 13-state parity
+True [p4-crc-cdc#3] node pad.15 13-state parity
+True [p4-crc-cdc#3] node pad.16 13-state parity
+True [p4-crc-cdc#3] node pad.17 13-state parity
+True [p4-crc-cdc#3] node pad.18 13-state parity
+True [p4-crc-cdc#3] node pad.25 13-state parity
+True [p4-crc-cdc#3] node pad.26 13-state parity
+True [p4-crc-cdc#3] node pad.27 13-state parity
+True [p4-crc-cdc#3] node pad.28 13-state parity
+True [p4-crc-cdc#3] node pad.29 13-state parity
+True [p4-crc-cdc#3] node pad.3 13-state parity
+True [p4-crc-cdc#3] node pad.30 13-state parity
+True [p4-crc-cdc#3] node pad.33 13-state parity
+True [p4-crc-cdc#3] node pad.34 13-state parity
+True [p4-crc-cdc#3] node pad.35 13-state parity
+True [p4-crc-cdc#3] node pad.36 13-state parity
+True [p4-crc-cdc#3] node pad.37 13-state parity
+True [p4-crc-cdc#3] node pad.38 13-state parity
+True [p4-crc-cdc#3] node pad.4 13-state parity
+True [p4-crc-cdc#3] node pad.40 13-state parity
+True [p4-crc-cdc#3] node pad.41 13-state parity
+True [p4-crc-cdc#3] node pad.52 13-state parity
+True [p4-crc-cdc#3] node seg0.a 13-state parity
+True [p4-crc-cdc#3] node seg0.b 13-state parity
+True [p4-crc-cdc#3] node seg0.c 13-state parity
+True [p4-crc-cdc#3] node seg0.d 13-state parity
+True [p4-crc-cdc#3] node seg0.dig0 13-state parity
+True [p4-crc-cdc#3] node seg0.dig1 13-state parity
+True [p4-crc-cdc#3] node seg0.dig2 13-state parity
+True [p4-crc-cdc#3] node seg0.dig3 13-state parity
+True [p4-crc-cdc#3] node seg0.dp 13-state parity
+True [p4-crc-cdc#3] node seg0.e 13-state parity
+True [p4-crc-cdc#3] node seg0.f 13-state parity
+True [p4-crc-cdc#3] node seg0.g 13-state parity
+True [p4-crc-cdc#3] node uart0.RX 13-state parity
+True [p4-crc-cdc#3] node uart0.TX 13-state parity
+True [p4-crc-cdc#3] led0 mounted
+True [p4-crc-cdc#3] led0 duty_ppm parity
+True [p4-crc-cdc#3] led1 mounted
+True [p4-crc-cdc#3] led1 duty_ppm parity
+True [p4-crc-cdc#3] led2 mounted
+True [p4-crc-cdc#3] led2 duty_ppm parity
+True [p4-crc-cdc#3] led3 mounted
+True [p4-crc-cdc#3] led3 duty_ppm parity
+True [p4-crc-cdc#3] led4 mounted
+True [p4-crc-cdc#3] led4 duty_ppm parity
+True [p4-crc-cdc#3] led5 mounted
+True [p4-crc-cdc#3] led5 duty_ppm parity
+True [p4-crc-cdc#3] key_p3 mounted
+True [p4-crc-cdc#3] key_p4 mounted
+True [p4-crc-cdc#3] dip dip0 parity
+True [p4-crc-cdc#3] seven_seg seg0 parity
+True [p4-crc-cdc#4] run_id parity
+True [p4-crc-cdc#4] 64-bit tick/delta parity
+True [p4-crc-cdc#4] state/reason parity
+True [p4-crc-cdc#4] trace cursor parity
+True [p4-crc-cdc#4] node set parity
+True [p4-crc-cdc#4] node clk27m.out 13-state parity
+True [p4-crc-cdc#4] node dip0.bit0 13-state parity
+True [p4-crc-cdc#4] node dip0.bit1 13-state parity
+True [p4-crc-cdc#4] node key_p3.contact 13-state parity
+True [p4-crc-cdc#4] node key_p4.contact 13-state parity
+True [p4-crc-cdc#4] node led0.K 13-state parity
+True [p4-crc-cdc#4] node led1.K 13-state parity
+True [p4-crc-cdc#4] node led2.K 13-state parity
+True [p4-crc-cdc#4] node led3.K 13-state parity
+True [p4-crc-cdc#4] node led4.K 13-state parity
+True [p4-crc-cdc#4] node led5.K 13-state parity
+True [p4-crc-cdc#4] node pad.10 13-state parity
+True [p4-crc-cdc#4] node pad.11 13-state parity
+True [p4-crc-cdc#4] node pad.13 13-state parity
+True [p4-crc-cdc#4] node pad.14 13-state parity
+True [p4-crc-cdc#4] node pad.15 13-state parity
+True [p4-crc-cdc#4] node pad.16 13-state parity
+True [p4-crc-cdc#4] node pad.17 13-state parity
+True [p4-crc-cdc#4] node pad.18 13-state parity
+True [p4-crc-cdc#4] node pad.25 13-state parity
+True [p4-crc-cdc#4] node pad.26 13-state parity
+True [p4-crc-cdc#4] node pad.27 13-state parity
+True [p4-crc-cdc#4] node pad.28 13-state parity
+True [p4-crc-cdc#4] node pad.29 13-state parity
+True [p4-crc-cdc#4] node pad.3 13-state parity
+True [p4-crc-cdc#4] node pad.30 13-state parity
+True [p4-crc-cdc#4] node pad.33 13-state parity
+True [p4-crc-cdc#4] node pad.34 13-state parity
+True [p4-crc-cdc#4] node pad.35 13-state parity
+True [p4-crc-cdc#4] node pad.36 13-state parity
+True [p4-crc-cdc#4] node pad.37 13-state parity
+True [p4-crc-cdc#4] node pad.38 13-state parity
+True [p4-crc-cdc#4] node pad.4 13-state parity
+True [p4-crc-cdc#4] node pad.40 13-state parity
+True [p4-crc-cdc#4] node pad.41 13-state parity
+True [p4-crc-cdc#4] node pad.52 13-state parity
+True [p4-crc-cdc#4] node seg0.a 13-state parity
+True [p4-crc-cdc#4] node seg0.b 13-state parity
+True [p4-crc-cdc#4] node seg0.c 13-state parity
+True [p4-crc-cdc#4] node seg0.d 13-state parity
+True [p4-crc-cdc#4] node seg0.dig0 13-state parity
+True [p4-crc-cdc#4] node seg0.dig1 13-state parity
+True [p4-crc-cdc#4] node seg0.dig2 13-state parity
+True [p4-crc-cdc#4] node seg0.dig3 13-state parity
+True [p4-crc-cdc#4] node seg0.dp 13-state parity
+True [p4-crc-cdc#4] node seg0.e 13-state parity
+True [p4-crc-cdc#4] node seg0.f 13-state parity
+True [p4-crc-cdc#4] node seg0.g 13-state parity
+True [p4-crc-cdc#4] node uart0.RX 13-state parity
+True [p4-crc-cdc#4] node uart0.TX 13-state parity
+True [p4-crc-cdc#4] led0 mounted
+True [p4-crc-cdc#4] led0 duty_ppm parity
+True [p4-crc-cdc#4] led1 mounted
+True [p4-crc-cdc#4] led1 duty_ppm parity
+True [p4-crc-cdc#4] led2 mounted
+True [p4-crc-cdc#4] led2 duty_ppm parity
+True [p4-crc-cdc#4] led3 mounted
+True [p4-crc-cdc#4] led3 duty_ppm parity
+True [p4-crc-cdc#4] led4 mounted
+True [p4-crc-cdc#4] led4 duty_ppm parity
+True [p4-crc-cdc#4] led5 mounted
+True [p4-crc-cdc#4] led5 duty_ppm parity
+True [p4-crc-cdc#4] key_p3 mounted
+True [p4-crc-cdc#4] key_p4 mounted
+True [p4-crc-cdc#4] dip dip0 parity
+True [p4-crc-cdc#4] seven_seg seg0 parity
+True [p4-crc-cdc#5] run_id parity
+True [p4-crc-cdc#5] 64-bit tick/delta parity
+True [p4-crc-cdc#5] state/reason parity
+True [p4-crc-cdc#5] trace cursor parity
+True [p4-crc-cdc#5] node set parity
+True [p4-crc-cdc#5] node clk27m.out 13-state parity
+True [p4-crc-cdc#5] node dip0.bit0 13-state parity
+True [p4-crc-cdc#5] node dip0.bit1 13-state parity
+True [p4-crc-cdc#5] node key_p3.contact 13-state parity
+True [p4-crc-cdc#5] node key_p4.contact 13-state parity
+True [p4-crc-cdc#5] node led0.K 13-state parity
+True [p4-crc-cdc#5] node led1.K 13-state parity
+True [p4-crc-cdc#5] node led2.K 13-state parity
+True [p4-crc-cdc#5] node led3.K 13-state parity
+True [p4-crc-cdc#5] node led4.K 13-state parity
+True [p4-crc-cdc#5] node led5.K 13-state parity
+True [p4-crc-cdc#5] node pad.10 13-state parity
+True [p4-crc-cdc#5] node pad.11 13-state parity
+True [p4-crc-cdc#5] node pad.13 13-state parity
+True [p4-crc-cdc#5] node pad.14 13-state parity
+True [p4-crc-cdc#5] node pad.15 13-state parity
+True [p4-crc-cdc#5] node pad.16 13-state parity
+True [p4-crc-cdc#5] node pad.17 13-state parity
+True [p4-crc-cdc#5] node pad.18 13-state parity
+True [p4-crc-cdc#5] node pad.25 13-state parity
+True [p4-crc-cdc#5] node pad.26 13-state parity
+True [p4-crc-cdc#5] node pad.27 13-state parity
+True [p4-crc-cdc#5] node pad.28 13-state parity
+True [p4-crc-cdc#5] node pad.29 13-state parity
+True [p4-crc-cdc#5] node pad.3 13-state parity
+True [p4-crc-cdc#5] node pad.30 13-state parity
+True [p4-crc-cdc#5] node pad.33 13-state parity
+True [p4-crc-cdc#5] node pad.34 13-state parity
+True [p4-crc-cdc#5] node pad.35 13-state parity
+True [p4-crc-cdc#5] node pad.36 13-state parity
+True [p4-crc-cdc#5] node pad.37 13-state parity
+True [p4-crc-cdc#5] node pad.38 13-state parity
+True [p4-crc-cdc#5] node pad.4 13-state parity
+True [p4-crc-cdc#5] node pad.40 13-state parity
+True [p4-crc-cdc#5] node pad.41 13-state parity
+True [p4-crc-cdc#5] node pad.52 13-state parity
+True [p4-crc-cdc#5] node seg0.a 13-state parity
+True [p4-crc-cdc#5] node seg0.b 13-state parity
+True [p4-crc-cdc#5] node seg0.c 13-state parity
+True [p4-crc-cdc#5] node seg0.d 13-state parity
+True [p4-crc-cdc#5] node seg0.dig0 13-state parity
+True [p4-crc-cdc#5] node seg0.dig1 13-state parity
+True [p4-crc-cdc#5] node seg0.dig2 13-state parity
+True [p4-crc-cdc#5] node seg0.dig3 13-state parity
+True [p4-crc-cdc#5] node seg0.dp 13-state parity
+True [p4-crc-cdc#5] node seg0.e 13-state parity
+True [p4-crc-cdc#5] node seg0.f 13-state parity
+True [p4-crc-cdc#5] node seg0.g 13-state parity
+True [p4-crc-cdc#5] node uart0.RX 13-state parity
+True [p4-crc-cdc#5] node uart0.TX 13-state parity
+True [p4-crc-cdc#5] led0 mounted
+True [p4-crc-cdc#5] led0 duty_ppm parity
+True [p4-crc-cdc#5] led1 mounted
+True [p4-crc-cdc#5] led1 duty_ppm parity
+True [p4-crc-cdc#5] led2 mounted
+True [p4-crc-cdc#5] led2 duty_ppm parity
+True [p4-crc-cdc#5] led3 mounted
+True [p4-crc-cdc#5] led3 duty_ppm parity
+True [p4-crc-cdc#5] led4 mounted
+True [p4-crc-cdc#5] led4 duty_ppm parity
+True [p4-crc-cdc#5] led5 mounted
+True [p4-crc-cdc#5] led5 duty_ppm parity
+True [p4-crc-cdc#5] key_p3 mounted
+True [p4-crc-cdc#5] key_p4 mounted
+True [p4-crc-cdc#5] dip dip0 parity
+True [p4-crc-cdc#5] seven_seg seg0 parity
+True [p4-crc-cdc#6] run_id parity
+True [p4-crc-cdc#6] 64-bit tick/delta parity
+True [p4-crc-cdc#6] state/reason parity
+True [p4-crc-cdc#6] trace cursor parity
+True [p4-crc-cdc#6] node set parity
+True [p4-crc-cdc#6] node clk27m.out 13-state parity
+True [p4-crc-cdc#6] node dip0.bit0 13-state parity
+True [p4-crc-cdc#6] node dip0.bit1 13-state parity
+True [p4-crc-cdc#6] node key_p3.contact 13-state parity
+True [p4-crc-cdc#6] node key_p4.contact 13-state parity
+True [p4-crc-cdc#6] node led0.K 13-state parity
+True [p4-crc-cdc#6] node led1.K 13-state parity
+True [p4-crc-cdc#6] node led2.K 13-state parity
+True [p4-crc-cdc#6] node led3.K 13-state parity
+True [p4-crc-cdc#6] node led4.K 13-state parity
+True [p4-crc-cdc#6] node led5.K 13-state parity
+True [p4-crc-cdc#6] node pad.10 13-state parity
+True [p4-crc-cdc#6] node pad.11 13-state parity
+True [p4-crc-cdc#6] node pad.13 13-state parity
+True [p4-crc-cdc#6] node pad.14 13-state parity
+True [p4-crc-cdc#6] node pad.15 13-state parity
+True [p4-crc-cdc#6] node pad.16 13-state parity
+True [p4-crc-cdc#6] node pad.17 13-state parity
+True [p4-crc-cdc#6] node pad.18 13-state parity
+True [p4-crc-cdc#6] node pad.25 13-state parity
+True [p4-crc-cdc#6] node pad.26 13-state parity
+True [p4-crc-cdc#6] node pad.27 13-state parity
+True [p4-crc-cdc#6] node pad.28 13-state parity
+True [p4-crc-cdc#6] node pad.29 13-state parity
+True [p4-crc-cdc#6] node pad.3 13-state parity
+True [p4-crc-cdc#6] node pad.30 13-state parity
+True [p4-crc-cdc#6] node pad.33 13-state parity
+True [p4-crc-cdc#6] node pad.34 13-state parity
+True [p4-crc-cdc#6] node pad.35 13-state parity
+True [p4-crc-cdc#6] node pad.36 13-state parity
+True [p4-crc-cdc#6] node pad.37 13-state parity
+True [p4-crc-cdc#6] node pad.38 13-state parity
+True [p4-crc-cdc#6] node pad.4 13-state parity
+True [p4-crc-cdc#6] node pad.40 13-state parity
+True [p4-crc-cdc#6] node pad.41 13-state parity
+True [p4-crc-cdc#6] node pad.52 13-state parity
+True [p4-crc-cdc#6] node seg0.a 13-state parity
+True [p4-crc-cdc#6] node seg0.b 13-state parity
+True [p4-crc-cdc#6] node seg0.c 13-state parity
+True [p4-crc-cdc#6] node seg0.d 13-state parity
+True [p4-crc-cdc#6] node seg0.dig0 13-state parity
+True [p4-crc-cdc#6] node seg0.dig1 13-state parity
+True [p4-crc-cdc#6] node seg0.dig2 13-state parity
+True [p4-crc-cdc#6] node seg0.dig3 13-state parity
+True [p4-crc-cdc#6] node seg0.dp 13-state parity
+True [p4-crc-cdc#6] node seg0.e 13-state parity
+True [p4-crc-cdc#6] node seg0.f 13-state parity
+True [p4-crc-cdc#6] node seg0.g 13-state parity
+True [p4-crc-cdc#6] node uart0.RX 13-state parity
+True [p4-crc-cdc#6] node uart0.TX 13-state parity
+True [p4-crc-cdc#6] led0 mounted
+True [p4-crc-cdc#6] led0 duty_ppm parity
+True [p4-crc-cdc#6] led1 mounted
+True [p4-crc-cdc#6] led1 duty_ppm parity
+True [p4-crc-cdc#6] led2 mounted
+True [p4-crc-cdc#6] led2 duty_ppm parity
+True [p4-crc-cdc#6] led3 mounted
+True [p4-crc-cdc#6] led3 duty_ppm parity
+True [p4-crc-cdc#6] led4 mounted
+True [p4-crc-cdc#6] led4 duty_ppm parity
+True [p4-crc-cdc#6] led5 mounted
+True [p4-crc-cdc#6] led5 duty_ppm parity
+True [p4-crc-cdc#6] key_p3 mounted
+True [p4-crc-cdc#6] key_p4 mounted
+True [p4-crc-cdc#6] dip dip0 parity
+True [p4-crc-cdc#6] seven_seg seg0 parity
+True [p4-crc-cdc#7] run_id parity
+True [p4-crc-cdc#7] 64-bit tick/delta parity
+True [p4-crc-cdc#7] state/reason parity
+True [p4-crc-cdc#7] trace cursor parity
+True [p4-crc-cdc#7] node set parity
+True [p4-crc-cdc#7] node clk27m.out 13-state parity
+True [p4-crc-cdc#7] node dip0.bit0 13-state parity
+True [p4-crc-cdc#7] node dip0.bit1 13-state parity
+True [p4-crc-cdc#7] node key_p3.contact 13-state parity
+True [p4-crc-cdc#7] node key_p4.contact 13-state parity
+True [p4-crc-cdc#7] node led0.K 13-state parity
+True [p4-crc-cdc#7] node led1.K 13-state parity
+True [p4-crc-cdc#7] node led2.K 13-state parity
+True [p4-crc-cdc#7] node led3.K 13-state parity
+True [p4-crc-cdc#7] node led4.K 13-state parity
+True [p4-crc-cdc#7] node led5.K 13-state parity
+True [p4-crc-cdc#7] node pad.10 13-state parity
+True [p4-crc-cdc#7] node pad.11 13-state parity
+True [p4-crc-cdc#7] node pad.13 13-state parity
+True [p4-crc-cdc#7] node pad.14 13-state parity
+True [p4-crc-cdc#7] node pad.15 13-state parity
+True [p4-crc-cdc#7] node pad.16 13-state parity
+True [p4-crc-cdc#7] node pad.17 13-state parity
+True [p4-crc-cdc#7] node pad.18 13-state parity
+True [p4-crc-cdc#7] node pad.25 13-state parity
+True [p4-crc-cdc#7] node pad.26 13-state parity
+True [p4-crc-cdc#7] node pad.27 13-state parity
+True [p4-crc-cdc#7] node pad.28 13-state parity
+True [p4-crc-cdc#7] node pad.29 13-state parity
+True [p4-crc-cdc#7] node pad.3 13-state parity
+True [p4-crc-cdc#7] node pad.30 13-state parity
+True [p4-crc-cdc#7] node pad.33 13-state parity
+True [p4-crc-cdc#7] node pad.34 13-state parity
+True [p4-crc-cdc#7] node pad.35 13-state parity
+True [p4-crc-cdc#7] node pad.36 13-state parity
+True [p4-crc-cdc#7] node pad.37 13-state parity
+True [p4-crc-cdc#7] node pad.38 13-state parity
+True [p4-crc-cdc#7] node pad.4 13-state parity
+True [p4-crc-cdc#7] node pad.40 13-state parity
+True [p4-crc-cdc#7] node pad.41 13-state parity
+True [p4-crc-cdc#7] node pad.52 13-state parity
+True [p4-crc-cdc#7] node seg0.a 13-state parity
+True [p4-crc-cdc#7] node seg0.b 13-state parity
+True [p4-crc-cdc#7] node seg0.c 13-state parity
+True [p4-crc-cdc#7] node seg0.d 13-state parity
+True [p4-crc-cdc#7] node seg0.dig0 13-state parity
+True [p4-crc-cdc#7] node seg0.dig1 13-state parity
+True [p4-crc-cdc#7] node seg0.dig2 13-state parity
+True [p4-crc-cdc#7] node seg0.dig3 13-state parity
+True [p4-crc-cdc#7] node seg0.dp 13-state parity
+True [p4-crc-cdc#7] node seg0.e 13-state parity
+True [p4-crc-cdc#7] node seg0.f 13-state parity
+True [p4-crc-cdc#7] node seg0.g 13-state parity
+True [p4-crc-cdc#7] node uart0.RX 13-state parity
+True [p4-crc-cdc#7] node uart0.TX 13-state parity
+True [p4-crc-cdc#7] led0 mounted
+True [p4-crc-cdc#7] led0 duty_ppm parity
+True [p4-crc-cdc#7] led1 mounted
+True [p4-crc-cdc#7] led1 duty_ppm parity
+True [p4-crc-cdc#7] led2 mounted
+True [p4-crc-cdc#7] led2 duty_ppm parity
+True [p4-crc-cdc#7] led3 mounted
+True [p4-crc-cdc#7] led3 duty_ppm parity
+True [p4-crc-cdc#7] led4 mounted
+True [p4-crc-cdc#7] led4 duty_ppm parity
+True [p4-crc-cdc#7] led5 mounted
+True [p4-crc-cdc#7] led5 duty_ppm parity
+True [p4-crc-cdc#7] key_p3 mounted
+True [p4-crc-cdc#7] key_p4 mounted
+True [p4-crc-cdc#7] dip dip0 parity
+True [p4-crc-cdc#7] seven_seg seg0 parity
+True p4-crc-cdc web view reproduces CRC8 tamper rejection (bad_count lit, good_count off, legal framing) on LED bank
+True p4-crc-cdc trajectory exercises real cdc_sampling_approx
+True located exact tick of i2c.nak_injected
+True encode-p5-i2c-burst exits 0: {"frames":5,"status":"passed"}
+
+True js-ref-p5-i2c-burst exits 0: {"status":"passed","frames":5}
+
+True js-proj-p5-i2c-burst exits 0: {"status":"passed","frames":5}
+
+True [p5-i2c-burst] sfvb_reference_decoder.js matches C++ frame-for-frame
+True [p5-i2c-burst] sfvb_web_projector.js projects all 5 frames
+True [p5-i2c-burst#0] run_id parity
+True [p5-i2c-burst#0] 64-bit tick/delta parity
+True [p5-i2c-burst#0] state/reason parity
+True [p5-i2c-burst#0] trace cursor parity
+True [p5-i2c-burst#0] node set parity
+True [p5-i2c-burst#0] node clk27m.out 13-state parity
+True [p5-i2c-burst#0] node i2c0.SCL 13-state parity
+True [p5-i2c-burst#0] node i2c0.SDA 13-state parity
+True [p5-i2c-burst#0] node key_p4.contact 13-state parity
+True [p5-i2c-burst#0] node keypad0.col0 13-state parity
+True [p5-i2c-burst#0] node keypad0.col1 13-state parity
+True [p5-i2c-burst#0] node keypad0.col2 13-state parity
+True [p5-i2c-burst#0] node keypad0.col3 13-state parity
+True [p5-i2c-burst#0] node keypad0.row0 13-state parity
+True [p5-i2c-burst#0] node keypad0.row1 13-state parity
+True [p5-i2c-burst#0] node keypad0.row2 13-state parity
+True [p5-i2c-burst#0] node keypad0.row3 13-state parity
+True [p5-i2c-burst#0] node led0.K 13-state parity
+True [p5-i2c-burst#0] node led1.K 13-state parity
+True [p5-i2c-burst#0] node led2.K 13-state parity
+True [p5-i2c-burst#0] node led3.K 13-state parity
+True [p5-i2c-burst#0] node led4.K 13-state parity
+True [p5-i2c-burst#0] node oled0.CS_n 13-state parity
+True [p5-i2c-burst#0] node oled0.DC_n 13-state parity
+True [p5-i2c-burst#0] node oled0.MOSI 13-state parity
+True [p5-i2c-burst#0] node oled0.SCK 13-state parity
+True [p5-i2c-burst#0] node pad.10 13-state parity
+True [p5-i2c-burst#0] node pad.11 13-state parity
+True [p5-i2c-burst#0] node pad.13 13-state parity
+True [p5-i2c-burst#0] node pad.14 13-state parity
+True [p5-i2c-burst#0] node pad.15 13-state parity
+True [p5-i2c-burst#0] node pad.16 13-state parity
+True [p5-i2c-burst#0] node pad.25 13-state parity
+True [p5-i2c-burst#0] node pad.26 13-state parity
+True [p5-i2c-burst#0] node pad.27 13-state parity
+True [p5-i2c-burst#0] node pad.28 13-state parity
+True [p5-i2c-burst#0] node pad.29 13-state parity
+True [p5-i2c-burst#0] node pad.30 13-state parity
+True [p5-i2c-burst#0] node pad.33 13-state parity
+True [p5-i2c-burst#0] node pad.34 13-state parity
+True [p5-i2c-burst#0] node pad.35 13-state parity
+True [p5-i2c-burst#0] node pad.36 13-state parity
+True [p5-i2c-burst#0] node pad.37 13-state parity
+True [p5-i2c-burst#0] node pad.38 13-state parity
+True [p5-i2c-burst#0] node pad.4 13-state parity
+True [p5-i2c-burst#0] node pad.40 13-state parity
+True [p5-i2c-burst#0] node pad.41 13-state parity
+True [p5-i2c-burst#0] node pad.52 13-state parity
+True [p5-i2c-burst#0] led0 mounted
+True [p5-i2c-burst#0] led0 duty_ppm parity
+True [p5-i2c-burst#0] led1 mounted
+True [p5-i2c-burst#0] led1 duty_ppm parity
+True [p5-i2c-burst#0] led2 mounted
+True [p5-i2c-burst#0] led2 duty_ppm parity
+True [p5-i2c-burst#0] led3 mounted
+True [p5-i2c-burst#0] led3 duty_ppm parity
+True [p5-i2c-burst#0] led4 mounted
+True [p5-i2c-burst#0] led4 duty_ppm parity
+True [p5-i2c-burst#0] led5 unmounted honest state
+True [p5-i2c-burst#0] multiplexed pad.16 honest label & state
+True [p5-i2c-burst#0] unmounted key_p3 honest label
+True [p5-i2c-burst#0] key_p4 mounted
+True [p5-i2c-burst#0] i2c i2c0.address_7bit parity
+True [p5-i2c-burst#0] i2c i2c0.registers parity
+True [p5-i2c-burst#0] i2c i2c0.reg_pointer parity
+True [p5-i2c-burst#0] i2c i2c0.ack_count parity
+True [p5-i2c-burst#0] i2c i2c0.nak_count parity
+True [p5-i2c-burst#0] i2c i2c0.last_read_byte parity
+True [p5-i2c-burst#0] i2c i2c0.transactions parity
+True [p5-i2c-burst#0] i2c i2c0.bus_state parity
+True [p5-i2c-burst#0] i2c i2c0.read_mode parity
+True [p5-i2c-burst#0] keypad keypad0 parity
+True [p5-i2c-burst#0] oled oled0.width parity
+True [p5-i2c-burst#0] oled oled0.height parity
+True [p5-i2c-burst#0] oled oled0.cpol parity
+True [p5-i2c-burst#0] oled oled0.cpha parity
+True [p5-i2c-burst#0] oled oled0.display_on parity
+True [p5-i2c-burst#0] oled oled0.inverted parity
+True [p5-i2c-burst#0] oled oled0.page parity
+True [p5-i2c-burst#0] oled oled0.column parity
+True [p5-i2c-burst#0] oled oled0.write_count parity
+True [p5-i2c-burst#0] oled oled0.lit_pixels parity
+True [p5-i2c-burst#0] oled oled0.frame_sha256 parity
+True [p5-i2c-burst#0] oled decoded 2D pixel bitmap parity
+True [p5-i2c-burst#1] run_id parity
+True [p5-i2c-burst#1] 64-bit tick/delta parity
+True [p5-i2c-burst#1] state/reason parity
+True [p5-i2c-burst#1] trace cursor parity
+True [p5-i2c-burst#1] node set parity
+True [p5-i2c-burst#1] node clk27m.out 13-state parity
+True [p5-i2c-burst#1] node i2c0.SCL 13-state parity
+True [p5-i2c-burst#1] node i2c0.SDA 13-state parity
+True [p5-i2c-burst#1] node key_p4.contact 13-state parity
+True [p5-i2c-burst#1] node keypad0.col0 13-state parity
+True [p5-i2c-burst#1] node keypad0.col1 13-state parity
+True [p5-i2c-burst#1] node keypad0.col2 13-state parity
+True [p5-i2c-burst#1] node keypad0.col3 13-state parity
+True [p5-i2c-burst#1] node keypad0.row0 13-state parity
+True [p5-i2c-burst#1] node keypad0.row1 13-state parity
+True [p5-i2c-burst#1] node keypad0.row2 13-state parity
+True [p5-i2c-burst#1] node keypad0.row3 13-state parity
+True [p5-i2c-burst#1] node led0.K 13-state parity
+True [p5-i2c-burst#1] node led1.K 13-state parity
+True [p5-i2c-burst#1] node led2.K 13-state parity
+True [p5-i2c-burst#1] node led3.K 13-state parity
+True [p5-i2c-burst#1] node led4.K 13-state parity
+True [p5-i2c-burst#1] node oled0.CS_n 13-state parity
+True [p5-i2c-burst#1] node oled0.DC_n 13-state parity
+True [p5-i2c-burst#1] node oled0.MOSI 13-state parity
+True [p5-i2c-burst#1] node oled0.SCK 13-state parity
+True [p5-i2c-burst#1] node pad.10 13-state parity
+True [p5-i2c-burst#1] node pad.11 13-state parity
+True [p5-i2c-burst#1] node pad.13 13-state parity
+True [p5-i2c-burst#1] node pad.14 13-state parity
+True [p5-i2c-burst#1] node pad.15 13-state parity
+True [p5-i2c-burst#1] node pad.16 13-state parity
+True [p5-i2c-burst#1] node pad.25 13-state parity
+True [p5-i2c-burst#1] node pad.26 13-state parity
+True [p5-i2c-burst#1] node pad.27 13-state parity
+True [p5-i2c-burst#1] node pad.28 13-state parity
+True [p5-i2c-burst#1] node pad.29 13-state parity
+True [p5-i2c-burst#1] node pad.30 13-state parity
+True [p5-i2c-burst#1] node pad.33 13-state parity
+True [p5-i2c-burst#1] node pad.34 13-state parity
+True [p5-i2c-burst#1] node pad.35 13-state parity
+True [p5-i2c-burst#1] node pad.36 13-state parity
+True [p5-i2c-burst#1] node pad.37 13-state parity
+True [p5-i2c-burst#1] node pad.38 13-state parity
+True [p5-i2c-burst#1] node pad.4 13-state parity
+True [p5-i2c-burst#1] node pad.40 13-state parity
+True [p5-i2c-burst#1] node pad.41 13-state parity
+True [p5-i2c-burst#1] node pad.52 13-state parity
+True [p5-i2c-burst#1] led0 mounted
+True [p5-i2c-burst#1] led0 duty_ppm parity
+True [p5-i2c-burst#1] led1 mounted
+True [p5-i2c-burst#1] led1 duty_ppm parity
+True [p5-i2c-burst#1] led2 mounted
+True [p5-i2c-burst#1] led2 duty_ppm parity
+True [p5-i2c-burst#1] led3 mounted
+True [p5-i2c-burst#1] led3 duty_ppm parity
+True [p5-i2c-burst#1] led4 mounted
+True [p5-i2c-burst#1] led4 duty_ppm parity
+True [p5-i2c-burst#1] led5 unmounted honest state
+True [p5-i2c-burst#1] multiplexed pad.16 honest label & state
+True [p5-i2c-burst#1] unmounted key_p3 honest label
+True [p5-i2c-burst#1] key_p4 mounted
+True [p5-i2c-burst#1] i2c i2c0.address_7bit parity
+True [p5-i2c-burst#1] i2c i2c0.registers parity
+True [p5-i2c-burst#1] i2c i2c0.reg_pointer parity
+True [p5-i2c-burst#1] i2c i2c0.ack_count parity
+True [p5-i2c-burst#1] i2c i2c0.nak_count parity
+True [p5-i2c-burst#1] i2c i2c0.last_read_byte parity
+True [p5-i2c-burst#1] i2c i2c0.transactions parity
+True [p5-i2c-burst#1] i2c i2c0.bus_state parity
+True [p5-i2c-burst#1] i2c i2c0.read_mode parity
+True [p5-i2c-burst#1] keypad keypad0 parity
+True [p5-i2c-burst#1] oled oled0.width parity
+True [p5-i2c-burst#1] oled oled0.height parity
+True [p5-i2c-burst#1] oled oled0.cpol parity
+True [p5-i2c-burst#1] oled oled0.cpha parity
+True [p5-i2c-burst#1] oled oled0.display_on parity
+True [p5-i2c-burst#1] oled oled0.inverted parity
+True [p5-i2c-burst#1] oled oled0.page parity
+True [p5-i2c-burst#1] oled oled0.column parity
+True [p5-i2c-burst#1] oled oled0.write_count parity
+True [p5-i2c-burst#1] oled oled0.lit_pixels parity
+True [p5-i2c-burst#1] oled oled0.frame_sha256 parity
+True [p5-i2c-burst#1] oled decoded 2D pixel bitmap parity
+True [p5-i2c-burst#2] run_id parity
+True [p5-i2c-burst#2] 64-bit tick/delta parity
+True [p5-i2c-burst#2] state/reason parity
+True [p5-i2c-burst#2] trace cursor parity
+True [p5-i2c-burst#2] node set parity
+True [p5-i2c-burst#2] node clk27m.out 13-state parity
+True [p5-i2c-burst#2] node i2c0.SCL 13-state parity
+True [p5-i2c-burst#2] node i2c0.SDA 13-state parity
+True [p5-i2c-burst#2] node key_p4.contact 13-state parity
+True [p5-i2c-burst#2] node keypad0.col0 13-state parity
+True [p5-i2c-burst#2] node keypad0.col1 13-state parity
+True [p5-i2c-burst#2] node keypad0.col2 13-state parity
+True [p5-i2c-burst#2] node keypad0.col3 13-state parity
+True [p5-i2c-burst#2] node keypad0.row0 13-state parity
+True [p5-i2c-burst#2] node keypad0.row1 13-state parity
+True [p5-i2c-burst#2] node keypad0.row2 13-state parity
+True [p5-i2c-burst#2] node keypad0.row3 13-state parity
+True [p5-i2c-burst#2] node led0.K 13-state parity
+True [p5-i2c-burst#2] node led1.K 13-state parity
+True [p5-i2c-burst#2] node led2.K 13-state parity
+True [p5-i2c-burst#2] node led3.K 13-state parity
+True [p5-i2c-burst#2] node led4.K 13-state parity
+True [p5-i2c-burst#2] node oled0.CS_n 13-state parity
+True [p5-i2c-burst#2] node oled0.DC_n 13-state parity
+True [p5-i2c-burst#2] node oled0.MOSI 13-state parity
+True [p5-i2c-burst#2] node oled0.SCK 13-state parity
+True [p5-i2c-burst#2] node pad.10 13-state parity
+True [p5-i2c-burst#2] node pad.11 13-state parity
+True [p5-i2c-burst#2] node pad.13 13-state parity
+True [p5-i2c-burst#2] node pad.14 13-state parity
+True [p5-i2c-burst#2] node pad.15 13-state parity
+True [p5-i2c-burst#2] node pad.16 13-state parity
+True [p5-i2c-burst#2] node pad.25 13-state parity
+True [p5-i2c-burst#2] node pad.26 13-state parity
+True [p5-i2c-burst#2] node pad.27 13-state parity
+True [p5-i2c-burst#2] node pad.28 13-state parity
+True [p5-i2c-burst#2] node pad.29 13-state parity
+True [p5-i2c-burst#2] node pad.30 13-state parity
+True [p5-i2c-burst#2] node pad.33 13-state parity
+True [p5-i2c-burst#2] node pad.34 13-state parity
+True [p5-i2c-burst#2] node pad.35 13-state parity
+True [p5-i2c-burst#2] node pad.36 13-state parity
+True [p5-i2c-burst#2] node pad.37 13-state parity
+True [p5-i2c-burst#2] node pad.38 13-state parity
+True [p5-i2c-burst#2] node pad.4 13-state parity
+True [p5-i2c-burst#2] node pad.40 13-state parity
+True [p5-i2c-burst#2] node pad.41 13-state parity
+True [p5-i2c-burst#2] node pad.52 13-state parity
+True [p5-i2c-burst#2] led0 mounted
+True [p5-i2c-burst#2] led0 duty_ppm parity
+True [p5-i2c-burst#2] led1 mounted
+True [p5-i2c-burst#2] led1 duty_ppm parity
+True [p5-i2c-burst#2] led2 mounted
+True [p5-i2c-burst#2] led2 duty_ppm parity
+True [p5-i2c-burst#2] led3 mounted
+True [p5-i2c-burst#2] led3 duty_ppm parity
+True [p5-i2c-burst#2] led4 mounted
+True [p5-i2c-burst#2] led4 duty_ppm parity
+True [p5-i2c-burst#2] led5 unmounted honest state
+True [p5-i2c-burst#2] multiplexed pad.16 honest label & state
+True [p5-i2c-burst#2] unmounted key_p3 honest label
+True [p5-i2c-burst#2] key_p4 mounted
+True [p5-i2c-burst#2] i2c i2c0.address_7bit parity
+True [p5-i2c-burst#2] i2c i2c0.registers parity
+True [p5-i2c-burst#2] i2c i2c0.reg_pointer parity
+True [p5-i2c-burst#2] i2c i2c0.ack_count parity
+True [p5-i2c-burst#2] i2c i2c0.nak_count parity
+True [p5-i2c-burst#2] i2c i2c0.last_read_byte parity
+True [p5-i2c-burst#2] i2c i2c0.transactions parity
+True [p5-i2c-burst#2] i2c i2c0.bus_state parity
+True [p5-i2c-burst#2] i2c i2c0.read_mode parity
+True [p5-i2c-burst#2] keypad keypad0 parity
+True [p5-i2c-burst#2] oled oled0.width parity
+True [p5-i2c-burst#2] oled oled0.height parity
+True [p5-i2c-burst#2] oled oled0.cpol parity
+True [p5-i2c-burst#2] oled oled0.cpha parity
+True [p5-i2c-burst#2] oled oled0.display_on parity
+True [p5-i2c-burst#2] oled oled0.inverted parity
+True [p5-i2c-burst#2] oled oled0.page parity
+True [p5-i2c-burst#2] oled oled0.column parity
+True [p5-i2c-burst#2] oled oled0.write_count parity
+True [p5-i2c-burst#2] oled oled0.lit_pixels parity
+True [p5-i2c-burst#2] oled oled0.frame_sha256 parity
+True [p5-i2c-burst#2] oled decoded 2D pixel bitmap parity
+True [p5-i2c-burst#3] run_id parity
+True [p5-i2c-burst#3] 64-bit tick/delta parity
+True [p5-i2c-burst#3] state/reason parity
+True [p5-i2c-burst#3] trace cursor parity
+True [p5-i2c-burst#3] node set parity
+True [p5-i2c-burst#3] node clk27m.out 13-state parity
+True [p5-i2c-burst#3] node i2c0.SCL 13-state parity
+True [p5-i2c-burst#3] node i2c0.SDA 13-state parity
+True [p5-i2c-burst#3] node key_p4.contact 13-state parity
+True [p5-i2c-burst#3] node keypad0.col0 13-state parity
+True [p5-i2c-burst#3] node keypad0.col1 13-state parity
+True [p5-i2c-burst#3] node keypad0.col2 13-state parity
+True [p5-i2c-burst#3] node keypad0.col3 13-state parity
+True [p5-i2c-burst#3] node keypad0.row0 13-state parity
+True [p5-i2c-burst#3] node keypad0.row1 13-state parity
+True [p5-i2c-burst#3] node keypad0.row2 13-state parity
+True [p5-i2c-burst#3] node keypad0.row3 13-state parity
+True [p5-i2c-burst#3] node led0.K 13-state parity
+True [p5-i2c-burst#3] node led1.K 13-state parity
+True [p5-i2c-burst#3] node led2.K 13-state parity
+True [p5-i2c-burst#3] node led3.K 13-state parity
+True [p5-i2c-burst#3] node led4.K 13-state parity
+True [p5-i2c-burst#3] node oled0.CS_n 13-state parity
+True [p5-i2c-burst#3] node oled0.DC_n 13-state parity
+True [p5-i2c-burst#3] node oled0.MOSI 13-state parity
+True [p5-i2c-burst#3] node oled0.SCK 13-state parity
+True [p5-i2c-burst#3] node pad.10 13-state parity
+True [p5-i2c-burst#3] node pad.11 13-state parity
+True [p5-i2c-burst#3] node pad.13 13-state parity
+True [p5-i2c-burst#3] node pad.14 13-state parity
+True [p5-i2c-burst#3] node pad.15 13-state parity
+True [p5-i2c-burst#3] node pad.16 13-state parity
+True [p5-i2c-burst#3] node pad.25 13-state parity
+True [p5-i2c-burst#3] node pad.26 13-state parity
+True [p5-i2c-burst#3] node pad.27 13-state parity
+True [p5-i2c-burst#3] node pad.28 13-state parity
+True [p5-i2c-burst#3] node pad.29 13-state parity
+True [p5-i2c-burst#3] node pad.30 13-state parity
+True [p5-i2c-burst#3] node pad.33 13-state parity
+True [p5-i2c-burst#3] node pad.34 13-state parity
+True [p5-i2c-burst#3] node pad.35 13-state parity
+True [p5-i2c-burst#3] node pad.36 13-state parity
+True [p5-i2c-burst#3] node pad.37 13-state parity
+True [p5-i2c-burst#3] node pad.38 13-state parity
+True [p5-i2c-burst#3] node pad.4 13-state parity
+True [p5-i2c-burst#3] node pad.40 13-state parity
+True [p5-i2c-burst#3] node pad.41 13-state parity
+True [p5-i2c-burst#3] node pad.52 13-state parity
+True [p5-i2c-burst#3] led0 mounted
+True [p5-i2c-burst#3] led0 duty_ppm parity
+True [p5-i2c-burst#3] led1 mounted
+True [p5-i2c-burst#3] led1 duty_ppm parity
+True [p5-i2c-burst#3] led2 mounted
+True [p5-i2c-burst#3] led2 duty_ppm parity
+True [p5-i2c-burst#3] led3 mounted
+True [p5-i2c-burst#3] led3 duty_ppm parity
+True [p5-i2c-burst#3] led4 mounted
+True [p5-i2c-burst#3] led4 duty_ppm parity
+True [p5-i2c-burst#3] led5 unmounted honest state
+True [p5-i2c-burst#3] multiplexed pad.16 honest label & state
+True [p5-i2c-burst#3] unmounted key_p3 honest label
+True [p5-i2c-burst#3] key_p4 mounted
+True [p5-i2c-burst#3] i2c i2c0.address_7bit parity
+True [p5-i2c-burst#3] i2c i2c0.registers parity
+True [p5-i2c-burst#3] i2c i2c0.reg_pointer parity
+True [p5-i2c-burst#3] i2c i2c0.ack_count parity
+True [p5-i2c-burst#3] i2c i2c0.nak_count parity
+True [p5-i2c-burst#3] i2c i2c0.last_read_byte parity
+True [p5-i2c-burst#3] i2c i2c0.transactions parity
+True [p5-i2c-burst#3] i2c i2c0.bus_state parity
+True [p5-i2c-burst#3] i2c i2c0.read_mode parity
+True [p5-i2c-burst#3] keypad keypad0 parity
+True [p5-i2c-burst#3] oled oled0.width parity
+True [p5-i2c-burst#3] oled oled0.height parity
+True [p5-i2c-burst#3] oled oled0.cpol parity
+True [p5-i2c-burst#3] oled oled0.cpha parity
+True [p5-i2c-burst#3] oled oled0.display_on parity
+True [p5-i2c-burst#3] oled oled0.inverted parity
+True [p5-i2c-burst#3] oled oled0.page parity
+True [p5-i2c-burst#3] oled oled0.column parity
+True [p5-i2c-burst#3] oled oled0.write_count parity
+True [p5-i2c-burst#3] oled oled0.lit_pixels parity
+True [p5-i2c-burst#3] oled oled0.frame_sha256 parity
+True [p5-i2c-burst#3] oled decoded 2D pixel bitmap parity
+True [p5-i2c-burst#4] run_id parity
+True [p5-i2c-burst#4] 64-bit tick/delta parity
+True [p5-i2c-burst#4] state/reason parity
+True [p5-i2c-burst#4] trace cursor parity
+True [p5-i2c-burst#4] node set parity
+True [p5-i2c-burst#4] node clk27m.out 13-state parity
+True [p5-i2c-burst#4] node i2c0.SCL 13-state parity
+True [p5-i2c-burst#4] node i2c0.SDA 13-state parity
+True [p5-i2c-burst#4] node key_p4.contact 13-state parity
+True [p5-i2c-burst#4] node keypad0.col0 13-state parity
+True [p5-i2c-burst#4] node keypad0.col1 13-state parity
+True [p5-i2c-burst#4] node keypad0.col2 13-state parity
+True [p5-i2c-burst#4] node keypad0.col3 13-state parity
+True [p5-i2c-burst#4] node keypad0.row0 13-state parity
+True [p5-i2c-burst#4] node keypad0.row1 13-state parity
+True [p5-i2c-burst#4] node keypad0.row2 13-state parity
+True [p5-i2c-burst#4] node keypad0.row3 13-state parity
+True [p5-i2c-burst#4] node led0.K 13-state parity
+True [p5-i2c-burst#4] node led1.K 13-state parity
+True [p5-i2c-burst#4] node led2.K 13-state parity
+True [p5-i2c-burst#4] node led3.K 13-state parity
+True [p5-i2c-burst#4] node led4.K 13-state parity
+True [p5-i2c-burst#4] node oled0.CS_n 13-state parity
+True [p5-i2c-burst#4] node oled0.DC_n 13-state parity
+True [p5-i2c-burst#4] node oled0.MOSI 13-state parity
+True [p5-i2c-burst#4] node oled0.SCK 13-state parity
+True [p5-i2c-burst#4] node pad.10 13-state parity
+True [p5-i2c-burst#4] node pad.11 13-state parity
+True [p5-i2c-burst#4] node pad.13 13-state parity
+True [p5-i2c-burst#4] node pad.14 13-state parity
+True [p5-i2c-burst#4] node pad.15 13-state parity
+True [p5-i2c-burst#4] node pad.16 13-state parity
+True [p5-i2c-burst#4] node pad.25 13-state parity
+True [p5-i2c-burst#4] node pad.26 13-state parity
+True [p5-i2c-burst#4] node pad.27 13-state parity
+True [p5-i2c-burst#4] node pad.28 13-state parity
+True [p5-i2c-burst#4] node pad.29 13-state parity
+True [p5-i2c-burst#4] node pad.30 13-state parity
+True [p5-i2c-burst#4] node pad.33 13-state parity
+True [p5-i2c-burst#4] node pad.34 13-state parity
+True [p5-i2c-burst#4] node pad.35 13-state parity
+True [p5-i2c-burst#4] node pad.36 13-state parity
+True [p5-i2c-burst#4] node pad.37 13-state parity
+True [p5-i2c-burst#4] node pad.38 13-state parity
+True [p5-i2c-burst#4] node pad.4 13-state parity
+True [p5-i2c-burst#4] node pad.40 13-state parity
+True [p5-i2c-burst#4] node pad.41 13-state parity
+True [p5-i2c-burst#4] node pad.52 13-state parity
+True [p5-i2c-burst#4] led0 mounted
+True [p5-i2c-burst#4] led0 duty_ppm parity
+True [p5-i2c-burst#4] led1 mounted
+True [p5-i2c-burst#4] led1 duty_ppm parity
+True [p5-i2c-burst#4] led2 mounted
+True [p5-i2c-burst#4] led2 duty_ppm parity
+True [p5-i2c-burst#4] led3 mounted
+True [p5-i2c-burst#4] led3 duty_ppm parity
+True [p5-i2c-burst#4] led4 mounted
+True [p5-i2c-burst#4] led4 duty_ppm parity
+True [p5-i2c-burst#4] led5 unmounted honest state
+True [p5-i2c-burst#4] multiplexed pad.16 honest label & state
+True [p5-i2c-burst#4] unmounted key_p3 honest label
+True [p5-i2c-burst#4] key_p4 mounted
+True [p5-i2c-burst#4] i2c i2c0.address_7bit parity
+True [p5-i2c-burst#4] i2c i2c0.registers parity
+True [p5-i2c-burst#4] i2c i2c0.reg_pointer parity
+True [p5-i2c-burst#4] i2c i2c0.ack_count parity
+True [p5-i2c-burst#4] i2c i2c0.nak_count parity
+True [p5-i2c-burst#4] i2c i2c0.last_read_byte parity
+True [p5-i2c-burst#4] i2c i2c0.transactions parity
+True [p5-i2c-burst#4] i2c i2c0.bus_state parity
+True [p5-i2c-burst#4] i2c i2c0.read_mode parity
+True [p5-i2c-burst#4] keypad keypad0 parity
+True [p5-i2c-burst#4] oled oled0.width parity
+True [p5-i2c-burst#4] oled oled0.height parity
+True [p5-i2c-burst#4] oled oled0.cpol parity
+True [p5-i2c-burst#4] oled oled0.cpha parity
+True [p5-i2c-burst#4] oled oled0.display_on parity
+True [p5-i2c-burst#4] oled oled0.inverted parity
+True [p5-i2c-burst#4] oled oled0.page parity
+True [p5-i2c-burst#4] oled oled0.column parity
+True [p5-i2c-burst#4] oled oled0.write_count parity
+True [p5-i2c-burst#4] oled oled0.lit_pixels parity
+True [p5-i2c-burst#4] oled oled0.frame_sha256 parity
+True [p5-i2c-burst#4] oled decoded 2D pixel bitmap parity
+True p5-i2c-burst SFVB RT_EVENTS delivers i2c.nak_injected to web view
+True p5-i2c-burst web view matches recovered 3-byte I2C burst state
+True web-selftest exits 0: {"status":"passed","checks":36}
+
+True sfvb_web_projector.js --self-test passed 36 protocol/BigInt/security checks

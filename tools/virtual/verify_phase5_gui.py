@@ -1,0 +1,19 @@
+"""Run the Phase 5 production widgets in the existing wxApp acceptance host."""
+import argparse,json,os,subprocess,sys
+from pathlib import Path
+ROOT=Path(__file__).resolve().parents[2]
+def main():
+    sys.stdout.reconfigure(encoding='utf-8',errors='replace');sys.stderr.reconfigure(encoding='utf-8',errors='replace')
+    p=argparse.ArgumentParser();p.add_argument('--build-dir',type=Path,required=True);p.add_argument('--gui',type=Path,required=True);a=p.parse_args()
+    work=ROOT/'.work/p5/gui';work.mkdir(parents=True,exist_ok=True);result=work/'gui-results.json';result.unlink(missing_ok=True)
+    env=dict(os.environ,SIGFLOW_PYTHON3=sys.executable,SIGFLOW_REPOSITORY_ROOT=ROOT.as_posix())
+    env['PATH']='E:/sigflow_fpga/toolchain/mingw64/bin;'+str(a.build_dir.resolve())+';'+env.get('PATH','')
+    r=subprocess.run([str(a.gui),str(ROOT),str(a.build_dir),'--phase5'],cwd=ROOT,env=env,capture_output=True,encoding='utf-8',errors='replace',timeout=1800)
+    (work/'gui.log').write_text(r.stdout+r.stderr,encoding='utf-8');print(r.stdout+r.stderr)
+    if r.returncode:return r.returncode
+    report=json.loads(result.read_text(encoding='utf-8'))
+    assert report['status']=='passed','GUI acceptance failed: '+str(report.get('error'))
+    for name in ('full-showcase-light.png','full-showcase-dark.png','float-showcase.png'):
+        assert (work/name).exists() and (work/name).stat().st_size>4000,'missing '+name
+    print('PASS real wxApp Phase 5: '+str(report['check_count'])+' assertions');return 0
+if __name__=='__main__':raise SystemExit(main())

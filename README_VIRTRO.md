@@ -14,6 +14,7 @@
 | Phase 2 调试与教学闭环 | 已实测收官：41/41 CTest、2132 项原生检查、22 项新增 GUI 断言；签名四课程与三组隐藏复测；Phase2_complete=true | [Phase 2 实测报告](docs/virtual/Phase2调试探针与教学判题闭环实测报告.md) |
 | Phase 3 产品化与跨端同源 | 已实测收官：44/44 CTest；SFVB 二进制帧 C++↔JS 逐字段一致、20 次浮动窗往返、鬼键 vs 二极管、reset_glitch/分频偏移；Phase3_complete=true | [Phase 3 实测报告](docs/virtual/Phase3产品化深化与跨端同源实测报告.md) |
 | Phase 4 高级总线外设与协议时序故障 | 已实测收官：47/47 CTest；I2C 开漏传感器、SPI OLED 点阵、i2c_nak/spi_mode_fault/crc_tamper/cdc_sampling_approx、course-05 三隐藏种子判题；Phase4_complete=true | [Phase 4 实测报告](docs/virtual/Phase4高级总线外设与协议时序故障实测报告.md) |
+| Phase 5 全平台 v1.0 终极收官 | 已实测收官：50/50 CTest；I2C 多字节 Burst Read 修复与零回归、全阶段实验快速加载与复用引脚诚实渲染、跨端同源 SFVB HTML5 Canvas 回放器；Phase5_complete=true / Full_Platform_v1_complete=true | [Phase 5 实测总报告](docs/virtual/Phase5全平台收官与跨端同源实测总报告.md) |
 
 最高设计契约位于工作区`交付资料/04_SigFlow虚拟FPGA平台规划书/`。Web暂缓；新增内核后续保持零wx依赖。只读基线`.research/SigFlow_FPGA_verified`不在本工程内修改。
 
@@ -36,3 +37,9 @@ Phase 1 使用：点击「加载 P1 外设实验」，松开 P4，再用「指�
 故障示例为 [fault-profile.json](examples/virtual/phase1/fault-profile.json)，默认关闭四类规则；[Schema](registry/schemas/fault-profile.v1.schema.json) 及内核会进一步校验目标、时间窗和冲突。启用故障在暂停时显示 pending，Step/Play 后提交。新会话使用显式 P1 版本 Journal/scheduler/digest，M0 会话协议与旧 sim.build/sim.run 路径保留。
 
 Phase 4 已加入：Phase 4 板卡（`registry/boards/tang-nano-9k.phase4.virtual.json`）在同一实验箱中提供 I2C 开漏传感器（`sigflow.i2c-sensor@1`，SDA = 0 拉 SLO / 1 释放 FLT 由板级上拉合成 WHI）、SPI 单色 OLED（`sigflow.spi-oled@1`，CS/SCK/MOSI/DC 位级驱动 + VRAM + `frame_sha256`）与 4×4 矩阵键盘；`BoardRenderer` 直接绘制点阵、键盘网格与 I2C ACK/NAK 徽章，点击键盘格子即发 `keypad.set`。`Phase4Faults` 新增四类高阶故障：`i2c_nak`（应答槽释放）、`spi_mode_fault`（invert_cpha / bit_slip）、`crc_tamper`（仅翻上层 crc8-0x07 字节，底层 8N1 合法）、`cdc_sampling_approx`（`functional_metastability_approx`，固定种子确定性枚举 0/1/2 拍采样延迟）。第 5 门签名盲测课 `course-05-i2c-nak-troubleshooting` 可完整走 Probe→L1-L4→三种子判题→AI 助教脱敏证据。复现：`python tools/virtual/verify_phase4.py --mode bus|protocols`、`python tools/virtual/verify_phase4_gui.py`；完整 47 项终验用 `python tools/virtual/verify_phase4_final.py`，它会把 M0–P3 全部历史归档纳入 175 份 SHA-256 冻结校验并独立归档 P4。
+
+Phase 5 v1.0 收官扩展：
+- **I2C 多字节连续读（Burst Read）**：修复 `Phase1Peripherals::I2c` 在 `MasterAck`→`Read`（`read_bit=1`）及写 ACK 保持槽（`AckWriteHold`）的 1 拍相位对齐问题，同时保持 Phase 4 单字节读 `circuit_digest` / `control_digest` 零回归；新增 `examples/virtual/phase5/i2c-burst/` 真实 Verilator 3 字节连续读与 `data`/`address` NAK 恢复工程。
+- **全阶段一键实验台与诚实引脚渲染**：`VirtualBoardPanel` 工具栏新增「实验示例▾」下拉框（`M0–P5` 共 7 套参考实验一键加载构建并启动），保留原有全部快捷按钮兼容 M0–P4 用例；`BoardRenderer` 对外接器件复用引脚（如 `P16 → 外接` / `复用引脚`）及未挂载按键（`KEY P3 未挂载`）按 `text3` 语义 Token 诚实渲染，不再误导性地显示 `LED5 UND` 或 `松开`。
+- **跨端同源 SFVB 离线回放器**：`tools/virtual/sfvb_web_projector.js`（Node/浏览器 UMD 双兼容，零第三方 npm 依赖，全程 `BigInt` 64-bit ps 时间/序号）与 `GUI/virtual-sfvb-player.html`（复用 `GUI/SigFlow-界面改造SPEC.md` Light/Dark CSS 语义 Token，内嵌 `p4-oled.sfvb` 真实流，支持本地 `.sfvb` 拖拽离线回放、OLED 点阵、4×4 矩阵键盘、I2C 徽章与 13 态多 delta `ΔN` 波形）完成跨端同源状态投影，支持断线重同步、旧代际丢弃、幂等 `command_id` 去重及盲测零泄密。
+- **总终验与归档**：运行 `python tools/virtual/verify_phase5_final.py`，产出 [P5-acceptance-summary.json](docs/virtual/evidence/P5-acceptance-summary.json)（`50/50` CTest、`199` 份 M0–P4 历史文件 SHA-256 100% 不变、`Phase5_complete=true`、`Full_Platform_v1_complete=true`）。

@@ -239,12 +239,14 @@ void Phase1Peripherals::Observe(Json& board,uint64_t tick){
                                 s.bits=0;s.phase=I2c::Phase::AckData;
                                 bool inject=nakMatches("data");
                                 s.ack_slot_drive=!inject;
-                                if(inject){++s.nak_count;
+                                if(inject){++s.nak_count;s.bus_state="nak_injected";
                                     fault_events_.push_back({{"type","i2c.nak_injected"},{"target",id},{"phase","data"},{"transaction",s.transactions},{"tick",std::to_string(tick)}});}
                                 // First write byte selects the register pointer; the
                                 // following bytes overwrite that register cell.
-                                if(s.write_stage==0){s.reg_pointer=s.shift%s.registers.size();s.write_stage=1;}
-                                else s.registers.at(s.reg_pointer)=s.shift;
+                                if(!inject){
+                                    if(s.write_stage==0){s.reg_pointer=s.shift%s.registers.size();s.write_stage=1;}
+                                    else s.registers.at(s.reg_pointer)=s.shift;
+                                }
                             }
                         }break;
                         case I2c::Phase::MasterAck:s.master_ack=!sda;break;
@@ -262,11 +264,15 @@ void Phase1Peripherals::Observe(Json& board,uint64_t tick){
                                 s.phase=I2c::Phase::Read;s.read_bit=0;
                                 s.read_shift=s.registers.at(s.reg_pointer%s.registers.size());
                                 s.bus_state="read";
-                            }else{s.phase=I2c::Phase::Write;s.bus_state="write";}
+                            }else{s.phase=I2c::Phase::AckWriteHold;s.bus_state="write";}
                         }break;
                         case I2c::Phase::AckData:{
                             s.drive_low=s.ack_slot_drive;
                             if(s.ack_slot_drive)++s.ack_count;
+                            s.phase=I2c::Phase::AckWriteHold;
+                        }break;
+                        case I2c::Phase::AckWriteHold:{
+                            s.drive_low=false;
                             s.phase=I2c::Phase::Write;
                         }break;
                         case I2c::Phase::Read:{
@@ -284,7 +290,7 @@ void Phase1Peripherals::Observe(Json& board,uint64_t tick){
                         case I2c::Phase::MasterAck:{
                             if(s.master_ack){
                                 s.reg_pointer=(s.reg_pointer+1)%s.registers.size();
-                                s.read_shift=s.registers.at(s.reg_pointer);s.read_bit=0;
+                                s.read_shift=s.registers.at(s.reg_pointer);s.read_bit=1;
                                 s.phase=I2c::Phase::Read;s.drive_low=!(s.read_shift&0x80);
                             }else{s.phase=I2c::Phase::Idle;s.bus_state="idle";s.drive_low=false;}
                         }break;

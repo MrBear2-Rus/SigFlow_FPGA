@@ -21,6 +21,42 @@ NodeVisual ClassifyNode(const eda::Json& s){
     if(s.value("state_code",0)==2)return NodeVisual::Floating;if(!s.value("valid",false))return NodeVisual::Unknown;
     return s.value("logic",std::string("x"))=="0"?NodeVisual::Low:NodeVisual::High;
 }
+BoardRenderer::SlotStatus BoardRenderer::LedSlotStatus(const eda::Json& frame,int index){
+    constexpr int pads[]={10,11,13,14,15,16};
+    if(index<0 || index>=6)return {};
+    int pad=pads[index];
+    bool hasNodes=frame.contains("board") && frame.at("board").contains("nodes") && frame.at("board").at("nodes").is_object() && !frame.at("board").at("nodes").empty();
+    std::string ledNode="led"+std::to_string(index)+".K";
+    if(!hasNodes){
+        return {true,false,"LED"+std::to_string(index)+" / P"+std::to_string(pad),"UND"};
+    }
+    const auto& nodes=frame.at("board").at("nodes");
+    if(nodes.contains(ledNode)){
+        const auto& node=nodes.at(ledNode);
+        auto visual=ClassifyNode(node);
+        std::string st=visual==NodeVisual::Floating?"FLT":visual==NodeVisual::Contention?"CON":eda::virtual_board::StateName(uint8_t(node.value("state_code",0)));
+        return {true,false,"LED"+std::to_string(index)+" / P"+std::to_string(pad),st};
+    }
+    std::string padNodeName="pad."+std::to_string(pad);
+    if(nodes.contains(padNodeName)){
+        const auto& padNode=nodes.at(padNodeName);
+        auto visual=ClassifyNode(padNode);
+        std::string st=visual==NodeVisual::Floating?"FLT":visual==NodeVisual::Contention?"CON":eda::virtual_board::StateName(uint8_t(padNode.value("state_code",0)));
+        return {false,true,"P"+std::to_string(pad)+" → 外接",st};
+    }
+    return {false,false,"P"+std::to_string(pad)+" / 未挂载","未挂载"};
+}
+BoardRenderer::SlotStatus BoardRenderer::KeySlotStatus(const eda::Json& frame,int pad){
+    bool hasNodes=frame.contains("board") && frame.at("board").contains("nodes") && frame.at("board").at("nodes").is_object() && !frame.at("board").at("nodes").empty();
+    std::string keyNode="key_p"+std::to_string(pad)+".contact";
+    if(!hasNodes || frame.at("board").at("nodes").contains(keyNode)){
+        const auto node=hasNodes?frame.at("board").at("nodes").at(keyNode):eda::Json::object();
+        auto visual=ClassifyNode(node);
+        std::string st=visual==NodeVisual::Contention?"CON":(visual==NodeVisual::Floating?"FLT":(visual==NodeVisual::Low?"按下":"松开"));
+        return {true,false,"KEY P"+std::to_string(pad),st};
+    }
+    return {false,false,"KEY P"+std::to_string(pad),"未挂载"};
+}
 void BoardRenderer::Paint(wxWindow& w,wxGraphicsContext& g,const eda::Json& frame,const std::map<int,std::string>& targets,bool integrated){
     const auto& p=UiTheme::Palette();bool phase1=frame.value("phase1",false);Geometry a(w,phase1);g.Translate(a.x,a.y);g.Scale(a.scale,a.scale);
     auto dip=[&](int x){return w.FromDIP(x);};
@@ -30,7 +66,18 @@ void BoardRenderer::Paint(wxWindow& w,wxGraphicsContext& g,const eda::Json& fram
     g.SetBrush(wxBrush(p.surfaceOnPanel));g.SetPen(wxPen(p.stroke,dip(1)));g.DrawRoundedRectangle(dip(330),dip(146),dip(145),dip(76),dip(10));
     text("GW1NR-9",354,161,p.text1);text("FPGA",380,184,p.text2);
     constexpr int pads[]={10,11,13,14,15,16};
-    for(int i=0;i<6;++i){int x=65+i*128;auto node=Node(frame,"led"+std::to_string(i)+".K");auto visual=ClassifyNode(node);
+    for(int i=0;i<6;++i){int x=65+i*128;auto slot=LedSlotStatus(frame,i);
+        if(!slot.mounted){
+            g.SetPen(wxPen(p.stroke,dip(1),wxPENSTYLE_SHORT_DASH));
+            g.StrokeLine(dip(x),dip(82),dip(x),dip(110));
+            g.SetPen(wxPen(p.stroke,dip(2)));g.SetBrush(wxBrush(p.surfaceOnPanel));g.DrawEllipse(dip(x-10),dip(52),dip(20),dip(20));
+            if(phase1)text(wxString::FromUTF8(slot.multiplexed?"复用引脚":"未挂载"),x-30,131,p.text3);
+            text(wxString::FromUTF8(slot.label),x-37,31,p.text3);
+            bool isCon=slot.state_text=="CON";
+            text(wxString::FromUTF8(slot.state_text),x-17,113,isCon?p.danger:p.text3);
+            continue;
+        }
+        auto node=Node(frame,"led"+std::to_string(i)+".K");auto visual=ClassifyNode(node);
         bool lit=node.value("valid",false) && !node.value("contention",false) && node.value("logic",std::string("x"))=="0";
         bool closed=true;if(frame.contains("board") && frame.at("board").contains("wires"))closed=frame.at("board").at("wires").value("wire.led"+std::to_string(i),true);
         bool pending=false;if(frame.contains("pending_faults"))for(const auto& f:frame.at("pending_faults"))if(f.value("edge_id",std::string())=="wire.led"+std::to_string(i))pending=true;
@@ -48,7 +95,15 @@ void BoardRenderer::Paint(wxWindow& w,wxGraphicsContext& g,const eda::Json& fram
         else if(visual==NodeVisual::Contention)text("CON",x-17,113,p.danger);
         else text(wxString::FromUTF8(eda::virtual_board::StateName(uint8_t(node.value("state_code",0)))),x-16,113,p.text3);
     }
-    for(int i=0;i<2;++i){int x=70+i*155,pad=3+i;auto s=Node(frame,"key_p"+std::to_string(pad)+".contact");
+    for(int i=0;i<2;++i){int x=70+i*155,pad=3+i;auto keySlot=KeySlotStatus(frame,pad);
+        if(!keySlot.mounted){
+            g.SetPen(wxPen(p.stroke,dip(1),wxPENSTYLE_SHORT_DASH));g.SetBrush(wxBrush(p.bgPanel));
+            g.DrawRoundedRectangle(dip(x-35),dip(234),dip(95),dip(44),dip(8));
+            text(wxString::FromUTF8(keySlot.label),x-14,245,p.text3);
+            text(wxString::FromUTF8(keySlot.state_text),x-14,284,p.text3);
+            continue;
+        }
+        auto s=Node(frame,"key_p"+std::to_string(pad)+".contact");
         auto buttonVisual=ClassifyNode(s);bool pending=false,pressed=buttonVisual==NodeVisual::Low;auto target=targets.find(pad);
         if(target!=targets.end() && frame.contains("pending_inputs") && frame.at("pending_inputs").contains(target->second)){
             pending=true;pressed=frame.at("pending_inputs").at(target->second).at("state")==13;
@@ -125,7 +180,7 @@ void BoardRenderer::Paint(wxWindow& w,wxGraphicsContext& g,const eda::Json& fram
             label("ACK "+std::to_string(component.value("ack_count",0u))+"  NAK "+std::to_string(component.value("nak_count",0u))
                 +"  TX "+std::to_string(component.value("transactions",0u)),990,204,
                 component.value("nak_count",0u)?p.danger:p.text1);
-            label("last 0x"+component.value("last_read_byte",std::string("00")),990,222,p.text1);
+            label("last 0x"+component.value("last_read_byte",std::string("00"))+" · ptr "+std::to_string(component.value("reg_pointer",0u)),990,222,p.text1);
             label("bus "+component.value("bus_state",std::string("idle")),990,240,p.text3);
         };
         for(const auto& [id,component]:frame.at("board").at("peripherals").items()){

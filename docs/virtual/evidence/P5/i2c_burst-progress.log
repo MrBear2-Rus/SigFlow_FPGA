@@ -1,0 +1,20 @@
+True phase5/i2c-burst fault_profile validates against fault-profile.v2 schema
+True normal 3-byte burst completes write-pointer + burst-read in 2 transactions with 3 ACKs
+True sensor reg_pointer advances to 2 and last_read_byte ends on 0x5c
+True sensor register file preserved
+True DUT burst parity 0x1A^0x2B^0x5C = 0x6D matches led_n = 5'b10010
+True burst-normal three from-zero real RTL replays preserve both digests
+True MSB=1 registers [0xA5,0xC3,0x96] burst cleanly without bit slip
+True DUT MSB=1 burst parity 0xA5^0xC3^0x96 = 0xF0 matches led_n = 5'b01111
+True burst-msb three from-zero real RTL replays preserve both digests
+True data-phase NAK in tx 1 retries and finishes 3-byte burst cleanly
+True recovered DUT parity still matches 5'b10010 after data-phase NAK
+True journal records i2c.nak_injected phase=data transaction=1
+True burst-data-nak three from-zero real RTL replays preserve both digests
+True address-phase NAK in tx 2 retries full sequence and finishes burst cleanly
+True recovered DUT parity matches 5'b10010 after tx2 address NAK
+True journal records i2c.nak_injected phase=address transaction=2
+True burst-addr2-nak three from-zero real RTL replays preserve both digests
+True Phase 4 single-byte read stays exact
+True p4-i2c-read-zero-regression three from-zero real RTL replays preserve both digests
+True Phase 4 i2c-read circuit_digest and control_digest have ZERO regression against frozen P4 evidence

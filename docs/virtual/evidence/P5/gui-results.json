@@ -1,0 +1,107 @@
+{
+  "check_count": 25,
+  "checks": [
+    {
+      "area": "P5",
+      "assertion": "full-stage quick launcher lists all 7 M0-P5 experiments"
+    },
+    {
+      "area": "P5",
+      "assertion": "quick launcher loads P3 keypad scan and updates selection"
+    },
+    {
+      "area": "P5",
+      "assertion": "P3 keypad experiment mounts matrix keypad peripheral"
+    },
+    {
+      "area": "P5",
+      "assertion": "P3 board keeps LED5 and KEY P3 mounted"
+    },
+    {
+      "area": "P5",
+      "assertion": "quick-loaded P4 OLED reproduces exact 28 lit pixels and VRAM digest"
+    },
+    {
+      "area": "P5",
+      "assertion": "multiplexed P16 reports honest auxiliary state instead of LED5 UND: P16 → 外接 / SHI"
+    },
+    {
+      "area": "P5",
+      "assertion": "unmounted KEY P3 reports honest 未挂载 status"
+    },
+    {
+      "area": "P5",
+      "assertion": "mounted KEY P4 stays active"
+    },
+    {
+      "area": "P5",
+      "assertion": "inspecting multiplexed pad.16 reveals 13-state explanation without error"
+    },
+    {
+      "area": "P5",
+      "assertion": "quick launcher switches directly to P5 I2C burst experiment"
+    },
+    {
+      "area": "P5",
+      "assertion": "P5 I2C burst read advances pointer across 3 registers and ends on 0x5c"
+    },
+    {
+      "area": "P5",
+      "assertion": "P5 I2C burst master outputs exact XOR parity 0x1A^0x2B^0x5C on LED bank"
+    },
+    {
+      "area": "P5",
+      "assertion": "workbench pops out cleanly into independent VirtualBoardFloatFrame"
+    },
+    {
+      "area": "P5",
+      "assertion": "keypad toggles (1,2) and (3,0) work seamlessly inside popped-out floating window"
+    },
+    {
+      "area": "P5",
+      "assertion": "OLED dot matrix remains intact inside floating window"
+    },
+    {
+      "area": "P5",
+      "assertion": "captures popped-out VirtualBoardFloatFrame via PW_RENDERFULLCONTENT"
+    },
+    {
+      "area": "P5",
+      "assertion": "floating window snapshot renders diverse themed pixels"
+    },
+    {
+      "area": "P5",
+      "assertion": "exports float-showcase.png"
+    },
+    {
+      "area": "P5",
+      "assertion": "workbench returns to main notebook without losing session state"
+    },
+    {
+      "area": "P5",
+      "assertion": "PW_RENDERFULLCONTENT renders full-platform showcase"
+    },
+    {
+      "area": "P5",
+      "assertion": "full-platform showcase snapshot exhibits rich themed pixel diversity"
+    },
+    {
+      "area": "P5",
+      "assertion": "exports full-showcase-light.png"
+    },
+    {
+      "area": "P5",
+      "assertion": "PW_RENDERFULLCONTENT renders full-platform showcase"
+    },
+    {
+      "area": "P5",
+      "assertion": "full-platform showcase snapshot exhibits rich themed pixel diversity"
+    },
+    {
+      "area": "P5",
+      "assertion": "exports full-showcase-dark.png"
+    }
+  ],
+  "host": "real wxApp + full-stage quick launcher + honest pin multiplexing + P5 I2C burst + VirtualBoardFloatFrame",
+  "status": "passed"
+}

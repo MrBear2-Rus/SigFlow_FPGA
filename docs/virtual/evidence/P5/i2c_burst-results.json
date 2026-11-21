@@ -1,0 +1,209 @@
+{
+  "status": "passed",
+  "checks": [
+    "phase5/i2c-burst fault_profile validates against fault-profile.v2 schema",
+    "normal 3-byte burst completes write-pointer + burst-read in 2 transactions with 3 ACKs",
+    "sensor reg_pointer advances to 2 and last_read_byte ends on 0x5c",
+    "sensor register file preserved",
+    "DUT burst parity 0x1A^0x2B^0x5C = 0x6D matches led_n = 5'b10010",
+    "burst-normal three from-zero real RTL replays preserve both digests",
+    "MSB=1 registers [0xA5,0xC3,0x96] burst cleanly without bit slip",
+    "DUT MSB=1 burst parity 0xA5^0xC3^0x96 = 0xF0 matches led_n = 5'b01111",
+    "burst-msb three from-zero real RTL replays preserve both digests",
+    "data-phase NAK in tx 1 retries and finishes 3-byte burst cleanly",
+    "recovered DUT parity still matches 5'b10010 after data-phase NAK",
+    "journal records i2c.nak_injected phase=data transaction=1",
+    "burst-data-nak three from-zero real RTL replays preserve both digests",
+    "address-phase NAK in tx 2 retries full sequence and finishes burst cleanly",
+    "recovered DUT parity matches 5'b10010 after tx2 address NAK",
+    "journal records i2c.nak_injected phase=address transaction=2",
+    "burst-addr2-nak three from-zero real RTL replays preserve both digests",
+    "Phase 4 single-byte read stays exact",
+    "p4-i2c-read-zero-regression three from-zero real RTL replays preserve both digests",
+    "Phase 4 i2c-read circuit_digest and control_digest have ZERO regression against frozen P4 evidence"
+  ],
+  "commands": [],
+  "replays": [
+    {
+      "label": "burst-normal",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "896ac03e7f89113fac7ec3e4a7ea588d472db4a5e41ec6b29a2dc612f749033a",
+          "control_digest": "7780ca5b0ae0bc5b0496d33e708a5312dc923b3637c692975b9702e6824a6840",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 2435,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "896ac03e7f89113fac7ec3e4a7ea588d472db4a5e41ec6b29a2dc612f749033a",
+          "control_digest": "7780ca5b0ae0bc5b0496d33e708a5312dc923b3637c692975b9702e6824a6840",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 2435,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "896ac03e7f89113fac7ec3e4a7ea588d472db4a5e41ec6b29a2dc612f749033a",
+          "control_digest": "7780ca5b0ae0bc5b0496d33e708a5312dc923b3637c692975b9702e6824a6840",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 2435,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "896ac03e7f89113fac7ec3e4a7ea588d472db4a5e41ec6b29a2dc612f749033a",
+      "control_digest": "7780ca5b0ae0bc5b0496d33e708a5312dc923b3637c692975b9702e6824a6840",
+      "matched_commits": 2435,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "label": "burst-msb",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "6f6d6ef5e47f1a330bfb68caf1fcbdf90736faab17829dba5d2e82ffe1bbf8b1",
+          "control_digest": "daccf71ecf5f488da9780ecc89f8ffc1f743da096809f479cde820e27bce4bed",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 2435,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "6f6d6ef5e47f1a330bfb68caf1fcbdf90736faab17829dba5d2e82ffe1bbf8b1",
+          "control_digest": "daccf71ecf5f488da9780ecc89f8ffc1f743da096809f479cde820e27bce4bed",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 2435,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "6f6d6ef5e47f1a330bfb68caf1fcbdf90736faab17829dba5d2e82ffe1bbf8b1",
+          "control_digest": "daccf71ecf5f488da9780ecc89f8ffc1f743da096809f479cde820e27bce4bed",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 2435,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "6f6d6ef5e47f1a330bfb68caf1fcbdf90736faab17829dba5d2e82ffe1bbf8b1",
+      "control_digest": "daccf71ecf5f488da9780ecc89f8ffc1f743da096809f479cde820e27bce4bed",
+      "matched_commits": 2435,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "label": "burst-data-nak",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "6075072d4505f46f68e95d92a041d7a1e609fc9b7104b9ef091cd824d0c541ed",
+          "control_digest": "8dae95c20b194dd349a7fb8c3b69a9022901b9e78e49e5109e842364fedf023d",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 3245,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "6075072d4505f46f68e95d92a041d7a1e609fc9b7104b9ef091cd824d0c541ed",
+          "control_digest": "8dae95c20b194dd349a7fb8c3b69a9022901b9e78e49e5109e842364fedf023d",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 3245,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "6075072d4505f46f68e95d92a041d7a1e609fc9b7104b9ef091cd824d0c541ed",
+          "control_digest": "8dae95c20b194dd349a7fb8c3b69a9022901b9e78e49e5109e842364fedf023d",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 3245,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "6075072d4505f46f68e95d92a041d7a1e609fc9b7104b9ef091cd824d0c541ed",
+      "control_digest": "8dae95c20b194dd349a7fb8c3b69a9022901b9e78e49e5109e842364fedf023d",
+      "matched_commits": 3245,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "label": "burst-addr2-nak",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "1575f05e5d6d51cd4539b88e73943785c2bfd16ab866fbaac6308b5baac95c5c",
+          "control_digest": "da4efc3deb0e28a376f5e5399f6239d4b03e76a37b6303101a93d8fe88947b6a",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 3245,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "1575f05e5d6d51cd4539b88e73943785c2bfd16ab866fbaac6308b5baac95c5c",
+          "control_digest": "da4efc3deb0e28a376f5e5399f6239d4b03e76a37b6303101a93d8fe88947b6a",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 3245,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "1575f05e5d6d51cd4539b88e73943785c2bfd16ab866fbaac6308b5baac95c5c",
+          "control_digest": "da4efc3deb0e28a376f5e5399f6239d4b03e76a37b6303101a93d8fe88947b6a",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 3245,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "1575f05e5d6d51cd4539b88e73943785c2bfd16ab866fbaac6308b5baac95c5c",
+      "control_digest": "da4efc3deb0e28a376f5e5399f6239d4b03e76a37b6303101a93d8fe88947b6a",
+      "matched_commits": 3245,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "label": "p4-i2c-read-zero-regression",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "2782e323ab39c779cff89ae0a06ac50884059d9f15741a347543fb3223611ddf",
+          "control_digest": "8098665b5669a7f6bb16d30f6eb15f90a12f4fd921e92d53688ccd607ed8032b",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 1085,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "2782e323ab39c779cff89ae0a06ac50884059d9f15741a347543fb3223611ddf",
+          "control_digest": "8098665b5669a7f6bb16d30f6eb15f90a12f4fd921e92d53688ccd607ed8032b",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 1085,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "2782e323ab39c779cff89ae0a06ac50884059d9f15741a347543fb3223611ddf",
+          "control_digest": "8098665b5669a7f6bb16d30f6eb15f90a12f4fd921e92d53688ccd607ed8032b",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 1085,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "2782e323ab39c779cff89ae0a06ac50884059d9f15741a347543fb3223611ddf",
+      "control_digest": "8098665b5669a7f6bb16d30f6eb15f90a12f4fd921e92d53688ccd607ed8032b",
+      "matched_commits": 1085,
+      "repetitions": 3,
+      "status": "passed"
+    }
+  ],
+  "p4_zero_regression": {
+    "algorithm": "sigflow.sha256-chain.p2.v1",
+    "circuit": "2782e323ab39c779cff89ae0a06ac50884059d9f15741a347543fb3223611ddf",
+    "control": "8098665b5669a7f6bb16d30f6eb15f90a12f4fd921e92d53688ccd607ed8032b"
+  },
+  "check_count": 20
+}

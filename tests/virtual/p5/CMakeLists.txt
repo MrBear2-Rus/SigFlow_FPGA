@@ -1,0 +1,5 @@
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+add_test(NAME p5_i2c_multibyte_burst_and_recovery COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/virtual/verify_phase5.py" --build-dir "${CMAKE_BINARY_DIR}" --mode i2c_burst)
+add_test(NAME p5_sfvb_web_workbench_parity COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/virtual/verify_phase5.py" --build-dir "${CMAKE_BINARY_DIR}" --mode web_parity)
+add_test(NAME p5_gui_full_platform_showcase_acceptance COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/virtual/verify_phase5_gui.py" --build-dir "${CMAKE_BINARY_DIR}" --gui "$<TARGET_FILE:u1_m0_full_product_acceptance>")
+set_tests_properties(p5_i2c_multibyte_burst_and_recovery p5_sfvb_web_workbench_parity p5_gui_full_platform_showcase_acceptance PROPERTIES TIMEOUT 1800 RUN_SERIAL TRUE)

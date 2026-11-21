@@ -248,3 +248,14 @@ order 交换：主侧栏移到画布右侧邻位（order2 ↔3 中区在前，�
 | 离屏导出 | Phase 4 验收用 `PW_RENDERFULLCONTENT` 导出 `board-oled-keypad-light.png` / `board-oled-keypad-dark.png`，并做像素多样性断言 |
 
 六区结构、快捷键与既有页签语义不变；新增绘制全部走 UiTheme Token 与 `FromDIP`，不引入硬编码颜色。
+
+### 7.5 Phase 5 全平台收官与 SFVB 同源回放扩展（2026-11-21）
+
+| 入口/对象 | 冻结行为 |
+|---|---|
+| 全阶段快速加载器 | `VirtualBoardPanel` 工具栏在保留原有 `reference` / `reference-p1` / `reference-p2` 按钮与六区语义的前提下，新增 `example_picker_` 下拉框，支持一键加载并启动 M0–P5 全部 7 项参考实验（计数器、P1 外设、P2 调试、P3 矩阵键盘、P4 SPI OLED、P4 CRC8/CDC、P5 I2C Burst） |
+| 复用/未挂载引脚诚实渲染 | `BoardRenderer::LedSlotStatus` / `KeySlotStatus` 在板卡节点表已建立时检查 `led{i}.K` 与 `key_p{pad}.contact`：当 `P16` 复用为 `oled0.DC_n` 时渲染 `P16 → 外接` + `pad.16` 实际 STATE 与 `text3` Token（绝不渲染成误导性 `UND`）；当 `KEY P3` 未挂载时以虚线框 + `text3` 渲染 `未挂载` |
+| 跨端同源 SFVB 投影 | `tools/virtual/sfvb_web_projector.js`（Node/浏览器 UMD 双兼容，零 npm 依赖，全程 `BigInt` 64-bit ps 时间/序号）消费 `SFVB` 二进制流并维护与桌面同源的 `SfvbClientWorkbench`，支持 `E_SFVB_SEQ_GAP`/`E_SFVB_BASELINE_LOST` 重同步、`E_SFVB_GENERATION_STALE` 丢弃与按 `command_id` 幂等 ACK 去重 |
+| 离线 Canvas 回放器 | `GUI/virtual-sfvb-player.html` 为独立离线 HTML5 Canvas 审查器（基于已冻结 `SFVB` 流，不新建另一套 Web 仿真后端），复用本 SPEC Light/Dark CSS 语义 Token（`--bg-panel` / `--surface-on-panel` / `--canvas` / `--text-1` / `--warn` / `--danger` / `--accent` 等），Script 内零硬编码颜色 |
+
+六区、快捷键与桌面原生线程模型不变；Web 回放仅作为同源离线视图投影与状态一致性审查，不替代或另起仿真内核。
