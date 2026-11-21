@@ -95,6 +95,8 @@ public:
     void SetTeachingContext(submit::Context context);
     void SetExternalBusy(bool busy);
     void SetReportSelectionHandler(std::function<void()> handler);
+    /// 模型与 API 仪表盘入口：只发出宿主回调，不读配置、不依赖 MainFrame。
+    void SetDashboardHandler(std::function<void()> handler);
     void SetReportJob(const std::string& jobId, bool enabled);
     void SetWorkflowActions(bool visible, bool hint, bool finish, bool cancel,
                             std::function<void(const std::string&)> handler, bool recordsOnly = false);
@@ -183,7 +185,9 @@ private:
     nav::AgentRail* m_rail = nullptr;
     controls::AgentButton* m_return = nullptr;
     controls::AgentButton* m_report = nullptr;
+    controls::AgentButton* m_dashboard = nullptr;
     std::function<void()> m_reportSelection;
+    std::function<void()> m_dashboardHandler;
 
     controls::AgentCardHost* m_guide = nullptr;
     wxPanel* m_guideBody = nullptr;

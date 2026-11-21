@@ -64,6 +64,13 @@ public:
     bool Start();
     void Stop();
 
+    // Applies model credentials to the *next* Start().  The dashboard uses
+    // Stop() -> SetModelSettings() -> Start() so the one-shot bootstrap line
+    // carries the new key; calling it while Ready does not affect the running
+    // child.
+    void SetModelSettings(const std::string& apiKey, const std::string& model,
+                          const std::string& baseUrl);
+
     // 握手校验：与 Tick()/HandleOutputLine() 使用的规则完全一致（同一实现）。
     // 单独暴露是为了让非 GUI 测试能够拿真实 sidecar 的 ready 行验证本控制器，
     // 而不是在测试里复述一遍规则。

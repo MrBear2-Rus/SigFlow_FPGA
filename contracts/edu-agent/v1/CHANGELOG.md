@@ -1,5 +1,13 @@
 # edu-agent v1 契约变更记录
 
+## 2026-11-17 模型用量与余额只读接口
+
+新增两个已认证的只读路由，供 Agent UI 的模型仪表盘使用：
+
+- `GET /api/v1/usage?days=30`：本机模型 token 累计与按日桶，响应版本 `edu.usage.v1`，字段真源 `schemas/agent-usage.schema.json`。只读取本地计数，不联网；`days` 限制 1–90；损坏行跳过并在 `skipped` 报告。
+- `GET /api/v1/balance`：sidecar 归一化的 DeepSeek `/user/balance` 结果，响应版本 `edu.model.balance.v1`，字段真源 `schemas/agent-balance.schema.json`。失败仍返回 200 + `available=false` 固定原因码，不转发上游原始正文、不回显 Key。
+- 两个路由沿用 `Authorization: Bearer <ui_token>`；基础 `edu.api.v1` 路由与既有字段不变。
+
 ## 2026-11-05 U2 教学辅助分区
 
 正式 U2 扩展追加课程上下文和只读检查状态。课程能力区分已配置与数据库、检索就绪。新增已认证的 `GET /api/v1/u2/runs/{run_id}/records`，响应版本为 `u2.learning-records.v1`，字段定义见 `schemas/u2-learning-records.schema.json`。读取沿用当前工程修订和学习者归属校验，记录保留历史修订及来源。基础 edu.api.v1 路由继续兼容既有调用者。

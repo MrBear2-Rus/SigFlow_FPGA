@@ -255,6 +255,8 @@ endif()
 # P0-7（R16）：显式源列表取代 file(GLOB_RECURSE)。旧 main.vcxproj 不再作为受支持的构建入口。
 set(SIGFLOW_MAIN_SOURCES
     "${SIGFLOW_MAIN_DIR}/agent/AgentApiClient.cpp"
+    "${SIGFLOW_MAIN_DIR}/agent/AgentDashboardController.cpp"
+    "${SIGFLOW_MAIN_DIR}/agent/AgentModelSettings.cpp"
     "${SIGFLOW_MAIN_DIR}/agent/AgentServiceController.cpp"
     # 选择证据的有界投影（纯 C++；MainFrame 与 AgentApiClient 共用同一份裁剪/校验口径）
     "${SIGFLOW_MAIN_DIR}/agent/gui/AgentSelectionContext.cpp"
@@ -518,7 +520,7 @@ else()
 endif()
 
 if(WIN32)
-    target_link_libraries(sigflow PRIVATE setupapi advapi32 opengl32)
+    target_link_libraries(sigflow PRIVATE setupapi advapi32 opengl32 crypt32)
 endif()
 
 if(SIGFLOW_STRICT_WARNINGS AND NOT MSVC)
@@ -742,6 +744,7 @@ if(TARGET eda_agent_gateway)
     target_sources(sigflow PRIVATE
         "${SIGFLOW_MAIN_DIR}/agent/gui/AgentWorkspace.cpp"
         "${SIGFLOW_MAIN_DIR}/agent/gui/AgentWorkspaceHost.cpp"
+        "${SIGFLOW_MAIN_DIR}/agent/gui/AgentDashboardDialog.cpp"
         "${SIGFLOW_MAIN_DIR}/agent/gui/AgentNavigation.cpp"
         "${SIGFLOW_MAIN_DIR}/agent/gui/AgentLearningPath.cpp"
         "${SIGFLOW_MAIN_DIR}/agent/gui/AgentLayoutPolicy.cpp"

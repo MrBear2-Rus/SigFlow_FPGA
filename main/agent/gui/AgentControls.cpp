@@ -1688,6 +1688,9 @@ void AgentCardHost::Arrange()
     if (rect.width > 0 && rect.height > 0) {
         m_content->Show();
     }
+    // Ownerdrawn card: a child move/resize does not invalidate the strips it
+    // uncovers, which shows up as ghost text/borders during a live resize.
+    Refresh(false);
 }
 
 void AgentCardHost::ApplyTheme()

@@ -45,6 +45,7 @@ from .gateway_client import GatewayClient
 from .model_client import ModelClient, ModelStatus
 from .rules import Selection
 from .session import SessionRecord, SessionStore
+from .usage import DEFAULT_USAGE_DAYS, MAX_USAGE_DAYS, UsageStore
 from .util import decimal, sanitize_message, contains_absolute_path, redact
 from .version import (
     AGENT_VERSION,
@@ -85,6 +86,8 @@ _ROUTE_SHUTDOWN = re.compile(r"^/api/v1/shutdown$")
 _ROUTE_HEALTH = re.compile(r"^/api/v1/health$")
 _ROUTE_CAPABILITIES = re.compile(r"^/api/v1/capabilities$")
 _ROUTE_SESSIONS = re.compile(r"^/api/v1/sessions$")
+_ROUTE_USAGE = re.compile(r"^/api/v1/usage$")
+_ROUTE_BALANCE = re.compile(r"^/api/v1/balance$")
 
 
 @dataclass
@@ -98,6 +101,7 @@ class ServerConfig:
     port: int = 0
     gateway: Optional[GatewayClient] = None
     model: Optional[ModelClient] = None
+    usage: Optional[UsageStore] = None
     secrets: tuple[str, ...] = ()
     data_directory: Optional[str] = None
     stop_event: threading.Event = field(default_factory=threading.Event)
@@ -117,7 +121,9 @@ class EduAgentState:
     def __init__(self, config: ServerConfig) -> None:
         self.config = config
         self.sessions = SessionStore(data_directory=config.data_directory)
-        model = config.model or ModelClient(secrets=config.secrets)
+        self.usage = config.usage or UsageStore(config.data_directory)
+        model = config.model or ModelClient(secrets=config.secrets, usage=self.usage)
+        self.model = model
         gateway = config.gateway or GatewayClient(
             "http://127.0.0.1", "", secrets=config.secrets
         )
@@ -330,6 +336,12 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
                     return
             if method == "GET" and _ROUTE_CAPABILITIES.match(path):
                 self._handle_capabilities()
+                return
+            if method == "GET" and _ROUTE_USAGE.match(path):
+                self._handle_usage()
+                return
+            if method == "GET" and _ROUTE_BALANCE.match(path):
+                self._handle_balance()
                 return
             if method == "POST" and _ROUTE_SESSIONS.match(path):
                 self._handle_create_session()
@@ -704,6 +716,32 @@ class EduAgentRequestHandler(BaseHTTPRequestHandler):
                 },
             },
         )
+
+    def _handle_usage(self) -> None:
+        """``GET /api/v1/usage`` — local token accounting only (never dials out)."""
+        values = self._query().get("days")
+        days = DEFAULT_USAGE_DAYS
+        if values is not None:
+            if len(values) != 1 or not values[0].isdigit():
+                self._fail(
+                    "INVALID_ARGUMENT",
+                    "days must be one integer between 1 and %d" % MAX_USAGE_DAYS,
+                    HTTPStatus.BAD_REQUEST,
+                )
+                return
+            days = int(values[0])
+            if days < 1 or days > MAX_USAGE_DAYS:
+                self._fail(
+                    "INVALID_ARGUMENT",
+                    "days must be one integer between 1 and %d" % MAX_USAGE_DAYS,
+                    HTTPStatus.BAD_REQUEST,
+                )
+                return
+        self._respond_data(HTTPStatus.OK, self.state.usage.summarize(days=days))
+
+    def _handle_balance(self) -> None:
+        """``GET /api/v1/balance`` — normalized DeepSeek balance, no raw body."""
+        self._respond_data(HTTPStatus.OK, self.state.model.fetch_balance())
 
     def _handle_create_session(self) -> None:
         """``POST /api/v1/sessions``."""

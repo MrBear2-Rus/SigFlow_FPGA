@@ -28,6 +28,7 @@ from sigflow_edu_agent.http_server import (  # noqa: E402
     create_server,
 )
 from sigflow_edu_agent.model_client import ModelClient, ModelStatus  # noqa: E402
+from sigflow_edu_agent.usage import UsageStore  # noqa: E402
 from sigflow_edu_agent.version import MAX_CARD_BYTES, MAX_SESSIONS, PROTOCOL  # noqa: E402
 
 STUB_GATEWAY_TOKEN = "tok-edge-test"
@@ -303,14 +304,21 @@ def _raw_request(
 class SidecarFixture:
     """A running sidecar plus a running stub Gateway, both on loopback."""
 
-    def __init__(self, health_fault: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        health_fault: Optional[str] = None,
+        *,
+        model: Optional[ModelClient] = None,
+        usage: Optional[UsageStore] = None,
+        data_directory: Optional[str] = None,
+    ) -> None:
         self.gateway = ThreadingHTTPServer((GATEWAY_HOST, 0), _StubGatewayHandler)
         self.gateway.daemon_threads = True
         self.gateway_thread = threading.Thread(target=self.gateway.serve_forever, daemon=True)
         self.gateway_thread.start()
 
         self.stop_event = threading.Event()
-        model = ModelClient(
+        model = model or ModelClient(
             ModelStatus(
                 available=False,
                 provider=None,
@@ -327,7 +335,9 @@ class SidecarFixture:
                     secrets=(STUB_GATEWAY_TOKEN, UI_TOKEN),
                 ),
                 model=model,
+                usage=usage,
                 secrets=(STUB_GATEWAY_TOKEN, UI_TOKEN),
+                data_directory=data_directory,
                 stop_event=self.stop_event,
                 health_fault=health_fault,
             )

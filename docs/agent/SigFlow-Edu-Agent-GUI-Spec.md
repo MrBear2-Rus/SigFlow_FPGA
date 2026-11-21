@@ -3,7 +3,8 @@
 > 版本：v1.1 · 2026-10-09。状态：实施规格，未实现、未验收。  
 > 来源：相邻 `SigFlow_FPGA/docs/agent/SigFlow-Edu-Agent-GUI-Spec.md` v1.0；本版按当前 CMake 仓库、实际 sidecar 契约和 10.8 接口方案校订。  
 > 执行清单：[task.md](task.md)。共享 UI 基础：[主窗口 spec](../gui/SigFlow-MainFrame-Upgrade-Spec.md)。  
-> 接口依据：[10.8 接口调整方案](../edu-agent/sigflow/10.8-Agent接口调整方案.md)、[SigFlow spec](../edu-agent/sigflow/spec.md)、[Agent spec](../edu-agent/ucagent/spec.md)、`contracts/edu-agent/v1/`。
+> 接口依据：[10.8 接口调整方案](../edu-agent/sigflow/10.8-Agent接口调整方案.md)、[SigFlow spec](../edu-agent/sigflow/spec.md)、[Agent spec](../edu-agent/ucagent/spec.md)、`contracts/edu-agent/v1/`。  
+> 2026-11-17 增量：模型与 API 仪表盘（Key 配置、余额、本机用量）见[设计](agent-model-dashboard-design.md)、[验证与交付](agent-model-dashboard-verification.md)、[任务](agent-model-dashboard-task.md)。
 
 ## 1. 产品目标和交付边界
 

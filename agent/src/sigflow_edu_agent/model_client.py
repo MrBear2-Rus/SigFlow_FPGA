@@ -25,13 +25,16 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import socket
 import urllib.error
 import urllib.request
 from urllib.parse import urlsplit
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any, Mapping, Optional
 
+from .usage import UsageStore
 from .util import contains_absolute_path, contains_credential
 
 LOGGER = logging.getLogger(__name__)
@@ -52,6 +55,19 @@ MODEL_LIMITS: dict[str, int | float] = {
     "timeout_seconds": REQUEST_TIMEOUT_SECONDS,
     "max_model_calls": 1,
 }
+
+BALANCE_SCHEMA: str = "edu.model.balance.v1"
+BALANCE_URL: str = "https://api.deepseek.com/user/balance"
+BALANCE_TIMEOUT_SECONDS: float = 8.0
+MAX_BALANCE_BYTES: int = 64 * 1024
+_BALANCE_AMOUNT = re.compile(r"^\d{1,12}(\.\d{1,6})?$")
+"""DeepSeek's documented balance endpoint and conservative response bounds.
+
+The client never follows redirects, uses the same no-proxy opener as model
+calls, and normalizes the response so the HTTP surface never forwards the raw
+upstream body.  Historical token usage is not exposed by DeepSeek; that data is
+accounted locally by :class:`~sigflow_edu_agent.usage.UsageStore`.
+"""
 
 SYSTEM_PROMPT: str = (
     "你是 SigFlow FPGA 教学助手，面向正在学习 Verilog 与数字电路的学生。\n"
@@ -159,6 +175,7 @@ class ModelClient:
         status: Optional[ModelStatus] = None,
         *,
         secrets: tuple[str, ...] = (),
+        usage: Optional[UsageStore] = None,
     ) -> None:
         self._status = status or model_status()
         self._api_key = os.environ.get(API_KEY_ENV, "").strip()
@@ -167,6 +184,7 @@ class ModelClient:
         ).rstrip("/")
         self._model = os.environ.get(MODEL_ENV, "").strip() or DEFAULT_MODEL
         self._opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect())
+        self._usage = usage
         # The sidecar bootstrap secrets are never sent to the model.  Retain
         # them only as an output guard in case an endpoint echoes or invents a
         # token-like value that happens to match this process's credentials.
@@ -215,52 +233,206 @@ class ModelClient:
             },
             method="POST",
         )
+        attempted = False
+        ok = False
+        usage_counts: Optional[dict[str, int]] = None
         try:
-            with self._opener.open(
-                request, timeout=REQUEST_TIMEOUT_SECONDS
-            ) as response:
-                body = response.read(MAX_COMPLETION_BYTES + 1)
-        except urllib.error.HTTPError as exc:
-            LOGGER.warning(
-                "model endpoint returned status %d", int(getattr(exc, "code", 0) or 0)
-            )
-            return ModelAnswer(ok=False, reason="模型端点拒绝了本次请求，已降级为规则讲解。")
-        except (TimeoutError, socket.timeout):
-            LOGGER.warning("model endpoint timed out")
-            return ModelAnswer(ok=False, reason="模型请求超时，已降级为规则讲解。")
-        except urllib.error.URLError as exc:
-            if isinstance(getattr(exc, "reason", None), (TimeoutError, socket.timeout)):
+            attempted = True
+            try:
+                with self._opener.open(
+                    request, timeout=REQUEST_TIMEOUT_SECONDS
+                ) as response:
+                    body = response.read(MAX_COMPLETION_BYTES + 1)
+            except urllib.error.HTTPError as exc:
+                LOGGER.warning(
+                    "model endpoint returned status %d", int(getattr(exc, "code", 0) or 0)
+                )
+                return ModelAnswer(ok=False, reason="模型端点拒绝了本次请求，已降级为规则讲解。")
+            except (TimeoutError, socket.timeout):
                 LOGGER.warning("model endpoint timed out")
                 return ModelAnswer(ok=False, reason="模型请求超时，已降级为规则讲解。")
-            LOGGER.warning("model endpoint unreachable")
-            return ModelAnswer(ok=False, reason="模型端点不可达，已降级为规则讲解。")
+            except urllib.error.URLError as exc:
+                if isinstance(getattr(exc, "reason", None), (TimeoutError, socket.timeout)):
+                    LOGGER.warning("model endpoint timed out")
+                    return ModelAnswer(ok=False, reason="模型请求超时，已降级为规则讲解。")
+                LOGGER.warning("model endpoint unreachable")
+                return ModelAnswer(ok=False, reason="模型端点不可达，已降级为规则讲解。")
+            except OSError:
+                LOGGER.warning("model endpoint unreachable")
+                return ModelAnswer(ok=False, reason="模型端点不可达，已降级为规则讲解。")
+            if len(body) > MAX_COMPLETION_BYTES:
+                return ModelAnswer(ok=False, reason="模型响应超出预算，已降级为规则讲解。")
+            if body.lstrip()[:5] == b"data:":
+                # ``stream: false`` was requested; a server-sent-events body means
+                # the endpoint ignored the contract, so refuse instead of guessing.
+                return ModelAnswer(ok=False, reason="模型返回了流式响应，已降级为规则讲解。")
+            try:
+                decoded = json.loads(body.decode("utf-8"))
+            except (ValueError, UnicodeDecodeError):
+                return ModelAnswer(ok=False, reason="模型返回了非 JSON 响应，已降级为规则讲解。")
+            usage_counts = _extract_usage(decoded)
+            text = _extract_text(decoded)
+            if not text:
+                return ModelAnswer(ok=False, reason="模型没有返回可用文本，已降级为规则讲解。")
+            if contains_absolute_path(text):
+                return ModelAnswer(
+                    ok=False,
+                    reason="模型返回包含本机路径，已降级为规则讲解。",
+                )
+            if contains_credential(text, self._secrets):
+                return ModelAnswer(
+                    ok=False,
+                    reason="模型返回包含敏感凭据，已降级为规则讲解。",
+                )
+            ok = True
+            return ModelAnswer(ok=True, text=text)
+        finally:
+            # Count only calls that actually reached the endpoint; refusal
+            # before the request (no key, unsafe input) is not a model call.
+            if attempted and self._usage is not None:
+                self._usage.record(model=self._model, ok=ok, usage=usage_counts)
+
+    def fetch_balance(self) -> dict[str, Any]:
+        """Return the normalized DeepSeek account balance.
+
+        This is a read-only call to the documented balance endpoint.  It never
+        returns the raw upstream body and never consumes model quota.  Failures
+        are reported as ``available=false`` with a fixed reason code so the
+        dashboard can keep showing local usage.
+        """
+        checked = _utc_now_iso()
+        if not self._status.available or not self._api_key:
+            return _balance_failure("model_unconfigured", checked)
+        if urlsplit(self._base_url).hostname != "api.deepseek.com":
+            return _balance_failure("balance_unsupported_provider", checked)
+        request = urllib.request.Request(
+            BALANCE_URL,
+            headers={
+                "Authorization": "Bearer " + self._api_key,
+                "Accept": "application/json",
+            },
+            method="GET",
+        )
+        try:
+            with self._opener.open(
+                request, timeout=BALANCE_TIMEOUT_SECONDS
+            ) as response:
+                body = response.read(MAX_BALANCE_BYTES + 1)
+        except urllib.error.HTTPError as exc:
+            code = int(getattr(exc, "code", 0) or 0)
+            LOGGER.warning("balance endpoint returned status %d", code)
+            return _balance_failure(
+                "balance_unauthorized" if code in (401, 403) else "balance_unreachable",
+                checked,
+            )
+        except (TimeoutError, socket.timeout):
+            LOGGER.warning("balance endpoint timed out")
+            return _balance_failure("balance_timeout", checked)
+        except urllib.error.URLError as exc:
+            if isinstance(getattr(exc, "reason", None), (TimeoutError, socket.timeout)):
+                LOGGER.warning("balance endpoint timed out")
+                return _balance_failure("balance_timeout", checked)
+            LOGGER.warning("balance endpoint unreachable")
+            return _balance_failure("balance_unreachable", checked)
         except OSError:
-            LOGGER.warning("model endpoint unreachable")
-            return ModelAnswer(ok=False, reason="模型端点不可达，已降级为规则讲解。")
-        if len(body) > MAX_COMPLETION_BYTES:
-            return ModelAnswer(ok=False, reason="模型响应超出预算，已降级为规则讲解。")
-        if body.lstrip()[:5] == b"data:":
-            # ``stream: false`` was requested; a server-sent-events body means
-            # the endpoint ignored the contract, so refuse instead of guessing.
-            return ModelAnswer(ok=False, reason="模型返回了流式响应，已降级为规则讲解。")
+            LOGGER.warning("balance endpoint unreachable")
+            return _balance_failure("balance_unreachable", checked)
+        if len(body) > MAX_BALANCE_BYTES:
+            return _balance_failure("balance_invalid_response", checked)
         try:
             decoded = json.loads(body.decode("utf-8"))
         except (ValueError, UnicodeDecodeError):
-            return ModelAnswer(ok=False, reason="模型返回了非 JSON 响应，已降级为规则讲解。")
-        text = _extract_text(decoded)
-        if not text:
-            return ModelAnswer(ok=False, reason="模型没有返回可用文本，已降级为规则讲解。")
-        if contains_absolute_path(text):
-            return ModelAnswer(
-                ok=False,
-                reason="模型返回包含本机路径，已降级为规则讲解。",
-            )
-        if contains_credential(text, self._secrets):
-            return ModelAnswer(
-                ok=False,
-                reason="模型返回包含敏感凭据，已降级为规则讲解。",
-            )
-        return ModelAnswer(ok=True, text=text)
+            return _balance_failure("balance_invalid_response", checked)
+        if isinstance(decoded, Mapping) and decoded.get("is_available") is False:
+            # The endpoint answered, but the account itself is unavailable.
+            return _balance_failure("balance_unavailable", checked)
+        normalized = _normalize_balance(decoded)
+        if normalized is None:
+            return _balance_failure("balance_invalid_response", checked)
+        normalized.update(
+            {"schema": BALANCE_SCHEMA, "available": True, "checked_at": checked}
+        )
+        return normalized
+
+
+def _utc_now_iso() -> str:
+    return (
+        datetime.now(timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
+
+
+def _extract_usage(payload: Any) -> Optional[dict[str, int]]:
+    """Return strict prompt/completion/total counters, or ``None`` if unknown.
+
+    A missing or malformed ``usage`` object must not turn a successful answer
+    into a failure; the call is recorded with ``tokens_unavailable=true``.
+    """
+    if not isinstance(payload, Mapping):
+        return None
+    usage = payload.get("usage")
+    if not isinstance(usage, Mapping):
+        return None
+    values: dict[str, int] = {}
+    for key in ("prompt_tokens", "completion_tokens", "total_tokens"):
+        value = usage.get(key)
+        if type(value) is not int or value < 0 or value > 1_000_000_000:
+            return None
+        values[key] = value
+    return values
+
+
+def _balance_failure(reason: str, checked_at: str) -> dict[str, Any]:
+    return {
+        "schema": BALANCE_SCHEMA,
+        "available": False,
+        "reason": reason,
+        "checked_at": checked_at,
+    }
+
+
+def _normalize_balance(payload: Any) -> Optional[dict[str, str]]:
+    """Pick one balance entry from the documented DeepSeek response."""
+    if not isinstance(payload, Mapping) or payload.get("is_available") is not True:
+        return None
+    balances = payload.get("balance_infos")
+    if not isinstance(balances, list):
+        return None
+    candidates: list[dict[str, str]] = []
+    for item in balances:
+        if not isinstance(item, Mapping):
+            continue
+        currency = item.get("currency")
+        total = item.get("total_balance")
+        granted = item.get("granted_balance")
+        topped_up = item.get("topped_up_balance")
+        if not (
+            isinstance(currency, str)
+            and isinstance(total, str)
+            and isinstance(granted, str)
+            and isinstance(topped_up, str)
+        ):
+            continue
+        if currency.upper() not in {"CNY", "USD"}:
+            continue
+        if not all(_BALANCE_AMOUNT.fullmatch(value) for value in (total, granted, topped_up)):
+            continue
+        candidates.append(
+            {
+                "currency": currency.upper(),
+                "total_balance": total,
+                "granted_balance": granted,
+                "topped_up_balance": topped_up,
+            }
+        )
+    if not candidates:
+        return None
+    for candidate in candidates:
+        if candidate["currency"] == "CNY":
+            return candidate
+    return candidates[0]
 
 
 def _extract_text(payload: Any) -> str:

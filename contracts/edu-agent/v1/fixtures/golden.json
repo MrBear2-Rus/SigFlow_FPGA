@@ -992,5 +992,77 @@
       "completeness": "legacy_unverified",
       "problem": "report_missing"
     }
+  },
+  {
+    "name": "agent-usage.empty",
+    "schema": "agent-usage.schema.json",
+    "document": {
+      "schema": "edu.usage.v1",
+      "generated_at": "2026-11-17T08:00:00Z",
+      "since": null,
+      "days": 30,
+      "skipped": 0,
+      "totals": {
+        "calls": 0,
+        "failed_calls": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "total_tokens": 0,
+        "tokens_unavailable_calls": 0
+      },
+      "daily": []
+    }
+  },
+  {
+    "name": "agent-usage.with-daily",
+    "schema": "agent-usage.schema.json",
+    "document": {
+      "schema": "edu.usage.v1",
+      "generated_at": "2026-11-17T08:00:00Z",
+      "since": "2026-10-18",
+      "days": 30,
+      "skipped": 1,
+      "totals": {
+        "calls": 12,
+        "failed_calls": 1,
+        "prompt_tokens": 1234,
+        "completion_tokens": 567,
+        "total_tokens": 1801,
+        "tokens_unavailable_calls": 2
+      },
+      "daily": [
+        {
+          "date": "2026-11-17",
+          "calls": 3,
+          "failed_calls": 0,
+          "prompt_tokens": 400,
+          "completion_tokens": 120,
+          "total_tokens": 520
+        }
+      ]
+    }
+  },
+  {
+    "name": "agent-balance.available",
+    "schema": "agent-balance.schema.json",
+    "document": {
+      "schema": "edu.model.balance.v1",
+      "available": true,
+      "checked_at": "2026-11-17T08:00:00Z",
+      "currency": "CNY",
+      "total_balance": "12.34",
+      "granted_balance": "0.00",
+      "topped_up_balance": "12.34"
+    }
+  },
+  {
+    "name": "agent-balance.unconfigured",
+    "schema": "agent-balance.schema.json",
+    "document": {
+      "schema": "edu.model.balance.v1",
+      "available": false,
+      "checked_at": "2026-11-17T08:00:00Z",
+      "reason": "model_unconfigured"
+    }
   }
 ]

@@ -57,6 +57,8 @@ class HttpRouteMatrixTests(unittest.TestCase):
     def _protected_routes(self):
         """Yield ``(method, path, body)`` for every non-health route."""
         yield "GET", "/api/v1/capabilities", None
+        yield "GET", "/api/v1/usage", None
+        yield "GET", "/api/v1/balance", None
         yield "POST", "/api/v1/sessions", {
             "project_id": "prj-matrix",
             "revision": "rev-matrix",
@@ -73,6 +75,8 @@ class HttpRouteMatrixTests(unittest.TestCase):
     def test_all_documented_routes_have_a_positive_case(self) -> None:
         health = self.fixture.request("GET", "/api/v1/health", token=None)
         capabilities = self.fixture.request("GET", "/api/v1/capabilities")
+        usage = self.fixture.request("GET", "/api/v1/usage")
+        balance = self.fixture.request("GET", "/api/v1/balance")
         session = self.fixture.request(
             "POST",
             "/api/v1/sessions",
@@ -94,13 +98,15 @@ class HttpRouteMatrixTests(unittest.TestCase):
             [
                 health.status,
                 capabilities.status,
+                usage.status,
+                balance.status,
                 session.status,
                 session_read.status,
                 run.status,
                 events.status,
                 run_read.status,
             ],
-            [200, 200, 201, 200, 201, 200, 200],
+            [200, 200, 200, 200, 201, 200, 201, 200, 200],
         )
 
     def test_shutdown_has_positive_and_negative_cases(self) -> None:

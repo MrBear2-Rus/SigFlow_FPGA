@@ -22,14 +22,13 @@
 // 选择证据的有界投影是纯 C++ 模块：无论 EDU Agent 是否开启都能编译（裁剪口径只有一份）。
 #include "agent/gui/AgentSelectionContext.h"
 #if defined(SIGFLOW_BUILD_EDU_AGENT)
+#include "agent/AgentDashboardController.h"
+#include "agent/gui/AgentDashboardDialog.h"
 #include "agent/gui/AgentFormCoordinator.h"
 #include "agent/gui/AgentReportSelection.h"
 #include "agent/gui/AgentWorkspace.h"
 #include "agent/gui/AgentWorkspaceHost.h"
 #include "agent/gui/AgentWireProjection.h"
-#if defined(SIGFLOW_EMBED_LOCAL_MODEL)
-#include "LocalModelConfig.h"
-#endif
 #endif
 #include <wx/utils.h>
 #include <wx/process.h>
@@ -1004,11 +1003,10 @@ MainFrame::MainFrame()
                 wxString::FromUTF8(gatewayConfig.instanceId.c_str())));
 
             AgentServiceController::Config sidecarConfig;
-#if defined(SIGFLOW_EMBED_LOCAL_MODEL)
-            sidecarConfig.modelApiKey = local_model_config::api_key;
-            sidecarConfig.modelName = local_model_config::model;
-            sidecarConfig.modelBaseUrl = local_model_config::base_url;
-#endif
+            m_agentModelSettings = agent::AgentModelSettings::Load(eda::platform::AppDataRoot());
+            sidecarConfig.modelApiKey = m_agentModelSettings.apiKey;
+            sidecarConfig.modelName = m_agentModelSettings.model;
+            sidecarConfig.modelBaseUrl = m_agentModelSettings.baseUrl;
             sidecarConfig.arguments.push_back("--u2-teaching-if-available");
             const std::string configuredSidecar =
                 eda::platform::EnvUtf8("SIGFLOW_EDU_AGENT_EXECUTABLE");
@@ -2947,6 +2945,7 @@ bool MainFrame::SetAgentForm(agent::gui::AgentForm form)
             });
             m_agentWorkspace->SetWorkflowFeedback(wxString::FromUTF8("正在读取当前工程的报告。"));
         });
+        m_agentWorkspace->SetDashboardHandler([this] { OpenAgentDashboard(); });
         m_agentForms->Attach(m_agentWorkspace);
         SyncAgentWorkspace();
     }
@@ -2954,6 +2953,138 @@ bool MainFrame::SetAgentForm(agent::gui::AgentForm form)
         return false;
     }
     return true;
+}
+
+wxString MainFrame::AgentServiceSummary()
+{
+    wxString text = wxString::FromUTF8("Agent 服务：未启用");
+    if (m_agentSidecar) {
+        const auto status = m_agentSidecar->status();
+        wxString state = "stopped";
+        switch (status.state) {
+            case AgentServiceController::State::Disabled: state = "disabled"; break;
+            case AgentServiceController::State::Starting: state = "starting"; break;
+            case AgentServiceController::State::Ready: state = "ready"; break;
+            case AgentServiceController::State::BackingOff: state = "backing-off"; break;
+            case AgentServiceController::State::Failed: state = "failed"; break;
+            case AgentServiceController::State::Stopped: break;
+        }
+        // Concatenate instead of a narrow "%s" format: a UTF-8 format literal
+        // plus a const char* argument crashes inside wx 3.2.11's format-string
+        // wide conversion on this MinGW build (SIGSEGV in wxLongLongNative).
+        text = wxString::FromUTF8("Agent 服务：") + state;
+        if (!status.message.empty()) {
+            text += "\n" + wxString::FromUTF8(status.message.c_str());
+        }
+        if (status.port > 0) {
+            text += wxString::FromUTF8(" · 端口 ") + wxString::Format("%d", status.port);
+        }
+    }
+    const Json::Value& model = m_agentCapabilities["model"];
+    if (model.isObject()) {
+        const bool available = model["available"].isBool() && model["available"].asBool();
+        text += wxString::FromUTF8("\n模型：") +
+                (available ? wxString::FromUTF8("可用") : wxString::FromUTF8("规则模式"));
+        if (model["model"].isString() && !model["model"].asString().empty()) {
+            text += wxString::FromUTF8(" · ") +
+                    wxString::FromUTF8(model["model"].asString().c_str());
+        }
+        if (model["reason"].isString() && !model["reason"].asString().empty()) {
+            text += "\n" + wxString::FromUTF8(model["reason"].asString().c_str());
+        }
+    } else {
+        text += wxString::FromUTF8("\n模型状态：尚未读取");
+    }
+    return text;
+}
+
+void MainFrame::OpenAgentDashboard()
+{
+    if (m_agentDashboard != nullptr) return;
+    if (!m_agentDashboardController) {
+        m_agentDashboardController = std::make_unique<agent::AgentDashboardController>(
+            [this](const agent::AgentDashboardController::Snapshot& snapshot) {
+                // The controller runs on a worker; every UI touch is marshalled.
+                wxTheApp->CallAfter([this, snapshot] {
+                    if (m_agentDashboard == nullptr) return;
+                    if (snapshot.generation != m_agentClientGeneration) {
+                        m_agentDashboard->CancelQuery(
+                            wxString::FromUTF8("Agent 服务已重启，请重新查询。"));
+                        return;
+                    }
+                    if (snapshot.usageOk) {
+                        m_agentDashboard->ShowUsage(snapshot.usage);
+                    } else {
+                        m_agentDashboard->ShowUsageFailure(snapshot.usageErrorCode,
+                                                           snapshot.usageErrorMessage);
+                    }
+                    if (snapshot.balanceOk) {
+                        m_agentDashboard->ShowBalance(snapshot.balance);
+                    } else {
+                        m_agentDashboard->ShowBalanceFailure(snapshot.balanceErrorCode,
+                                                             snapshot.balanceErrorMessage);
+                    }
+                    m_agentDashboard->EndQuery();
+                });
+            });
+    }
+
+    const auto restartSidecar = [this] {
+        if (!m_agentSidecar) return;
+        m_agentSidecar->Stop();
+        m_agentSidecar->SetModelSettings(m_agentModelSettings.apiKey, m_agentModelSettings.model,
+                                         m_agentModelSettings.baseUrl);
+        m_agentSidecar->Start();
+    };
+
+    agent::gui::AgentDashboardDialog::Host host;
+    host.settings = [this] { return m_agentModelSettings; };
+    host.ready = [this] { return m_agentSidecar && m_agentSidecar->ready(); };
+    host.restartPossible = [this] {
+        return m_agentSidecar &&
+               m_agentSidecar->status().state != AgentServiceController::State::Disabled;
+    };
+    host.serviceState = [this] {
+        if (!m_agentSidecar) return wxString::FromUTF8("stopped");
+        switch (m_agentSidecar->status().state) {
+            case AgentServiceController::State::Disabled: return wxString::FromUTF8("disabled");
+            case AgentServiceController::State::Starting: return wxString::FromUTF8("starting");
+            case AgentServiceController::State::Ready: return wxString::FromUTF8("ready");
+            case AgentServiceController::State::BackingOff: return wxString::FromUTF8("backing-off");
+            case AgentServiceController::State::Failed: return wxString::FromUTF8("failed");
+            case AgentServiceController::State::Stopped: break;
+        }
+        return wxString::FromUTF8("stopped");
+    };
+    host.modelAvailable = [this] {
+        const Json::Value& model = m_agentCapabilities["model"];
+        return model.isObject() && model["available"].isBool() && model["available"].asBool();
+    };
+    host.serviceText = [this] { return AgentServiceSummary(); };
+    host.save = [this, restartSidecar](const agent::ModelSettings& settings, std::string* error) {
+        if (!agent::AgentModelSettings::Save(eda::platform::AppDataRoot(), settings, error)) {
+            return false;
+        }
+        m_agentModelSettings = agent::AgentModelSettings::Load(eda::platform::AppDataRoot());
+        restartSidecar();
+        return true;
+    };
+    host.clear = [this, restartSidecar](std::string* error) {
+        if (!agent::AgentModelSettings::Clear(eda::platform::AppDataRoot(), error)) return false;
+        m_agentModelSettings = agent::AgentModelSettings::Load(eda::platform::AppDataRoot());
+        restartSidecar();
+        return true;
+    };
+    host.refresh = [this]() -> bool {
+        if (!m_agentSidecar || !m_agentSidecar->ready() || !m_agentApiClient) return false;
+        return m_agentDashboardController->Start(m_agentApiClient, m_agentClientGeneration);
+    };
+
+    auto* dialog = new agent::gui::AgentDashboardDialog(this, std::move(host));
+    m_agentDashboard = dialog;
+    dialog->ShowModal();
+    m_agentDashboard = nullptr;
+    dialog->Destroy();
 }
 
 // The coordinator reports every accepted form change here; only MainFrame knows

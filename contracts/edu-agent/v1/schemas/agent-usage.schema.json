@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "edu-agent/v1/schemas/agent-usage.schema.json",
+  "title": "AgentUsageData",
+  "description": "GET /api/v1/usage 的 data 对象：本机 token 计数。只含时间、模型名与计数器，不含提问、证据、路径或凭据。",
+  "type": "object",
+  "required": ["schema", "generated_at", "since", "days", "skipped", "totals", "daily"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": { "type": "string", "const": "edu.usage.v1" },
+    "generated_at": {
+      "type": "string",
+      "minLength": 1,
+      "description": "统计生成时间，UTC ISO 8601。"
+    },
+    "since": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "description": "保留记录中最早的 UTC 日期；无记录时为 null。"
+    },
+    "days": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 90,
+      "description": "日桶窗口（含今天）；累计 totals 不受该窗口限制。"
+    },
+    "skipped": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "读取时跳过的损坏行数。"
+    },
+    "totals": { "$ref": "#/$defs/totals" },
+    "daily": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/day" }
+    }
+  },
+  "$defs": {
+    "totals": {
+      "type": "object",
+      "required": [
+        "calls",
+        "failed_calls",
+        "prompt_tokens",
+        "completion_tokens",
+        "total_tokens",
+        "tokens_unavailable_calls"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "calls": { "type": "integer", "minimum": 0 },
+        "failed_calls": { "type": "integer", "minimum": 0 },
+        "prompt_tokens": { "type": "integer", "minimum": 0 },
+        "completion_tokens": { "type": "integer", "minimum": 0 },
+        "total_tokens": { "type": "integer", "minimum": 0 },
+        "tokens_unavailable_calls": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "day": {
+      "type": "object",
+      "required": [
+        "date",
+        "calls",
+        "failed_calls",
+        "prompt_tokens",
+        "completion_tokens",
+        "total_tokens"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "date": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "calls": { "type": "integer", "minimum": 0 },
+        "failed_calls": { "type": "integer", "minimum": 0 },
+        "prompt_tokens": { "type": "integer", "minimum": 0 },
+        "completion_tokens": { "type": "integer", "minimum": 0 },
+        "total_tokens": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

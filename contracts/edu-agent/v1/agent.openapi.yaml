@@ -141,6 +141,99 @@ paths:
         "401": { $ref: "#/components/responses/Failure" }
         "403": { $ref: "#/components/responses/Failure" }
 
+  /usage:
+    get:
+      summary: 本机模型 token 用量统计（只读、不联网）
+      description: |
+        返回 sidecar 本地记录的模型调用计数：累计 `totals` 与最近 `days` 天的日桶 `daily`。
+        只含 UTC 时间、模型名与计数器，不含提问、证据、路径或凭据；记录从本版本上线后
+        开始，不做历史回填；损坏行跳过并在 `skipped` 中报告。
+        错误码：
+        - 400 INVALID_ARGUMENT：`days` 不是 1–90 的单个整数。
+        - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
+        - 403 POLICY_DENIED：Host 边界校验不通过。
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: days
+          in: query
+          required: false
+          description: 日桶窗口（含今天），1–90，缺省 30；`totals` 始终为全部保留记录的累计。
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 90
+            default: 30
+      responses:
+        "200":
+          description: 成功信封
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsageEnvelope"
+              example:
+                schema_version: edu.api.v1
+                request_id: req-3
+                trace_id: trace-3
+                data:
+                  schema: edu.usage.v1
+                  generated_at: "2026-11-17T08:00:00Z"
+                  since: "2026-10-18"
+                  days: 30
+                  skipped: 0
+                  totals:
+                    calls: 12
+                    failed_calls: 1
+                    prompt_tokens: 1234
+                    completion_tokens: 567
+                    total_tokens: 1801
+                    tokens_unavailable_calls: 0
+                  daily:
+                    - date: "2026-11-17"
+                      calls: 3
+                      failed_calls: 0
+                      prompt_tokens: 400
+                      completion_tokens: 120
+                      total_tokens: 520
+        "400": { $ref: "#/components/responses/Failure" }
+        "401": { $ref: "#/components/responses/Failure" }
+        "403": { $ref: "#/components/responses/Failure" }
+
+  /balance:
+    get:
+      summary: DeepSeek 账户余额（归一化，只读）
+      description: |
+        由 sidecar 使用已配置的模型 Key 调用 DeepSeek 官方 `GET /user/balance`，
+        归一化为币种与三项余额。失败仍返回 200，`available=false` 并带固定 `reason`；
+        不转发上游原始正文，不回显 Key，不消耗模型额度，也不写入本地用量。
+        未配置模型 Key 时同样返回 200 + `model_unconfigured`。
+        错误码：
+        - 401 UNAUTHENTICATED：缺少或无效 Bearer token。
+        - 403 POLICY_DENIED：Host 边界校验不通过。
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 成功或固定降级信封
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BalanceEnvelope"
+              example:
+                schema_version: edu.api.v1
+                request_id: req-4
+                trace_id: trace-4
+                data:
+                  schema: edu.model.balance.v1
+                  available: true
+                  checked_at: "2026-11-17T08:00:00Z"
+                  currency: CNY
+                  total_balance: "12.34"
+                  granted_balance: "0.00"
+                  topped_up_balance: "12.34"
+        "401": { $ref: "#/components/responses/Failure" }
+        "403": { $ref: "#/components/responses/Failure" }
+
   /sessions:
     post:
       summary: 创建一个教学会话（绑定 project + revision）
@@ -785,6 +878,26 @@ components:
         - type: object
           properties:
             data: { $ref: "#/components/schemas/ShutdownData" }
+
+    UsageData:
+      $ref: "schemas/agent-usage.schema.json"
+
+    UsageEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/UsageData" }
+
+    BalanceData:
+      $ref: "schemas/agent-balance.schema.json"
+
+    BalanceEnvelope:
+      allOf:
+        - $ref: "#/components/schemas/Envelope"
+        - type: object
+          properties:
+            data: { $ref: "#/components/schemas/BalanceData" }
 
   securitySchemes:
     bearerAuth:
