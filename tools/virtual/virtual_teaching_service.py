@@ -69,7 +69,7 @@ def safe_state(node):
     return result
 class TeachingService:
     def __init__(self,course_id,build,work,student_root=None):
-        if not re.fullmatch(r'course-0[1-4]-[a-z-]+',course_id):raise ValueError('E_COURSE_ID')
+        if not re.fullmatch(r'course-0[1-5]-[a-z0-9-]+',course_id):raise ValueError('E_COURSE_ID')
         self.folder=ROOT/'examples/virtual/courses'/course_id;self.task,self.plan,self.rubric=verify_package(self.folder);self.build=Path(build);self.work=Path(work);self.work.mkdir(parents=True,exist_ok=True);self.student_root=Path(student_root or self.folder).resolve();self.token=secrets.token_urlsafe(32);self.mac=secrets.token_bytes(32);self.hints=[];self.measurements=[];self.level=0;self.lock=threading.RLock();self.history=[];self.replays=[];self.wave_events={}
         if student_root is None:
             self.student_root=(self.work/'student').resolve();self.student_root.mkdir(parents=True,exist_ok=True)
@@ -148,8 +148,17 @@ class TeachingService:
                 runner=Runner(result,config,self.work/('grade-'+uuid.uuid4().hex));ok=False
                 try:
                     # A reset requiring a nonzero register value is sampled before release.
-                    runner.call('step');runner.call('set',target='reset_p4',state=2);runner.call('set',target='key_p3',state=13)
-                    if self.rubric['assertion']=='uart_bad_frame_rejection_and_recovery':
+                    runner.call('step');runner.call('set',target='reset_p4',state=2)
+                    if self.rubric['assertion']!='i2c_ack_restored_and_alarm':runner.call('set',target='key_p3',state=13)
+                    if self.rubric['assertion']=='i2c_ack_restored_and_alarm':
+                        # Trusted-side deterministic I2C check: the restored bus must let the
+                        # master read the temperature byte and light the alarm evidence.
+                        frame=runner.call('step',mode='ticks',ticks='20000000')
+                        outputs=frame['outputs']
+                        ok=(frame.get('reason')=='StepComplete' and outputs['led_n[0]'] is False
+                            and outputs['led_n[1]'] is True and outputs['led_n[2]'] is False
+                            and outputs['led_n[3]'] is True and outputs['led_n[4]'] is False)
+                    elif self.rubric['assertion']=='uart_bad_frame_rejection_and_recovery':
                         # Normal frame, a physical bad stop bit, then a valid
                         # frame with a bounded peer clock offset. DUT owns the
                         # 8N1 accept counter; observations alone cannot pass it.
@@ -216,7 +225,7 @@ def main():
         for line in sys.stdin:
             try:
                 request=json.loads(line);response=service.handle(request);response['teaching_gateway']=gateway
-            except Exception as e:response=dict(status='rejected',error=str(e) if isinstance(e,ValueError) else 'E_TRUSTED_TEACHING_FAILURE')
+            except Exception as e:response=dict(status='rejected',error=str(e) if isinstance(e,ValueError) else 'E_TRUSTED_TEACHING_FAILURE: '+type(e).__name__+': '+str(e)[:200])
             print(json.dumps(response,ensure_ascii=False),flush=True)
     finally:
         if service:service.close()

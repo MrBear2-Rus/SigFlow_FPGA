@@ -1,0 +1,34 @@
+{
+  "schema": "sigflow.fault-profile.v2",
+  "id": "course05-teacher-plan",
+  "revision": 1,
+  "board_ref": "tang-nano-9k@4.0.0-teaching-i2c",
+  "tick_ps": "1",
+  "rng": {
+    "algorithm": "pcg32-v1",
+    "seed": "9500123",
+    "streams": "by_fault_id"
+  },
+  "conflict_policy": "reject_overlapping_mutations",
+  "faults": [
+    {
+      "id": "secret-nak-7f4",
+      "enabled": true,
+      "visibility": "teacher_only",
+      "hook": "peripheral.event",
+      "target": {
+        "kind": "component",
+        "id": "i2c0"
+      },
+      "effect": {
+        "type": "i2c_nak",
+        "phase": "address",
+        "nth_transaction": 1
+      },
+      "trigger": {
+        "kind": "permanent",
+        "start_tick": "0"
+      }
+    }
+  ]
+}

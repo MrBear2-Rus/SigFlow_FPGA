@@ -1,0 +1,58 @@
+{
+  "schema": "sigflow.virtual-project.v1",
+  "source_files": [
+    "broken.sv"
+  ],
+  "top_module": "i2c_alarm_monitor",
+  "cst_path": "counter.cst",
+  "board_path": "E:\\sigflow\\SigFlow_VirtroFPGA\\examples\\virtual\\courses\\course-05-i2c-nak-troubleshooting\\board.json",
+  "electrical_profile_path": "registry/electrical/tang-nano-9k.6202.reviewed.v2.json",
+  "durability": "durable",
+  "clock": {
+    "port_ref": "clock_in",
+    "package_pin": 52,
+    "frequency_hz": "27000000",
+    "enabled": true
+  },
+  "inputs": [
+    {
+      "target": "reset_p4",
+      "package_pin": 4,
+      "fixed_drivers": [],
+      "initial_manual_state": 13
+    },
+    {
+      "target": "clock_p52",
+      "package_pin": 52,
+      "fixed_drivers": [],
+      "initial_manual_state": 2
+    },
+    {
+      "target": "i2c_sda_in",
+      "package_pin": 37,
+      "fixed_drivers": [],
+      "initial_manual_state": 2
+    }
+  ],
+  "open_drain_ports": [
+    "i2c_sda"
+  ],
+  "phase1": true,
+  "phase2": true,
+  "integration_window_ticks": "4000000",
+  "fault_profile": {
+    "schema": "sigflow.fault-profile.v2",
+    "id": "course05-teacher-plan",
+    "revision": 1,
+    "board_ref": "tang-nano-9k@4.0.0-teaching-i2c",
+    "tick_ps": "1",
+    "rng": {
+      "algorithm": "pcg32-v1",
+      "seed": "4100001",
+      "streams": "by_fault_id"
+    },
+    "conflict_policy": "reject_overlapping_mutations",
+    "faults": []
+  },
+  "project_root": "E:\\sigflow\\SigFlow_VirtroFPGA\\examples\\virtual\\courses\\course-05-i2c-nak-troubleshooting"
+}

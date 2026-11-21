@@ -1,0 +1,31 @@
+{
+  "schema": "sigflow.course-task.v1",
+  "id": "lesson-5",
+  "title": "I2C 总线应答异常：告警灯不亮",
+  "objective": "用只读探针测量 SCL/SDA，定位第 9 拍应答槽异常并恢复总线后提交修复",
+  "allowed_observations": [
+    "pad.35",
+    "pad.36",
+    "pad.37",
+    "i2c0.SDA",
+    "i2c0.SCL",
+    "port:led_n[0]",
+    "port:led_n[4]"
+  ],
+  "public_tests": [
+    "reset_then_step",
+    "ticks_bounded"
+  ],
+  "hint_levels": [
+    "L1",
+    "L2",
+    "L3",
+    "L4"
+  ],
+  "mode": "student_blind_test",
+  "clock_fixture": {
+    "frequency_hz": "27000000",
+    "physical_board_oscillator_hz": "27000000",
+    "teaching_override": false
+  }
+}

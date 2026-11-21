@@ -1,0 +1,96 @@
+True schemas validate every course, phase 4 project and the four new fault effects
+True native actual process exits successfully: {"checks":79,"status":"passed"}
+
+True native algebra suite still passes 79 checks
+True legal packet passes crc8-0x07 with no framing error
+True crc-valid three from-zero real RTL replays preserve both digests
+True tampered CRC byte is rejected by the upper-layer checker
+True bottom-layer UART framing stays fully legal under crc_tamper
+True fault ledger records crc.tampered with protocol id and frame index
+True crc-tamper three from-zero real RTL replays preserve both digests
+True seeded CDC draw fires for an input edge inside the violation window: seed 4100101
+True CDC ledger marks the functional metastability approximation explicitly
+True CDC draw enumerates a whole-cycle sampling delay branch
+True cdc-4100101 three from-zero real RTL replays preserve both digests
+True seeded CDC draw fires for an input edge inside the violation window: seed 4100102
+True CDC ledger marks the functional metastability approximation explicitly
+True CDC draw enumerates a whole-cycle sampling delay branch
+True cdc-4100102 three from-zero real RTL replays preserve both digests
+True seeded CDC draw fires for an input edge inside the violation window: seed 4100103
+True CDC ledger marks the functional metastability approximation explicitly
+True CDC draw enumerates a whole-cycle sampling delay branch
+True cdc-4100103 three from-zero real RTL replays preserve both digests
+True three fixed seeds exercise the CDC approximation deterministically
+True Phase 4 trace sweep collects 1085 per-commit batches
+True sfvb-encode actual process exits successfully: {"frames":4,"status":"passed"}
+
+True sfvb-js actual process exits successfully: {"status":"passed","frames":4}
+
+True C++ SFVB decode is lossless for a Phase 4 trajectory
+True Node.js reference decoder matches every Phase 4 field
+True cross-language canonical dumps are byte-identical for the Phase 4 stream
+True binary stream carries i2c-sensor / spi-oled component states
+True schemas validate every course, phase 4 project and the four new fault effects
+True native actual process exits successfully: {"checks":79,"status":"passed"}
+
+True native algebra suite still passes 79 checks
+True legal packet passes crc8-0x07 with no framing error
+True crc-valid three from-zero real RTL replays preserve both digests
+True tampered CRC byte is rejected by the upper-layer checker
+True bottom-layer UART framing stays fully legal under crc_tamper
+True fault ledger records crc.tampered with protocol id and frame index
+True crc-tamper three from-zero real RTL replays preserve both digests
+True seeded CDC draw fires for an input edge inside the violation window: seed 4100101
+True CDC ledger marks the functional metastability approximation explicitly
+True CDC draw enumerates a whole-cycle sampling delay branch
+True cdc-4100101 three from-zero real RTL replays preserve both digests
+True seeded CDC draw fires for an input edge inside the violation window: seed 4100102
+True CDC ledger marks the functional metastability approximation explicitly
+True CDC draw enumerates a whole-cycle sampling delay branch
+True cdc-4100102 three from-zero real RTL replays preserve both digests
+True seeded CDC draw fires for an input edge inside the violation window: seed 4100103
+True CDC ledger marks the functional metastability approximation explicitly
+True CDC draw enumerates a whole-cycle sampling delay branch
+True cdc-4100103 three from-zero real RTL replays preserve both digests
+True three fixed seeds exercise the CDC approximation deterministically
+True Phase 4 trace sweep collects 1085 per-commit batches
+True sfvb-encode actual process exits successfully: {"frames":4,"status":"passed"}
+
+True sfvb-js actual process exits successfully: {"status":"passed","frames":4}
+
+True C++ SFVB decode is lossless for a Phase 4 trajectory
+True Node.js reference decoder matches every Phase 4 field
+True cross-language canonical dumps are byte-identical for the Phase 4 stream
+True binary stream carries i2c-sensor / spi-oled component states
+True schemas validate every course, phase 4 project and the four new fault effects
+True native actual process exits successfully: {"checks":79,"status":"passed"}
+
+True native algebra suite still passes 79 checks
+True legal packet passes crc8-0x07 with no framing error
+True crc-valid three from-zero real RTL replays preserve both digests
+True tampered CRC byte is rejected by the upper-layer checker
+True bottom-layer UART framing stays fully legal under crc_tamper
+True fault ledger records crc.tampered with protocol id and frame index
+True crc-tamper three from-zero real RTL replays preserve both digests
+True seeded CDC draw fires for an input edge inside the violation window: seed 4100101
+True CDC ledger marks the functional metastability approximation explicitly
+True CDC draw enumerates a whole-cycle sampling delay branch
+True cdc-4100101 three from-zero real RTL replays preserve both digests
+True seeded CDC draw fires for an input edge inside the violation window: seed 4100102
+True CDC ledger marks the functional metastability approximation explicitly
+True CDC draw enumerates a whole-cycle sampling delay branch
+True cdc-4100102 three from-zero real RTL replays preserve both digests
+True seeded CDC draw fires for an input edge inside the violation window: seed 4100103
+True CDC ledger marks the functional metastability approximation explicitly
+True CDC draw enumerates a whole-cycle sampling delay branch
+True cdc-4100103 three from-zero real RTL replays preserve both digests
+True three fixed seeds exercise the CDC approximation deterministically
+True Phase 4 trace sweep collects 1085 per-commit batches
+True sfvb-encode actual process exits successfully: {"frames":4,"status":"passed"}
+
+True sfvb-js actual process exits successfully: {"status":"passed","frames":4}
+
+True C++ SFVB decode is lossless for a Phase 4 trajectory
+True Node.js reference decoder matches every Phase 4 field
+True cross-language canonical dumps are byte-identical for the Phase 4 stream
+True binary stream carries i2c-sensor / spi-oled component states

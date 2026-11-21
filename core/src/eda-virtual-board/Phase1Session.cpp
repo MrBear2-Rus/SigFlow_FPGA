@@ -31,6 +31,8 @@ struct RationalClock {
 };
 uint64_t ClockNum(const SessionContract& c){return P1Tick(c.board->Descriptor().at("clocks").at(0).at("frequency_hz").at("num"));}
 uint64_t ClockBaseDen(const SessionContract& c){return P1Tick(c.board->Descriptor().at("clocks").at(0).at("frequency_hz").at("den"));}
+// One full main-clock cycle in ticks, rounded like the rational accumulator.
+uint64_t ClockCycleTicks(const SessionContract& c){auto num=ClockNum(c),den=ClockBaseDen(c);auto scaled=1000000000000ULL*den;return (scaled+num/2)/num;}
 std::vector<LiveSignal> Signals(const SessionContract& c){
     std::vector<LiveSignal> signals;std::set<std::string> names;auto add=[&](const std::string& name,const std::string& kind){if(names.insert(name).second)signals.push_back({uint32_t(signals.size()),name,1,kind});};
     for(const auto& p:c.manifest.ports)for(const auto& bit:p.bits)add("port:"+c.manifest.Label(bit),"port");for(const auto& b:c.bindings)add("pad:"+std::to_string(b.package_pin),"pad");
@@ -49,7 +51,7 @@ Json Header(const SessionContract& c){
 struct Runtime {
     Phase1Faults faults;Phase1Peripherals peripherals;RationalClock clock;
     std::map<std::string,uint8_t> manual;std::map<std::string,std::pair<uint64_t,uint8_t>> pulses;
-    uint64_t tick=0,clock_den=1;std::optional<uint64_t> clock_due;bool clock_high=false,stopped=false;
+    uint64_t tick=0,clock_den=1,last_rise=0;std::optional<uint64_t> clock_due;bool clock_high=false,stopped=false;
     Json outputs=Json::object(),board=Json::object();
     Json sampled_inputs=Json::object();
     explicit Runtime(const SessionContract& c):faults(*c.board),peripherals(*c.board,c.integration_window_ticks),clock(c.frequency_hz){
@@ -72,7 +74,10 @@ struct Engine {
         std::map<std::string,std::vector<Driver>> drivers;drivers[c.board->ClockEndpoint()].push_back({"oscillator",uint8_t(state.clock_high?State::SHI:State::SLO)});
         for(const auto& input:c.inputs){drivers["pad."+std::to_string(input.package_pin)]=input.fixed_drivers;if(input.package_pin!=c.clock_pad)drivers[c.board->ControlEndpoint(input.package_pin)].push_back({"contact",state.manual.at(input.target)});}
         for(const auto& b:Bindings(state)){auto node="pad."+std::to_string(b.package_pin),label=c.manifest.Label(b.ref);if(b.pull_up)drivers[node].push_back({"cst.pullup",uint8_t(State::WHI)});if(b.pull_down)drivers[node].push_back({"cst.pulldown",uint8_t(State::WLO)});
-            if(c.manifest.Find(b.ref.port_id)->direction==Direction::Output && state.outputs.contains(label))drivers[node].push_back({"dut:"+label,uint8_t(state.outputs.at(label).get<bool>()?State::SHI:State::SLO)});}
+            if(c.manifest.Find(b.ref.port_id)->direction==Direction::Output && state.outputs.contains(label)){
+                // Open-drain convention: 0 actively pulls SLO, 1 releases to FLT.
+                auto high=c.open_drain_ports.count(label)?uint8_t(State::FLT):uint8_t(State::SHI);
+                drivers[node].push_back({"dut:"+label,uint8_t(state.outputs.at(label).get<bool>()?high:uint8_t(State::SLO))});}}
         state.peripherals.AddDrivers(drivers);FaultSet opens;state.faults.Transform(drivers,opens,state.tick);
         Json overlay=c.phase2?Phase2TopologyOverlay(state.faults.ActiveRules(state.tick)):Json::object();
         auto keypad=state.peripherals.KeypadOverlay();
@@ -88,7 +93,7 @@ struct Engine {
             // Manual stimulus owns button contacts and matrix scan lines; row/col
             // endpoints let a released line float to its board pull-up.
             auto endpoint=c.board->ControlEndpoint(input->package_pin);
-            if(!endpoint.ends_with(".contact") && endpoint.find(".row")==std::string::npos && endpoint.find(".col")==std::string::npos)throw std::runtime_error("E_INPUT_OWNERSHIP");
+            if(!endpoint.ends_with(".contact") && endpoint.find(".row")==std::string::npos && endpoint.find(".col")==std::string::npos && endpoint.find(".SDA")==std::string::npos)throw std::runtime_error("E_INPUT_OWNERSHIP");
             int v=op=="set"?a.at("state").get<int>():a.at("pressed_state").get<int>();if(v<0 || v>255 || !ResolveFor(c,{{"manual",uint8_t(v)}}).supported)throw std::runtime_error("E_STATE_UNSUPPORTED");
             if(op=="pulse"){auto duration=P1Tick(a.at("duration_ticks"));int release=a.at("released_state");if(!duration || release<0 || release>255 || !ResolveFor(c,{{"manual",uint8_t(release)}}).supported || state.pulses.count(target))throw std::runtime_error("E_STIMULUS_CONFLICT");P1Add(state.tick,duration);}
         }else if(op=="dip.set"){auto copy=state.peripherals;copy.SetDip(a.at("target"),a.at("value"));}
@@ -104,13 +109,35 @@ struct Engine {
         else if(op=="fault.enable" || op=="fault.revoke")state.faults.Enable(a.at("fault_id"),op=="fault.enable"?a.value("enabled",true):false,state.tick);
         else if(op=="fault.apply")state.faults.Upsert(LegacyOpen(a,state.tick),state.tick);
         else if(op=="set" || op=="pulse"){
-            std::string target=a.at("target");uint8_t value=op=="set"?a.at("state").get<uint8_t>():a.at("pressed_state").get<uint8_t>();state.manual[target]=value;
+            std::string target=a.at("target");uint8_t value=op=="set"?a.at("state").get<uint8_t>():a.at("pressed_state").get<uint8_t>();
+            // Phase 4 cdc_sampling_approx: when the external input edge lands
+            // inside the violation window around a clock rising edge, the
+            // seeded draw defers the effective import by whole clock cycles;
+            // replay stays deterministic because the draw happens here.
+            if(op=="set" && !state.pulses.count(target)){
+                auto cdc=state.faults.CdcRule(target,state.tick);
+                if(!cdc.empty()){
+                    auto window=P1Tick(cdc.at("effect").at("window_ps"));
+                    bool violation=(state.clock_due && *state.clock_due>=state.tick && *state.clock_due-state.tick<=window)
+                        || (state.tick>=state.last_rise && state.tick-state.last_rise<=window);
+                    if(violation){
+                        if(auto delay=state.faults.CdcDraw(target,state.tick)){
+                            auto period=ClockCycleTicks(c);auto release=state.tick;
+                            for(uint32_t cycles=0;cycles<*delay;++cycles)release=P1Add(release,period);
+                            state.faults.InputIntent(target,value,state.tick);
+                            state.pulses[target]={release,value};
+                            return;
+                        }
+                    }
+                }
+            }
+            state.manual[target]=value;
             state.faults.InputIntent(target,value,state.tick);if(op=="pulse")state.pulses[target]={P1Add(state.tick,P1Tick(a.at("duration_ticks"))),a.at("released_state").get<uint8_t>()};
         }else if(op=="dip.set")state.peripherals.SetDip(a.at("target"),a.at("value"));
         else if(op=="keypad.set")state.peripherals.SetKeys(a.at("target"),a.at("keys"));
         else if(op=="uart.send"){std::vector<uint8_t> bytes;for(const auto& b:a.at("bytes"))bytes.push_back(b.get<uint8_t>());state.peripherals.Send(a.at("target"),bytes,state.tick);}
     }
-    Json Checkpoint(const Runtime& s)const{return {{"faults",s.faults.Snapshot(s.tick)},{"peripherals",s.peripherals.Snapshot()},{"clock_high",s.clock_high},{"clock_stopped",s.stopped},{"next_clock_tick",s.clock_due?Json(std::to_string(*s.clock_due)):Json(nullptr)},{"clock_remainder",std::to_string(s.clock.remainder)},{"clock_floor",std::to_string(s.clock.floor)},{"clock_den",std::to_string(s.clock_den)}};}
+    Json Checkpoint(const Runtime& s)const{return {{"faults",s.faults.Snapshot(s.tick)},{"peripherals",s.peripherals.Snapshot()},{"clock_high",s.clock_high},{"clock_stopped",s.stopped},{"next_clock_tick",s.clock_due?Json(std::to_string(*s.clock_due)):Json(nullptr)},{"clock_remainder",std::to_string(s.clock.remainder)},{"clock_floor",std::to_string(s.clock.floor)},{"clock_den",std::to_string(s.clock_den)},{"last_rise",std::to_string(s.last_rise)}};}
     std::optional<uint64_t> NextTick()const{
         std::optional<uint64_t> next;auto add=[&](std::optional<uint64_t> due){if(due && *due>runtime.tick && (!next || *due<*next))next=due;};add(runtime.clock_due);add(runtime.faults.NextDeadline(runtime.tick));add(runtime.peripherals.NextDeadline(runtime.tick));for(const auto& [target,p]:runtime.pulses)add(p.first);return next;
     }
@@ -127,7 +154,7 @@ struct Engine {
         for(const auto& action:spec.at("actions"))Action(next,action);
         next.faults.Advance(tick);if(c.phase2)next.peripherals.ApplyFaults(next.faults.ActiveRules(tick));auto hold=next.faults.ClockHold(tick);bool stopped=!c.clock_enabled || bool(hold);
         bool clockEdge=cause=="event" && runtime.clock_due==std::optional<uint64_t>(tick);
-        if(clockEdge)next.clock_high=!runtime.clock_high;
+        if(clockEdge){next.clock_high=!runtime.clock_high;if(next.clock_high)next.last_rise=tick;}
         if(hold)next.clock_high=*hold;
         // Phase 3 clock_divider_offset: apply the active divide ratio, restart
         // the half-period accumulator and record the rescheduling decision.
@@ -155,6 +182,9 @@ struct Engine {
             next.outputs=Json::object();for(const auto& port:c.manifest.ports)if(port.direction==Direction::Output)for(const auto& ref:port.bits)next.outputs[c.manifest.Label(ref)]=model->ReadOutput(ref);
         }
         next.board=Resolve(next);next.peripherals.Observe(next.board,tick);
+        // Phase 4: peripheral fault events (i2c.nak_injected, spi.mode_fault_applied,
+        // crc.tampered) drain into the deterministic fault ledger at this commit.
+        for(const auto& event:next.peripherals.DrainEvents())next.faults.Note(event);
         std::map<std::string,std::pair<std::string,int>> changed;
         if(evaluated){for(const auto& input:effective)changed["port:"+input.at("port_ref").get<std::string>()]={input.at("value").get<bool>()?"1":"0",-1};for(const auto& [label,value]:next.outputs.items())changed["port:"+label]={value.get<bool>()?"1":"0",-1};}
         for(const auto& [name,node]:next.board.at("nodes").items()){changed[name]={node.at("logic"),node.at("state_code")};if(name.starts_with("pad.") && ids.count("pad:"+name.substr(4)))changed["pad:"+name.substr(4)]=changed[name];}
@@ -173,9 +203,16 @@ void Validate(const SessionContract& c){
     std::set<int> pads;std::set<std::string> refs,targets;for(const auto& b:c.bindings)if(!c.manifest.Contains(b.ref) || !pads.insert(b.package_pin).second || !refs.insert(c.manifest.Label(b.ref)).second || !c.board->Nodes().count("pad."+std::to_string(b.package_pin)))throw std::runtime_error("E_SESSION_BINDING");
     std::set<int> inputPads;for(const auto& i:c.inputs){const PinBindingV2* binding=nullptr;for(const auto& b:c.bindings)if(b.package_pin==i.package_pin)binding=&b;if(!binding || c.manifest.Find(binding->ref.port_id)->direction!=Direction::Input || !inputPads.insert(i.package_pin).second || !targets.insert(i.target).second || !ResolveFor(c,i.fixed_drivers).supported || !ResolveFor(c,{{"manual",i.initial_manual_state}}).supported)throw std::runtime_error("E_ENDPOINT_BINDING");if(i.package_pin!=c.clock_pad)c.board->ControlEndpoint(i.package_pin);}
     bool clockBound=false;for(const auto& b:c.bindings)if(b.ref==*c.required_clock && b.package_pin==c.clock_pad)clockBound=true;if(!clockBound)throw std::runtime_error("E_CLOCK_BINDING");
+    // Phase 4 open-drain output convention must name existing output labels.
+    for(const auto& label:c.open_drain_ports){bool found=false;for(const auto& port:c.manifest.ports)if(port.direction==Direction::Output)
+        for(const auto& ref:port.bits)if(c.manifest.Label(ref)==label)found=true;if(!found)throw std::runtime_error("E_OPEN_DRAIN_PORT: "+label);}
     for(const auto& port:c.manifest.ports)for(const auto& ref:port.bits){bool bound=false;for(const auto& b:c.bindings)if(b.ref==ref){bound=true;if(port.direction==Direction::Input && !inputPads.count(b.package_pin))throw std::runtime_error("E_ENDPOINT_MISSING");}if(!bound && (port.direction!=Direction::Output || !c.allow_unbound_outputs))throw std::runtime_error("E_MISSING_BINDING");}
     auto faults=Phase1Faults(*c.board);if(!c.fault_profile.empty())faults.Load(c.fault_profile,0);
     if(c.phase2!=c.board->UsesState13())throw std::runtime_error("E_RESOLVER_MODE");if(c.phase2 && !c.fault_profile.empty())for(const auto& rule:c.fault_profile.at("faults"))if(rule.at("effect").at("type")=="mapping_overlay"){auto mapped=Phase2Bindings(c.manifest,c.bindings,*c.board,Json::array({rule}));if(!ValidateElectrical(c.electrical,c.identity,c.manifest,mapped).empty())throw std::runtime_error("E_MAPPING_ELECTRICAL");}
+    // Phase 4 cdc_sampling_approx targets a declared project input endpoint.
+    if(!c.fault_profile.empty())for(const auto& rule:c.fault_profile.at("faults"))if(rule.at("effect").at("type")=="cdc_sampling_approx"){
+        auto target=rule.at("target").at("id").get<std::string>();bool found=false;for(const auto& i:c.inputs)found|=i.target==target;
+        if(!found)throw std::runtime_error("E_CDC_TARGET: "+target);}
 }
 }
 struct Phase1Session::Impl {

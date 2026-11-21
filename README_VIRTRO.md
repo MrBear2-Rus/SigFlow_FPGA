@@ -13,6 +13,7 @@
 | Phase 1 扩展 GUI MVP | 已实测收官：37/37 CTest、36 项新增 GUI 断言、四类故障与外设三次重放；Phase1_complete=true | [Phase 1 实测报告](docs/virtual/Phase1扩展外设与四大故障实测报告.md) |
 | Phase 2 调试与教学闭环 | 已实测收官：41/41 CTest、2132 项原生检查、22 项新增 GUI 断言；签名四课程与三组隐藏复测；Phase2_complete=true | [Phase 2 实测报告](docs/virtual/Phase2调试探针与教学判题闭环实测报告.md) |
 | Phase 3 产品化与跨端同源 | 已实测收官：44/44 CTest；SFVB 二进制帧 C++↔JS 逐字段一致、20 次浮动窗往返、鬼键 vs 二极管、reset_glitch/分频偏移；Phase3_complete=true | [Phase 3 实测报告](docs/virtual/Phase3产品化深化与跨端同源实测报告.md) |
+| Phase 4 高级总线外设与协议时序故障 | 已实测收官：47/47 CTest；I2C 开漏传感器、SPI OLED 点阵、i2c_nak/spi_mode_fault/crc_tamper/cdc_sampling_approx、course-05 三隐藏种子判题；Phase4_complete=true | [Phase 4 实测报告](docs/virtual/Phase4高级总线外设与协议时序故障实测报告.md) |
 
 最高设计契约位于工作区`交付资料/04_SigFlow虚拟FPGA平台规划书/`。Web暂缓；新增内核后续保持零wx依赖。只读基线`.research/SigFlow_FPGA_verified`不在本工程内修改。
 
@@ -33,3 +34,5 @@ M0 历史验收入口为 `python tools/virtual/verify_m0_final.py`，当时共 3
 Phase 1 使用：点击「加载 P1 外设实验」，松开 P4，再用「指定 Tick 数」推进 `8000000`（8µs）；选择「视觉积分态」可见 25%/50%/75% PWM 和 1234 扫描余晖。DIP 对应显式排针/CST；底部「虚拟串口」按 921600/8N1 向 Pad18 发位，参考 RTL 回环至 Pad17。较长串口演示可在故障 JSON 中开启 stop-clock，再用 N Ticks 推进，外设仍按自己的事件期限运行。
 
 故障示例为 [fault-profile.json](examples/virtual/phase1/fault-profile.json)，默认关闭四类规则；[Schema](registry/schemas/fault-profile.v1.schema.json) 及内核会进一步校验目标、时间窗和冲突。启用故障在暂停时显示 pending，Step/Play 后提交。新会话使用显式 P1 版本 Journal/scheduler/digest，M0 会话协议与旧 sim.build/sim.run 路径保留。
+
+Phase 4 已加入：Phase 4 板卡（`registry/boards/tang-nano-9k.phase4.virtual.json`）在同一实验箱中提供 I2C 开漏传感器（`sigflow.i2c-sensor@1`，SDA = 0 拉 SLO / 1 释放 FLT 由板级上拉合成 WHI）、SPI 单色 OLED（`sigflow.spi-oled@1`，CS/SCK/MOSI/DC 位级驱动 + VRAM + `frame_sha256`）与 4×4 矩阵键盘；`BoardRenderer` 直接绘制点阵、键盘网格与 I2C ACK/NAK 徽章，点击键盘格子即发 `keypad.set`。`Phase4Faults` 新增四类高阶故障：`i2c_nak`（应答槽释放）、`spi_mode_fault`（invert_cpha / bit_slip）、`crc_tamper`（仅翻上层 crc8-0x07 字节，底层 8N1 合法）、`cdc_sampling_approx`（`functional_metastability_approx`，固定种子确定性枚举 0/1/2 拍采样延迟）。第 5 门签名盲测课 `course-05-i2c-nak-troubleshooting` 可完整走 Probe→L1-L4→三种子判题→AI 助教脱敏证据。复现：`python tools/virtual/verify_phase4.py --mode bus|protocols`、`python tools/virtual/verify_phase4_gui.py`；完整 47 项终验用 `python tools/virtual/verify_phase4_final.py`，它会把 M0–P3 全部历史归档纳入 175 份 SHA-256 冻结校验并独立归档 P4。

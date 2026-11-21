@@ -1,0 +1,279 @@
+{
+  "status": "passed",
+  "checks": [
+    "schemas validate every course, phase 4 project and the four new fault effects",
+    "native actual process exits successfully: {\"checks\":79,\"status\":\"passed\"}\n",
+    "native algebra suite still passes 79 checks",
+    "legal packet passes crc8-0x07 with no framing error",
+    "crc-valid three from-zero real RTL replays preserve both digests",
+    "tampered CRC byte is rejected by the upper-layer checker",
+    "bottom-layer UART framing stays fully legal under crc_tamper",
+    "fault ledger records crc.tampered with protocol id and frame index",
+    "crc-tamper three from-zero real RTL replays preserve both digests",
+    "seeded CDC draw fires for an input edge inside the violation window: seed 4100101",
+    "CDC ledger marks the functional metastability approximation explicitly",
+    "CDC draw enumerates a whole-cycle sampling delay branch",
+    "cdc-4100101 three from-zero real RTL replays preserve both digests",
+    "seeded CDC draw fires for an input edge inside the violation window: seed 4100102",
+    "CDC ledger marks the functional metastability approximation explicitly",
+    "CDC draw enumerates a whole-cycle sampling delay branch",
+    "cdc-4100102 three from-zero real RTL replays preserve both digests",
+    "seeded CDC draw fires for an input edge inside the violation window: seed 4100103",
+    "CDC ledger marks the functional metastability approximation explicitly",
+    "CDC draw enumerates a whole-cycle sampling delay branch",
+    "cdc-4100103 three from-zero real RTL replays preserve both digests",
+    "three fixed seeds exercise the CDC approximation deterministically",
+    "Phase 4 trace sweep collects 1085 per-commit batches",
+    "sfvb-encode actual process exits successfully: {\"frames\":4,\"status\":\"passed\"}\n",
+    "sfvb-js actual process exits successfully: {\"status\":\"passed\",\"frames\":4}\n",
+    "C++ SFVB decode is lossless for a Phase 4 trajectory",
+    "Node.js reference decoder matches every Phase 4 field",
+    "cross-language canonical dumps are byte-identical for the Phase 4 stream",
+    "binary stream carries i2c-sensor / spi-oled component states"
+  ],
+  "commands": [
+    {
+      "argv": [
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\build-m0\\tests\\virtual\\p3\\p3_native_tests.exe",
+        "native",
+        "E:\\sigflow\\SigFlow_VirtroFPGA",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p4\\protocols"
+      ],
+      "exit_code": 0,
+      "seconds": 3.309
+    },
+    {
+      "argv": [
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\build-m0\\tests\\virtual\\p3\\p3_native_tests.exe",
+        "encode",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p4\\protocols\\p4-trajectory.json",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p4\\protocols\\p4-frames.sfvb",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p4\\protocols\\p4-frames.json",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p4\\protocols\\p4-decoded.json"
+      ],
+      "exit_code": 0,
+      "seconds": 0.102
+    },
+    {
+      "argv": [
+        "node",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\tools\\virtual\\sfvb_reference_decoder.js",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p4\\protocols\\p4-frames.sfvb",
+        "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p4\\protocols\\p4-js-decoded.json"
+      ],
+      "exit_code": 0,
+      "seconds": 0.057
+    }
+  ],
+  "replays": [
+    {
+      "label": "crc-valid",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "7734de3ea77c60b50417538eeb82a28c8ef0abd386c868df75b5fa5a49ecd14d",
+          "control_digest": "5cf0dadaf8b2a19a8683925cc8752a7fe55b426066188ee8d407f0ae1c487f44",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 897,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "7734de3ea77c60b50417538eeb82a28c8ef0abd386c868df75b5fa5a49ecd14d",
+          "control_digest": "5cf0dadaf8b2a19a8683925cc8752a7fe55b426066188ee8d407f0ae1c487f44",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 897,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "7734de3ea77c60b50417538eeb82a28c8ef0abd386c868df75b5fa5a49ecd14d",
+          "control_digest": "5cf0dadaf8b2a19a8683925cc8752a7fe55b426066188ee8d407f0ae1c487f44",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 897,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "7734de3ea77c60b50417538eeb82a28c8ef0abd386c868df75b5fa5a49ecd14d",
+      "control_digest": "5cf0dadaf8b2a19a8683925cc8752a7fe55b426066188ee8d407f0ae1c487f44",
+      "matched_commits": 897,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "label": "crc-tamper",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "9b231f203c577d92961cbbe82a14aa348719c35468a02a156793d1d9ccc18fe3",
+          "control_digest": "1190097ba2215a8ae84b066753783222085ad0568ade923d333ee77561fd94f3",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 897,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "9b231f203c577d92961cbbe82a14aa348719c35468a02a156793d1d9ccc18fe3",
+          "control_digest": "1190097ba2215a8ae84b066753783222085ad0568ade923d333ee77561fd94f3",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 897,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "9b231f203c577d92961cbbe82a14aa348719c35468a02a156793d1d9ccc18fe3",
+          "control_digest": "1190097ba2215a8ae84b066753783222085ad0568ade923d333ee77561fd94f3",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 897,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "9b231f203c577d92961cbbe82a14aa348719c35468a02a156793d1d9ccc18fe3",
+      "control_digest": "1190097ba2215a8ae84b066753783222085ad0568ade923d333ee77561fd94f3",
+      "matched_commits": 897,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "label": "cdc-4100101",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "725505b9f1b413d47934485b96e4495e900c1ada820f2c07f0ac6686d9cb9fad",
+          "control_digest": "15f73434cbd11c4f42b45732d5ddca763e992ccb69b244ee36f2b6b45893fbb0",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 10,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "725505b9f1b413d47934485b96e4495e900c1ada820f2c07f0ac6686d9cb9fad",
+          "control_digest": "15f73434cbd11c4f42b45732d5ddca763e992ccb69b244ee36f2b6b45893fbb0",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 10,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "725505b9f1b413d47934485b96e4495e900c1ada820f2c07f0ac6686d9cb9fad",
+          "control_digest": "15f73434cbd11c4f42b45732d5ddca763e992ccb69b244ee36f2b6b45893fbb0",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 10,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "725505b9f1b413d47934485b96e4495e900c1ada820f2c07f0ac6686d9cb9fad",
+      "control_digest": "15f73434cbd11c4f42b45732d5ddca763e992ccb69b244ee36f2b6b45893fbb0",
+      "matched_commits": 10,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "label": "cdc-4100102",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "44a08c12adf570a5c2ab34c149124eb0eba9649ea9e6c9c623594ffb58110ff5",
+          "control_digest": "15f73434cbd11c4f42b45732d5ddca763e992ccb69b244ee36f2b6b45893fbb0",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 10,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "44a08c12adf570a5c2ab34c149124eb0eba9649ea9e6c9c623594ffb58110ff5",
+          "control_digest": "15f73434cbd11c4f42b45732d5ddca763e992ccb69b244ee36f2b6b45893fbb0",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 10,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "44a08c12adf570a5c2ab34c149124eb0eba9649ea9e6c9c623594ffb58110ff5",
+          "control_digest": "15f73434cbd11c4f42b45732d5ddca763e992ccb69b244ee36f2b6b45893fbb0",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 10,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "44a08c12adf570a5c2ab34c149124eb0eba9649ea9e6c9c623594ffb58110ff5",
+      "control_digest": "15f73434cbd11c4f42b45732d5ddca763e992ccb69b244ee36f2b6b45893fbb0",
+      "matched_commits": 10,
+      "repetitions": 3,
+      "status": "passed"
+    },
+    {
+      "label": "cdc-4100103",
+      "attempts": [
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "4a3609f2418db477c4dbce6402628c9bce0cc8cb149b5b03280018d22751f61f",
+          "control_digest": "15f73434cbd11c4f42b45732d5ddca763e992ccb69b244ee36f2b6b45893fbb0",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 10,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "4a3609f2418db477c4dbce6402628c9bce0cc8cb149b5b03280018d22751f61f",
+          "control_digest": "15f73434cbd11c4f42b45732d5ddca763e992ccb69b244ee36f2b6b45893fbb0",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 10,
+          "status": "passed"
+        },
+        {
+          "board_trace_verified": true,
+          "circuit_digest": "4a3609f2418db477c4dbce6402628c9bce0cc8cb149b5b03280018d22751f61f",
+          "control_digest": "15f73434cbd11c4f42b45732d5ddca763e992ccb69b244ee36f2b6b45893fbb0",
+          "fault_rng_peripherals_verified": true,
+          "matched_commits": 10,
+          "status": "passed"
+        }
+      ],
+      "board_trace_verified": true,
+      "circuit_digest": "4a3609f2418db477c4dbce6402628c9bce0cc8cb149b5b03280018d22751f61f",
+      "control_digest": "15f73434cbd11c4f42b45732d5ddca763e992ccb69b244ee36f2b6b45893fbb0",
+      "matched_commits": 10,
+      "repetitions": 3,
+      "status": "passed"
+    }
+  ],
+  "cdc": [
+    {
+      "seed": "4100101",
+      "chosen": 0,
+      "rng": {
+        "algorithm": "pcg32-v1",
+        "increment": "5813021487804602655",
+        "state": "6636538224189176853"
+      }
+    },
+    {
+      "seed": "4100102",
+      "chosen": 2,
+      "rng": {
+        "algorithm": "pcg32-v1",
+        "increment": "863454717454047239",
+        "state": "8427498676790041021"
+      }
+    },
+    {
+      "seed": "4100103",
+      "chosen": 1,
+      "rng": {
+        "algorithm": "pcg32-v1",
+        "increment": "17109177036040850625",
+        "state": "1598584575252386769"
+      }
+    }
+  ],
+  "sfvb": {
+    "frames": 4,
+    "batches": 1085
+  },
+  "check_count": 29
+}

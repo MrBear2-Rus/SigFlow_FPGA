@@ -1,0 +1,92 @@
+True schemas validate every course, phase 4 project and the four new fault effects
+True native actual process exits successfully: {"checks":79,"status":"passed"}
+
+True native algebra suite still passes 79 checks
+True real I2C master drives START on the resolved open-drain bus
+True sensor ACK slot drives SLO and the master reads 0x1a exactly
+True register file preserved and bus returned to idle after STOP
+True DUT LED bank reproduces every bit of the read byte
+True i2c-read three from-zero real RTL replays preserve both digests
+True unmatched address retries without an ACK
+False retry-exhausted error pattern is visible on the LED bank
+True schemas validate every course, phase 4 project and the four new fault effects
+True native actual process exits successfully: {"checks":79,"status":"passed"}
+
+True native algebra suite still passes 79 checks
+True real I2C master drives START on the resolved open-drain bus
+True sensor ACK slot drives SLO and the master reads 0x1a exactly
+True register file preserved and bus returned to idle after STOP
+True DUT LED bank reproduces every bit of the read byte
+True i2c-read three from-zero real RTL replays preserve both digests
+True unmatched address retries without an ACK
+True retry-exhausted error pattern is visible on the LED bank
+True i2c-no-ack three from-zero real RTL replays preserve both digests
+True real I2C master drives START on the resolved open-drain bus
+True injected NAK is observed once, then the master retries and the sensor acknowledges
+True recovered read still produces the exact byte on the LED bank
+True fault ledger records i2c.nak_injected with phase and transaction
+True i2c-nak three from-zero real RTL replays preserve both digests
+True SSD1306 teaching commands 0xAE/0xA6/0xAF are decoded from the DC/SCK stream
+True eight data bytes land in page 0 columns 0..7
+True lit pixel count matches the transmitted pattern exactly
+True frame_sha256 is the deterministic VRAM digest
+True page snapshot stays compact while remaining exact
+True oled three from-zero real RTL replays preserve both digests
+True bit-slip fault deterministically corrupts the transmitted pattern
+True slipped command stream never latches the display-on command
+True fault ledger records spi.mode_fault_applied
+True oled-slip three from-zero real RTL replays preserve both digests
+True schemas validate every course, phase 4 project and the four new fault effects
+True native actual process exits successfully: {"checks":79,"status":"passed"}
+
+True native algebra suite still passes 79 checks
+True real I2C master drives START on the resolved open-drain bus
+True sensor ACK slot drives SLO and the master reads 0x1a exactly
+True register file preserved and bus returned to idle after STOP
+True DUT LED bank reproduces every bit of the read byte
+True i2c-read three from-zero real RTL replays preserve both digests
+True unmatched address retries without an ACK
+True retry-exhausted error pattern is visible on the LED bank
+True i2c-no-ack three from-zero real RTL replays preserve both digests
+True real I2C master drives START on the resolved open-drain bus
+True injected NAK is observed once, then the master retries and the sensor acknowledges
+True recovered read still produces the exact byte on the LED bank
+True fault ledger records i2c.nak_injected with phase and transaction
+True i2c-nak three from-zero real RTL replays preserve both digests
+True SSD1306 teaching commands 0xAE/0xA6/0xAF are decoded from the DC/SCK stream
+True eight data bytes land in page 0 columns 0..7
+True lit pixel count matches the transmitted pattern exactly
+True frame_sha256 is the deterministic VRAM digest
+True page snapshot stays compact while remaining exact
+True oled three from-zero real RTL replays preserve both digests
+True bit-slip fault deterministically corrupts the transmitted pattern
+True slipped command stream never latches the display-on command
+True fault ledger records spi.mode_fault_applied
+True oled-slip three from-zero real RTL replays preserve both digests
+True schemas validate every course, phase 4 project and the four new fault effects
+True native actual process exits successfully: {"checks":79,"status":"passed"}
+
+True native algebra suite still passes 79 checks
+True real I2C master drives START on the resolved open-drain bus
+True sensor ACK slot drives SLO and the master reads 0x1a exactly
+True register file preserved and bus returned to idle after STOP
+True DUT LED bank reproduces every bit of the read byte
+True i2c-read three from-zero real RTL replays preserve both digests
+True unmatched address retries without an ACK
+True retry-exhausted error pattern is visible on the LED bank
+True i2c-no-ack three from-zero real RTL replays preserve both digests
+True real I2C master drives START on the resolved open-drain bus
+True injected NAK is observed once, then the master retries and the sensor acknowledges
+True recovered read still produces the exact byte on the LED bank
+True fault ledger records i2c.nak_injected with phase and transaction
+True i2c-nak three from-zero real RTL replays preserve both digests
+True SSD1306 teaching commands 0xAE/0xA6/0xAF are decoded from the DC/SCK stream
+True eight data bytes land in page 0 columns 0..7
+True lit pixel count matches the transmitted pattern exactly
+True frame_sha256 is the deterministic VRAM digest
+True page snapshot stays compact while remaining exact
+True oled three from-zero real RTL replays preserve both digests
+True bit-slip fault deterministically corrupts the transmitted pattern
+True slipped command stream never latches the display-on command
+True fault ledger records spi.mode_fault_applied
+True oled-slip three from-zero real RTL replays preserve both digests

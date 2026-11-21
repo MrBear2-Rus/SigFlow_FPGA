@@ -1,6 +1,7 @@
 #include "Phase1Faults.h"
 #include "Phase2Faults.h"
 #include "Phase3Faults.h"
+#include "Phase4Faults.h"
 #include "eda-platform/Sha256.h"
 #include <limits>
 #include <algorithm>
@@ -67,7 +68,7 @@ void Phase1Faults::Load(const Json& p,uint64_t tick){
             auto duration=P1Tick(f.at("effect").at("duration_ticks"));const auto& es=f.at("effect").at("relative_edges");if(!duration || !es.is_array() || es.empty() || es.size()>4096)throw std::runtime_error("E_BOUNCE_EDGES");uint64_t last=0;bool first=true;
             for(const auto& edge:es){Keys(edge,{"dt","contact"});auto dt=P1Tick(edge.at("dt"));std::string contact=edge.at("contact");if((first && dt!=0) || (!first && dt<=last) || dt>duration || (contact!="closed" && contact!="released"))throw std::runtime_error("E_BOUNCE_EDGES");first=false;last=dt;}
             if(last!=duration || es.back().at("contact")!="closed")throw std::runtime_error("E_BOUNCE_TERMINAL_EDGE");
-        }else if(!ValidatePhase2Fault(*board_,f) && !ValidatePhase3Fault(*board_,f))throw std::runtime_error("E_FAULT_UNSUPPORTED");
+        }else if(!ValidatePhase2Fault(*board_,f) && !ValidatePhase3Fault(*board_,f) && !ValidatePhase4Fault(*board_,f))throw std::runtime_error("E_FAULT_UNSUPPORTED");
         const auto& tr=f.at("trigger");if(trigger=="permanent" || trigger=="transient"){
             if(trigger=="permanent")Keys(tr,{"kind","start_tick"});else Keys(tr,{"kind","start_tick","end_tick"});
             r.start=P1Tick(tr.at("start_tick"));if(trigger=="transient"){r.end=P1Tick(tr.at("end_tick"));if(*r.end<=*r.start)throw std::runtime_error("E_FAULT_WINDOW");}
@@ -118,6 +119,21 @@ void Phase1Faults::Advance(uint64_t tick){
 std::optional<uint64_t> Phase1Faults::NextDeadline(uint64_t tick)const{std::optional<uint64_t> next;auto add=[&](uint64_t value){if(value>tick && (!next || value<*next))next=value;};for(const auto& [id,r]:rules_)if(r.spec.at("enabled")==true){if(r.start)add(*r.start);if(r.end)add(*r.end);if(!r.edges.empty())add(r.edges.begin()->first);}return next;}
 std::optional<bool> Phase1Faults::ClockHold(uint64_t tick)const{for(const auto& [id,r]:rules_)if(Active(r,tick) && r.spec.at("effect").at("type")=="clock_stop")return r.spec.at("effect").at("hold_level").get<int>()==1;return {};}
 std::optional<uint64_t> Phase1Faults::ClockDenOffset(uint64_t tick)const{for(const auto& [id,r]:rules_)if(Active(r,tick) && r.spec.at("effect").at("type")=="clock_divider_offset")return P1Tick(r.spec.at("effect").at("den_offset"));return {};}
+Json Phase1Faults::CdcRule(const std::string& target,uint64_t tick)const{
+    for(const auto& [id,r]:rules_)if(Active(r,tick) && r.spec.at("effect").at("type")=="cdc_sampling_approx" && r.spec.at("target").at("id")==target)return r.spec;
+    return Json();}
+std::optional<uint32_t> Phase1Faults::CdcDraw(const std::string& target,uint64_t tick){
+    for(auto& [id,r]:rules_){
+        if(!Active(r,tick) || r.spec.at("effect").at("type")!="cdc_sampling_approx" || r.spec.at("target").at("id").get<std::string>()!=target)continue;
+        auto maximum=r.spec.at("effect").at("max_delay_cycles").get<uint32_t>();
+        auto chosen=r.rng.Bounded(maximum+1);
+        events_.push_back({{"type","cdc.sampling_approx"},{"approximation",CdcApproximation},{"fault_id",id},
+            {"tick",std::to_string(tick)},{"policy","seeded_enum"},{"chosen_delay_cycles",chosen},
+            {"window_ps",r.spec.at("effect").at("window_ps")},{"max_delay_cycles",maximum},{"rng",r.rng.Snapshot()}});
+        return chosen;
+    }
+    return {};
+}
 void Phase1Faults::Transform(std::map<std::string,std::vector<Driver>>& drivers,FaultSet& edges,uint64_t tick)const{
     for(const auto& [id,r]:rules_){if(!Active(r,tick))continue;auto kind=r.spec.at("effect").at("type").get<std::string>(),target=r.spec.at("target").at("id").get<std::string>();
         if(kind=="open")edges[id]={id,target,0,{}};

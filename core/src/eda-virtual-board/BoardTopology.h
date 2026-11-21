@@ -42,6 +42,9 @@ private:
     int clock_pad_=0;
     std::set<std::string> nodes_;
     std::vector<ConnectionEdge> edges_;
+    // Phase 4 static junctions: permanently merged nets (e.g. the two pads of a
+    // split open-drain I2C SDA port pair). Applied before fault overlays.
+    std::vector<std::pair<std::string,std::string>> junctions_;
     std::map<int,std::string> controls_;
     std::map<std::string,int> leds_;
     std::map<std::string,std::vector<Driver>> fixed_;

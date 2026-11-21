@@ -7,6 +7,7 @@
 #include <functional>
 #include <memory>
 #include <filesystem>
+#include <set>
 
 namespace eda::virtual_board {
 class LiveTraceStore;
@@ -53,6 +54,10 @@ struct SessionContract {
     // Explicit opt-in keeps M0 journal/scheduler behavior byte-for-byte stable.
     bool phase1=false;
     bool phase2=false;
+    // Phase 4 open-drain output convention (normalized inout wrapper): the
+    // listed output port labels drive SLO on 0 and release to FLT on 1 so the
+    // board pull-up and the open-drain peripheral resolve the shared bus.
+    std::set<std::string> open_drain_ports;
     Json fault_profile=Json::object();
     uint64_t integration_window_ticks=20000000000ULL;
 };

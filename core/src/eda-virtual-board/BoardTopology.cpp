@@ -22,7 +22,7 @@ BoardTopology::BoardTopology(Json j,const ElectricalProfile& p):descriptor_(std:
     if(d.at("schema")!="sigflow.virtual-board.v1" || d.at("device")!=p.device.device || d.at("package")!=p.device.package || d.at("hardware_revision")!=p.device.board_revision ||
        (d.at("electrical").at("resolver_version")!=ResolverVersion && d.at("electrical").at("resolver_version")!=State13Version) || d.at("electrical").at("state_encoding")!=d.at("electrical").at("resolver_version") || d.at("timebase").at("tick_ps")!="1")throw std::runtime_error("E_BOARD_IDENTITY");
     if(d.at("components").size()>128 || d.at("connections").size()>256 || d.at("clocks").size()!=1)throw std::runtime_error("E_BOARD_QUOTA");
-    std::map<std::string,std::string> models;std::set<std::string> terminals,ids;
+    std::map<std::string,std::string> models;std::set<std::string> terminals,ids,optional;
     const auto& clock=d.at("clocks").at(0);auto clockId=clock.at("id").get<std::string>();
     if(clock.at("model")!="sigflow.clock.rational@1" || clock.at("frequency_hz").at("den")!="1" || clock.at("initial_level")!=0)throw std::runtime_error("E_BOARD_CLOCK");
     frequency_=U64(clock.at("frequency_hz").at("num"));if(!frequency_ || frequency_>500000000000ULL)throw std::runtime_error("E_BOARD_CLOCK");
@@ -47,6 +47,20 @@ BoardTopology::BoardTopology(Json j,const ElectricalProfile& p):descriptor_(std:
             if(rows<1 || rows>8 || cols<1 || cols>8 || !params.at("diodes").is_boolean())throw std::runtime_error("E_KEYPAD_PARAMETERS");
             for(int i=0;i<rows;++i)terminals.insert(id+".row"+std::to_string(i));
             for(int i=0;i<cols;++i)terminals.insert(id+".col"+std::to_string(i));
+        }else if(model=="sigflow.i2c-sensor@1"){
+            if(!d.at("extensions").at("allow_model_instances").get<bool>() || !d.at("extensions").at("require_explicit_wiring").get<bool>())throw std::runtime_error("E_MODEL_INSTANCES_DISABLED");
+            const auto& params=c.at("params");auto address=params.at("address_7bit").get<int>();
+            if(address<1 || address>127 || !params.at("registers").is_array() || params.at("registers").empty() || params.at("registers").size()>16)throw std::runtime_error("E_I2C_PARAMETERS");
+            for(const auto& value:params.at("registers"))if(!value.is_number_integer() || value.get<int>()<0 || value.get<int>()>255)throw std::runtime_error("E_I2C_PARAMETERS");
+            terminals.insert(id+".SCL");terminals.insert(id+".SDA");
+        }else if(model=="sigflow.spi-oled@1"){
+            if(!d.at("extensions").at("allow_model_instances").get<bool>() || !d.at("extensions").at("require_explicit_wiring").get<bool>())throw std::runtime_error("E_MODEL_INSTANCES_DISABLED");
+            const auto& params=c.at("params");auto width=params.at("width").get<int>(),height=params.at("height").get<int>();
+            if(width<8 || width>256 || height<8 || height>128 || (width&7) || (height&7) || size_t(width)*size_t(height)/8>16384)throw std::runtime_error("E_OLED_PARAMETERS");
+            if((params.at("cpol")!=0 && params.at("cpol")!=1) || (params.at("cpha")!=0 && params.at("cpha")!=1))throw std::runtime_error("E_OLED_PARAMETERS");
+            terminals.insert(id+".CS_n");terminals.insert(id+".SCK");terminals.insert(id+".MOSI");terminals.insert(id+".DC_n");
+            // RES_n is an optional teaching pin: it may stay unwired.
+            optional.insert(id+".RES_n");terminals.insert(id+".RES_n");
         }else if(model=="sigflow.uart-peer@1"){
             if(!d.at("extensions").at("allow_model_instances").get<bool>() || !d.at("extensions").at("require_explicit_wiring").get<bool>())throw std::runtime_error("E_MODEL_INSTANCES_DISABLED");
             const auto& params=c.at("params");int baud=params.at("baud"),bits=params.at("data_bits"),stops=params.at("stop_bits");std::string parity=params.at("parity");
@@ -60,15 +74,39 @@ BoardTopology::BoardTopology(Json j,const ElectricalProfile& p):descriptor_(std:
         if(found==p.device.pads.end() || !found->second.reviewed || !found->second.available)throw std::runtime_error("E_BOARD_PAD_UNREVIEWED");
         nodes_.insert(e.net);nodes_.insert(e.endpoint);edges_.push_back(e);
         if(e.endpoint==clock_endpoint_)clock_pad_=pad;
-        if(e.endpoint.ends_with(".contact") || e.endpoint.ends_with(".TX") || e.endpoint.find(".bit")!=std::string::npos || e.endpoint.find(".col")!=std::string::npos || e.endpoint.find(".row")!=std::string::npos)controls_[pad]=e.endpoint;
+        if(e.endpoint.ends_with(".contact") || e.endpoint.ends_with(".TX") || e.endpoint.find(".bit")!=std::string::npos || e.endpoint.find(".col")!=std::string::npos || e.endpoint.find(".row")!=std::string::npos || e.endpoint.find(".SDA")!=std::string::npos)controls_[pad]=e.endpoint;
     }
-    if(connected!=terminals || !clock_pad_)throw std::runtime_error("E_BOARD_CONNECTION");
+    std::set<std::string> required;for(const auto& terminal:terminals)if(!optional.count(terminal))required.insert(terminal);
+    if(connected!=required || !clock_pad_)throw std::runtime_error("E_BOARD_CONNECTION");
     for(const auto& pull:d.value("fixed_drivers",Json::array())){
         auto node=pull.at("node").get<std::string>();int code=pull.at("state").get<int>();auto id=pull.at("driver_id").get<std::string>();
         if(!nodes_.count(node) || id.empty() || code<0 || code>255 || !(UsesState13()?ResolveState13({{id,uint8_t(code)}}):ResolveM0({{id,uint8_t(code)}})).supported)throw std::runtime_error("E_BOARD_DRIVER");
         fixed_[node].push_back({id,uint8_t(code)});
     }
     for(const auto& [node,ds]:fixed_)if(!(UsesState13()?ResolveState13(ds):ResolveM0(ds)).supported)throw std::runtime_error("E_BOARD_DRIVER");
+    // Phase 4 static junctions merge whole nets into one equipotential node.
+    // A junction may bring an otherwise unwired reviewed pad into the node set
+    // so a split open-drain port pair (SDA out + SDA sense) shares one bus.
+    if(d.contains("junctions")){
+        if(d.at("junctions").size()>16)throw std::runtime_error("E_BOARD_JUNCTION_QUOTA");
+        for(const auto& junction:d.at("junctions")){
+            if(!junction.at("id").is_string() || junction.at("id").get<std::string>().empty() || !junction.at("nodes").is_array() || junction.at("nodes").size()!=2)throw std::runtime_error("E_BOARD_JUNCTION");
+            auto lhs=junction.at("nodes").at(0).get<std::string>(),rhs=junction.at("nodes").at(1).get<std::string>();
+            if(lhs==rhs)throw std::runtime_error("E_BOARD_JUNCTION");
+            int lhsPad=Pad(lhs),rhsPad=Pad(rhs);
+            for(auto pad:{lhsPad,rhsPad}){auto found=p.device.pads.find(pad);
+                if(found==p.device.pads.end() || !found->second.reviewed || !found->second.available)throw std::runtime_error("E_BOARD_PAD_UNREVIEWED");}
+            junctions_.push_back({lhs,rhs});
+            nodes_.insert(lhs);nodes_.insert(rhs);
+        }
+    }
+    // Control endpoints mirror across junctioned pads: a DUT input bound to the
+    // junctioned twin owns the same peripheral endpoint as the wired pad.
+    for(const auto& [lhs,rhs]:junctions_){
+        auto lhsIt=controls_.find(Pad(lhs)),rhsIt=controls_.find(Pad(rhs));
+        if(lhsIt!=controls_.end() && rhsIt==controls_.end())controls_[Pad(rhs)]=lhsIt->second;
+        else if(rhsIt!=controls_.end() && lhsIt==controls_.end())controls_[Pad(lhs)]=rhsIt->second;
+    }
     auto text=d.dump();fingerprint_=platform::Sha256Hex(text.data(),text.size());
 }
 std::string BoardTopology::ControlEndpoint(int pad)const{auto it=controls_.find(pad);if(it==controls_.end())throw std::runtime_error("E_BOARD_INPUT_ENDPOINT");return it->second;}
@@ -80,6 +118,7 @@ Json BoardTopology::Resolve(const std::map<std::string,std::vector<Driver>>& dri
     auto root=[&](std::string n){while(parent.at(n)!=n)n=parent.at(n);return n;};Json wires=Json::object();
     for(const auto& e:edges_){bool closed=true;for(const auto& [id,f]:faults)if(f.edge==e.id && f.Active(tick))closed=false;
         wires[e.id]=closed;if(closed){auto a=root(e.net),b=root(e.endpoint);if(a!=b)parent[std::max(a,b)]=std::min(a,b);}}
+    for(const auto& [lhs,rhs]:junctions_){auto a=root(lhs),b=root(rhs);if(a!=b)parent[std::max(a,b)]=std::min(a,b);}
     for(const auto& bridge:overlay.value("bridges",Json::array())){std::string lhs=bridge.at("lhs"),rhs=bridge.at("rhs");if(!nodes_.count(lhs) || !nodes_.count(rhs))throw std::runtime_error("E_BRIDGE_NODE");auto a=root(lhs),b=root(rhs);if(a!=b)parent[std::max(a,b)]=std::min(a,b);}
     std::set<std::string> removed;for(const auto& id:overlay.value("removed_drivers",Json::array()))removed.insert(id.get<std::string>());
     std::map<std::string,std::vector<Driver>> groups;

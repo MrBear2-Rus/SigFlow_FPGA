@@ -28,6 +28,12 @@ public:
     // Phase 3: active divide-ratio offset on the rational main clock.
     std::optional<uint64_t> ClockDenOffset(uint64_t tick)const;
     void Note(const Json& event){events_.push_back(event);}
+    // Phase 4 cdc_sampling_approx: active rule spec for an input target and
+    // the deterministic seeded draw of its sampling-delay branch. The draw is
+    // recorded in the fault ledger as a functional approximation, never as an
+    // analog metastability or MTBF claim.
+    Json CdcRule(const std::string& target,uint64_t tick)const;
+    std::optional<uint32_t> CdcDraw(const std::string& target,uint64_t tick);
     void Transform(std::map<std::string,std::vector<Driver>>&,FaultSet&,uint64_t)const;
     Json Snapshot(uint64_t)const;
     Json ActiveRules(uint64_t)const;

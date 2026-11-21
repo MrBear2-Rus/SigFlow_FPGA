@@ -85,7 +85,8 @@
             "clock",
             "node",
             "driver",
-            "pad_map"
+            "pad_map",
+            "input"
           ]
         },
         "id": {
@@ -513,6 +514,111 @@
             "den_offset",
             "resume_phase"
           ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "i2c_nak"
+            },
+            "phase": {
+              "enum": [
+                "address",
+                "data"
+              ]
+            },
+            "nth_transaction": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000
+            }
+          },
+          "required": [
+            "type",
+            "phase",
+            "nth_transaction"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "spi_mode_fault"
+            },
+            "mode": {
+              "enum": [
+                "invert_cpha",
+                "bit_slip"
+              ]
+            },
+            "slip_bits": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 7
+            }
+          },
+          "required": [
+            "type",
+            "mode",
+            "slip_bits"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "crc_tamper"
+            },
+            "protocol_id": {
+              "const": "sigflow.uart-packet-crc8.v1"
+            },
+            "xor_mask": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            },
+            "frame_index": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000
+            }
+          },
+          "required": [
+            "type",
+            "protocol_id",
+            "xor_mask",
+            "frame_index"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "cdc_sampling_approx"
+            },
+            "window_ps": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]{0,19})$"
+            },
+            "max_delay_cycles": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2
+            },
+            "policy": {
+              "const": "seeded_enum"
+            }
+          },
+          "required": [
+            "type",
+            "window_ps",
+            "max_delay_cycles",
+            "policy"
+          ]
         }
       ]
     },
@@ -551,7 +657,8 @@
             "clock.schedule",
             "mapping.overlay",
             "peripheral.observe",
-            "protocol.transform"
+            "protocol.transform",
+            "input.sampling"
           ]
         },
         "target": {
@@ -1104,6 +1211,154 @@
                 "properties": {
                   "kind": {
                     "const": "clock"
+                  }
+                }
+              },
+              "trigger": {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "permanent",
+                      "transient"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "effect": {
+                "properties": {
+                  "type": {
+                    "const": "i2c_nak"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "hook": {
+                "const": "peripheral.event"
+              },
+              "target": {
+                "properties": {
+                  "kind": {
+                    "const": "component"
+                  }
+                }
+              },
+              "trigger": {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "permanent",
+                      "transient"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "effect": {
+                "properties": {
+                  "type": {
+                    "const": "spi_mode_fault"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "hook": {
+                "const": "peripheral.event"
+              },
+              "target": {
+                "properties": {
+                  "kind": {
+                    "const": "component"
+                  }
+                }
+              },
+              "trigger": {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "permanent",
+                      "transient"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "effect": {
+                "properties": {
+                  "type": {
+                    "const": "crc_tamper"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "hook": {
+                "const": "protocol.transform"
+              },
+              "target": {
+                "properties": {
+                  "kind": {
+                    "const": "component"
+                  }
+                }
+              },
+              "trigger": {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "permanent",
+                      "transient"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "effect": {
+                "properties": {
+                  "type": {
+                    "const": "cdc_sampling_approx"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "hook": {
+                "const": "input.sampling"
+              },
+              "target": {
+                "properties": {
+                  "kind": {
+                    "const": "input"
                   }
                 }
               },

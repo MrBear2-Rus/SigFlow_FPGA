@@ -1,0 +1,26 @@
+{
+  "schema": "sigflow.course-rubric.v1",
+  "cause": {
+    "location": "i2c0",
+    "type": "i2c_nak"
+  },
+  "hidden_seeds": [
+    "73191",
+    "88703",
+    "95077"
+  ],
+  "project": "virtual.project.json",
+  "repair_kind": "physical_service",
+  "allowed_repair": "i2c-sda-pullup",
+  "assertion": "i2c_ack_restored_and_alarm",
+  "required_observations": [
+    "pad.35",
+    "pad.36"
+  ],
+  "hints": [
+    "观察告警灯与总线是否始终没有变化。",
+    "在 SCL、SDA 两个物理脚上同时放只读探针，比较第 9 拍的电平。",
+    "确认应答槽期间 SDA 没有被任何驱动拉低，再检查外部上拉与器件应答。",
+    "恢复 SDA 上拉/应答后，用三组隐藏激励确认主机读到温度并点亮告警。"
+  ]
+}

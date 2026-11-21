@@ -1,0 +1,161 @@
+{
+  "check_count": 33,
+  "checks": [
+    {
+      "area": "P4",
+      "assertion": "Phase 4 board hosts the I2C sensor, SPI OLED and matrix keypad components"
+    },
+    {
+      "area": "P4",
+      "assertion": "long stepped run completes in the paused state"
+    },
+    {
+      "area": "P4",
+      "assertion": "keypad starts with every key released"
+    },
+    {
+      "area": "P4",
+      "assertion": "paused keypad edit is staged without DUT writes"
+    },
+    {
+      "area": "P4",
+      "assertion": "renderer click path closes key (0,0) through keypad.set"
+    },
+    {
+      "area": "P4",
+      "assertion": "paused keypad edit is staged without DUT writes"
+    },
+    {
+      "area": "P4",
+      "assertion": "a second click closes key (2,3) alongside the first"
+    },
+    {
+      "area": "P4",
+      "assertion": "paused keypad edit is staged without DUT writes"
+    },
+    {
+      "area": "P4",
+      "assertion": "clicking a closed key releases it and keeps the other key"
+    },
+    {
+      "area": "P4",
+      "assertion": "OLED dot matrix snapshot carries display state, lit pixel count and VRAM digest"
+    },
+    {
+      "area": "P4",
+      "assertion": "I2C sensor badge state stays available on the Phase 4 board"
+    },
+    {
+      "area": "P4",
+      "assertion": "PW_RENDERFULLCONTENT renders the workbench including the external tray"
+    },
+    {
+      "area": "P4",
+      "assertion": "workbench snapshot carries real themed pixels"
+    },
+    {
+      "area": "P4",
+      "assertion": "exports board-oled-keypad-light.png"
+    },
+    {
+      "area": "P4",
+      "assertion": "PW_RENDERFULLCONTENT renders the workbench including the external tray"
+    },
+    {
+      "area": "P4",
+      "assertion": "workbench snapshot carries real themed pixels"
+    },
+    {
+      "area": "P4",
+      "assertion": "exports board-oled-keypad-dark.png"
+    },
+    {
+      "area": "P4",
+      "assertion": "course 05 locks private controls and never ships the runtime checkpoint"
+    },
+    {
+      "area": "P4",
+      "assertion": "blind dual probe measures SCL and SDA on the Phase 4 pins"
+    },
+    {
+      "area": "P4",
+      "assertion": "course 05 cannot skip straight to L4"
+    },
+    {
+      "area": "P4",
+      "assertion": "course 05 unlocks L1"
+    },
+    {
+      "area": "P4",
+      "assertion": "course 05 unlocks L2"
+    },
+    {
+      "area": "P4",
+      "assertion": "course 05 unlocks L3"
+    },
+    {
+      "area": "P4",
+      "assertion": "course 05 authorized L4 uses the prior evidence ledger"
+    },
+    {
+      "area": "P4",
+      "assertion": "course 05 wrong location fails despite a correct repair claim"
+    },
+    {
+      "area": "P4",
+      "assertion": "course 05 correct location without restoration still fails"
+    },
+    {
+      "area": "P4",
+      "assertion": "course 05 genuine repair runs three hidden seeds and passes deterministically"
+    },
+    {
+      "area": "P4",
+      "assertion": "course 05 evidence snapshot reaches the AI assistant bridge"
+    },
+    {
+      "area": "P4",
+      "assertion": "course 05 leaks no secret-nak-7f4"
+    },
+    {
+      "area": "P4",
+      "assertion": "course 05 leaks no fault_id"
+    },
+    {
+      "area": "P4",
+      "assertion": "course 05 leaks no rubric"
+    },
+    {
+      "area": "P4",
+      "assertion": "course 05 leaks no hidden_seeds"
+    },
+    {
+      "area": "P4",
+      "assertion": "course 05 leaks no 9500123"
+    }
+  ],
+  "grade": {
+    "actual": 1,
+    "expected": 1,
+    "first_failure_tick": null,
+    "hints_used": 4,
+    "run_fingerprint": "c384068738325ce164be6656667b665d808054bbef41a2c86762a36479c6d9c4",
+    "schema": "sigflow.teaching-grade.v1",
+    "score": 100,
+    "seeds_tested": 3,
+    "signal": "functional_output",
+    "status": "pass",
+    "teaching_gateway": {
+      "bearer": "zS5mFQPX5aBCqabR_WwbhsVm2zKM6ELGWOIUk4aYAWk",
+      "capabilities": [
+        "virtual.session.read",
+        "virtual.evidence.query",
+        "teaching.hint.request",
+        "teaching.grade.submit"
+      ],
+      "url": "http://127.0.0.1:12292/api/v1/virtual-teaching/call"
+    }
+  },
+  "host": "real wxApp + Phase 4 board + keypad/OLED/I2C rendering + course 05 trusted blind loop",
+  "status": "passed"
+}

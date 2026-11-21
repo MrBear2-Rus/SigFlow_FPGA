@@ -235,3 +235,16 @@ order 交换：主侧栏移到画布右侧邻位（order2 ↔3 中区在前，�
 | 离屏截图 | GUI 验收导出改用 `PrintWindow(PW_CLIENTONLY\|PW_RENDERFULLCONTENT)` + 递归 `WM_PRINT` 兜底，原生子控件（wxChoice/wxButton/wxTextCtrl）真实渲染并做像素多样性断言 |
 
 六区、快捷键与既有页签语义不变；浮动窗是中区页签的视图宿主迁移，不新增全局第七栏。
+
+### 7.4 Phase 4 高级总线外设与协议故障局部扩展（2026-11-21）
+
+| 入口/对象 | 冻结行为 |
+|---|---|
+| 外接器件托盘 | 加载含 `matrix-keypad` / `i2c-sensor` / `spi-oled` 的 Phase 3/4 板卡时，托盘改为绘制这三类器件；旧的数码管/DIP 仅在未加载高级外设时绘制，几何保持不变 |
+| 4×4 矩阵键盘 | 4×4 格子按主题 Token 绘制，闭合键用 `selOnPanel` 填充 + `accent` 描边；点击格子发出 `keypad.set`（Paused 下为 pending，Step 后生效），标题显示 `DIODE`（防鬼键）或 `GHOST`（可观察鬼键） |
+| SPI OLED 点阵 | 按快照 `pages` 十六进制位图逐像素绘制真实点阵（亮像素用 `warn` Token，不出现硬编码 RGB），并显示 `CPOL/CPHA`、`ON/OFF`、`lit_pixels` 与前 16 位 `frame_sha256` |
+| I2C 徽章 | 显示 `ADDR 0x48`、`ACK/NAK/TX` 计数（出现 NAK 时用 `danger` Token）、最近读取字节与 `bus_state` |
+| 第 5 门盲测课 | 教学页课程下拉新增 `05 · I2C 总线应答异常定位`；盲测下秘密故障仍不下发，判题由可信侧三种子确定性执行 |
+| 离屏导出 | Phase 4 验收用 `PW_RENDERFULLCONTENT` 导出 `board-oled-keypad-light.png` / `board-oled-keypad-dark.png`，并做像素多样性断言 |
+
+六区结构、快捷键与既有页签语义不变；新增绘制全部走 UiTheme Token 与 `FromDIP`，不引入硬编码颜色。

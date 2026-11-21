@@ -48,7 +48,8 @@ SessionContract Load(const Json& j,const PortManifest& m,const std::string& bina
     c.max_step_ticks=Number(clock.value("max_step_ticks",Json("1000000000000")));
     c.max_delta=j.value("max_delta",256u);c.max_commits=j.value("max_commits",size_t(100000));
     c.durability=j.value("durability","memory");c.journal_path=platform::PathFromUtf8(j.value("journal_path",""));
-    c.phase2=j.value("phase2",false);c.phase1=j.value("phase1",false);if(c.phase1 || c.phase2){c.integration_window_ticks=Number(j.value("integration_window_ticks",Json("20000000000")));if(j.contains("fault_profile"))c.fault_profile=j.at("fault_profile");if(j.contains("fault_profile_path"))c.fault_profile=Read(platform::PathFromUtf8(j.at("fault_profile_path")));}return c;
+    c.phase2=j.value("phase2",false);c.phase1=j.value("phase1",false);if(c.phase1 || c.phase2){c.integration_window_ticks=Number(j.value("integration_window_ticks",Json("20000000000")));if(j.contains("fault_profile"))c.fault_profile=j.at("fault_profile");if(j.contains("fault_profile_path"))c.fault_profile=Read(platform::PathFromUtf8(j.at("fault_profile_path")));
+        for(const auto& label:j.value("open_drain_ports",Json::array()))c.open_drain_ports.insert(label.get<std::string>());}return c;
 }
 Json AdapterSelfTest(const PortManifest& m,const VirtualSession::Factory& factory){
     auto model=factory();size_t checks=0;

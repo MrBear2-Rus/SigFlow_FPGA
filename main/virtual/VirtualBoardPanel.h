@@ -21,6 +21,9 @@ public:
     void SetIntegratedView(bool);
     bool IntegratedView()const;
     void SetDip(const std::string&,unsigned value);
+    void ToggleKeypadKey(const std::string&,unsigned row,unsigned col);
+    void SetKeys(const std::string&,const eda::Json& keys);
+    eda::Json KeypadKeys(const std::string&)const;
     eda::Json InspectNode(const std::string&,bool showPopup=true);
 private:
     void Update();

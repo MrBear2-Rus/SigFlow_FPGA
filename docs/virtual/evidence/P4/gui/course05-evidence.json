@@ -1,0 +1,1947 @@
+{
+  "board": {
+    "board_id": "tang-nano-9k",
+    "leds": {
+      "led0": {
+        "integration": {
+          "active_ticks": "0",
+          "duty_ppm": 0,
+          "instant_active": true,
+          "instant_valid": true,
+          "integration_window_ticks": "4000000",
+          "unknown_ticks": "0",
+          "valid_ticks": "0",
+          "window_ticks": "0"
+        },
+        "lit": true,
+        "state_code": 13
+      },
+      "led1": {
+        "integration": {
+          "active_ticks": "0",
+          "duty_ppm": 0,
+          "instant_active": true,
+          "instant_valid": true,
+          "integration_window_ticks": "4000000",
+          "unknown_ticks": "0",
+          "valid_ticks": "0",
+          "window_ticks": "0"
+        },
+        "lit": true,
+        "state_code": 13
+      },
+      "led2": {
+        "integration": {
+          "active_ticks": "0",
+          "duty_ppm": 0,
+          "instant_active": true,
+          "instant_valid": true,
+          "integration_window_ticks": "4000000",
+          "unknown_ticks": "0",
+          "valid_ticks": "0",
+          "window_ticks": "0"
+        },
+        "lit": true,
+        "state_code": 13
+      },
+      "led3": {
+        "integration": {
+          "active_ticks": "0",
+          "duty_ppm": 0,
+          "instant_active": true,
+          "instant_valid": true,
+          "integration_window_ticks": "4000000",
+          "unknown_ticks": "0",
+          "valid_ticks": "0",
+          "window_ticks": "0"
+        },
+        "lit": true,
+        "state_code": 13
+      },
+      "led4": {
+        "integration": {
+          "active_ticks": "0",
+          "duty_ppm": 0,
+          "instant_active": true,
+          "instant_valid": true,
+          "integration_window_ticks": "4000000",
+          "unknown_ticks": "0",
+          "valid_ticks": "0",
+          "window_ticks": "0"
+        },
+        "lit": true,
+        "state_code": 13
+      }
+    },
+    "nodes": {
+      "clk27m.out": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "low",
+              "state_code": 13,
+              "strength": 3
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 13,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 13,
+              "step_index": 0
+            }
+          ],
+          "logic": "0",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 13,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "0",
+        "state_code": 13,
+        "valid": true
+      },
+      "i2c0.SCL": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "high",
+              "state_code": 15,
+              "strength": 3
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 15,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 15,
+              "step_index": 0
+            }
+          ],
+          "logic": "1",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 15,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "1",
+        "state_code": 15,
+        "valid": true
+      },
+      "i2c0.SDA": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "floating",
+              "state_code": 2,
+              "strength": 0
+            },
+            {
+              "driver_id": "observed-source-2",
+              "level": "floating",
+              "state_code": 2,
+              "strength": 0
+            },
+            {
+              "driver_id": "observed-source-3",
+              "level": "high",
+              "state_code": 7,
+              "strength": 1
+            },
+            {
+              "driver_id": "observed-source-4",
+              "level": "floating",
+              "state_code": 2,
+              "strength": 0
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 2,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 2,
+              "step_index": 0
+            },
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 2,
+              "rhs_driver_id": "observed-source-2",
+              "rhs_state": 2,
+              "step_index": 1
+            },
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 7,
+              "rhs_driver_id": "observed-source-3",
+              "rhs_state": 7,
+              "step_index": 2
+            },
+            {
+              "contention_triggered": false,
+              "lhs_state": 7,
+              "result_state": 7,
+              "rhs_driver_id": "observed-source-4",
+              "rhs_state": 2,
+              "step_index": 3
+            }
+          ],
+          "logic": "1",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 7,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "1",
+        "state_code": 7,
+        "valid": true
+      },
+      "key_p4.contact": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "low",
+              "state_code": 13,
+              "strength": 3
+            },
+            {
+              "driver_id": "observed-source-2",
+              "level": "high",
+              "state_code": 7,
+              "strength": 1
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 13,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 13,
+              "step_index": 0
+            },
+            {
+              "contention_triggered": false,
+              "lhs_state": 13,
+              "result_state": 13,
+              "rhs_driver_id": "observed-source-2",
+              "rhs_state": 7,
+              "step_index": 1
+            }
+          ],
+          "logic": "0",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 13,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "0",
+        "state_code": 13,
+        "valid": true
+      },
+      "keypad0.col0": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "high",
+              "state_code": 7,
+              "strength": 1
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 7,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 7,
+              "step_index": 0
+            }
+          ],
+          "logic": "1",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 7,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "1",
+        "state_code": 7,
+        "valid": true
+      },
+      "keypad0.col1": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "high",
+              "state_code": 7,
+              "strength": 1
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 7,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 7,
+              "step_index": 0
+            }
+          ],
+          "logic": "1",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 7,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "1",
+        "state_code": 7,
+        "valid": true
+      },
+      "keypad0.col2": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "high",
+              "state_code": 7,
+              "strength": 1
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 7,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 7,
+              "step_index": 0
+            }
+          ],
+          "logic": "1",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 7,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "1",
+        "state_code": 7,
+        "valid": true
+      },
+      "keypad0.col3": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "high",
+              "state_code": 7,
+              "strength": 1
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 7,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 7,
+              "step_index": 0
+            }
+          ],
+          "logic": "1",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 7,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "1",
+        "state_code": 7,
+        "valid": true
+      },
+      "keypad0.row0": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "high",
+              "state_code": 7,
+              "strength": 1
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 7,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 7,
+              "step_index": 0
+            }
+          ],
+          "logic": "1",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 7,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "1",
+        "state_code": 7,
+        "valid": true
+      },
+      "keypad0.row1": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "high",
+              "state_code": 7,
+              "strength": 1
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 7,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 7,
+              "step_index": 0
+            }
+          ],
+          "logic": "1",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 7,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "1",
+        "state_code": 7,
+        "valid": true
+      },
+      "keypad0.row2": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "high",
+              "state_code": 7,
+              "strength": 1
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 7,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 7,
+              "step_index": 0
+            }
+          ],
+          "logic": "1",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 7,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "1",
+        "state_code": 7,
+        "valid": true
+      },
+      "keypad0.row3": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "high",
+              "state_code": 7,
+              "strength": 1
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 7,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 7,
+              "step_index": 0
+            }
+          ],
+          "logic": "1",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 7,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "1",
+        "state_code": 7,
+        "valid": true
+      },
+      "led0.K": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "low",
+              "state_code": 13,
+              "strength": 3
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 13,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 13,
+              "step_index": 0
+            }
+          ],
+          "logic": "0",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 13,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "0",
+        "state_code": 13,
+        "valid": true
+      },
+      "led1.K": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "low",
+              "state_code": 13,
+              "strength": 3
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 13,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 13,
+              "step_index": 0
+            }
+          ],
+          "logic": "0",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 13,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "0",
+        "state_code": 13,
+        "valid": true
+      },
+      "led2.K": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "low",
+              "state_code": 13,
+              "strength": 3
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 13,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 13,
+              "step_index": 0
+            }
+          ],
+          "logic": "0",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 13,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "0",
+        "state_code": 13,
+        "valid": true
+      },
+      "led3.K": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "low",
+              "state_code": 13,
+              "strength": 3
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 13,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 13,
+              "step_index": 0
+            }
+          ],
+          "logic": "0",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 13,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "0",
+        "state_code": 13,
+        "valid": true
+      },
+      "led4.K": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "low",
+              "state_code": 13,
+              "strength": 3
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 13,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 13,
+              "step_index": 0
+            }
+          ],
+          "logic": "0",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 13,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "0",
+        "state_code": 13,
+        "valid": true
+      },
+      "oled0.CS_n": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [],
+          "fold_steps": [],
+          "logic": "z",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 2,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": false
+        },
+        "logic": "z",
+        "state_code": 2,
+        "valid": false
+      },
+      "oled0.DC_n": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [],
+          "fold_steps": [],
+          "logic": "z",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 2,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": false
+        },
+        "logic": "z",
+        "state_code": 2,
+        "valid": false
+      },
+      "oled0.MOSI": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [],
+          "fold_steps": [],
+          "logic": "z",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 2,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": false
+        },
+        "logic": "z",
+        "state_code": 2,
+        "valid": false
+      },
+      "oled0.SCK": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [],
+          "fold_steps": [],
+          "logic": "z",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 2,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": false
+        },
+        "logic": "z",
+        "state_code": 2,
+        "valid": false
+      },
+      "pad.10": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "low",
+              "state_code": 13,
+              "strength": 3
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 13,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 13,
+              "step_index": 0
+            }
+          ],
+          "logic": "0",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 13,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "0",
+        "state_code": 13,
+        "valid": true
+      },
+      "pad.11": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "low",
+              "state_code": 13,
+              "strength": 3
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 13,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 13,
+              "step_index": 0
+            }
+          ],
+          "logic": "0",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 13,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "0",
+        "state_code": 13,
+        "valid": true
+      },
+      "pad.13": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "low",
+              "state_code": 13,
+              "strength": 3
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 13,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 13,
+              "step_index": 0
+            }
+          ],
+          "logic": "0",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 13,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "0",
+        "state_code": 13,
+        "valid": true
+      },
+      "pad.14": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "low",
+              "state_code": 13,
+              "strength": 3
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 13,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 13,
+              "step_index": 0
+            }
+          ],
+          "logic": "0",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 13,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "0",
+        "state_code": 13,
+        "valid": true
+      },
+      "pad.15": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "low",
+              "state_code": 13,
+              "strength": 3
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 13,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 13,
+              "step_index": 0
+            }
+          ],
+          "logic": "0",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 13,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "0",
+        "state_code": 13,
+        "valid": true
+      },
+      "pad.16": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [],
+          "fold_steps": [],
+          "logic": "z",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 2,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": false
+        },
+        "logic": "z",
+        "state_code": 2,
+        "valid": false
+      },
+      "pad.25": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "high",
+              "state_code": 7,
+              "strength": 1
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 7,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 7,
+              "step_index": 0
+            }
+          ],
+          "logic": "1",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 7,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "1",
+        "state_code": 7,
+        "valid": true
+      },
+      "pad.26": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "high",
+              "state_code": 7,
+              "strength": 1
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 7,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 7,
+              "step_index": 0
+            }
+          ],
+          "logic": "1",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 7,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "1",
+        "state_code": 7,
+        "valid": true
+      },
+      "pad.27": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "high",
+              "state_code": 7,
+              "strength": 1
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 7,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 7,
+              "step_index": 0
+            }
+          ],
+          "logic": "1",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 7,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "1",
+        "state_code": 7,
+        "valid": true
+      },
+      "pad.28": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "high",
+              "state_code": 7,
+              "strength": 1
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 7,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 7,
+              "step_index": 0
+            }
+          ],
+          "logic": "1",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 7,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "1",
+        "state_code": 7,
+        "valid": true
+      },
+      "pad.29": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "high",
+              "state_code": 7,
+              "strength": 1
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 7,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 7,
+              "step_index": 0
+            }
+          ],
+          "logic": "1",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 7,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "1",
+        "state_code": 7,
+        "valid": true
+      },
+      "pad.30": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "high",
+              "state_code": 7,
+              "strength": 1
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 7,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 7,
+              "step_index": 0
+            }
+          ],
+          "logic": "1",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 7,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "1",
+        "state_code": 7,
+        "valid": true
+      },
+      "pad.33": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "high",
+              "state_code": 7,
+              "strength": 1
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 7,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 7,
+              "step_index": 0
+            }
+          ],
+          "logic": "1",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 7,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "1",
+        "state_code": 7,
+        "valid": true
+      },
+      "pad.34": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "high",
+              "state_code": 7,
+              "strength": 1
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 7,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 7,
+              "step_index": 0
+            }
+          ],
+          "logic": "1",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 7,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "1",
+        "state_code": 7,
+        "valid": true
+      },
+      "pad.35": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "high",
+              "state_code": 15,
+              "strength": 3
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 15,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 15,
+              "step_index": 0
+            }
+          ],
+          "logic": "1",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 15,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "1",
+        "state_code": 15,
+        "valid": true
+      },
+      "pad.36": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "floating",
+              "state_code": 2,
+              "strength": 0
+            },
+            {
+              "driver_id": "observed-source-2",
+              "level": "floating",
+              "state_code": 2,
+              "strength": 0
+            },
+            {
+              "driver_id": "observed-source-3",
+              "level": "high",
+              "state_code": 7,
+              "strength": 1
+            },
+            {
+              "driver_id": "observed-source-4",
+              "level": "floating",
+              "state_code": 2,
+              "strength": 0
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 2,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 2,
+              "step_index": 0
+            },
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 2,
+              "rhs_driver_id": "observed-source-2",
+              "rhs_state": 2,
+              "step_index": 1
+            },
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 7,
+              "rhs_driver_id": "observed-source-3",
+              "rhs_state": 7,
+              "step_index": 2
+            },
+            {
+              "contention_triggered": false,
+              "lhs_state": 7,
+              "result_state": 7,
+              "rhs_driver_id": "observed-source-4",
+              "rhs_state": 2,
+              "step_index": 3
+            }
+          ],
+          "logic": "1",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 7,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "1",
+        "state_code": 7,
+        "valid": true
+      },
+      "pad.37": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "floating",
+              "state_code": 2,
+              "strength": 0
+            },
+            {
+              "driver_id": "observed-source-2",
+              "level": "floating",
+              "state_code": 2,
+              "strength": 0
+            },
+            {
+              "driver_id": "observed-source-3",
+              "level": "high",
+              "state_code": 7,
+              "strength": 1
+            },
+            {
+              "driver_id": "observed-source-4",
+              "level": "floating",
+              "state_code": 2,
+              "strength": 0
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 2,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 2,
+              "step_index": 0
+            },
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 2,
+              "rhs_driver_id": "observed-source-2",
+              "rhs_state": 2,
+              "step_index": 1
+            },
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 7,
+              "rhs_driver_id": "observed-source-3",
+              "rhs_state": 7,
+              "step_index": 2
+            },
+            {
+              "contention_triggered": false,
+              "lhs_state": 7,
+              "result_state": 7,
+              "rhs_driver_id": "observed-source-4",
+              "rhs_state": 2,
+              "step_index": 3
+            }
+          ],
+          "logic": "1",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 7,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "1",
+        "state_code": 7,
+        "valid": true
+      },
+      "pad.38": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [],
+          "fold_steps": [],
+          "logic": "z",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 2,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": false
+        },
+        "logic": "z",
+        "state_code": 2,
+        "valid": false
+      },
+      "pad.4": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "low",
+              "state_code": 13,
+              "strength": 3
+            },
+            {
+              "driver_id": "observed-source-2",
+              "level": "high",
+              "state_code": 7,
+              "strength": 1
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 13,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 13,
+              "step_index": 0
+            },
+            {
+              "contention_triggered": false,
+              "lhs_state": 13,
+              "result_state": 13,
+              "rhs_driver_id": "observed-source-2",
+              "rhs_state": 7,
+              "step_index": 1
+            }
+          ],
+          "logic": "0",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 13,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "0",
+        "state_code": 13,
+        "valid": true
+      },
+      "pad.40": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [],
+          "fold_steps": [],
+          "logic": "z",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 2,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": false
+        },
+        "logic": "z",
+        "state_code": 2,
+        "valid": false
+      },
+      "pad.41": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [],
+          "fold_steps": [],
+          "logic": "z",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 2,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": false
+        },
+        "logic": "z",
+        "state_code": 2,
+        "valid": false
+      },
+      "pad.52": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "low",
+              "state_code": 13,
+              "strength": 3
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 13,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 13,
+              "step_index": 0
+            }
+          ],
+          "logic": "0",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 13,
+          "summary": "Observed electrical state; use paired probes and fold steps.",
+          "valid": true
+        },
+        "logic": "0",
+        "state_code": 13,
+        "valid": true
+      }
+    },
+    "peripherals": {
+      "i2c0": {
+        "ack_count": 0,
+        "address_7bit": 72,
+        "bus_state": "idle",
+        "last_read_byte": "00",
+        "model": "sigflow.i2c-sensor@1",
+        "nak_count": 0,
+        "read_mode": false,
+        "reg_pointer": 0,
+        "registers": [
+          "1a",
+          "2b",
+          "5c"
+        ],
+        "transactions": 0
+      },
+      "keypad0": {
+        "apparent": {},
+        "closed": [],
+        "cols": 4,
+        "diodes": false,
+        "ghosts": [],
+        "model": "sigflow.matrix-keypad@1",
+        "rows": 4
+      },
+      "oled0": {
+        "column": 0,
+        "cpha": 0,
+        "cpol": 0,
+        "display_on": false,
+        "frame_sha256": "5341e6b2646979a70e57653007a1f310169421ec9bdd9f1a5648f75ade005af1",
+        "height": 32,
+        "inverted": false,
+        "lit_pixels": 0,
+        "model": "sigflow.spi-oled@1",
+        "page": 0,
+        "pages": [
+          {
+            "bytes": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            "page": 0
+          },
+          {
+            "bytes": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            "page": 1
+          },
+          {
+            "bytes": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            "page": 2
+          },
+          {
+            "bytes": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            "page": 3
+          }
+        ],
+        "width": 64,
+        "write_count": 0
+      }
+    }
+  },
+  "hints": {
+    "teaching.hint.request": {
+      "hints_used": 4,
+      "level": "L4",
+      "position": {
+        "delta": 0,
+        "event_seq": "89",
+        "tick": "0"
+      },
+      "run_token": "2Bw6vZ5qya3S-q_eNALKEOIBKAqwXPvMK93ALkJHrQQ",
+      "schema": "sigflow.teaching-hint.v1",
+      "sequence": 4,
+      "teaching_gateway": {
+        "bearer": "zS5mFQPX5aBCqabR_WwbhsVm2zKM6ELGWOIUk4aYAWk",
+        "capabilities": [
+          "virtual.session.read",
+          "virtual.evidence.query",
+          "teaching.hint.request",
+          "teaching.grade.submit"
+        ],
+        "url": "http://127.0.0.1:12292/api/v1/virtual-teaching/call"
+      },
+      "text": "恢复 SDA 上拉/应答后，用三组隐藏激励确认主机读到温度并点亮告警。"
+    }
+  },
+  "kind": "virtual.evidence.snapshot",
+  "measurements": [
+    {
+      "evidence_id": "measurement-1",
+      "nominal_mv": 3300,
+      "position": {
+        "delta": 0,
+        "event_seq": "89",
+        "tick": "0"
+      },
+      "probe_id": "gui-probe-1",
+      "read_only": true,
+      "state": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "high",
+              "state_code": 15,
+              "strength": 3
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 15,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 15,
+              "step_index": 0
+            }
+          ],
+          "logic": "1",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 15,
+          "summary": "电气观测为 按已测状态与强度解释。",
+          "valid": true
+        },
+        "logic": "1",
+        "state_code": 15,
+        "valid": true
+      },
+      "target": "pad.35",
+      "voltage_model": "digital_nominal_estimate_not_spice"
+    },
+    {
+      "evidence_id": "measurement-2",
+      "nominal_mv": 3300,
+      "position": {
+        "delta": 0,
+        "event_seq": "89",
+        "tick": "0"
+      },
+      "probe_id": "gui-probe-2",
+      "read_only": true,
+      "state": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "floating",
+              "state_code": 2,
+              "strength": 0
+            },
+            {
+              "driver_id": "observed-source-2",
+              "level": "floating",
+              "state_code": 2,
+              "strength": 0
+            },
+            {
+              "driver_id": "observed-source-3",
+              "level": "high",
+              "state_code": 7,
+              "strength": 1
+            },
+            {
+              "driver_id": "observed-source-4",
+              "level": "floating",
+              "state_code": 2,
+              "strength": 0
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 2,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 2,
+              "step_index": 0
+            },
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 2,
+              "rhs_driver_id": "observed-source-2",
+              "rhs_state": 2,
+              "step_index": 1
+            },
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 7,
+              "rhs_driver_id": "observed-source-3",
+              "rhs_state": 7,
+              "step_index": 2
+            },
+            {
+              "contention_triggered": false,
+              "lhs_state": 7,
+              "result_state": 7,
+              "rhs_driver_id": "observed-source-4",
+              "rhs_state": 2,
+              "step_index": 3
+            }
+          ],
+          "logic": "1",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 7,
+          "summary": "电气观测为 按已测状态与强度解释。",
+          "valid": true
+        },
+        "logic": "1",
+        "state_code": 7,
+        "valid": true
+      },
+      "target": "pad.36",
+      "voltage_model": "digital_nominal_estimate_not_spice"
+    },
+    {
+      "evidence_id": "measurement-3",
+      "nominal_mv": 3300,
+      "position": {
+        "delta": 0,
+        "event_seq": "89",
+        "tick": "0"
+      },
+      "probe_id": "gui-probe-3",
+      "read_only": true,
+      "state": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "high",
+              "state_code": 15,
+              "strength": 3
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 15,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 15,
+              "step_index": 0
+            }
+          ],
+          "logic": "1",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 15,
+          "summary": "电气观测为 按已测状态与强度解释。",
+          "valid": true
+        },
+        "logic": "1",
+        "state_code": 15,
+        "valid": true
+      },
+      "target": "pad.35",
+      "voltage_model": "digital_nominal_estimate_not_spice"
+    },
+    {
+      "evidence_id": "measurement-4",
+      "nominal_mv": 3300,
+      "position": {
+        "delta": 0,
+        "event_seq": "89",
+        "tick": "0"
+      },
+      "probe_id": "gui-probe-4",
+      "read_only": true,
+      "state": {
+        "contention": false,
+        "explanation": {
+          "conflict_sources": [],
+          "contention": false,
+          "drivers": [
+            {
+              "driver_id": "observed-source-1",
+              "level": "floating",
+              "state_code": 2,
+              "strength": 0
+            },
+            {
+              "driver_id": "observed-source-2",
+              "level": "floating",
+              "state_code": 2,
+              "strength": 0
+            },
+            {
+              "driver_id": "observed-source-3",
+              "level": "high",
+              "state_code": 7,
+              "strength": 1
+            },
+            {
+              "driver_id": "observed-source-4",
+              "level": "floating",
+              "state_code": 2,
+              "strength": 0
+            }
+          ],
+          "fold_steps": [
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 2,
+              "rhs_driver_id": "observed-source-1",
+              "rhs_state": 2,
+              "step_index": 0
+            },
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 2,
+              "rhs_driver_id": "observed-source-2",
+              "rhs_state": 2,
+              "step_index": 1
+            },
+            {
+              "contention_triggered": false,
+              "lhs_state": 2,
+              "result_state": 7,
+              "rhs_driver_id": "observed-source-3",
+              "rhs_state": 7,
+              "step_index": 2
+            },
+            {
+              "contention_triggered": false,
+              "lhs_state": 7,
+              "result_state": 7,
+              "rhs_driver_id": "observed-source-4",
+              "rhs_state": 2,
+              "step_index": 3
+            }
+          ],
+          "logic": "1",
+          "resolver": "sigflow.state13.v1",
+          "schema": "sigflow.resolution-explanation.public.v1",
+          "state_code": 7,
+          "summary": "电气观测为 按已测状态与强度解释。",
+          "valid": true
+        },
+        "logic": "1",
+        "state_code": 7,
+        "valid": true
+      },
+      "target": "pad.36",
+      "voltage_model": "digital_nominal_estimate_not_spice"
+    }
+  ],
+  "schema": "sigflow.virtual-evidence.v1",
+  "session": {
+    "mode": "student_blind_test",
+    "outputs": {
+      "i2c_scl": true,
+      "i2c_sda": true,
+      "led_n[0]": false,
+      "led_n[1]": false,
+      "led_n[2]": false,
+      "led_n[3]": false,
+      "led_n[4]": false
+    },
+    "position": {
+      "delta": 0,
+      "event_seq": "89",
+      "tick": "0"
+    },
+    "reason": "Ready",
+    "state": "Paused"
+  },
+  "wave_first_divergence": null
+}

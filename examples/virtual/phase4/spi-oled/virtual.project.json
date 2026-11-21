@@ -1,0 +1,48 @@
+{
+  "schema": "sigflow.virtual-project.v1",
+  "source_files": [
+    "spi_oled_driver.sv"
+  ],
+  "top_module": "spi_oled_driver",
+  "cst_path": "spi_oled.cst",
+  "board_path": "registry/boards/tang-nano-9k.phase4.virtual.json",
+  "electrical_profile_path": "registry/electrical/tang-nano-9k.6202.reviewed.v2.json",
+  "durability": "durable",
+  "clock": {
+    "port_ref": "clock_in",
+    "package_pin": 52,
+    "frequency_hz": "27000000",
+    "enabled": true
+  },
+  "inputs": [
+    {
+      "target": "reset_p4",
+      "package_pin": 4,
+      "fixed_drivers": [],
+      "initial_manual_state": 13
+    },
+    {
+      "target": "clock_p52",
+      "package_pin": 52,
+      "fixed_drivers": [],
+      "initial_manual_state": 2
+    }
+  ],
+  "phase1": true,
+  "phase2": true,
+  "integration_window_ticks": "4000000",
+  "fault_profile": {
+    "schema": "sigflow.fault-profile.v2",
+    "id": "phase4-spi-oled",
+    "revision": 1,
+    "board_ref": "tang-nano-9k@4.0.0",
+    "tick_ps": "1",
+    "rng": {
+      "algorithm": "pcg32-v1",
+      "seed": "4100002",
+      "streams": "by_fault_id"
+    },
+    "conflict_policy": "reject_overlapping_mutations",
+    "faults": []
+  }
+}

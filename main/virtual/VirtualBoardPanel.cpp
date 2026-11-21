@@ -34,7 +34,10 @@ VirtualBoardPanel::VirtualBoardPanel(wxWindow* parent,std::shared_ptr<VirtualSes
     drawing_=new wxPanel(this);drawing_->SetBackgroundStyle(wxBG_STYLE_PAINT);drawing_->SetMinSize(FromDIP(wxSize(320,165)));
     drawing_->Bind(wxEVT_PAINT,[this](wxPaintEvent&){wxAutoBufferedPaintDC dc(drawing_);dc.SetBackground(wxBrush(UiTheme::Palette().canvas));dc.Clear();std::unique_ptr<wxGraphicsContext> g(wxGraphicsContext::Create(dc));if(g)BoardRenderer::Paint(*drawing_,*g,controller_->Frame(),controller_->InputTargets(),IntegratedView());});
     drawing_->SetToolTip(wxString::FromUTF8("暂停时只暂存输入；按住按键并按空格单步，松开后再次单步提交释放。"));
-    drawing_->Bind(wxEVT_LEFT_DOWN,[this](wxMouseEvent& e){if(auto dip=BoardRenderer::HitDip(*drawing_,e.GetPosition(),controller_->Frame())){const auto& component=controller_->Frame().at("board").at("peripherals").at(dip->first);SetDip(dip->first,component.at("value").get<unsigned>()^(1u<<dip->second));return;}int pad=BoardRenderer::HitButton(*drawing_,e.GetPosition(),controller_->Frame().value("phase1",false));if(pad>0 && CanCommand(controller_->State(),"set")){held_pad_=pad;drawing_->SetFocus();drawing_->CaptureMouse();Contact(pad,true);}});
+    drawing_->Bind(wxEVT_LEFT_DOWN,[this](wxMouseEvent& e){if(auto dip=BoardRenderer::HitDip(*drawing_,e.GetPosition(),controller_->Frame())){const auto& component=controller_->Frame().at("board").at("peripherals").at(dip->first);SetDip(dip->first,component.at("value").get<unsigned>()^(1u<<dip->second));return;}
+        // Phase 4: clicking a matrix keypad cell toggles that key closure.
+        if(auto cell=BoardRenderer::HitKeypad(*drawing_,e.GetPosition(),controller_->Frame())){ToggleKeypadKey(cell->component,cell->row,cell->col);return;}
+        int pad=BoardRenderer::HitButton(*drawing_,e.GetPosition(),controller_->Frame().value("phase1",false));if(pad>0 && CanCommand(controller_->State(),"set")){held_pad_=pad;drawing_->SetFocus();drawing_->CaptureMouse();Contact(pad,true);}});
     drawing_->Bind(wxEVT_LEFT_UP,[this](wxMouseEvent&){ReleaseContact();});drawing_->Bind(wxEVT_MOUSE_CAPTURE_LOST,[this](wxMouseCaptureLostEvent&){ReleaseContact();});drawing_->Bind(wxEVT_KILL_FOCUS,[this](wxFocusEvent& e){ReleaseContact();e.Skip();});
     drawing_->Bind(wxEVT_KEY_DOWN,[this](wxKeyEvent& e){if(e.GetKeyCode()==WXK_SPACE && CanCommand(controller_->State(),"step"))Step();else if(e.GetKeyCode()==WXK_ESCAPE)ReleaseContact();else e.Skip();});
     drawing_->Bind(wxEVT_RIGHT_UP,[this](wxMouseEvent& e){auto node=BoardRenderer::HitNode(*drawing_,e.GetPosition(),controller_->Frame().value("phase1",false));if(!node.empty())InspectNode(node);});
@@ -62,6 +65,22 @@ void VirtualBoardPanel::Step(){eda::Json command={{"op","step"}};if(controller_-
 void VirtualBoardPanel::SetIntegratedView(bool value){view_mode_->SetSelection(value?2:1);drawing_->Refresh();}
 bool VirtualBoardPanel::IntegratedView()const{return view_mode_ && (view_mode_->GetSelection()==2 || (view_mode_->GetSelection()==0 && controller_->State()==SessionState::Running));}
 void VirtualBoardPanel::SetDip(const std::string& id,unsigned value){controller_->Queue({{"op","dip.set"},{"target",id},{"value",value}});}
+eda::Json VirtualBoardPanel::KeypadKeys(const std::string& id)const{
+    eda::Json keys=eda::Json::array();
+    if(!controller_->Frame().contains("board") || !controller_->Frame().at("board").contains("peripherals"))return keys;
+    const auto& peripherals=controller_->Frame().at("board").at("peripherals");
+    if(!peripherals.contains(id) || !peripherals.at(id).contains("closed"))return keys;
+    for(const auto& cell:peripherals.at(id).at("closed"))if(cell.is_array() && cell.size()==2)
+        keys.push_back(eda::Json::array({std::stoi(cell.at(0).get<std::string>()),std::stoi(cell.at(1).get<std::string>())}));
+    return keys;
+}
+void VirtualBoardPanel::SetKeys(const std::string& id,const eda::Json& keys){controller_->Queue({{"op","keypad.set"},{"target",id},{"keys",keys}});}
+void VirtualBoardPanel::ToggleKeypadKey(const std::string& id,unsigned row,unsigned col){
+    auto keys=KeypadKeys(id);eda::Json next=eda::Json::array();bool present=false;
+    for(const auto& key:keys){if(key.at(0)==int(row) && key.at(1)==int(col)){present=true;continue;}next.push_back(key);}
+    if(!present)next.push_back(eda::Json::array({int(row),int(col)}));
+    SetKeys(id,next);drawing_->Refresh();
+}
 eda::Json VirtualBoardPanel::InspectNode(const std::string& node,bool popup){const auto& state=controller_->Frame().at("board").at("nodes").at(node);if(popup){auto* dialog=new wxDialog(this,wxID_ANY,wxString::FromUTF8("STATE 逐步解释 / "+node),wxDefaultPosition,FromDIP(wxSize(720,500)),wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER);auto* layout=new wxBoxSizer(wxVERTICAL);auto* text=new wxTextCtrl(dialog,wxID_ANY,wxString::FromUTF8(state.dump(2)),wxDefaultPosition,wxDefaultSize,wxTE_MULTILINE|wxTE_READONLY|wxTE_DONTWRAP);text->SetForegroundColour(UiTheme::Palette().text1);text->SetBackgroundColour(UiTheme::Palette().canvas);layout->Add(text,1,wxEXPAND|wxALL,FromDIP(8));auto* close=new wxButton(dialog,wxID_CLOSE,wxString::FromUTF8("关闭"));layout->Add(close,0,wxALIGN_RIGHT|wxALL,FromDIP(8));close->Bind(wxEVT_BUTTON,[dialog](wxCommandEvent&){dialog->Destroy();});dialog->SetSizer(layout);inspections_.push_back(wxWeakRef<wxDialog>(dialog));dialog->Show();}return state;}
 void VirtualBoardPanel::Contact(int pad,bool pressed){auto it=controller_->InputTargets().find(pad);if(it!=controller_->InputTargets().end())controller_->Queue({{"op","set"},{"target",it->second},{"state",pressed?13:2}});}
 void VirtualBoardPanel::ReleaseContact(){int pad=held_pad_;held_pad_=-1;if(drawing_->HasCapture())drawing_->ReleaseMouse();if(pad>0)Contact(pad,false);}

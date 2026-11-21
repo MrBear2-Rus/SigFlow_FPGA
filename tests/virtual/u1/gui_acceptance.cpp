@@ -44,10 +44,12 @@ class DpiSurface:public wxPanel {public:DpiSurface(wxWindow* parent,int dpi):wxP
 #include "../p1/gui_acceptance.inc"
 #include "../p2/gui_acceptance.inc"
 #include "../p3/gui_acceptance.inc"
+#include "../p4/gui_acceptance.inc"
 int main(int argc,char** argv){
     if(argc==4 && std::string(argv[3])=="--phase2")return RunPhase2Gui(argc,argv);
     if(argc==4 && std::string(argv[3])=="--phase1")return RunPhase1Gui(argc,argv);
     if(argc==4 && std::string(argv[3])=="--phase3")return RunPhase3Gui(argc,argv);
+    if(argc==4 && std::string(argv[3])=="--phase4")return RunPhase4Gui(argc,argv);
     if(argc!=3)return 2;repo=eda::platform::PathFromUtf8(argv[1]);build=eda::platform::PathFromUtf8(argv[2]);work=repo/".work/u1-acceptance";fs::create_directories(work);progress.open(work/"progress.log");
     wxApp::SetInstance(new AcceptanceApp());if(!wxEntryStart(argc,argv))return 3;wxTheApp->CallOnInit();wxInitAllImageHandlers();wxLog::SetActiveTarget(new wxLogStderr());
     wxSetAssertHandler([](const wxString& file,int line,const wxString&,const wxString& condition,const wxString& message){std::cerr<<"wx ASSERT "<<file<<':'<<line<<' '<<condition<<' '<<message<<std::endl;std::abort();});
