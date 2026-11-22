@@ -169,6 +169,18 @@ if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         "Detected compiler: ${CMAKE_CXX_COMPILER_ID}.")
 endif()
 
+# ---------------------------------------------------------------------------
+# MinGW-w64 assembler: several translation units (the graph-edit engine, the
+# Yosys wrapper) emit object files with more than 2^15 sections. Without big-object
+# support the bundled assembler truncates them *silently*: the build succeeds and the
+# binary misbehaves at run time (for example, file writes fail from code that looks
+# correct). Keeping the flag here means a plain `cmake -S . -B <dir>` is trustworthy
+# instead of depending on how the build directory happened to be configured once.
+# ---------------------------------------------------------------------------
+if(WIN32)
+    add_compile_options(-Wa,-mbig-obj)
+endif()
+
 if(WIN32)
     # ---- MinGW-w64 on Windows ----
     if(NOT SIGFLOW_WX_LOCAL)
