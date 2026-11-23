@@ -1,15 +1,15 @@
 # Phase 5 全平台收官与跨端同源实测总报告
 
-验收时间：2026-11-21T16:00:15.742992+08:00；基线 `ec24b72`；分支 `feat/virtual-fpga-phase5`。
+验收时间：2026-11-23T11:46:57.751442+08:00；基线 `ec24b72`；分支 `feat/virtual-fpga-phase5`。
 
 最终状态：**passed**，`Phase5_complete=true`，`Full_Platform_v1_complete=true`。
 
 | 验收 | 实测结果 |
 |---|---|
-| 全部 CTest | 50/50；原 47 项 + 新 3 项 |
+| 产品 CTest | 50/50；原 47 项 + 新 3 项；附加回归 2/2 |
 | I2C Burst Read 与零回归 | 20 项真实 Verilator 断言；3 字节连续读、MSB=1、data/addr NAK 恢复、Phase 4 双 digest 零回归 |
 | 跨端同源 SFVB 与 Web 投影 | 3001 项；5 条真实工程流 100% 逐帧同源一致 + 断线重同步/幂等 ACK/BigInt 64-bit/零泄密 |
-| GUI 全阶段实验台与诚实渲染 | 26 项真实 wxApp 断言；7 实验一键加载、`P16 → 外接`、`KEY P3 未挂载`、浮动窗交互与 Light/Dark 离屏导出 |
+| GUI 全阶段实验台与诚实渲染 | 28 项真实 wxApp 断言；7 实验一键加载、`P16 → 外接`、`KEY P3 未挂载`、浮动窗交互与 Light/Dark 离屏导出 |
 | 历史归档保护 | 199 份历史文件（M0–P4）SHA-256 100% 不变：True |
 | 参与验收的源码 | 构建与测试前后逐文件哈希一致：True |
 

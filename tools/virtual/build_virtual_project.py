@@ -55,9 +55,11 @@ def main():
             value=tool.get(name) or default
             if not value or not Path(value).is_file():raise RuntimeError('E_TOOL_NOT_FOUND: '+name)
             return Path(value).resolve()
-        cxx=find('cxx',shutil.which('g++') or 'E:/sigflow_fpga/toolchain/mingw64/bin/g++.exe')
+        locked_cxx=Path('E:/sigflow_fpga/toolchain/mingw64/bin/g++.exe')
+        locked_shell=Path('E:/sigflow_fpga/toolchain/posix/sh.exe')
+        cxx=find('cxx',locked_cxx if locked_cxx.is_file() else shutil.which('g++'))
         make=find('make',cxx.parent/'mingw32-make.exe' if os.name=='nt' else shutil.which('make'))
-        shell=find('sh',os.environ.get('SIGFLOW_SH') or shutil.which('sh') or 'E:/sigflow_fpga/toolchain/posix/sh.exe')
+        shell=find('sh',locked_shell if locked_shell.is_file() else os.environ.get('SIGFLOW_SH') or shutil.which('sh'))
         verilator=find('verilator',repo/'tools/verilator/verilator-install/bin/verilator_bin_dbg.exe')
         yosys=find('yosys',repo/'external/fpga-tools/runtime/yosys/bin/yosys.exe')
         validator=find('validator',build/'sigflow_session_validate.exe');codegen=find('codegen',build/'sigflow_adapter_codegen.exe');manifest=find('manifest',build/'sigflow_port_manifest.exe')
@@ -117,7 +119,7 @@ def main():
                 includes=[repo/p for p in ['include','3rd','core/src','InnerPlugin/eda-cst-gowin-cst/include','InnerPlugin/eda-target-tangnano9k/include']]
                 cppflags='-std=c++20 '+' '.join('-D'+d for d in definitions)+' '+' '.join('-I"'+p.as_posix()+'"' for p in includes)
                 obj=cache/'obj';vflags=['-I'+p.as_posix() for p in include_dirs]
-                run([verilator,'--cc',*files,'--exe',generated,'--top-module',request['top_module'],'--Mdir',obj,'--converge-limit','256','-Wno-fatal',*vflags,'-CFLAGS',cppflags,'-LDFLAGS',' '.join(p.as_posix() for p in libraries),'-o',exe],'verilate')
+                run([verilator,'--cc',*files,'--exe',generated,'--top-module',request['top_module'],'--Mdir',obj,'--converge-limit','256','-Wno-fatal',*vflags,'-CFLAGS',cppflags,'-LDFLAGS',' '.join(p.as_posix() for p in libraries)+' -lpthread','-o',exe],'verilate')
                 exe.unlink(missing_ok=True)
                 run([make,'-C',obj,'-f','V'+request['top_module']+'.mk','-j4',f'CXX={cxx.as_posix()}',f'LINK={cxx.as_posix()}',f'AR={(cxx.parent/"ar.exe").as_posix()}',f'SHELL={shell.as_posix()}',f'PYTHON3={Path(sys.executable).as_posix()}'],'compile')
                 if any(sha(p)!=digest for p,digest in fingerprint.items()):raise RuntimeError('E_BUILD_INPUT_CHANGED: 构建期间输入发生变化，请重新构建')

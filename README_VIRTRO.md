@@ -15,6 +15,9 @@
 | Phase 3 产品化与跨端同源 | 已实测收官：44/44 CTest；SFVB 二进制帧 C++↔JS 逐字段一致、20 次浮动窗往返、鬼键 vs 二极管、reset_glitch/分频偏移；Phase3_complete=true | [Phase 3 实测报告](docs/virtual/Phase3产品化深化与跨端同源实测报告.md) |
 | Phase 4 高级总线外设与协议时序故障 | 已实测收官：47/47 CTest；I2C 开漏传感器、SPI OLED 点阵、i2c_nak/spi_mode_fault/crc_tamper/cdc_sampling_approx、course-05 三隐藏种子判题；Phase4_complete=true | [Phase 4 实测报告](docs/virtual/Phase4高级总线外设与协议时序故障实测报告.md) |
 | Phase 5 全平台 v1.0 终极收官 | 已实测收官：50/50 CTest；I2C 多字节 Burst Read 修复与零回归、全阶段实验快速加载与复用引脚诚实渲染、跨端同源 SFVB HTML5 Canvas 回放器；Phase5_complete=true / Full_Platform_v1_complete=true | [Phase 5 实测总报告](docs/virtual/Phase5全平台收官与跨端同源实测总报告.md) |
+| Phase 5.2 直接启动工具链修复 | 系统 GCC 15.2.0 优先时，M0 单击冷构建进入 Ready；实际使用工程 GCC 14.2.0 与对应 DLL；产品 50/50＋附加 Agent 2/2，199 份历史 SHA-256 不变 | [修复验收证据](docs/virtual/evidence/P5.2-acceptance-summary.json) |
+
+Phase 5.2：存在工程锁定 GCC/sh 时优先使用它们，构建器与 runner 子进程继承完整环境并置顶工程工具链 PATH；链接显式追加 `-lpthread`。无需修改系统 PATH，也无需从专用 PowerShell 启动。实测截图见 [直接启动 M0 Ready](docs/virtual/evidence/P5.2/explorer-m0-ready.png)。
 
 最高设计契约位于工作区`交付资料/04_SigFlow虚拟FPGA平台规划书/`。Web暂缓；新增内核后续保持零wx依赖。只读基线`.research/SigFlow_FPGA_verified`不在本工程内修改。
 

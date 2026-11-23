@@ -1,3 +1,5 @@
+P5.2: M0 reference builds and starts with host GCC first and locked toolchain removed from parent PATH = 1
+P5.2: runner starts and steps using the GUI child environment despite hostile parent PATH = 1
 P5: full-stage quick launcher lists all 7 M0-P5 experiments = 1
 P5: quick launcher loads P3 keypad scan and updates selection = 1
 P5: P3 keypad experiment mounts matrix keypad peripheral = 1

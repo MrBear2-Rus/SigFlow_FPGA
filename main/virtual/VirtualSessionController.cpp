@@ -66,6 +66,13 @@ void VirtualSessionController::Open(const wxString& executable,const wxString& c
         child->done=[this]{std::string failure;try{Drain();}catch(const std::exception& e){failure=e.what();}process_=nullptr;pid_=0;
             if(!failure.empty())Fail(failure);else if(state_!=SessionState::Stopped && state_!=SessionState::Error)Fail("会话进程已退出。"+stderr_);};
         std::vector<wxString> arguments{executable};if(definition.value("teaching_service",false)){auto repo=VirtualProjectSessionBuilder::FindRepository();arguments.push_back(wxString::FromUTF8(eda::platform::PathToUtf8(repo/"tools/virtual/virtual_teaching_service.py")));arguments.push_back("--config");}arguments.push_back(config);std::vector<const wchar_t*> args;for(const auto& argument:arguments)args.push_back(argument.wc_str());args.push_back(nullptr);wxExecuteEnv env;env.cwd=cwd;
+#ifdef _WIN32
+        if(!wxGetEnvMap(&env.env))throw std::runtime_error("E_SESSION_ENVIRONMENT");
+        wxString parentPath;wxGetEnv("PATH",&parentPath);
+        wxArrayString pathKeys;for(const auto& entry:env.env)if(entry.first.CmpNoCase("PATH")==0)pathKeys.Add(entry.first);
+        for(const auto& key:pathKeys)env.env.erase(key);
+        env.env["PATH"]="E:\\sigflow_fpga\\toolchain\\mingw64\\bin;E:\\sigflow_fpga\\toolchain\\posix;"+parentPath;
+#endif
         pid_=wxExecute(args.data(),wxEXEC_ASYNC|wxEXEC_HIDE_CONSOLE,child,&env);
         if(!pid_){process_=nullptr;delete child;throw std::runtime_error("无法启动实验会话进程");}
         Send({{"op","get"}});timer_.Start(33);

@@ -34,7 +34,15 @@ void VirtualProjectSessionBuilder::Start(eda::Json request,std::function<void(ed
         const wchar_t* argv[]={python.wc_str(),script.wc_str(),L"--request",in.wc_str(),L"--result",out.wc_str(),nullptr};
         auto* child=new BuildChild();child_=child;child->Redirect();child->done=[this](int code){timer_.Stop();child_=nullptr;pid_=0;auto done=std::move(done_);
             eda::Json result;try{result=Read(result_);}catch(...){result={{"ok",false},{"diagnostics",eda::Json::array({{{"code","E_BUILD_PROCESS"},{"message","工程构建进程退出，未生成结果（exit="+std::to_string(code)+"）"}}})}};}if(done)done(std::move(result));};
-        wxExecuteEnv env;env.cwd=wxString::FromUTF8(eda::platform::PathToUtf8(repo));pid_=wxExecute(argv,wxEXEC_ASYNC|wxEXEC_HIDE_CONSOLE,child,&env);
+        wxExecuteEnv env;env.cwd=wxString::FromUTF8(eda::platform::PathToUtf8(repo));
+#ifdef _WIN32
+        if(!wxGetEnvMap(&env.env))throw std::runtime_error("E_BUILD_ENVIRONMENT");
+        wxString parentPath;wxGetEnv("PATH",&parentPath);
+        wxArrayString pathKeys;for(const auto& entry:env.env)if(entry.first.CmpNoCase("PATH")==0)pathKeys.Add(entry.first);
+        for(const auto& key:pathKeys)env.env.erase(key);
+        env.env["PATH"]="E:\\sigflow_fpga\\toolchain\\mingw64\\bin;E:\\sigflow_fpga\\toolchain\\posix;"+parentPath;
+#endif
+        pid_=wxExecute(argv,wxEXEC_ASYNC|wxEXEC_HIDE_CONSOLE,child,&env);
         if(!pid_){child_=nullptr;delete child;throw std::runtime_error("E_BUILD_PROCESS_START");}started_=std::chrono::steady_clock::now();timer_.Start(25);
     }catch(const std::exception& e){auto done=std::move(done_);if(done)done({{"ok",false},{"diagnostics",eda::Json::array({{{"code","E_BUILD_PROJECT"},{"message",e.what()}}})}});}
 }

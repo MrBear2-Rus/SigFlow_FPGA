@@ -1,0 +1,56 @@
+{
+  "schema": "sigflow.phase5.2-toolchain-fix.v1",
+  "date": "2026-11-23",
+  "status": "passed",
+  "Phase5_2_complete": true,
+  "branch": "feat/virtual-fpga-phase5",
+  "base_commit": "ce952df",
+  "product_tests_passed": 50,
+  "product_tests_total": 50,
+  "registered_tests_passed": 52,
+  "registered_tests_total": 52,
+  "historical_count": 199,
+  "historical_archive_unchanged": true,
+  "source_unchanged_during_validation": true,
+  "manual_explorer_launch": {
+    "status": "passed",
+    "host_compiler_version": "15.2.0",
+    "selected_compiler_version": "14.2.0",
+    "cold_build": true,
+    "m0_clicks": 1,
+    "gui_status": "Ready | Ready | tick=0 ps | CST=bound | pending=0 | trace=1/1",
+    "runtime_modules": [
+      {
+        "path": "E:\\sigflow_fpga\\toolchain\\mingw64\\bin\\libgcc_s_seh-1.dll",
+        "sha256": "a3a2a8202bdb8369f58d07374ab050e9e3955732f90bc88da46a29e80e172cc5",
+        "name": "libgcc_s_seh-1.dll"
+      },
+      {
+        "path": "E:\\sigflow_fpga\\toolchain\\mingw64\\bin\\libwinpthread-1.dll",
+        "sha256": "3612f55e543d5b0b7881b6900dd3b2df889f02eaea844933b82771cdccdc51ab",
+        "name": "libwinpthread-1.dll"
+      },
+      {
+        "path": "E:\\sigflow_fpga\\toolchain\\mingw64\\bin\\libstdc++-6.dll",
+        "sha256": "6d2dde2976c6fe06c1054c4ed358465a83f4708d03d904dc90254e4aad9d9947",
+        "name": "libstdc++-6.dll"
+      }
+    ]
+  },
+  "removed_failed_empty_caches": 11,
+  "phase5_summary_sha256": "87735d573e8e1ce140813b6f48afad386779af43ba30190b718193d52af469bf",
+  "artifacts": {
+    "explorer-acceptance.json": {
+      "sha256": "12292bfb589a3ce49d50776003889284566f5d782d97eb92b3e40f5b4a8f282e",
+      "bytes": 31471
+    },
+    "explorer-m0-ready.png": {
+      "sha256": "f60df33fdda0e799b220f6c54ae1f781f4c6d542d3aa23866a182ec948213971",
+      "bytes": 146582
+    },
+    "explorer-compile.log": {
+      "sha256": "147d4401c41960128715c773f46e125eb183ed20d5f3a43924a23a483105250e",
+      "bytes": 4275
+    }
+  }
+}

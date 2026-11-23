@@ -42,6 +42,24 @@ int RunPhase5Gui(int argc,char** argv){
             Until([&]{return c->ReplySequence("step")>seq;},*c,false,240);
         };
 
+#ifdef _WIN32
+        {
+            struct RestorePath {wxString value;~RestorePath(){wxSetEnv("PATH",value);}} restore{wxGetenv("PATH")};
+            wxString hostile="C:\\mingw64\\bin";
+            for(const auto& part:wxSplit(restore.value,';')){
+                auto normalized=part.Lower();normalized.Replace("\\","/");
+                if(normalized.Find("e:/sigflow_fpga")==wxNOT_FOUND)hostile+=";"+part;
+            }
+            wxSetEnv("PATH",hostile);
+            board->InvokeControl("reference");waitReady();
+            Check(c->Frame().value("reason",std::string())=="Ready","P5.2","M0 reference builds and starts with host GCC first and locked toolchain removed from parent PATH");
+            auto seq=c->ReplySequence("step");board->SetStepMode("rising");board->InvokeControl("step");
+            Until([&]{return c->ReplySequence("step")>seq;},*c,false,120);
+            Check(c->Frame().value("reason",std::string())=="StepComplete","P5.2","runner starts and steps using the GUI child environment despite hostile parent PATH");
+            report["explorer_toolchain"]={{"status","passed"},{"host_compiler_first",true},{"parent_locked_toolchain_removed",true},{"build",c->BuildResult()},{"runner_frame",c->Frame()}};
+        }
+#endif
+
         // 1. Full-stage quick launcher covers all 7 experiments M0-P5.
         Check(lab::VirtualBoardPanel::Examples().size()==7,"P5","full-stage quick launcher lists all 7 M0-P5 experiments");
 

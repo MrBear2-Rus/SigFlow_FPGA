@@ -1,0 +1,5 @@
+{"stage": "export"}
+{"stage": "validate"}
+{"stage": "generate"}
+{"stage": "verilate"}
+{"stage": "compile"}

@@ -60,11 +60,16 @@ def main():
         for t in ET.parse(xml).getroot().iter('testcase'):
             tests.append(dict(name=t.attrib['name'],passed=t.find('failure') is None and t.find('skipped') is None and t.attrib.get('status')!='notrun',seconds=float(t.attrib.get('time',0))))
 
+    registered_tests=tests
+    required=old|additions
+    tests=[t for t in registered_tests if t['name'] in required]
+    additional_tests=[t for t in registered_tests if t['name'] not in required]
+
     reports={name:read(ROOT/'.work/p5'/path) if (ROOT/'.work/p5'/path).exists() else {}
         for name,path in [('i2c_burst','i2c_burst/i2c_burst-results.json'),('web_parity','web_parity/web_parity-results.json'),('gui','gui/gui-results.json')]}
     stable=before==sources();preserved=unchanged();byname={t['name'] for t in tests}
     good=(len(commands)==2 and all(c['exit_code']==0 for c in commands) and len(tests)==50
-        and byname==old|additions and all(t['passed'] for t in tests) and stable and preserved
+        and byname==required and all(t['passed'] for t in registered_tests) and stable and preserved
         and all(r.get('status')=='passed' for r in reports.values()))
 
     artifacts={}
@@ -81,6 +86,8 @@ def main():
     for name,path in [('i2c_burst-results.json','i2c_burst/i2c_burst-results.json'),('web_parity-results.json','web_parity/web_parity-results.json'),('gui-results.json','gui/gui-results.json')]:
         copy(ROOT/'.work/p5'/path,name)
     for mode in ['i2c_burst','web_parity','gui']:copy(ROOT/'.work/p5'/mode/'progress.log',mode+'-progress.log')
+    for name in ['explorer-request.json','explorer-build-result.json','explorer-build.log']:
+        copy(ROOT/'.work/p5/gui'/name,'gui/'+name)
     for sfvb in (ROOT/'.work/p5/web_parity').glob('*.sfvb'):copy(sfvb,'web_parity/'+sfvb.name)
     copy(ROOT/'.work/p5/web_parity/web-projector-selftest.json','web_parity/web-projector-selftest.json')
     for name in ['full-showcase-light.png','full-showcase-dark.png','float-showcase.png']:copy(ROOT/'.work/p5/gui'/name,'gui/'+name)
@@ -111,6 +118,9 @@ def main():
         branch=subprocess.check_output(['git','branch','--show-current'],cwd=ROOT,text=True).strip(),
         test_total=len(tests),
         test_passed=sum(t['passed'] for t in tests),
+        registered_test_total=len(registered_tests),
+        registered_test_passed=sum(t['passed'] for t in registered_tests),
+        additional_tests=additional_tests,
         original_tests=47,
         new_tests=3,
         tests=tests,
@@ -138,7 +148,7 @@ def main():
         '',
         '| 验收 | 实测结果 |',
         '|---|---|',
-        f'| 全部 CTest | {result["test_passed"]}/{len(tests)}；原 47 项 + 新 3 项 |',
+        f'| 产品 CTest | {result["test_passed"]}/{len(tests)}；原 47 项 + 新 3 项；附加回归 {sum(t["passed"] for t in additional_tests)}/{len(additional_tests)} |',
         f'| I2C Burst Read 与零回归 | {reports["i2c_burst"].get("check_count",0)} 项真实 Verilator 断言；3 字节连续读、MSB=1、data/addr NAK 恢复、Phase 4 双 digest 零回归 |',
         f'| 跨端同源 SFVB 与 Web 投影 | {reports["web_parity"].get("check_count",0)} 项；5 条真实工程流 100% 逐帧同源一致 + 断线重同步/幂等 ACK/BigInt 64-bit/零泄密 |',
         f'| GUI 全阶段实验台与诚实渲染 | {reports["gui"].get("check_count",0)} 项真实 wxApp 断言；7 实验一键加载、`P16 → 外接`、`KEY P3 未挂载`、浮动窗交互与 Light/Dark 离屏导出 |',
@@ -163,7 +173,7 @@ def main():
         '机器可读结论和逐文件哈希见 [P5-acceptance-summary.json](evidence/P5-acceptance-summary.json)。M0–P4 历史报告与归档保持原字节未变。'
     ]
     (ROOT/'docs/virtual/Phase5全平台收官与跨端同源实测总报告.md').write_text('\n'.join(lines)+'\n',encoding='utf-8')
-    print(f'P5={good}; Full_Platform_v1={good}; {result["test_passed"]}/{len(tests)} CTest; historical={preserved}; source stable={stable}')
+    print(f'P5={good}; Full_Platform_v1={good}; {result["test_passed"]}/{len(tests)} product CTest; {sum(t["passed"] for t in registered_tests)}/{len(registered_tests)} registered; historical={preserved}; source stable={stable}')
     return 0 if good else 1
 
 if __name__=='__main__':raise SystemExit(main())

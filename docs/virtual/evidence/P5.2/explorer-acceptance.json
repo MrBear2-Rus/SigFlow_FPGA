@@ -1,0 +1,473 @@
+{
+  "launch": {
+    "pid": 3980,
+    "executable": "E:\\sigflow\\SigFlow_VirtroFPGA\\build-m0\\sigflow.exe",
+    "cwd": "E:\\sigflow\\SigFlow_VirtroFPGA\\build-m0",
+    "host_compiler": "C:/mingw64/bin\\g++.EXE",
+    "python_resolved": "C:\\Users\\Admin\\AppData\\Local\\Programs\\Python\\Python314\\python.EXE",
+    "locked_toolchain_removed_from_parent_path": true,
+    "launch_style": "Direct GUI executable, no shell profile, executable-directory cwd",
+    "started": 1795403797.869685
+  },
+  "runtime_modules": [
+    {
+      "path": "E:\\sigflow_fpga\\toolchain\\mingw64\\bin\\libgcc_s_seh-1.dll",
+      "sha256": "a3a2a8202bdb8369f58d07374ab050e9e3955732f90bc88da46a29e80e172cc5",
+      "name": "libgcc_s_seh-1.dll"
+    },
+    {
+      "path": "E:\\sigflow_fpga\\toolchain\\mingw64\\bin\\libwinpthread-1.dll",
+      "sha256": "3612f55e543d5b0b7881b6900dd3b2df889f02eaea844933b82771cdccdc51ab",
+      "name": "libwinpthread-1.dll"
+    },
+    {
+      "path": "E:\\sigflow_fpga\\toolchain\\mingw64\\bin\\libstdc++-6.dll",
+      "sha256": "6d2dde2976c6fe06c1054c4ed358465a83f4708d03d904dc90254e4aad9d9947",
+      "name": "libstdc++-6.dll"
+    }
+  ],
+  "m0_clicks": 1,
+  "compile_log": "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\virtual-project-sessions\\virtual-6215d468f02240d1946e787c66327649\\compile.log",
+  "host_compiler_version": "15.2.0",
+  "status": "passed",
+  "build_result": {
+    "schema": "sigflow.virtual-build-result.v1",
+    "ok": true,
+    "diagnostics": [],
+    "commands": [
+      {
+        "stage": "export",
+        "argv": [
+          "C:\\Users\\Admin\\AppData\\Local\\Programs\\Python\\Python314\\python.exe",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/virtual/export_ports.py",
+          "--top",
+          "k2_counter",
+          "--output",
+          "E:/sigflow/SigFlow_VirtroFPGA/.work/virtual-project-cache/9e171b8b4a8aeec4353ba49024d3c03cd8de5476589b767adfcb7a249de83dab/declarations.json",
+          "--builder",
+          "E:/sigflow/SigFlow_VirtroFPGA/build-m0/sigflow_port_manifest.exe",
+          "--yosys",
+          "E:/sigflow/SigFlow_VirtroFPGA/external/fpga-tools/runtime/yosys/bin/yosys.exe",
+          "--verilator",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/bin/verilator_bin_dbg.exe",
+          "E:/sigflow/SigFlow_VirtroFPGA/examples/virtual/counter/counter.sv"
+        ],
+        "exit_code": 0,
+        "seconds": 2.001,
+        "log": "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\virtual-project-sessions\\virtual-6215d468f02240d1946e787c66327649\\export.log"
+      },
+      {
+        "stage": "validate",
+        "argv": [
+          "E:/sigflow/SigFlow_VirtroFPGA/build-m0/sigflow_session_validate.exe",
+          "E:/sigflow/SigFlow_VirtroFPGA/.work/virtual-project-cache/9e171b8b4a8aeec4353ba49024d3c03cd8de5476589b767adfcb7a249de83dab/declarations.json.ports.v2.json",
+          "E:/sigflow/SigFlow_VirtroFPGA/.work/virtual-project-sessions/virtual-6215d468f02240d1946e787c66327649/session.json"
+        ],
+        "exit_code": 0,
+        "seconds": 3.042,
+        "log": "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\virtual-project-sessions\\virtual-6215d468f02240d1946e787c66327649\\validate.log"
+      },
+      {
+        "stage": "generate",
+        "argv": [
+          "E:/sigflow/SigFlow_VirtroFPGA/build-m0/sigflow_adapter_codegen.exe",
+          "E:/sigflow/SigFlow_VirtroFPGA/.work/virtual-project-cache/9e171b8b4a8aeec4353ba49024d3c03cd8de5476589b767adfcb7a249de83dab/declarations.json.ports.v2.json",
+          "Vk2_counter",
+          "E:/sigflow/SigFlow_VirtroFPGA/.work/virtual-project-cache/9e171b8b4a8aeec4353ba49024d3c03cd8de5476589b767adfcb7a249de83dab/generated_adapter.cpp"
+        ],
+        "exit_code": 0,
+        "seconds": 2.208,
+        "log": "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\virtual-project-sessions\\virtual-6215d468f02240d1946e787c66327649\\generate.log"
+      },
+      {
+        "stage": "verilate",
+        "argv": [
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/bin/verilator_bin_dbg.exe",
+          "--cc",
+          "E:/sigflow/SigFlow_VirtroFPGA/examples/virtual/counter/counter.sv",
+          "--exe",
+          "E:/sigflow/SigFlow_VirtroFPGA/.work/virtual-project-cache/9e171b8b4a8aeec4353ba49024d3c03cd8de5476589b767adfcb7a249de83dab/generated_adapter.cpp",
+          "--top-module",
+          "k2_counter",
+          "--Mdir",
+          "E:/sigflow/SigFlow_VirtroFPGA/.work/virtual-project-cache/9e171b8b4a8aeec4353ba49024d3c03cd8de5476589b767adfcb7a249de83dab/obj",
+          "--converge-limit",
+          "256",
+          "-Wno-fatal",
+          "-CFLAGS",
+          "-std=c++20 -DVL_USER_FATAL -I\"E:/sigflow/SigFlow_VirtroFPGA/include\" -I\"E:/sigflow/SigFlow_VirtroFPGA/3rd\" -I\"E:/sigflow/SigFlow_VirtroFPGA/core/src\" -I\"E:/sigflow/SigFlow_VirtroFPGA/InnerPlugin/eda-cst-gowin-cst/include\" -I\"E:/sigflow/SigFlow_VirtroFPGA/InnerPlugin/eda-target-tangnano9k/include\"",
+          "-LDFLAGS",
+          "E:/sigflow/SigFlow_VirtroFPGA/build-m0/core/libeda_virtual_runner.a E:/sigflow/SigFlow_VirtroFPGA/build-m0/InnerPlugin/eda-cst-gowin-cst/libeda-cst-gowin-cst.a E:/sigflow/SigFlow_VirtroFPGA/build-m0/core/libeda_virtual_board.a E:/sigflow/SigFlow_VirtroFPGA/build-m0/core/libeda_platform.a -lpthread",
+          "-o",
+          "E:/sigflow/SigFlow_VirtroFPGA/.work/virtual-project-cache/9e171b8b4a8aeec4353ba49024d3c03cd8de5476589b767adfcb7a249de83dab/runner.exe"
+        ],
+        "exit_code": 0,
+        "seconds": 0.073,
+        "log": "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\virtual-project-sessions\\virtual-6215d468f02240d1946e787c66327649\\verilate.log"
+      },
+      {
+        "stage": "compile",
+        "argv": [
+          "E:/sigflow_fpga/toolchain/mingw64/bin/mingw32-make.exe",
+          "-C",
+          "E:/sigflow/SigFlow_VirtroFPGA/.work/virtual-project-cache/9e171b8b4a8aeec4353ba49024d3c03cd8de5476589b767adfcb7a249de83dab/obj",
+          "-f",
+          "Vk2_counter.mk",
+          "-j4",
+          "CXX=E:/sigflow_fpga/toolchain/mingw64/bin/g++.exe",
+          "LINK=E:/sigflow_fpga/toolchain/mingw64/bin/g++.exe",
+          "AR=E:/sigflow_fpga/toolchain/mingw64/bin/ar.exe",
+          "SHELL=E:/sigflow_fpga/toolchain/posix/sh.exe",
+          "PYTHON3=C:/Users/Admin/AppData/Local/Programs/Python/Python314/python.exe"
+        ],
+        "exit_code": 0,
+        "seconds": 4.16,
+        "log": "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\virtual-project-sessions\\virtual-6215d468f02240d1946e787c66327649\\compile.log"
+      }
+    ],
+    "model_started": false,
+    "cache_hit": false,
+    "validation": {
+      "binding_rows": [
+        {
+          "direction": "input",
+          "io_type": "LVCMOS33",
+          "label": "clock_in",
+          "package_pin": 52,
+          "ref": {
+            "bit_slot": 0,
+            "hdl_index": null,
+            "port_id": "k2_counter::clock_in"
+          }
+        },
+        {
+          "direction": "input",
+          "io_type": "LVCMOS18",
+          "label": "reset_n",
+          "package_pin": 4,
+          "ref": {
+            "bit_slot": 0,
+            "hdl_index": null,
+            "port_id": "k2_counter::reset_n"
+          }
+        },
+        {
+          "direction": "input",
+          "io_type": "LVCMOS18",
+          "label": "key_n",
+          "package_pin": 3,
+          "ref": {
+            "bit_slot": 0,
+            "hdl_index": null,
+            "port_id": "k2_counter::key_n"
+          }
+        },
+        {
+          "direction": "output",
+          "io_type": "LVCMOS18",
+          "label": "led_n[0]",
+          "package_pin": 10,
+          "ref": {
+            "bit_slot": 0,
+            "hdl_index": 0,
+            "port_id": "k2_counter::led_n"
+          }
+        },
+        {
+          "direction": "output",
+          "io_type": "LVCMOS18",
+          "label": "led_n[1]",
+          "package_pin": 11,
+          "ref": {
+            "bit_slot": 1,
+            "hdl_index": 1,
+            "port_id": "k2_counter::led_n"
+          }
+        },
+        {
+          "direction": "output",
+          "io_type": "LVCMOS18",
+          "label": "led_n[2]",
+          "package_pin": 13,
+          "ref": {
+            "bit_slot": 2,
+            "hdl_index": 2,
+            "port_id": "k2_counter::led_n"
+          }
+        },
+        {
+          "direction": "output",
+          "io_type": "LVCMOS18",
+          "label": "led_n[3]",
+          "package_pin": 14,
+          "ref": {
+            "bit_slot": 3,
+            "hdl_index": 3,
+            "port_id": "k2_counter::led_n"
+          }
+        },
+        {
+          "direction": "output",
+          "io_type": "LVCMOS18",
+          "label": "led_n[4]",
+          "package_pin": 15,
+          "ref": {
+            "bit_slot": 4,
+            "hdl_index": 4,
+            "port_id": "k2_counter::led_n"
+          }
+        },
+        {
+          "direction": "output",
+          "io_type": "LVCMOS18",
+          "label": "led_n[5]",
+          "package_pin": 16,
+          "ref": {
+            "bit_slot": 5,
+            "hdl_index": 5,
+            "port_id": "k2_counter::led_n"
+          }
+        }
+      ],
+      "diagnostics": [],
+      "manifest": {
+        "ports": [
+          {
+            "bits": [
+              {
+                "bit_slot": 0,
+                "hdl_index": null,
+                "port_id": "k2_counter::clock_in"
+              }
+            ],
+            "decl_left": null,
+            "decl_right": null,
+            "direction": "input",
+            "port_id": "k2_counter::clock_in",
+            "rtl_name": "clock_in",
+            "shape": "scalar",
+            "source_ref": "e,2:16,2:24",
+            "width": 1
+          },
+          {
+            "bits": [
+              {
+                "bit_slot": 0,
+                "hdl_index": null,
+                "port_id": "k2_counter::reset_n"
+              }
+            ],
+            "decl_left": null,
+            "decl_right": null,
+            "direction": "input",
+            "port_id": "k2_counter::reset_n",
+            "rtl_name": "reset_n",
+            "shape": "scalar",
+            "source_ref": "e,3:16,3:23",
+            "width": 1
+          },
+          {
+            "bits": [
+              {
+                "bit_slot": 0,
+                "hdl_index": null,
+                "port_id": "k2_counter::key_n"
+              }
+            ],
+            "decl_left": null,
+            "decl_right": null,
+            "direction": "input",
+            "port_id": "k2_counter::key_n",
+            "rtl_name": "key_n",
+            "shape": "scalar",
+            "source_ref": "e,4:16,4:21",
+            "width": 1
+          },
+          {
+            "bits": [
+              {
+                "bit_slot": 0,
+                "hdl_index": 0,
+                "port_id": "k2_counter::led_n"
+              },
+              {
+                "bit_slot": 1,
+                "hdl_index": 1,
+                "port_id": "k2_counter::led_n"
+              },
+              {
+                "bit_slot": 2,
+                "hdl_index": 2,
+                "port_id": "k2_counter::led_n"
+              },
+              {
+                "bit_slot": 3,
+                "hdl_index": 3,
+                "port_id": "k2_counter::led_n"
+              },
+              {
+                "bit_slot": 4,
+                "hdl_index": 4,
+                "port_id": "k2_counter::led_n"
+              },
+              {
+                "bit_slot": 5,
+                "hdl_index": 5,
+                "port_id": "k2_counter::led_n"
+              }
+            ],
+            "decl_left": 5,
+            "decl_right": 0,
+            "direction": "output",
+            "port_id": "k2_counter::led_n",
+            "rtl_name": "led_n",
+            "shape": "packed_vector",
+            "source_ref": "e,5:23,5:28",
+            "width": 6
+          }
+        ],
+        "schema": "sigflow.port-manifest.v2",
+        "source_sha256": "ff8d48398191d7dbb35ad804081e7bf4b5927a9e56db9854bc0b4b1ae6d40856",
+        "top_module": "k2_counter"
+      },
+      "ok": true,
+      "schema": "sigflow.virtual-project-validation.v1"
+    },
+    "cache_key": "9e171b8b4a8aeec4353ba49024d3c03cd8de5476589b767adfcb7a249de83dab",
+    "runner_path": "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\virtual-project-cache\\9e171b8b4a8aeec4353ba49024d3c03cd8de5476589b767adfcb7a249de83dab\\runner.exe",
+    "runner_sha256": "7d21d86dbdb128c6705c9250ede9c375bf1efbf08938f977167252b859360e19",
+    "session_config": "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\virtual-project-sessions\\virtual-6215d468f02240d1946e787c66327649\\session.json",
+    "working_directory": "E:\\sigflow\\SigFlow_VirtroFPGA",
+    "project_root": "E:\\sigflow\\SigFlow_VirtroFPGA\\examples\\virtual\\counter",
+    "toolchain_sha256": {
+      "cxx": "f45f8fd915aecbf8a15692089dee8ebef0f210148f13ea5c1642e55376dd234c",
+      "make": "4e2ad3951e7ea75bb0da56cddb4863c1d73081f66a2e288190afeba488975430",
+      "sh": "07bb1e5b095b00d68a695481f9240879f33c5724b40aa2308f999d54ed78f075",
+      "verilator": "d87f0d7a17c94bd78d4feb0a0f20a0ec5d278ad9d8653049bbce7ad3c07200aa",
+      "yosys": "999423132587306feb3d62f064da1c8e7bf1b45278e688ddae9583f5e3a7a1a2",
+      "validator": "a1eccf92d76f3c918df7ae7fae3dccce3792e8d531144159b225aa9654b6cb31",
+      "codegen": "b23e7f007c0c14fb28bf80e3afdb11057cacd5cd1837280c5e05aa1a1947f5e9",
+      "manifest": "faf8efdd7f198350813bcefed6f1a8c8b46a64f63e3eaa09db89998d1880d18c",
+      "python": "03168c01b7b7491423350e82c26fee71f35b43694d1319d3c668bda6903a0c38"
+    },
+    "input_sha256": {
+      "C:/Users/Admin/AppData/Local/Programs/Python/Python314/python.exe": "03168c01b7b7491423350e82c26fee71f35b43694d1319d3c668bda6903a0c38",
+      "E:/sigflow/SigFlow_VirtroFPGA/build-m0/core/libeda_platform.a": "3b5d8a769ad547fa302ad50318b6126a852b810a7314d27f1a81e2c5c2ec549a",
+      "E:/sigflow/SigFlow_VirtroFPGA/build-m0/core/libeda_virtual_board.a": "0d172819bd4c486b0902f5ff003aae0fd456390ff3f69b141c493da625c30a74",
+      "E:/sigflow/SigFlow_VirtroFPGA/build-m0/core/libeda_virtual_runner.a": "90308ad26090eef8a3965145dd5b591bc9e52a20fcdc4a116c08c3a4b19dd901",
+      "E:/sigflow/SigFlow_VirtroFPGA/build-m0/InnerPlugin/eda-cst-gowin-cst/libeda-cst-gowin-cst.a": "63e9d768df7ea93febaf16cbb9ead4ef9e127fd1504260ff72d1c014517f5121",
+      "E:/sigflow/SigFlow_VirtroFPGA/build-m0/sigflow_adapter_codegen.exe": "b23e7f007c0c14fb28bf80e3afdb11057cacd5cd1837280c5e05aa1a1947f5e9",
+      "E:/sigflow/SigFlow_VirtroFPGA/build-m0/sigflow_port_manifest.exe": "faf8efdd7f198350813bcefed6f1a8c8b46a64f63e3eaa09db89998d1880d18c",
+      "E:/sigflow/SigFlow_VirtroFPGA/build-m0/sigflow_session_validate.exe": "a1eccf92d76f3c918df7ae7fae3dccce3792e8d531144159b225aa9654b6cb31",
+      "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/BinaryFrameCodec.h": "13c963a47d6a60ed0cddf65be50ee973e634f318c3829beacbaeaf86114409ed",
+      "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/BlindProjection.h": "cd2b1e48eb547e7d1fa1a6931693c251c7f93423666eafdf117a3cabd89df994",
+      "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/BoardTopology.h": "f460ee9152bf6586841cfa1e455cd88c08ca6fd40be9fa00fa4c0bc5ec6f6567",
+      "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/DurableJournal.h": "1d17e216e5d3110f0a8594902c1ae4d1e392eb1c1fe23717d7d37f151b203bda",
+      "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/ElectricalValidator.h": "1c773ba2cff7fdd7c97024183d94bd9f7c2d4b095f84da5a75878a9623c9fd15",
+      "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/LiveTraceStore.h": "b072c440c50c563a1dea45a93d559d6fd6f78f7c03d236572799119a8191194d",
+      "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/Phase1Faults.h": "625ddaeb3d5d54573f506a387b13be6aad1b1ebb4ecbebaa1d5acc0f000f8ae8",
+      "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/Phase1Peripherals.h": "9c000dc6197ab57f586f5ac57fd1e3602973c6894a5f497a9f1acf5da84c13ff",
+      "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/Phase1Session.h": "3866023275a040dbeb97ec893e28b455160e4939c364c0af66344dee1e2572b9",
+      "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/Phase2Faults.h": "6608842725d2468034d6bd61ba09eef61957bf62f38ab6bc60801b8100e37ddd",
+      "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/Phase3Faults.h": "d8cc9097dca3b32c8dc68b5b6c9ea2cec046267dc455976b3d187ab23753b49e",
+      "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/Phase4Faults.h": "9580d6d3d8ba9e50bc265923586b1a92b23528b96d163b04b3c977d707492fb4",
+      "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/PortManifestBuilder.h": "b68d6222aff663fc6a10032376ecd11e220986118d15f1ecfc63ff750bccd7e1",
+      "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/ProjectValidation.h": "83a0d03083e2b87127cee2e66ee70ed852d6207bbae52bba99ff097266903f50",
+      "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/RunnerSupport.h": "881cf08cb2491ca6593451d26fc09eaed4dce6865a68246e246b187f905f0c42",
+      "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/State13.h": "c21e0dcefc429a625a49375bd12557f21342e20cddae758d7cdf333a7506b64c",
+      "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/VerilatedAdapterCodeGen.h": "d6e3c23a2463e92d63f29b52350e641567ab9b83830f9f7901a175d26e4f9672",
+      "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/VirtualInstruments.h": "4f1b8bb7796dce68c6fb39b2c5c7edaf277f6c151712f4c5cf11acc98adf96e5",
+      "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/VirtualSession.h": "101959bafb20abfdeded4e3fd6f06fbfaef7b4939c0298691cea4ef113620d9e",
+      "E:/sigflow/SigFlow_VirtroFPGA/examples/virtual/counter/counter.cst": "b82f9774f3b68c151e978e9d8810284d0f2613a461f9b5562aa7aa904f951e7c",
+      "E:/sigflow/SigFlow_VirtroFPGA/examples/virtual/counter/counter.sv": "7ac4a5f183c0e2bd82c78fe61c87b9fa8993e1d87ad3ac9b45f91f2690139b11",
+      "E:/sigflow/SigFlow_VirtroFPGA/external/fpga-tools/runtime/yosys/bin/yosys.exe": "999423132587306feb3d62f064da1c8e7bf1b45278e688ddae9583f5e3a7a1a2",
+      "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/command.hpp": "d3e59298dadf7136246b276cb930868a9c2785eb0e5e338d9a6719b1ee90f1c8",
+      "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/component_library.hpp": "f1f52a95273fd96d492631b884529ae19186f67e5170bf11e6678b19ac0119e6",
+      "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/electrical_profile.hpp": "856cdb8a40a4f31a852b85137af16a12e8838a620cc048c7fad1787b6de3f390",
+      "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/events.hpp": "c7c2c5e3f42d62843daa26e6675cbac6c467f44e3636040a2deb2ae62ac7bb68",
+      "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/jobs.hpp": "8b97fdb58f4c7e9beb50617a4047c48e3b10daa2176872b04a3b565daf1eecdf",
+      "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/live_trace.hpp": "cf4a455fe9353fd38b2977f2319468410ac560e0ddc8efec3d03ec54eba683c4",
+      "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/logic_state.hpp": "57dc7690a49cbcffedc56e88d00d3608916b0b76d208043d31cd21c3c15089d9",
+      "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/port_manifest.hpp": "ec7c6419cb67d77e951efb9186905f71056349338649a7cfa9ae6f28fadabeec",
+      "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/process.hpp": "20deaba0866d979fc5601afb200b5ea16dae2cbb9c0bf8fd6eb362e89367a22a",
+      "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/project.hpp": "4c05716c9aa82fdee4a42094e4800c908a355f78f26b52bf83aa4dd58b5e787d",
+      "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/schemas.hpp": "dcdd2644cc4f5c360a7e816e985cea6b4992165b4277cf0ba603d73b9c28a7b2",
+      "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/services.hpp": "5e9fed157aca712d1bdc8e0cb177d2d416529537e85fd1ec05b0cd1a30ec9031",
+      "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/target_profile.hpp": "e02b3bd5efcce754932590a104b2b90e7cb057220f0d15f7be3b828fb34c18b8",
+      "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/toolchain.hpp": "04a2d70e8ee0241701f25095c2d7e8db31a0ce30e8b0551cf43b1da75febd004",
+      "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/waveform.hpp": "a8f09e277f3749bab4cfe5ee4076ebffe1be4dc98196bfcb149bdb5a4c43d4d5",
+      "E:/sigflow/SigFlow_VirtroFPGA/registry/boards/tang-nano-9k.virtual.json": "bd15fb585a38867c7c218af17fc38405d03e867edab8144de17ffae2b99eb304",
+      "E:/sigflow/SigFlow_VirtroFPGA/registry/electrical/tang-nano-9k.6202.reviewed.v1.json": "714c0ae73fa696ab002553906c62cca6739a4655a5f8a669565530849ed7ea12",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/bin/verilator_bin_dbg.exe": "d87f0d7a17c94bd78d4feb0a0f20a0ec5d278ad9d8653049bbce7ad3c07200aa",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/gtkwave/fastlz.h": "c5ec8ede50dbc26c0f20ae3658cdcfbb740b06c0956fde6b6a441aefb04853f3",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/gtkwave/fst_config.h": "b16a3b21414ff2005a5bda9dd6996115c91fc1ea1fb46f3b506445224e973cfd",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/gtkwave/fst_win_unistd.h": "ba1ba5cfc5858700cbd39865ef502d94abfd719fe07a73443b431ed9b8d6f986",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/gtkwave/fstapi.h": "beb35236f29f785e00e2424e6b06a249d9e9f71f4135a11d35d245e33b5a24a0",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/gtkwave/lz4.h": "e75bc7e7b1c9ff7329ce6d035cec0080b39f4515fbc223c992e77206757ccb27",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated.cpp": "3f761a36c43f615497e2d38d35417079af3183575000d29e814578f495610e36",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated.h": "78158375f0297e1a7d23d71a697513644dabe2bc535e873e5423c70ce3626100",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated.mk": "1700dedde0b94aad29cfb4a84c3177368e8acf77e8f2256f84570c36ae54d521",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_config.h": "34b054a3001e67bb4891364f149ac8d652b3eb81b14ee12908cebd7d63fce1c9",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_cov.cpp": "b80d2a51cb4b23719a5dddee1bf4cfb888a2240c69b34f69dbb95653bb95a41c",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_cov.h": "cc14840c2138802f5fda6e2e9c88968481c152727aa7b79263e4b107dc9471d6",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_cov_key.h": "3e235e9a8cf00b5f966cdb173fad8892d5fbe7c7c66c93d97b8c428fe8509135",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_dpi.cpp": "9189b35e48317695a150a5292ddd8615451238a4c34718999a28c121882de4fb",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_dpi.h": "7b90933b991bcac9ec1b9887e26b752a4c74464b76e2dabb787c50a30384a339",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_force.h": "bcda4ef36061d9b27e828dee7ae81c8a0534ab451f2bd58757227292c07e3bbc",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_fst_c.cpp": "2b90fdb82255870d1308fdc12ebc92b63c4c0c2dde5a5c6007df15dbab9530e7",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_fst_c.h": "cc063e499e0b06c34cac2394e744c3b31c9e406c791b4fe6967b5526b5340672",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_fst_sc.cpp": "4bc3e09d1567a89be077d3967cbe3e7a91e26d8a92d46b33008a96e960dbdc9d",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_fst_sc.h": "ac9ee8e797c3641bb6de1a27878566317a14da7f2acab8f47625f1dc9d4faa5b",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_funcs.h": "6603bd3d9bc82ca1ff7f997d8cb446b27fcf7b66a101a1bc78efd016b569a6dd",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_imp.h": "9d236f215686764876289d7eabe802693b5925a7d196702cdbca0643a13e61bb",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_intrinsics.h": "3c7b1b07ab3dc18aa9be2d463021f07eae91edff4c7bbbeb20543209fa9f273e",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_probdist.cpp": "8179e7ab6d5c7e8ac76b4441231e36db5beb06a447f95c64d692627c288ab5e8",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_profiler.cpp": "c1c70348e78dfe25e2d49083888da51966540a7d0afe84fb29ff9f68b56c0e8d",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_profiler.h": "4d66901919811e36a1e4d168a9d0e26b4317796ff03424aecb360052684fae7b",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_random.cpp": "34c23e130423b9863795fd28df373ec16765e1d58082a53bf2f9d20bb8fb12b3",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_random.h": "88d52a9880e2daae0574fb63f90afb1ef4a8fdfd698898ca1864e0454b2b5c4d",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_saif_c.cpp": "f80efbc359e92043c07aba191a5c58524b8bdfccb43e7bd92d24f88479807798",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_saif_c.h": "a459303d2bb1f16d4b4729b39e36028978c38c8f1c150d0c6745ce1bc0c91dc2",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_saif_sc.h": "75be5cc3641a8cbd17a6b57d840f693645bb80e958f49dc5b9382ac3dbe8b380",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_save.cpp": "c820ea975c1f7b1dbb998abeab377ef33e39d7f65c0451c5b0e1d4b01421660d",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_save.h": "374356b3028f817ccc341c1584c3d27bb50b102325c34370a22a1953b8a47c1c",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_sc.h": "f43e93af1ee15083a2991bd0ffa0d488de8d511918d94644ad982580584cab87",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_sc_trace.h": "d3f16775a5f498698992c89c37d0bffcb9d61b92c6a2d4cd5dc3e6e84ac75113",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_sym_props.h": "2b70c63809b139c5d6255e69beaa5a3d56a61c5f30ebf52ceb0d63ea7727d527",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_syms.h": "9ea7b2cde5d99e56f1fa97a989cb3c16063d6bd688d4728e45b03dd35b77545a",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_threads.cpp": "8dd2fc9740d1237c8c27ca6f13c12bbae88eb77f5ccc87390fbcb4660588f1b7",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_threads.h": "603cb33e099292028a1afcdd9ecbb682ae92797378486965d3b1fe40586c8121",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_timing.cpp": "427bf6f1a6e33bab94ae7c69cddc8bf3182681ec9acf752904a4d62ffa07a249",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_timing.h": "1bc02be7be011ee64857a8d6c15ebda933d4266ff270c90b7bd2e9d39ef40357",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_trace.h": "108e5cb5522fac9d596bdf3773d0be4e456b2475694b44b1c879e6ae86aed48b",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_trace_imp.h": "4d62745dd179cb8d4677d2a2b61fced88f2cbb740acea28a36b498f445882c1d",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_types.h": "f17af3fbbcdfe8e67d30a86dc432fdd896543a6689054e4afabba2cd5659948d",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_vcd_c.cpp": "b0a38254f3bc982868509e4af89d4c8390bbb2feb81a4038d7daf34df05e660c",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_vcd_c.h": "7f656e45b6db5806c0440a87c905fc0df4c4cdc36fe1051652c8fe55afb15dec",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_vcd_sc.cpp": "a803ebc27cf4d22c4a08199e95e9e583767accc00736381fa405e17a5c0fa9b8",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_vcd_sc.h": "e0157742e90aa626f702509fdcf4aafcb887a6d9b2ee93c339abbeaa053e1866",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_vpi.cpp": "a0cbadaf202b9845eb3d875d8d09d531f01392868dad0993daa0bcfabec6cdce",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_vpi.h": "50a399497c858eee10f4562affc1ff344fd7c45f251c75c46b8cb6f80690bd0f",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilatedos.h": "0674fcd1296a9dc9e218e4c243de3e7cb966b2bd01dfbed260b4f446f225209a",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilatedos_c.h": "a6d890598e12b73c9d7a42157a044e30ec41e6154dddf4bfd11408f37fc0c2d2",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/vltstd/sv_vpi_user.h": "e72e4229cbb8ff497e22e604a1db73653a006365488337b83f9f89102a98b69e",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/vltstd/svdpi.h": "8b80c6f2bc4fc74438391927daeb3bbd050408e9739bb515b83089260f31c860",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/vltstd/veriuser.h": "bf3c5f639f107f87cdab32960f8a5c152b84700271db03c82e5a673abe78596a",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/vltstd/vpi_user.h": "d70e329af43a50d2c447ebc1ae27ec005b2440eddcdffbeb91d33a819a664f00",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/virtual/build_virtual_project.py": "a9f5fd721722681403ffa5a49f3034d85f8f81ee7767ac76688650b050b6c5b7",
+      "E:/sigflow/SigFlow_VirtroFPGA/tools/virtual/export_ports.py": "b21aa1fe1e55e53b8216bee80f69d4fbef024cfb81d7e6d56ecd7f83d0721d05",
+      "E:/sigflow_fpga/toolchain/mingw64/bin/g++.exe": "f45f8fd915aecbf8a15692089dee8ebef0f210148f13ea5c1642e55376dd234c",
+      "E:/sigflow_fpga/toolchain/mingw64/bin/mingw32-make.exe": "4e2ad3951e7ea75bb0da56cddb4863c1d73081f66a2e288190afeba488975430",
+      "E:/sigflow_fpga/toolchain/posix/sh.exe": "07bb1e5b095b00d68a695481f9240879f33c5724b40aa2308f999d54ed78f075"
+    },
+    "seconds": 11.919
+  },
+  "compiler_version": "14.2.0",
+  "runner_path": "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\virtual-project-cache\\9e171b8b4a8aeec4353ba49024d3c03cd8de5476589b767adfcb7a249de83dab\\runner.exe",
+  "gui_status": "Ready | Ready | tick=0 ps | CST=bound | pending=0 | trace=1/1",
+  "date": "2026-11-23",
+  "cold_build": true,
+  "runner_pid": 2144,
+  "desktop_binary_sha256": "8b9623a4d2bddd15304329049e711525c9e9b33111af401e25b2b4683d18492c",
+  "screenshot_sha256": "f60df33fdda0e799b220f6c54ae1f781f4c6d542d3aa23866a182ec948213971"
+}

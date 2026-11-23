@@ -1,6 +1,6 @@
 {
   "schema": "sigflow.phase5-acceptance.v1",
-  "date": "2026-11-21T16:00:15.742992+08:00",
+  "date": "2026-11-23T11:46:57.751442+08:00",
   "status": "passed",
   "Phase5_complete": true,
   "Full_Platform_v1_complete": true,
@@ -8,258 +8,272 @@
   "branch": "feat/virtual-fpga-phase5",
   "test_total": 50,
   "test_passed": 50,
+  "registered_test_total": 52,
+  "registered_test_passed": 52,
+  "additional_tests": [
+    {
+      "name": "edu_model_settings_smoke",
+      "passed": true,
+      "seconds": 0.0600835
+    },
+    {
+      "name": "edu_dashboard_controller_smoke",
+      "passed": true,
+      "seconds": 0.0969526
+    }
+  ],
   "original_tests": 47,
   "new_tests": 3,
   "tests": [
     {
       "name": "job_tests",
       "passed": true,
-      "seconds": 2.40089
+      "seconds": 1.87738
     },
     {
       "name": "eda_api_contract_smoke",
       "passed": true,
-      "seconds": 1.47048
+      "seconds": 1.37562
     },
     {
       "name": "eda_job_service_smoke",
       "passed": true,
-      "seconds": 1.82538
+      "seconds": 1.64837
     },
     {
       "name": "eda_toolchain_project_smoke",
       "passed": true,
-      "seconds": 0.145618
+      "seconds": 0.0365601
     },
     {
       "name": "eda_plugin_host_smoke",
       "passed": true,
-      "seconds": 0.329003
+      "seconds": 0.0117536
     },
     {
       "name": "eda_synth_yosys_smoke",
       "passed": true,
-      "seconds": 0.212334
+      "seconds": 0.0924076
     },
     {
       "name": "eda_pnr_nextpnr_smoke",
       "passed": true,
-      "seconds": 0.17584
+      "seconds": 0.0351297
     },
     {
       "name": "eda_pack_flash_smoke",
       "passed": true,
-      "seconds": 0.283846
+      "seconds": 0.142058
     },
     {
       "name": "eda_sim_verilator_smoke",
       "passed": true,
-      "seconds": 0.355087
+      "seconds": 0.252076
     },
     {
       "name": "eda_sim_frontend_smoke",
       "passed": true,
-      "seconds": 0.134332
+      "seconds": 0.0368434
     },
     {
       "name": "eda_target_profile_smoke",
       "passed": true,
-      "seconds": 0.09877
+      "seconds": 0.0124039
     },
     {
       "name": "eda_gowin_cst_smoke",
       "passed": true,
-      "seconds": 0.0716622
+      "seconds": 0.0080413
     },
     {
       "name": "eda_constraint_sheet_smoke",
       "passed": true,
-      "seconds": 0.162584
+      "seconds": 0.0287382
     },
     {
       "name": "eda_declarative_tool_smoke",
       "passed": true,
-      "seconds": 0.180433
+      "seconds": 0.0814185
     },
     {
       "name": "eda_wave_vcd_smoke",
       "passed": true,
-      "seconds": 0.0836735
+      "seconds": 0.0162088
     },
     {
       "name": "eda_wave_trace_adapter_smoke",
       "passed": true,
-      "seconds": 0.108007
+      "seconds": 0.0282569
     },
     {
       "name": "eda_declarative_switch_smoke",
       "passed": true,
-      "seconds": 0.236497
+      "seconds": 0.059996
     },
     {
       "name": "eda_component_library_smoke",
       "passed": true,
-      "seconds": 0.092084
+      "seconds": 0.0223684
     },
     {
       "name": "eda_command_bus_smoke",
       "passed": true,
-      "seconds": 0.0643953
+      "seconds": 0.0103378
     },
     {
       "name": "sig_tree_sync_smoke",
       "passed": true,
-      "seconds": 1.38173
+      "seconds": 0.157338
     },
     {
       "name": "k1_port_index_roundtrip",
       "passed": true,
-      "seconds": 0.707895
+      "seconds": 0.159668
     },
     {
       "name": "k1_electrical_acceptance",
       "passed": true,
-      "seconds": 0.0190008
+      "seconds": 0.0203505
     },
     {
       "name": "k1_real_tool_export",
       "passed": true,
-      "seconds": 0.426068
+      "seconds": 0.341786
     },
     {
       "name": "k1_real_tool_gui_cst",
       "passed": true,
-      "seconds": 0.12973
+      "seconds": 0.129471
     },
     {
       "name": "k2_session_pause_guard_replay",
       "passed": true,
-      "seconds": 0.482075
+      "seconds": 0.239931
     },
     {
       "name": "k2_real_verilated_session",
       "passed": true,
-      "seconds": 24.3066
+      "seconds": 14.8483
     },
     {
       "name": "k3_live_trace_concurrency_and_cases",
       "passed": true,
-      "seconds": 0.106575
+      "seconds": 0.0273055
     },
     {
       "name": "k3_live_trace_thread_sanitizer",
       "passed": true,
-      "seconds": 22.3672
+      "seconds": 23.3159
     },
     {
       "name": "k4_board_wiring_and_cst_variants",
       "passed": true,
-      "seconds": 0.274059
+      "seconds": 0.0210801
     },
     {
       "name": "k5_topology_transactions",
       "passed": true,
-      "seconds": 0.100879
+      "seconds": 0.0892758
     },
     {
       "name": "k5_open_fault_guard_and_replay",
       "passed": true,
-      "seconds": 5.75472
+      "seconds": 5.72751
     },
     {
       "name": "k5_legacy_real_build_run_vcd",
       "passed": true,
-      "seconds": 13.2664
+      "seconds": 11.4757
     },
     {
       "name": "u0_virtual_board_gui_smoke",
       "passed": true,
-      "seconds": 3.72464
+      "seconds": 2.83887
     },
     {
       "name": "u1_m0_full_product_acceptance",
       "passed": true,
-      "seconds": 94.0845
+      "seconds": 97.093
     },
     {
       "name": "p1_four_faults_and_rng_replay",
       "passed": true,
-      "seconds": 2.87271
+      "seconds": 15.4458
     },
     {
       "name": "p1_peripherals_pwm_seg_uart",
       "passed": true,
-      "seconds": 12.3149
+      "seconds": 28.337
     },
     {
       "name": "p1_gui_mvp_acceptance",
       "passed": true,
-      "seconds": 82.7359
+      "seconds": 105.839
     },
     {
       "name": "p2_state13_resolver_and_extended_faults",
       "passed": true,
-      "seconds": 17.2077
+      "seconds": 32.92
     },
     {
       "name": "p2_virtual_probe_and_tracebridge",
       "passed": true,
-      "seconds": 15.5209
+      "seconds": 14.5167
     },
     {
       "name": "p2_blind_course_gateway_and_grading",
       "passed": true,
-      "seconds": 35.2235
+      "seconds": 70.0661
     },
     {
       "name": "p2_gui_teaching_closed_loop_acceptance",
       "passed": true,
-      "seconds": 32.295
+      "seconds": 43.1498
     },
     {
       "name": "p3_sfvb_binary_codec_and_js_parity",
       "passed": true,
-      "seconds": 19.3352
+      "seconds": 22.5699
     },
     {
       "name": "p3_matrix_keypad_and_timing_faults",
       "passed": true,
-      "seconds": 10.646
+      "seconds": 32.4226
     },
     {
       "name": "p3_float_window_and_teaching_ui",
       "passed": true,
-      "seconds": 32.5718
+      "seconds": 33.8856
     },
     {
       "name": "p4_i2c_spi_oled_and_bus_faults",
       "passed": true,
-      "seconds": 122.434
+      "seconds": 124.246
     },
     {
       "name": "p4_crc_tamper_and_cdc_approx",
       "passed": true,
-      "seconds": 43.2184
+      "seconds": 62.772
     },
     {
       "name": "p4_gui_oled_keypad_and_course05_acceptance",
       "passed": true,
-      "seconds": 64.8625
+      "seconds": 82.8784
     },
     {
       "name": "p5_i2c_multibyte_burst_and_recovery",
       "passed": true,
-      "seconds": 178.44
+      "seconds": 183.765
     },
     {
       "name": "p5_sfvb_web_workbench_parity",
       "passed": true,
-      "seconds": 58.8582
+      "seconds": 70.4199
     },
     {
       "name": "p5_gui_full_platform_showcase_acceptance",
       "passed": true,
-      "seconds": 47.6855
+      "seconds": 72.3783
     }
   ],
   "commands": [
@@ -272,7 +286,7 @@
         "4"
       ],
       "exit_code": 0,
-      "seconds": 3.895
+      "seconds": 1.975
     },
     {
       "argv": [
@@ -286,7 +300,7 @@
         "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\final\\ctest.xml"
       ],
       "exit_code": 0,
-      "seconds": 952.58
+      "seconds": 1158.097
     }
   ],
   "source_unchanged_during_validation": true,
@@ -294,7 +308,7 @@
     ".gitattributes": "f30d32d6af2100ea85ae8c600fff3cd1d596a53fb64e0635b50fbcf65e47ff42",
     ".gitignore": "e145dc0e83261eb1866c4c07452d4975b0d4efe353858e7c165df144adb2e1d0",
     "agent/src/sigflow_edu_agent/__init__.py": "abac7cb5a5a0c5abe8843f305aa79930c4d82b2bcab2e07930c923a7e9a6b19f",
-    "agent/src/sigflow_edu_agent/__main__.py": "e4aca422a7eebffff31dd7d5258804fee79ae758c58246fdd3060ea5999dec9b",
+    "agent/src/sigflow_edu_agent/__main__.py": "02b05ab00dee6485d1022b257fa8744d5df263a0ac20380f1ab6a3800eb45840",
     "agent/src/sigflow_edu_agent/bootstrap.py": "b0a2f29c84f4d2d8c6ec6efba7c9093a6f4e8827b7cdd09bf09eead5c5f3e625",
     "agent/src/sigflow_edu_agent/cards.py": "5388eb838b7a2160fd1dd54002346de6730fbc93def6c413283021b05dee999d",
     "agent/src/sigflow_edu_agent/contract_schema.py": "14ca36c2ed5cea62a96ef8f1e45cf3c9b36e1c0c87d806542e277c44ce6d272c",
@@ -302,19 +316,20 @@
     "agent/src/sigflow_edu_agent/dispatch.py": "460d56bd6171ad41ec88388f2e7b978eda3f8a7c2bfcdb19f37727391540960f",
     "agent/src/sigflow_edu_agent/errors.py": "a8424386be2690c49bfa61c810fbd719cbb88002adf1fe2d148c821b662f36b2",
     "agent/src/sigflow_edu_agent/gateway_client.py": "43ec0403df1a8c4a69896266f9b861af58fdf5f70aba60f929db22dc42773734",
-    "agent/src/sigflow_edu_agent/http_server.py": "ec9e2622498c77d7e9a84e77c8b70f1efd8027a8b3df61dbc295a34f4289d774",
+    "agent/src/sigflow_edu_agent/http_server.py": "46713c68d55583dda467b63ec11bf2123c90101fe109c1c5a5b3258e5f4e8a38",
     "agent/src/sigflow_edu_agent/local_model_config.py": "5c0b8d7801cc0b4b90bb7f2ad580e5986604a671422b114be6a81df2ef2d4816",
-    "agent/src/sigflow_edu_agent/model_client.py": "deb1d4099b8a6c9db583b4049fda3236c1c5105c4b9fd7372c19f882e811c419",
+    "agent/src/sigflow_edu_agent/model_client.py": "4bbc322b03be060a24b888cf36456c3f860fa70c6e5f2025e3d792d979d2e217",
     "agent/src/sigflow_edu_agent/rules.py": "501af3c0f04e557defb43c0e5189cbb5bbfc08e865a68c6cc815598a0de94b1c",
     "agent/src/sigflow_edu_agent/session.py": "7029a2863f05aab5d3fe63a682d0739fafb1ff91b8b4402b53c0ef703eb01459",
     "agent/src/sigflow_edu_agent/teaching.py": "8f84d4dd8be1a6a6804fe8043c2c9e9ebff665d63891334bece6c1c69659e3cf",
-    "agent/src/sigflow_edu_agent/teaching_factory.py": "ba94e71a28363b530db2cd86899edc52b7864e04a0f38bdfa3859aab29c6b291",
+    "agent/src/sigflow_edu_agent/teaching_factory.py": "a3700e45627396587f54422ab192a55247db4150588e13d1ed10f5016387b286",
     "agent/src/sigflow_edu_agent/teaching_routes.py": "77f75ae72c31a7c264062e2c2973b4ad15dbbc79c2cd5352e6ca3fbe106d168d",
     "agent/src/sigflow_edu_agent/teaching_store.py": "bb936366c39859803cc1d4994c69ea03d515e695b13e446b6852fc887e815f4d",
+    "agent/src/sigflow_edu_agent/usage.py": "b7e69613d8c3b68d23ac7337bc2053e00edafe60484e9330d0265a2ab6911827",
     "agent/src/sigflow_edu_agent/util.py": "9a460bd974bce4dd933ec35e5f1d353d1248946160a2695115d2587bf39eeb97",
     "agent/src/sigflow_edu_agent/version.py": "aab79aedb6e3099dab067510e203199156a540a1c326c8fdc9dea7d2c742d551",
     "agent/src/sigflow_edu_agent/virtual_teaching_client.py": "ea4c15c15895fc4092349b45424ba4f0a6da4a5b19926a8e0c22c802bb25d61b",
-    "CMakeLists.txt": "1d09a4b8af8ec18215f72084e9c42a29db07bf30192fd4e30e1557e70549c5b3",
+    "CMakeLists.txt": "9b9d684bb408ce77cd8d614a15a7c3e038e149d9fa9ab05cab3d940002f5f6a1",
     "core/CMakeLists.txt": "3f974e364ddc574e90c766fde1f96a6a05570f8fa820fe4f725c055b84dc139d",
     "core/src/eda-agent-gateway/ArtifactService.cpp": "3b5d61e7e411d2808f4f6d8c37b498c541e94b5461f8ede5010d58dbac6a25b5",
     "core/src/eda-agent-gateway/ArtifactService.h": "73237b33796943a3fb352af1e1ce0153b38be21045f31a2440606b82e043cc21",
@@ -549,16 +564,22 @@
     "InnerPlugin/eda-sim-verilator/src/StimulusModel.cpp": "a3b103f12711b2f87004e32c18ce109675d7aeee78db299afa9f61aa6b16e8bc",
     "InnerPlugin/eda-sim-verilator/src/VerilatorRunJob.cpp": "b6e3bfcad7648fe4f8c273bbfc65f20767159e05390d6927b0778221ff024911",
     "InnerPlugin/eda-sim-verilator/src/VerilatorSimulator.cpp": "adf0b10d4ec6bb8356c73277e0c7ece767d2fb6b14b055fd8e84464013670e1d",
-    "main/agent/AgentApiClient.cpp": "f6bec0593bfc437cf4bf5ecaaf9bf9692b11f89c712c7b313f05ebc4f68a03e8",
-    "main/agent/AgentApiClient.h": "736817b0b9329b5c5ea7cd488aeaefd35dc03c3272c88ea49878fe1010e199d2",
-    "main/agent/AgentServiceController.cpp": "1d8c83c1cd0d8fbd2883fcffc499b271dababbc3acaba6b0966ae68e11b5779d",
-    "main/agent/AgentServiceController.h": "cc5a4a1e0397b9287dccf6adbf30919ff1120919192d9fb2196a892c48b4f627",
+    "main/agent/AgentApiClient.cpp": "d1badfaabcc1b78b92e3b4a6c06d16b5b54feaa6d8d0664bf86c05af918d0879",
+    "main/agent/AgentApiClient.h": "cea236619d197ea748a6a2eddff7cfae64e784083f04f034f724bf742813f04b",
+    "main/agent/AgentDashboardController.cpp": "12db93e007e9af32ecf182f7608579e3d2cc8f2601ddba11fe8b284bb4c2e136",
+    "main/agent/AgentDashboardController.h": "51046d875c4396b96d08fa4013d3b7c496c719abc719bb49a4b884d8ebcbd95a",
+    "main/agent/AgentModelSettings.cpp": "0b829f8c0d0db9987a834c833b8758e3e9c1eb9fcadeb76c513a63a8a5e80d21",
+    "main/agent/AgentModelSettings.h": "48a0181df6892932827ca1a638c5c8962b103059860dbd746824c4c8345cbea8",
+    "main/agent/AgentServiceController.cpp": "f1577bc02de106edc1011a7ee7ed36ac69abc5e4aec3d244a602f7d1da6eed63",
+    "main/agent/AgentServiceController.h": "50eeb3e21b8ec060ebd6d85ea29b2ff3556ff2ca612fe8fe652a886f91aa0a42",
     "main/agent/gui/AgentComposer.cpp": "5f5aa74e9bff73f5d62a0bddd02f4461502da7562245209f09e055c664acc62b",
     "main/agent/gui/AgentComposer.h": "668b8febb796714f8168ece69e6289bd8a4a2a3bc17daf4c1f22a62600395311",
-    "main/agent/gui/AgentControls.cpp": "a2df9741abbca887a38f10560d2543293446becfcf19055331cfbc44c8fdcfd1",
+    "main/agent/gui/AgentControls.cpp": "87a66499daae79ab9c5979d31e6358dffacd390f2d93a51cf0f6810d8635b5d3",
     "main/agent/gui/AgentControls.h": "7e29ae92ef78a020843e3f01dd3558d190853a0f18f3e316e4438ebeef881965",
     "main/agent/gui/AgentConversation.cpp": "9bea01a8f8e2f087aa22ff70b6149af0d6cf0c056aadfaecd9a5b9866a90402b",
     "main/agent/gui/AgentConversation.h": "e49ce03c331fe2c58c43f1edae6cafe3281334ead8845ddf79c86a090d45db66",
+    "main/agent/gui/AgentDashboardDialog.cpp": "cbe5339d6a890972391b89512932ea6ea5d39cd698a804ec16e3e60c8fafc380",
+    "main/agent/gui/AgentDashboardDialog.h": "30ea7711bc3c8144a9da8a276429065650ffb6f16c66916f4a287af3fee50508",
     "main/agent/gui/AgentFormCoordinator.cpp": "95b54cefe63e0db1c19c19b22030a928a3593abaa98a0eae489cbe71aa30ea03",
     "main/agent/gui/AgentFormCoordinator.h": "bfc2e5b66c56c3de7a371c6e87b29f5ffe80f04cc79b114b8f8239855b0b226c",
     "main/agent/gui/AgentIcons.cpp": "aca212d3bfaab8bfd96caaec0b5cd16c8e4168efad61646003c6c6920a29dbaf",
@@ -585,8 +606,8 @@
     "main/agent/gui/AgentViewModel.h": "a7e6a5f22956e3e6dc4aa1df12071bcad7d991ae58bb0a6f36c9d987179a5dd0",
     "main/agent/gui/AgentWireProjection.cpp": "6d5912e1370ca034d53841c9a4236387d7de8ebaf76093f132c0b386d963a0df",
     "main/agent/gui/AgentWireProjection.h": "ce59a7f81c6fbf1247bc7e39d84c1434d6f98b3ace704112123ce2a6cd6a9b3d",
-    "main/agent/gui/AgentWorkspace.cpp": "89d09f5a9aec3cbbfc2c31c8a519ae104e8e66b0f5a3bf048fe176e826ab62d9",
-    "main/agent/gui/AgentWorkspace.h": "40042544f05dc506fa881402e53ff647bcab540b0f6044e9a0d2558a69a614cf",
+    "main/agent/gui/AgentWorkspace.cpp": "48c6563ebc0e835995ceb0934a90d2025b407c181ca2d67fb5b68c8cac5303a5",
+    "main/agent/gui/AgentWorkspace.h": "63357508d6af56607861ef9535a0ac54d2d21127a0a968267191a1768ba24d0b",
     "main/agent/gui/AgentWorkspaceHost.cpp": "1039c8edd6d4db3858fa93125a44dab2c0c0a36dbe09d9cdd55faaed31610438",
     "main/agent/gui/AgentWorkspaceHost.h": "d730d5328fa3d334486dfc43b88b9046b34382547ed63d9f153da32eba4ce569",
     "main/AsyncAnalysisCenter.cpp": "7017f5d20475cc41511f48047167e27e915e7e2dbbae00afd342ebc5d50af016",
@@ -776,8 +797,8 @@
     "main/jobs/Sha256.h": "d84cb5103b4e675e81f11cebdaa2d26da91ae31740426ea83dd2e1202c9c441a",
     "main/jobs/ToolJobs.cpp": "75e5e2b0141488c25216929d00d000027477f3ad7edfdc06562888bce0a3bc2f",
     "main/jobs/ToolJobs.h": "39d56cf8ea8e16966b366d8ec4e67d3dc00f6c3280a5402e8b2537c153a2e0c7",
-    "main/MainFrame.cpp": "afdf46d4d7739f3bf496435e351b8699eb761acf16643837dfca004f485cb7dc",
-    "main/MainFrame.h": "8f73f7313fd9407bf2d026f6237cb8e02504b18db756a982c3778c47e8104b1a",
+    "main/MainFrame.cpp": "e17c359223089e54e6f1cf9b967a6f5d771db25dfe954eaa6aabb6e8f87beeec",
+    "main/MainFrame.h": "4496917bd4185a8e1f9be7c709d144b1dd8af98a82322fc17af2c8ad64d764d3",
     "main/MainMenuBar.cpp": "76e3ec98a10baff5aab6f97a111b362fed7910ceb9da93e11b3322218ef12e6d",
     "main/MainMenuBar.h": "e5512687cc0b8678bb1e6c5f5ad8126e0d6739d35c13a6fbd08c398e2f59207b",
     "main/my_log.h": "6c7926cae32b8a72d77decd3009ef89b02feb423c29569702c6037c959c384eb",
@@ -896,9 +917,9 @@
     "main/virtual/VirtualBoardPanel.h": "e27af30f1685ad30fb243c1622cd34a74aa3a849a3989a98568085c639d0753a",
     "main/virtual/VirtualCaptureArtifacts.cpp": "4bbfdbba8f4061ee40938d0e8fd202d8539d539b569947911ab07bc1b6003870",
     "main/virtual/VirtualCaptureArtifacts.h": "2d97a9dd9018f18f29cec2fe07a3d738b7a15352a30ee4f1552377f83855b047",
-    "main/virtual/VirtualProjectSessionBuilder.cpp": "5ece885fb110e95d6276ecdeba388d1f42662ec5e7a34798bb0113ac05dcf839",
+    "main/virtual/VirtualProjectSessionBuilder.cpp": "9eba36c4e918896d83a800076ffbc20d640593b5e663f00ed0aca2d6fb0cb955",
     "main/virtual/VirtualProjectSessionBuilder.h": "3cead7f46d1837624af68cec1df6a56cd6eae0eb2cab69f82ce58a4d1bafe8c1",
-    "main/virtual/VirtualSessionController.cpp": "12c029c97fdcc04ff5eb1f60591ba28f25534ba565aeba9f598e1e31dbb72e89",
+    "main/virtual/VirtualSessionController.cpp": "037318b11f1ba895896dadade55e6e4d523d827fc18c8bbfbe6092cebcbe6371",
     "main/virtual/VirtualSessionController.h": "60b85eeeff96619e804684519a8c39430bfc034575badc82fc0c54bce02a90bf",
     "main/virtual/VirtualTeachingPanel.cpp": "011ccdb27944e6462102c980c5be505bc9ec03ca97ee8c6accdfd0b8eff14ddb",
     "main/virtual/VirtualTeachingPanel.h": "9d9eb3849b537c431aa838ae90b3d89039e47c4f46eed63fbee543eb91cf1c61",
@@ -984,6 +1005,7 @@
     "tests/agent/CMakeLists.txt": "3694732ac76e41210b68f1ec3a5919e47fa379ff384c6d7fc10517d8080bd01b",
     "tests/agent/edu_agent_sidecar_smoke.cpp": "9b68d137db055b8f015b053f8037abc9c4c4fc1621bc1835b55b6f029407c26d",
     "tests/agent/edu_contract_smoke.cpp": "f5b14999cd73340e6a643a0366f4d2531baaa6eda99def8d9956ba6a7a9060ff",
+    "tests/agent/edu_dashboard_controller_smoke.cpp": "104e35404bb7e6f12f767fe85105929f3ec8b55a62c008c37afc7a5e2a1e155d",
     "tests/agent/edu_design_context_smoke.cpp": "865fb1b14f0a5a44d85ec88b5e167626001e1a4444f41662e897295865ed96b4",
     "tests/agent/edu_event_retention_smoke.cpp": "ae18d95f58a970547c34bd8093f450b0dfea4a016b9adbfe723d3e6d1e9233e6",
     "tests/agent/edu_fault_matrix_smoke.cpp": "236f9e10afc8ca2caf4071d0de84c8a0776f1f7d70e71a3c77b05cedcec7a84d",
@@ -991,13 +1013,14 @@
     "tests/agent/edu_gateway_smoke.cpp": "cb52e2bd15cba3c0df6c133369389de22a333f9069993db9d84b67dba18c5f47",
     "tests/agent/edu_job_event_source_smoke.cpp": "2eac5038b152459d807055b968c8540abe72bef2ff69378c2b6c4af73918b9e7",
     "tests/agent/edu_legacy_bridge_smoke.cpp": "9eb5d35fbd797a06812cc7159669b87a7a474dbae296f209fb840c24dea284b1",
+    "tests/agent/edu_model_settings_smoke.cpp": "8073f5863ae4a634f45b4b5691c2fe8ad4cc2d25be755a13d3b30d343e11b48a",
     "tests/agent/edu_native_reading_runner.cpp": "3156ddf7f4ff9212a3a8c1c95d560507c7f246fcd4c16c9205af3fef8fdfbeff",
     "tests/agent/edu_native_reading_smoke.cpp": "e147f48501f806faa27a5e6fca0b54d6946635bacf7d7aaa46f00c23316987a0",
     "tests/agent/edu_real_tool_smoke.cpp": "64bf1476f3a6fba4df962e0f181d66d26444927e106511cafbd251249803b80b",
     "tests/agent/edu_report_normalizer_smoke.cpp": "da0fd0fa17b584650d7e14aa6cad266f69228dec12663a286214199c8ffe4315",
     "tests/agent/edu_schema_runtime_smoke.cpp": "e96a632854fb6437c0bda5311fa638ea419d0dd80602cf4afa65ce04f25a068e",
     "tests/agent/edu_snapshot_grant_smoke.cpp": "4d7b4ce905a401d4b545f5a5588b34f80eb567e7d8a5b56f366af333649d46a2",
-    "tests/CMakeLists.txt": "f2dd35536ccc71436b1c04f224448658d48d24779577545e8a54cae827b556b7",
+    "tests/CMakeLists.txt": "03bee2c3442f7d66510651cc06ff0cc630abaab0c5a67de29842288651ab7f1a",
     "tests/contract/CMakeLists.txt": "6d13863deb52cb88ac0dd761bb6ac48685e9198b8911850a008a12754256e8ec",
     "tests/contract/eda_api_contract_smoke.cpp": "ea0aefb164156adb0c3dd72b821ba4b73b8ee7b58ad32e1188e80f42770d56f0",
     "tests/contract/job_service_smoke.cpp": "899f02f9d65b71192db44d45cdb4d8e70b81ba3221316ace91683162341fadbb",
@@ -1068,7 +1091,7 @@
     "tests/virtual/p4/CMakeLists.txt": "56daf481ca293ff47c2f0927b5c7b228dbab39e02dfdfcac990b4971d97802cf",
     "tests/virtual/p4/gui_acceptance.inc": "1fbb601386bf1605877860c53f1caf6ec23a4fc52a37e8192ded3a1c014b47b5",
     "tests/virtual/p5/CMakeLists.txt": "ae184e77a741ccd83b13d19e04b29398c5b4ea044614714afa3cdec3b8ee22de",
-    "tests/virtual/p5/gui_acceptance.inc": "a6ec0c6d13e013e79706be717b42036ab11848f8061e8ec6261ed88ba6eb18f3",
+    "tests/virtual/p5/gui_acceptance.inc": "27dba232576417747226b3f95fe4d33f8c96187e6d7e753bcb1351a0d6640d1f",
     "tests/virtual/u0/CMakeLists.txt": "811c85a16f2f58be86603e20e8314e73d51fbe8fa0cebcd1c173219374c91ca5",
     "tests/virtual/u0/gui_smoke.cpp": "29d7896c43d724a9b67e2fd8b3e6f9b51244fe951e6f682b54948e235abbb2eb",
     "tests/virtual/u1/CMakeLists.txt": "44cf8c568937a2da574a17bb04b4c0746af4feb05884e0339342f1ea630e4e59",
@@ -1077,7 +1100,7 @@
     "tools/virtual/archive_stage_evidence.py": "8cbf219ba0c9c758f128f46e6a338212bbe42648a6bc7be29eee201cabd98399",
     "tools/virtual/bootstrap_dependencies.py": "30404f0e4e9573139ee255e9467ff66623c3e336d5340bc1df0133c128a47d36",
     "tools/virtual/build_reviewed_profiles.py": "eea224427bbb15f3b698946a726bec5d414353439593579d2b07982bbbe0a58d",
-    "tools/virtual/build_virtual_project.py": "b17235323e374b2d7975b5d28609208df855e34b42f818c2aeb01c0be61da698",
+    "tools/virtual/build_virtual_project.py": "a9f5fd721722681403ffa5a49f3034d85f8f81ee7767ac76688650b050b6c5b7",
     "tools/virtual/build_virtual_tracebridge.py": "74dd1e69a8aebc0e0611ce177a2d96f9ea2848f0c3f62327951604cf15269765",
     "tools/virtual/export_ports.py": "b21aa1fe1e55e53b8216bee80f69d4fbef024cfb81d7e6d56ecd7f83d0721d05",
     "tools/virtual/generate_phase1_examples.py": "d054f722202b018e1f8e2224ef4d710a5cb6f2233e6b5685f0ef88ebc64d1573",
@@ -1110,8 +1133,8 @@
     "tools/virtual/verify_phase4_final.py": "fcf2bfae5078bf3fe5ab71c647c7e66f2a55017f29eaadf05f01e1daf51dc8b4",
     "tools/virtual/verify_phase4_gui.py": "bdc6679d243effb338b5c69b5240e65cb1b1802281e4d87d805f4639c78b6e4c",
     "tools/virtual/verify_phase5.py": "9e7fb15ceec92644d23db9a8f821eaac3a95d1d58aadd707f7bf2986824fe520",
-    "tools/virtual/verify_phase5_final.py": "7b36695449f0eabfa44788abee1d1e8446d879cbc2f75421175d2eea30019fd6",
-    "tools/virtual/verify_phase5_gui.py": "60edd6e2c2e82592d9ff3673cd0179ee3627144f59ca9a2007da1fb518585c12",
+    "tools/virtual/verify_phase5_final.py": "2573223d56cfb6cd61ed2e1657e6c06cc6bac70436173279c3e77d2506037014",
+    "tools/virtual/verify_phase5_gui.py": "c54e478af1c812b94d7a4c5e5e25a0772c1f26667e0d16c113357f458206c923",
     "tools/virtual/verify_u1_gui.py": "d5939056f44c3c51137532ee3388a43c808ad91b91cded7922da4771bc4b5ca2",
     "tools/virtual/virtual_teaching_service.py": "4d7ae541c609eed780359e96ea50f8576e805bcc21dff63dc3162764ab46a1d7"
   },
@@ -4543,7 +4566,7 @@
           "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p12-mixed-cpp-dec.json"
         ],
         "exit_code": 0,
-        "seconds": 0.127
+        "seconds": 0.136
       },
       {
         "argv": [
@@ -4553,7 +4576,7 @@
           "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p12-mixed-js-dec.json"
         ],
         "exit_code": 0,
-        "seconds": 0.056
+        "seconds": 0.076
       },
       {
         "argv": [
@@ -4563,7 +4586,7 @@
           "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p12-mixed-web-proj.json"
         ],
         "exit_code": 0,
-        "seconds": 0.11
+        "seconds": 0.2
       },
       {
         "argv": [
@@ -4575,7 +4598,7 @@
           "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p3-keypad-cpp-dec.json"
         ],
         "exit_code": 0,
-        "seconds": 0.035
+        "seconds": 0.023
       },
       {
         "argv": [
@@ -4585,7 +4608,7 @@
           "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p3-keypad-js-dec.json"
         ],
         "exit_code": 0,
-        "seconds": 0.039
+        "seconds": 0.046
       },
       {
         "argv": [
@@ -4595,7 +4618,7 @@
           "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p3-keypad-web-proj.json"
         ],
         "exit_code": 0,
-        "seconds": 0.048
+        "seconds": 0.055
       },
       {
         "argv": [
@@ -4607,7 +4630,7 @@
           "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p4-oled-cpp-dec.json"
         ],
         "exit_code": 0,
-        "seconds": 0.172
+        "seconds": 0.192
       },
       {
         "argv": [
@@ -4617,7 +4640,7 @@
           "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p4-oled-js-dec.json"
         ],
         "exit_code": 0,
-        "seconds": 0.062
+        "seconds": 0.07
       },
       {
         "argv": [
@@ -4627,7 +4650,7 @@
           "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p4-oled-web-proj.json"
         ],
         "exit_code": 0,
-        "seconds": 0.145
+        "seconds": 0.154
       },
       {
         "argv": [
@@ -4639,7 +4662,7 @@
           "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p4-crc-cdc-cpp-dec.json"
         ],
         "exit_code": 0,
-        "seconds": 0.096
+        "seconds": 0.103
       },
       {
         "argv": [
@@ -4649,7 +4672,7 @@
           "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p4-crc-cdc-js-dec.json"
         ],
         "exit_code": 0,
-        "seconds": 0.049
+        "seconds": 0.057
       },
       {
         "argv": [
@@ -4659,7 +4682,7 @@
           "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p4-crc-cdc-web-proj.json"
         ],
         "exit_code": 0,
-        "seconds": 0.097
+        "seconds": 0.096
       },
       {
         "argv": [
@@ -4671,7 +4694,7 @@
           "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p5-i2c-burst-cpp-dec.json"
         ],
         "exit_code": 0,
-        "seconds": 0.272
+        "seconds": 0.266
       },
       {
         "argv": [
@@ -4681,7 +4704,7 @@
           "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p5-i2c-burst-js-dec.json"
         ],
         "exit_code": 0,
-        "seconds": 0.071
+        "seconds": 0.069
       },
       {
         "argv": [
@@ -4691,7 +4714,7 @@
           "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\p5-i2c-burst-web-proj.json"
         ],
         "exit_code": 0,
-        "seconds": 0.122
+        "seconds": 0.11
       },
       {
         "argv": [
@@ -4704,7 +4727,7 @@
           "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\p5\\web_parity\\web-projector-selftest.json"
         ],
         "exit_code": 0,
-        "seconds": 0.097
+        "seconds": 0.099
       }
     ],
     "replays": [],
@@ -4719,8 +4742,16 @@
     "check_count": 3001
   },
   "gui": {
-    "check_count": 26,
+    "check_count": 28,
     "checks": [
+      {
+        "area": "P5.2",
+        "assertion": "M0 reference builds and starts with host GCC first and locked toolchain removed from parent PATH"
+      },
+      {
+        "area": "P5.2",
+        "assertion": "runner starts and steps using the GUI child environment despite hostile parent PATH"
+      },
       {
         "area": "P5",
         "assertion": "full-stage quick launcher lists all 7 M0-P5 experiments"
@@ -4826,37 +4857,807 @@
         "assertion": "exports full-showcase-dark.png"
       }
     ],
+    "explorer_toolchain": {
+      "build": {
+        "cache_hit": false,
+        "cache_key": "86eed1679362e8655e58841d639618a698fcd1935d41310df19b3003ae3b050d",
+        "commands": [
+          {
+            "argv": [
+              "C:\\Users\\Admin\\AppData\\Local\\Programs\\Python\\Python314\\python.exe",
+              "E:/sigflow/SigFlow_VirtroFPGA/tools/virtual/export_ports.py",
+              "--top",
+              "k2_counter",
+              "--output",
+              "E:/sigflow/SigFlow_VirtroFPGA/.work/virtual-project-cache/86eed1679362e8655e58841d639618a698fcd1935d41310df19b3003ae3b050d/declarations.json",
+              "--builder",
+              "E:/sigflow/SigFlow_VirtroFPGA/build-m0/sigflow_port_manifest.exe",
+              "--yosys",
+              "E:/sigflow/SigFlow_VirtroFPGA/external/fpga-tools/runtime/yosys/bin/yosys.exe",
+              "--verilator",
+              "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/bin/verilator_bin_dbg.exe",
+              "E:/sigflow/SigFlow_VirtroFPGA/examples/virtual/counter/counter.sv"
+            ],
+            "exit_code": 0,
+            "log": "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\virtual-project-sessions\\virtual-8175c60b915b44a7b7aafd920ec19901\\export.log",
+            "seconds": 0.356,
+            "stage": "export"
+          },
+          {
+            "argv": [
+              "E:/sigflow/SigFlow_VirtroFPGA/build-m0/sigflow_session_validate.exe",
+              "E:/sigflow/SigFlow_VirtroFPGA/.work/virtual-project-cache/86eed1679362e8655e58841d639618a698fcd1935d41310df19b3003ae3b050d/declarations.json.ports.v2.json",
+              "E:/sigflow/SigFlow_VirtroFPGA/.work/virtual-project-sessions/virtual-8175c60b915b44a7b7aafd920ec19901/session.json"
+            ],
+            "exit_code": 0,
+            "log": "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\virtual-project-sessions\\virtual-8175c60b915b44a7b7aafd920ec19901\\validate.log",
+            "seconds": 0.026,
+            "stage": "validate"
+          },
+          {
+            "argv": [
+              "E:/sigflow/SigFlow_VirtroFPGA/build-m0/sigflow_adapter_codegen.exe",
+              "E:/sigflow/SigFlow_VirtroFPGA/.work/virtual-project-cache/86eed1679362e8655e58841d639618a698fcd1935d41310df19b3003ae3b050d/declarations.json.ports.v2.json",
+              "Vk2_counter",
+              "E:/sigflow/SigFlow_VirtroFPGA/.work/virtual-project-cache/86eed1679362e8655e58841d639618a698fcd1935d41310df19b3003ae3b050d/generated_adapter.cpp"
+            ],
+            "exit_code": 0,
+            "log": "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\virtual-project-sessions\\virtual-8175c60b915b44a7b7aafd920ec19901\\generate.log",
+            "seconds": 0.014,
+            "stage": "generate"
+          },
+          {
+            "argv": [
+              "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/bin/verilator_bin_dbg.exe",
+              "--cc",
+              "E:/sigflow/SigFlow_VirtroFPGA/examples/virtual/counter/counter.sv",
+              "--exe",
+              "E:/sigflow/SigFlow_VirtroFPGA/.work/virtual-project-cache/86eed1679362e8655e58841d639618a698fcd1935d41310df19b3003ae3b050d/generated_adapter.cpp",
+              "--top-module",
+              "k2_counter",
+              "--Mdir",
+              "E:/sigflow/SigFlow_VirtroFPGA/.work/virtual-project-cache/86eed1679362e8655e58841d639618a698fcd1935d41310df19b3003ae3b050d/obj",
+              "--converge-limit",
+              "256",
+              "-Wno-fatal",
+              "-CFLAGS",
+              "-std=c++20 -DVL_USER_FATAL -I\"E:/sigflow/SigFlow_VirtroFPGA/include\" -I\"E:/sigflow/SigFlow_VirtroFPGA/3rd\" -I\"E:/sigflow/SigFlow_VirtroFPGA/core/src\" -I\"E:/sigflow/SigFlow_VirtroFPGA/InnerPlugin/eda-cst-gowin-cst/include\" -I\"E:/sigflow/SigFlow_VirtroFPGA/InnerPlugin/eda-target-tangnano9k/include\"",
+              "-LDFLAGS",
+              "E:/sigflow/SigFlow_VirtroFPGA/build-m0/core/libeda_virtual_runner.a E:/sigflow/SigFlow_VirtroFPGA/build-m0/InnerPlugin/eda-cst-gowin-cst/libeda-cst-gowin-cst.a E:/sigflow/SigFlow_VirtroFPGA/build-m0/core/libeda_virtual_board.a E:/sigflow/SigFlow_VirtroFPGA/build-m0/core/libeda_platform.a -lpthread",
+              "-o",
+              "E:/sigflow/SigFlow_VirtroFPGA/.work/virtual-project-cache/86eed1679362e8655e58841d639618a698fcd1935d41310df19b3003ae3b050d/runner.exe"
+            ],
+            "exit_code": 0,
+            "log": "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\virtual-project-sessions\\virtual-8175c60b915b44a7b7aafd920ec19901\\verilate.log",
+            "seconds": 0.083,
+            "stage": "verilate"
+          },
+          {
+            "argv": [
+              "E:/sigflow_fpga/toolchain/mingw64/bin/mingw32-make.exe",
+              "-C",
+              "E:/sigflow/SigFlow_VirtroFPGA/.work/virtual-project-cache/86eed1679362e8655e58841d639618a698fcd1935d41310df19b3003ae3b050d/obj",
+              "-f",
+              "Vk2_counter.mk",
+              "-j4",
+              "CXX=E:/sigflow_fpga/toolchain/mingw64/bin/g++.exe",
+              "LINK=E:/sigflow_fpga/toolchain/mingw64/bin/g++.exe",
+              "AR=E:/sigflow_fpga/toolchain/mingw64/bin/ar.exe",
+              "SHELL=E:/sigflow_fpga/toolchain/posix/sh.exe",
+              "PYTHON3=C:/Users/Admin/AppData/Local/Programs/Python/Python314/python.exe"
+            ],
+            "exit_code": 0,
+            "log": "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\virtual-project-sessions\\virtual-8175c60b915b44a7b7aafd920ec19901\\compile.log",
+            "seconds": 4.148,
+            "stage": "compile"
+          }
+        ],
+        "diagnostics": [],
+        "input_sha256": {
+          "C:/Users/Admin/AppData/Local/Programs/Python/Python314/python.exe": "03168c01b7b7491423350e82c26fee71f35b43694d1319d3c668bda6903a0c38",
+          "E:/sigflow/SigFlow_VirtroFPGA/build-m0/InnerPlugin/eda-cst-gowin-cst/libeda-cst-gowin-cst.a": "63e9d768df7ea93febaf16cbb9ead4ef9e127fd1504260ff72d1c014517f5121",
+          "E:/sigflow/SigFlow_VirtroFPGA/build-m0/core/libeda_platform.a": "3b5d8a769ad547fa302ad50318b6126a852b810a7314d27f1a81e2c5c2ec549a",
+          "E:/sigflow/SigFlow_VirtroFPGA/build-m0/core/libeda_virtual_board.a": "0d172819bd4c486b0902f5ff003aae0fd456390ff3f69b141c493da625c30a74",
+          "E:/sigflow/SigFlow_VirtroFPGA/build-m0/core/libeda_virtual_runner.a": "90308ad26090eef8a3965145dd5b591bc9e52a20fcdc4a116c08c3a4b19dd901",
+          "E:/sigflow/SigFlow_VirtroFPGA/build-m0/sigflow_adapter_codegen.exe": "b23e7f007c0c14fb28bf80e3afdb11057cacd5cd1837280c5e05aa1a1947f5e9",
+          "E:/sigflow/SigFlow_VirtroFPGA/build-m0/sigflow_port_manifest.exe": "faf8efdd7f198350813bcefed6f1a8c8b46a64f63e3eaa09db89998d1880d18c",
+          "E:/sigflow/SigFlow_VirtroFPGA/build-m0/sigflow_session_validate.exe": "a1eccf92d76f3c918df7ae7fae3dccce3792e8d531144159b225aa9654b6cb31",
+          "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/BinaryFrameCodec.h": "13c963a47d6a60ed0cddf65be50ee973e634f318c3829beacbaeaf86114409ed",
+          "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/BlindProjection.h": "cd2b1e48eb547e7d1fa1a6931693c251c7f93423666eafdf117a3cabd89df994",
+          "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/BoardTopology.h": "f460ee9152bf6586841cfa1e455cd88c08ca6fd40be9fa00fa4c0bc5ec6f6567",
+          "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/DurableJournal.h": "1d17e216e5d3110f0a8594902c1ae4d1e392eb1c1fe23717d7d37f151b203bda",
+          "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/ElectricalValidator.h": "1c773ba2cff7fdd7c97024183d94bd9f7c2d4b095f84da5a75878a9623c9fd15",
+          "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/LiveTraceStore.h": "b072c440c50c563a1dea45a93d559d6fd6f78f7c03d236572799119a8191194d",
+          "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/Phase1Faults.h": "625ddaeb3d5d54573f506a387b13be6aad1b1ebb4ecbebaa1d5acc0f000f8ae8",
+          "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/Phase1Peripherals.h": "9c000dc6197ab57f586f5ac57fd1e3602973c6894a5f497a9f1acf5da84c13ff",
+          "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/Phase1Session.h": "3866023275a040dbeb97ec893e28b455160e4939c364c0af66344dee1e2572b9",
+          "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/Phase2Faults.h": "6608842725d2468034d6bd61ba09eef61957bf62f38ab6bc60801b8100e37ddd",
+          "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/Phase3Faults.h": "d8cc9097dca3b32c8dc68b5b6c9ea2cec046267dc455976b3d187ab23753b49e",
+          "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/Phase4Faults.h": "9580d6d3d8ba9e50bc265923586b1a92b23528b96d163b04b3c977d707492fb4",
+          "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/PortManifestBuilder.h": "b68d6222aff663fc6a10032376ecd11e220986118d15f1ecfc63ff750bccd7e1",
+          "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/ProjectValidation.h": "83a0d03083e2b87127cee2e66ee70ed852d6207bbae52bba99ff097266903f50",
+          "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/RunnerSupport.h": "881cf08cb2491ca6593451d26fc09eaed4dce6865a68246e246b187f905f0c42",
+          "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/State13.h": "c21e0dcefc429a625a49375bd12557f21342e20cddae758d7cdf333a7506b64c",
+          "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/VerilatedAdapterCodeGen.h": "d6e3c23a2463e92d63f29b52350e641567ab9b83830f9f7901a175d26e4f9672",
+          "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/VirtualInstruments.h": "4f1b8bb7796dce68c6fb39b2c5c7edaf277f6c151712f4c5cf11acc98adf96e5",
+          "E:/sigflow/SigFlow_VirtroFPGA/core/src/eda-virtual-board/VirtualSession.h": "101959bafb20abfdeded4e3fd6f06fbfaef7b4939c0298691cea4ef113620d9e",
+          "E:/sigflow/SigFlow_VirtroFPGA/examples/virtual/counter/counter.cst": "b82f9774f3b68c151e978e9d8810284d0f2613a461f9b5562aa7aa904f951e7c",
+          "E:/sigflow/SigFlow_VirtroFPGA/examples/virtual/counter/counter.sv": "7ac4a5f183c0e2bd82c78fe61c87b9fa8993e1d87ad3ac9b45f91f2690139b11",
+          "E:/sigflow/SigFlow_VirtroFPGA/external/fpga-tools/runtime/yosys/bin/yosys.exe": "999423132587306feb3d62f064da1c8e7bf1b45278e688ddae9583f5e3a7a1a2",
+          "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/command.hpp": "d3e59298dadf7136246b276cb930868a9c2785eb0e5e338d9a6719b1ee90f1c8",
+          "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/component_library.hpp": "f1f52a95273fd96d492631b884529ae19186f67e5170bf11e6678b19ac0119e6",
+          "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/electrical_profile.hpp": "856cdb8a40a4f31a852b85137af16a12e8838a620cc048c7fad1787b6de3f390",
+          "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/events.hpp": "c7c2c5e3f42d62843daa26e6675cbac6c467f44e3636040a2deb2ae62ac7bb68",
+          "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/jobs.hpp": "8b97fdb58f4c7e9beb50617a4047c48e3b10daa2176872b04a3b565daf1eecdf",
+          "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/live_trace.hpp": "cf4a455fe9353fd38b2977f2319468410ac560e0ddc8efec3d03ec54eba683c4",
+          "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/logic_state.hpp": "57dc7690a49cbcffedc56e88d00d3608916b0b76d208043d31cd21c3c15089d9",
+          "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/port_manifest.hpp": "ec7c6419cb67d77e951efb9186905f71056349338649a7cfa9ae6f28fadabeec",
+          "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/process.hpp": "20deaba0866d979fc5601afb200b5ea16dae2cbb9c0bf8fd6eb362e89367a22a",
+          "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/project.hpp": "4c05716c9aa82fdee4a42094e4800c908a355f78f26b52bf83aa4dd58b5e787d",
+          "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/schemas.hpp": "dcdd2644cc4f5c360a7e816e985cea6b4992165b4277cf0ba603d73b9c28a7b2",
+          "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/services.hpp": "5e9fed157aca712d1bdc8e0cb177d2d416529537e85fd1ec05b0cd1a30ec9031",
+          "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/target_profile.hpp": "e02b3bd5efcce754932590a104b2b90e7cb057220f0d15f7be3b828fb34c18b8",
+          "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/toolchain.hpp": "04a2d70e8ee0241701f25095c2d7e8db31a0ce30e8b0551cf43b1da75febd004",
+          "E:/sigflow/SigFlow_VirtroFPGA/include/eda/api/waveform.hpp": "a8f09e277f3749bab4cfe5ee4076ebffe1be4dc98196bfcb149bdb5a4c43d4d5",
+          "E:/sigflow/SigFlow_VirtroFPGA/registry/boards/tang-nano-9k.virtual.json": "bd15fb585a38867c7c218af17fc38405d03e867edab8144de17ffae2b99eb304",
+          "E:/sigflow/SigFlow_VirtroFPGA/registry/electrical/tang-nano-9k.6202.reviewed.v1.json": "714c0ae73fa696ab002553906c62cca6739a4655a5f8a669565530849ed7ea12",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/bin/verilator_bin_dbg.exe": "d87f0d7a17c94bd78d4feb0a0f20a0ec5d278ad9d8653049bbce7ad3c07200aa",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/gtkwave/fastlz.h": "c5ec8ede50dbc26c0f20ae3658cdcfbb740b06c0956fde6b6a441aefb04853f3",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/gtkwave/fst_config.h": "b16a3b21414ff2005a5bda9dd6996115c91fc1ea1fb46f3b506445224e973cfd",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/gtkwave/fst_win_unistd.h": "ba1ba5cfc5858700cbd39865ef502d94abfd719fe07a73443b431ed9b8d6f986",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/gtkwave/fstapi.h": "beb35236f29f785e00e2424e6b06a249d9e9f71f4135a11d35d245e33b5a24a0",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/gtkwave/lz4.h": "e75bc7e7b1c9ff7329ce6d035cec0080b39f4515fbc223c992e77206757ccb27",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated.cpp": "3f761a36c43f615497e2d38d35417079af3183575000d29e814578f495610e36",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated.h": "78158375f0297e1a7d23d71a697513644dabe2bc535e873e5423c70ce3626100",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated.mk": "1700dedde0b94aad29cfb4a84c3177368e8acf77e8f2256f84570c36ae54d521",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_config.h": "34b054a3001e67bb4891364f149ac8d652b3eb81b14ee12908cebd7d63fce1c9",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_cov.cpp": "b80d2a51cb4b23719a5dddee1bf4cfb888a2240c69b34f69dbb95653bb95a41c",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_cov.h": "cc14840c2138802f5fda6e2e9c88968481c152727aa7b79263e4b107dc9471d6",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_cov_key.h": "3e235e9a8cf00b5f966cdb173fad8892d5fbe7c7c66c93d97b8c428fe8509135",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_dpi.cpp": "9189b35e48317695a150a5292ddd8615451238a4c34718999a28c121882de4fb",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_dpi.h": "7b90933b991bcac9ec1b9887e26b752a4c74464b76e2dabb787c50a30384a339",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_force.h": "bcda4ef36061d9b27e828dee7ae81c8a0534ab451f2bd58757227292c07e3bbc",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_fst_c.cpp": "2b90fdb82255870d1308fdc12ebc92b63c4c0c2dde5a5c6007df15dbab9530e7",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_fst_c.h": "cc063e499e0b06c34cac2394e744c3b31c9e406c791b4fe6967b5526b5340672",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_fst_sc.cpp": "4bc3e09d1567a89be077d3967cbe3e7a91e26d8a92d46b33008a96e960dbdc9d",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_fst_sc.h": "ac9ee8e797c3641bb6de1a27878566317a14da7f2acab8f47625f1dc9d4faa5b",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_funcs.h": "6603bd3d9bc82ca1ff7f997d8cb446b27fcf7b66a101a1bc78efd016b569a6dd",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_imp.h": "9d236f215686764876289d7eabe802693b5925a7d196702cdbca0643a13e61bb",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_intrinsics.h": "3c7b1b07ab3dc18aa9be2d463021f07eae91edff4c7bbbeb20543209fa9f273e",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_probdist.cpp": "8179e7ab6d5c7e8ac76b4441231e36db5beb06a447f95c64d692627c288ab5e8",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_profiler.cpp": "c1c70348e78dfe25e2d49083888da51966540a7d0afe84fb29ff9f68b56c0e8d",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_profiler.h": "4d66901919811e36a1e4d168a9d0e26b4317796ff03424aecb360052684fae7b",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_random.cpp": "34c23e130423b9863795fd28df373ec16765e1d58082a53bf2f9d20bb8fb12b3",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_random.h": "88d52a9880e2daae0574fb63f90afb1ef4a8fdfd698898ca1864e0454b2b5c4d",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_saif_c.cpp": "f80efbc359e92043c07aba191a5c58524b8bdfccb43e7bd92d24f88479807798",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_saif_c.h": "a459303d2bb1f16d4b4729b39e36028978c38c8f1c150d0c6745ce1bc0c91dc2",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_saif_sc.h": "75be5cc3641a8cbd17a6b57d840f693645bb80e958f49dc5b9382ac3dbe8b380",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_save.cpp": "c820ea975c1f7b1dbb998abeab377ef33e39d7f65c0451c5b0e1d4b01421660d",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_save.h": "374356b3028f817ccc341c1584c3d27bb50b102325c34370a22a1953b8a47c1c",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_sc.h": "f43e93af1ee15083a2991bd0ffa0d488de8d511918d94644ad982580584cab87",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_sc_trace.h": "d3f16775a5f498698992c89c37d0bffcb9d61b92c6a2d4cd5dc3e6e84ac75113",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_sym_props.h": "2b70c63809b139c5d6255e69beaa5a3d56a61c5f30ebf52ceb0d63ea7727d527",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_syms.h": "9ea7b2cde5d99e56f1fa97a989cb3c16063d6bd688d4728e45b03dd35b77545a",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_threads.cpp": "8dd2fc9740d1237c8c27ca6f13c12bbae88eb77f5ccc87390fbcb4660588f1b7",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_threads.h": "603cb33e099292028a1afcdd9ecbb682ae92797378486965d3b1fe40586c8121",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_timing.cpp": "427bf6f1a6e33bab94ae7c69cddc8bf3182681ec9acf752904a4d62ffa07a249",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_timing.h": "1bc02be7be011ee64857a8d6c15ebda933d4266ff270c90b7bd2e9d39ef40357",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_trace.h": "108e5cb5522fac9d596bdf3773d0be4e456b2475694b44b1c879e6ae86aed48b",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_trace_imp.h": "4d62745dd179cb8d4677d2a2b61fced88f2cbb740acea28a36b498f445882c1d",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_types.h": "f17af3fbbcdfe8e67d30a86dc432fdd896543a6689054e4afabba2cd5659948d",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_vcd_c.cpp": "b0a38254f3bc982868509e4af89d4c8390bbb2feb81a4038d7daf34df05e660c",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_vcd_c.h": "7f656e45b6db5806c0440a87c905fc0df4c4cdc36fe1051652c8fe55afb15dec",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_vcd_sc.cpp": "a803ebc27cf4d22c4a08199e95e9e583767accc00736381fa405e17a5c0fa9b8",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_vcd_sc.h": "e0157742e90aa626f702509fdcf4aafcb887a6d9b2ee93c339abbeaa053e1866",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_vpi.cpp": "a0cbadaf202b9845eb3d875d8d09d531f01392868dad0993daa0bcfabec6cdce",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilated_vpi.h": "50a399497c858eee10f4562affc1ff344fd7c45f251c75c46b8cb6f80690bd0f",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilatedos.h": "0674fcd1296a9dc9e218e4c243de3e7cb966b2bd01dfbed260b4f446f225209a",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/verilatedos_c.h": "a6d890598e12b73c9d7a42157a044e30ec41e6154dddf4bfd11408f37fc0c2d2",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/vltstd/sv_vpi_user.h": "e72e4229cbb8ff497e22e604a1db73653a006365488337b83f9f89102a98b69e",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/vltstd/svdpi.h": "8b80c6f2bc4fc74438391927daeb3bbd050408e9739bb515b83089260f31c860",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/vltstd/veriuser.h": "bf3c5f639f107f87cdab32960f8a5c152b84700271db03c82e5a673abe78596a",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/verilator/verilator-install/include/vltstd/vpi_user.h": "d70e329af43a50d2c447ebc1ae27ec005b2440eddcdffbeb91d33a819a664f00",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/virtual/build_virtual_project.py": "a9f5fd721722681403ffa5a49f3034d85f8f81ee7767ac76688650b050b6c5b7",
+          "E:/sigflow/SigFlow_VirtroFPGA/tools/virtual/export_ports.py": "b21aa1fe1e55e53b8216bee80f69d4fbef024cfb81d7e6d56ecd7f83d0721d05",
+          "E:/sigflow_fpga/toolchain/mingw64/bin/g++.exe": "f45f8fd915aecbf8a15692089dee8ebef0f210148f13ea5c1642e55376dd234c",
+          "E:/sigflow_fpga/toolchain/mingw64/bin/mingw32-make.exe": "4e2ad3951e7ea75bb0da56cddb4863c1d73081f66a2e288190afeba488975430",
+          "E:/sigflow_fpga/toolchain/posix/sh.exe": "07bb1e5b095b00d68a695481f9240879f33c5724b40aa2308f999d54ed78f075"
+        },
+        "model_started": false,
+        "ok": true,
+        "project_root": "E:\\sigflow\\SigFlow_VirtroFPGA\\examples\\virtual\\counter",
+        "runner_path": "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\virtual-project-cache\\86eed1679362e8655e58841d639618a698fcd1935d41310df19b3003ae3b050d\\runner.exe",
+        "runner_sha256": "f08b014069577127efd017bf32d19d7bcb41691d6bf3516a12b12bd4a58d247d",
+        "schema": "sigflow.virtual-build-result.v1",
+        "seconds": 5.057,
+        "session_config": "E:\\sigflow\\SigFlow_VirtroFPGA\\.work\\virtual-project-sessions\\virtual-8175c60b915b44a7b7aafd920ec19901\\session.json",
+        "toolchain_sha256": {
+          "codegen": "b23e7f007c0c14fb28bf80e3afdb11057cacd5cd1837280c5e05aa1a1947f5e9",
+          "cxx": "f45f8fd915aecbf8a15692089dee8ebef0f210148f13ea5c1642e55376dd234c",
+          "make": "4e2ad3951e7ea75bb0da56cddb4863c1d73081f66a2e288190afeba488975430",
+          "manifest": "faf8efdd7f198350813bcefed6f1a8c8b46a64f63e3eaa09db89998d1880d18c",
+          "python": "03168c01b7b7491423350e82c26fee71f35b43694d1319d3c668bda6903a0c38",
+          "sh": "07bb1e5b095b00d68a695481f9240879f33c5724b40aa2308f999d54ed78f075",
+          "validator": "a1eccf92d76f3c918df7ae7fae3dccce3792e8d531144159b225aa9654b6cb31",
+          "verilator": "d87f0d7a17c94bd78d4feb0a0f20a0ec5d278ad9d8653049bbce7ad3c07200aa",
+          "yosys": "999423132587306feb3d62f064da1c8e7bf1b45278e688ddae9583f5e3a7a1a2"
+        },
+        "validation": {
+          "binding_rows": [
+            {
+              "direction": "input",
+              "io_type": "LVCMOS33",
+              "label": "clock_in",
+              "package_pin": 52,
+              "ref": {
+                "bit_slot": 0,
+                "hdl_index": null,
+                "port_id": "k2_counter::clock_in"
+              }
+            },
+            {
+              "direction": "input",
+              "io_type": "LVCMOS18",
+              "label": "reset_n",
+              "package_pin": 4,
+              "ref": {
+                "bit_slot": 0,
+                "hdl_index": null,
+                "port_id": "k2_counter::reset_n"
+              }
+            },
+            {
+              "direction": "input",
+              "io_type": "LVCMOS18",
+              "label": "key_n",
+              "package_pin": 3,
+              "ref": {
+                "bit_slot": 0,
+                "hdl_index": null,
+                "port_id": "k2_counter::key_n"
+              }
+            },
+            {
+              "direction": "output",
+              "io_type": "LVCMOS18",
+              "label": "led_n[0]",
+              "package_pin": 10,
+              "ref": {
+                "bit_slot": 0,
+                "hdl_index": 0,
+                "port_id": "k2_counter::led_n"
+              }
+            },
+            {
+              "direction": "output",
+              "io_type": "LVCMOS18",
+              "label": "led_n[1]",
+              "package_pin": 11,
+              "ref": {
+                "bit_slot": 1,
+                "hdl_index": 1,
+                "port_id": "k2_counter::led_n"
+              }
+            },
+            {
+              "direction": "output",
+              "io_type": "LVCMOS18",
+              "label": "led_n[2]",
+              "package_pin": 13,
+              "ref": {
+                "bit_slot": 2,
+                "hdl_index": 2,
+                "port_id": "k2_counter::led_n"
+              }
+            },
+            {
+              "direction": "output",
+              "io_type": "LVCMOS18",
+              "label": "led_n[3]",
+              "package_pin": 14,
+              "ref": {
+                "bit_slot": 3,
+                "hdl_index": 3,
+                "port_id": "k2_counter::led_n"
+              }
+            },
+            {
+              "direction": "output",
+              "io_type": "LVCMOS18",
+              "label": "led_n[4]",
+              "package_pin": 15,
+              "ref": {
+                "bit_slot": 4,
+                "hdl_index": 4,
+                "port_id": "k2_counter::led_n"
+              }
+            },
+            {
+              "direction": "output",
+              "io_type": "LVCMOS18",
+              "label": "led_n[5]",
+              "package_pin": 16,
+              "ref": {
+                "bit_slot": 5,
+                "hdl_index": 5,
+                "port_id": "k2_counter::led_n"
+              }
+            }
+          ],
+          "diagnostics": [],
+          "manifest": {
+            "ports": [
+              {
+                "bits": [
+                  {
+                    "bit_slot": 0,
+                    "hdl_index": null,
+                    "port_id": "k2_counter::clock_in"
+                  }
+                ],
+                "decl_left": null,
+                "decl_right": null,
+                "direction": "input",
+                "port_id": "k2_counter::clock_in",
+                "rtl_name": "clock_in",
+                "shape": "scalar",
+                "source_ref": "e,2:16,2:24",
+                "width": 1
+              },
+              {
+                "bits": [
+                  {
+                    "bit_slot": 0,
+                    "hdl_index": null,
+                    "port_id": "k2_counter::reset_n"
+                  }
+                ],
+                "decl_left": null,
+                "decl_right": null,
+                "direction": "input",
+                "port_id": "k2_counter::reset_n",
+                "rtl_name": "reset_n",
+                "shape": "scalar",
+                "source_ref": "e,3:16,3:23",
+                "width": 1
+              },
+              {
+                "bits": [
+                  {
+                    "bit_slot": 0,
+                    "hdl_index": null,
+                    "port_id": "k2_counter::key_n"
+                  }
+                ],
+                "decl_left": null,
+                "decl_right": null,
+                "direction": "input",
+                "port_id": "k2_counter::key_n",
+                "rtl_name": "key_n",
+                "shape": "scalar",
+                "source_ref": "e,4:16,4:21",
+                "width": 1
+              },
+              {
+                "bits": [
+                  {
+                    "bit_slot": 0,
+                    "hdl_index": 0,
+                    "port_id": "k2_counter::led_n"
+                  },
+                  {
+                    "bit_slot": 1,
+                    "hdl_index": 1,
+                    "port_id": "k2_counter::led_n"
+                  },
+                  {
+                    "bit_slot": 2,
+                    "hdl_index": 2,
+                    "port_id": "k2_counter::led_n"
+                  },
+                  {
+                    "bit_slot": 3,
+                    "hdl_index": 3,
+                    "port_id": "k2_counter::led_n"
+                  },
+                  {
+                    "bit_slot": 4,
+                    "hdl_index": 4,
+                    "port_id": "k2_counter::led_n"
+                  },
+                  {
+                    "bit_slot": 5,
+                    "hdl_index": 5,
+                    "port_id": "k2_counter::led_n"
+                  }
+                ],
+                "decl_left": 5,
+                "decl_right": 0,
+                "direction": "output",
+                "port_id": "k2_counter::led_n",
+                "rtl_name": "led_n",
+                "shape": "packed_vector",
+                "source_ref": "e,5:23,5:28",
+                "width": 6
+              }
+            ],
+            "schema": "sigflow.port-manifest.v2",
+            "source_sha256": "ff8d48398191d7dbb35ad804081e7bf4b5927a9e56db9854bc0b4b1ae6d40856",
+            "top_module": "k2_counter"
+          },
+          "ok": true,
+          "schema": "sigflow.virtual-project-validation.v1"
+        },
+        "working_directory": "E:\\sigflow\\SigFlow_VirtroFPGA"
+      },
+      "host_compiler_first": true,
+      "parent_locked_toolchain_removed": true,
+      "runner_frame": {
+        "active_pulses": 0,
+        "attempted_position": {
+          "delta": 0,
+          "event_seq": "52",
+          "tick": "18519"
+        },
+        "binding_diagnostics": [],
+        "binding_status": "bound",
+        "board": {
+          "board_id": "tang-nano-9k",
+          "leds": {
+            "led0": {
+              "lit": false,
+              "state_code": 15
+            },
+            "led1": {
+              "lit": false,
+              "state_code": 15
+            },
+            "led2": {
+              "lit": false,
+              "state_code": 15
+            },
+            "led3": {
+              "lit": false,
+              "state_code": 15
+            },
+            "led4": {
+              "lit": false,
+              "state_code": 15
+            },
+            "led5": {
+              "lit": false,
+              "state_code": 15
+            }
+          },
+          "nodes": {
+            "clk27m.out": {
+              "contention": false,
+              "drivers": [
+                {
+                  "driver_id": "clk27m.out:oscillator",
+                  "state": 15
+                }
+              ],
+              "logic": "1",
+              "state_code": 15,
+              "valid": true
+            },
+            "key_p3.contact": {
+              "contention": false,
+              "drivers": [
+                {
+                  "driver_id": "key_p3.contact:contact",
+                  "state": 2
+                },
+                {
+                  "driver_id": "pad.3:board-pullup-p3",
+                  "state": 7
+                }
+              ],
+              "logic": "1",
+              "state_code": 7,
+              "valid": true
+            },
+            "key_p4.contact": {
+              "contention": false,
+              "drivers": [
+                {
+                  "driver_id": "key_p4.contact:contact",
+                  "state": 13
+                },
+                {
+                  "driver_id": "pad.4:board-pullup-p4",
+                  "state": 7
+                }
+              ],
+              "logic": "0",
+              "state_code": 13,
+              "valid": true
+            },
+            "led0.K": {
+              "contention": false,
+              "drivers": [
+                {
+                  "driver_id": "pad.10:dut:led_n[0]",
+                  "state": 15
+                }
+              ],
+              "logic": "1",
+              "state_code": 15,
+              "valid": true
+            },
+            "led1.K": {
+              "contention": false,
+              "drivers": [
+                {
+                  "driver_id": "pad.11:dut:led_n[1]",
+                  "state": 15
+                }
+              ],
+              "logic": "1",
+              "state_code": 15,
+              "valid": true
+            },
+            "led2.K": {
+              "contention": false,
+              "drivers": [
+                {
+                  "driver_id": "pad.13:dut:led_n[2]",
+                  "state": 15
+                }
+              ],
+              "logic": "1",
+              "state_code": 15,
+              "valid": true
+            },
+            "led3.K": {
+              "contention": false,
+              "drivers": [
+                {
+                  "driver_id": "pad.14:dut:led_n[3]",
+                  "state": 15
+                }
+              ],
+              "logic": "1",
+              "state_code": 15,
+              "valid": true
+            },
+            "led4.K": {
+              "contention": false,
+              "drivers": [
+                {
+                  "driver_id": "pad.15:dut:led_n[4]",
+                  "state": 15
+                }
+              ],
+              "logic": "1",
+              "state_code": 15,
+              "valid": true
+            },
+            "led5.K": {
+              "contention": false,
+              "drivers": [
+                {
+                  "driver_id": "pad.16:dut:led_n[5]",
+                  "state": 15
+                }
+              ],
+              "logic": "1",
+              "state_code": 15,
+              "valid": true
+            },
+            "pad.10": {
+              "contention": false,
+              "drivers": [
+                {
+                  "driver_id": "pad.10:dut:led_n[0]",
+                  "state": 15
+                }
+              ],
+              "logic": "1",
+              "state_code": 15,
+              "valid": true
+            },
+            "pad.11": {
+              "contention": false,
+              "drivers": [
+                {
+                  "driver_id": "pad.11:dut:led_n[1]",
+                  "state": 15
+                }
+              ],
+              "logic": "1",
+              "state_code": 15,
+              "valid": true
+            },
+            "pad.13": {
+              "contention": false,
+              "drivers": [
+                {
+                  "driver_id": "pad.13:dut:led_n[2]",
+                  "state": 15
+                }
+              ],
+              "logic": "1",
+              "state_code": 15,
+              "valid": true
+            },
+            "pad.14": {
+              "contention": false,
+              "drivers": [
+                {
+                  "driver_id": "pad.14:dut:led_n[3]",
+                  "state": 15
+                }
+              ],
+              "logic": "1",
+              "state_code": 15,
+              "valid": true
+            },
+            "pad.15": {
+              "contention": false,
+              "drivers": [
+                {
+                  "driver_id": "pad.15:dut:led_n[4]",
+                  "state": 15
+                }
+              ],
+              "logic": "1",
+              "state_code": 15,
+              "valid": true
+            },
+            "pad.16": {
+              "contention": false,
+              "drivers": [
+                {
+                  "driver_id": "pad.16:dut:led_n[5]",
+                  "state": 15
+                }
+              ],
+              "logic": "1",
+              "state_code": 15,
+              "valid": true
+            },
+            "pad.3": {
+              "contention": false,
+              "drivers": [
+                {
+                  "driver_id": "key_p3.contact:contact",
+                  "state": 2
+                },
+                {
+                  "driver_id": "pad.3:board-pullup-p3",
+                  "state": 7
+                }
+              ],
+              "logic": "1",
+              "state_code": 7,
+              "valid": true
+            },
+            "pad.4": {
+              "contention": false,
+              "drivers": [
+                {
+                  "driver_id": "key_p4.contact:contact",
+                  "state": 13
+                },
+                {
+                  "driver_id": "pad.4:board-pullup-p4",
+                  "state": 7
+                }
+              ],
+              "logic": "0",
+              "state_code": 13,
+              "valid": true
+            },
+            "pad.52": {
+              "contention": false,
+              "drivers": [
+                {
+                  "driver_id": "clk27m.out:oscillator",
+                  "state": 15
+                }
+              ],
+              "logic": "1",
+              "state_code": 15,
+              "valid": true
+            }
+          },
+          "wires": {
+            "wire.clock": true,
+            "wire.key3": true,
+            "wire.key4": true,
+            "wire.led0": true,
+            "wire.led1": true,
+            "wire.led2": true,
+            "wire.led3": true,
+            "wire.led4": true,
+            "wire.led5": true
+          }
+        },
+        "command_id": "gui-1",
+        "digests": {
+          "algorithm": "sigflow.sha256-chain.v2",
+          "circuit": "6b2a1bda2a9b850949f387ae8fa4305d889e9f794b0a9c044bde8b625a889fe4",
+          "control": "b79bbdde68459b393aec7fe689aedccc3be758e964fd65930bcb696f6ee969dd"
+        },
+        "durability": "durable",
+        "edges": "1",
+        "error": "",
+        "eval_calls": "2",
+        "faults": [],
+        "final_calls": 0,
+        "guard": {},
+        "input_writes": "6",
+        "model_instances": 1,
+        "outputs": {
+          "led_n[0]": true,
+          "led_n[1]": true,
+          "led_n[2]": true,
+          "led_n[3]": true,
+          "led_n[4]": true,
+          "led_n[5]": true
+        },
+        "pending_count": 0,
+        "pending_faults": [],
+        "pending_inputs": {},
+        "position": {
+          "delta": 0,
+          "event_seq": "55",
+          "tick": "18519"
+        },
+        "reason": "StepComplete",
+        "resolver_version": "sigflow.state-m0.v1",
+        "run_id": "virtual-8175c60b915b44a7b7aafd920ec19901",
+        "state": "Paused",
+        "status": "applied",
+        "tick_ps": "1",
+        "topology_position": {
+          "delta": 0,
+          "event_seq": "0",
+          "tick": "0"
+        },
+        "trace": {
+          "committed_through_tick": "18519",
+          "generation": "1",
+          "revision": "2",
+          "run_id": "virtual-8175c60b915b44a7b7aafd920ec19901",
+          "tail_event_seq": "55"
+        }
+      },
+      "status": "passed"
+    },
     "host": "real wxApp + full-stage quick launcher + honest pin multiplexing + P5 I2C burst + VirtualBoardFloatFrame",
     "status": "passed"
   },
   "desktop_binary": {
     "path": "E:\\sigflow\\SigFlow_VirtroFPGA\\build-m0\\sigflow.exe",
-    "sha256": "59e44b6b84c141d015aabb69a91e46b3a027dc7ebeb2c640ecdcb1adcf59e0e1"
+    "sha256": "8b9623a4d2bddd15304329049e711525c9e9b33111af401e25b2b4683d18492c"
   },
   "artifacts": {
     "build.log": {
-      "sha256": "a41b8ed7cb1817aa5cfd6530f1c04686372e387798b4272c9ee27552bab6e49f",
-      "bytes": 2318
+      "sha256": "13745c5b38ebb0ed2495ebaac515e26c27b2370fd5a8cb1e4e28b782b8536943",
+      "bytes": 2416
     },
     "ctest.log": {
-      "sha256": "ea9dfd562249eaa43fd7876d6bff8ce0edf3bed97432892b457958ebd545bfcb",
-      "bytes": 6603
+      "sha256": "fb3aa8d81c6f5b061c494a19a3d30dff39ad4954b8edd9d4f967f443867619b2",
+      "bytes": 6860
     },
     "ctest.xml": {
-      "sha256": "24d3dadf7ecf81a840800573393eaa54f3ac4a730e8e8a50fd489a9ff6351b01",
-      "bytes": 25133
+      "sha256": "ba021ad448e7a51d90b729f428daf45ac80f8fa999c0d255e304ee1fb29efc86",
+      "bytes": 27117
     },
     "i2c_burst-results.json": {
       "sha256": "23b54dfc903eace52e4742c510ccb86462303a6b4cbaa784fc68ba448076ff10",
       "bytes": 9406
     },
     "web_parity-results.json": {
-      "sha256": "6f5a86a33b3abab4e0966ced07825d9178c44c7863a215925d5e9d6fdb4fa955",
-      "bytes": 152944
+      "sha256": "983637691e2dfea7fef822147c3d1e7df6d5ed4ed5259a5f74bc0d3c1cdf054a",
+      "bytes": 152941
     },
     "gui-results.json": {
-      "sha256": "1ac7e02d59ca02a3f5f155fada272ce0b443fda36bf31199b96ed53725454250",
-      "bytes": 3238
+      "sha256": "40843fbe8fd73fca18faf3d5ae5b86f2ce2a4eeb295a1baf1f8e49dd5f827017",
+      "bytes": 42878
     },
     "i2c_burst-progress.log": {
       "sha256": "2a96351f63941bfe2a37f7daa9e086a04f2b388b1f6c18de95d70aed29930485",
@@ -4867,27 +5668,39 @@
       "bytes": 139578
     },
     "gui-progress.log": {
-      "sha256": "a8f2f4f048f021950a71a401cad5a31fffe1f2055f3c6b43f0b1b1c48e278cc8",
-      "bytes": 1775
+      "sha256": "083c68fa24c864553a184c7132e722ac984a56fa9c75da30323075b286391ca0",
+      "bytes": 1978
+    },
+    "gui/explorer-request.json": {
+      "sha256": "f29070be80316e81803ff57e7b2a4e6a7599d96b4f509ac8667fb75fb00c19d9",
+      "bytes": 948
+    },
+    "gui/explorer-build-result.json": {
+      "sha256": "e42b4a9fbc5202ec2c9cf55bf0eeb36aee900d809375f0a339afbcc72e81381e",
+      "bytes": 28834
+    },
+    "gui/explorer-build.log": {
+      "sha256": "b9a082c9265a45261c848fcf0cf0996b21672f3909c1229256595fc008853ea8",
+      "bytes": 112
     },
     "web_parity/p12-mixed.sfvb": {
-      "sha256": "08ca83f4104f00b2ad2010bff7f17c084e588c69ddcb85045f43c96e56d754d1",
+      "sha256": "2d3cd396e73f5a614081ec499a9176edce41dcee354872ba7ca6f171970777ad",
       "bytes": 219888
     },
     "web_parity/p3-keypad.sfvb": {
-      "sha256": "ae3d27d02944e82dde0a1b6e4b153b0ed214ed31f98b99589818d0cb38e1a0e8",
+      "sha256": "352b0606434137670953bd779a2a6150c9b0b5d4bb69855a2d0bde8ebf1d245f",
       "bytes": 12211
     },
     "web_parity/p4-crc-cdc.sfvb": {
-      "sha256": "94322090e39b7ae93eb33a8e17f95f316edaa431fdcdeffbaf38c0dfd558a768",
+      "sha256": "10d1bcfd3995a4160d7c62d0b8d9d0510ae0a516eec8cd01733b2201663c5482",
       "bytes": 149954
     },
     "web_parity/p4-oled.sfvb": {
-      "sha256": "3c5392dc27c6bc071ae3e787287d8341670d8e1ad92b5a7410c16aad0dda5767",
+      "sha256": "29e234c6e345ec5bd68541d0726eb489bd84980595e15436c49d110d7e98825f",
       "bytes": 249418
     },
     "web_parity/p5-i2c-burst.sfvb": {
-      "sha256": "5b64ac2a032f85d1afad2d995e52cebbae1da1d10e7fe00024d552a8938de091",
+      "sha256": "b91c5d7b95818ddf884b8f3ace66dece53f2be347fda7adfce6e2ca27f289876",
       "bytes": 386534
     },
     "web_parity/web-projector-selftest.json": {
@@ -4895,8 +5708,8 @@
       "bytes": 1955
     },
     "gui/full-showcase-light.png": {
-      "sha256": "0d60446ae2d124e2bb05f8f2319bc4abfe71644050296f35c5605501211d29d4",
-      "bytes": 109032
+      "sha256": "f589f6293b4352a3f9d70769cd23603a8c736f963c2949faaf6ff79ff20366d8",
+      "bytes": 108586
     },
     "gui/full-showcase-dark.png": {
       "sha256": "e40573c2ad442b6c8687ae3b3787553127be225f3b722c046422904f09adccca",
@@ -4907,15 +5720,15 @@
       "bytes": 76659
     },
     "journals/i2c_burst-i2c_burst.jsonl.gz": {
-      "sha256": "f76396f1627e80f1dc22b6e74ab88e7ad0262a52e227dbf0d16f739e356cd19a",
-      "bytes": 2272891,
-      "uncompressed_sha256": "743ab3dbdb60d92db540307d395dd7bc7e94cbe5fdee446b8b0c5a9bce8fb40f",
+      "sha256": "7f187d8c1f262aa41714852a459b6a4f229fbb3953c6dce8f3d0e50711545b0a",
+      "bytes": 2272978,
+      "uncompressed_sha256": "0e1d9099e189697418f563b16df3c9d706e47ead2a289da48346bda327347203",
       "raw_bytes": 42452939
     },
     "journals/web_parity-web_parity.jsonl.gz": {
-      "sha256": "db34b0105a5529fb2d743db988ab0b37d28b4ce6d55fb88645e09a88d702ac8c",
-      "bytes": 7352364,
-      "uncompressed_sha256": "c014296589019d5e3e36c8ec7eb2878efa3b95f47a038128689c1c1275689823",
+      "sha256": "ff22b83f00f52cf0f925a8e8d8425df232e8aabcc5bebe65a212f65d36b45317",
+      "bytes": 7352632,
+      "uncompressed_sha256": "109068bb6f54b386e7a9fc4dc15303a6638ed4e3a6543e72bcb6c575c2b01226",
       "raw_bytes": 128302871
     },
     "historical-sha256.json": {
