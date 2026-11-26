@@ -1,0 +1,9 @@
+build/
+src/*.egg-info/
+*.safetensors
+*.onnx
+*.bin
+*.sqlite*
+*.log
+.env
+*.credentials.json

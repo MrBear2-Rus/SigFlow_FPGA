@@ -14,6 +14,8 @@ python -m venv .venv
 
 规则模式与开发评测使用示例证据，无需 DeepSeek 密钥。课程检索默认读取仓库中的 `data/course.sqlite`。正式宿主、UA-10 和历史测试的运行范围见[环境指南](docs/guides/environment.md)，课程构建见[课程库说明](docs/guides/rag-integration.md)。
 
+可选的本地语义检索见 [UA-09 Gemma Dense 安装声明](docs/ua09/GEMMA_DENSE.md)。
+
 ## DeepSeek
 
 以下命令在仓库根目录执行。Windows 本机配置以当前用户身份加密保存，`test` 使用内置示例发送一次 API 请求。

@@ -29,6 +29,7 @@ def render_citations(
     retrieval_result: dict[str, Any],
     *,
     db_path: Path = DEFAULT_DB_PATH,
+    connection: sqlite3.Connection | None = None,
 ) -> list[dict[str, Any]]:
     """Resolve citation details from SQLite after checking this retrieval's allow-list."""
     passages = retrieval_result.get("passages")
@@ -40,7 +41,8 @@ def render_citations(
     if not cited:
         return []
     placeholders = ",".join("?" for _ in cited)
-    connection = open_database(db_path)
+    owns_connection = connection is None
+    connection = connection if connection is not None else open_database(db_path)
     try:
         version = connection.execute("SELECT value FROM index_meta WHERE key='index_version'").fetchone()[0]
         if retrieval_result.get("index_version") != version:
@@ -99,7 +101,8 @@ def render_citations(
         return [{**metadata[passage_id], "source_references": refs_by_id[passage_id],
                  "source_spans": spans_by_id[passage_id]} for passage_id in cited]
     finally:
-        connection.close()
+        if owns_connection:
+            connection.close()
 
 
 def resolve_evidence_citations(cited_ids: Iterable[str], admitted_ids: Iterable[str], *,

@@ -22,3 +22,7 @@ data/candidate-*
 data/final-*
 data/validation-*
 .local/
+/local_models/
+/sigflow_teaching_core/rag.rar
+/data/course-gemma*.sqlite*
+/settings.local.json

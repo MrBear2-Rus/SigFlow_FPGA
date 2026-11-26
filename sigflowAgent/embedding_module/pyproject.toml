@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sigflow-embedding"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+inference = ["sentence-transformers==6.2.0", "transformers==5.22.1",
+             "torch==2.8.0", "numpy==2.2.6", "tokenizers==0.23.3", "safetensors==0.8.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

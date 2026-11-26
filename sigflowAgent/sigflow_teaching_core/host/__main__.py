@@ -66,7 +66,16 @@ def main(argv=None, *, teaching_memory=None):
     course = parser.add_mutually_exclusive_group()
     course.add_argument('--course-db', type=Path)
     course.add_argument('--no-course', action='store_true')
+    parser.add_argument('--course-mode', choices=('fts5', 'gemma_dense', 'gemma_hybrid'),
+                        default='fts5')
+    parser.add_argument('--gemma-model', type=Path)
+    parser.add_argument('--gemma-index', type=Path)
     args = parser.parse_args(argv)
+    if args.course_mode != 'fts5':
+        if args.no_course:
+            parser.error('--no-course cannot be combined with a Gemma course mode')
+        if args.gemma_model is None or args.gemma_index is None:
+            parser.error('Gemma mode requires --gemma-model and --gemma-index')
     if args.gateway_evidence and args.anchors is not None:
         parser.error('gateway_evidence_conflicts_with_anchors')
     if args.gateway_evidence and args.evidence_origin != 'tool':
@@ -90,6 +99,12 @@ def main(argv=None, *, teaching_memory=None):
             make_report_resolver(gateway, anchors, evidence_origin=args.evidence_origin))
         from ..courses import SQLiteCourseProvider
         course_provider = None if args.no_course else SQLiteCourseProvider(args.course_db)
+        if not args.no_course and args.course_mode != 'fts5':
+            from ..rag.unified import RetrievalConfig
+            from ..rag.u2_provider import UnifiedCourseProvider
+            course_provider = UnifiedCourseProvider(RetrievalConfig(
+                course_provider.db_path, args.gemma_model, args.gemma_index, args.course_mode,
+            ))
         from ..clients.waveform import GatewayWaveformReader
         factory = make_factory(gateway, anchors=anchors, evidence_origin=args.evidence_origin,
                                verification=verification, course_provider=course_provider,

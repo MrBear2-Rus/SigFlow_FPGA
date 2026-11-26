@@ -358,6 +358,7 @@ def _retrieve_course_passages(
     top_k: int = 3,
     *,
     db_path: Path = DEFAULT_DB_PATH,
+    _connection: sqlite3.Connection | None = None,
 ) -> dict[str, Any]:
     """Retrieve grounded course excerpts and a separate practice list."""
     if not isinstance(query, str) or not query.strip():
@@ -370,7 +371,8 @@ def _retrieve_course_passages(
         raise ValueError("language must be `zh-CN`, `en`, or None")
 
     db_path = Path(db_path)
-    connection = open_database(db_path)
+    owns_connection = _connection is None
+    connection = _connection if _connection is not None else open_database(db_path)
     try:
         version_row = connection.execute("SELECT value FROM index_meta WHERE key='index_version'").fetchone()
         index_version = version_row[0] if version_row else None
@@ -823,7 +825,8 @@ def _retrieve_course_passages(
         result["agent_context"] = format_agent_context(result)
         return result
     finally:
-        connection.close()
+        if owns_connection:
+            connection.close()
 
 
 def retrieve_course_passages(query: str, concept_ids: list[str] | None = None,
@@ -836,9 +839,11 @@ def retrieve_course_passages(query: str, concept_ids: list[str] | None = None,
 
 
 def retrieve_course_candidates(query: str, concept_ids: list[str] | None = None, *,
-                               limit: int = 20, db_path: Path = DEFAULT_DB_PATH) -> dict[str, Any]:
+                               limit: int = 20, db_path: Path = DEFAULT_DB_PATH,
+                               _connection: sqlite3.Connection | None = None) -> dict[str, Any]:
     """v2 candidate interface, independent of final evidence/context size."""
-    result = _retrieve_course_passages(query, concept_ids, top_k=limit, db_path=db_path)
+    result = _retrieve_course_passages(query, concept_ids, top_k=limit, db_path=db_path,
+                                      _connection=_connection)
     result["retrieval_interface"] = "candidates-v2"
     # A recall pool is not a ready-to-send teaching context. Only the budgeted
     # provider/packer may expose actual Agent evidence.

@@ -1,0 +1,5 @@
+{
+  "course_db": "./data/course.sqlite",
+  "model_path": "./local_models/embeddinggemma-2",
+  "vector_index": "./data/course-gemma-v2.sqlite"
+}
